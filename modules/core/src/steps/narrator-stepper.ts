@@ -1,8 +1,8 @@
 import { resolve } from "path";
 
 import type { TWorld } from "../lib/actuality/domains/world.js";
-import { Origin } from "../lib/domains/protocol.js";
-import { IHasCycles, IHasOptions, AStepper, TFeatureStep, IStepperCycles, TStartFeature, type TStepperSteps } from "../lib/steps/domains/stepper.js";
+import { OK, Origin, isPendingScenario } from "../lib/domains/protocol.js";
+import { IHasCycles, IHasOptions, AStepper, TFeatureStep, IStepperCycles, TStartFeature, SCENARIO_HEADING, type TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOK, getStepperOption, stringOrError } from "../lib/domains/util.js";
 import { narratedAudio } from "./pipelines/narration.js";
 import { hostSpeech } from "./root.js";
@@ -71,8 +71,9 @@ class Narrator extends AStepper implements IHasOptions, IHasCycles {
 		},
 		scenario: {
 			precludes: [`Haibun.scenario`],
-			gwta: `Scenario: {scenario: ${DOMAIN_TITLE}}`,
-			action: async ({ scenario }: { scenario: string }, featureStep: TFeatureStep) => this.rememberAndSay("scenario", scenario, featureStep),
+			gwta: SCENARIO_HEADING,
+			action: async ({ scenario }: { scenario: string }, featureStep: TFeatureStep) =>
+				isPendingScenario(featureStep.in) ? OK : this.rememberAndSay("scenario", scenario, featureStep),
 		},
 	} as const satisfies TStepperSteps;
 

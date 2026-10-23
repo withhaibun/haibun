@@ -1,6 +1,6 @@
 import type { TExpandedFeature, TExpandedLine, TFeatures, TFeature } from "../domains/actuality.js";
 import type { TWorld } from "../domains/world.js";
-import { TStepValue, SCENARIO_START, PENDING_SCENARIO, HEADINGS, Origin } from "../../domains/protocol.js";
+import { TStepValue, SCENARIO_START, HEADINGS, Origin, isPendingScenario } from "../../domains/protocol.js";
 import { AStepper, READING, TStepAction, TResolvedFeature, TStepperStep, TFeatureStep, UNTIL_DURATION, hasCycles, untilWithoutDuration } from "../../steps/domains/stepper.js";
 import type { TDomainDefinition } from "../../domains/resources.js";
 import { matchGwtaToAction } from "../../steps/derivations/named-vars.js";
@@ -15,10 +15,12 @@ import { expandLine } from "../../domains/features.js";
 const SENTENCE = /^[A-Z].*[.!?:;]$/;
 /** Matches a line that starts with a character other than a letter. A heading, a list item, a table row and a link start this way. */
 const STARTS_WITH_NON_LETTER = /^[^a-zA-Z]/;
+/** A pattern that starts with a capital letter, or with an optional word that does, as the scenario heading's `(Pending )?Scenario:` does. */
+const CAPITALIZED = /^\(?[A-Z]/;
 /** Returns whether a step's pattern starts with a capital letter. The pattern of the `Scenario:` heading step starts with one. */
 const writtenCapitalized = (step: TStepperStep): boolean => {
 	const pattern = step.gwta ?? step.exact;
-	return pattern !== undefined && /^[A-Z]/.test(pattern);
+	return pattern !== undefined && CAPITALIZED.test(pattern);
 };
 
 /** The base of a statement a caller sent without a source file, such as over RPC or MCP: an empty path. */
@@ -143,17 +145,18 @@ export class Resolver {
 			}
 
 			if (pending) {
-				const heading = this.headingOf(actionable);
-				if (heading === undefined) continue;
-				pending = heading === PENDING_SCENARIO;
+				if (this.headingOf(actionable) === undefined) continue;
+				pending = isPendingScenario(actionable);
 			}
 			seq++;
 
 			try {
 				const stepAction = this.findSingleStepAction(actionable);
 
-				if (stepAction.actionName === SCENARIO_START || stepAction.actionName === PENDING_SCENARIO) seq = 0;
-				if (stepAction.actionName === PENDING_SCENARIO) pending = true;
+				if (stepAction.actionName === SCENARIO_START) {
+					seq = 0;
+					pending = isPendingScenario(actionable);
+				}
 
 				if (stepAction.stepValuesMap) {
 					const statements = Object.values(stepAction.stepValuesMap).filter((v: TStepValue & { label?: string }) => v.domain === DOMAIN_STATEMENT && v.term);
@@ -176,7 +179,7 @@ export class Resolver {
 		}
 		return { steps, errors };
 	}
-	/** The heading a line states, a feature's, a scenario's or a pending scenario's, or undefined where it isn't a heading. */
+	/** The heading a line states, a feature's or a scenario's, pending or not, or undefined where it isn't a heading. */
 	private headingOf(line: string): string | undefined {
 		return this.findActionableSteps(line).find(({ actionName }) => HEADINGS.includes(actionName))?.actionName;
 	}
@@ -327,7 +330,7 @@ function statingDuration(line: string, action: TStepAction): TStepAction {
  *  letter after dePolite matches only a pattern that starts with an uppercase letter or a placeholder. Prose starts with an
  *  uppercase letter and a step starts with a lowercase letter, so this check separates them. */
 function patternApplies(pattern: string, curt: string, actionName: string, stepperName: string, step: TStepperStep): TStepAction[] {
-	if (/^[A-Z]/.test(curt) && !/^[A-Z]/.test(pattern) && !pattern.startsWith("{")) return [];
+	if (/^[A-Z]/.test(curt) && !CAPITALIZED.test(pattern) && !pattern.startsWith("{")) return [];
 	const applied = matchGwtaToAction(pattern, curt, actionName, stepperName, step);
 	return applied === undefined ? [] : [applied];
 }

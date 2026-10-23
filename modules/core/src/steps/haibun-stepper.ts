@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { TFeatures } from "../lib/actuality/domains/actuality.js";
 import type { TWorld } from "../lib/actuality/domains/world.js";
 import { OK } from "../lib/domains/protocol.js";
-import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TEndFeature, READING, UNTIL_DURATION } from "../lib/steps/domains/stepper.js";
+import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TEndFeature, READING, SCENARIO_HEADING, UNTIL_DURATION } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts } from "../lib/domains/util.js";
 import { findFeatureStepsFromStatement } from "../lib/actuality/pipelines/resolver.js";
 import {
@@ -192,17 +192,13 @@ class Haibun extends AStepper implements IHasCycles {
 			},
 		},
 		scenario: {
-			gwta: `Scenario: {scenario: ${DOMAIN_TITLE}}`,
+			gwta: SCENARIO_HEADING,
+			description:
+				"Heads a scenario. A heading that starts with Pending states a requirement the steppers don't provide yet: its lines don't resolve or run, and actuality's summary counts the scenario as pending until its heading is Scenario:.",
 			action: ({ scenario }: { scenario: string }) => {
 				this.getWorld().runtime.scenario = scenario;
 				return OK;
 			},
-		},
-		pendingScenario: {
-			gwta: `Pending scenario: {scenario: ${DOMAIN_TITLE}}`,
-			description:
-				"Heads a scenario that states a requirement the steppers don't provide yet. Its lines don't resolve or run, and actuality's summary counts the scenario as pending until its heading is Scenario:.",
-			action: () => OK,
 		},
 		endsWith: {
 			gwta: `ends with {result: ${DOMAIN_ENDING}}`,

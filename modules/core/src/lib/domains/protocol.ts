@@ -117,11 +117,9 @@ export const ACTUALITY_LEVELS = ["actuality", "feature", "scenario", "step"] as 
 export type TActualityLevel = (typeof ACTUALITY_LEVELS)[number];
 
 export const SCENARIO_START = "scenario";
-/** The heading of a scenario that states a requirement the steppers don't provide yet. Its lines don't resolve or run. */
-export const PENDING_SCENARIO = "pendingScenario";
 export const FEATURE_START = "feature";
-/** The actions of the headings: a feature's, a scenario's and a pending scenario's. */
-export const HEADINGS: readonly string[] = [FEATURE_START, SCENARIO_START, PENDING_SCENARIO];
+/** The actions of the headings: a feature's and a scenario's. */
+export const HEADINGS: readonly string[] = [FEATURE_START, SCENARIO_START];
 
 /** The prefixes that declare a feature and a scenario in a feature's text. `declaredName` returns the name after a prefix. */
 export const DECLARES = { feature: "Feature:", scenario: "Scenario:" } as const;
@@ -150,6 +148,9 @@ export const STATUS = {
 	skipped: "skipped",
 } as const;
 export type TStatus = (typeof STATUS)[keyof typeof STATUS];
+/** Whether a scenario's heading starts with the pending status, as the heading of a scenario that states a requirement the
+ *  steppers don't provide yet does. Its lines don't resolve or run. */
+export const isPendingScenario = (heading: string): boolean => heading.trimStart().toLowerCase().startsWith(`${STATUS.pending} `);
 /** The statuses of a lifecycle event: every word but `pending`, since an event marks a lifecycle that started. */
 const LIFECYCLE_STATUS_SCHEMA = z.enum([STATUS.running, STATUS.completed, STATUS.failed, STATUS.stopped, STATUS.skipped]);
 /** How a step ended. */

@@ -8,7 +8,7 @@ import { basename } from "path";
 import { RUN_AUTHORITY, runAuthorizedWith } from "../../domains/capability-context.js";
 import type { TWorld } from "../domains/world.js";
 import { hasCycles, type AStepper, type TResolvedFeature, type TEndFeature, type TEndActuality } from "../../steps/domains/stepper.js";
-import { STAY, STEP_DELAY, CONTINUE_AFTER_ERROR, FEATURE_START, SCENARIO_START, PENDING_SCENARIO, STATUS, ResolvedFeaturesArtifact } from "../../domains/protocol.js";
+import { STAY, STEP_DELAY, CONTINUE_AFTER_ERROR, FEATURE_START, SCENARIO_START, STATUS, ResolvedFeaturesArtifact, isPendingScenario } from "../../domains/protocol.js";
 import type { TExecutorResult, TFeatureResult, TStepResult, THaibunEvent } from "../../domains/protocol.js";
 import { setStepperWorldsAndDomains, constructorName } from "../../domains/util.js";
 import { proveStep, proverOf } from "./step-dispatch.js";
@@ -189,14 +189,15 @@ export class FeatureExecutor {
 
 		for (const [at, step] of feature.featureSteps.entries()) {
 			const { actionName } = step.action;
+			const pendingHeading = actionName === SCENARIO_START && isPendingScenario(step.in);
 			// A pending scenario doesn't start a level. Its heading ends the running scenario, takes the next ordinal and runs as a step.
-			if (actionName === PENDING_SCENARIO) {
+			if (pendingHeading) {
 				if (running) await endScenario(true);
 				if (ordinal === 0) baseVars = new FeatureVariables(world, await world.shared.carried());
 				ordinal = ordinal + 1;
 				pending.push(step.in.replace(/^[\w ]+:\s*/, ""));
 			}
-			if (actionName === SCENARIO_START || (actionName === FEATURE_START && running)) {
+			if ((actionName === SCENARIO_START && !pendingHeading) || (actionName === FEATURE_START && running)) {
 				if (running) await endScenario(true);
 				// The steps before the first scenario end where it starts: every scenario, and the next feature, starts from
 				// what they left. Taken here once rather than after each of them, since a copy of the variables after every

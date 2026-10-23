@@ -37,9 +37,7 @@
 	"modules/core/src/steps/haibun-stepper.ts": {
 		"has at most one call site: Haibun.onHost": 1,
 		"has at most one call site: Haibun.useStoreAt": 1,
-		"starts or keeps something without a parameter: Haibun.keepRunning": 1,
-		"states another step's pattern with a word more or less: Haibun.pendingScenario ~ Haibun.scenario": 1,
-		"states another step's pattern with a word more or less: Haibun.pendingScenario ~ Narrator.scenario": 1
+		"starts or keeps something without a parameter: Haibun.keepRunning": 1
 	},
 	"modules/core/src/steps/resources-stepper.ts": {
 		"has at most one call site: ResourcesStepper.annotateLinking": 1,

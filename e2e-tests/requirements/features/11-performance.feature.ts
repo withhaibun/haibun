@@ -2,7 +2,7 @@ import { withAction, type TKirejiExport } from "@haibun/core/kireji/derivations/
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import { steps } from "@haibun/logic/waypoints/backgrounds/steps.feature.ts";
 
-const { feature, scenario, pendingScenario } = withAction(new Haibun());
+const { feature, scenario } = withAction(new Haibun());
 
 export const features: TKirejiExport = {
 	Performance: [
@@ -14,7 +14,7 @@ export const features: TKirejiExport = {
 		"set fast to 1",
 		steps.tookLessThan('"set fast to 1"', "50"),
 
-		pendingScenario({ scenario: "A proof over a thousand facts takes under a millisecond" }),
+		"Pending scenario: A proof over a thousand facts takes under a millisecond",
 		"Essential. Source: docs/reasoner.md, q6-cost.",
 		'the engine proves "variable fast is \\"yes\\"" over 1000 facts within 1 ms',
 	],
