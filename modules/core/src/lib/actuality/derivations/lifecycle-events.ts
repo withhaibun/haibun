@@ -28,10 +28,6 @@ export const scenarioEventId = (featureNum: number, scenarioNum: number): string
 export const actualityEvent = (at: TAtStage, timestamp: number, heading?: string): TLifecycleEvent =>
 	LifecycleEvent.parse({ id: ACTUALITY_EVENT_ID, timestamp, kind: "lifecycle", type: "actuality", ...(heading === undefined ? {} : { in: heading }), ...statusAt(at) });
 
-/** The actuality's end where a phase failed before the features ended: failed, stating the phase and why it failed. */
-export const phaseFailureEvent = (phase: string, error: string, timestamp: number): TLifecycleEvent =>
-	LifecycleEvent.parse({ id: ACTUALITY_EVENT_ID, timestamp, kind: "lifecycle", type: "actuality", in: phase, error, ...statusAt({ stage: "end", status: STATUS.failed }) });
-
 /** A feature's event at a stage. */
 export const featureEvent = (featureNum: number, feature: { path: string; name: string }, at: TAtStage, timestamp: number): TLifecycleEvent =>
 	LifecycleEvent.parse({ id: featureEventId(featureNum), timestamp, kind: "lifecycle", type: "feature", featurePath: feature.path, featureName: feature.name, ...statusAt(at) });

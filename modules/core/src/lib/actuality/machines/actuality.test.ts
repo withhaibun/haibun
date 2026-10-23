@@ -64,14 +64,6 @@ describe("the actuality level", () => {
 		assertTable(TABLE, AT, { events: EVENTS, statusOf: (state) => state.status as TStatus, event: (type) => MOVE[type], transition });
 	});
 
-	it("holds the phase and the error an end states as the actuality's own failure, whether or not its features started", () => {
-		const ended = { ...MOVE.failed, in: "Resolve", error: "no step states the line" };
-		const failure = { id: ended.id, step: "Resolve", message: "no step states the line" };
-		expect(fold([ended]), "before the actuality started").toMatchObject({ status: STATUS.failed, failures: [failure] });
-		expect(fold([MOVE.start, MOVE.featureStart, ended]).failures, "and once a feature started").toEqual([failure]);
-		expect(fold([MOVE.start, MOVE.failed]).failures, "but not an end that doesn't state one").toEqual([]);
-	});
-
 	it("starts a second actuality afresh once the first has ended", () => {
 		const second = fold([feature("f1", "start"), step("0.1.1.1", "end", STATUS.completed), MOVE.completed, MOVE.start]);
 		expect(second).toEqual({ ...INITIAL_ACTUALITY, status: LEVEL_STATUS.running });

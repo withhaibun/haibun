@@ -341,11 +341,9 @@ What a feature needs running before its first step is the work of a stepper's st
 than a step without a parameter: WebServerStepper's RPC serves `/rpc` on each feature's web server, ActivitiesStepper states
 each saved waypoint's rule from its record once the feature's store is open, and BROWSER_RELAY serves web-playwright's relay on
 the feature's web server. An application's steppers do the same, such as a store that opens as each feature starts. A service
-stays up with what it started where `HAIBUN_STAY` states it, which the launch of an instance sets, whether its features end or
-a phase fails before they end, so a person can debug it. Its handshake states that it serves once its features passed, and a
-phase that fails ends actuality with the phase and why it failed, so a launcher reads the failure from its events while it
-stays. A group whose features serve pages that run a script runs them on a server that doesn't serve RPC, since a served file
-carries the artifact policy while the server dispatches `/rpc` calls.
+stays up after its features end where `HAIBUN_STAY` states it, which the launch of an instance sets, and its handshake states
+that it serves once its features passed. A group whose features serve pages that run a script runs them on a server that
+doesn't serve RPC, since a served file carries the artifact policy while the server dispatches `/rpc` calls.
 
 A person finds a head where a step is found. The actions bar's step input lists each head with the steps, ranked as a step is,
 marked `waypoint · <library>`, where the library is the package whose background states it, the feature that states it, or

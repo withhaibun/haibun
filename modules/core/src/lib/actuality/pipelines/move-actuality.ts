@@ -1,8 +1,7 @@
 /**
  * The one way a lifecycle event of a level leaves actuality: as a move of the actuality machine. The machine takes the
  * event, the record of the level it starts or ends is written, then the events hub emits it, so a reader of the stream
- * holds the levels the machine holds and a reader of the store holds their records. An actuality that a phase stopped before
- * it started doesn't hold a record, so its end is taken and emitted without one.
+ * holds the levels the machine holds and a reader of the store holds their records.
  */
 import type { TLifecycleEvent } from "../../domains/protocol.js";
 import type { TWorld } from "../domains/world.js";
@@ -12,7 +11,6 @@ import { writtenLevel } from "../../domains/capability-context.js";
 import { SEQ_PATH_ACCESS } from "../domains/seq-path.js";
 import type { TActuality, TActualityMove } from "../machines/actuality.js";
 import { levelRecord, type TLevelNaming, type TStepRecord } from "../derivations/step-records.js";
-import { phaseFailureEvent } from "../derivations/lifecycle-events.js";
 
 /** The records of actuality's levels by their events' id: a level's start writes its record, and its end extends it. */
 export type TLevelRecords = Map<string, TStepRecord>;
@@ -40,16 +38,5 @@ export async function moveActuality(world: TWorld, event: TLifecycleEvent, state
 	if (after === before)
 		throw new Error(`actuality refused the ${event.type} ${event.stage} of ${event.id} while the actuality is ${before.status}; start a level before its end, and end it once`);
 	await writeLevelRecord(world.shared.getStore(), world.runtime.levels, { move: event, after, timestamp: event.timestamp }, world.tag, stated);
-	world.eventLogger.emit(event);
-}
-
-/** Ends actuality as failed where a phase failed before the features ended, stating the phase and why it failed, so a reader of
- *  its events, such as the launcher of an instance that stays, reads the failure while the process stays. Actuality that started
- *  extends the record of its start; actuality that a phase stopped before it started doesn't hold a record, so the machine takes
- *  its end and the events hub emits it. */
-export async function endAtPhaseFailure(world: TWorld, phase: string, error: string): Promise<void> {
-	const event = phaseFailureEvent(phase, error, world.clock.now());
-	if (world.runtime.levels.has(event.id)) return await moveActuality(world, event);
-	world.runtime.actuality.dispatch(event);
 	world.eventLogger.emit(event);
 }

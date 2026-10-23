@@ -9,7 +9,6 @@ import type { TBase, TBaseOptions, TProtoOptions, TWorld } from "@haibun/core/li
 import { BASE_PREFIX, CHECK_NO, CHECK_YES, NDJSON, RECORDED_STATUS, STAY, Timer, TExecutorResult } from "@haibun/core/lib/domains/protocol.js";
 import { staysAfterActuality } from "@haibun/core/lib/actuality/derivations/actuality-end.js";
 import { actualityEnded, actualityMachine } from "@haibun/core/lib/actuality/machines/actuality.js";
-import { endAtPhaseFailure } from "@haibun/core/lib/actuality/pipelines/move-actuality.js";
 import type { IHasOptions } from "@haibun/core/lib/astepper.js";
 import { resolveSitePrincipal } from "@haibun/core/lib/domains/host-id.js";
 import { holdModuleOptions } from "@haibun/core/lib/held-module-options.js";
@@ -200,7 +199,7 @@ function dryRunExit(featuresBackgrounds: TFeaturesBackgrounds, policyConfig?: TR
 async function reportAndExit(executorResult: TExecutorResult, world: TWorld, protoOptions: TProtoOptions, ports: TCliPorts): Promise<never> {
 	const showSummary = world.eventLogger.suppressConsole;
 
-	const { featureResults, failure } = executorResult;
+	const { featureResults } = executorResult;
 	const failed = featureResults.filter(({ ok }) => !ok).length;
 	const pending = featureResults.flatMap((result) => result.pending).length;
 	const counted = `${featureResults.length - failed} features passed, ${failed} failed, and ${pending} scenarios are pending.`;
@@ -210,24 +209,22 @@ async function reportAndExit(executorResult: TExecutorResult, world: TWorld, pro
 		}
 	} else {
 		console.error(`\n${counted}`);
-		const errorMessage = failure?.error?.message || "Unknown error";
-		const stage = failure?.stage;
+		const errorMessage = executorResult.failure?.error?.message || "Unknown error";
+		const stage = executorResult.failure?.stage;
 
 		console.error(`\n${CHECK_NO} ${stage ? `${stage} Error: ` : ""}${errorMessage}`);
 
-		if (failure?.error?.details) {
-			const { ...otherDetails } = failure.error.details;
+		if (executorResult.failure?.error?.details) {
+			const { ...otherDetails } = executorResult.failure.error.details;
 			if (Object.keys(otherDetails).length > 0) {
 				console.error("\nAdditional details:", otherDetails);
 			}
 		}
 	}
 
-	// A phase that failed before the features ended left actuality without its end. Its end states the failure, so a reader of its
-	// events, such as the launcher of an instance that stays, reads the failure while the process stays.
-	if (failure && !actualityEnded(executorResult.actuality)) await endAtPhaseFailure(world, failure.stage, failure.error.message);
-	// Actuality stays with what it started where HAIBUN_STAY states it, whatever failed, so a person can read and debug it.
-	if (staysAfterActuality(protoOptions.options[STAY], executorResult.ok)) await ports.clock.wait(1e9);
+	// Actuality stays to keep what its features started. Where a phase that sets the features up fails, the features don't start,
+	// so the process exits and a launcher that waits on it reads its exit.
+	if (actualityEnded(executorResult.actuality) && staysAfterActuality(protoOptions.options[STAY], executorResult.ok)) await ports.clock.wait(1e9);
 	process.exit(executorResult.ok ? 0 : 1);
 }
 
