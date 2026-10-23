@@ -1,7 +1,7 @@
 /**
  * Three rules of a repository's steps, read from its steppers and from the features and the code that call them. A step that
- * starts or keeps something takes a parameter, since a stepper starts what each feature needs as the feature starts, where an
- * option states it (lifecycle). A step has more than one call site, since what one feature alone states is a waypoint of that
+ * starts or keeps something and doesn't return a product takes a parameter, since a stepper starts what each feature needs as
+ * the feature starts, where an option states it (lifecycle). A step has more than one call site, since what one feature alone states is a waypoint of that
  * feature or of a module's library (one call site). A step's pattern isn't another step's with a word more or less, since one
  * primitive takes the difference as a parameter (near-duplicate).
  */
@@ -22,7 +22,17 @@ export const NEAR_DUPLICATE = "states another step's pattern with a word more or
 /** How a step's pattern reads a line: as a phrase with placeholders, or as the exact line. */
 type TPatternKind = "gwta" | "exact";
 /** A step a stepper declares: the stepper's source file and name, its key and pattern, and what the rules read of it. */
-export type TDeclaredStep = { file: string; stepper: string; key: string; kind: TPatternKind; pattern: string; parameters: boolean; read: boolean; precludes: readonly string[] };
+export type TDeclaredStep = {
+	file: string;
+	stepper: string;
+	key: string;
+	kind: TPatternKind;
+	pattern: string;
+	parameters: boolean;
+	read: boolean;
+	products: boolean;
+	precludes: readonly string[];
+};
 
 /** A line that starts or keeps something, which a stepper's start cycle does where an option states it. */
 const STARTS = /^(create|discover|enable|keep|mount|open|register|serve|start|subscribe|watch|this feature runs)\b/i;
@@ -58,7 +68,8 @@ export function declaredSteps(steppers: readonly { file: string; stepper: AStepp
 			if (pattern === undefined || seen.has(`${declaredBy}.${key}`)) return [];
 			seen.add(`${declaredBy}.${key}`);
 			const kind: TPatternKind = step.gwta === undefined ? "exact" : "gwta";
-			return [{ file, stepper: declaredBy, key, kind, pattern, parameters: pattern.includes("{"), read: step.read === true, precludes: step.precludes ?? [] }];
+			const products = step.productsDomain !== undefined || step.productsDomains !== undefined;
+			return [{ file, stepper: declaredBy, key, kind, pattern, parameters: pattern.includes("{"), read: step.read === true, products, precludes: step.precludes ?? [] }];
 		}),
 	);
 }
@@ -74,9 +85,12 @@ function declaringStepper(stepper: AStepper, key: string, pattern: string | unde
 	return declaredBy;
 }
 
-/** Each step without a parameter, not a read, whose line starts or keeps something. */
+/** Each step without a parameter, not a read and without a product, whose line starts or keeps something. A step that returns
+ *  what it opened, such as a key, returns it to its caller, which an option doesn't do. */
 export function startsWithoutParameters(steps: readonly TDeclaredStep[]): TFound[] {
-	return steps.filter((s) => !s.parameters && !s.read && STARTS.test(s.pattern)).map((s) => ({ file: s.file, finding: `${STARTS_WITHOUT_PARAMETERS}: ${s.stepper}.${s.key}` }));
+	return steps
+		.filter((s) => !s.parameters && !s.read && !s.products && STARTS.test(s.pattern))
+		.map((s) => ({ file: s.file, finding: `${STARTS_WITHOUT_PARAMETERS}: ${s.stepper}.${s.key}` }));
 }
 
 /** A pattern's words: a placeholder is `{}`, and an optional group isn't a word. */
@@ -192,15 +206,63 @@ function matcherOf({ kind, pattern }: TDeclaredStep): (line: string) => boolean 
 	return (line) => regex.test(line);
 }
 
-/** How many times the code of a repository, apart from each step's own stepper and the tests, names each step: by its key in
- *  a string or a property access, or by its key after its stepper's name and a dash, as a call over RPC names it. */
+/** A string that names a step: its key, or its key after its stepper's name and a dash, as a call over RPC names it. */
+const NAMED_KEY = /^(?:[A-Za-z]\w*-)?([A-Za-z]\w*)$/;
+/** An expression that only states the type of the expression it holds. */
+const typed = (node: ts.Expression): ts.Expression =>
+	ts.isAsExpression(node) || ts.isSatisfiesExpression(node) || ts.isParenthesizedExpression(node) ? typed(node.expression) : node;
+
+/** Each naming of a step in the initializer of a top-level constant of a source, with the name code reads it through: the
+ *  constant, or the constant and the property of its object that holds the naming, and the statement that declares it. */
+function constantNamings(file: string, text: string, keys: ReadonlySet<string>): { key: string; read: string; declaration: string }[] {
+	const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
+	return source.statements.filter(ts.isVariableStatement).flatMap((statement) =>
+		statement.declarationList.declarations.flatMap((declaration) => {
+			if (!ts.isIdentifier(declaration.name) || declaration.initializer === undefined) return [];
+			const constant = declaration.name.text;
+			const object = typed(declaration.initializer);
+			const found: { key: string; read: string; declaration: string }[] = [];
+			const visit = (node: ts.Node, read: string): void => {
+				const key = ts.isStringLiteralLike(node) ? NAMED_KEY.exec(node.text)?.[1] : undefined;
+				if (key !== undefined && keys.has(key)) found.push({ key, read, declaration: statement.getText(source) });
+				ts.forEachChild(node, (child) => visit(child, node === object && ts.isPropertyAssignment(child) ? `${constant}.${child.name.getText(source)}` : read));
+			};
+			visit(object, constant);
+			return found;
+		}),
+	);
+}
+
+/** A whole name in code, and the property of it that code reads. */
+const READ_NAME = /(?<![\w$.])([A-Za-z_$][\w$]*)(?:\.([A-Za-z_$][\w$]*))?/g;
+
+/** How many times code reads each name, and each name with a property, in `texts`. */
+function namesRead(texts: readonly string[]): Map<string, number> {
+	const reads = new Map<string, number>();
+	for (const text of texts)
+		for (const [, name, property] of text.matchAll(READ_NAME))
+			for (const read of property === undefined ? [name] : [name, `${name}.${property}`]) if (read !== undefined) reads.set(read, (reads.get(read) ?? 0) + 1);
+	return reads;
+}
+
+/** How many times the code of a repository, apart from each step's own stepper and the tests, calls each step: each naming of
+ *  its key in a string or a property access, or after its stepper's name and a dash, as a call over RPC names it. A naming in
+ *  the initializer of a top-level constant calls the step wherever code reads the constant, or the property of it that holds
+ *  the naming, such as each call a page makes through the constant that names a step's method. */
 function codeNaming(repository: string, files: readonly string[], steps: readonly TDeclaredStep[]): Map<TDeclaredStep, number> {
 	const keys = new Set(steps.map((s) => s.key));
+	const code = files
+		.filter((f) => SOURCE.test(f) && !TEST_MODULE.test(f) && !FEATURE_SOURCE.test(f))
+		.map((file) => ({ file, text: readFileSync(join(repository, file), "utf-8") }));
+	const reads = namesRead(code.map(({ text }) => text));
 	const named = new Map<string, Map<string, number>>();
-	for (const file of files.filter((f) => SOURCE.test(f) && !TEST_MODULE.test(f) && !FEATURE_SOURCE.test(f))) {
+	for (const { file, text } of code) {
 		const counts = new Map<string, number>();
-		for (const [, key] of readFileSync(join(repository, file), "utf-8").matchAll(/["'`.-]([A-Za-z]\w*)\b/g))
-			if (key !== undefined && keys.has(key)) counts.set(key, (counts.get(key) ?? 0) + 1);
+		for (const [, key] of text.matchAll(/["'`.-]([A-Za-z]\w*)\b/g)) if (key !== undefined && keys.has(key)) counts.set(key, (counts.get(key) ?? 0) + 1);
+		for (const { key, read, declaration } of constantNamings(file, text, keys)) {
+			const elsewhere = (reads.get(read) ?? 0) - (namesRead([declaration]).get(read) ?? 0);
+			counts.set(key, (counts.get(key) ?? 0) + Math.max(1, elsewhere) - 1);
+		}
 		named.set(file, counts);
 	}
 	return new Map(steps.map((step) => [step, [...named].filter(([file]) => file !== step.file).reduce((sum, [, counts]) => sum + (counts.get(step.key) ?? 0), 0)]));

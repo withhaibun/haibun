@@ -1,7 +1,6 @@
 {
 	"modules/cli/src/instance-stepper.ts": {
 		"has at most one call site: InstanceStepper.reachInstance": 1,
-		"has at most one call site: InstanceStepper.readRun": 1,
 		"has at most one call site: InstanceStepper.restartInstance": 1,
 		"has at most one call site: InstanceStepper.showInstances": 1,
 		"has at most one call site: InstanceStepper.stopRun": 1,
@@ -81,13 +80,9 @@
 		"has at most one call site: RecorderStepper.stopRecording": 1
 	},
 	"modules/shu/src/graph-source-stepper.ts": {
-		"has at most one call site: GraphSourceStepper.federateGraphReads": 1,
-		"has at most one call site: GraphSourceStepper.getIndividualWithEdges": 1,
-		"has at most one call site: GraphSourceStepper.getSelectValues": 1,
-		"has at most one call site: GraphSourceStepper.showGraphAsTptp": 1
+		"has at most one call site: GraphSourceStepper.federateGraphReads": 1
 	},
 	"modules/shu/src/monitor-stepper.ts": {
-		"has at most one call site: MonitorStepper.logClient": 1,
 		"has at most one call site: MonitorStepper.recordClientBlips": 1,
 		"has at most one call site: MonitorStepper.showDocument": 1
 	},
@@ -133,7 +128,6 @@
 		"has at most one call site: WebPlaywright.shouldSeeTestId": 1,
 		"has at most one call site: WebPlaywright.showBrowserExtension": 1,
 		"has at most one call site: WebPlaywright.showBrowserRelay": 1,
-		"has at most one call site: WebPlaywright.takeAccessibilitySnapshot": 1,
 		"has at most one call site: WebPlaywright.takeScreenshotOf": 1,
 		"has at most one call site: WebPlaywright.uploadFile": 1,
 		"has at most one call site: WebPlaywright.waitForURIMatch": 1

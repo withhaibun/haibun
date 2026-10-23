@@ -16,6 +16,7 @@ class DemoStepper extends AStepper {
 	description = "Steps whose patterns the rules read";
 	steps = {
 		openStore: { gwta: "open the store", ...ACTS },
+		openKey: { gwta: "open a key", productsDomain: "key", ...ACTS },
 		readStore: { gwta: "show the store", read: true, readsAt: Access.public, action: () => OK },
 		watchEvery: { gwta: "watch every {seconds: number} seconds", ...ACTS },
 		fetchPage: { gwta: "fetch page {page: string}", ...ACTS },
@@ -42,7 +43,7 @@ describe("the steps a stepper declares", () => {
 		expect(declared).toHaveLength(Object.keys(new DemoStepper().steps).length);
 	});
 
-	it("flag a step without a parameter, not a read, whose line starts or keeps something", () => {
+	it("flag a step without a parameter, not a read and without a product, whose line starts or keeps something", () => {
 		expect(keysOf(startsWithoutParameters(steps()), STARTS_WITHOUT_PARAMETERS)).toEqual(["DemoStepper.openStore"]);
 	});
 
@@ -77,6 +78,21 @@ describe("the call sites of a step", () => {
 		expect(flagged, "a nested statement and a kireji call count").not.toContain("DemoStepper.fetchPage");
 		expect(flagged, "a test isn't a call site, and a page's call over RPC is one").toEqual(
 			expect.arrayContaining(["DemoStepper.openStore", "DemoStepper.readStore", "DemoStepper.quiet"]),
+		);
+	});
+
+	it("count each read of a top-level constant that names a step, or of the property of it that holds the naming, as a call", () => {
+		write(STEPPER_FILE, "");
+		write(
+			"modules/demo/src/calls.ts",
+			'export const OPEN = "DemoStepper-openStore";\nexport const CALLS = { read: "DemoStepper-readStore", still: "quiet" } as const;\nexport const UNREAD = "fetchPage";\n',
+		);
+		write("modules/demo/src/page.ts", "call(OPEN); call(OPEN); call(CALLS.read); call(CALLS.read); call(CALLS.still);\n");
+		const flagged = keysOf(oneCallSite(repository, steps()), ONE_CALL_SITE);
+		expect(flagged, "two reads of the constant and two of its property are two calls each").not.toEqual(expect.arrayContaining(["DemoStepper.openStore"]));
+		expect(flagged).not.toContain("DemoStepper.readStore");
+		expect(flagged, "one read of a property is one call, and a constant that isn't read names its step once").toEqual(
+			expect.arrayContaining(["DemoStepper.quiet", "DemoStepper.fetchPage"]),
 		);
 	});
 });
