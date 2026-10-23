@@ -41,12 +41,13 @@ const SavedWaypointSchema = PersistedVertexSchema.extend({
 	generatedAtTime: z.string(),
 });
 type TSavedWaypoint = z.infer<typeof SavedWaypointSchema>;
-/** A saved waypoint's record. It holds the head, the lines of the activity in order, and the source path. `register the
- *  saved waypoints` reads these records after a restart. The type is a schema.org HowTo whose steps are the lines. */
+/** A saved waypoint's record. It holds the head, the lines of the activity in order, and the source path. ActivitiesStepper
+ *  reads these records as each feature starts, so a waypoint saved before a restart applies again. The type is a schema.org
+ *  HowTo whose steps are the lines. */
 export const savedWaypointDomainDefinition: TDomainDefinition = {
 	selectors: [SAVED_WAYPOINT_DOMAIN],
 	schema: SavedWaypointSchema,
-	description: "A saved waypoint's head and the lines its activity runs. `register the saved waypoints` states the waypoint's rule again after a restart.",
+	description: "A saved waypoint's head and the lines its activity runs. Its rule is stated again as each feature starts after a restart.",
 	topology: {
 		persistedAs: SAVED_WAYPOINT_LABEL,
 		accessLevel: Access.private,
@@ -109,8 +110,12 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 
 	cycles: IStepperCycles = {
 		getConcerns: () => ({ domains: [savedWaypointDomainDefinition] }),
-		startFeature: ({ resolvedFeature }) => {
+		// States each saved waypoint's rule from its record. A store opens as its feature starts, so this cycle runs last.
+		startFeature: async ({ resolvedFeature }) => {
 			this.feature = resolvedFeature.path;
+			const held = new Set(this.rules.filter(({ saved }) => saved === true).map(({ head }) => head));
+			const saved = (await readEvery(this.getWorld().shared.getStore(), { label: SAVED_WAYPOINT_LABEL })).map((record) => SavedWaypointSchema.parse(record));
+			this.registerSavedWaypoints(saved.filter(({ id }) => !held.has(headOf(id).head)));
 		},
 		// A rule over step records reads the record of each step a feature's line states, so a substep doesn't apply it.
 		afterStep: async ({ featureStep }) => {
@@ -125,7 +130,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			return proved.ok ? undefined : { failed: `a step run after every ${stepperName} step failed: ${proved.errorMessage}` };
 		},
 	};
-	cyclesWhen = { startFeature: CycleWhen.FIRST };
+	cyclesWhen = { startFeature: CycleWhen.LAST };
 
 	/** The resolver calls this before each feature resolves, so the feature's lines unify with its own rules and the rules of
 	 *  every feature. */
@@ -147,15 +152,6 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			productsDomain: SAVED_WAYPOINT_DOMAIN,
 			action: async ({ outcome, statements }: { outcome: string; statements: string[] }, featureStep: TFeatureStep) =>
 				actionOKWithProducts(await this.saveWaypoint(outcome, statements, featureStep.source?.path ?? SAVED_WAYPOINT_SOURCE)),
-		},
-		registerSavedWaypoints: {
-			description: "States each saved waypoint's rule from its record, so a waypoint saved before a restart applies again.",
-			gwta: "register the saved waypoints",
-			action: async () => {
-				const saved = await readEvery(this.getWorld().shared.getStore(), { label: SAVED_WAYPOINT_LABEL });
-				this.registerSavedWaypoints(saved.map((record) => SavedWaypointSchema.parse(record)));
-				return OK;
-			},
 		},
 		runSavedWaypoint: {
 			description:

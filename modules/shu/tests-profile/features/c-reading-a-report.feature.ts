@@ -28,7 +28,6 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "A report carries its actuality, and a page without a site reads it" }),
 
 		"A report is this page with the actuality it reports carried inside it: the graph the actuality wrote, which is the actuality, and the site's declarations. Opened from a file, without a site to read, the monitor shows the actuality's rows because it reads them the way it reads any actuality.",
-		"enable rpc",
 		serveShuApp({ path: '"/spa"' }),
 		'webserver is listening for "reading a report of this actuality"',
 		gotoPage({ name: `"${host}/spa"` }),

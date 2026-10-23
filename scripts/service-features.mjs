@@ -1,6 +1,7 @@
 // Runs the service features of this repository and checks each serves through its own protocol: the MCP server's feature
 // until an MCP client initializes with it, and the language server's feature until it returns the result of an LSP
-// initialize over standard input and output. A service feature doesn't end, so each run is stopped once it is checked.
+// initialize over standard input and output. A service stays after its feature ends, as HAIBUN_STAY states, so each run is
+// stopped once it is checked.
 // Run it after the build and the link of the workspaces' commands: `node scripts/service-features.mjs`.
 import { spawn } from "node:child_process";
 
@@ -12,8 +13,8 @@ const MCP_PORT = 8129;
 const MCP_HEADERS = { "content-type": "application/json", accept: "application/json, text/event-stream" };
 const INITIALIZE = { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "service-features", version: "1.0" } };
 
-/** Starts the service feature of a base, whose config.json the base holds, with its standard streams piped. */
-const serve = (base, feature) => spawn(CLI, [base, feature], { stdio: ["pipe", "pipe", "pipe"] });
+/** Starts the service feature of a base, whose config.json the base holds, with its standard streams piped, staying as a service does. */
+const serve = (base, feature) => spawn(CLI, [base, feature], { stdio: ["pipe", "pipe", "pipe"], env: { ...process.env, HAIBUN_STAY: "always" } });
 
 /** Resolves with what `check` returns once it returns a value, polling until the service's time to be ready passes. */
 async function within(what, child, check) {

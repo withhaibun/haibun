@@ -29,7 +29,7 @@
 		"test:e2e": "npm test -w e2e-tests && npm run test:agents",
 		"test:agents": "HAIBUN_ENV=fromenv=envvalue haibun-cli -c e2e-tests/agents/config.json AGENTS.md",
 		"test:integration": "vitest run --project integration",
-		"start:mcp": "haibun-cli --config mcp-server/config.json mcp-server serve-mcp",
+		"start:mcp": "HAIBUN_STAY=always haibun-cli --config mcp-server/config.json mcp-server serve-mcp",
 		"test:watch": "vitest --hideSkippedTests",
 		"clean": "rm -rf modules/*/build modules/*/tsconfig.tsbuildinfo",
 		"build:watch:tsc": "tsc -b modules/ --watch --preserveWatchOutput",

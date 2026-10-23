@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { vitest, describe, it, expect } from "vitest";
 
-import { CONTINUE_AFTER_ERROR, DEFAULT_DEST, MODULE_OPTION_PREFIX, STEP_DELAY } from "@haibun/core/lib/domains/protocol.js";
+import { CONTINUE_AFTER_ERROR, DEFAULT_DEST, MODULE_OPTION_PREFIX, STAY, STAY_ALWAYS, STEP_DELAY } from "@haibun/core/lib/domains/protocol.js";
 
 const OTHER_OPTION = `${MODULE_OPTION_PREFIX}TESTSTEPSWITHOPTIONS_OTHER`;
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, passWithDefaults } from "@haibun/core/lib/test/lib.js";
@@ -99,19 +99,19 @@ const POLICY_BASE = "e2e-tests/policy-test";
 
 describe("collect", () => {
 	it("runs the statements as one feature, in the order given", async () => {
-		const { features } = await lib.collect(cliPorts(), ["tests"], undefined, ["create graph store", "enable rpc"]);
+		const { features } = await lib.collect(cliPorts(), ["tests"], undefined, ["set one to 1", "set two to 2"]);
 		expect(features).toHaveLength(1);
-		expect(itemAt(features, 0)).toMatchObject({ content: "create graph store\nenable rpc" });
+		expect(itemAt(features, 0)).toMatchObject({ content: "set one to 1\nset two to 2" });
 	});
 	it("runs the statements against a base that doesn't exist", async () => {
-		const { features, backgrounds } = await lib.collect(cliPorts(), ["/nonexistent-base"], undefined, ["create graph store"]);
-		expect(itemAt(features, 0).content).toBe("create graph store");
+		const { features, backgrounds } = await lib.collect(cliPorts(), ["/nonexistent-base"], undefined, ["set one to 1"]);
+		expect(itemAt(features, 0).content).toBe("set one to 1");
 		expect(backgrounds).toEqual([]);
 	});
 	it("runs the filtered features before the statements, so the statements act on the state the features leave", async () => {
-		const { features } = await lib.collect(cliPorts(), [POLICY_BASE], ["health"], ["create graph store"]);
+		const { features } = await lib.collect(cliPorts(), [POLICY_BASE], ["health"], ["set one to 1"]);
 		expect(features.length).toBeGreaterThan(1);
-		expect(features.at(-1)?.content, "the statements run after the features").toBe("create graph store");
+		expect(features.at(-1)?.content, "the statements run after the features").toBe("set one to 1");
 		expect(
 			features.slice(0, -1).every((f) => f.path.includes("health")),
 			"and only the features the filter selects run before them",
@@ -142,12 +142,12 @@ describe("processArgs", () => {
 		expect(showHelp).toBe(true);
 	});
 	it("takes several statements in the order given", () => {
-		const { statements } = lib.processArgs(["--statement", "create graph store", "--statement", "enable rpc"]);
-		expect(statements).toEqual(["create graph store", "enable rpc"]);
+		const { statements } = lib.processArgs(["--statement", "set one to 1", "--statement", "set two to 2"]);
+		expect(statements).toEqual(["set one to 1", "set two to 2"]);
 	});
 	it("takes a statement joined to the option by an equals sign as one argument", () => {
-		const { statements } = lib.processArgs(["--statement=create graph store"]);
-		expect(statements).toEqual(["create graph store"]);
+		const { statements } = lib.processArgs(["--statement=set one to 1"]);
+		expect(statements).toEqual(["set one to 1"]);
 	});
 	it("refuses a statement option without a value, rather than running an empty feature", () => {
 		expect(() => lib.processArgs(["--statement"])).toThrow(/requires a statement/);
@@ -201,6 +201,11 @@ describe("runCli", () => {
 	it("fails without a config", async () => {
 		vitest.spyOn(process, "exit").mockImplementationOnce(expectExitAndThrow(1));
 		await expect(lib.runCli(s("--config nowhere/noway"), {}, cliPorts())).rejects.toThrow("exit with code 1");
+	});
+	it("exits where a phase before its features fails, even where HAIBUN_STAY states always, since its features didn't start", async () => {
+		vitest.spyOn(process, "exit").mockImplementationOnce(expectExitAndThrow(1));
+		const unresolved = ["--config", "modules/cli/test", "modules/cli/test/tests", "--statement", "no step states this line"];
+		await expect(lib.runCli(unresolved, { [`HAIBUN_${STAY}`]: STAY_ALWAYS }, cliPorts())).rejects.toThrow("exit with code 1");
 	});
 	it("runs a basic test", async () => {
 		vitest.spyOn(process, "exit").mockImplementationOnce(expectExitAndThrow(0));

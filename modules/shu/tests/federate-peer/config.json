@@ -13,5 +13,8 @@
 		"@haibun/shu/monitor-stepper",
 		"@haibun/shu/graph-source-stepper",
 		"@haibun/shu/client-cache-stepper"
-	]
+	],
+	"moduleOptions": {
+		"HAIBUN_O_WEBSERVERSTEPPER_RPC": "true"
+	}
 }

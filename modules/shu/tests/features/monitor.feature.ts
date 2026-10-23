@@ -40,7 +40,6 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "Start shu with monitor stepper" }),
 		"The monitor stepper buffers actuality's events and serves them via RPC.",
 		"The show monitor step opens a log stream column in the SPA.",
-		"enable rpc",
 		serveShuApp({ path: '"/spa"' }),
 		'webserver is listening for "monitor-test"',
 

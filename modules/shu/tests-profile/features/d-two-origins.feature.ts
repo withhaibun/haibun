@@ -27,7 +27,6 @@ export const features: TKirejiExport = {
 
 		"What a reader holds of an actuality is held by their browser under the address they read it at, and a browser keeps one reader's storage apart from another's by that address. This is what keeps two readers of two deployments from seeing each other's actualities, and it is the browser that does it rather than anything written here.",
 		"This actuality and the one before it were both read at the same address on this profile, so the cache view there lists the earlier one by what it ran.",
-		"enable rpc",
 		serveShuApp({ path: '"/spa"' }),
 		'webserver is listening for "what a reader holds is held per address"',
 		gotoPage({ name: `"${firstAddress}/spa"` }),

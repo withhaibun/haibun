@@ -16,10 +16,8 @@
 		"has at most one call site: TestRunnerStepper.stopTestRun": 1
 	},
 	"modules/core/src/steps/activities-stepper.ts": {
-		"has at most one call site: ActivitiesStepper.registerSavedWaypoints": 1,
 		"has at most one call site: ActivitiesStepper.runSavedWaypoint": 1,
-		"has at most one call site: ActivitiesStepper.saveWaypoint": 1,
-		"starts or keeps something without a parameter: ActivitiesStepper.registerSavedWaypoints": 1
+		"has at most one call site: ActivitiesStepper.saveWaypoint": 1
 	},
 	"modules/core/src/steps/authority-stepper.ts": {
 		"has at most one call site: AuthorityStepper.holdingCapability": 1,
@@ -36,8 +34,7 @@
 	},
 	"modules/core/src/steps/haibun-stepper.ts": {
 		"has at most one call site: Haibun.onHost": 1,
-		"has at most one call site: Haibun.useStoreAt": 1,
-		"starts or keeps something without a parameter: Haibun.keepRunning": 1
+		"has at most one call site: Haibun.useStoreAt": 1
 	},
 	"modules/core/src/steps/resources-stepper.ts": {
 		"has at most one call site: ResourcesStepper.annotateLinking": 1,
@@ -62,9 +59,6 @@
 		"has at most one call site: LogicStepper.showAffordancesAsOf": 1,
 		"has at most one call site: LogicStepper.showDomainChainLint": 1,
 		"has at most one call site: LogicStepper.walkToward": 1
-	},
-	"modules/lsp/src/lsp-stepper.ts": {
-		"has at most one call site: LspStepper.lspIsReady": 1
 	},
 	"modules/recorder/src/recorder-stepper.ts": {
 		"has at most one call site: RecorderStepper.startRecording": 1,
@@ -120,8 +114,6 @@
 	"modules/web-server-hono/src/web-server-stepper.ts": {
 		"has at most one call site: WebServerStepper.asksToSignIn": 1,
 		"has at most one call site: WebServerStepper.indexFiles": 1,
-		"has at most one call site: WebServerStepper.showPorts": 1,
-		"has at most one call site: WebServerStepper.stopInstance": 1,
-		"starts or keeps something without a parameter: WebServerStepper.enableRpc": 1
+		"has at most one call site: WebServerStepper.stopInstance": 1
 	}
 }

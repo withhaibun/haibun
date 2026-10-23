@@ -1,6 +1,6 @@
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
-import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOptionName, intOrError, errorDetail } from "@haibun/core/lib/domains/util.js";
+import { actionNotOK, getStepperOptionName, intOrError, boolOrError, errorDetail } from "@haibun/core/lib/domains/util.js";
 import {
 	AStepper,
 	CycleWhen,
@@ -21,7 +21,7 @@ import { fromJsonText } from "@haibun/core/lib/domains/json-text.js";
 import { basicAuthUsers, type TBasicAuthUser } from "@haibun/core/lib/domains/basic-auth.js";
 import type { IWebServer, MiddlewareHandler, TRoutePurpose } from "./ports.js";
 import { TRANSPORT, type ITransport } from "./domains/transport.js";
-import { DEFAULT_PORT, DOMAIN_ENDPOINT, DOMAIN_LISTENING_PORTS, EndpointSchema, ListeningPortsSchema, listeningSummary, WEB_SERVER_CAPABILITIES } from "./domains/web-server.js";
+import { DEFAULT_PORT, DOMAIN_ENDPOINT, EndpointSchema, WEB_SERVER_CAPABILITIES } from "./domains/web-server.js";
 import { FOLLOWER_WRITES_IN_FLIGHT } from "./machines/follower.js";
 import { capabilityVerifier } from "./pipelines/capability-verifier.js";
 import { SSETransport } from "./pipelines/event-stream.js";
@@ -50,7 +50,6 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 					sortColumns: { url: "TEXT" },
 				},
 			},
-			{ selectors: [DOMAIN_LISTENING_PORTS], schema: ListeningPortsSchema, description: "The ports this process listens on, each with why", ui: { summary: listeningSummary } },
 		],
 	}),
 	async startFeature() {
@@ -59,14 +58,16 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 		else wss.webserver.clearMounted();
 		const webserver = wss.webserver;
 		// The delegated store surface: a sibling instance keeping its records in this instance's store. It is reached only
-		// once RPC is enabled, since only the RPC transport calls a family's methods.
+		// where the server serves RPC, since only the RPC transport calls a family's methods.
 		webserver.addRpcMethods(
 			STORE_METHOD_PREFIX,
 			{ description: "This instance's store, for an instance delegated to keep its records here" },
 			storeMethods(() => wss.getWorld().shared.getStore()),
 		);
 		holdServer(runtime, webserver);
-		runtime[TRANSPORT] = wss.eventStream(webserver);
+		const transport = wss.eventStream(webserver);
+		runtime[TRANSPORT] = transport;
+		if (wss.rpc) wss.stepRegistry = wss.serveRpc(webserver, transport);
 		await Promise.resolve();
 	},
 	// A server that lasts the whole of actuality closes as it ends, unless actuality stays.
@@ -108,6 +109,10 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			desc: "Actions every caller may take without a delegation, comma-separated, beside what its delegation allows: Read:public for a site anyone may read. Unset, a caller holds only what it proves, and one that doesn't prove a key may call only a step that doesn't require an action",
 			parse: (input: string) => (actionList(input).length > 0 ? { result: input } : { parseError: "ALLOW_WITHOUT_DELEGATION: name at least one action, comma-separated" }),
 		},
+		RPC: {
+			desc: "Serve RPC calls to actuality's steps on each feature's server from the feature's start: true or false. A file of a folder a step serves then carries the artifact policy, so a page among the files doesn't run a script. Unset, the server doesn't serve RPC",
+			parse: (input: string) => boolOrError(input),
+		},
 		BASIC_AUTH: {
 			desc: "Require HTTP basic auth on every route, as a proxy's basic auth does: user:password entries, comma-separated. A request that doesn't sign in is refused 401 before anything else reads it. Unset, the server admits every visitor",
 			parse: (input: string) => {
@@ -126,6 +131,8 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 	allowedWithoutDelegation: string[] = [];
 	/** The people every route admits by HTTP basic auth. */
 	admitted: TBasicAuthUser[] = [];
+	/** Whether each feature's server serves RPC calls to actuality's steps. */
+	rpc = false;
 
 	/** The count behind each session's seqPath root, which this process doesn't reset. */
 	private sessionActionSeq = 0;
@@ -145,6 +152,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		this.hostname = settings.hostname;
 		this.allowedWithoutDelegation = settings.allowedWithoutDelegation;
 		this.admitted = settings.admitted;
+		this.rpc = settings.rpc;
 	}
 
 	steps = {
@@ -166,7 +174,6 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 				return why ? actionNotOK(why) : OK;
 			},
 		},
-		showPorts: { gwta: "show ports", productsDomain: DOMAIN_LISTENING_PORTS, action: () => actionOKWithProducts({ ports: Object.fromEntries(listeningPorts()) }) },
 		isListening: {
 			gwta: `webserver is listening for {why: ${DOMAIN_TEXT}}`,
 			action: async ({ why }: { why: string }) => {
@@ -186,13 +193,6 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					server.checkAddIndexFolder(loc, "/", { description: `An index of the files in ${loc}` }, ...this.servedFolderGates(server)),
 				),
 		},
-		enableRpc: {
-			gwta: "enable rpc",
-			action: () => {
-				this.stepRegistry = this.serveRpc(this.server(), getFromRuntime(this.getWorld().runtime, TRANSPORT) as ITransport);
-				return OK;
-			},
-		},
 	} as const satisfies TStepperSteps;
 
 	/** The feature's server, which its start cycle made. */
@@ -211,7 +211,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 	}
 
 	/** The middleware each request for a file of a folder a step serves on `server` passes: the read the file requires, and the
-	 *  artifact policy while the feature's server dispatches `/rpc` calls, which `enable rpc` starts. */
+	 *  artifact policy while the feature's server dispatches `/rpc` calls, as the RPC option states. */
 	private servedFolderGates(server: IWebServer): MiddlewareHandler[] {
 		const allowingOption = getStepperOptionName(this, "ALLOW_WITHOUT_DELEGATION");
 		return servedFolderGates({ runtime: this.getWorld().runtime, served: server, allowingOption, dispatchesRpc: () => this.stepRegistry !== undefined });

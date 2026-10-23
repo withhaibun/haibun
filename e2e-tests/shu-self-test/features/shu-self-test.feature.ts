@@ -71,7 +71,6 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "Start the server and write sample variables and comments" }),
 
 		"A haibun server serves the SPA and exposes each stepper step as an RPC method. This scenario sets variables and writes comments for the later scenarios to read.",
-		"enable rpc",
 		'saves shu to "/tmp/shu.html"',
 		serveShuApp({ path: '"/haibun"' }),
 		`webserver is listening for "shu-self-test"`,

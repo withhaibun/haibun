@@ -26,7 +26,6 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "A reader deletes the oldest actuality this device holds" }),
 
 		"A device holds every actuality a reader has read at this address, and a reader removes one of them by deleting it. The list carries a delete control on every actuality but the one being read, so a reader never deletes what a view is drawing. The oldest actuality this device holds is the group's first, and it is listed with the one being read.",
-		"enable rpc",
 		serveShuApp({ path: '"/spa"' }),
 		'webserver is listening for "deleting an actuality this device holds"',
 		gotoPage({ name: `"${host}/spa"` }),

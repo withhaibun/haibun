@@ -1,6 +1,7 @@
 /**
  * The settings of an instance's web server, read from its stepper's options: the port and interface it listens on, the
- * actions every caller may take without a delegation, and the people its routes admit by HTTP basic auth.
+ * actions every caller may take without a delegation, the people its routes admit by HTTP basic auth, and whether each
+ * feature's server serves RPC.
  */
 import type { AStepper } from "@haibun/core/lib/astepper.js";
 import type { TModuleOptions } from "@haibun/core/lib/world.js";
@@ -12,7 +13,7 @@ import { DEFAULT_PORT, WEB_SERVER_STEPPER } from "../domains/web-server.js";
 
 /** Where a server listens, what every caller may do without a delegation, and who its routes admit. An absent hostname
  *  listens on this machine's loopback interface. */
-export type TServerSettings = { port: number; hostname: string | undefined; allowedWithoutDelegation: string[]; admitted: TBasicAuthUser[] };
+export type TServerSettings = { port: number; hostname: string | undefined; allowedWithoutDelegation: string[]; admitted: TBasicAuthUser[]; rpc: boolean };
 
 /** The settings a web server's stepper states in `moduleOptions`. Throws where its PORT isn't a positive whole number, and
  *  where it would give every action to other hosts that don't sign in. */
@@ -30,5 +31,5 @@ export function serverSettings(stepper: AStepper, moduleOptions: TModuleOptions)
 		throw new Error(
 			`${WEB_SERVER_STEPPER}: ALLOW_WITHOUT_DELEGATION allows every action, and INTERFACE ${hostname} lets other hosts reach the server without BASIC_AUTH. Name the actions a caller may take, set BASIC_AUTH, or serve on 127.0.0.1.`,
 		);
-	return { port, hostname, allowedWithoutDelegation, admitted };
+	return { port, hostname, allowedWithoutDelegation, admitted, rpc: getStepperOption(stepper, "RPC", moduleOptions) === "true" };
 }

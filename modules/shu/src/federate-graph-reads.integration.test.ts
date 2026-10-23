@@ -49,11 +49,13 @@ class FederationVerifyStepper extends AStepper {
 describe("federate graph reads over live RPC", () => {
 	it("handshakes with the peer, requests a name from it on a site-principal collision and merges the peer's own reads with every subject site-stamped", async () => {
 		const port = 8246;
-		const world = getTestWorldWithOptions({ ...DEF_PROTO_OPTIONS, moduleOptions: { [getStepperOptionName(WebServerStepper, "PORT")]: String(port) } });
+		const world = getTestWorldWithOptions({
+			...DEF_PROTO_OPTIONS,
+			moduleOptions: { [getStepperOptionName(WebServerStepper, "PORT")]: String(port), [getStepperOptionName(WebServerStepper, "RPC")]: "true" },
+		});
 		const feature = {
 			path: "/features/federate-graph-reads.feature",
 			content: `
-enable rpc
 webserver is listening for "federate-reads"
 present authority as "reader"
 accept authority from "reader" for "Authority:name,Read:private"
@@ -83,11 +85,13 @@ capture the federated clustered read
 		resetCaptures();
 		const port = 8248;
 		const peerPort = 8249;
-		const world = getTestWorldWithOptions({ ...DEF_PROTO_OPTIONS, moduleOptions: { [getStepperOptionName(WebServerStepper, "PORT")]: String(port) } });
+		const world = getTestWorldWithOptions({
+			...DEF_PROTO_OPTIONS,
+			moduleOptions: { [getStepperOptionName(WebServerStepper, "PORT")]: String(port), [getStepperOptionName(WebServerStepper, "RPC")]: "true" },
+		});
 		const feature = {
 			path: "/features/federate-two-instances.feature",
 			content: `
-enable rpc
 webserver is listening for "federate-two"
 present authority as "reader"
 start a haibun instance from "modules/shu/tests/federate-peer" on port ${peerPort} as host 7

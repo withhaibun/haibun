@@ -229,7 +229,8 @@ async function startClient(context: ExtensionContext) {
 	outputChannel.appendLine(`[Haibun] User CWD: ${effectiveCwd}`);
 
 	// PREPARE ENVIRONMENT
-	const env = { ...process.env };
+	// The language server stays after its feature ends, until the editor stops it.
+	const env = { ...process.env, HAIBUN_STAY: "always" };
 	const mcpEnabled = config.get<boolean>("mcpEnabled") ?? false;
 
 	if (mcpEnabled) {

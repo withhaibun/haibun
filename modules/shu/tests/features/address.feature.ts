@@ -28,7 +28,6 @@ export const features: TKirejiExport = {
 		...testIdSetup,
 
 		scenario({ scenario: "Setup" }),
-		"enable rpc",
 		serveShuApp({ path: '"/spa"' }),
 		'webserver is listening for "address-test"',
 

@@ -11,6 +11,7 @@
 	],
 	"description": "An instance whose every route requires HTTP basic auth, as one behind a proxy's basic auth does, and a page a person opens through it once they sign in.",
 	"moduleOptions": {
+		"HAIBUN_O_WEBSERVERSTEPPER_RPC": "true",
 		"HAIBUN_O_WEBSERVERSTEPPER_PORT": "8244",
 		"HAIBUN_O_WEBSERVERSTEPPER_BASIC_AUTH": "reader:a-password-for-this-run",
 		"HAIBUN_O_WEBSERVERSTEPPER_ALLOW_WITHOUT_DELEGATION": "*",

@@ -154,7 +154,7 @@ and follow".
 
 Every Haibun feature is the living specification for a behavior: prose describes it, executable steps prove it. The identity and authorization model is documented this way, end to end:
 
-* [Identity and capability authorization](e2e-tests/tests/features/identity-and-capability.feature.ts):
+* [Identity and capability authorization](e2e-tests/capability/features/identity-and-capability.feature.ts):
   the instance's self-issued site identity, and the one capability gate every protected action passes, in-process, over
   RPC and over MCP. A statement holds less authority than actuality and never more. A caller presents a signed proof with
   its request, which a verifier the consumer supplies checks, and the proof grants only what it proves.

@@ -12,6 +12,7 @@
 		"@haibun/monitor-tui"
 	],
 	"moduleOptions": {
+		"HAIBUN_O_WEBSERVERSTEPPER_RPC": "true",
 		"HAIBUN_O_WEBSERVERSTEPPER_PORT": "8241",
 		"HAIBUN_O_WEBSERVERSTEPPER_ALLOW_WITHOUT_DELEGATION": "*",
 		"HAIBUN_O_WEBPLAYWRIGHT_PERSISTENT_DIRECTORY": "/tmp/haibun-shu-reader-profile",

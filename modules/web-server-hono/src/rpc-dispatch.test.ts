@@ -426,12 +426,13 @@ class RpcVerifyStepper extends AStepper {
 	};
 }
 
-/** A server on `port` where every caller holds `allowedWithoutDelegation`, where the case states it: an empty list otherwise. */
+/** A server on `port` that serves RPC, where every caller holds `allowedWithoutDelegation`, where the case states it: an empty list otherwise. */
 function makeOptions(port: number, allowedWithoutDelegation?: string) {
 	return {
 		...DEF_PROTO_OPTIONS,
 		moduleOptions: {
 			[getStepperOptionName(WebServerStepper, "PORT")]: String(port),
+			[getStepperOptionName(WebServerStepper, "RPC")]: "true",
 			...(allowedWithoutDelegation ? { [getStepperOptionName(WebServerStepper, "ALLOW_WITHOUT_DELEGATION")]: allowedWithoutDelegation } : {}),
 		},
 	};
@@ -540,7 +541,6 @@ describe("RPC dispatch via WebServerStepper", () => {
 		const feature = {
 			path: "/features/test.feature",
 			content: `
-enable rpc
 webserver is listening for "rpc-without-read"
 public notice is held
 rpc call to "${base}/${NOTICE_COUNT_METHOD}" without a capability invocation is refused with the read action it lacks
@@ -556,7 +556,6 @@ rpc call to "${base}/${STORE_READ_METHOD}" without a capability invocation is re
 		const feature = {
 			path: "/features/test.feature",
 			content: `
-enable rpc
 webserver is listening for "other-actuality"
 rpc call to "http://localhost:${port}/rpc/PingStepper-ping" and its event stream are refused for another actuality, naming the one it holds
 `,
@@ -570,7 +569,6 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-ping" and its event stream
 		const feature = {
 			path: "/features/test.feature",
 			content: `
-enable rpc
 webserver is listening for "rpc-read-narration"
 rpc call to "http://localhost:${port}/rpc/ReadStepper-asked" with method "ReadStepper-asked" succeeds
 rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingStepper-ping" succeeds
@@ -589,7 +587,6 @@ run narrated the call that acted on it and not the call that read it
 		const feature = {
 			path: "/features/test.feature",
 			content: `
-enable rpc
 webserver is listening for "rpc-asks-read"
 rpc read at "http://localhost:${port}/rpc/ReadStepper-asked" of "ReadStepper-asked" is answered
 rpc read at "http://localhost:${port}/rpc/PingStepper-ping" of "PingStepper-ping" is refused
@@ -608,7 +605,6 @@ rpc read at "http://localhost:${port}/rpc/Nowhere-nothing" of "Nowhere-nothing" 
 		const feature = {
 			path: "/features/test.feature",
 			content: `
-enable rpc
 webserver is listening for "rpc-unverified-proof"
 rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingStepper-ping" presenting authority without a registered verifier is refused unauthenticated
 `,
@@ -624,7 +620,6 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingSte
 			const feature = {
 				path: "/features/test.feature",
 				content: `
-enable rpc
 webserver is listening for "rpc-stop-refused"
 rpc call to "http://localhost:${port}/rpc/WebServerStepper-stopInstance" with method "WebServerStepper-stopInstance" without a capability invocation is refused
 `,
@@ -643,7 +638,6 @@ rpc call to "http://localhost:${port}/rpc/WebServerStepper-stopInstance" with me
 		const feature = {
 			path: "/features/test.feature",
 			content: `
-enable rpc
 webserver is listening for "rpc-step-exec"
 rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingStepper-ping" succeeds
 `,
@@ -657,7 +651,6 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingSte
 		const feature = {
 			path: "/features/test.feature",
 			content: `
-enable rpc
 webserver is listening for "rpc-deny-by-default"
 rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingStepper-ping" without a capability invocation is refused
 rpc call to "http://localhost:${port}/rpc/PingStepper-readsAt" with method "PingStepper-readsAt" without a capability invocation is refused
@@ -674,7 +667,6 @@ rpc call to "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" with method "${S
 		const feature = {
 			path: "/features/test.feature",
 			content: `
-enable rpc
 webserver is listening for "rpc-allowed-without-delegation"
 accept authority from "agent" for "PingStepper:protected"
 rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingStepper-ping" succeeds
@@ -691,7 +683,6 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 		const feature = {
 			path: "/features/test.feature",
 			content: `
-enable rpc
 webserver is listening for "rpc-family-authority"
 serve the probe family
 probe family at "http://localhost:${port}/rpc/${PROBE_METHOD}" presenting nothing holds what is allowed and reads at "public"
@@ -707,7 +698,6 @@ probe family at "http://localhost:${port}/rpc/${PROBE_METHOD}" presenting nothin
 		const feature = {
 			path: "/features/test.feature",
 			content: `
-enable rpc
 webserver is listening for "rpc-read-ceiling"
 accept authority from "owner" for "Read:private"
 rpc read at "${url}" presenting nothing reads at "public"
@@ -725,7 +715,6 @@ rpc read asking for "public" at "${url}" signed by "owner" for "Read:private" re
 		const feature = {
 			path: "/features/test.feature",
 			content: `
-enable rpc
 webserver is listening for "sse-gated"
 accept authority from "owner" for "Read:private"
 accept authority from "member" for "Read:opened"
@@ -750,7 +739,6 @@ event stream at "${url}" signed by "keeper" for "Read:public" is sent the events
 		const feature = {
 			path: "/features/test.feature",
 			content: `
-enable rpc
 webserver is listening for "lapsing"
 accept authority from "owner" for "Read:private"
 accept authority from "agent" for "PingStepper:protected"
@@ -772,7 +760,6 @@ held streamed call ends with "${fakeGrant("agent")} was revoked"
 		const feature = {
 			path: "/features/test.feature",
 			content: `
-enable rpc
 webserver is listening for "rpc-old-format"
 rpc old format to "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" is not dispatched
 `,
@@ -786,7 +773,6 @@ rpc old format to "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" is not dis
 		const feature = {
 			path: "/features/shown-steps.feature",
 			content: `
-enable rpc
 webserver is listening for "rpc-shown-steps"
 accept authority from "agent" for "PingStepper:protected,Read:public"
 steps shown at "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" to "agent" include "PingStepper-protectedPing" and not "PingStepper-adminPing"
@@ -817,7 +803,6 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 		const feature = {
 			path: "/features/injected.feature",
 			content: `
-enable rpc
 webserver is listening for "rpc-injected"
 inject a step into actuality's registry
 steps shown at "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" presenting nothing include "Injected-ping"
@@ -855,7 +840,6 @@ rpc call to "http://localhost:${port}/rpc/Injected-ping" with method "Injected-p
 		const feature = {
 			path: "/features/begin-action.feature",
 			content: `
-enable rpc
 webserver is listening for "rpc-begin-action"
 begin action twice at "http://localhost:${port}/rpc/${ACTION_BEGIN}"
 `,
@@ -892,7 +876,6 @@ begin action twice at "http://localhost:${port}/rpc/${ACTION_BEGIN}"
 		const feature = {
 			path: "/features/missing-seqpath.feature",
 			content: `
-enable rpc
 webserver is listening for "rpc-missing-seqpath"
 rpc call to "http://localhost:${port}/rpc/PingStepper-ping" without seqPath succeeds
 `,
@@ -909,7 +892,6 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-ping" without seqPath succ
 		const feature = {
 			path: "/features/protected-rpc.feature",
 			content: `
-enable rpc
 webserver is listening for "rpc-protected-step"
 accept authority from "agent" for "PingStepper:protected"
 rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" without a capability invocation is refused
@@ -926,7 +908,6 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method
 		const feature = {
 			path: "/features/rpc-least-privilege.feature",
 			content: `
-enable rpc
 webserver is listening for "rpc-least-privilege"
 accept authority from "agent" for "PingStepper:protected"
 rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" succeeds when signed by "agent" for "PingStepper:protected"
@@ -942,7 +923,6 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 		const feature = {
 			path: "/features/rpc-invoked-action.feature",
 			content: `
-enable rpc
 webserver is listening for "rpc-invoked-action"
 accept authority from "agent" for "PingStepper:protected, PingStepper:admin"
 rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" succeeds when signed by "agent" for "PingStepper:protected"
@@ -1010,7 +990,6 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 		const feature = {
 			path: "/features/stream-rpc.feature",
 			content: `
-enable rpc
 webserver is listening for "stream-rpc"
 stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-stream3" method "StreamingStepper-stream3" emits chunks
 `,
@@ -1073,7 +1052,6 @@ stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-stream3" metho
 		const feature = {
 			path: "/features/stream-rpc-error.feature",
 			content: `
-enable rpc
 webserver is listening for "stream-rpc-error"
 stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-refuse" method "StreamingStepper-refuse" emits an error
 stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-fail" method "StreamingStepper-fail" emits an error

@@ -25,7 +25,6 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "A signed call holds only what its proof grants, and a refusal names the action to request" }),
 		"Essential, for RPC and MCP. Source: gate.ts:153 and identity-and-capability.feature.ts.",
-		"enable rpc",
 		'webserver is listening for "requirements"',
 		'accept authority from "ranger" for "TestServer:protected"',
 		`rpc call to "${RPC}TestServer-protectedRpcPing" with method "TestServer-protectedRpcPing" without a capability invocation is refused`,

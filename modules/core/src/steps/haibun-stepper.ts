@@ -22,7 +22,6 @@ import { proveStatements, stepperContext } from "../lib/actuality/pipelines/step
 import { QuadStore } from "../lib/steps/pipelines/quad-store.js";
 import { remoteQuadStore } from "./root.js";
 import { requestSigner } from "../lib/domains/session-authority.js";
-import { SERVE_UNTIL_STOPPED, SERVING } from "../lib/domains/serving.js";
 import { discoverSteps } from "../lib/steps/pipelines/discover-steps.js";
 import { runRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { stepMethodName } from "../lib/steps/domains/step-method.js";
@@ -142,20 +141,6 @@ class Haibun extends AStepper implements IHasCycles {
 			description: 'Proves the statements again until they hold, and is refuted where they haven\'t held within the duration, e.g. `until passes within "2s"`: ◇≤d P.',
 			gwta: `until {statements:${DOMAIN_STATEMENT}} within {${UNTIL_DURATION}: ${DOMAIN_DURATION}}`,
 			reading: READING.until,
-		},
-
-		keepRunning: {
-			exact: SERVE_UNTIL_STOPPED,
-			action: () => {
-				// A service feature (an agent, a daemon) ends with this step, so the process keeps receiving SSE events,
-				// holding server sockets open and polling. The action's promise doesn't resolve. A signal ends the process.
-				// This step sets SERVING to mark the instance ready, since every earlier step of the feature has run. A caller
-				// that waits only for the port would race the rest of the feature.
-				this.getWorld().runtime[SERVING] = true;
-				return new Promise(() => {
-					// intentionally never resolves
-				});
-			},
 		},
 
 		backgrounds: {

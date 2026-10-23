@@ -29,7 +29,6 @@ export const features: TKirejiExport = {
 		...customTestIds,
 
 		scenario({ scenario: "Setup" }),
-		"enable rpc",
 		serveShuApp({ path: '"/spa"' }),
 		serveTestComponent({}),
 		'webserver is listening for "voice-ui-test"',

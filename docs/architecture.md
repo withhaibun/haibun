@@ -338,9 +338,12 @@ and an instance's launch names it after the instance's directory in the same way
 group's directory as Node does, so a group doesn't name a parent path.
 
 What a feature needs running before its first step is the work of a stepper's start cycle where an option states it, rather
-than a step without a parameter: GraphStepper opens its store as each feature starts, ends what an interrupted process left open
-and starts the retention its INSTRUMENTATION_RETENTION_DAYS states; LlmStepper discovers each provider's models once the store
-opens; BROWSER_RELAY serves web-playwright's relay on the feature's web server; HEALTH_TICK_MS starts spopg's health monitor.
+than a step without a parameter: WebServerStepper's RPC serves `/rpc` on each feature's web server, ActivitiesStepper states
+each saved waypoint's rule from its record once the feature's store is open, and BROWSER_RELAY serves web-playwright's relay on
+the feature's web server. An application's steppers do the same, such as a store that opens as each feature starts. A service
+stays up after its features end where `HAIBUN_STAY` states it, which the launch of an instance sets, and its handshake states
+that it serves once its features passed. A group whose features serve pages that run a script runs them on a server that
+doesn't serve RPC, since a served file carries the artifact policy while the server dispatches `/rpc` calls.
 
 A person finds a head where a step is found. The actions bar's step input lists each head with the steps, ranked as a step is,
 marked `waypoint · <library>`, where the library is the package whose background states it, the feature that states it, or
@@ -348,8 +351,11 @@ marked `waypoint · <library>`, where the library is the package whose backgroun
 server completes a head with the same mark, and `show steps matching {text} as "definition"` lists each head as a predicate whose `waypoint` names its library.
 
 Each repository holds its steps to three rules in `scripts/steps.test.ts`, with a baseline in `scripts/steps.baseline.json` that
-only shrinks: a step that starts or keeps something takes a parameter, a step has more than one call site, and a step's pattern
-isn't another step's with a word more or less.
+only shrinks: a step that starts or keeps something and doesn't return a product takes a parameter, a step has more than one call
+site, and a step's pattern isn't another step's with a word more or less. A call site is a feature line, a kireji call, or code
+that names the step; where a top-level constant names it, each read of the constant, or of its property that holds the name, is a
+call, as a page calls a step through the constant of its method. A family of steps that differ by one value is one step that
+takes the value, such as `use Authorization {scheme} header with {credentials}` and a scenario heading that starts with Pending.
 
 shu's `waypoints` base holds the waypoints of its views. Each head names the view whose page it reads by its tag, and each activity calls only web-playwright's steps within
 that view, reading the view's accessible document and the test ids every view shares:
@@ -395,7 +401,7 @@ the page.
 | Stepper | Example Steps |
 |---------|---------------|
 | WebPlaywright | `go to the {uri} webpage`, `click "{target}"`, `click "{target}" by "placeholder"`, `input {what} for {field}`, `wait for "{target}"`, `wait until {target} is gone`, `hover over {target}`, `scroll {target} up a screen`, `in {container}, {statement}`, `see "{text}"`, `cookie {name} is {value}`, `take a screenshot` |
-| WebServerStepper | `serve files at /path from "dir"`: a served file requires `Read:public`, which a deployment serving a site allows without a delegation |
+| WebServerStepper | `serve files at /path from "dir"`: a served file requires `Read:public`, which a deployment serving a site allows without a delegation; the `RPC` option serves `/rpc` on each feature's server |
 | A11yStepper | `page is accessible accepting serious {N} and moderate {N}` |
 | WebHttp | `fetch from {url} is "{expected}"` |
 

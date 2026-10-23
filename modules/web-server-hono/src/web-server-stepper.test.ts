@@ -118,24 +118,24 @@ fetch from "http://localhost:${port}/pub/hello.txt" is refused with the read it 
 		expect(result.ok, JSON.stringify(result.failure)).toBe(true);
 	});
 
-	it("serves a file to a caller that holds the read, under the artifact policy once the server dispatches rpc calls", async () => {
+	it("serves a file to a caller that holds the read, under the artifact policy where the server serves rpc calls", async () => {
 		const port = 8135;
 		const hello = `http://localhost:${port}/pub/hello.txt`;
-		const feature = {
+		const served = (policy: string) => ({
 			path: "/features/policy.feature",
 			content: `
 webserver is listening for "webserverstepper serves under the artifact policy"
 serve files at "/pub" from "test-content"
 fetch from "${hello}" includes "Hello World"
-fetch from "${hello}" carries the policy "null"
-enable rpc
-fetch from "${hello}" includes "Hello World"
-fetch from "${hello}" carries the policy "${ARTIFACT_POLICY}"
+fetch from "${hello}" carries the policy "${policy}"
 `,
-		};
+		});
 		const moduleOptions = { [getStepperOptionName(WebServerStepper, "PORT")]: String(port), ...SERVES_A_SITE };
-		const result = await passWithDefaults([feature], [WebServerStepper, VerifyStepper], { ...DEF_PROTO_OPTIONS, moduleOptions });
-		expect(result.ok, JSON.stringify(result.failure)).toBe(true);
+		const plain = await passWithDefaults([served("null")], [WebServerStepper, VerifyStepper], { ...DEF_PROTO_OPTIONS, moduleOptions });
+		expect(plain.ok, JSON.stringify(plain.failure)).toBe(true);
+		const rpc = { ...moduleOptions, [getStepperOptionName(WebServerStepper, "RPC")]: "true" };
+		const sandboxed = await passWithDefaults([served(ARTIFACT_POLICY)], [WebServerStepper, VerifyStepper], { ...DEF_PROTO_OPTIONS, moduleOptions: rpc });
+		expect(sandboxed.ok, JSON.stringify(sandboxed.failure)).toBe(true);
 	});
 
 	it("serves files from a directory", async () => {

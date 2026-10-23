@@ -25,7 +25,6 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "The actualities this device holds are listed, and an earlier one can be read" }),
 
 		"This is a second actuality on the same reader's profile, so this device holds the records of the earlier actuality beside the ones being written now. The client cache view lists both actualities, names each by the features it ran, and marks which the page is reading.",
-		"enable rpc",
 		serveShuApp({ path: '"/spa"' }),
 		'webserver is listening for "reading an actuality this device holds"',
 		gotoPage({ name: `"${host}/spa"` }),

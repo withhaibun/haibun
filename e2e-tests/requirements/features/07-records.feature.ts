@@ -22,7 +22,6 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "A read made from outside isn't recorded as actuality's step" }),
 		`Essential, for observation from outside. A read a transport carries outside a step is the caller's, and a read a transport carries within a step, such as a model's tool call during a turn, is that step's act, which actuality records. Source: step-dispatch.ts, the recorded flag.`,
-		"enable rpc",
 		'webserver is listening for "records"',
 		`a read of "Haibun-validateStep" with {"text": "line x renders from its term as written"} over RPC at "${RPC}Haibun-validateStep" leaves no record`,
 

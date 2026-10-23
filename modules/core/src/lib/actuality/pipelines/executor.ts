@@ -22,6 +22,7 @@ import { calculateShouldClose, actualityFailure, scenarioDigest, staysAfterActua
 import { actualityEvent, featureEvent, scenarioEvent } from "../derivations/lifecycle-events.js";
 import { moveActuality } from "./move-actuality.js";
 import { digestFields } from "../../domains/digest.js";
+import { SERVING } from "../../domains/serving.js";
 
 /**
  * Releases the payloads of a finished feature's passing steps. A reader reads a passing step's products and artifact while
@@ -141,13 +142,15 @@ export class Executor {
 			if (!okSoFar && !continueAfterError && !isLast) break;
 		}
 
+		// HAIBUN_STAY keeps the process serving requests after executeFeatures returns. An instance that stays after its features
+		// passed is marked serving before actuality's end is reported, so a caller that reads the end reads it as serving.
+		const stays = staysAfterActuality(world.options[STAY], okSoFar);
+		world.runtime[SERVING] = stays && okSoFar;
 		await moveActuality(world, actualityEvent(endOf(okSoFar), world.clock.now()));
 		const failure = okSoFar ? undefined : actualityFailure(featureResults);
 		const results: TExecutorResult = { ok: okSoFar, featureResults, actuality: world.runtime.actuality.state.get(), tag: world.tag, shared: world.shared, steppers, failure };
 
-		// HAIBUN_STAY keeps the process serving requests after executeFeatures returns. Unsubscribing would stop routing
-		// events to consumers while the server emits them, so the handler stays subscribed while actuality stays.
-		const stays = staysAfterActuality(world.options[STAY], okSoFar);
+		// Unsubscribing would stop routing events to consumers while the server emits them, so the handler stays subscribed while actuality stays.
 		await doStepperCycle(steppers, "endActuality", <TEndActuality>{ ...results, stays });
 		if (!stays) world.eventLogger.unsubscribe(onEventHandler);
 		return results;

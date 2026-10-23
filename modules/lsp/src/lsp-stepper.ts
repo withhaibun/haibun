@@ -4,14 +4,13 @@
  */
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { LanguageServer } from "./pipelines/language-server.js";
 import { lspPorts } from "./root.js";
 
 export default class LspStepper extends AStepper {
 	description = "Provides completion, hover, diagnostics and semantic highlighting for haibun features in an IDE.";
 
-	steps = { lspIsReady: { gwta: "lsp is ready", action: () => Promise.resolve(OK) } } as const satisfies TStepperSteps;
+	steps = {} as const satisfies TStepperSteps;
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);

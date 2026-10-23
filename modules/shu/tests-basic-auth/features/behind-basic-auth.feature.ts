@@ -31,7 +31,6 @@ export const features: TKirejiExport = {
 		...testIdSetup,
 
 		scenario({ scenario: "The instance refuses every request that doesn't sign in" }),
-		"enable rpc",
 		serveShuApp({ path: `"${APP}"` }),
 		'webserver is listening for "behind-basic-auth-test"',
 		"A request that doesn't sign in is refused before the instance reads it. A service checks this of each address that reaches it over TLS, and stops where an address responds without requiring a sign-in.",

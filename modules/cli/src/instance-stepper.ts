@@ -2,7 +2,7 @@
  * InstanceStepper supervises sibling haibun processes of two kinds. An instance serves, and a run executes features.
  * `start a haibun instance from {where} on port {port} as host {hostId}` forks the cli.js that an operator runs.
  * The child reads the config directory that a deployment uses, and the waypoint libraries `where` names after it, as a command line does.
- * The child serves because its feature ends with `this feature runs as a service until stopped`.
+ * The child stays after its features end, as HAIBUN_STAY states, and serves once they passed.
  * Readiness is the action.begin handshake. Federation and remote steppers use the same handshake. The child's exit and its
  * events end the wait where it stops first, with the step that failed, so a launch doesn't wait out a deadline.
  * The step's products carry the instance's url, site principal and hostId.
@@ -49,7 +49,6 @@ import { actingAs, askedIn } from "@haibun/core/lib/domains/capability-context.j
 import { signInOf, verifiedRun } from "./pipelines/run-conditions.js";
 import { INSTANCE_PORT_ENV, KEY_ENV, RUN_DOMAIN, RunTail, SUPERVISOR_CAPABILITIES, runDomainDefinitions, runEnvironment } from "./domains/run.js";
 import { DOMAIN_FILE_PATH, DOMAIN_NUMBER } from "@haibun/core/lib/domains/domains.js";
-import { SERVE_UNTIL_STOPPED } from "@haibun/core/lib/domains/serving.js";
 
 const READY_POLL_MS = 300;
 const STDERR_TAIL_CHARS = 4_000;
@@ -104,14 +103,14 @@ async function begins(origin: string): Promise<THandshake | undefined> {
 }
 
 /** Why a launched instance stopped before it served, or undefined while it starts: it exited, a step of its actuality failed,
- *  or its features ended. `said` holds its error output. */
+ *  or its features ended without its handshake stating that it serves. `said` holds its error output. */
 function stoppedBeforeServing(dir: string, child: ChildProcess, actuality: TActuality, said: RunTail): string | undefined {
 	const { output } = said.since(0);
 	const shown = output ? `\n${output}` : "";
 	if (child.exitCode !== null) return `instance at ${dir} exited with code ${child.exitCode} before it served. Correct the cause its error output reports${shown}`;
 	const failed = firstFailure(actuality);
 	if (failed !== undefined) return `instance at ${dir} failed before it served, at ${failed}. Correct that step, then start the instance again`;
-	if (actualityEnded(actuality)) return `instance at ${dir} ended its features before it served. End its feature with the step "${SERVE_UNTIL_STOPPED}"`;
+	if (actualityEnded(actuality)) return `instance at ${dir} ended its features before it served. Correct the cause its error output reports${shown}`;
 	return undefined;
 }
 
@@ -486,7 +485,8 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		// $LAUNCHED_FROM$ to mount the launcher's store and report to the launcher without naming a port in its source.
 		const launcherPort = process.env[INSTANCE_PORT_ENV];
 		const passed = [process.env.HAIBUN_ENV, launcherPort ? `${LAUNCHED_FROM}=${localOrigin(Number(launcherPort))}` : ""].filter(Boolean).join(",");
-		const env = { ...runEnvironment(process.env, port, false, hostId, perProcessOptionNames(this.steppers)), ...(passed ? { HAIBUN_ENV: passed } : {}) };
+		// An instance serves, so it stays after its features end, as a standing run does.
+		const env = { ...runEnvironment(process.env, port, true, hostId, perProcessOptionNames(this.steppers)), ...(passed ? { HAIBUN_ENV: passed } : {}) };
 		// The child's cwd is its base, since a base's config paths are relative to that base. A launched instance whose
 		// stepper paths resolved against the launcher's directory couldn't load its own steppers. The child ends with this
 		// process: a staying session that ends by signal terminates its children.

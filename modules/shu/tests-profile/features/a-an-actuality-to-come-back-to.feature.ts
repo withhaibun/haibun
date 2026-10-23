@@ -25,7 +25,6 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "A reader opens actuality while it is happening" }),
 
 		"A reader's browser keeps one profile across the actualities it watches, which is what makes a finished actuality readable later. This feature is the whole of an actuality of its own, and it is the one they will come back to: the page reads it while it happens, and what a page reads it holds, so this device holds its records. The group's other features are a second actuality on the same profile.",
-		"enable rpc",
 		serveShuApp({ path: '"/spa"' }),
 		'webserver is listening for "an actuality to come back to"',
 		gotoPage({ name: `"${host}/spa"` }),

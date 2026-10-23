@@ -30,14 +30,6 @@ export const EndpointSchema = PersistedVertexSchema.extend({
 export type TEndpoint = z.infer<typeof EndpointSchema>;
 export const DOMAIN_ENDPOINT = "haibun-endpoint";
 
-/** The domain of the ports this process listens on, each with why it listens. */
-export const DOMAIN_LISTENING_PORTS = "listening-ports";
-export const ListeningPortsSchema = z.object({ ports: z.record(z.string(), z.string()) });
-export const listeningSummary = (p: Record<string, unknown>) =>
-	`listening: ${Object.entries(ListeningPortsSchema.parse(p).ports)
-		.map(([port, why]) => `${port} (${why})`)
-		.join(", ")}`;
-
 /** What holding authority over this instance's web server means: ending the process that serves it. */
 export const WEB_SERVER_CAPABILITIES = { stop: "WebServer:stop" } as const;
 

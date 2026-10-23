@@ -4,7 +4,7 @@ import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import { RPC_ROUTE } from "@haibun/core/lib/rpc-wire.js";
 import { localOrigin } from "@haibun/core/lib/domains/local-origin.js";
 import { requiredModuleOption } from "@haibun/core/lib/held-module-options.js";
-import { WEB_SERVER } from "../backgrounds/int/web-server.feature.ts";
+import { WEB_SERVER } from "../../tests/backgrounds/int/web-server.feature.ts";
 
 const { feature, scenario } = withAction(new Haibun());
 
@@ -27,7 +27,6 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "A caller's proof is verified over RPC, and grants only what it proves" }),
 		`The gate refuses the protected step before it runs when a request doesn't present a proof. The gate refuses a step that doesn't declare an action in the same way. The gate refuses a method that doesn't name a step in the same way. The three refusals state the same reason, so a refusal doesn't reveal actuality's steps to a caller that didn't prove a capability. A holder that the verifier accepts for the protected action signs its call. The same step at the same endpoint runs for that call. The gate still refuses the admin step to that holder, since the holder proved only the protected action. The gate refuses a request from a holder that the verifier doesn't accept. The holder's proof fails, so the request doesn't run a step.`,
-		"enable rpc",
 		'webserver is listening for "capability over rpc"',
 		'accept authority from "ranger" for "TestServer:protected"',
 		`rpc call to "${RPC}TestServer-protectedRpcPing" with method "TestServer-protectedRpcPing" without a capability invocation is refused`,

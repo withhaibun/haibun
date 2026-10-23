@@ -92,11 +92,12 @@ describe("a page open on a run", () => {
 				...DEF_PROTO_OPTIONS.moduleOptions,
 				[getStepperOptionName(WebServerStepper, "PORT")]: String(port),
 				[getStepperOptionName(WebServerStepper, "ALLOW_WITHOUT_DELEGATION")]: "*",
+				[getStepperOptionName(WebServerStepper, "RPC")]: "true",
 			},
 		});
 		const feature = {
 			path: "/features/rpc-registry-following.feature",
-			content: `enable rpc\nwebserver is listening for "a page following actuality's steps"\npage at "${base}" reads actuality's steps\nrun adds another host's step\npage holds the added step\n`,
+			content: `webserver is listening for "a page following actuality's steps"\npage at "${base}" reads actuality's steps\nrun adds another host's step\npage holds the added step\n`,
 		};
 		const result = await testWithWorld(world, [feature], [WebServerStepper, ShuStepper, MonitorStepper, StorageFS, Haibun, StepsPage]);
 		if (!result.ok)

@@ -95,6 +95,7 @@ const options = (port: number) => ({
 		[getStepperOptionName(WebPlaywright, "STORAGE")]: "StorageMem",
 		[getStepperOptionName(WebPlaywright, "HEADLESS")]: "true",
 		[getStepperOptionName(WebServerStepper, "PORT")]: String(port),
+		[getStepperOptionName(WebServerStepper, "RPC")]: "true",
 		[getStepperOptionName(WebPlaywright, "BROWSER_RELAY")]: "true",
 	},
 });
@@ -119,7 +120,6 @@ describe("the browser relay", () => {
 		const port = await freePort();
 		const base = `http://localhost:${port}`;
 		const feature = [
-			"enable rpc",
 			'webserver is listening for "relay"',
 			`accept authority from "extension" for "${WEB_PLAYWRIGHT_ACTIONS.attach}"`,
 			'accept authority from "reader" for "Read:public"',
@@ -156,7 +156,7 @@ describe("the browser relay", () => {
 
 	it("refuses a step that needs the browser while a browser isn't attached and states why", { timeout: 60_000 }, async () => {
 		const port = await freePort();
-		const feature = ["enable rpc", 'webserver is listening for "relay-detached"', `go to the "${siteUrl}" webpage`].join("\n");
+		const feature = ['webserver is listening for "relay-detached"', `go to the "${siteUrl}" webpage`].join("\n");
 		const result = await failWithDefaults([{ path: "/features/relay-detached.feature", content: feature }], steppers, options(port));
 		const failed = result.featureResults?.[0]?.stepResults?.find((step) => !step.ok) as { in?: string; errorMessage?: string } | undefined;
 		expect(failed?.in).toBe(`go to the "${siteUrl}" webpage`);

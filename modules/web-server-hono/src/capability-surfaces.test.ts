@@ -89,11 +89,15 @@ describe("capability on every call", () => {
 		const port = await freePort();
 		const feature = {
 			path: "/features/surfaces.feature",
-			content: `enable rpc\nserve mcp tools at "/mcp"\nwebserver is listening for "surfaces"\nevery registered step is refused without a capability in process, over rpc and over mcp on port ${port}`,
+			content: `serve mcp tools at "/mcp"\nwebserver is listening for "surfaces"\nevery registered step is refused without a capability in process, over rpc and over mcp on port ${port}`,
 		};
 		const options = {
 			...DEF_PROTO_OPTIONS,
-			moduleOptions: { [getStepperOptionName(WebServerStepper, "PORT")]: String(port), [getStepperOptionName(McpStepper, "PORT")]: String(port) },
+			moduleOptions: {
+				[getStepperOptionName(WebServerStepper, "PORT")]: String(port),
+				[getStepperOptionName(WebServerStepper, "RPC")]: "true",
+				[getStepperOptionName(McpStepper, "PORT")]: String(port),
+			},
 		};
 		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, Haibun, VariablesStepper, ActivitiesStepper, AuthorityStepper, SurfacesStepper], options);
 		expect(result.ok).toBe(true);
