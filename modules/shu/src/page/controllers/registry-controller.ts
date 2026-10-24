@@ -72,8 +72,20 @@ export function conversationSteps(): TAskSteps | undefined {
 	return list === undefined ? undefined : askSteps(list);
 }
 
-/** Returns the steps whose required action `action` allows. */
-export const stepsAllowedBy = (action: string): TStepDefinition[] => Steps.stepsAllowedBy(readList(`the steps ${action} allows`), action);
+/** Returns the steps this page may call whose required action `action` allows. */
+export const stepsAllowedBy = (action: string): TStepDefinition[] => Steps.stepsAllowedBy(readList(`the steps ${action} allows`).steps, action);
+
+/** Returns every step actuality declares whose required action `action` allows, whether or not this page may call it. */
+export const declaredStepsAllowedBy = (action: string): TStepDefinition[] => Steps.stepsAllowedBy(readList(`the steps ${action} allows`).declared, action);
+
+/** Returns the step `method` names as actuality declares it, with whether this page may call it, or the refusal of the read.
+ *  Refuses a method actuality doesn't declare, named. */
+export const declaredStepRead = (method: string): Promise<TCallOutcome<TStepDefinition>> =>
+	outcomeOf(async () => {
+		const step = (await stepList()).declared.find((one) => one.method === method);
+		if (step === undefined) throw new Error(`actuality doesn't declare ${method}; choose a step from the actions bar's step input`);
+		return step;
+	});
 
 /** Returns the steps of a type. */
 export const stepsForContext = (label: string): TStepDefinition[] => Steps.stepsForContext(readList(`the steps of ${label}`), label);

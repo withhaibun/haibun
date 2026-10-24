@@ -13,10 +13,8 @@ import { itemAt } from "../lib/domains/item-at.js";
 import { hostScopedMethodName } from "../lib/steps/domains/step-method.js";
 import { runRegistry, type StepRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { productData, STEPS_CHANGED, type THaibunEvent } from "../lib/domains/protocol.js";
-import { STEP_DETAIL } from "../lib/steps/domains/step-discovery.js";
 import { SteppersSchema } from "../lib/steps/domains/steppers.js";
-import { DeclaredStepsSchema, SHOW_DECLARED_STEPS_LINE, SHOW_DECLARED_STEPS_METHOD, type TDeclaredSteps } from "../lib/steps/domains/declared-steps.js";
-import { readShownSteps } from "../lib/steps/domains/step-discovery.js";
+import { readStepDefinitions, readStepSummaries, SHOW_STEPS_LINE, SHOW_STEPS_METHOD, type TStepSummaries } from "../lib/steps/domains/step-discovery.js";
 import type { TStepResult } from "../lib/domains/protocol.js";
 import { validateStep } from "../lib/pipelines/step-validation.js";
 import { RUN_AUTHORITY, runAuthorizedWith, runShowing } from "../lib/domains/capability-context.js";
@@ -160,7 +158,7 @@ describe("show steps", () => {
 		const feature = { path: "/features/test.feature", content: 'matching "testsTEPS-passes", show step definitions' };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
-		const discovery = readShownSteps(productsOfLine(result, feature.content), STEP_DETAIL.definition);
+		const discovery = readStepDefinitions(productsOfLine(result, feature.content));
 		expect(discovery.steps.map((step) => step.method)).toEqual(["TestSteps-passes"]);
 		expect(discovery.total, "counted as narrowed").toBe(1);
 		expect(itemAt(discovery.steps, 0)._links.call).toEqual({ method: "TestSteps-passes" });
@@ -177,7 +175,7 @@ describe("show steps", () => {
 		const feature = { path: "/features/test.feature", content: "show steps\nshow steppers" };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
-		const summaries = readShownSteps(productsOfLine(result, "show steps"), STEP_DETAIL.summary);
+		const summaries = readStepSummaries(productsOfLine(result, "show steps"));
 		expect(summaries.steps.map((step) => step.method)).toContain("TestSteps-passes");
 		expect(summaries.total).toBe(summaries.steps.length);
 		const steppers = SteppersSchema.parse(productData(productsOfLine(result, "show steppers")));
@@ -188,9 +186,9 @@ describe("show steps", () => {
 	it("counts, limits and orders a statement's list, and refuses to bound by time a list whose items don't state one", async () => {
 		const lines = ['counting matching "TestSteps-", show steps', 'limited to 1, ordered by "method", matching "TestSteps-", show steps', 'since "2026-01-01", show steps'];
 		const result = await failWithDefaults([{ path: "/features/test.feature", content: lines.join("\n") }], [Haibun, TestSteps]);
-		const counted = readShownSteps(productsOfLine(result, itemAt(lines, 0)), STEP_DETAIL.summary);
+		const counted = readStepSummaries(productsOfLine(result, itemAt(lines, 0)));
 		expect({ steps: counted.steps, total: counted.total }, "a count without the items").toEqual({ steps: [], total: Object.keys(new TestSteps().steps).length });
-		const limited = readShownSteps(productsOfLine(result, itemAt(lines, 1)), STEP_DETAIL.summary);
+		const limited = readStepSummaries(productsOfLine(result, itemAt(lines, 1)));
 		const methods = Object.keys(new TestSteps().steps)
 			.map((key) => `TestSteps-${key}`)
 			.sort();
@@ -202,59 +200,38 @@ describe("show steps", () => {
 		expect(result.failure?.error.message).toContain("doesn't state a time for its items");
 	});
 
-	it("shows the steps a principal holds to a caller that acts for that principal and holds less", async () => {
-		const shown: string[][] = [];
+	it("states which steps a caller may call, as the principal it acts for holds them, and lists the steps it can't call with the action each requires", async () => {
+		const shown: TStepSummaries[] = [];
 		class ActsForAnother extends AStepper {
-			description = "Lists steps as a caller holding only a public read that acts for one holding every action.";
+			description = "Lists steps as a caller holding only a public read, alone and acting for one holding every action.";
 			steps = {
 				actsForAnother: {
 					gwta: "list steps for another",
 					action: async () => {
 						const haibun = this.getWorld().runtime.steppers?.find((stepper) => stepper instanceof Haibun) as Haibun;
-						const list = async () => readShownSteps((await haibun.steps.showSteps.action()).products, STEP_DETAIL.summary);
-						for (const listed of [await runAuthorizedWith(["Read:public"], list), await runShowing(RUN_AUTHORITY, () => runAuthorizedWith(["Read:public"], list))])
-							shown.push(listed.steps.map((step) => step.method).filter((method) => method === "TestSteps-passes"));
+						const list = async () => readStepSummaries((await haibun.steps.showSteps.action()).products);
+						shown.push(await runAuthorizedWith(["Read:public"], list), await runShowing(RUN_AUTHORITY, () => runAuthorizedWith(["Read:public"], list)));
 						return actionOK();
 					},
 				},
 			};
 		}
-		const result = await passWithDefaults([{ path: "/features/test.feature", content: "list steps for another" }], [Haibun, TestSteps, ActsForAnother]);
+		const result = await passWithDefaults([{ path: "/features/test.feature", content: `list steps for another\n${SHOW_STEPS_LINE}` }], [Haibun, TestSteps, ActsForAnother]);
 		expect(result.ok).toBe(true);
-		expect(shown).toEqual([[], ["TestSteps-passes"]]);
-	});
-
-	it("lists every step actuality declares, with whether its caller may call it, to a caller that holds less", async () => {
-		const declared: TDeclaredSteps[] = [];
-		class ListsDeclared extends AStepper {
-			description = "Lists every declared step as a caller holding only a public read.";
-			steps = {
-				listsDeclared: {
-					gwta: "list declared steps as a reader",
-					action: async () => {
-						const haibun = this.getWorld().runtime.steppers?.find((stepper) => stepper instanceof Haibun) as Haibun;
-						declared.push(await runAuthorizedWith(["Read:public"], async () => DeclaredStepsSchema.parse((await haibun.steps.showDeclaredSteps.action()).products)));
-						return actionOK();
-					},
-				},
-			};
-		}
-		const result = await passWithDefaults(
-			[{ path: "/features/test.feature", content: `list declared steps as a reader\n${SHOW_DECLARED_STEPS_LINE}` }],
-			[Haibun, TestSteps, ListsDeclared],
-		);
-		expect(result.ok).toBe(true);
-		const [asReader] = declared;
-		const passes = asReader?.steps.find((step) => step.method === "TestSteps-passes");
-		expect(passes, "a step the reader doesn't hold, declared with the action it requires").toMatchObject({ stepperName: "TestSteps", callable: false });
-		expect(asReader?.steps.find((step) => step.method === SHOW_DECLARED_STEPS_METHOD)).toMatchObject({ callable: true });
-		const asRun = DeclaredStepsSchema.parse(productData(productsOfLine(result, SHOW_DECLARED_STEPS_LINE)));
+		const [asReader, asPrincipal] = shown;
+		const named = (listed: TStepSummaries | undefined, method: string) => listed?.steps.find((step) => step.method === method);
+		expect(named(asReader, "TestSteps-passes"), "a step the reader doesn't hold, listed with the action it requires").toMatchObject({
+			capability: "TestSteps:passes",
+			callable: false,
+		});
+		expect(named(asReader, SHOW_STEPS_METHOD)).toMatchObject({ callable: true });
+		expect(named(asPrincipal, "TestSteps-passes"), "and callable as the principal holds it").toMatchObject({ callable: true });
+		const asRun = readStepSummaries(productsOfLine(result, SHOW_STEPS_LINE));
 		expect(asRun.steps.map((step) => step.method)).toEqual(asReader?.steps.map((step) => step.method));
 		expect(
 			asRun.steps.every((step) => step.callable),
 			"actuality holds every action",
 		).toBe(true);
-		expect(asRun.total).toBe(asRun.steps.length);
 	});
 
 	it("states whether a line resolves to one step, and which", async () => {

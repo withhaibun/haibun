@@ -7,15 +7,13 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SHOW_STEP_DEFINITIONS_METHOD } from "@haibun/core/lib/step-discovery.js";
-import { SHOW_DECLARED_STEPS_METHOD, type TDeclaredSteps } from "@haibun/core/lib/steps/domains/declared-steps.js";
 import { StepMethodSchema } from "@haibun/core/lib/steps/domains/step-method.js";
 import { ActionSchema } from "@haibun/core/lib/domains/actions.js";
-import { counted } from "@haibun/core/lib/domains/hypermedia.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { ShuStepDefinition } from "./shu-step-definition.js";
 import "./shu-ref-element.js";
 
-import { DECLARED_STEPS_STEP, setupShuTest, stepsShown, type TShuTestHandle } from "../../test/setup.js";
+import { setupShuTest, stepsShown, type TShuTestHandle } from "../../test/setup.js";
 import { installMemoryDeviceStore } from "../client-cache/root.js";
 import { SHU_EVENT } from "../../domains/elements.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
@@ -42,14 +40,14 @@ const READ = {
 	recordIds: { id: TYPE_PARAM },
 };
 const SUSPEND = {
-	method: StepMethodSchema.parse("CredentialsStepper-suspendCredential"),
+	method: "CredentialsStepper-suspendCredential",
 	stepperName: "CredentialsStepper",
+	stepName: "suspendCredential",
 	pattern: "suspend credential {id}",
 	description: "Suspends a credential",
-	capability: ActionSchema.parse("CredentialsStepper:suspendCredential"),
 	callable: false,
 };
-const DECLARED: TDeclaredSteps = { steps: [SUSPEND], ...counted(1) };
+const SUSPENDING = ActionSchema.parse("CredentialsStepper:suspendCredential");
 const HOLDING = {
 	method: "AuthorityStepper-holdingOnly",
 	stepperName: "AuthorityStepper",
@@ -66,9 +64,7 @@ describe("a step's view", () => {
 		installMemoryDeviceStore();
 		handle = setupShuTest({
 			dispatch: (method) => {
-				if (method === SHOW_STEP_DEFINITIONS_METHOD)
-					return stepsShown([VERIFY, HOLDING, READ, DECLARED_STEPS_STEP], { [CREDENTIAL]: { persistedAs: CREDENTIAL_TYPE }, [CHECK]: {} });
-				if (method === SHOW_DECLARED_STEPS_METHOD) return DECLARED;
+				if (method === SHOW_STEP_DEFINITIONS_METHOD) return stepsShown([VERIFY, HOLDING, READ, SUSPEND], { [CREDENTIAL]: { persistedAs: CREDENTIAL_TYPE }, [CHECK]: {} });
 				throw new Error(`unexpected ${method}`);
 			},
 		});
@@ -119,10 +115,11 @@ describe("a step's view", () => {
 		expect(chosen).toEqual([{ method: VERIFY.method }]);
 	});
 
-	it("states a step this page can't call: its line, the action it requires and the action the page lacks, each linked", async () => {
+	it("states a step this page can't call: its line, the action it requires and the action the page lacks, each linked, and doesn't offer to choose it", async () => {
 		const view = await opened(SUSPEND.method);
 		expect(view.shadowRoot?.querySelector(`[data-testid="${IDS.PATTERN}"]`)?.textContent).toBe(SUSPEND.pattern);
-		expect(refsAt(view, IDS.LACKS)).toEqual([{ kind: "action", target: { action: SUSPEND.capability }, text: SUSPEND.capability }]);
+		expect(refsAt(view, IDS.LACKS)).toEqual([{ kind: "action", target: { action: SUSPENDING }, text: SUSPENDING }]);
+		expect(view.shadowRoot?.querySelector(`[data-testid="${IDS.CHOOSE}"]`)).toBeNull();
 		expect(view.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.ACTION_COLUMN.HOLDS}"]`)?.textContent).toContain("doesn't hold");
 	});
 

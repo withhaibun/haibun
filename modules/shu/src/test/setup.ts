@@ -109,17 +109,14 @@ import { authorityPort, openPageAuthority, type TPageAuthority } from "../page/a
 import type { TDelegations } from "@haibun/core/lib/domains/authority-types.js";
 import {
 	SHOW_STEP_DEFINITIONS_METHOD,
-	SHOW_STEPS_ACTION,
-	STEP_DETAIL,
 	StepDescriptorSchema,
 	type TStepDefinition,
 	type TStepDefinitions,
-	readShownSteps,
+	readStepDefinitions,
 	stepDefinition,
 } from "@haibun/core/lib/step-discovery.js";
 import { requiredAction, type TStepReads } from "@haibun/core/lib/domains/actions.js";
 import { steppersOf } from "@haibun/core/lib/steps/pipelines/discover-steps.js";
-import { SHOW_DECLARED_STEPS_LINE, SHOW_DECLARED_STEPS_METHOD } from "@haibun/core/lib/steps/domains/declared-steps.js";
 import { ARTIFACTS_ROUTE } from "@haibun/core/lib/domains/run-artifact.js";
 import { buildConcernCatalog, counted, type TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import { Access, LinkRelations, type TDomainDefinition, type TEdgeDef, type TRel, type TAnnotationView } from "@haibun/core/lib/domains/resources.js";
@@ -220,6 +217,8 @@ export function stepsShown(
 			pattern: string;
 			fallback?: boolean;
 			answersTheTurn?: boolean;
+			/** Whether the page may call the step, which it may where this isn't stated. */
+			callable?: boolean;
 			paramDomains?: Record<string, string>;
 			productsDomain?: string;
 			recordData?: Record<string, string>;
@@ -231,7 +230,7 @@ export function stepsShown(
 	concerns: TConcernCatalog = buildConcernCatalog({}),
 ): TStepDefinitions {
 	// A step that doesn't state its input schema takes an empty object.
-	const described = steps.map((step) =>
+	const described = steps.map(({ callable: _callable, ...step }) =>
 		StepDescriptorSchema.parse({
 			inputSchema: { type: "object" as const, properties: {}, required: [] },
 			...step,
@@ -244,20 +243,9 @@ export function stepsShown(
 			answersTheTurn: step.answersTheTurn === true,
 		}),
 	);
-	const shown = { steppers: steppersOf(described), steps: described.map(stepDefinition), domains, concerns, predicates: [], ...counted(described.length) };
-	return readShownSteps(shown, STEP_DETAIL.definition);
+	const definitions = described.map((step, at) => stepDefinition(step, steps[at]?.callable !== false));
+	return readStepDefinitions({ steppers: steppersOf(described), steps: definitions, domains, concerns, predicates: [], ...counted(described.length) });
 }
-
-/** The step that reads every step actuality declares, as the show steps step describes it to a page that may read at the
- *  public level: what a view reads for a step or an action the page can't call. */
-export const DECLARED_STEPS_STEP = {
-	method: SHOW_DECLARED_STEPS_METHOD,
-	stepperName: "Haibun",
-	stepName: "showDeclaredSteps",
-	pattern: SHOW_DECLARED_STEPS_LINE,
-	read: true,
-	capability: SHOW_STEPS_ACTION,
-};
 
 /** A dispatch over a run that declares what `shown` returns each time the page reads its steps; any other call throws. */
 export const declaringSteps =

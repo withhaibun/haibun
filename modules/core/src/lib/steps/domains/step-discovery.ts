@@ -35,11 +35,6 @@ export const VALIDATE_STEP_METHOD = "Haibun-validateStep";
  *  or why the line doesn't resolve to exactly one. */
 export type TStepValidation = { valid: true; method: string; values: Record<string, string> } | { valid: false; error: string };
 
-/** A summary names each declaration, states what it does and links its definition. A definition adds the schemas and
- *  links a step's call. A caller searches summaries and reads the definitions of the steps it calls. */
-export const STEP_DETAIL = { summary: "summary", definition: "definition" } as const;
-export type TStepDetail = (typeof STEP_DETAIL)[keyof typeof STEP_DETAIL];
-
 /** The product domains of the reads of actuality's declarations. Each holds a list, which the list combinators read. */
 export const DOMAIN_STEP_SUMMARIES = "step-summaries";
 export const DOMAIN_STEP_DEFINITIONS = "step-definitions";
@@ -121,14 +116,19 @@ const StepperSummarySchema = z
 	.strict();
 export type TStepperSummary = z.infer<typeof StepperSummarySchema>;
 
+/** Whether the caller of a read of actuality's declarations may call a step. A step the caller can't call is listed, so a link
+ *  to it leads to the action it requires. */
+const CallableFields = { callable: z.boolean() };
+
 /** A step as a summary states it, linking its definition. */
 const StepSummarySchema = StepDescriptorSchema.pick({ method: true, stepperName: true, pattern: true, description: true, capability: true }).extend({
+	...CallableFields,
 	[HYPERMEDIA.LINKS]: definitionLinksSchema,
 });
 /** A domain as a summary states it, linking its definition. */
 const DomainSummarySchema = z.object({ description: z.string().optional(), [HYPERMEDIA.LINKS]: definitionLinksSchema }).strict();
 /** A step as a definition states it, linking its call. */
-const StepDefinitionSchema = StepDescriptorSchema.extend({ [HYPERMEDIA.LINKS]: z.object({ call: z.object({ method: z.string() }).strict() }).strict() });
+const StepDefinitionSchema = StepDescriptorSchema.extend({ ...CallableFields, [HYPERMEDIA.LINKS]: z.object({ call: z.object({ method: z.string() }).strict() }).strict() });
 export type TStepDefinition = z.infer<typeof StepDefinitionSchema>;
 
 /** A predicate of the registry as a definition states it: its name, its parts with their domains, and, where a line states it,
@@ -148,7 +148,8 @@ export type TPredicate = z.infer<typeof PredicateSchema>;
 /** How an offer of a waypoint's head marks it: as a waypoint, with the library that states its rule. */
 export const waypointMark = (library: string): string => `waypoint · ${library}`;
 
-/** What a read of actuality's declarations returns at each detail: a counted list of steps. Both details key their domains by name. */
+/** What a read of actuality's declarations returns: a counted list of every step actuality declares, as a summary or as a
+ *  definition, each with whether its caller may call it. Both key their domains by name. */
 export const StepSummariesSchema = z
 	.object({ steppers: z.array(StepperSummarySchema), steps: z.array(StepSummarySchema), domains: z.record(z.string(), DomainSummarySchema), ...CountedFields })
 	.strict();
@@ -164,7 +165,6 @@ export const StepDefinitionsSchema = z
 	.strict();
 export type TStepSummaries = z.infer<typeof StepSummariesSchema>;
 export type TStepDefinitions = z.infer<typeof StepDefinitionsSchema>;
-type TStepDiscovery = TStepSummaries | TStepDefinitions;
 
 /** A tool as MCP defines it. A model provider sends the same fields under its own field names. */
 export type TToolDefinition = { name: string; description: string; inputSchema: TInputSchema };
@@ -175,13 +175,14 @@ export const stepperStepsLink = (stepper: string) => matchingLink(`${stepper}-`,
 /** The read of the definitions of the steps whose definitions hold a text. */
 const definitionLink = (text: string) => matchingLink(text, SHOW_STEP_DEFINITIONS_LINE);
 
-/** A step as a summary states it. */
-export const stepSummary = ({ method, stepperName, pattern, description, capability }: TStepDescriptor): TStepSummaries["steps"][number] => ({
+/** A step as a summary states it, with whether its caller may call it. */
+export const stepSummary = ({ method, stepperName, pattern, description, capability }: TStepDescriptor, callable: boolean): TStepSummaries["steps"][number] => ({
 	method,
 	stepperName,
 	pattern,
 	description,
 	capability,
+	callable,
 	[HYPERMEDIA.LINKS]: { definition: definitionLink(method) },
 });
 /** A domain as a summary states it. */
@@ -189,17 +190,19 @@ export const domainSummary = (domain: string, description: string | undefined): 
 	description,
 	[HYPERMEDIA.LINKS]: { definition: definitionLink(domain) },
 });
-/** A step as a definition states it. */
-export const stepDefinition = (step: TStepDescriptor): TStepDefinition => ({ ...step, [HYPERMEDIA.LINKS]: { call: { method: step.method } } });
+/** A step as a definition states it, with whether its caller may call it. */
+export const stepDefinition = (step: TStepDescriptor, callable: boolean): TStepDefinition => ({ ...step, callable, [HYPERMEDIA.LINKS]: { call: { method: step.method } } });
 
-/** Parses the products of a read of actuality's declarations at its detail. A dispatched step's products carry its
- *  seqPath and its domain's hypermedia markers. These fields aren't actuality's declarations, so productData drops them. */
-export function readShownSteps(products: unknown, detail: typeof STEP_DETAIL.summary): TStepSummaries;
-export function readShownSteps(products: unknown, detail: typeof STEP_DETAIL.definition): TStepDefinitions;
-export function readShownSteps(products: unknown, detail: TStepDetail): TStepDiscovery {
-	const shown = productData(z.record(z.string(), z.unknown()).parse(products));
-	return (detail === STEP_DETAIL.summary ? StepSummariesSchema : StepDefinitionsSchema).parse(shown);
-}
+/** The products of a read of actuality's declarations as `schema` parses them. A dispatched step's products carry its seqPath
+ *  and its domain's hypermedia markers. These fields aren't actuality's declarations, so productData drops them. */
+const shownIn =
+	<T>(schema: z.ZodType<T>) =>
+	(products: unknown): T =>
+		schema.parse(productData(z.record(z.string(), z.unknown()).parse(products)));
+/** Parses the products of a read of the step summaries. */
+export const readStepSummaries = shownIn(StepSummariesSchema);
+/** Parses the products of a read of the step definitions. */
+export const readStepDefinitions = shownIn(StepDefinitionsSchema);
 
 /** A step as a tool: its method as the name, its pattern with its description, the capability it requires, the origin
  *  of the instance that runs it, and the schema of its arguments. */

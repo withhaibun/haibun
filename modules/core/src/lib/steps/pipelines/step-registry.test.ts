@@ -3,7 +3,7 @@ import { z } from "zod";
 import { StepRegistry, type StepTool, createStepHandler, createStepTool } from "./step-registry.js";
 import { buildFeatureStepForTransport } from "./call-step.js";
 import { refusal } from "./gate.js";
-import { discoverSteps, steppersOf } from "./discover-steps.js";
+import { stepDefinitions, stepSummaries, steppersOf } from "./discover-steps.js";
 import { hostScopedMethodName } from "../domains/step-method.js";
 import { AStepper, type TFeatureStep } from "../domains/stepper.js";
 import { actionNotOK, actionOK } from "../../domains/util.js";
@@ -12,7 +12,7 @@ import { typeCollectionRemedy } from "../../domains/typed-links.js";
 import { getDefaultWorld } from "../../test/lib.js";
 import type { TWorld } from "../../actuality/domains/world.js";
 import type { TStepperStep } from "../domains/stepper.js";
-import { MATCHING_METHOD, SHOW_STEP_DEFINITIONS_LINE, SHOW_STEPS_LINE, STEP_DETAIL, StepDefinitionsSchema, StepSummariesSchema } from "../domains/step-discovery.js";
+import { MATCHING_METHOD, SHOW_STEP_DEFINITIONS_LINE, SHOW_STEPS_LINE, StepDefinitionsSchema, StepSummariesSchema } from "../domains/step-discovery.js";
 import { RUN_AUTHORITY } from "../../domains/capability-context.js";
 import { ActionSchema } from "../../domains/actions.js";
 
@@ -78,8 +78,11 @@ const remoteTool = (stepName: string, pattern: string, capability = `RemoteSteps
 
 /** The definitions shown to a caller holding `held`. `held` defaults to RUN_AUTHORITY. Actuality's own feature holds
  *  RUN_AUTHORITY, which allows every action. */
-const definitionsOf = (world: TWorld, registry: StepRegistry, held: string[] = RUN_AUTHORITY) => discoverSteps(world, registry, STEP_DETAIL.definition, held);
-const summariesOf = (world: TWorld, registry: StepRegistry) => discoverSteps(world, registry, STEP_DETAIL.summary, RUN_AUTHORITY);
+const definitionsOf = (world: TWorld, registry: StepRegistry, held: string[] = RUN_AUTHORITY) => stepDefinitions(world, registry, held);
+const summariesOf = (world: TWorld, registry: StepRegistry) => stepSummaries(world, registry, RUN_AUTHORITY);
+/** The methods of the steps a caller holding `held` may call. */
+const callableMethods = (world: TWorld, registry: StepRegistry, held: string[]) =>
+	definitionsOf(world, registry, held).steps.flatMap(({ capability, callable }) => (callable ? [capability] : []));
 
 describe("what a read of actuality's declarations shows", () => {
 	const emptyWorld = { domains: {}, runtime: {} } as unknown as TWorld;
@@ -99,27 +102,33 @@ describe("what a read of actuality's declarations shows", () => {
 		expect(shown.steppers.map((entry) => entry.stepper)).toEqual(["LocalSteps", "host9_RemoteSteps"]);
 	});
 
-	it("shows a caller only the steps whose required action it holds, each with that action", () => {
+	it("shows a caller every step, each with whether the caller holds the action it requires", () => {
 		const registry = new StepRegistry([new LocalSteps()], emptyWorld);
 		registry.inject([remoteTool("write", "write {data}", "Remote:write"), remoteTool("read", "read {data}", "Read:private")]);
+		expect(callableMethods(emptyWorld, registry, ["Remote:write"]), "one it holds").toEqual(["Remote:write"]);
+		expect(callableMethods(emptyWorld, registry, ["Read:opened"]), "a narrower read doesn't allow a broader one").toEqual([]);
 		expect(
-			definitionsOf(emptyWorld, registry, ["Remote:write"]).steps.map((step) => step.capability),
-			"one it holds, and doesn't show a step it may not call",
-		).toEqual(["Remote:write"]);
-		expect(definitionsOf(emptyWorld, registry, ["Read:opened"]).steps, "a narrower read doesn't allow a broader one").toEqual([]);
-		expect(definitionsOf(emptyWorld, registry, []).steps, "and a caller that doesn't hold an action isn't shown a step").toEqual([]);
+			definitionsOf(emptyWorld, registry, []).steps.map(({ capability }) => capability),
+			"and a caller that doesn't hold an action is shown every step",
+		).toEqual(["LocalSteps:passes", "Remote:write", "Read:private"]);
+		expect(callableMethods(emptyWorld, registry, RUN_AUTHORITY), "actuality may call every step").toHaveLength(3);
+	});
+
+	it("derives the declarations once for each version of the registry's steps, and again after they change", () => {
+		const registry = new StepRegistry([new LocalSteps()], emptyWorld);
+		const first = definitionsOf(emptyWorld, registry);
+		expect(definitionsOf(emptyWorld, registry).steppers, "held while the steps don't change").toBe(first.steppers);
+		registry.inject([remoteTool("write", "write {data}", "Remote:write")]);
 		expect(
-			definitionsOf(emptyWorld, registry).steppers.map((entry) => entry.stepper),
-			"actuality is shown every step",
+			definitionsOf(emptyWorld, registry).steppers.map(({ stepper }) => stepper),
+			"derived again after they change",
 		).toEqual(["LocalSteps", "host9_RemoteSteps"]);
 	});
 
-	it("shows a caller the predicates of the registry that the steps it may call prove, and precedes, and not a predicate of another host", () => {
+	it("shows the predicates of the registry that the steps prove, and precedes, and not a predicate of another host", () => {
 		const registry = new StepRegistry([new LocalSteps()], emptyWorld);
 		registry.inject([remoteTool("write", "write {data}", "Remote:write")]);
-		const named = (held: string[]) => definitionsOf(emptyWorld, registry, held).predicates.map(({ name }) => name);
-		expect(named(RUN_AUTHORITY)).toEqual(["LocalSteps-passes", "precedes"]);
-		expect(named([]), "a caller that doesn't hold an action is shown precedes alone").toEqual(["precedes"]);
+		expect(definitionsOf(emptyWorld, registry, []).predicates.map(({ name }) => name)).toEqual(["LocalSteps-passes", "precedes"]);
 	});
 
 	it("shows every step and domain as a counted list of steps, with the steppers of the steps and the links that read their steps and definitions", () => {
@@ -154,6 +163,7 @@ describe("what a read of actuality's declarations shows", () => {
 			pattern: "read record {id: record-key}",
 			description: "Reads one record.",
 			capability: "ManySteps:readRecord",
+			callable: true,
 			_links: { definition: { method: MATCHING_METHOD, params: { text: "ManySteps-readRecord", statement: SHOW_STEP_DEFINITIONS_LINE } } },
 		});
 		expect(Object.keys(summaries.domains), "every domain").toEqual(["record-key", "colour"]);

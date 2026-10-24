@@ -215,8 +215,6 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			description:
 				"Lists the ontology the declarations state, as the class browser draws it and the JSON-LD context serves it: each class, with its superclasses and the link relation of each field and edge its type declares and the classes in an edge's range, and each link relation or standard term, with its IRI, its superproperties and the classes it connects. Narrow it with the matching combinator.",
 			productsDomain: SHU_TAG.CLASS_BROWSER,
-			// The ontology is the response; keeping it on the event too holds a second copy of every class and property per read.
-			retainProducts: false,
 			action: async () => {
 				const { domains, eventLogger } = this.getWorld();
 				return actionOKWithProducts(await ontologyRead(domains, (message: string) => eventLogger.warn(message)));

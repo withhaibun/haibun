@@ -2,20 +2,17 @@
 /**
  * An action's view lists the steps this page may call that the action allows, by the reading every gate on a call uses:
  * the steps requiring it, reads at a narrower level for a read, and every step whose action a trailing `*` begins. An action
- * that doesn't allow one of them links the steps actuality declares that require it, and the view states who holds the action here.
+ * that doesn't allow one of them links the steps actuality declares that it allows, and the view states who holds the action here.
  */
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SHOW_STEP_DEFINITIONS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { ActionSchema, readAction } from "@haibun/core/lib/domains/actions.js";
-import { SHOW_DECLARED_STEPS_METHOD, type TDeclaredSteps } from "@haibun/core/lib/steps/domains/declared-steps.js";
-import { StepMethodSchema } from "@haibun/core/lib/steps/domains/step-method.js";
-import { counted } from "@haibun/core/lib/domains/hypermedia.js";
 import { Access } from "@haibun/core/lib/domains/resources.js";
 import { ShuActionColumn } from "./shu-action-column.js";
 import "./shu-ref-element.js";
 
-import { DECLARED_STEPS_STEP, openReportingPage, setupShuTest, stepsShown, type TShuTestHandle } from "../../test/setup.js";
+import { openReportingPage, setupShuTest, stepsShown, type TShuTestHandle } from "../../test/setup.js";
 import { installMemoryDeviceStore } from "../client-cache/root.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { endPage } from "../adapters/page-held.js";
@@ -31,13 +28,12 @@ const [PUBLIC_READ, PRIVATE_READ, DELEGATES, REVOKES] = [
 
 const SUSPENDS = ActionSchema.parse("CredentialsStepper:suspendCredential");
 const SUSPEND = {
-	method: StepMethodSchema.parse("CredentialsStepper-suspendCredential"),
+	method: "CredentialsStepper-suspendCredential",
 	stepperName: "CredentialsStepper",
+	stepName: "suspendCredential",
 	pattern: "suspend credential {id}",
-	capability: SUSPENDS,
 	callable: false,
 };
-const DECLARED: TDeclaredSteps = { steps: [SUSPEND], ...counted(1) };
 const DELEGATION = { id: "urn:uuid:delegation-1", persistedAs: "Delegation" };
 
 describe("an action's view", () => {
@@ -47,8 +43,7 @@ describe("an action's view", () => {
 		installMemoryDeviceStore();
 		handle = setupShuTest({
 			dispatch: (method) => {
-				if (method === SHOW_STEP_DEFINITIONS_METHOD) return stepsShown([PUBLIC_READ, PRIVATE_READ, DELEGATES, REVOKES, DECLARED_STEPS_STEP]);
-				if (method === SHOW_DECLARED_STEPS_METHOD) return DECLARED;
+				if (method === SHOW_STEP_DEFINITIONS_METHOD) return stepsShown([PUBLIC_READ, PRIVATE_READ, DELEGATES, REVOKES, SUSPEND]);
 				throw new Error(`unexpected ${method}`);
 			},
 		});
@@ -72,13 +67,13 @@ describe("an action's view", () => {
 
 	it("links each step the action allows, each read at a narrower level, and each step a trailing * begins", async () => {
 		expect(await allows(DELEGATE)).toEqual([DELEGATES.method]);
-		expect(await allows(readAction(Access.private)), "a private read allows a public one").toEqual([PUBLIC_READ.method, PRIVATE_READ.method, DECLARED_STEPS_STEP.method]);
-		expect(await allows(readAction(Access.public))).toEqual([PUBLIC_READ.method, DECLARED_STEPS_STEP.method]);
+		expect(await allows(readAction(Access.private)), "a private read allows a public one").toEqual([PUBLIC_READ.method, PRIVATE_READ.method]);
+		expect(await allows(readAction(Access.public))).toEqual([PUBLIC_READ.method]);
 		expect(await allows("Authority:*")).toEqual([DELEGATES.method, REVOKES.method]);
 		expect(await allows("Nothing:here")).toEqual([]);
 	});
 
-	it("links each step actuality declares that requires an action that doesn't allow a step this page may call, and states that the page doesn't hold it", async () => {
+	it("links each step actuality declares that an action allows where it doesn't allow a step this page may call, and states that the page doesn't hold it", async () => {
 		const view = await opened(SUSPENDS);
 		expect(linked(view, IDS.REQUIRER, "method")).toEqual([SUSPEND.method]);
 		expect(linked(view, IDS.HOLDS, "action")).toEqual([SUSPENDS]);

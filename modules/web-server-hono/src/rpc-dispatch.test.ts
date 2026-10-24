@@ -28,8 +28,7 @@ import WebServerStepper from "./web-server-stepper.js";
 import { WEBSERVER } from "./domains/web-server.js";
 import type { IWebServer } from "./ports.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
-import { SHOW_STEP_DEFINITIONS_METHOD, SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, STEP_DETAIL, type TStepDefinition } from "@haibun/core/lib/step-discovery.js";
-import { readShownSteps } from "@haibun/core/lib/step-discovery.js";
+import { SHOW_STEP_DEFINITIONS_METHOD, SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, readStepDefinitions, type TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import { streamContext, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { authorizedWith, readingAt } from "@haibun/core/lib/domains/capability-context.js";
@@ -91,13 +90,13 @@ async function rpcBody(url: string, fields: { method: string } & Record<string, 
 	return JSON.stringify({ jsonrpc: "2.0", protocol: RPC_PROTOCOL, id: "1", params: {}, ...fields, actualityId: await actualityAt(new URL(url).origin) });
 }
 
-/** The steps a read of actuality's declarations at `url` shows, signed by `holder` where one is named. */
+/** The steps a read of actuality's declarations at `url` shows as callable to its caller, signed by `holder` where one is named. */
 async function shownSteps(url: string, holder?: string): Promise<TStepDefinition[]> {
 	const body = await rpcBody(url, { method: SHOW_STEP_DEFINITIONS_METHOD, asks: "read" });
 	const headers = { "content-type": "application/json" };
 	const res = await fetch(url, { method: "POST", headers: holder ? await new FakeInvoker(holder).sign({ method: "POST", url, headers, body }, SHOW_STEPS_ACTION) : headers, body });
 	if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-	return readShownSteps(await res.json(), STEP_DETAIL.definition).steps;
+	return readStepDefinitions(await res.json()).steps.filter((step) => step.callable);
 }
 
 /** A call to `method` at `url`, signed by `holder` for `action` where a holder is named, requesting a read at `readingAt`

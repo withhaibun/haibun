@@ -8,10 +8,10 @@
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { STEPS_CHANGED } from "@haibun/core/lib/domains/protocol.js";
-import { SHOW_STEP_DEFINITIONS_METHOD, STEP_DETAIL, readShownSteps } from "@haibun/core/lib/step-discovery.js";
+import { SHOW_STEP_DEFINITIONS_METHOD, readStepDefinitions } from "@haibun/core/lib/step-discovery.js";
 import type { Machine } from "@haibun/core/lib/machines/machine.js";
 import { reads } from "../domains/links.js";
-import { REGISTRY_EVENT, REGISTRY_STATUS, type TRegistryEvent, type TRegistryRead, type TRegistryState, type TStepList } from "../machines/registry.js";
+import { REGISTRY_EVENT, REGISTRY_STATUS, stepListOf, type TRegistryEvent, type TRegistryRead, type TRegistryState, type TStepList } from "../machines/registry.js";
 import type { TClientLog, TConduit, TEventStream } from "../ports.js";
 import type { TDeviceStore } from "../client-cache/ports.js";
 
@@ -59,12 +59,9 @@ async function read(scope: TReadStepsScope, type: TRegistryEvent["type"]): Promi
 /** Reads actuality's steps from the site, and from the device's copy where the site doesn't respond. */
 async function discover(conduit: TConduit, device: TDeviceStore, log: TClientLog): Promise<TRegistryRead> {
 	try {
-		const list = readShownSteps(
-			await conduit.follow<Record<string, unknown>>(reads(SHOW_STEP_DEFINITIONS_METHOD), "rpc-registry: discover available steps"),
-			STEP_DETAIL.definition,
-		);
-		void device.setRegistry(list).catch((err) => log.failure(REGISTRY_SOURCE, "the registry was not cached on the device", err));
-		return { list, from: "site" };
+		const shown = readStepDefinitions(await conduit.follow<Record<string, unknown>>(reads(SHOW_STEP_DEFINITIONS_METHOD), "rpc-registry: discover available steps"));
+		void device.setRegistry(shown).catch((err) => log.failure(REGISTRY_SOURCE, "the registry was not cached on the device", err));
+		return { list: stepListOf(shown), from: "site" };
 	} catch (err) {
 		if (!isServerUnreachable(err)) throw err;
 		const cached = await device.registry();
@@ -74,7 +71,7 @@ async function discover(conduit: TConduit, device: TDeviceStore, log: TClientLog
 			REGISTRY_SOURCE,
 			`the server did not respond; the registry cached on this device (${new Date(cached.savedAt).toISOString()}) is in use: ${errorDetail(err)}`,
 		);
-		return { list: readShownSteps(cached.response, STEP_DETAIL.definition), from: "device", savedAt: cached.savedAt };
+		return { list: stepListOf(readStepDefinitions(cached.response)), from: "device", savedAt: cached.savedAt };
 	}
 }
 

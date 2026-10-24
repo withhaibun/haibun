@@ -8,12 +8,11 @@ import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { obscuredText } from "@haibun/core/lib/steps/derivations/obscured.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_FIELD, actualityFeatureOf } from "@haibun/core/lib/seq-path.js";
-import { discoverSteps } from "@haibun/core/lib/steps/pipelines/discover-steps.js";
+import { stepDefinitions } from "@haibun/core/lib/steps/pipelines/discover-steps.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { stepperContext } from "@haibun/core/lib/step-dispatch.js";
 import { callStepByName, NO_INPUT } from "@haibun/core/lib/steps/pipelines/call-step.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
-import { STEP_DETAIL } from "@haibun/core/lib/step-discovery.js";
 import { actingAs, runActingAs, shownTo } from "@haibun/core/lib/domains/capability-context.js";
 import { SHU_TAG } from "../domains/elements.js";
 import type { THydration } from "../domains/hydration.js";
@@ -98,9 +97,9 @@ export async function reportHtml(scope: TReportScope): Promise<string> {
 	const { world } = scope;
 	if (!world.runtime.steppers) throw new Error("a report reads actuality's steppers, and actuality doesn't hold them");
 	const viewProducts = await viewProductsOf(scope);
-	// Actuality's declarations ride in the cache as the registry, read as every caller reads them: the steps the report's
-	// writer holds, which for actuality's own report is every step.
-	const registry = discoverSteps(world, runRegistry(world), STEP_DETAIL.definition, shownTo());
+	// Actuality's declarations ride in the cache as the registry, read as every caller reads them: every step, with whether
+	// the report's writer may call it, which for actuality's own report is every step.
+	const registry = stepDefinitions(world, runRegistry(world), shownTo());
 	const graph = clusters(world) ? await graphSource(world) : undefined;
 	if (graph === undefined) world.eventLogger.warn(`[shu report] ${NOT_CLUSTERED}, so a page that reads this report doesn't show a graph`);
 	// Which views were open, the page reads from the records it carries. The report inlines the code those views need.

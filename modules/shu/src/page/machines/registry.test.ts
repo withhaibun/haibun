@@ -9,7 +9,7 @@ type TStatus = TRegistryState["status"];
 const { UNREAD, READ } = REGISTRY_STATUS;
 
 /** A read of an empty step list, from `from`. */
-const NO_STEPS: TStepList = { steps: [], domains: {}, concerns: { persisted: {}, references: {} }, predicates: [] };
+const NO_STEPS: TStepList = { steps: [], declared: [], domains: {}, concerns: { persisted: {}, references: {} }, predicates: [] };
 const readFrom = (from: "site" | "device"): TRegistryRead => (from === "site" ? { from, list: NO_STEPS } : { from, savedAt: 1, list: NO_STEPS });
 
 const TABLE: Record<TStatus, Record<TType, TStatus>> = {

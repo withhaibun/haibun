@@ -1,6 +1,7 @@
 /**
- * What actuality declares to a caller: the steps a caller may call, the domains, the concern catalog, the predicates of the
- * registry, and the steppers of the steps that matched. The catalog is built once for each set of registered domains.
+ * What actuality declares to a caller: every step, with whether the caller may call it, the domains, the concern catalog, the
+ * predicates of the registry, and the steppers of the steps. The declarations are derived once for each version of the
+ * registry's steps and set of registered domains.
  */
 import { z } from "zod";
 import { jsonSchemaFor } from "../../domains/json-schema-of.js";
@@ -10,23 +11,14 @@ import type { TWorld } from "../../actuality/domains/world.js";
 import { ConcernCatalogSchema, buildConcernCatalog, counted } from "../../domains/hypermedia.js";
 import { HYPERMEDIA } from "../../domains/protocol.js";
 import { isPersisted, type TRegisteredDomain } from "../../domains/resources.js";
-import {
-	STEP_DETAIL,
-	type TDomainDiscoveryInfo,
-	type TStepDefinitions,
-	type TStepDescriptor,
-	type TStepDetail,
-	type TStepSummaries,
-	type TStepperSummary,
-} from "../domains/step-discovery.js";
+import { type TDomainDiscoveryInfo, type TStepDefinitions, type TStepDescriptor, type TStepSummaries, type TStepperSummary } from "../domains/step-discovery.js";
 import { hostOfMethodName, hostScopedMethodName } from "../domains/step-method.js";
 import { StepDefinitionsSchema, StepSummariesSchema, domainSummary, stepDefinition, stepSummary, stepperStepsLink } from "../domains/step-discovery.js";
-import { heldPerEntries, recordEntries } from "../derivations/held-per-entries.js";
+import { heldPerEntries, recordEntries, sameEntries } from "../derivations/held-per-entries.js";
 import type { StepRegistry } from "./step-registry.js";
 import { constructorName } from "../../domains/util.js";
 import type { AStepper } from "../domains/stepper.js";
 import type { TSteppers } from "../domains/steppers.js";
-import type { TDeclaredSteps } from "../domains/declared-steps.js";
 import { mayCall } from "../../domains/actions.js";
 import { predicatesOf } from "../derivations/predicate-registry.js";
 
@@ -36,7 +28,7 @@ export const concernCatalogOf = heldPerEntries(recordEntries, (domains: Record<s
 /** Each stepper that the steps name, in the order the steps name them. Each entry holds the stepper's description, the
  *  number of its steps in `steps` and the link that reads the summaries of its steps. A stepper that another host declares
  *  is named with that host's prefix. steppersOf returns every stepper of actuality when it reads every step of a
- *  registry. discoverSteps returns this list with the steps. */
+ *  registry. stepSummaries and stepDefinitions return this list with the steps. */
 export function steppersOf(steps: TStepDescriptor[]): TStepperSummary[] {
 	const byStepper = new Map<string, TStepperSummary>();
 	for (const step of steps) {
@@ -49,30 +41,36 @@ export function steppersOf(steps: TStepDescriptor[]): TStepperSummary[] {
 	return [...byStepper.values()];
 }
 
-/**
- * What actuality declares to a caller at a detail: each step the caller may call, the steppers of those steps and every
- * domain, with the concern catalog and the registry's predicates at the definition detail, as a counted list of steps. A
- * step is shown only to a caller that holds the action it requires, so a caller isn't shown a step it may not call. Every
- * domain is shown whatever the caller holds, since a record can't be read without the declaration of its type. The
- * registry is actuality's registry, which holds the steps a transport injected. The list combinators narrow the steps.
- */
-export function discoverSteps(world: TWorld, registry: StepRegistry, detail: typeof STEP_DETAIL.summary, held: string | string[] | undefined): TStepSummaries;
-export function discoverSteps(world: TWorld, registry: StepRegistry, detail: typeof STEP_DETAIL.definition, held: string | string[] | undefined): TStepDefinitions;
-export function discoverSteps(world: TWorld, registry: StepRegistry, detail: TStepDetail, held: string | string[] | undefined): TStepSummaries | TStepDefinitions;
-export function discoverSteps(world: TWorld, registry: StepRegistry, detail: TStepDetail, held: string | string[] | undefined): TStepSummaries | TStepDefinitions {
-	const steps = registry.heldBy(held);
-	const listed = { steppers: steppersOf(steps), ...counted(steps.length) };
-	const domains = Object.entries(world.domains);
-	if (detail === STEP_DETAIL.summary)
-		return { ...listed, steps: steps.map(stepSummary), domains: Object.fromEntries(domains.map(([key, { description }]) => [key, domainSummary(key, description)])) };
+/** What actuality declares to every caller, apart from whether the caller may call each step: each step, the steppers of the
+ *  steps and every domain, as summaries and as definitions, with the concern catalog and the registry's predicates. */
+type TDeclarations = {
+	steps: TStepDescriptor[];
+	steppers: TStepperSummary[];
+	summaryDomains: TStepSummaries["domains"];
+	definitionDomains: TStepDefinitions["domains"];
+	concerns: TStepDefinitions["concerns"];
+	predicates: TStepDefinitions["predicates"];
+};
+
+/** The declarations of a registry, held for one version of its steps and one set of registered domains. */
+const heldDeclarations = new WeakMap<StepRegistry, { version: number; domains: readonly unknown[]; declarations: TDeclarations }>();
+
+/** Returns what actuality declares to every caller. It is derived again where the registry's steps changed since the last
+ *  derivation, which emits STEPS_CHANGED, or where a domain was declared since. */
+function declarationsOf(world: TWorld, registry: StepRegistry): TDeclarations {
+	const domains = recordEntries(world.domains);
+	const held = heldDeclarations.get(registry);
+	if (held !== undefined && held.version === registry.version && sameEntries(held.domains, domains)) return held.declarations;
+	const steps = registry.descriptors();
+	const entries = Object.entries(world.domains);
 	const { persisted, references } = concernCatalogOf(world.domains);
-	return {
-		...listed,
-		steps: steps.map(stepDefinition),
-		domains: Object.fromEntries(domains.map(([key, domain]) => [key, domainDiscoveryInfo(key, domain)])),
+	const declarations = {
+		steps,
+		steppers: steppersOf(steps),
+		summaryDomains: Object.fromEntries(entries.map(([key, { description }]) => [key, domainSummary(key, description)])),
+		definitionDomains: Object.fromEntries(entries.map(([key, domain]) => [key, domainDiscoveryInfo(key, domain)])),
 		concerns: { persisted, references },
-		// A predicate a step proves is shown to a caller that may call the step, as the step is. A step another host runs proves
-		// that host's predicates.
+		// A step another host runs proves that host's predicates.
 		predicates: predicatesOf(
 			steps.flatMap(({ method, stepperName, stepName }) => {
 				const { stepDef } = registry.named(method);
@@ -80,6 +78,31 @@ export function discoverSteps(world: TWorld, registry: StepRegistry, detail: TSt
 			}),
 		),
 	};
+	heldDeclarations.set(registry, { version: registry.version, domains, declarations });
+	return declarations;
+}
+
+/** Whether a caller holding `held` may call each step of the declarations. */
+const callableTo = (steps: readonly TStepDescriptor[], held: string | string[] | undefined): boolean[] => steps.map((step) => mayCall(held, step));
+
+/**
+ * The summaries of every step actuality declares, each with whether a caller holding `held` may call it, with the steppers
+ * of the steps and every domain, as a counted list of steps. A step the caller can't call is listed, so a link to it leads to
+ * the action it requires; a caller narrows the list with the list combinators. The registry is actuality's registry, which
+ * holds the steps a transport injected.
+ */
+export function stepSummaries(world: TWorld, registry: StepRegistry, held: string | string[] | undefined): TStepSummaries {
+	const { steps, steppers, summaryDomains } = declarationsOf(world, registry);
+	const callable = callableTo(steps, held);
+	return { steppers, steps: steps.map((step, at) => stepSummary(step, callable[at] === true)), domains: summaryDomains, ...counted(steps.length) };
+}
+
+/** The definitions of every step actuality declares, each with whether a caller holding `held` may call it, with the steppers
+ *  of the steps, every domain, the concern catalog and the registry's predicates, as a counted list of steps. */
+export function stepDefinitions(world: TWorld, registry: StepRegistry, held: string | string[] | undefined): TStepDefinitions {
+	const { steps, steppers, definitionDomains, concerns, predicates } = declarationsOf(world, registry);
+	const callable = callableTo(steps, held);
+	return { steppers, steps: steps.map((step, at) => stepDefinition(step, callable[at] === true)), domains: definitionDomains, concerns, predicates, ...counted(steps.length) };
 }
 
 /** The fields of a listed step that name what it names: its method, its pattern, and, at the definition detail, the domain
@@ -167,20 +190,4 @@ export function listedSteppers(steppers: AStepper[]): TSteppers {
 		}),
 	}));
 	return { steppers: listed, ...counted(listed.length) };
-}
-
-/** Every step actuality declares, as a counted list, each with whether a caller holding `held` may call it. */
-export function everyStepDeclared(registry: StepRegistry, held: string | string[] | undefined): TDeclaredSteps {
-	const steps = registry
-		.descriptors()
-		.map(({ method, stepperName, pattern, description, capability, readsAt }) => ({
-			method,
-			stepperName,
-			pattern,
-			...(description === undefined ? {} : { description }),
-			capability,
-			...(readsAt === undefined ? {} : { readsAt }),
-			callable: mayCall(held, { capability, ...(readsAt === undefined ? {} : { readsAt }) }),
-		}));
-	return { steps, ...counted(steps.length) };
 }

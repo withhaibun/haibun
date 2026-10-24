@@ -54,8 +54,8 @@ export function stepsJoining(list: TStepList, name: string): { taking: TStepDefi
 	};
 }
 
-/** Returns the steps whose required action `action` allows. */
-export const stepsAllowedBy = (list: TStepList, action: string): TStepDefinition[] => list.steps.filter((step) => capabilityAllows(action, step.capability));
+/** Returns the steps whose required action `action` allows, read by `capabilityAllows`, the one reading every gate on a call uses. */
+export const stepsAllowedBy = <T extends { capability: string }>(steps: readonly T[], action: string): T[] => steps.filter((step) => capabilityAllows(action, step.capability));
 
 /** Returns the steps of a type `label`: those that take a domain of the type or one whose key names it, and those whose
  *  pattern names it. */

@@ -7,7 +7,7 @@ import type { TDomainDiscoveryInfo } from "@haibun/core/lib/step-discovery.js";
 import { Access } from "@haibun/core/lib/domains/resources.js";
 import { pageRegistry } from "../page/root.js";
 import { stepsShown } from "./setup.js";
-import { REGISTRY_EVENT, REGISTRY_STATUS, type TStepList } from "../page/machines/registry.js";
+import { REGISTRY_EVENT, REGISTRY_STATUS, stepListOf } from "../page/machines/registry.js";
 
 type TConcern = TConcernCatalog["persisted"][string];
 type TRel = TConcern["properties"][string]["rel"];
@@ -65,12 +65,13 @@ export function catalogOf(spec: TCatalogSpec): TConcernCatalog {
 /** Declares `concerns` and `domains` as the page's step registry, read from the site, with the steps the registry holds. */
 export function declareCatalog(concerns: TConcernCatalog, domains: Record<string, TDomainDiscoveryInfo> = {}): void {
 	const held = pageRegistry().state.get();
-	declareRegistry({ steps: held.status === REGISTRY_STATUS.READ ? held.read.list.steps : [], domains, concerns, predicates: [] });
+	declareRegistry({ steps: held.status === REGISTRY_STATUS.READ ? held.read.list.declared : [], domains, concerns, predicates: [] });
 }
 
-/** Declares `list` as the page's step registry, read from the site: the steps, the domains and the catalog one read holds. */
-export function declareRegistry(list: TStepList): void {
-	pageRegistry().dispatch({ type: REGISTRY_EVENT.READ, read: { from: "site", list } });
+/** Declares what a read of the step definitions holds as the page's step registry, read from the site: the steps, each with
+ *  whether the page may call it, the domains, the catalog and the predicates. */
+export function declareRegistry(shown: Parameters<typeof stepListOf>[0]): void {
+	pageRegistry().dispatch({ type: REGISTRY_EVENT.READ, read: { from: "site", list: stepListOf(shown) } });
 }
 
 /** Returns the domains of the UI declarations `spec` names under a key that isn't one of its types, as a view a site declares

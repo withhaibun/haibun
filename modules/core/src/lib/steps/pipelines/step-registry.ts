@@ -43,6 +43,8 @@ export class StepRegistry {
 	private described = "";
 	/** The listeners that replace() calls when the registry's steps change. */
 	private changeListeners = new Set<() => void>();
+	/** How many times the registry's steps changed. A derivation of the steps is held for one version. */
+	private changes = 0;
 
 	constructor(steppers: AStepper[], world: TWorld) {
 		this.refresh(steppers, world);
@@ -75,6 +77,7 @@ export class StepRegistry {
 		const described = JSON.stringify(this.descriptors());
 		if (described === this.described) return;
 		this.described = described;
+		this.changes += 1;
 		for (const listener of this.changeListeners) listener();
 	}
 
@@ -83,6 +86,11 @@ export class StepRegistry {
 	onChange(listener: () => void): () => void {
 		this.changeListeners.add(listener);
 		return () => this.changeListeners.delete(listener);
+	}
+
+	/** The version of the registry's steps, which changes each time the change listeners are called. */
+	get version(): number {
+		return this.changes;
 	}
 
 	get(name: string): StepTool | undefined {

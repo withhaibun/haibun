@@ -6,7 +6,7 @@
  */
 
 /** Whether two lists hold the same entries in the same order, each compared by identity. */
-const sameEntries = (held: readonly unknown[], now: readonly unknown[]): boolean => held.length === now.length && held.every((entry, at) => entry === now[at]);
+export const sameEntries = (held: readonly unknown[], now: readonly unknown[]): boolean => held.length === now.length && held.every((entry, at) => entry === now[at]);
 
 /**
  * Returns `derive` held per source. `entriesOf` lists the entries of a source that the derivation reads, each compared by
