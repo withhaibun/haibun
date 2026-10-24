@@ -17,7 +17,7 @@ import { SteppersSchema } from "../lib/steps/domains/steppers.js";
 import { readStepDefinitions, readStepSummaries, SHOW_STEPS_LINE, SHOW_STEPS_METHOD, type TStepSummaries } from "../lib/steps/domains/step-discovery.js";
 import type { TStepResult } from "../lib/domains/protocol.js";
 import { validateStep } from "../lib/pipelines/step-validation.js";
-import { RUN_AUTHORITY, runAuthorizedWith, runShowing } from "../lib/domains/capability-context.js";
+import { RUN_AUTHORITY, readingAsOf, runAuthorizedWith, runShowing } from "../lib/domains/capability-context.js";
 
 describe("until", () => {
 	it("passes once its statements pass", async () => {
@@ -198,6 +198,63 @@ describe("show steps", () => {
 		).toEqual([methods[0]]);
 		expect(limited.total).toBe(methods.length);
 		expect(result.failure?.error.message).toContain("doesn't state a time for its items");
+	});
+
+	it("skips, orders descending, keeps by a field's value and limits each value of a field of a statement's list", async () => {
+		const methods = Object.keys(new TestSteps().steps)
+			.map((key) => `TestSteps-${key}`)
+			.sort();
+		const lines = [
+			'skipping 1, ordered by "method", matching "TestSteps-", show steps',
+			'limited to 1, ordered by "method" descending, matching "TestSteps-", show steps',
+			'whose "stepperName" matches "testst", show steps',
+			'limited to 1 per "stepperName", show steps',
+		];
+		const result = await passWithDefaults([{ path: "/features/test.feature", content: lines.join("\n") }], [Haibun, TestSteps]);
+		expect(result.ok, JSON.stringify(result.failure)).toBe(true);
+		const listed = (line: string) => readStepSummaries(productsOfLine(result, line)).steps.map((step) => step.method);
+		expect(listed(itemAt(lines, 0))).toEqual(methods.slice(1));
+		expect(listed(itemAt(lines, 1))).toEqual([methods.at(-1)]);
+		expect(listed(itemAt(lines, 2)).sort()).toEqual(methods);
+		const perStepper = listed(itemAt(lines, 3));
+		expect(new Set(perStepper.map((method) => method.split("-")[0])).size, "one step of each stepper").toBe(perStepper.length);
+	});
+
+	it("passes where a statement's list holds exactly or at least a count, waits for it under until, and is refused with the count it holds", async () => {
+		const count = Object.keys(new TestSteps().steps).length;
+		const holding = [
+			`exactly ${count}, matching "TestSteps-", show steps`,
+			'at least 1, matching "TestSteps-", show steps',
+			'until at least 1, matching "TestSteps-", show steps within "1s"',
+		];
+		expect((await passWithDefaults(holding.join("\n"), [Haibun, TestSteps])).ok).toBe(true);
+		const refused = await failWithDefaults(`exactly ${count + 1}, matching "TestSteps-", show steps`, [Haibun, TestSteps]);
+		expect(refused.failure?.error.message).toContain(`the list holds ${count} items, not exactly ${count + 1}`);
+	});
+
+	it("proves a statement as of a step, which a read at a step reads", async () => {
+		const read: Array<readonly number[] | undefined> = [];
+		class ReadsAsOf extends AStepper {
+			description = "Records the step whose actuality a read reads.";
+			steps = { readsAsOf: { gwta: "read as of the step", action: () => (read.push(readingAsOf()), Promise.resolve(actionOK())) } };
+		}
+		const result = await passWithDefaults("as of 0.1, read as of the step\nread as of the step", [Haibun, ReadsAsOf]);
+		expect(result.ok, JSON.stringify(result.failure)).toBe(true);
+		expect(read).toEqual([[0, 1], undefined]);
+	});
+
+	it("proves a statement for each item of a statement's list, with the item and its values bound, and refuses the products of a reading", async () => {
+		const noted: string[] = [];
+		class Notes extends AStepper {
+			description = "Records what a statement notes.";
+			steps = { note: { gwta: "note {value: text}", action: ({ value }: { value: string }) => (noted.push(value), Promise.resolve(actionOK())) } };
+		}
+		const result = await passWithDefaults("for each stepper of show steppers, note stepper/stepper", [Haibun, TestSteps, Notes]);
+		expect(result.ok, JSON.stringify(result.failure)).toBe(true);
+		expect(noted, "once for each stepper").toEqual(listedSteppers(result.world.runtime.steppers ?? []).steppers.map(({ stepper }) => stepper));
+		expect(noted).toEqual(expect.arrayContaining(["TestSteps", "Notes"]));
+		const refused = await failWithDefaults("counting as of 0.1, show steps", [Haibun, TestSteps]);
+		expect(refused.failure?.error.message).toContain("passes on its statement's products by its reading");
 	});
 
 	it("states which steps a caller may call, as the principal it acts for holds them, and lists the steps it can't call with the action each requires", async () => {

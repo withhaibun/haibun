@@ -180,14 +180,29 @@ type TListedCall = { args: TStepArgs; declared?: TListDeclaration; stages: reado
 /** The refusal of a statement whose last step doesn't return a list. */
 const NOT_A_LIST = "the statement's products don't hold a list, since its step's products domain doesn't declare one; state a step that returns a list, such as show steps";
 
+/**
+ * Returns the steps of a statement with the stages of its list passed on to its last step, or why they can't apply to it: the
+ * statement doesn't end with a step whose products domain declares a list or with a step that passes on its own statement's
+ * products by its action. A step that the logic engine proves by its reading, such as `holding only`, passes on its statement's
+ * products without its action, so a combinator is stated inside its statement.
+ */
+export function listedStatement(world: TWorld, steps: unknown, stages: readonly TListStage[]): TFeatureStep[] | { refused: string } {
+	const statement = StatementStepsSchema.parse(steps);
+	const last = statement.at(-1);
+	if (last === undefined) return { refused: NOT_A_LIST };
+	const { step } = last.action;
+	if (step.productsOf !== undefined && step.action === undefined)
+		return { refused: `${last.in} passes on its statement's products by its reading, so a list combinator can't reach the list; state the combinator inside its statement` };
+	if (step.productsOf === undefined && stepList(world, step) === undefined) return { refused: NOT_A_LIST };
+	return [...statement.slice(0, -1), { ...last, listings: stages }];
+}
+
 /** Returns the call of a step under the stages of its statement's list, or why the stages can't apply to it. */
 function listedCall(world: TWorld, stepDef: TStepperStep, args: TStepArgs, stages: readonly TListStage[]): TListedCall | { refused: string } {
 	const { productsOf } = stepDef;
 	if (productsOf !== undefined) {
-		const statement = StatementStepsSchema.parse(args[productsOf]);
-		const last = statement.at(-1);
-		if (last === undefined || (last.action.step.productsOf === undefined && stepList(world, last.action.step) === undefined)) return { refused: NOT_A_LIST };
-		return { args: { ...args, [productsOf]: [...statement.slice(0, -1), { ...last, listings: stages }] }, stages: [] };
+		const statement = listedStatement(world, args[productsOf], stages);
+		return "refused" in statement ? statement : { args: { ...args, [productsOf]: statement }, stages: [] };
 	}
 	const declared = stepList(world, stepDef);
 	if (declared === undefined) return { refused: NOT_A_LIST };

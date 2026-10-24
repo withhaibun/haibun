@@ -71,6 +71,18 @@ export function shownTo(): string | string[] | undefined {
 	return shownStore.getStore() ?? callerHolds();
 }
 
+const asOfStore = new AsyncLocalStorage<readonly number[]>();
+
+/** Runs `within` as of the step at `path`: a read that reads actuality at a step reads it at that step. */
+export function runAsOf<T>(path: readonly number[], within: () => Promise<T>): Promise<T> {
+	return asOfStore.run(path, within);
+}
+
+/** Returns the path of the step whose actuality the calling read reads, or undefined where it reads actuality as it is now. */
+export function readingAsOf(): readonly number[] | undefined {
+	return asOfStore.getStore();
+}
+
 const askStore = new AsyncLocalStorage<string | undefined>();
 
 /**

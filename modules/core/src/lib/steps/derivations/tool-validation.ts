@@ -53,12 +53,15 @@ export function validateToolInput(fromSeqPath: TSeqPath, tool: StepTool, input: 
 	return validated;
 }
 
-/** A statement's step as dispatch ran it. It holds the stepper name, the action name and the step definition dispatch ran. */
+/** A statement's step as dispatch runs it. It holds the stepper name, the action name and the step definition: one with an
+ *  action, or one the logic engine proves by its reading. */
 const RanStepSchema = z.object({
 	action: z.object({
 		stepperName: z.string(),
 		actionName: z.string(),
-		step: z.custom<TStepperStep>((step) => typeof step === "object" && step !== null && "action" in step && typeof step.action === "function"),
+		step: z.custom<TStepperStep>(
+			(step) => typeof step === "object" && step !== null && (("action" in step && typeof step.action === "function") || ("reading" in step && typeof step.reading === "string")),
+		),
 	}),
 });
 /** The steps of a statement a step's argument holds, as dispatch runs them. */

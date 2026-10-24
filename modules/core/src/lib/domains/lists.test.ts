@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+	atLeastItems,
+	exactlyItems,
+	itemBindings,
+	perFieldItems,
+	whoseItems,
 	beforeItems,
 	countingItems,
 	limitedItems,
@@ -49,9 +54,7 @@ describe("the list combinators", () => {
 		expect(names(orderedItems("count", false)(records))).toEqual(["Cy", "Ada", "Bea"]);
 		expect(names(orderedItems("count", true)(records))).toEqual(["Bea", "Ada", "Cy"]);
 		expect(names(orderedItems("name", false)({ ...records, items: [...records.items].reverse() }))).toEqual(["Ada", "Bea", "Cy"]);
-		expect(names(orderedItems("colour", false)(records))).toBe(
-			"the list's items don't hold colour; order them by a field they hold: _links, count, generatedAtTime, name, role, tags",
-		);
+		expect(names(orderedItems("colour", false)(records))).toBe("the list's items don't hold colour; order by a field they hold: _links, count, generatedAtTime, name, role, tags");
 	});
 
 	it("bound a list of records at or after a time or before it, leave out an item without one, and refuse a list that doesn't state its items' time", () => {
@@ -61,6 +64,53 @@ describe("the list combinators", () => {
 		const { time: _time, ...untimed } = records;
 		expect(names(sinceItems(at)(untimed))).toContain("doesn't state a time for its items, so since can't bound it");
 		expect(names(sinceItems(at)({ ...records, items: [{ name: "Dee" }] }))).toEqual([]);
+	});
+});
+
+describe("the combinators that keep items by a field's value", () => {
+	it("keep the items whose value of a field holds a text, without regard to case, count them, and refuse a field the items don't hold", () => {
+		expect(names(whoseItems("role", "DANC")(records))).toEqual(["Bea"]);
+		expect(names(whoseItems("name", "a")(records)), "a value is read as text").toEqual(["Ada", "Bea"]);
+		const kept = whoseItems("role", "dancer")(records);
+		expect("refused" in kept ? kept : kept.total).toBe(1);
+		expect(names(whoseItems("colour", "red")(records))).toContain("the list's items don't hold colour; match a field they hold");
+	});
+
+	it("keep the first items of each value of a field, with the count of the whole list", () => {
+		const people: TList = { ...records, items: [...records.items, { name: "Di", role: "dancer" }, { name: "Ed", role: "dancer" }] };
+		expect(names(perFieldItems(1, "role")(people)), "an item without the field holds a value of its own").toEqual(["Ada", "Bea"]);
+		expect(names(perFieldItems(2, "role")(people))).toEqual(["Ada", "Bea", "Cy", "Di"]);
+		const limited = perFieldItems(1, "role")(people);
+		expect("refused" in limited ? limited : limited.total).toBe(3);
+		expect(perFieldItems(-1, "role")(people)).toEqual({ refused: "can't limit each value to -1 items; state a count of 0 or more" });
+	});
+});
+
+describe("the combinators that state how many items a list holds", () => {
+	const exact = { ...records, saturated: false };
+	it("return the list where it holds exactly the count, and refuse another count or a floor", () => {
+		expect(exactlyItems(3)(exact)).toEqual(exact);
+		expect(exactlyItems(2)(exact)).toEqual({ refused: "the list holds 3 items, not exactly 2" });
+		expect(exactlyItems(3)(records)).toEqual({ refused: "the list holds at least 3 items, a floor, so it can't hold exactly 3; state at least 3" });
+	});
+
+	it("return the list where it holds at least the count, a floor among them, and refuse fewer", () => {
+		expect(atLeastItems(3)(records)).toEqual(records);
+		expect(atLeastItems(1)(exact)).toEqual(exact);
+		expect(atLeastItems(4)(exact)).toEqual({ refused: "the list holds 3 items, fewer than 4" });
+	});
+});
+
+describe("an item a statement is proved for", () => {
+	it("binds the variable to its id, or its text without one, and each value it holds as text or a number", () => {
+		expect(itemBindings("person", { id: "p-1", name: "Ada", count: 3, member: true, tags: ["dance"] })).toEqual({
+			person: "p-1",
+			"person/id": "p-1",
+			"person/name": "Ada",
+			"person/count": 3,
+			"person/member": "true",
+		});
+		expect(itemBindings("person", { name: "Bea" })).toEqual({ person: '{"name":"Bea"}', "person/name": "Bea" });
 	});
 });
 

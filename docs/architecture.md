@@ -407,6 +407,17 @@ step's line.
 - `ordered by {field}, {statement}` orders the items by a field they hold, as a graph read orders them
 - `since {time}, {statement}` and `before {time}, {statement}` keep the records whose time is at or after the time, or before
   it, and refuse a list whose domain doesn't state its items' time
+- `ordered by {field} descending, {statement}` orders the items the other way, and `skipping {count}, {statement}` keeps the
+  items after the first, with the count of the whole list
+- `whose {field} matches {text}, {statement}` keeps the items whose value of a field holds the text, and
+  `limited to {count} per {field}, {statement}` keeps the first items of each value of a field
+- `exactly {count}, {statement}` and `at least {count}, {statement}` return the list where it holds that many items, and are
+  refused with the count it holds otherwise, so `until` waits for a count
+
+Two steps compose with any statement. `as of {step path}, {statement}` proves its statement as of a step of actuality, so a
+read that reads actuality at a step, such as the affordances, reads it there. `for each {what} of {list}, {statement}` proves
+its statement for each item of the list's statement, with the item bound to the variable and each of its values bound as
+`{what}/{field}`; the list's statement ends at the first comma, so it is one read, without a combinator.
 
 Combinators compose, such as `limited to 1, ordered by "method", matching "Haibun-show", show steps`. The reads of actuality's
 declarations are plain: `show steps` lists every step actuality declares, each with whether its caller may call it

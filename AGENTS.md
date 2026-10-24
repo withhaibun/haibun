@@ -347,6 +347,16 @@ Activities and waypoints enable reusable goal-oriented, idempotent tests. They a
 
 A step is a general-purpose primitive. A combination of primitives that features state as one outcome is a waypoint in its module's library, `@haibun/<module>/waypoints`, which a group names beside its own base (`haibun-cli -c tests/config.json tests,@haibun/cli/waypoints`) and an instance's launch names after its directory. Each library's background exports its heads as functions, which a feature imports to state a head. To find a head, type in the actions bar's step input, which lists each head marked `waypoint · <library>`, or read `show step definitions`, whose predicates name each head's library. A list a read returns is narrowed, counted, limited, ordered and bounded by time with the list combinators, such as `matching "GraphStepper-", show steps` (see [architecture](docs/architecture.md#list-combinators)). A step without a parameter doesn't start or keep something: a stepper starts what each feature needs as the feature starts, where an option states it, such as `HAIBUN_O_WEBSERVERSTEPPER_RPC`, which serves `/rpc` on each feature's server, and a service stays up after its features where `HAIBUN_STAY` states it, which an instance's launch sets. A family of steps that differ by one value is one step that takes it, such as `use Authorization Basic header with "user:password"` and `use Authorization Bearer header with token`. `scripts/steps.test.ts` holds a repository's steps to these rules (see [architecture](docs/architecture.md#waypoint-libraries)).
 
+The list combinators compose before a comma, innermost first. A count states how many items a list holds, and fails where it doesn't, so `until` waits for it; a field's value keeps the items that hold a text; and `as of` reads actuality at a step.
+
+    exactly 3, matching "Haibun-show", show steps
+    at least 3, whose "stepperName" matches "Haibun", show steps
+    limited to 1, skipping 1, ordered by "method" descending, matching "Haibun-show", show steps
+    limited to 1 per "stepperName", show steps
+    as of 0.1, counting show steppers
+    for each stepper of show steppers, matching stepper/stepper, show steppers
+
+
 A module holds the waypoints every group uses in a base of backgrounds, which a group names beside its own base. shu's `waypoints` base holds the waypoints of its views, which call web-playwright's steps within a view, so a feature states what a view shows without a step of its own. A graph view's waypoints read its accessible document: the nodes it names, the active, dimmed and pinned states, the group titles and the lifelines. A head every view benefits from is general, and a head for what only the graph draws names the graph (see [architecture](docs/architecture.md#activities-and-waypoints)).
 
 NB The ensure pattern guarantees prerequisites, not outcomes. Use ensure to establish the starting state required for a test (e.g. auth or database setup). Avoid using ensure to enforce the primary behavior under test, as it may obscure failure logic by "correcting" it.

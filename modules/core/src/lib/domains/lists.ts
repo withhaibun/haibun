@@ -84,8 +84,8 @@ export const skippedItems =
 export const orderedItems =
 	(field: string, descending: boolean): TListing =>
 	(list) => {
-		if (list.items.length > 0 && !list.items.some((item) => field in item))
-			return { refused: `the list's items don't hold ${field}; order them by a field they hold: ${[...new Set(list.items.flatMap(Object.keys))].sort().join(", ")}` };
+		const unheld = unheldField(list, field, "order by");
+		if (unheld !== undefined) return unheld;
 		return { ...list, items: [...list.items].sort(compareByOrder<TListItem>([{ key: field, order: descending ? "desc" : "asc" }], (key, item) => item[key])) };
 	};
 
@@ -105,6 +105,65 @@ const timedItems =
 export const sinceItems = (at: Date): TListing => timedItems("since", "gte", at);
 /** The records whose time is before the time. */
 export const beforeItems = (at: Date): TListing => timedItems("before", "lt", at);
+
+/** The bindings of an item a statement is proved for: the variable, which holds the item's id, or its text where it doesn't
+ *  have one, and each value it holds as text or a number, as `variable/field`. */
+export function itemBindings(variable: string, item: TListItem): Record<string, string | number> {
+	const bindings: Record<string, string | number> = { [variable]: typeof item.id === "string" ? item.id : JSON.stringify(item) };
+	for (const [field, value] of Object.entries(item))
+		if (typeof value === "number") bindings[`${variable}/${field}`] = value;
+		else if (typeof value === "string" || typeof value === "boolean") bindings[`${variable}/${field}`] = String(value);
+	return bindings;
+}
+
+/** The refusal of a field the list's items don't hold, naming the fields they hold, where the list holds an item. */
+const unheldField = (list: TList, field: string, combinator: string): { refused: string } | undefined =>
+	list.items.length > 0 && !list.items.some((item) => field in item)
+		? { refused: `the list's items don't hold ${field}; ${combinator} a field they hold: ${[...new Set(list.items.flatMap(Object.keys))].sort().join(", ")}` }
+		: undefined;
+
+/** The items whose value of a field holds the text, compared without regard to case, and counted. */
+export const whoseItems =
+	(field: string, text: string): TListing =>
+	(list) => {
+		const unheld = unheldField(list, field, "match");
+		if (unheld !== undefined) return unheld;
+		const items = list.items.filter((item) => item[field] !== undefined && item[field] !== null && containsText([String(item[field])], text));
+		return { ...list, items, total: items.length };
+	};
+
+/** The first `count` items of each value of a field. The count of the whole list stays. */
+export const perFieldItems =
+	(count: number, field: string): TListing =>
+	(list) => {
+		if (count < 0) return negativeCount(count, "limit each value to");
+		const unheld = unheldField(list, field, "limit by");
+		if (unheld !== undefined) return unheld;
+		const kept = new Map<string, number>();
+		const items = list.items.filter((item) => {
+			const value = String(item[field]);
+			const held = kept.get(value);
+			const now = held === undefined ? 1 : held + 1;
+			kept.set(value, now);
+			return now <= count;
+		});
+		return { ...list, items };
+	};
+
+/** The list unchanged where it holds exactly `count` items, and otherwise why it doesn't. A count that is a floor states a
+ *  count of at least that many, so it isn't exact. */
+export const exactlyItems =
+	(count: number): TListing =>
+	(list) => {
+		if (list.saturated) return { refused: `the list holds at least ${list.total} items, a floor, so it can't hold exactly ${count}; state at least ${count}` };
+		return list.total === count ? list : { refused: `the list holds ${list.total} items, not exactly ${count}` };
+	};
+
+/** The list unchanged where it holds at least `count` items, and otherwise how many it holds. */
+export const atLeastItems =
+	(count: number): TListing =>
+	(list) =>
+		list.total >= count ? list : { refused: `the list holds ${list.total} items, fewer than ${count}` };
 
 /** The query that states `query` and then the stage's query. Returns undefined where the stage doesn't have a query, or
  *  where it orders a list whose order, offset or limit `query` already states. */

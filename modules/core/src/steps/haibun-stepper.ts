@@ -25,8 +25,10 @@ import {
 	DOMAIN_NUMBER,
 	DOMAIN_PERSISTED_TYPES,
 	DOMAIN_STATEMENT,
+	DOMAIN_STEP_PATH,
 	DOMAIN_TEXT,
 	DOMAIN_TITLE,
+	DOMAIN_VARIABLE_NAME,
 	backgroundNamesSchema,
 	createEnumDomainDefinition,
 } from "../lib/domains/domains.js";
@@ -37,7 +39,7 @@ import { remoteQuadStore } from "./root.js";
 import { requestSigner } from "../lib/domains/session-authority.js";
 import { DOMAIN_STEPPERS, SHOW_STEPPERS_LINE, SteppersSchema } from "../lib/steps/domains/steppers.js";
 import { STEP_DEFINITIONS_LIST, STEP_SUMMARIES_LIST, listedSteppers, stepDefinitions, stepSummaries } from "../lib/steps/pipelines/discover-steps.js";
-import { runRegistry } from "../lib/steps/pipelines/step-registry.js";
+import { listedStatement, runRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { stepMethodName } from "../lib/steps/domains/step-method.js";
 import {
 	DOMAIN_STEP_DEFINITIONS,
@@ -49,8 +51,23 @@ import {
 	StepSummariesSchema,
 	type TStepValidation,
 } from "../lib/steps/domains/step-discovery.js";
-import { beforeItems, countingItems, limitedItems, listOf, matchingItems, orderedItems, sinceItems } from "../lib/domains/lists.js";
-import { shownTo } from "../lib/domains/capability-context.js";
+import {
+	atLeastItems,
+	beforeItems,
+	countingItems,
+	exactlyItems,
+	itemBindings,
+	limitedItems,
+	listOf,
+	matchingItems,
+	orderedItems,
+	perFieldItems,
+	sinceItems,
+	skippedItems,
+	whoseItems,
+	type TListItem,
+} from "../lib/domains/lists.js";
+import { runAsOf, shownTo } from "../lib/domains/capability-context.js";
 import { validateStep } from "../lib/pipelines/step-validation.js";
 import { Access } from "../lib/domains/resources.js";
 
@@ -70,6 +87,9 @@ const SHOW_STEPS_DESCRIPTION = `Lists every step actuality declares: each step's
 const SHOW_STEP_DEFINITIONS_DESCRIPTION = `Lists the definition of every step actuality declares: each step's argument and product schemas, whether its caller may call it and the link to its call, with every domain, the concern catalog and the registry's predicates, which a formula names. Read one step's definition with the matching combinator, as in \`matching "Haibun-showSteps", ${SHOW_STEP_DEFINITIONS_LINE}\`; a narrowed read returns only the domains, concerns and predicates its steps name.`;
 const SHOW_STEPPERS_DESCRIPTION =
 	"Lists each stepper actuality loads, with what it does and each of its steps as its key and its pattern, as the CLI's --show-steppers prints them.";
+
+/** A step's path as its domain reads it: the integers of its place. */
+const StepPathValueSchema = z.array(z.number().int()).min(1);
 
 /** How `ends with` ends a feature. */
 const DOMAIN_ENDING = "ending";
@@ -127,7 +147,7 @@ class Haibun extends AStepper implements IHasCycles {
 
 	/** A list combinator: a read that proves its statement and returns the statement's products with the list its listing makes
 	 *  of the list they hold. Each step the statement holds is gated as it runs. */
-	private listCombinator(gwta: string, description: string, stage: Pick<TStepperStep, "transformsList" | "listQuery">) {
+	private listCombinator(gwta: string, description: string, stage: Pick<TStepperStep, "transformsList" | "listQuery" | "precludes">) {
 		return {
 			read: true,
 			readsAt: Access.public,
@@ -189,6 +209,40 @@ class Haibun extends AStepper implements IHasCycles {
 			"Orders the items of the statement's list by the values of a field they hold, as a graph read orders them: numbers by size and any other value by its text, with an item that doesn't hold the field first.",
 			{ transformsList: ({ field }: { field: string }) => orderedItems(field, false), listQuery: ({ field }: { field: string }) => ({ order: { field, descending: false } }) },
 		),
+		orderedByDescending: this.listCombinator(
+			`ordered by {field: ${DOMAIN_TEXT}} descending, {statement: ${DOMAIN_STATEMENT}}`,
+			"Orders the items of the statement's list by the values of a field they hold, the greatest first, with an item that doesn't hold the field last.",
+			{
+				transformsList: ({ field }: { field: string }) => orderedItems(field, true),
+				listQuery: ({ field }: { field: string }) => ({ order: { field, descending: true } }),
+				precludes: ["Haibun.orderedBy"],
+			},
+		),
+		skipping: this.listCombinator(
+			`skipping {count: ${DOMAIN_NUMBER}}, {statement: ${DOMAIN_STATEMENT}}`,
+			"Keeps the items of the statement's list after the first, up to the count. The count of the whole list stays.",
+			{ transformsList: ({ count }: { count: number }) => skippedItems(count), listQuery: ({ count }: { count: number }) => ({ skip: count }) },
+		),
+		limitedPer: this.listCombinator(
+			`limited to {count: ${DOMAIN_NUMBER}} per {field: ${DOMAIN_TEXT}}, {statement: ${DOMAIN_STATEMENT}}`,
+			"Keeps the first items of the statement's list for each value of a field they hold, up to the count. The count of the whole list stays.",
+			{ transformsList: ({ count, field }: { count: number; field: string }) => perFieldItems(count, field), precludes: ["Haibun.limitedTo"] },
+		),
+		whose: this.listCombinator(
+			`whose {field: ${DOMAIN_TEXT}} matches {text: ${DOMAIN_TEXT}}, {statement: ${DOMAIN_STATEMENT}}`,
+			"Keeps the items of the statement's list whose value of a field holds the text, compared without regard to case, and counts them.",
+			{ transformsList: ({ field, text }: { field: string; text: string }) => whoseItems(field, text) },
+		),
+		exactly: this.listCombinator(
+			`exactly {count: ${DOMAIN_NUMBER}}, {statement: ${DOMAIN_STATEMENT}}`,
+			"Returns the statement's list where it holds exactly the count of items, and is refused with the count it holds otherwise. Under until, it waits for the count.",
+			{ transformsList: ({ count }: { count: number }) => exactlyItems(count) },
+		),
+		atLeast: this.listCombinator(
+			`at least {count: ${DOMAIN_NUMBER}}, {statement: ${DOMAIN_STATEMENT}}`,
+			"Returns the statement's list where it holds at least the count of items, and is refused with the count it holds otherwise. Under until, it waits for the count.",
+			{ transformsList: ({ count }: { count: number }) => atLeastItems(count) },
+		),
 		since: this.listCombinator(
 			`since {time: ${DOMAIN_DATE}}, {statement: ${DOMAIN_STATEMENT}}`,
 			"Keeps the records of the statement's list whose time is at or after the time, and counts them. A list that doesn't state its items' time is refused.",
@@ -199,6 +253,33 @@ class Haibun extends AStepper implements IHasCycles {
 			"Keeps the records of the statement's list whose time is before the time, and counts them. A list that doesn't state its items' time is refused.",
 			{ transformsList: ({ time }: { time: Date }) => beforeItems(time) },
 		),
+
+		asOf: {
+			gwta: `as of {asOf: ${DOMAIN_STEP_PATH}}, {statement: ${DOMAIN_STATEMENT}}`,
+			description: "Proves the statement as of a step of actuality, so a read the statement makes that reads actuality at a step, such as the affordances, reads it at that step.",
+			productsOf: "statement",
+			reading: READING.within,
+			context: ({ asOf }) => Promise.resolve(<T>(run: () => Promise<T>) => runAsOf(StepPathValueSchema.parse(asOf), run)),
+		},
+		forEach: {
+			gwta: `for each {what: ${DOMAIN_VARIABLE_NAME}} of {list: ${DOMAIN_STATEMENT}}, {statement: ${DOMAIN_STATEMENT}}`,
+			description:
+				"Proves the statement for each item of the list's statement, as its combinators make the list, with the item bound to the variable: its id, and each of its values as variable/field. Holds where the statement holds for every item, and is refused with the first item's refusal otherwise.",
+			action: async ({ what, list, statement }: { what: string; list: TFeatureStep[]; statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
+				const ctx = stepperContext(this.getWorld(), this.steppers);
+				let items: TListItem[] | undefined;
+				const listed = listedStatement(this.getWorld(), list, [{ listing: (read) => ((items = read.items), read) }]);
+				if ("refused" in listed) return actionNotOK(listed.refused);
+				const read = await proveStatements(ctx, featureStep, listed);
+				if (!read.ok) return read;
+				if (items === undefined) return actionNotOK("the list's statement returned without its list; state a step that returns a list, such as show steps");
+				for (const item of items) {
+					const proved = await proveStatements(ctx, { ...featureStep, runtimeArgs: { ...featureStep.runtimeArgs, ...itemBindings(what, item) } }, statement);
+					if (!proved.ok) return proved;
+				}
+				return OK;
+			},
+		},
 
 		validateStep: {
 			read: true,
