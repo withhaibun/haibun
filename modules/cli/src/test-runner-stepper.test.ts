@@ -32,6 +32,7 @@ import path from "node:path";
 import { ACTUALITIES_FILE } from "@haibun/core/lib/adapters/dependency-state.js";
 import { RUN_AUTHORITY, runAuthorizedWith } from "@haibun/core/lib/domains/capability-context.js";
 import { RUN_DOMAIN, SUPERVISOR_CAPABILITIES, runDomainDefinitions } from "./domains/run.js";
+import { DomainKeySchema } from "@haibun/core/lib/domains/domains.js";
 
 type TResult = { ok: boolean; errorMessage?: string; products?: { run: string; status: string; record: string } };
 
@@ -390,7 +391,7 @@ describe("examining a finished test run", () => {
 			const { proved } = await import("@haibun/logic/pipelines/prove.js");
 			const domains = mapDefinitionsToDomains(runDomainDefinitions);
 			const signatures = stepSignatures([new TestRunnerStepper() as never]);
-			const producers = signatures.filter((one) => one.outputDomains.includes(RUN_DOMAIN.started)).map((one) => one.stepName);
+			const producers = signatures.filter((one) => one.outputDomains.includes(DomainKeySchema.parse(RUN_DOMAIN.started))).map((one) => one.stepName);
 			expect(producers, "both steps that start a test run produce the record").toEqual(expect.arrayContaining(["runTest", "runAllTests"]));
 			const ended = await proved(await logicEngine(), `goals(${producerRules(signatures, domains, ["Instance:run"])}, ['${RUN_DOMAIN.started}'])`, () =>
 				Promise.resolve("facts([[]])"),
@@ -443,7 +444,7 @@ describe("examining a finished test run", () => {
 						stepperDescription: "the test run's own steps",
 						stepName: "endsWith",
 						pattern: "ends with {result: ending}",
-						paramDomains: { result: "ending" },
+						paramDomains: { result: DomainKeySchema.parse("ending") },
 						capability: readAction(Access.private),
 						read: true,
 						fallback: false,

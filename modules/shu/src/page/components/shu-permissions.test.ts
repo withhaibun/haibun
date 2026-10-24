@@ -8,9 +8,15 @@ import { ShuPermissions, type TPermissionsSummary } from "./shu-permissions.js";
 import "./shu-page-key.js";
 import type { TAuthority } from "../controllers/authority-controller.js";
 import { pageAuthorityFails, pageHolding } from "../controllers/authority-controller.test-fake.js";
+import { ActionSchema } from "@haibun/core/lib/domains/actions.js";
 
 const PAGE = "did:key:zDnaePage";
-const held: TAuthority = { controller: PAGE, holds: ["Instance:read", "comment.grant"], grantedBy: {}, principals: [{ id: "did:site:0" }, { id: "did:site:0:kihan-session" }] };
+const held: TAuthority = {
+	controller: PAGE,
+	holds: [ActionSchema.parse("Instance:read"), ActionSchema.parse("comment.grant")],
+	grantedBy: {},
+	principals: [{ id: "did:site:0" }, { id: "did:site:0:kihan-session" }],
+};
 
 /** The records this view offers a way to, by the name each is shown under. */
 const refTexts = (el: ShuPermissions, kind?: string): string[] =>

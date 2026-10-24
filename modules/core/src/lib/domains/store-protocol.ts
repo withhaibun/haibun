@@ -6,6 +6,7 @@
  * trusted delegate full store access, and it is distinct from the accessLevel-gated hypermedia surface.
  * Responses use a `{ result }` envelope, so a response with an undefined result serializes to JSON.
  */
+import { ActionSchema, type TAction } from "./actions.js";
 import { DensityQuerySchema, GraphQuerySchema } from "../steps/domains/quad-types.js";
 import { z } from "zod";
 import { AccessLevelSchema } from "./resources.js";
@@ -68,11 +69,11 @@ export function storeMethods(getStore: () => IQuadStore): Record<string, TRpcMet
 
 /** The capability a caller must hold for a store call. A call that changes the store requires store.write, and any other
  *  call requires store.read. */
-export function requiredStoreCapability(method: string): string {
+export function requiredStoreCapability(method: string): TAction {
 	const name = method.slice(STORE_METHOD_PREFIX.length) as TStoreMethod;
 	const def = STORE_METHODS[name];
 	if (!def) throw new Error(`${method} isn't a store method; the store methods are ${Object.keys(STORE_METHODS).join(", ")}`);
-	return def.write ? STORE_WRITE : STORE_READ;
+	return ActionSchema.parse(def.write ? STORE_WRITE : STORE_READ);
 }
 
 /**

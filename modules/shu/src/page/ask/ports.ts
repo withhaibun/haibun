@@ -1,6 +1,7 @@
 /**
  * The ask's ports: what reading and following a conversation reads and writes, and what sending a turn reads and writes.
  */
+import type { TAction } from "@haibun/core/lib/domains/actions.js";
 import type { ICell } from "@haibun/core/lib/machines/cell.js";
 import type { Machine } from "@haibun/core/lib/machines/machine.js";
 import type { AccessQueryLevel } from "@haibun/core/lib/domains/resources.js";
@@ -40,7 +41,7 @@ export type TAllowanceScope = { kept: TKept; allowed: ICell<readonly string[]>; 
 export type TTurnScope = TConversationScope & {
 	verifiesDelegations: () => boolean;
 	delegate: (to: TDelegationTo) => Promise<Record<string, unknown>>;
-	holds: () => readonly string[];
+	holds: () => readonly TAction[];
 	may: (action: string) => boolean;
 	allowance: () => Promise<readonly string[]>;
 	origin: () => string;

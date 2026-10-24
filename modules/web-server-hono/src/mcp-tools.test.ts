@@ -14,6 +14,7 @@ import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { ToolListChangedNotificationSchema } from "@modelcontextprotocol/sdk/types.js";
 import { DOMAIN_NUMBER } from "@haibun/core/lib/domains/domains.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
+import { StepMethodSchema } from "@haibun/core/lib/steps/domains/step-method.js";
 
 class TestStepper extends AStepper {
 	description = "Steps that check the MCP tools a run lists.";
@@ -40,7 +41,7 @@ class TestStepper extends AStepper {
 					const registry = runRegistry(this.getWorld());
 					const passes = registry.get("TestStepper-testA");
 					if (!passes) throw Error("TestStepper-testA is not registered");
-					registry.inject([{ ...passes, descriptor: { ...passes.descriptor, method: "Injected-testA", stepperName: "Injected" } }]);
+					registry.inject([{ ...passes, descriptor: { ...passes.descriptor, method: StepMethodSchema.parse("Injected-testA"), stepperName: "Injected" } }]);
 					await toldOfChange;
 					if (!(await client.listTools()).tools.some((tool) => tool.name === "Injected-testA"))
 						throw Error("a step injected into actuality is not listed after the client was notified that the list changed");

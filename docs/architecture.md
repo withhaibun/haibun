@@ -403,7 +403,9 @@ statement's last step returns, through the step's `transformsList`, and returns 
 Combinators compose, such as `limited to 1, ordered by "method", matching "Haibun-show", show steps`. The reads of actuality's
 declarations are plain: `show steps` lists the steps a caller may call, `show step definitions` adds their schemas and the
 registry's predicates, and `show steppers` lists each stepper with its steps, as the CLI's `--show-steppers` prints them. A
-summary links its definition as `matching "<method>", show step definitions`. shu's `show ontology` lists the classes and the
+summary links its definition as `matching "<method>", show step definitions`. `show every step actuality declares` lists every
+step whether or not its caller may call it, with the action it requires and whether the caller may call it, so shu's step and
+action views state why a page can't call a step and which steps require an action. shu's `show ontology` lists the classes and the
 link relations the declarations state, as the class browser draws them, and its products open the class browser.
 
 ## Steppers

@@ -17,15 +17,31 @@ import { provideLayout } from "../../test/jsdom-layout.js";
 import { aControllerHost } from "./controller-host.test-fake.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { declaringSteps, setupShuTest, stepsChanged, stepsReadAgain, stepsShown, type TShuTestHandle } from "../../test/setup.js";
+import { StepMethodSchema } from "@haibun/core/lib/steps/domains/step-method.js";
+import { DomainKeySchema } from "@haibun/core/lib/domains/domains.js";
 
 /** The steps actuality offers. */
 const offered: TStepDefinition[] = [];
 /** A page on a run that offers the steps `offered` holds when the page reads them. */
 const anActuality = () => setupShuTest({ dispatch: declaringSteps(() => stepsShown(offered, CHAT_DOMAINS)) });
 
-const step = (method: string, pattern: string, extra: Partial<TStepDefinition> = {}) => {
+/** A step's definition as the steps' read states it, from a method, a pattern, and the domains its fixture names as text. */
+const step = (
+	method: string,
+	pattern: string,
+	extra: Partial<Omit<TStepDefinition, "paramDomains" | "productsDomain">> & { paramDomains?: Record<string, string>; productsDomain?: string } = {},
+) => {
 	const [stepperName, stepName] = method.split("-");
-	return { method, stepperName, stepName, pattern, paramDomains: {}, ...extra } as TStepDefinition;
+	const { paramDomains = {}, productsDomain, ...rest } = extra;
+	return {
+		method: StepMethodSchema.parse(method),
+		stepperName,
+		stepName,
+		pattern,
+		paramDomains: Object.fromEntries(Object.entries(paramDomains).map(([name, key]) => [name, DomainKeySchema.parse(key)])),
+		...(productsDomain === undefined ? {} : { productsDomain: DomainKeySchema.parse(productsDomain) }),
+		...rest,
+	} as TStepDefinition;
 };
 const SHOW = step("GraphStepper-showGraph", "show graph {name}", { paramDomains: { name: "string" }, productsDomain: "graph" });
 const LIST = step("GraphStepper-listTypes", "list types");

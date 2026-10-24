@@ -7,7 +7,9 @@ import { z } from "zod";
 import type { TFeatureStep } from "../steps/domains/stepper.js";
 import type { TDomainDefinition } from "./resources.js";
 import { VERDICT } from "./protocol.js";
-import { NameSchema } from "./domains.js";
+import { DomainKeySchema, NameSchema, type TDomainKey } from "./domains.js";
+import { ActionSchema } from "./actions.js";
+import { StepMethodSchema } from "../steps/domains/step-method.js";
 import { ACTUALITY_FIELD } from "../actuality/domains/seq-path.js";
 
 export const DOMAIN_GOAL_RESOLUTION = "goal-resolution";
@@ -20,8 +22,10 @@ export const DOMAIN_WALK_ID = "walk-id";
 export const SOURCE_DOMAIN = "∅";
 
 /** A composite field's binding: a fact, a value a caller supplies, or the bindings of a composite's own fields. */
-const fieldBase = { fieldName: z.string(), fieldDomain: z.string(), fieldType: z.string(), optional: z.boolean() };
-type TFieldBase = { fieldName: string; fieldDomain: string; fieldType: string; optional: boolean };
+/** A composite field's domain, or empty for a primitive field that doesn't state one. */
+export const FieldDomainSchema = DomainKeySchema.or(z.literal(""));
+const fieldBase = { fieldName: z.string(), fieldDomain: FieldDomainSchema, fieldType: z.string(), optional: z.boolean() };
+type TFieldBase = { fieldName: string; fieldDomain: TDomainKey | ""; fieldType: string; optional: boolean };
 export type TFieldBinding = TFieldBase & ({ kind: "fact"; factId: string } | { kind: "argument" } | { kind: "composite"; fields: TFieldBinding[] });
 const FieldBindingSchema: z.ZodType<TFieldBinding> = z.discriminatedUnion("kind", [
 	z.object({ kind: z.literal("fact"), ...fieldBase, factId: z.string() }).strict(),
@@ -30,9 +34,9 @@ const FieldBindingSchema: z.ZodType<TFieldBinding> = z.discriminatedUnion("kind"
 ]);
 
 const BindingSchema = z.discriminatedUnion("kind", [
-	z.object({ kind: z.literal("fact"), domain: z.string(), factId: z.string() }).strict(),
-	z.object({ kind: z.literal("argument"), domain: z.string() }).strict(),
-	z.object({ kind: z.literal("composite"), domain: z.string(), fields: z.array(FieldBindingSchema) }).strict(),
+	z.object({ kind: z.literal("fact"), domain: DomainKeySchema, factId: z.string() }).strict(),
+	z.object({ kind: z.literal("argument"), domain: DomainKeySchema }).strict(),
+	z.object({ kind: z.literal("composite"), domain: DomainKeySchema, fields: z.array(FieldBindingSchema) }).strict(),
 ]);
 export type TBinding = z.infer<typeof BindingSchema>;
 
@@ -55,7 +59,7 @@ export const GoalResolutionSchema = z
 		factIds: z.array(z.string()),
 		plans: z.array(PlanSchema),
 		unmet: z.string().optional(),
-		unmetChain: z.array(z.string()).optional(),
+		unmetChain: z.array(DomainKeySchema).optional(),
 		/** A proved goal's proof as statements in proof order: the line that asserted its fact, then the goal's statement. */
 		statements: z.array(z.string()).optional(),
 	})
@@ -75,14 +79,14 @@ export type TChainWalk = z.infer<typeof ChainWalkSchema>;
 /** A step the caller may call that takes or returns a domain, with whether each domain it takes holds. */
 const ForwardSchema = z
 	.object({
-		method: z.string(),
+		method: StepMethodSchema,
 		stepperName: z.string(),
 		stepName: z.string(),
 		gwta: z.string().optional(),
-		inputDomains: z.array(z.string()),
-		outputDomains: z.array(z.string()),
+		inputDomains: z.array(DomainKeySchema),
+		outputDomains: z.array(DomainKeySchema),
 		readyToRun: z.boolean(),
-		capability: z.string(),
+		capability: ActionSchema,
 	})
 	.strict();
 export type TForwardAffordance = z.infer<typeof ForwardSchema>;
@@ -121,8 +125,8 @@ export const providesWaypoints = <T>(s: T): s is T & ProvidesWaypoints => typeof
  *  waypoints, and the actuality whose facts they read. A fact's id is the path of the step that asserted it. */
 const snapshot = {
 	forward: z.array(ForwardSchema),
-	goals: z.array(z.object({ domain: z.string(), description: z.string(), resolution: GoalResolutionSchema }).strict()),
-	satisfiedDomains: z.array(z.string()),
+	goals: z.array(z.object({ domain: DomainKeySchema, description: z.string(), resolution: GoalResolutionSchema }).strict()),
+	satisfiedDomains: z.array(DomainKeySchema),
 	satisfiedFacts: z.record(z.string(), z.array(z.string())),
 	composites: CompositeRangesSchema,
 	[ACTUALITY_FIELD]: z.string(),
@@ -133,9 +137,9 @@ export type TAffordances = z.infer<typeof AffordancesSchema>;
 /** The kinds of the step graph's lint findings, each a way the graph is incomplete. */
 export const LINT_FINDING = { UNSUPPLIED_STEP: "unsupplied-step", UNREACHABLE_DOMAIN: "unreachable-domain", UNPRODUCED_DOMAIN: "unproduced-domain" } as const;
 export const LintFindingSchema = z.discriminatedUnion("kind", [
-	z.object({ kind: z.literal(LINT_FINDING.UNSUPPLIED_STEP), stepperName: z.string(), stepName: z.string(), inputDomain: z.string() }).strict(),
-	z.object({ kind: z.literal(LINT_FINDING.UNREACHABLE_DOMAIN), domain: z.string() }).strict(),
-	z.object({ kind: z.literal(LINT_FINDING.UNPRODUCED_DOMAIN), domain: z.string() }).strict(),
+	z.object({ kind: z.literal(LINT_FINDING.UNSUPPLIED_STEP), stepperName: z.string(), stepName: z.string(), inputDomain: DomainKeySchema }).strict(),
+	z.object({ kind: z.literal(LINT_FINDING.UNREACHABLE_DOMAIN), domain: DomainKeySchema }).strict(),
+	z.object({ kind: z.literal(LINT_FINDING.UNPRODUCED_DOMAIN), domain: DomainKeySchema }).strict(),
 ]);
 export type TLintFinding = z.infer<typeof LintFindingSchema>;
 

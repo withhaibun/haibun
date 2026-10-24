@@ -10,6 +10,7 @@ import { basicAuthUsers } from "@haibun/core/lib/domains/basic-auth.js";
 import { eventHubOfTest, freePort } from "@haibun/core/lib/test/lib.js";
 import { recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { storeDeclaring } from "@haibun/core/lib/test/declared-types.js";
+import { ActionSchema } from "@haibun/core/lib/domains/actions.js";
 
 const mockLogger = eventHubOfTest();
 
@@ -103,7 +104,7 @@ describe("ServerHono", () => {
 	});
 
 	describe("addRpcMethods", () => {
-		const read = { action: "Fam:read", handle: () => Promise.resolve("read") };
+		const read = { action: ActionSchema.parse("Fam:read"), handle: () => Promise.resolve("read") };
 
 		it("serves a family's methods by their full names only, and records the family as a service Endpoint", async () => {
 			server.addRpcMethods("fam.", { description: "a family" }, { read });

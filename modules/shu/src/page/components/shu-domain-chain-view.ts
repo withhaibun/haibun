@@ -12,7 +12,7 @@ import { shuBaseStyles } from "./styles.js";
 import { z } from "zod";
 import { affordancesOnOffer } from "../controllers/read-controller.js";
 import { LoadController } from "../controllers/load-controller.js";
-import "./shu-refusal.js";
+import { refusalTpl } from "./load-renders.js";
 import { producingStepOf, projectDomainChain, waypointNodeId, type TAffordancesSnapshot, type TWaypointSnapshot } from "../derivations/project-domain-chain.js";
 import { graphToQuads } from "../derivations/graph-quads.js";
 import { SHU_EVENT, AFFORDANCE_PARAM, SHU_TAG } from "../../domains/elements.js";
@@ -153,7 +153,7 @@ export class ShuDomainChainView extends ShuElement<typeof EmptyStateSchema> {
 		return this.#chain.render({
 			pending: () => this.loadingTemplate(),
 			running: () => this.loadingTemplate(),
-			failed: (refusal) => html`<shu-refusal .refusal=${refusal} .readAgain=${() => void this.#chain.run()}></shu-refusal>
+			failed: (refusal) => html`${refusalTpl(refusal, this.#chain)}
 				<div class="empty" data-testid=${SHU_TEST_IDS.DOMAIN_CHAIN.EMPTY}>The chain wasn't read. Invoke <code>show affordances</code> from the actions bar (Step mode), or run any step.</div>`,
 			completed: () => this.chainTemplate(),
 		});

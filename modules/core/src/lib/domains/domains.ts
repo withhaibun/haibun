@@ -34,6 +34,9 @@ export const DOMAIN_DATE = "date";
 export const DOMAIN_ACTIONS = "actions";
 /** A reference to a Principal by its DID. */
 export const DOMAIN_PRINCIPAL_REF = refDomainKey(PRINCIPAL_DOMAIN);
+/** A domain's key as a reader states it. A reference to a domain takes one, so a step's method or an action isn't taken for a domain. */
+export const DomainKeySchema = z.string().min(1).brand<"DomainKey">();
+export type TDomainKey = z.infer<typeof DomainKeySchema>;
 /** The id of a record of the type another of its step's parameters names (the step's `recordIds`). */
 export const DOMAIN_RECORD_ID = "record-id";
 const BASE_TYPES = [DOMAIN_STRING, DOMAIN_TEXT, DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_DATE, DOMAIN_STATEMENT, DOMAIN_JSON];

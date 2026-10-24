@@ -9,6 +9,7 @@ import { SHOW_STEP_DEFINITIONS_METHOD, SHOW_STEPS_ACTION } from "@haibun/core/li
 import { PAGE_CALL_ACTIONS } from "../domains/page-calls.js";
 import { pageRegistry, registryScope } from "../root.js";
 import { readSteps } from "../pipelines/read-steps.js";
+import { outcomeOf, type TCallOutcome } from "../pipelines/call-step.js";
 import { REGISTRY_EVENT, REGISTRY_STATUS, type TRegistryOrigin, type TStepList } from "../machines/registry.js";
 import * as Steps from "../derivations/steps.js";
 import { askSteps, type TAskSteps } from "../ask/derivations/ask-steps.js";
@@ -32,6 +33,9 @@ function readList(what: string): TStepList {
 
 /** Returns actuality's steps, read where the page doesn't hold them. */
 export const getAvailableSteps = async (): Promise<TStepDefinition[]> => (await stepList()).steps;
+
+/** Returns actuality's steps, or the refusal of their read. */
+export const availableStepsRead = (): Promise<TCallOutcome<TStepDefinition[]>> => outcomeOf(getAvailableSteps);
 
 /** Returns the predicates actuality's steps prove, read where the page doesn't hold them. */
 export const getAvailablePredicates = async (): Promise<TPredicate[]> => (await stepList()).predicates;

@@ -30,6 +30,8 @@ import {
 import { CLOSED_CONVERSATION, askRefusal, transition, turnOf } from "./conversation.js";
 import { transcript } from "../derivations/transcript.js";
 import { assertTable, pickWith, runSequences, staying as stayingOn } from "@haibun/core/lib/test/machine-table.js";
+import { ActionSchema } from "@haibun/core/lib/domains/actions.js";
+import { StepMethodSchema } from "@haibun/core/lib/steps/domains/step-method.js";
 
 /** The session's first turn. Its question record names the session. */
 const FIRST = "0.1.1";
@@ -44,8 +46,8 @@ const ANSWER: TRecord = { id: answer("0.1.2"), label: COMMENT_LABEL };
 const readBack = (turn: string, inReplyTo?: string): TSessionTurn => aReadBack(turn, inReplyTo, [EMAIL]);
 
 /** The actions the page delegates to its turn, and a refused call whose action the delegation doesn't hold. */
-const DELEGATED = ["Read:private", "Example:ask"];
-const REFUSED = { step: "Example-act", action: "Example:act" };
+const DELEGATED = [ActionSchema.parse("Read:private"), ActionSchema.parse("Example:ask")];
+const REFUSED = { step: StepMethodSchema.parse("Example-act"), action: ActionSchema.parse("Example:act") };
 /** A call the page's turn made and the record that call wrote. */
 const CALL = { name: "Example-read", ok: true, record: { persistedAs: "ToolCall", id: "tcall-1" } };
 
@@ -239,7 +241,7 @@ describe("each move of the page's turn", () => {
 	});
 
 	it("`refused` adds each refused action of a running turn once, and doesn't change a turn that isn't running", () => {
-		const another = { step: "Example-actAgain", action: REFUSED.action };
+		const another = { step: StepMethodSchema.parse("Example-actAgain"), action: REFUSED.action };
 		const refused = run(EVENT.open, EVENT.read, EVENT.ask, EVENT.started, EVENT.refused, { type: "refused", call: another });
 		expect(refused.asked?.refused, "a person allows an action once for every call that needs it").toEqual([REFUSED]);
 		expect(transition(TURN_AT.asking, EVENT.refused)).toBe(TURN_AT.asking);

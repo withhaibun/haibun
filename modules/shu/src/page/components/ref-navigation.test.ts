@@ -5,6 +5,8 @@
  * trail of columns.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ActionSchema } from "@haibun/core/lib/domains/actions.js";
+import { StepMethodSchema } from "@haibun/core/lib/steps/domains/step-method.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { deepLinkOf, desiredPaneFor, followPaneLink, paneHref, refHref } from "./ref-navigation.js";
@@ -53,8 +55,8 @@ describe("a link to a pane", () => {
 		{ paneType: "filter-incoming", persistedAs: "Email", subject: "m-1" },
 		{ paneType: "thread", persistedAs: "Email", subject: "m-1" },
 		{ paneType: "entity", persistedAs: "SeqPath", id: "1790000000000-1.0.1.2" },
-		{ paneType: "step", method: "GraphStepper-graphQuery" },
-		{ paneType: "action", action: "Read:private" },
+		{ paneType: "step", method: StepMethodSchema.parse("GraphStepper-graphQuery") },
+		{ paneType: "action", action: ActionSchema.parse("Read:private") },
 	];
 
 	it("reads back as the pane it addresses, an individual's passage included", () => {

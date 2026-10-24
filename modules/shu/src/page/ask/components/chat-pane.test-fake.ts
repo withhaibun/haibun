@@ -50,7 +50,7 @@ export function chatDispatch(
 	respond: (step: string, params: Record<string, unknown>) => unknown,
 	{ steps = Object.values(CHAT_STEP), concerns = MODELS_ONLY }: { steps?: string[]; concerns?: TConcernCatalog } = {},
 ): TDispatch {
-	const byMethod = new Map(steps.map((step) => [stepMethodName(CHAT_STEPPER, step), step]));
+	const byMethod = new Map<string, string>(steps.map((step) => [stepMethodName(CHAT_STEPPER, step), step]));
 	const listed = stepsShown(
 		[...byMethod].map(([method, stepName]) => ({ method, stepperName: CHAT_STEPPER, stepName, pattern: stepName, ...CHAT_DECLARED[stepName] })),
 		CHAT_DOMAINS,

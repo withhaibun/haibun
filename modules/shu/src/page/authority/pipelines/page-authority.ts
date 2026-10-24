@@ -4,7 +4,7 @@
  * doesn't send or keep a secret, and a delegation taken from the page doesn't serve whoever took it, since a signature
  * needs the key.
  */
-import { actionUnder, capabilityAllows, delegatedActions, type TDelegation } from "@haibun/core/lib/domains/actions.js";
+import { ActionSchema, actionUnder, capabilityAllows, delegatedActions, type TAction, type TDelegation } from "@haibun/core/lib/domains/actions.js";
 import { DELEGATIONS_READ_ACTION, DELEGATIONS_READ_METHOD, type TDelegationRecord, type TDelegations } from "@haibun/core/lib/domains/authority-types.js";
 import type { TProveRequest } from "@haibun/core/lib/transport/ports.js";
 import { didKeyOf } from "../derivations/did-key.js";
@@ -64,10 +64,10 @@ export const pageSigner = ({ held }: TAuthorityScope): TSigningKey | undefined =
 
 /** Returns each action the page holds: what doesn't need a delegation here, and what its delegations list. A page that
  *  hasn't read what it holds returns an empty list. */
-export function pageHolds(scope: TAuthorityScope): string[] {
+export function pageHolds(scope: TAuthorityScope): TAction[] {
 	const authority = pageAuthority(scope);
 	if (authority === undefined) return [];
-	return [...new Set([...authority.withoutDelegation, ...authority.delegations.flatMap(delegatedActions)])];
+	return [...new Set([...authority.withoutDelegation.map((action) => ActionSchema.parse(action)), ...authority.delegations.flatMap(delegatedActions)])];
 }
 
 /** Whether the page holds what `action` requires. */

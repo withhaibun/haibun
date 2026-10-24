@@ -14,6 +14,7 @@ import type { TWorld } from "../../actuality/domains/world.js";
 import type { TStepperStep } from "../domains/stepper.js";
 import { MATCHING_METHOD, SHOW_STEP_DEFINITIONS_LINE, SHOW_STEPS_LINE, STEP_DETAIL, StepDefinitionsSchema, StepSummariesSchema } from "../domains/step-discovery.js";
 import { RUN_AUTHORITY } from "../../domains/capability-context.js";
+import { ActionSchema } from "../../domains/actions.js";
 
 /** A domain with date fields and a defaulted field. A persisted type's generatedAtTime is a defaulted date field. */
 const RecordSchema = z.object({ subject: z.string(), dateSent: z.coerce.date(), generatedAtTime: z.coerce.date().default(() => new Date()) }).strict();
@@ -62,7 +63,7 @@ const remoteTool = (stepName: string, pattern: string, capability = `RemoteSteps
 		stepName,
 		pattern,
 		paramDomains: {},
-		capability,
+		capability: ActionSchema.parse(capability),
 		read: false,
 		fallback: false,
 		answersTheTurn: false,

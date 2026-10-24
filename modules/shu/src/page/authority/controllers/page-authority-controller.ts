@@ -2,7 +2,7 @@
  * The reader's authority on the page, as a view, the page's start and the browser extension read and use it
  * (`pipelines/page-authority.ts`), and as the page's root holds it (`authorityPort`).
  */
-import type { TDelegation } from "@haibun/core/lib/domains/actions.js";
+import type { TAction, TDelegation } from "@haibun/core/lib/domains/actions.js";
 import type { TDelegations } from "@haibun/core/lib/domains/authority-types.js";
 import type { TProveRequest } from "@haibun/core/lib/transport/ports.js";
 import { authorityScope, pageKeyStore } from "../root.js";
@@ -23,7 +23,7 @@ export const pageAuthorityReady = (): Promise<Authority.TPageAuthority | undefin
 export const pageAuthority = (): Authority.TPageAuthority | undefined => Authority.pageAuthority(authorityScope());
 
 /** Returns each action the page holds. */
-export const pageHolds = (): string[] => Authority.pageHolds(authorityScope());
+export const pageHolds = (): TAction[] => Authority.pageHolds(authorityScope());
 
 /** Whether the page holds what `action` requires. */
 export const pageMay = (action: string): boolean => Authority.pageMay(authorityScope(), action);

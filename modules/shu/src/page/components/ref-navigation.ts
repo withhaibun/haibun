@@ -10,6 +10,8 @@ import { ACTIVE_PARAM, COLUMN_PARAM, hashParams, hashWithColumns } from "../deri
 import { mergeHashParams } from "../controllers/hash-controller.js";
 import { DEEP_LINK_PREFIX } from "../../domains/elements.js";
 import { PartSchema } from "@haibun/core/lib/domains/resources.js";
+import { ActionSchema } from "@haibun/core/lib/domains/actions.js";
+import { StepMethodSchema } from "@haibun/core/lib/steps/domains/step-method.js";
 import { formatRecordName } from "@haibun/core/lib/seq-path.js";
 import { readingActualityFeature } from "../client-cache/controllers/device-controller.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
@@ -43,9 +45,9 @@ export function desiredPaneFor(kind: TRefKind, linkTarget: Record<string, unknow
 	// A type reference opens the type column: its description, schema graph, and individuals.
 	if (kind === REF_DENOTES.type && typeof linkTarget.domain === "string") return { paneType: "type", persistedAs: linkTarget.domain };
 	// A step reference opens the step as actuality declares it.
-	if (kind === "step" && typeof linkTarget.method === "string") return { paneType: "step", method: linkTarget.method };
+	if (kind === "step" && typeof linkTarget.method === "string") return { paneType: "step", method: StepMethodSchema.parse(linkTarget.method) };
 	// An action reference opens what the action allows.
-	if (kind === "action" && typeof linkTarget.action === "string") return { paneType: "action", action: linkTarget.action };
+	if (kind === "action" && typeof linkTarget.action === "string") return { paneType: "action", action: ActionSchema.parse(linkTarget.action) };
 	return null;
 }
 

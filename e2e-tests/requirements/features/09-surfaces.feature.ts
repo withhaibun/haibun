@@ -42,7 +42,7 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "A list a read returns is narrowed, ordered, limited and counted by combinators that compose with the read" }),
 		"Essential, for a person, a model and the page reading a list. Source: domains/lists.ts and the combinators of haibun-stepper.ts.",
 		'set first from limited to 1, ordered by "method", matching "Haibun-show", show steps',
-		'variable first.steps.0.method is "Haibun-showStepDefinitions"',
+		'variable first.steps.0.method is "Haibun-showDeclaredSteps"',
 		"set counted from counting show steppers",
 		'variable counted.total is more than "3"',
 		"show shows",

@@ -36,7 +36,8 @@ import { QuadStore } from "../lib/steps/pipelines/quad-store.js";
 import { remoteQuadStore } from "./root.js";
 import { requestSigner } from "../lib/domains/session-authority.js";
 import { DOMAIN_STEPPERS, SHOW_STEPPERS_LINE, SteppersSchema } from "../lib/steps/domains/steppers.js";
-import { discoverSteps, listedSteppers } from "../lib/steps/pipelines/discover-steps.js";
+import { DOMAIN_DECLARED_STEPS, DeclaredStepsSchema, SHOW_DECLARED_STEPS_LINE } from "../lib/steps/domains/declared-steps.js";
+import { discoverSteps, everyStepDeclared, listedSteppers } from "../lib/steps/pipelines/discover-steps.js";
 import { runRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { stepMethodName } from "../lib/steps/domains/step-method.js";
 import {
@@ -101,6 +102,7 @@ class Haibun extends AStepper implements IHasCycles {
 					list: STEPS_LIST,
 					description: "The definitions of the steps a caller may call, with every domain, the concern catalog and the registry's predicates",
 				},
+				{ selectors: [DOMAIN_DECLARED_STEPS], schema: DeclaredStepsSchema, list: STEPS_LIST, description: "Every step actuality declares, with whether the caller may call it" },
 				{ selectors: [DOMAIN_STEPPERS], schema: SteppersSchema, list: { items: "steppers" }, description: "Each stepper actuality loads, with what it does and its steps" },
 				{ selectors: [DOMAIN_STEP_VALIDATION], schema: StepValidationSchema, description: "Whether a line resolves to exactly one step, and which" },
 				{ selectors: [DOMAIN_STORE_IN_USE], schema: StoreInUseSchema, description: "The store `use store at` mounts, and the types routed to it" },
@@ -191,6 +193,16 @@ class Haibun extends AStepper implements IHasCycles {
 			productsDomain: DOMAIN_STEPPERS,
 			retainProducts: false,
 			action: () => actionOKWithProducts(listedSteppers(this.steppers)),
+		},
+		showDeclaredSteps: {
+			read: true,
+			capability: SHOW_STEPS_ACTION,
+			gwta: SHOW_DECLARED_STEPS_LINE,
+			description:
+				"Lists every step actuality declares, whether or not its caller may call it: each step's method, stepper, line and description, the action it requires and the level it reads at, and whether this caller may call it. A step the caller can't call is shown so a link to it leads to why.",
+			productsDomain: DOMAIN_DECLARED_STEPS,
+			retainProducts: false,
+			action: () => actionOKWithProducts(everyStepDeclared(runRegistry(this.getWorld()), shownTo())),
 		},
 		matching: this.listCombinator(
 			`matching {text: ${DOMAIN_TEXT}}, {statement: ${DOMAIN_STATEMENT}}`,

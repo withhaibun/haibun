@@ -4,6 +4,7 @@
  * delegation for signing a call. Each applies the same rules, so one of them can't allow an action another refuses. The
  * module doesn't import a node module, because a page imports it too.
  */
+import { z } from "zod";
 import { ACCESS_BROADEST_FIRST, Access, AccessLevelSchema, narrowerAccess, type AccessLevel } from "./resources.js";
 
 const READ_PREFIX = "Read:";
@@ -18,11 +19,16 @@ export function actionList(listed: string | undefined): string[] {
 		.filter((action) => action.length > 0);
 }
 
+/** An action as a reader states it: what a caller holds or a step requires. A reference to an action takes one, so a step's
+ *  method isn't taken for an action. */
+export const ActionSchema = z.string().min(1).brand<"Action">();
+export type TAction = z.infer<typeof ActionSchema>;
+
 /** The action a read at `level` requires. */
-export const readAction = (level: AccessLevel): string => `${READ_PREFIX}${level}`;
+export const readAction = (level: AccessLevel): TAction => ActionSchema.parse(`${READ_PREFIX}${level}`);
 
 /** The read action a reader holds to open a record, at the level the record states. */
-export const recordReadAction = (record: { accessLevel: AccessLevel }): string => readAction(record.accessLevel);
+export const recordReadAction = (record: { accessLevel: AccessLevel }): TAction => readAction(record.accessLevel);
 
 /** The level a read action names, or undefined for any other action. */
 function readLevelOf(action: string): AccessLevel | undefined {
@@ -50,19 +56,19 @@ export type TStepReads =
  * requires a read at its `readsAt` level. Any other step requires its own name, so a gate refuses a step that doesn't
  * declare a requirement to every caller that doesn't hold that name.
  */
-export function requiredAction(stepperName: string, stepName: string, step: TStepReads): string {
-	if (step.capability !== undefined) return step.capability;
-	if (!step.read) return `${stepperName}:${stepName}`;
+export function requiredAction(stepperName: string, stepName: string, step: TStepReads): TAction {
+	if (step.capability !== undefined) return ActionSchema.parse(step.capability);
+	if (!step.read) return ActionSchema.parse(`${stepperName}:${stepName}`);
 	if (step.readsAt === undefined) throw new Error(`${stepperName}.${stepName} reads and doesn't state readsAt or a capability. State readsAt as the level of its read.`);
 	return readAction(step.readsAt);
 }
 
 /** The fields a gate or a listing reads from a step: the action the step requires, and its `readsAt` level where it states one. */
-type TCalled = { capability: string; readsAt?: AccessLevel };
+type TCalled = { capability: TAction; readsAt?: AccessLevel };
 
 /** Returns the action a caller holding `held` lacks to call `step`. That is the step's required action, or else a read at
  *  the step's `readsAt` level. Returns undefined where the caller holds both. */
-export function lackedAction(held: string | string[] | undefined, step: TCalled): string | undefined {
+export function lackedAction(held: string | string[] | undefined, step: TCalled): TAction | undefined {
 	if (!capabilityAllows(held, step.capability)) return step.capability;
 	if (step.readsAt && !capabilityAllows(held, readAction(step.readsAt))) return readAction(step.readsAt);
 	return undefined;
@@ -190,10 +196,9 @@ export const EVERY_ACTION = "*";
 
 /** Returns the actions a delegation allows. They are the actions it lists, or every action where it doesn't list one.
  *  zcap-LD writes a delegation that doesn't restrict an action without `allowedAction`. */
-export function delegatedActions(delegation: { allowedAction?: unknown }): string[] {
+export function delegatedActions(delegation: { allowedAction?: unknown }): TAction[] {
 	const listed = delegation.allowedAction;
-	if (listed === undefined) return [EVERY_ACTION];
-	return (Array.isArray(listed) ? listed : [listed]).filter((action): action is string => typeof action === "string");
+	return z.array(ActionSchema).parse(listed === undefined ? [EVERY_ACTION] : (Array.isArray(listed) ? listed : [listed]).filter((action) => typeof action === "string"));
 }
 
 /** Returns the `allowedAction` that a delegation of `actions` lists. It is undefined where `actions` includes

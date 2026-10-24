@@ -55,7 +55,7 @@ import { isReferenceEdge } from "../derivations/record-fields.js";
 import { formIn, preferredReading, readingsOf, withBodiesRead, type TReading } from "@haibun/core/lib/records/derivations/bodies.js";
 import type { TWritten } from "../pipelines/call-step.js";
 import type { TPageRefusal } from "../domains/refusal.js";
-import "./shu-refusal.js";
+import { refusalTpl } from "./load-renders.js";
 import "./shu-spinner.js";
 import { ObserverController } from "../controllers/observer-controller.js";
 import { saveFile, showFile } from "../controllers/file-controller.js";
@@ -304,7 +304,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			return html`<shu-spinner .status=${`Fetching ${lbl} ${vid.slice(0, 30)}...`} .visible=${true}></shu-spinner>`;
 		}
 		const refusal = this.#refusal;
-		if (refusal !== undefined) return html`<shu-refusal .refusal=${refusal} .readAgain=${() => void this.open(this.state.individualId, this.state.persistedAs)}></shu-refusal>`;
+		if (refusal !== undefined) return refusalTpl(refusal, { run: () => this.open(this.state.individualId, this.state.persistedAs) });
 		if (!this.vertex) {
 			if (this.state.individualId === "") return html`<shu-spinner status="Waiting..." visible></shu-spinner>`;
 			throw new Error(`<shu-entity-column> shows ${persistedAs}:${this.state.individualId} without its record, a refusal or a read under way`);

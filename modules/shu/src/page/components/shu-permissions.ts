@@ -8,6 +8,7 @@
  * Shown from the access indicator, beside the level a read is bounded by: a capability determines whether a call may
  * be made, the level determines how much of the result comes back, and a reader is looking at both in one place.
  */
+import type { TAction } from "@haibun/core/lib/domains/actions.js";
 import { SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { html, css, type TemplateResult } from "lit";
@@ -21,7 +22,7 @@ import { actionRef, refTpl } from "./shu-ref.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import type { TRefKind } from "../derivations/markdown.js";
 import { LoadController } from "../controllers/load-controller.js";
-import "./shu-refusal.js";
+import { refusalTpl } from "./load-renders.js";
 import "./shu-page-key.js";
 
 /** What the access indicator shows beside the level, and the event carrying it: one count per thing this panel lists. */
@@ -101,7 +102,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 	 * opens that record, and from there what it was delegated from and on to its root. An action this deployment didn't record,
 	 * such as one allowed without a delegation, is still named, since a reader holds it either way.
 	 */
-	private grantedAt(held: TAuthority, action: string): TemplateResult {
+	private grantedAt(held: TAuthority, action: TAction): TemplateResult {
 		const grantedBy = held.grantedBy[action];
 		if (grantedBy) return refTpl("entity", { persistedAs: grantedBy.persistedAs, id: grantedBy.id }, action, SHU_TEST_IDS.APP.HELD);
 		return html`<span class="action">${actionRef(action)}</span>`;
@@ -129,7 +130,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 				pending: () => html`<p class="none">reading what holds here</p>`,
 				running: () => html`<p class="none">reading what holds here</p>`,
 				completed: (held) => this.renderHeld(held),
-				failed: (refusal) => html`<shu-refusal .refusal=${refusal} .readAgain=${() => void this.read()}></shu-refusal>`,
+				failed: (refusal) => refusalTpl(refusal, { run: () => this.read() }),
 			})}
 		`;
 	}

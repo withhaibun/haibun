@@ -15,7 +15,7 @@ import { shuBaseStyles } from "./styles.js";
 import { queryGraph, queryRead } from "../controllers/read-controller.js";
 import { LoadController } from "../controllers/load-controller.js";
 import type { TCallOutcome } from "../pipelines/call-step.js";
-import "./shu-refusal.js";
+import { loadRenders } from "./load-renders.js";
 import { getQueryableFields, getTypeDescription, getTypes, getUiPresenting, isSystemSchemaType, refContext } from "../controllers/catalog-controller.js";
 import { arrayWindowedSource, readWindowedSource, unmarked, type WindowedSource } from "../derivations/windowed-source.js";
 
@@ -192,10 +192,8 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 					: html`<div class="instances">
 				<span class="section-label">Individuals${this.#instances.count() ? ` (${this.#instances.count()})` : ""}</span>
 				${this.#instancesRead.render<TemplateResult | typeof nothing>({
-					pending: () => html`<span>Loading…</span>`,
-					running: () => html`<span>Loading…</span>`,
+					...loadRenders(html`Reading the records of ${type}`, this.#instancesRead),
 					completed: () => html`<shu-result-table ${ref(this.tableRef)} data-testid=${IDS.INSTANCES} @row-click=${this.onRowClick}></shu-result-table>`,
-					failed: (refusal) => html`<shu-refusal .refusal=${refusal} .readAgain=${() => void this.#instancesRead.run()}></shu-refusal>`,
 				})}
 			</div>`
 			}`;

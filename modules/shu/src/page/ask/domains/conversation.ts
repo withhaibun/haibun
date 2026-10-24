@@ -9,6 +9,7 @@
  * stream carries the running turn's text, its status lines and the comments it records. The turn ends as completed,
  * failed or stopped. One turn of this page is in flight at a time, whatever conversation is open.
  */
+import type { TAction } from "@haibun/core/lib/domains/actions.js";
 import type { TRefusedCall } from "@haibun/core/lib/step-stream-context.js";
 import type { TCalled } from "@haibun/core/lib/domains/called.js";
 import { TURN_STATUS, type TChatStatus, type TContextPattern, type TSessionTurn } from "@haibun/core/lib/conversation/domains/conversation.js";
@@ -27,7 +28,7 @@ export type TTurn = Omit<TSessionTurn, "askId"> & { askId: string | null } & TTu
 /** The turn this page sends. It adds the turn's session, the reason a reader gave to stop it, the actions the page
  *  delegated to it, and each refused action with the first call that needed it. The session is null for a first turn
  *  until actuality records its question. */
-export type TAskedTurn = TTurn & { session: string | null; stoppedBy: string; delegated: string[]; refused: TRefusedCall[] };
+export type TAskedTurn = TTurn & { session: string | null; stoppedBy: string; delegated: TAction[]; refused: TRefusedCall[] };
 
 export type TConversationState = {
 	status: "closed" | "opening" | "open";
@@ -42,7 +43,7 @@ export type TConversationEvent =
 	| { type: "read"; session: string; turns: TSessionTurn[] }
 	| { type: "failed"; session: string }
 	| { type: "close" }
-	| { type: "ask"; prompt: string; patterns: TContextPattern[]; session?: string; inReplyTo?: string; delegated: string[] }
+	| { type: "ask"; prompt: string; patterns: TContextPattern[]; session?: string; inReplyTo?: string; delegated: TAction[] }
 	| { type: "started" }
 	| { type: "text"; piece: string }
 	| { type: "status"; line: string }

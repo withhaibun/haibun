@@ -9,7 +9,9 @@
 import { z } from "zod";
 import { ConcernCatalogSchema, CountedFields } from "../../domains/hypermedia.js";
 import { HYPERMEDIA, productData } from "../../domains/protocol.js";
-import { readAction } from "../../domains/actions.js";
+import { ActionSchema, readAction } from "../../domains/actions.js";
+import { StepMethodSchema } from "./step-method.js";
+import { DomainKeySchema } from "../../domains/domains.js";
 import { Access, AccessLevelSchema } from "../../domains/resources.js";
 
 /** The lines and the methods of the steps that show actuality's declarations: the steps a caller may call, their
@@ -49,7 +51,7 @@ export type TInputSchema = z.infer<typeof InputSchemaSchema>;
 /** A step as every caller discovers it. A step another host declares is named with that host's prefix. */
 export const StepDescriptorSchema = z
 	.object({
-		method: z.string().min(1),
+		method: StepMethodSchema,
 		stepperName: z.string().min(1),
 		stepperDescription: z.string().min(1),
 		stepName: z.string().min(1),
@@ -58,9 +60,9 @@ export const StepDescriptorSchema = z
 		/** What the step does, where its definition states more than its pattern. */
 		description: z.string().optional(),
 		/** The domain of each parameter. */
-		paramDomains: z.record(z.string(), z.string()),
+		paramDomains: z.record(z.string(), DomainKeySchema),
 		/** The domain of the products the step returns, where it declares one. */
-		productsDomain: z.string().optional(),
+		productsDomain: DomainKeySchema.optional(),
 		/** The statement parameter whose products the step returns as its own, where the step returns a statement's products. */
 		productsOf: z.string().optional(),
 		/** Each parameter naming a record by its id, with the parameter naming the record's type. */
@@ -68,7 +70,7 @@ export const StepDescriptorSchema = z
 		/** Each parameter taking a record's fields, with the parameter naming the record's type. */
 		recordData: z.record(z.string(), z.string()).optional(),
 		/** The action a caller holds to call the step. */
-		capability: z.string(),
+		capability: ActionSchema,
 		/** The access level of the records the step reads, where the step states one. A caller's read must reach this level. */
 		readsAt: AccessLevelSchema.optional(),
 		/** Whether the step is a read. A call that requests a read must name such a step, and actuality returns the result of

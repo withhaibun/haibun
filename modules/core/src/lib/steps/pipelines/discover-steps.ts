@@ -23,6 +23,8 @@ import type { StepRegistry } from "./step-registry.js";
 import { constructorName } from "../../domains/util.js";
 import type { AStepper } from "../domains/stepper.js";
 import type { TSteppers } from "../domains/steppers.js";
+import type { TDeclaredSteps } from "../domains/declared-steps.js";
+import { mayCall } from "../../domains/actions.js";
 import { predicatesOf } from "../derivations/predicate-registry.js";
 
 /** The concern catalog of a set of registered domains, built again only where a domain is added or replaced. */
@@ -111,4 +113,20 @@ export function listedSteppers(steppers: AStepper[]): TSteppers {
 		}),
 	}));
 	return { steppers: listed, ...counted(listed.length) };
+}
+
+/** Every step actuality declares, as a counted list, each with whether a caller holding `held` may call it. */
+export function everyStepDeclared(registry: StepRegistry, held: string | string[] | undefined): TDeclaredSteps {
+	const steps = registry
+		.descriptors()
+		.map(({ method, stepperName, pattern, description, capability, readsAt }) => ({
+			method,
+			stepperName,
+			pattern,
+			...(description === undefined ? {} : { description }),
+			capability,
+			...(readsAt === undefined ? {} : { readsAt }),
+			callable: mayCall(held, { capability, ...(readsAt === undefined ? {} : { readsAt }) }),
+		}));
+	return { steps, ...counted(steps.length) };
 }

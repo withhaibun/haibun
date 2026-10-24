@@ -26,8 +26,7 @@ import { appAccessLevel } from "../controllers/view-query-controller.js";
 import { typeShownIn } from "../controllers/catalog-controller.js";
 import { clusteredQuads, recordRead } from "../controllers/read-controller.js";
 import { LoadController } from "../controllers/load-controller.js";
-import "./shu-refusal.js";
-import "./shu-spinner.js";
+import { loadRenders, refusalTpl, waitingTpl } from "./load-renders.js";
 
 /** The name of the delay before the pane reads a running step again. */
 const STEP_RE_READ = "step-re-read";
@@ -141,14 +140,12 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 
 	render(): TemplateResult {
 		const { record } = this.state;
-		if (record === undefined) return html`<div class="empty"><shu-spinner></shu-spinner> Loading step…</div>`;
+		if (record === undefined) return waitingTpl(html`Loading step…`);
 		const name = parseRecordName(record.id);
 		const key = name === undefined ? record.id : formatSeqPath(name.path);
-		const loading = (): TemplateResult => html`<div class="empty"><shu-spinner></shu-spinner> Loading step [${key}]...</div>`;
 		return this.#load.render({
-			pending: loading,
-			running: loading,
-			failed: (refusal) => html`<div class="empty">Step [${key}] wasn't read.</div><shu-refusal .refusal=${refusal} .readAgain=${() => void this.#load.run()}></shu-refusal>`,
+			...loadRenders(html`Loading step [${key}]`, this.#load),
+			failed: (refusal) => html`<div class="empty">Step [${key}] wasn't read.</div>${refusalTpl(refusal, this.#load)}`,
 			completed: (data) => this.renderContent(key, data),
 		});
 	}

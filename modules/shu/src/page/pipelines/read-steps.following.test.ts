@@ -7,7 +7,7 @@ import { installMemoryDeviceStore } from "../client-cache/root.js";
 import { endPage } from "../adapters/page-held.js";
 
 const aStep = (stepName: string) => ({ method: `RunSteps-${stepName}`, stepperName: "RunSteps", stepName, pattern: stepName });
-const methodsOf = async () => (await getAvailableSteps()).map((step) => step.method);
+const methodsOf = async () => (await getAvailableSteps()).map((step): string => step.method);
 /** Resolves with the methods the page holds once it holds the method given. */
 const heldOnceItHolds = (method: string) =>
 	new Promise<string[]>((resolve) => {

@@ -25,7 +25,7 @@ import { appAccessLevel } from "../controllers/view-query-controller.js";
 import { queryGraph, queryRead, incomingEdges, incomingRead } from "../controllers/read-controller.js";
 import { LoadController } from "../controllers/load-controller.js";
 import type { TCallOutcome } from "../pipelines/call-step.js";
-import "./shu-refusal.js";
+import { refusalTpl } from "./load-renders.js";
 import "./shu-spinner.js";
 import "./shu-result-table.js";
 
@@ -171,7 +171,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 				pending: () => loading,
 				running: () => loading,
 				completed: () => nothing,
-				failed: (refusal) => html`<shu-refusal .refusal=${refusal} .readAgain=${() => void this.#page.run()}></shu-refusal>`,
+				failed: (refusal) => refusalTpl(refusal, this.#page),
 			})}
 			${shown ? html`<shu-result-table ${ref(this.tableRef)} style="flex:1" @row-click=${this.onRowClick} @sort-change=${this.onSortChange}></shu-result-table>` : nothing}
 		`;

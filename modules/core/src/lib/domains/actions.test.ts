@@ -7,6 +7,7 @@ import {
 	EVERY_ACTION,
 	actionUnder,
 	allowedActionFor,
+	ActionSchema,
 	capabilityAllows,
 	delegatedActions,
 	lackedAction,
@@ -24,7 +25,7 @@ import { Access, levelsWithin, withinAccess } from "./resources.js";
 
 describe("what a step requires", () => {
 	it("is the action it declares", () => {
-		expect(requiredAction("Pool", "swim", { capability: "Pool:enter" })).toBe("Pool:enter");
+		expect(requiredAction("Pool", "swim", { capability: ActionSchema.parse("Pool:enter") })).toBe("Pool:enter");
 	});
 
 	it("is a read at the level a read states", () => {
@@ -39,13 +40,13 @@ describe("what a step requires", () => {
 
 describe("whether a caller may call a step", () => {
 	it("is whether what it holds allows the action the step requires", () => {
-		expect(mayCall(["Read:private"], { capability: "Read:public" })).toBe(true);
-		expect(mayCall(["Pool:enter"], { capability: "Pool:drain" })).toBe(false);
-		expect(mayCall(undefined, { capability: "Read:public" }), "and not holding an action doesn't allow a call").toBe(false);
+		expect(mayCall(["Read:private"], { capability: ActionSchema.parse("Read:public") })).toBe(true);
+		expect(mayCall(["Pool:enter"], { capability: ActionSchema.parse("Pool:drain") })).toBe(false);
+		expect(mayCall(undefined, { capability: ActionSchema.parse("Read:public") }), "and not holding an action doesn't allow a call").toBe(false);
 	});
 
 	it("names the action it lacks: the step's required action, or else a read at the step's level", () => {
-		const readsThePage = { capability: "Pool:look", readsAt: Access.private };
+		const readsThePage = { capability: ActionSchema.parse("Pool:look"), readsAt: Access.private };
 		expect(lackedAction(["Read:public"], readsThePage)).toBe("Pool:look");
 		expect(lackedAction(["Pool:look", "Read:public"], readsThePage)).toBe(readAction(Access.private));
 		expect(lackedAction(["Pool:look", "Read:private"], readsThePage)).toBeUndefined();

@@ -2,6 +2,7 @@
  * The ask's composition root: the one conversation machine every bundle on the page shares, the question the reader is
  * writing, the turns the page read of each session, and what the page allows its turns and the store that keeps it.
  */
+import type { TAction } from "@haibun/core/lib/domains/actions.js";
 import { pagePinned } from "../adapters/page-held.js";
 import { SharedCell } from "../adapters/shared-cell.js";
 import { sharedMachine } from "../root.js";
@@ -27,7 +28,7 @@ export const askDraft = new SharedCell<string>("askDraft", "");
 export const sessionsRead = new SharedCell<Readonly<Record<string, number>>>("sessionsRead", {});
 
 /** The actions this page allows its turns, once read from its store. */
-export const turnAllowance = new SharedCell<readonly string[]>("turnAllowance", []);
+export const turnAllowance = new SharedCell<readonly TAction[]>("turnAllowance", []);
 
 /** What the page keeps beside its key. */
 const kept = (): TKept => {

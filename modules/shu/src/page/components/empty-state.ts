@@ -1,5 +1,5 @@
 import { html, type TemplateResult } from "lit";
-import "./shu-spinner.js";
+import { waitingTpl } from "./load-renders.js";
 
 /**
  * The one waiting-versus-empty pathway every data control uses for an empty region. While the data is still being read
@@ -11,7 +11,7 @@ import "./shu-spinner.js";
  * view's `.empty` style and the globally-registered `<shu-spinner>`.
  */
 export function emptyOrLoading(loaded: boolean, emptyMessage: string): TemplateResult {
-	return loaded ? html`<div class="empty">${emptyMessage}</div>` : html`<div class="empty"><shu-spinner></shu-spinner> Waiting…</div>`;
+	return loaded ? html`<div class="empty">${emptyMessage}</div>` : waitingTpl(html`Waiting…`);
 }
 
 /** The same pathway for data that may be UNAVAILABLE: not cached on this device and a server didn't return it. That is a third

@@ -3,6 +3,7 @@
  * and page; the twin; the files a step reads and leaves; the page's fetch; and the relay a person's browser attaches
  * through, served over the web server's `/rpc`.
  */
+import type { TAction } from "@haibun/core/lib/domains/actions.js";
 import { machine } from "@haibun/core/lib/machines/machine.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import type { AStorage } from "@haibun/domain-storage/domains/storage.js";
@@ -48,7 +49,7 @@ export function browserPorts(world: TWorld, options: () => TBrowserOptions, obse
 }
 
 /** Serves the relay over `webserver`'s `/rpc` as `relay.attach` and `relay.send`, each requiring `attachAction`. */
-export function serveRelay(webserver: IWebServer, attachAction: string, onError: (error: unknown) => void): TBrowserRelay {
+export function serveRelay(webserver: IWebServer, attachAction: TAction, onError: (error: unknown) => void): TBrowserRelay {
 	const relay = new BrowserRelay(onError);
 	webserver.addRpcMethods(RELAY_METHOD_PREFIX, { description: "The browser a person runs, attached through their extension" }, relayMethods(relay, attachAction));
 	return relay;

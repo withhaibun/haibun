@@ -1,13 +1,17 @@
 import { describe, it, expect } from "vitest";
 import type { TPlan } from "@haibun/core/lib/domains/goal-resolution.js";
 import { pathId, projectGoalPaths } from "./project-goal-paths.js";
+import { DomainKeySchema } from "@haibun/core/lib/domains/domains.js";
+
+/** A domain's key, as a reader states one. */
+const d = (key: string) => DomainKeySchema.parse(key);
 
 const planA: TPlan = {
 	steps: [
 		{ stepperName: "CustomerStepper", stepName: "createCustomer", gwta: "create customer", productsDomain: "customer" },
 		{ stepperName: "OrderStepper", stepName: "placeOrder", gwta: "place order", productsDomain: "order" },
 	],
-	bindings: [{ kind: "argument", domain: "buyer" }],
+	bindings: [{ kind: "argument", domain: d("buyer") }],
 };
 const planB: TPlan = { steps: [{ stepperName: "OrderStepper", stepName: "importOrder", gwta: "import order", productsDomain: "order" }], bindings: [] };
 
@@ -29,7 +33,7 @@ describe("projectGoalPaths", () => {
 	});
 
 	it("renders argument bindings as separate `argument`-kind nodes that share between paths if the domain matches", () => {
-		const sharedArg: TPlan = { steps: [{ stepperName: "OrderStepper", stepName: "noteOrder", productsDomain: "order" }], bindings: [{ kind: "argument", domain: "buyer" }] };
+		const sharedArg: TPlan = { steps: [{ stepperName: "OrderStepper", stepName: "noteOrder", productsDomain: "order" }], bindings: [{ kind: "argument", domain: d("buyer") }] };
 		const g = projectGoalPaths({ goal: "order", verdict: "unknown", factIds: [], plans: [planA, sharedArg] });
 		const argNodes = g.nodes.filter((n) => n.kind === "argument" && n.label === "buyer");
 		expect(argNodes.length).toBe(1);
@@ -46,9 +50,9 @@ describe("projectGoalPaths", () => {
 			bindings: [
 				{
 					kind: "composite",
-					domain: "order-input",
+					domain: d("order-input"),
 					fields: [
-						{ fieldName: "customer", fieldDomain: "customer", fieldType: "object", optional: false, kind: "fact", factId: "fact-customer-1" },
+						{ fieldName: "customer", fieldDomain: d("customer"), fieldType: "object", optional: false, kind: "fact", factId: "fact-customer-1" },
 						{ fieldName: "note", fieldDomain: "", fieldType: "string", optional: false, kind: "argument" },
 					],
 				},

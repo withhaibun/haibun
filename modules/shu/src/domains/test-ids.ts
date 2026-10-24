@@ -30,22 +30,14 @@ export const SHU_TEST_IDS = {
 		CHAT_FORK: "app-chat-fork",
 		/** On a question in the history: fork the conversation after putting the question in the input to edit. */
 		CHAT_EDIT: "app-chat-edit",
-		/** Beside the ask input while an edited question will start a new branch, with the control that cancels it. */
-		CHAT_FORKING: "app-chat-forking",
 		/** On a question: the records its bundle names, each a link. */
 		CHAT_CARRIES: "app-chat-carries",
-		/** Under the ask: the actions the page delegated to its last turn. */
-		TURN_HELD: "app-turn-held",
 		/** Under the ask, for an action the last turn was refused: allows it for the page's turns. Its value is the action. */
 		TURN_ALLOW: "app-turn-allow",
-		/** Under the ask, for an action the page's turns are given: withdraws it. Its value is the action. */
-		TURN_WITHDRAW: "app-turn-withdraw",
 		SESSION_SELECT: "app-session-select",
 		STEP_SELECT: "app-step-select",
 		MODE_SELECT: "app-mode-select",
 		MODEL_SELECT: "app-model-select",
-		/** In the chat's settings where actuality doesn't offer a model: that it doesn't offer one. */
-		NO_MODELS: "app-no-models",
 		TYPE_SELECT: "app-type-select",
 		TEXT_SEARCH: "app-text-search",
 		ADD_FILTER: "app-add-filter",
@@ -68,7 +60,7 @@ export const SHU_TEST_IDS = {
 	},
 	/** The graph filter's own controls, beside its chips. */
 	GRAPH_FILTER: { SOLO: "graph-filter-solo", SCHEMA: "graph-filter-schema", LIMIT: "graph-filter-limit", LIMIT_VALUE: "graph-filter-limit-value" },
-	FILTER: { PROPERTY_0: "app-cond-property-0", OPERATOR_0: "app-cond-operator-0", VALUE_0: "app-cond-value-0", REMOVE_0: "app-remove-filter-0" },
+	FILTER: { PROPERTY_0: "app-cond-property-0", VALUE_0: "app-cond-value-0" },
 	/** HELD_TYPE: a link to the query of a type actuality holds, offered where the address names a type it doesn't hold: `query-held-type-{type}`. */
 	QUERY: { ROOT: "shu-query", TABLE: "query-table", FIRST_ROW: "query-row-first", ROW: "query-row", RESULTS: "query-results", HELD_TYPE: "query-held-type" },
 	QUAD_ITEM: { ROOT: "shu-quad-item" },
@@ -139,8 +131,8 @@ export const SHU_TEST_IDS = {
 	},
 	/** An action, by the steps this page may call that it allows. */
 	/** A thread's cards: each card's type and who sent it. */
-	THREAD: { ITEM_TYPE: "thread-item-type", SENDER: "thread-sender" },
-	ACTION_COLUMN: { ROOT: "action-column", STEP: "action-column-step" },
+	THREAD: { ITEM_TYPE: "thread-item-type", SENDER: "thread-sender", UNREPLIED: "thread-unreplied" },
+	ACTION_COLUMN: { ROOT: "action-column", STEP: "action-column-step", REQUIRER: "action-column-requirer", HOLDS: "action-column-holds" },
 	/** A step as actuality declares it: its line, the domain of each argument and of what it returns, and its choice. */
 	STEP_DEFINITION: {
 		ROOT: "step-definition",
@@ -148,7 +140,7 @@ export const SHU_TEST_IDS = {
 		PARAM: "step-definition-param",
 		PRODUCTS: "step-definition-products",
 		CHOOSE: "step-definition-choose",
-		ERROR: "step-definition-error",
+		LACKS: "step-definition-lacks",
 	},
 	/** The list of views a deployment declares: its root, and a row named by the component it opens. */
 	VIEWS_PICKER: { ROOT: "views-picker", ROW: "views-picker-row-" },

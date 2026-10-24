@@ -2,6 +2,7 @@
  * The ports of a page's reads and writes. `page/root.ts` installs one adapter for each on the page, and every bundle on the
  * page reads the installed one.
  */
+import type { TAction } from "@haibun/core/lib/domains/actions.js";
 import type { TLink, TRepresentation, TStreamChunk } from "./domains/links.js";
 import type { TLongFrame } from "../domains/blips.js";
 import type { TFrameMessage } from "../domains/embedding.js";
@@ -123,7 +124,7 @@ export type TAuthority = {
 	/** Whether the page holds what `action` requires. */
 	may(action: string): boolean;
 	/** Returns each action the page holds. */
-	holds(): string[];
+	holds(): TAction[];
 	/** Returns what the page holds once the read the page started ends, or undefined where the page didn't start one. */
 	ready(): Promise<TPageAuthority | undefined>;
 	/** Holds a delegation the embedding page gave the page's key, in place of `replacing`. */

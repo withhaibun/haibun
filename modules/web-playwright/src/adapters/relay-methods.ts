@@ -7,10 +7,11 @@
 import { streamContext } from "@haibun/core/lib/step-stream-context.js";
 import { actingAs } from "@haibun/core/lib/domains/capability-context.js";
 import type { TRpcMethod } from "@haibun/core/lib/transport/ports.js";
+import type { TAction } from "@haibun/core/lib/domains/actions.js";
 import type { BrowserRelay } from "./cdp-relay.js";
 import { RELAY_ATTACHED, RelayBatchSchema, type TRelayCall, type TRelayMessage } from "./relay-wire.js";
 
-export function relayMethods(relay: BrowserRelay, attachAction: string): Record<TRelayCall, TRpcMethod> {
+export function relayMethods(relay: BrowserRelay, attachAction: TAction): Record<TRelayCall, TRpcMethod> {
 	return {
 		attach: {
 			action: attachAction,

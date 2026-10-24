@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { ActionSchema } from "@haibun/core/lib/domains/actions.js";
+import { StepMethodSchema } from "@haibun/core/lib/steps/domains/step-method.js";
 import { describe, expect, it } from "vitest";
 import type { TPart } from "@haibun/core/lib/domains/resources.js";
 import { columnEntryOf, parseColEntry, PANE_KINDS, paneIdOf, seedView, updateView, type DesiredPane, type TPaneContext } from "./pane-kinds.js";
@@ -17,8 +19,8 @@ const ADDRESSED: DesiredPane[] = [
 	{ paneType: "filter-incoming", persistedAs: "Email", subject: "m-1" },
 	{ paneType: "thread", persistedAs: "Email", subject: "m-1" },
 	{ paneType: "entity", persistedAs: "SeqPath", id: "1790000000000-1.0.1.2" },
-	{ paneType: "step", method: "GraphStepper-graphQuery" },
-	{ paneType: "action", action: "Read:public" },
+	{ paneType: "step", method: StepMethodSchema.parse("GraphStepper-graphQuery") },
+	{ paneType: "action", action: ActionSchema.parse("Read:public") },
 ];
 
 describe("the kinds of pane", () => {

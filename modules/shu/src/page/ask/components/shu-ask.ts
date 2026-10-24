@@ -380,7 +380,7 @@ export class ShuAsk extends ShuElement<typeof ChatSchema> {
 		if (!without || without.providers.length === 0) return nothing;
 		return html`<span class="providers-without" data-testid=${`${this.testIdPrefix}providers-without`}>${without.providers.map(
 			(provider) =>
-				html`<span>${recordRef(without.type, provider.id)}: ${provider.answered ? "didn't list a model" : provider.why === undefined ? "did not respond to discovery" : `did not respond to discovery: ${provider.why}`}</span>`,
+				html`<span>${recordRef({ persistedAs: without.type, id: provider.id })}: ${provider.answered ? "didn't list a model" : provider.why === undefined ? "did not respond to discovery" : `did not respond to discovery: ${provider.why}`}</span>`,
 		)}</span>`;
 	}
 

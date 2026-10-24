@@ -41,7 +41,9 @@ export class ShuViewsPicker extends ShuElement<typeof EmptyStateSchema> {
 		super(EmptyStateSchema);
 	}
 
+	/** Shows the views a collection lists. Throws for a collection that doesn't list a view, since shu's own collection declares one. */
 	setViews(views: TView[]): void {
+		if (views.length === 0) throw new Error("a view collection doesn't list a view; read actuality's domains again");
 		this.views = views;
 	}
 

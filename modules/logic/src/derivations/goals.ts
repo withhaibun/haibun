@@ -10,14 +10,23 @@ import { FACT_LABEL, isPersisted } from "@haibun/core/lib/domains/resources.js";
 import { FACT_FIELD, type TFact } from "@haibun/core/lib/records/domains/facts.js";
 import type { TQuadPattern } from "@haibun/core/lib/steps/domains/quad-types.js";
 import { valueAt } from "@haibun/core/lib/domains/item-at.js";
-import { DOMAIN_DOMAIN_KEY, domainParts, fieldRangesOf, isPrimitiveDomain, isWrittenByCaller, normalizeDomainKey, refTargetOf } from "@haibun/core/lib/domains/domains.js";
+import {
+	DOMAIN_DOMAIN_KEY,
+	DomainKeySchema,
+	domainParts,
+	fieldRangesOf,
+	isPrimitiveDomain,
+	isWrittenByCaller,
+	normalizeDomainKey,
+	refTargetOf,
+} from "@haibun/core/lib/domains/domains.js";
 import { mayCall, requiredAction } from "@haibun/core/lib/domains/actions.js";
 import { declaredSteps, registeredPredicate } from "@haibun/core/lib/steps/derivations/predicate-registry.js";
 import { stepParts } from "@haibun/core/lib/steps/domains/phrase.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { unwrap, unwrapToShape } from "@haibun/core/lib/domains/zod-unwrap.js";
 import { DOMAIN_INDIVIDUAL_ADDRESS } from "@haibun/core/lib/domains/typed-links.js";
-import type { TBinding, TCompositeRanges, TFieldBinding, TForwardAffordance, TPlan } from "@haibun/core/lib/domains/goal-resolution.js";
+import { FieldDomainSchema, type TBinding, type TCompositeRanges, type TFieldBinding, type TForwardAffordance, type TPlan } from "@haibun/core/lib/domains/goal-resolution.js";
 import { DIFFERENT_BUILDS, type TGoalProof, type TProofNode } from "../domains/logic.js";
 import { atom, list } from "./terms.js";
 import { literalTerm, renderStepLine } from "@haibun/core/lib/steps/derivations/named-vars.js";
@@ -42,8 +51,8 @@ export function stepSignatures(steppers: readonly AStepper[]): TStepSignature[] 
 			stepperName,
 			stepName,
 			...(step.gwta === undefined ? {} : { gwta: step.gwta }),
-			inputDomains: [...new Set(stepParts(step).flatMap(({ domain }) => (isPrimitiveDomain(domain) ? [] : [domain])))],
-			outputDomains: outputs.map(normalizeDomainKey),
+			inputDomains: [...new Set(stepParts(step).flatMap(({ domain }) => (isPrimitiveDomain(domain) ? [] : [DomainKeySchema.parse(domain)])))],
+			outputDomains: outputs.map((key) => DomainKeySchema.parse(normalizeDomainKey(key))),
 			capability: requiredAction(stepperName, stepName, step),
 		};
 	});
@@ -153,18 +162,22 @@ type TFlat = { steps: TPlan["steps"]; bindings: TBinding[] };
  *  a domain a fact holds of by the latest fact of that domain. */
 export function planOf(proof: TProofNode, byMethod: ReadonlyMap<string, TStepSignature>, latest: ReadonlyMap<string, string>): TPlan {
 	const flat = (node: TProofNode): TFlat => {
-		if ("fact" in node) return { steps: [], bindings: [{ kind: "fact", domain: node.fact, factId: valueAt(latest, node.fact, "the latest fact of a domain the engine read") }] };
-		if ("argument" in node) return { steps: [], bindings: [{ kind: "argument", domain: node.argument }] };
+		if ("fact" in node)
+			return {
+				steps: [],
+				bindings: [{ kind: "fact", domain: DomainKeySchema.parse(node.fact), factId: valueAt(latest, node.fact, "the latest fact of a domain the engine read") }],
+			};
+		if ("argument" in node) return { steps: [], bindings: [{ kind: "argument", domain: DomainKeySchema.parse(node.argument) }] };
 		if ("unmet" in node) throw new Error(`A plan the step program returned holds the unmet goal ${node.unmet}. ${DIFFERENT_BUILDS}`);
 		if ("composite" in node) {
 			const fields = node.fields.map((field) => ({ field, sub: flat(field.proof) }));
 			const bound = fields.map(({ field, sub }): TFieldBinding => {
-				const base = { fieldName: field.name, fieldDomain: field.domain, fieldType: field.type, optional: field.optional };
+				const base = { fieldName: field.name, fieldDomain: FieldDomainSchema.parse(field.domain), fieldType: field.type, optional: field.optional };
 				const leaf = sub.bindings[0];
 				if (leaf?.kind === "fact") return { ...base, kind: "fact", factId: leaf.factId };
 				return leaf?.kind === "composite" ? { ...base, kind: "composite", fields: leaf.fields } : { ...base, kind: "argument" };
 			});
-			return { steps: fields.flatMap(({ sub }) => sub.steps), bindings: [{ kind: "composite", domain: node.composite, fields: bound }] };
+			return { steps: fields.flatMap(({ sub }) => sub.steps), bindings: [{ kind: "composite", domain: DomainKeySchema.parse(node.composite), fields: bound }] };
 		}
 		const step = byMethod.get(node.do);
 		if (step === undefined) throw new Error(`A plan the step program returned calls ${node.do}, which this process doesn't declare. ${DIFFERENT_BUILDS}`);

@@ -2,6 +2,7 @@
  * A step as a tool every transport reads: its descriptor and the domain of each parameter, which the predicate registry's parts
  * of the step state.
  */
+import { DomainKeySchema } from "../../domains/domains.js";
 import { jsonSchemaFor } from "../../domains/json-schema-of.js";
 import type { AStepper, TStepperStep } from "../domains/stepper.js";
 import { DOMAIN_PERSISTED_TYPE } from "../../domains/resources.js";
@@ -47,8 +48,8 @@ export function stepDeclaration(stepper: AStepper, stepName: string, stepDef: TS
 		stepName,
 		pattern: patternOf(stepName, stepDef),
 		description: stepDef.description,
-		paramDomains: Object.fromEntries(paramDomainKeys),
-		productsDomain: stepDef.productsDomain,
+		paramDomains: Object.fromEntries([...paramDomainKeys].map(([name, key]) => [name, DomainKeySchema.parse(key)])),
+		productsDomain: stepDef.productsDomain === undefined ? undefined : DomainKeySchema.parse(stepDef.productsDomain),
 		productsOf: stepDef.productsOf,
 		...(stepDef.recordIds ? { recordIds: stepDef.recordIds } : {}),
 		...(stepDef.recordData ? { recordData: stepDef.recordData } : {}),

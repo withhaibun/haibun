@@ -107,9 +107,19 @@ import { onStepsChanged } from "../page/controllers/registry-controller.js";
 import { CLIENT_LOG_ACTION, CLIENT_LOG_METHOD } from "../page/domains/page-calls.js";
 import { authorityPort, openPageAuthority, type TPageAuthority } from "../page/authority/controllers/page-authority-controller.js";
 import type { TDelegations } from "@haibun/core/lib/domains/authority-types.js";
-import { SHOW_STEP_DEFINITIONS_METHOD, STEP_DETAIL, type TStepDefinition, type TStepDefinitions, readShownSteps, stepDefinition } from "@haibun/core/lib/step-discovery.js";
+import {
+	SHOW_STEP_DEFINITIONS_METHOD,
+	SHOW_STEPS_ACTION,
+	STEP_DETAIL,
+	StepDescriptorSchema,
+	type TStepDefinition,
+	type TStepDefinitions,
+	readShownSteps,
+	stepDefinition,
+} from "@haibun/core/lib/step-discovery.js";
 import { requiredAction, type TStepReads } from "@haibun/core/lib/domains/actions.js";
 import { steppersOf } from "@haibun/core/lib/steps/pipelines/discover-steps.js";
+import { SHOW_DECLARED_STEPS_LINE, SHOW_DECLARED_STEPS_METHOD } from "@haibun/core/lib/steps/domains/declared-steps.js";
 import { ARTIFACTS_ROUTE } from "@haibun/core/lib/domains/run-artifact.js";
 import { buildConcernCatalog, counted, type TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import { Access, LinkRelations, type TDomainDefinition, type TEdgeDef, type TRel, type TAnnotationView } from "@haibun/core/lib/domains/resources.js";
@@ -221,20 +231,33 @@ export function stepsShown(
 	concerns: TConcernCatalog = buildConcernCatalog({}),
 ): TStepDefinitions {
 	// A step that doesn't state its input schema takes an empty object.
-	const described = steps.map((step) => ({
-		inputSchema: { type: "object" as const, properties: {}, required: [] },
-		...step,
-		// Each step requires what a step of actuality would: what it declares, a read at its level for a read, and otherwise its name.
-		capability: requiredAction(step.stepperName, step.stepName, step),
-		stepperDescription: `the steps of ${step.stepperName}`,
-		paramDomains: step.paramDomains ?? {},
-		read: step.read === true,
-		fallback: step.fallback === true,
-		answersTheTurn: step.answersTheTurn === true,
-	}));
+	const described = steps.map((step) =>
+		StepDescriptorSchema.parse({
+			inputSchema: { type: "object" as const, properties: {}, required: [] },
+			...step,
+			// Each step requires what a step of actuality would: what it declares, a read at its level for a read, and otherwise its name.
+			capability: requiredAction(step.stepperName, step.stepName, step),
+			stepperDescription: `the steps of ${step.stepperName}`,
+			paramDomains: step.paramDomains ?? {},
+			read: step.read === true,
+			fallback: step.fallback === true,
+			answersTheTurn: step.answersTheTurn === true,
+		}),
+	);
 	const shown = { steppers: steppersOf(described), steps: described.map(stepDefinition), domains, concerns, predicates: [], ...counted(described.length) };
 	return readShownSteps(shown, STEP_DETAIL.definition);
 }
+
+/** The step that reads every step actuality declares, as the show steps step describes it to a page that may read at the
+ *  public level: what a view reads for a step or an action the page can't call. */
+export const DECLARED_STEPS_STEP = {
+	method: SHOW_DECLARED_STEPS_METHOD,
+	stepperName: "Haibun",
+	stepName: "showDeclaredSteps",
+	pattern: SHOW_DECLARED_STEPS_LINE,
+	read: true,
+	capability: SHOW_STEPS_ACTION,
+};
 
 /** A dispatch over a run that declares what `shown` returns each time the page reads its steps; any other call throws. */
 export const declaringSteps =

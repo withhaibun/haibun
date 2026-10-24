@@ -13,7 +13,7 @@ import {
 	rpcEnvelope,
 } from "@haibun/core/lib/rpc-wire.js";
 import { actualityAt } from "@haibun/core/lib/transport/adapters/rpc-call.js";
-import { FOLLOWS_THE_RUN, readAction } from "@haibun/core/lib/domains/actions.js";
+import { ActionSchema, FOLLOWS_THE_RUN, readAction } from "@haibun/core/lib/domains/actions.js";
 import { STORE_METHOD_PREFIX, STORE_READ } from "@haibun/core/lib/domains/store-protocol.js";
 import { GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
 import { z } from "zod";
@@ -36,6 +36,7 @@ import { authorizedWith, readingAt } from "@haibun/core/lib/domains/capability-c
 import { Access, LinkRelations, PersistedVertexSchema, type AccessLevel } from "@haibun/core/lib/domains/resources.js";
 import { TRANSPORT, type ITransport } from "./domains/transport.js";
 import { DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_STEP_METHOD, DOMAIN_TEXT } from "@haibun/core/lib/domains/domains.js";
+import { StepMethodSchema } from "@haibun/core/lib/steps/domains/step-method.js";
 
 /** A family of protocol methods a test serves, and the action its method declares. */
 const [PROBE_PREFIX, PROBE_NAME, PROBE_ACTION] = ["probe.", "held", "Probe:held"];
@@ -63,7 +64,7 @@ class PingStepper extends AStepper {
 				webserver.addRpcMethods(
 					PROBE_PREFIX,
 					{ description: "returns what a call holds" },
-					{ [PROBE_NAME]: { action: PROBE_ACTION, handle: async () => ({ held: authorizedWith(), at: readingAt() ?? "unbounded" }) } },
+					{ [PROBE_NAME]: { action: ActionSchema.parse(PROBE_ACTION), handle: async () => ({ held: authorizedWith(), at: readingAt() ?? "unbounded" }) } },
 				);
 				return OK;
 			},
@@ -176,7 +177,7 @@ class RpcVerifyStepper extends AStepper {
 		shownStepsPresentingNothing: {
 			gwta: `steps shown at {url: ${DOMAIN_LINK}} presenting nothing include {included: ${DOMAIN_STEP_METHOD}}`,
 			action: async ({ url, included }: TStepArgs) => {
-				const methods = (await shownSteps(String(url))).map((step) => step.method);
+				const methods = (await shownSteps(String(url))).map((step): string => step.method);
 				return methods.includes(String(included)) ? OK : actionNotOK(`"${included}" not in [${methods.join(", ")}]`);
 			},
 		},
@@ -184,7 +185,7 @@ class RpcVerifyStepper extends AStepper {
 			gwta: `steps shown at {url: ${DOMAIN_LINK}} to {holder: ${DOMAIN_FAKE_HOLDER}} include {included: ${DOMAIN_STEP_METHOD}} and not {excluded: ${DOMAIN_STEP_METHOD}}`,
 			action: async ({ url, holder, included, excluded }: TStepArgs) => {
 				const shown = await shownSteps(String(url), String(holder));
-				const methods = shown.map((step) => step.method);
+				const methods = shown.map((step): string => step.method);
 				if (!methods.includes(String(included))) return actionNotOK(`"${included}" not in [${methods.join(", ")}]`);
 				return methods.includes(String(excluded)) ? actionNotOK(`"${excluded}" is shown to ${holder}, who may not call it`) : OK;
 			},
@@ -794,7 +795,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 						const registry = this.getWorld().runtime.stepRegistry;
 						const ping = registry?.get("PingStepper-ping");
 						if (!registry || !ping) return Promise.resolve(actionNotOK("actuality doesn't hold a ping to copy"));
-						registry.inject([{ ...ping, descriptor: { ...ping.descriptor, method: "Injected-ping", stepperName: "Injected", stepName: "ping" } }]);
+						registry.inject([{ ...ping, descriptor: { ...ping.descriptor, method: StepMethodSchema.parse("Injected-ping"), stepperName: "Injected", stepName: "ping" } }]);
 						return Promise.resolve(OK);
 					},
 				},

@@ -5,11 +5,13 @@
  */
 import { html, nothing, type TemplateResult } from "lit";
 import { calledParts, factSeqPath } from "@haibun/core/lib/seq-path.js";
-import { DENOTES, REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
+import { DENOTES, REF_DENOTES, type TIndividualAddress } from "@haibun/core/lib/domains/typed-links.js";
 import type { TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { findDomain } from "../controllers/registry-controller.js";
 import { edgeRecordType } from "../controllers/catalog-controller.js";
-import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
+import { stepMethodName, type TStepMethod } from "@haibun/core/lib/steps/domains/step-method.js";
+import type { TAction } from "@haibun/core/lib/domains/actions.js";
+import type { TDomainKey } from "@haibun/core/lib/domains/domains.js";
 import { statedTotal, type TCounted } from "@haibun/core/lib/domains/hypermedia.js";
 import { esc, refLabel, renderRef, stepPathRef, type TRefKind } from "../derivations/markdown.js";
 import "./shu-ref-element.js";
@@ -33,15 +35,14 @@ export const typeRef = (label: string, testId?: string): TemplateResult => refTp
 export const countRef = (counted: TCounted, href: string, testId?: string): TemplateResult =>
 	html`<a class="count" href=${href} data-testid=${testId ?? nothing}>${statedTotal(counted)}</a>`;
 
-/** A record, by its type and id, as a link to its view. */
-export const recordRef = (persistedAs: string, id: string, text?: string, testId?: string): TemplateResult =>
-	refTpl(REF_DENOTES.individual, { persistedAs, id }, text ?? id, testId);
+/** A record, by its address, as a link to its view. */
+export const recordRef = (address: TIndividualAddress, text?: string, testId?: string): TemplateResult => refTpl(REF_DENOTES.individual, address, text ?? address.id, testId);
 
 /** What a field of `label` holds, as a link to the record it names where the type declares the field an edge, and as text
  *  where it doesn't. */
 export const fieldRef = (label: string, field: string, value: string, testId?: string): TemplateResult | string => {
 	const persistedAs = edgeRecordType(label, field);
-	return persistedAs ? recordRef(persistedAs, value, value, testId) : value;
+	return persistedAs ? recordRef({ persistedAs, id: value }, value, testId) : value;
 };
 
 /** An instance's origin as a link to it: an address the browser opens, not a record a pane shows, so the elements under
@@ -49,13 +50,13 @@ export const fieldRef = (label: string, field: string, value: string, testId?: s
 export const originLink = (origin: string): TemplateResult => html`<a href=${origin} target="_blank" rel="noopener" @click=${(e: Event) => e.stopPropagation()}>${origin}</a>`;
 
 /** A domain, by its key, as a link to its view: the view of the type it persists as, or of the domain itself. */
-export const domainRef = (key: string, testId?: string): TemplateResult => refTpl(REF_DENOTES.type, { domain: findDomain(key)?.persistedAs ?? key }, key, testId);
+export const domainRef = (key: TDomainKey, testId?: string): TemplateResult => refTpl(REF_DENOTES.type, { domain: findDomain(key)?.persistedAs ?? key }, key, testId);
 
 /** A step, by its method, as a link to the step as actuality declares it. */
-export const stepRef = (method: string, text?: string, testId?: string): TemplateResult => refTpl("step", { method }, text ?? method, testId);
+export const stepRef = (method: TStepMethod, text?: string, testId?: string): TemplateResult => refTpl("step", { method }, text ?? method, testId);
 
 /** An action a caller holds or a step requires, as a link to what it allows. */
-export const actionRef = (action: string, testId?: string): TemplateResult => refTpl("action", { action }, action, testId);
+export const actionRef = (action: TAction, testId?: string): TemplateResult => refTpl("action", { action }, action, testId);
 
 /** What a step's record names it called, as a link to that step. */
 export const calledRef = (called: string): TemplateResult => {

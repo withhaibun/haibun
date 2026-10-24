@@ -14,7 +14,7 @@ import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { anIndividual, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { ellipsize } from "@haibun/core/lib/domains/util.js";
 import { getFieldRel, getValidTimeField } from "../controllers/catalog-controller.js";
-import { fieldRef, typeRef } from "./shu-ref.js";
+import { fieldRef, recordRef, typeRef } from "./shu-ref.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { graphPresenterTag, mountGraphPresenter, presenterIn } from "../controllers/presenter-controller.js";
 import type { TGraphPresenter, TPresenterNodeClick } from "../ports.js";
@@ -26,7 +26,7 @@ import { persistedTypeOf } from "../derivations/record-fields.js";
 import { addsToSelection } from "../derivations/pane-kinds.js";
 import { relatedRecords } from "../controllers/read-controller.js";
 import { LoadController } from "../controllers/load-controller.js";
-import "./shu-refusal.js";
+import { loadRenders } from "./load-renders.js";
 
 /** Where the thread's graph is placed in the column, and the scope it keeps its settings under, apart from the main graph's. */
 const THREAD_GRAPH = { slot: "thread-graph", scope: "thread" } as const;
@@ -189,17 +189,21 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		presenter.selectNode(this.state.individualId || null);
 	}
 
+	/** The thread, or, where it doesn't hold a reply, a link to the record it was read from, or for items the column was given,
+	 *  to their type. */
 	render(): TemplateResult {
-		const loading = (): TemplateResult => html`<div class="empty">Loading thread...</div>`;
+		const { label, individualId } = this.state;
 		return this.#thread.render({
-			pending: loading,
-			running: loading,
-			failed: (refusal) => html`<shu-refusal .refusal=${refusal} .readAgain=${() => void this.#thread.run()}></shu-refusal>`,
-			completed: (thread) => (thread.length === 0 ? html`<div class="empty">A thread wasn't found.</div>` : this.threadTemplate()),
+			...loadRenders(html`Reading the thread of ${individualId}`, this.#thread),
+			completed: (thread) =>
+				thread.length
+					? this.threadTemplate()
+					: html`<div class="empty" data-testid=${SHU_TEST_IDS.THREAD.UNREPLIED}>
+							${individualId ? html`${recordRef({ persistedAs: label, id: individualId })} doesn't have a reply.` : html`The items of ${typeRef(label)} don't have a reply.`}
+						</div>`,
 		});
 	}
 
-	/** The thread's toolbar, and its records as a tree or a graph. */
 	private threadTemplate(): TemplateResult {
 		const { mode, depth } = this.state;
 		return html`

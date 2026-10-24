@@ -2,15 +2,21 @@
  * The method that names a step: its stepper's name, a hyphen and its step's name. A step another host registers is named
  * with that host's prefix. Every transport, every caller and the registry key a step by this one method.
  */
+import { z } from "zod";
 import type { AStepper } from "./stepper.js";
 import { constructorName } from "../../domains/util.js";
 
 const HOST_SCOPE = /^host(\d+)_/;
 
+/** A step's method as a reader states it. A reference to a step takes one, so an action, a domain or a record's id isn't
+ *  taken for a step. */
+export const StepMethodSchema = z.string().min(1).brand<"StepMethod">();
+export type TStepMethod = z.infer<typeof StepMethodSchema>;
+
 /** The method of a step. Takes a stepper, a stepper class or a stepper's name. */
-export function stepMethodName(stepperOrName: string | AStepper | { name: string }, stepName: string): string {
+export function stepMethodName(stepperOrName: string | AStepper | { name: string }, stepName: string): TStepMethod {
 	const name = typeof stepperOrName === "string" ? stepperOrName : "steps" in stepperOrName ? constructorName(stepperOrName) : stepperOrName.name;
-	return `${name}-${stepName}`;
+	return StepMethodSchema.parse(`${name}-${stepName}`);
 }
 
 /** The host id a method names, or undefined for a step of this process. */
@@ -30,6 +36,6 @@ export function bareMethodName(name: string): string {
  * tool name. A model's tool name holds only letters, digits, underscores and hyphens, so the prefix uses only those
  * characters. The `host` prefix keeps the method from beginning with a digit.
  */
-export function hostScopedMethodName(hostId: number, bareMethod: string): string {
-	return `host${hostId}_${bareMethod}`;
+export function hostScopedMethodName(hostId: number, bareMethod: string): TStepMethod {
+	return StepMethodSchema.parse(`host${hostId}_${bareMethod}`);
 }

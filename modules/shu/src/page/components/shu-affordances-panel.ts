@@ -12,7 +12,7 @@ import { shuBaseStyles } from "./styles.js";
 import { hasConduit } from "../controllers/conduit-controller.js";
 import { affordancesOnOffer } from "../controllers/read-controller.js";
 import { LoadController } from "../controllers/load-controller.js";
-import "./shu-refusal.js";
+import { refusalTpl } from "./load-renders.js";
 import {
 	isStepEnd,
 	type TAffordances as TOffered,
@@ -23,7 +23,7 @@ import {
 	type TWaypointEntry,
 } from "@haibun/core/lib/domains/goal-resolution.js";
 import { VERDICT } from "@haibun/core/lib/domains/protocol.js";
-import { isPrimitiveDomain } from "@haibun/core/lib/domains/domains.js";
+import { isPrimitiveDomain, type TDomainKey } from "@haibun/core/lib/domains/domains.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { SHU_EVENT, AFFORDANCE_PARAM, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
@@ -33,7 +33,7 @@ import { producingStepOf } from "../derivations/project-domain-chain.js";
 import { graphToQuads } from "../derivations/graph-quads.js";
 import { mountGraphPresenter, presenterIn } from "../controllers/presenter-controller.js";
 import type { TGraphPresenter, TPresenterNodeClick } from "../ports.js";
-import { actionRef, domainRef, factIdRef } from "./shu-ref.js";
+import { domainRef, factIdRef, stepRef } from "./shu-ref.js";
 import { openRef } from "./ref-navigation.js";
 import { nodeIn, type TGraph } from "../domains/graph.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
@@ -268,7 +268,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	private renderBlockedReasonTpl(a: TForwardAffordance): TemplateResult | "" {
 		if (!this.affordances) return "";
 		const forward = this.affordances.forward;
-		const isArgument = (d: string) => isPrimitiveDomain(d) || !forward.some((f) => f.outputDomains.includes(d));
+		const isArgument = (d: TDomainKey) => isPrimitiveDomain(d) || !forward.some((f) => f.outputDomains.includes(d));
 		const missingTyped = a.inputDomains.filter((d) => !isArgument(d) && !this.assertedDomains.has(d));
 		if (missingTyped.length === 0) return "";
 		const producers = this.producersFor(missingTyped).filter((p) => p.readyToRun);
@@ -329,7 +329,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				<span class="path-label">Path ${pathIdx + 1}</span>
 				<button class="start-path" data-testid=${`start-path-${this.goalDomainAt(goalIdx)}-${pathIdx}`} data-goal-idx=${goalIdx} data-path-idx=${pathIdx} title=${`Open the first step (${firstStepLabel}) in the actions bar`} @click=${(): void => this.startPath(path)}>Start this path</button>
 			</div>
-			<ol class="plan-steps">${path.steps.map((s) => html`<li>${actionRef(stepMethodName(s.stepperName, s.stepName))}${s.gwta ? html`, ${s.gwta}` : ""}</li>`)}</ol>
+			<ol class="plan-steps">${path.steps.map((s) => html`<li>${stepRef(stepMethodName(s.stepperName, s.stepName))}${s.gwta ? html`, ${s.gwta}` : ""}</li>`)}</ol>
 			${path.bindings.length > 0 ? this.renderBindingsTpl(path.bindings) : ""}
 		</div>`;
 	}
@@ -354,7 +354,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	}
 
 	/** Render a composite binding as a nested tree of per-field bindings. Field bindings can recurse into further composites (via topology.ranges chains). Fact / argument leaves render with the same vocabulary as flat bindings, "✓ existing fact" vs "(you supply)" at every level. */
-	private renderCompositeBindingTpl(domain: string, fields: TFieldBinding[]): TemplateResult {
+	private renderCompositeBindingTpl(domain: TDomainKey, fields: TFieldBinding[]): TemplateResult {
 		const detailsKey = `composite:${domain}`;
 		return html`<details class="composite-binding" open data-key=${detailsKey}><summary><span class="binding-composite">${domainRef(domain)}</span></summary><ul class="composite-fields">${fields.map(
 			(f) => {
@@ -486,7 +486,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				</div>
 			</details>
 			${this.renderAsOfBannerTpl()}
-			${this.#affordances.render<TemplateResult | typeof nothing>({ pending: () => nothing, running: () => nothing, completed: () => nothing, failed: (refusal) => html`<shu-refusal .refusal=${refusal} .readAgain=${() => void this.#affordances.run()}></shu-refusal>` })}
+			${this.#affordances.render<TemplateResult | typeof nothing>({ pending: () => nothing, running: () => nothing, completed: () => nothing, failed: (refusal) => refusalTpl(refusal, this.#affordances) })}
 			${loading ? html`<shu-spinner visible status="Loading affordances…"></shu-spinner>` : ""}
 			${empty ? html`<div class="empty" data-testid="affordances-empty">The panel doesn't hold affordances yet. Invoke <code>show affordances</code> from the actions bar (Step mode) to populate this view, or run any step: every step end announces a change this panel follows.</div>` : ""}
 			${

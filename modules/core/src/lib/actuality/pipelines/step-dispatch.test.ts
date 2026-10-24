@@ -24,6 +24,9 @@ import { readEvery, equalTo } from "../../records/pipelines/record-reads.js";
 import { streamContext, streamOver } from "../../transport/domains/step-stream-context.js";
 import { capabilityAllows } from "../../domains/actions.js";
 import { RUN_AUTHORITY, readingAt, runActingAs, runAsking, runInStep, runReadingAt, WITHOUT_READ_REFUSAL } from "../../domains/capability-context.js";
+import { ActionSchema } from "../../domains/actions.js";
+import { DomainKeySchema } from "../../domains/domains.js";
+import { StepMethodSchema } from "../../steps/domains/step-method.js";
 
 // --- Test Steppers ---
 
@@ -73,8 +76,8 @@ const carrierTool = (stepperName: string, stepName: string, pattern: string, par
 		stepperDescription: "a stepper a transport names",
 		stepName,
 		pattern,
-		paramDomains,
-		capability: `${stepperName}:${stepName}`,
+		paramDomains: Object.fromEntries(Object.entries(paramDomains).map(([name, key]) => [name, DomainKeySchema.parse(key)])),
+		capability: ActionSchema.parse(`${stepperName}:${stepName}`),
 		read: false,
 		fallback: false,
 		answersTheTurn: false,
@@ -199,20 +202,20 @@ describe("step-dispatch", () => {
 		});
 
 		it("rejects missing or wrong capability", () => {
-			const tool = { method: "CapabilityStepper-protectedPing", capability: "CapabilityStepper:protected" };
+			const tool = { method: StepMethodSchema.parse("CapabilityStepper-protectedPing"), capability: ActionSchema.parse("CapabilityStepper:protected") };
 			expect(() => authorizeToolCapability(tool, { invoked: undefined, held: undefined }, undefined)).toThrow(/capability CapabilityStepper:protected required/);
 			expect(() => authorizeToolCapability(tool, { invoked: "Other:*", held: "Other:*" }, undefined)).toThrow(/capability CapabilityStepper:protected required/);
 		});
 
 		it("authorizes a call for the action it invoked, and not for another its caller holds", () => {
-			const tool = { method: "CapabilityStepper-protectedPing", capability: "CapabilityStepper:protected" };
+			const tool = { method: StepMethodSchema.parse("CapabilityStepper-protectedPing"), capability: ActionSchema.parse("CapabilityStepper:protected") };
 			const held = ["CapabilityStepper:protected", "LlmStepper:ask"];
 			expect(() => authorizeToolCapability(tool, { invoked: "LlmStepper:ask", held }, undefined)).toThrow(/capability CapabilityStepper:protected required/);
 			expect(() => authorizeToolCapability(tool, { invoked: "CapabilityStepper:protected", held }, undefined)).not.toThrow();
 		});
 
 		it("refuses a step that reads above its caller's read or above the read ceiling in force for the call", () => {
-			const tool = { method: "CapabilityStepper-look", capability: "CapabilityStepper:look", readsAt: Access.private };
+			const tool = { method: StepMethodSchema.parse("CapabilityStepper-look"), capability: ActionSchema.parse("CapabilityStepper:look"), readsAt: Access.private };
 			const invoked = "CapabilityStepper:look";
 			expect(() => authorizeToolCapability(tool, { invoked, held: [invoked, "Read:public"] }, undefined)).toThrow(/capability Read:private required/);
 			expect(() => authorizeToolCapability(tool, { invoked, held: [invoked, "Read:private"] }, undefined), "the read is bounded by what the caller holds").not.toThrow();

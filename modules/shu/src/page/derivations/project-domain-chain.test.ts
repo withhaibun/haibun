@@ -2,13 +2,17 @@ import { describe, it, expect } from "vitest";
 import { SOURCE_DOMAIN } from "@haibun/core/lib/domains/goal-resolution.js";
 import { projectDomainChain, waypointNodeId, factNodeId, type TAffordancesSnapshot } from "./project-domain-chain.js";
 import { graphToQuads } from "./graph-quads.js";
+import { DomainKeySchema } from "@haibun/core/lib/domains/domains.js";
+
+/** A domain's key, as a reader states one. */
+const d = (key: string) => DomainKeySchema.parse(key);
 
 describe("projectDomainChain", () => {
 	it("maps the proved verdict to the satisfied node kind", () => {
 		const snap: TAffordancesSnapshot = {
 			satisfiedDomains: [],
-			forward: [{ stepperName: "S", stepName: "s", inputDomains: ["a"], outputDomains: ["b"], readyToRun: true }],
-			goals: [{ domain: "b", resolution: { verdict: "proved" } }],
+			forward: [{ stepperName: "S", stepName: "s", inputDomains: [d("a")], outputDomains: [d("b")], readyToRun: true }],
+			goals: [{ domain: d("b"), resolution: { verdict: "proved" } }],
 		};
 		const g = projectDomainChain(snap);
 		const b = g.nodes.find((n) => n.id === "b");
@@ -18,8 +22,8 @@ describe("projectDomainChain", () => {
 	it("maps the unknown verdict, which a plan would prove, to the `reachable` node kind", () => {
 		const snap: TAffordancesSnapshot = {
 			satisfiedDomains: [],
-			forward: [{ stepperName: "S", stepName: "s", inputDomains: ["a"], outputDomains: ["b"], readyToRun: false }],
-			goals: [{ domain: "b", resolution: { verdict: "unknown" } }],
+			forward: [{ stepperName: "S", stepName: "s", inputDomains: [d("a")], outputDomains: [d("b")], readyToRun: false }],
+			goals: [{ domain: d("b"), resolution: { verdict: "unknown" } }],
 		};
 		const g = projectDomainChain(snap);
 		expect(g.nodes.find((n) => n.id === "b")?.kind).toBe("reachable");
@@ -28,7 +32,7 @@ describe("projectDomainChain", () => {
 	it("introduces the sentinel source domain when any step doesn't have an input domain", () => {
 		const snap: TAffordancesSnapshot = {
 			satisfiedDomains: [],
-			forward: [{ stepperName: "S", stepName: "s", inputDomains: [], outputDomains: ["b"], readyToRun: true }],
+			forward: [{ stepperName: "S", stepName: "s", inputDomains: [], outputDomains: [d("b")], readyToRun: true }],
 			goals: [],
 		};
 		const g = projectDomainChain(snap);
@@ -40,7 +44,7 @@ describe("projectDomainChain", () => {
 	it("emits synthetic field nodes and edges from composites map (topology.ranges)", () => {
 		const snap: TAffordancesSnapshot = {
 			satisfiedDomains: [],
-			forward: [{ stepperName: "S", stepName: "issue", inputDomains: ["order"], outputDomains: ["fulfilled-order"], readyToRun: true }],
+			forward: [{ stepperName: "S", stepName: "issue", inputDomains: [d("order")], outputDomains: [d("fulfilled-order")], readyToRun: true }],
 			goals: [],
 			composites: { order: { maker: "maker-vertex", proof: "proof" } },
 		};
@@ -57,7 +61,7 @@ describe("projectDomainChain", () => {
 	it("holds a node for every domain an edge ends at, including a composite that a step doesn't take or return, so the scene draws each edge", () => {
 		const snap: TAffordancesSnapshot = {
 			satisfiedDomains: [],
-			forward: [{ stepperName: "S", stepName: "s", inputDomains: ["a"], outputDomains: ["b"], readyToRun: true }],
+			forward: [{ stepperName: "S", stepName: "s", inputDomains: [d("a")], outputDomains: [d("b")], readyToRun: true }],
 			goals: [],
 			composites: { unnamed: { part: "a" } },
 		};
@@ -71,8 +75,8 @@ describe("projectDomainChain", () => {
 		const snap: TAffordancesSnapshot = {
 			satisfiedDomains: [],
 			forward: [
-				{ stepperName: "A", stepName: "a", inputDomains: ["x"], outputDomains: ["y"], readyToRun: true },
-				{ stepperName: "B", stepName: "b", inputDomains: ["x"], outputDomains: ["z"], readyToRun: false },
+				{ stepperName: "A", stepName: "a", inputDomains: [d("x")], outputDomains: [d("y")], readyToRun: true },
+				{ stepperName: "B", stepName: "b", inputDomains: [d("x")], outputDomains: [d("z")], readyToRun: false },
 			],
 			goals: [],
 		};
@@ -84,8 +88,8 @@ describe("projectDomainChain", () => {
 	it("deep-links every non-source domain node to the affordances panel", () => {
 		const snap: TAffordancesSnapshot = {
 			satisfiedDomains: [],
-			forward: [{ stepperName: "S", stepName: "s", inputDomains: ["a"], outputDomains: ["b"], readyToRun: true }],
-			goals: [{ domain: "b", resolution: { verdict: "unknown" } }],
+			forward: [{ stepperName: "S", stepName: "s", inputDomains: [d("a")], outputDomains: [d("b")], readyToRun: true }],
+			goals: [{ domain: d("b"), resolution: { verdict: "unknown" } }],
 		};
 		const g = projectDomainChain(snap);
 		const b = g.nodes.find((n) => n.id === "b");
@@ -95,7 +99,7 @@ describe("projectDomainChain", () => {
 	it("exposes a unique producer via invokes so callers can dispatch directly", () => {
 		const snap: TAffordancesSnapshot = {
 			satisfiedDomains: [],
-			forward: [{ stepperName: "Greeter", stepName: "createGreeting", inputDomains: ["name"], outputDomains: ["greeting"], readyToRun: true }],
+			forward: [{ stepperName: "Greeter", stepName: "createGreeting", inputDomains: [d("name")], outputDomains: [d("greeting")], readyToRun: true }],
 			goals: [],
 		};
 		const g = projectDomainChain(snap);
@@ -108,8 +112,8 @@ describe("projectDomainChain", () => {
 		const snap: TAffordancesSnapshot = {
 			satisfiedDomains: [],
 			forward: [
-				{ stepperName: "A", stepName: "a", inputDomains: [], outputDomains: ["x"], readyToRun: true },
-				{ stepperName: "B", stepName: "b", inputDomains: [], outputDomains: ["x"], readyToRun: true },
+				{ stepperName: "A", stepName: "a", inputDomains: [], outputDomains: [d("x")], readyToRun: true },
+				{ stepperName: "B", stepName: "b", inputDomains: [], outputDomains: [d("x")], readyToRun: true },
 			],
 			goals: [],
 		};
@@ -125,9 +129,9 @@ describe("projectDomainChain", () => {
 		// if it relied on `goals[]` alone. `satisfiedDomains` is the unfiltered set from
 		// the facts; the chain view colours by that.
 		const snap: TAffordancesSnapshot = {
-			forward: [{ stepperName: "Cred", stepName: "createIssuer", inputDomains: [], outputDomains: ["maker-vertex"], readyToRun: true }],
+			forward: [{ stepperName: "Cred", stepName: "createIssuer", inputDomains: [], outputDomains: [d("maker-vertex")], readyToRun: true }],
 			goals: [],
-			satisfiedDomains: ["maker-vertex"],
+			satisfiedDomains: [d("maker-vertex")],
 		};
 		const g = projectDomainChain(snap);
 		expect(g.nodes.find((n) => n.id === "maker-vertex")?.kind).toBe("satisfied");
@@ -137,9 +141,9 @@ describe("projectDomainChain", () => {
 		// A created issuer surfaces as a specific instance node (its factId) in the
 		// chain, not just the green domain blob.
 		const snap: TAffordancesSnapshot = {
-			forward: [{ stepperName: "Cred", stepName: "createIssuer", inputDomains: [], outputDomains: ["maker-vertex"], readyToRun: true }],
+			forward: [{ stepperName: "Cred", stepName: "createIssuer", inputDomains: [], outputDomains: [d("maker-vertex")], readyToRun: true }],
 			goals: [],
-			satisfiedDomains: ["maker-vertex"],
+			satisfiedDomains: [d("maker-vertex")],
 			satisfiedFacts: { "maker-vertex": ["0.1.3.2"] },
 		};
 		const g = projectDomainChain(snap);
@@ -155,8 +159,8 @@ describe("projectDomainChain", () => {
 		// node is open, preserving each node's base resolver verdict colour.
 		const snap: TAffordancesSnapshot = {
 			satisfiedDomains: [],
-			forward: [{ stepperName: "S", stepName: "s", inputDomains: ["a"], outputDomains: ["b"], readyToRun: true }],
-			goals: [{ domain: "b", resolution: { verdict: "unknown" } }],
+			forward: [{ stepperName: "S", stepName: "s", inputDomains: [d("a")], outputDomains: [d("b")], readyToRun: true }],
+			goals: [{ domain: d("b"), resolution: { verdict: "unknown" } }],
 		};
 		const g = projectDomainChain(snap);
 		const b = g.nodes.find((n) => n.id === "b");
@@ -167,8 +171,8 @@ describe("projectDomainChain", () => {
 	it("merges waypoints into nodes, ensured where their proof holds", () => {
 		const snap: TAffordancesSnapshot = {
 			satisfiedDomains: [],
-			forward: [{ stepperName: "Cred", stepName: "issue", inputDomains: [], outputDomains: ["vc"], readyToRun: true }],
-			goals: [{ domain: "vc", resolution: { verdict: "unknown" } }],
+			forward: [{ stepperName: "Cred", stepName: "issue", inputDomains: [], outputDomains: [d("vc")], readyToRun: true }],
+			goals: [{ domain: d("vc"), resolution: { verdict: "unknown" } }],
 			waypoints: [
 				{ outcome: "VC issued", method: "ActivitiesStepper-VC issued", ensured: false },
 				{ outcome: "Logged in as admin", method: "ActivitiesStepper-Logged in as admin", ensured: true },

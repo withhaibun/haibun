@@ -10,8 +10,8 @@ describe("<shu-ref>", () => {
 	it("shows the record its attributes name now, after lit binds it to another", async () => {
 		const host = document.createElement("div");
 		document.body.appendChild(host);
-		render(recordRef("Task", "t1", "the first"), host);
-		render(recordRef("Task", "t2", "the second"), host);
+		render(recordRef({ persistedAs: "Task", id: "t1" }, "the first"), host);
+		render(recordRef({ persistedAs: "Task", id: "t2" }, "the second"), host);
 		const ref = host.querySelector("shu-ref") as ShuRef | null;
 		if (ref === null) throw new Error("the template doesn't render a reference");
 		await ref.updateComplete;

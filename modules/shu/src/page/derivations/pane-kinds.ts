@@ -5,6 +5,8 @@
  */
 import { z } from "zod";
 import { PartSchema, type TPart } from "@haibun/core/lib/domains/resources.js";
+import { ActionSchema } from "@haibun/core/lib/domains/actions.js";
+import { StepMethodSchema } from "@haibun/core/lib/steps/domains/step-method.js";
 import { PART_DIRECTIVE, partDirectiveFor, splitPart } from "@haibun/core/lib/domains/typed-links.js";
 import { SHU_ATTR, SHU_TAG } from "../../domains/elements.js";
 import { splitPaneEntry } from "./address.js";
@@ -35,9 +37,9 @@ export const DesiredPaneSchema = z.discriminatedUnion("paneType", [
 	z.object({ paneType: z.literal("filter-incoming"), ...OF_SUBJECT }),
 	z.object({ paneType: z.literal("thread"), ...OF_SUBJECT }),
 	/** A step as actuality declares it, by its method. */
-	z.object({ paneType: z.literal("step"), method: z.string().min(1), ...PLACEMENT }),
+	z.object({ paneType: z.literal("step"), method: StepMethodSchema, ...PLACEMENT }),
 	/** An action a caller holds, by what it allows. */
-	z.object({ paneType: z.literal("action"), action: z.string().min(1), ...PLACEMENT }),
+	z.object({ paneType: z.literal("action"), action: ActionSchema, ...PLACEMENT }),
 	z.object({ paneType: z.literal("views-picker"), views: z.array(z.object({ id: z.string(), description: z.string(), component: z.string() })), label: z.string(), ...PLACEMENT }),
 ]);
 
@@ -63,8 +65,8 @@ type TPartView = HTMLElement & { revealPart?: (part: TPart) => void };
 
 /** A pane of one kind. */
 type TPaneOf<K extends DesiredPaneType> = Extract<DesiredPane, { paneType: K }>;
-/** What a column entry states of a pane of one kind, without where the pane stands. */
-type TParsed<K extends DesiredPaneType> = Omit<TPaneOf<K>, "paneType" | "flag" | "docked">;
+/** What a column entry states of a pane of one kind, without where the pane stands, as the pane schema reads it. */
+type TParsed<K extends DesiredPaneType> = Omit<Extract<z.input<typeof DesiredPaneSchema>, { paneType: K }>, "paneType" | "flag" | "docked">;
 
 /** A kind of pane. Method signatures, so a kind's entry reads as an entry for any pane. `seed` gives a new pane's view what
  *  it shows before the view attaches, and `update` gives an open pane's view what a new request for it carries. */

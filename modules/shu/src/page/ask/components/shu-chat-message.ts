@@ -171,7 +171,7 @@ export class ShuChatMessage extends ShuElement<typeof EmptyStateSchema> {
 		return html`
 			<div class="msg" @click=${this.onSelect}>
 				<span class="msg-label">
-					${m.recordId ? recordRef(m.recordType, m.recordId, ROLE_LABEL[m.role], SHU_TEST_IDS.APP.CHAT_RECORD) : ROLE_LABEL[m.role]}
+					${m.recordId ? recordRef({ persistedAs: m.recordType, id: m.recordId }, ROLE_LABEL[m.role], SHU_TEST_IDS.APP.CHAT_RECORD) : ROLE_LABEL[m.role]}
 					${
 						m.role === "user" && m.recordId && m.text
 							? html`<button type="button" title=${FORK_CONTROLS.fork.title} aria-label=${FORK_CONTROLS.fork.label} data-testid=${SHU_TEST_IDS.APP.CHAT_FORK} @click=${this.fork(true)}>⑂</button>
@@ -201,7 +201,7 @@ export class ShuChatMessage extends ShuElement<typeof EmptyStateSchema> {
 						m.calls.length > 0
 							? html`<details class="chat-made-of" data-testid=${SHU_TEST_IDS.APP.CHAT_CALLS}>
 								<summary>calls (${m.calls.length})</summary>
-								<ol>${m.calls.map(({ name, ok, record }) => html`<li>${recordRef(record.persistedAs, record.id, `${ok ? ICON_STEP_COMPLETED : RETURNED_TO_CALLER} ${name}`)}</li>`)}</ol>
+								<ol>${m.calls.map(({ name, ok, record }) => html`<li>${recordRef(record, `${ok ? ICON_STEP_COMPLETED : RETURNED_TO_CALLER} ${name}`)}</li>`)}</ol>
 							</details>`
 							: ""
 					}

@@ -15,6 +15,12 @@ import { provideLayout } from "../../test/jsdom-layout.js";
 import { declareRegistry } from "../../test/catalog-fixture.js";
 import { stepsShown } from "../../test/setup.js";
 import { Access } from "@haibun/core/lib/domains/resources.js";
+import { SHOW_STEP_DEFINITIONS_METHOD } from "@haibun/core/lib/step-discovery.js";
+import { desiredPaneFor } from "./ref-navigation.js";
+import { PANE_ATTACH } from "../controllers/pane-controller.js";
+import { ShuStepDefinition } from "./shu-step-definition.js";
+import { SHU_TEST_IDS } from "../../domains/test-ids.js";
+import type { TRefKind } from "../derivations/markdown.js";
 
 /** The step that reads the affordances on offer, as the show steps step describes it. */
 const AFFORDANCES_STEP = {
@@ -135,6 +141,32 @@ describe("shu-affordances-panel", () => {
 		expect(stepLabels.some((t) => t.includes("issue credential"))).toBe(true);
 		expect(stepLabels.some((t) => t.includes("issue a credential"))).toBe(true);
 		expect(panel.shadowRoot?.querySelectorAll(".start-path").length).toBe(2);
+	});
+
+	it("links each plan step to the step as actuality declares it, which its pane opens", async () => {
+		const ISSUE = { method: "Issue-issueCredential", stepperName: "Issue", stepName: "issueCredential", pattern: "issue credential" };
+		handle.teardown();
+		handle = setupShuTest({ dispatch: (method) => (method === SHOW_STEP_DEFINITIONS_METHOD ? stepsShown([ISSUE]) : undefined) });
+		const panel = document.body.appendChild(new ShuAffordancesPanel());
+		const plan = { steps: [{ stepperName: ISSUE.stepperName, stepName: ISSUE.stepName, gwta: ISSUE.pattern }], bindings: [] };
+		panel.products = {
+			actuality: ACTUALITY_FEATURE,
+			satisfiedDomains: [],
+			forward: [],
+			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { verdict: "unknown", goal: "vc", factIds: [], plans: [plan] } }],
+		};
+		await applied(panel);
+		(panel.shadowRoot?.querySelector('button[data-testid="goal-vc-toggle"]') as HTMLButtonElement | null)?.click();
+		await applied(panel);
+		const ref = panel.shadowRoot?.querySelector(".plan-steps li shu-ref");
+		const pane = desiredPaneFor(ref?.getAttribute("kind") as TRefKind, JSON.parse(ref?.getAttribute("linkTarget") ?? "{}"));
+		expect(pane).toEqual({ paneType: "step", method: ISSUE.method });
+		const attach = PANE_ATTACH.step;
+		if (pane?.paneType !== "step" || attach === undefined) throw new Error("a plan step's reference opens a step pane, which the page attaches");
+		const view = document.body.appendChild(new ShuStepDefinition());
+		await attach(pane, view);
+		await view.updateComplete;
+		expect(view.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.STEP_DEFINITION.PATTERN}"]`)?.textContent).toBe(ISSUE.pattern);
 	});
 
 	it("clicking 'Start this path' opens the path's first step in the actions bar without auto-dispatch", async () => {

@@ -15,6 +15,7 @@ import { runRegistry, type StepRegistry } from "../lib/steps/pipelines/step-regi
 import { productData, STEPS_CHANGED, type THaibunEvent } from "../lib/domains/protocol.js";
 import { STEP_DETAIL } from "../lib/steps/domains/step-discovery.js";
 import { SteppersSchema } from "../lib/steps/domains/steppers.js";
+import { DeclaredStepsSchema, SHOW_DECLARED_STEPS_LINE, SHOW_DECLARED_STEPS_METHOD, type TDeclaredSteps } from "../lib/steps/domains/declared-steps.js";
 import { readShownSteps } from "../lib/steps/domains/step-discovery.js";
 import type { TStepResult } from "../lib/domains/protocol.js";
 import { validateStep } from "../lib/pipelines/step-validation.js";
@@ -214,6 +215,39 @@ describe("show steps", () => {
 		const result = await passWithDefaults([{ path: "/features/test.feature", content: "list steps for another" }], [Haibun, TestSteps, ActsForAnother]);
 		expect(result.ok).toBe(true);
 		expect(shown).toEqual([[], ["TestSteps-passes"]]);
+	});
+
+	it("lists every step actuality declares, with whether its caller may call it, to a caller that holds less", async () => {
+		const declared: TDeclaredSteps[] = [];
+		class ListsDeclared extends AStepper {
+			description = "Lists every declared step as a caller holding only a public read.";
+			steps = {
+				listsDeclared: {
+					gwta: "list declared steps as a reader",
+					action: async () => {
+						const haibun = this.getWorld().runtime.steppers?.find((stepper) => stepper instanceof Haibun) as Haibun;
+						declared.push(await runAuthorizedWith(["Read:public"], async () => DeclaredStepsSchema.parse((await haibun.steps.showDeclaredSteps.action()).products)));
+						return actionOK();
+					},
+				},
+			};
+		}
+		const result = await passWithDefaults(
+			[{ path: "/features/test.feature", content: `list declared steps as a reader\n${SHOW_DECLARED_STEPS_LINE}` }],
+			[Haibun, TestSteps, ListsDeclared],
+		);
+		expect(result.ok).toBe(true);
+		const [asReader] = declared;
+		const passes = asReader?.steps.find((step) => step.method === "TestSteps-passes");
+		expect(passes, "a step the reader doesn't hold, declared with the action it requires").toMatchObject({ stepperName: "TestSteps", callable: false });
+		expect(asReader?.steps.find((step) => step.method === SHOW_DECLARED_STEPS_METHOD)).toMatchObject({ callable: true });
+		const asRun = DeclaredStepsSchema.parse(productData(productsOfLine(result, SHOW_DECLARED_STEPS_LINE)));
+		expect(asRun.steps.map((step) => step.method)).toEqual(asReader?.steps.map((step) => step.method));
+		expect(
+			asRun.steps.every((step) => step.callable),
+			"actuality holds every action",
+		).toBe(true);
+		expect(asRun.total).toBe(asRun.steps.length);
 	});
 
 	it("states whether a line resolves to one step, and which", async () => {
