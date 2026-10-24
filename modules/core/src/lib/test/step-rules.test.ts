@@ -6,7 +6,17 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AStepper, type TStepperSteps } from "../steps/domains/stepper.js";
 import { OK } from "../domains/protocol.js";
 import { Access } from "../domains/resources.js";
-import { declaredSteps, NEAR_DUPLICATE, nearDuplicates, ONE_CALL_SITE, oneCallSite, STARTS_WITHOUT_PARAMETERS, startsWithoutParameters } from "./step-rules.js";
+import {
+	declaredSteps,
+	NEAR_DUPLICATE,
+	nearDuplicates,
+	ONE_CALL_SITE,
+	oneCallSite,
+	STARTS_WITHOUT_PARAMETERS,
+	startsWithoutParameters,
+	UNEXERCISED,
+	unexercised,
+} from "./step-rules.js";
 
 /** What each demo step needs: an action, which a test doesn't gate. */
 const ACTS = { capability: "DemoStepper:act", action: () => OK };
@@ -26,6 +36,7 @@ class DemoStepper extends AStepper {
 		precluding: { gwta: "fetch page {page: string} twice", precludes: ["DemoStepper.fetchPage"], ...ACTS },
 		blank: { exact: "", ...ACTS },
 		quiet: { exact: "quiet", ...ACTS },
+		heading: { gwta: "Heading: {title: string}", ...ACTS },
 	} as const satisfies TStepperSteps;
 }
 class InheritingStepper extends DemoStepper {}
@@ -94,5 +105,44 @@ describe("the call sites of a step", () => {
 		expect(flagged, "one read of a property is one call, and a constant that isn't read names its step once").toEqual(
 			expect.arrayContaining(["DemoStepper.quiet", "DemoStepper.fetchPage"]),
 		);
+	});
+
+	it("count a line whose first word a colon follows as its step's, as a heading states it", () => {
+		write(STEPPER_FILE, "");
+		write("tests/features/a.feature", "Heading: one\nHeading: two\n");
+		expect(keysOf(oneCallSite(repository, steps()), ONE_CALL_SITE)).not.toContain("DemoStepper.heading");
+	});
+});
+
+describe("the steps a repository exercises", () => {
+	let repository = "";
+	const write = (file: string, text: string) => {
+		mkdirSync(dirname(join(repository, file)), { recursive: true });
+		writeFileSync(join(repository, file), text);
+	};
+	beforeEach(() => {
+		repository = mkdtempSync(join(tmpdir(), "haibun-step-exercise-"));
+		execFileSync("git", ["init", "-q"], { cwd: repository });
+	});
+	afterEach(() => rmSync(repository, { recursive: true, force: true }));
+
+	it("count a feature line, a kireji call, a waypoint's line and a unit test that states, calls or names a step, and flag a step that they don't run", () => {
+		write(STEPPER_FILE, "// the stepper names its own steps: openStore, readStore");
+		write("tests/features/a.feature", "Feature: A\n    watch every 30 seconds\n");
+		write("tests/features/b.feature.ts", 'const { fetchPage: fetched } = withAction(new DemoStepper());\nexport const features = { B: [fetched({ page: "home" })] };\n');
+		write("modules/demo/waypoints/backgrounds/demo.feature.ts", 'export const backgrounds = { Demo: ["waypoint store shown with show the store"] };\n');
+		write("modules/demo/src/demo.test.ts", 'new DemoStepper().steps.openKey.action({}); call("DemoStepper-fetchAnyPage"); run("fetch page home again");\n');
+		write("modules/demo/src/page.ts", 'call("DemoStepper-openStore");\n');
+		write("modules/other/src/other.test.ts", 'other.steps.quiet.action({}); call("OtherStepper-heading");\n');
+		const flagged = keysOf(unexercised(repository, steps()), UNEXERCISED);
+		// A feature line, a kireji call and a waypoint's line count, and so does a unit test that names the stepper and its step,
+		// calls it over RPC or states its line: watchEvery, fetchPage, readStore, openKey, fetchAnyPage, fetchPageAgain and
+		// fetchOther, whose pattern the test's line matches too.
+		expect(flagged, "code that calls a step isn't a test of it, a test that doesn't name the stepper doesn't count, and the empty line's step isn't flagged").toEqual([
+			"DemoStepper.openStore",
+			"DemoStepper.precluding",
+			"DemoStepper.quiet",
+			"DemoStepper.heading",
+		]);
 	});
 });

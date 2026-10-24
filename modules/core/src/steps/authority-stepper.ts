@@ -4,6 +4,7 @@ import { persistPrincipalIndividual } from "../lib/domains/principal-individual.
 import type { TWorld } from "../lib/actuality/domains/world.js";
 import { AStepper, READING, type IHasCycles, type IStepperCycles, type TCallContext, type TEndFeature, type TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/domains/util.js";
+import { counted, CountedFields } from "../lib/domains/hypermedia.js";
 import { SessionAuthority } from "../lib/pipelines/session-authority.js";
 import { AUTHORITY_KEY } from "../lib/domains/session-authority.js";
 import { DELEGATIONS_READ_ACTION, DOMAIN_HELD_CALLS, HeldCallsSchema, type IAuthority } from "../lib/domains/authority-types.js";
@@ -37,6 +38,9 @@ const signedCapabilitySchema = z.looseObject({
 	proof: z.looseObject({}),
 });
 
+/** What `show held calls` returns: the held calls as a counted list of capabilities. */
+const HeldCallsListSchema = HeldCallsSchema.extend(CountedFields);
+
 class AuthorityStepper extends AStepper implements IHasCycles {
 	description = "Narrow what a statement may do, present a signed capability for one, read what was delegated to a key, and name the sites that connect here";
 
@@ -56,7 +60,12 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 	cycles: IStepperCycles = {
 		getConcerns: () => ({
 			domains: [
-				{ selectors: [DOMAIN_HELD_CALLS], schema: HeldCallsSchema, description: "The calls an instance holds open, by the capability each rests on" },
+				{
+					selectors: [DOMAIN_HELD_CALLS],
+					schema: HeldCallsListSchema,
+					list: { items: "capabilities" },
+					description: "The calls an instance holds open, by the capability each rests on",
+				},
 				// Naming a connecting site writes a Principal record, so the type it writes is declared here.
 				principalDomainDefinition,
 				{ selectors: [DOMAIN_DELEGATIONS], schema: delegationsSchema, description: "The delegations an instance recorded to a key, as a holder presents them" },
@@ -120,7 +129,10 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			gwta: "show held calls",
 			description: "Returns the calls held open at this instance, by the capability on which each rests. Revoking a capability ends the calls that rest on it.",
 			productsDomain: DOMAIN_HELD_CALLS,
-			action: () => Promise.resolve(actionOKWithProducts(this.getAuthority().heldCalls())),
+			action: () => {
+				const { capabilities } = this.getAuthority().heldCalls();
+				return Promise.resolve(actionOKWithProducts({ capabilities, ...counted(capabilities.length) }));
+			},
 		},
 		holdingOnly: {
 			gwta: `holding only {actions: ${DOMAIN_ACTIONS}}, {what: statement}`,

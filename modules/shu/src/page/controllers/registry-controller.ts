@@ -5,7 +5,7 @@
  */
 import type { ReactiveController, ReactiveControllerHost } from "lit";
 import type { TDomainDiscoveryInfo, TPredicate, TStepDefinition } from "@haibun/core/lib/step-discovery.js";
-import { SHOW_STEPS_ACTION, SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
+import { SHOW_STEP_DEFINITIONS_METHOD, SHOW_STEPS_ACTION } from "@haibun/core/lib/step-discovery.js";
 import { PAGE_CALL_ACTIONS } from "../domains/page-calls.js";
 import { pageRegistry, registryScope } from "../root.js";
 import { readSteps } from "../pipelines/read-steps.js";
@@ -89,7 +89,7 @@ export function registryOrigin(): TRegistryOrigin | undefined {
 }
 
 /** The actions of the page's own calls, discovery's among them. */
-const OWN_CALL_ACTIONS: Readonly<Record<string, string>> = { [SHOW_STEPS_METHOD]: SHOW_STEPS_ACTION, ...PAGE_CALL_ACTIONS };
+const OWN_CALL_ACTIONS: Readonly<Record<string, string>> = { [SHOW_STEP_DEFINITIONS_METHOD]: SHOW_STEPS_ACTION, ...PAGE_CALL_ACTIONS };
 
 /** Returns the action a call of `method` requires: the action the page states for a call of its own (discovery, a diagnostic,
  *  its occurrences), which it holds without a read of actuality's steps, and the action the step declares otherwise, or

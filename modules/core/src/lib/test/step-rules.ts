@@ -1,9 +1,10 @@
 /**
- * Three rules of a repository's steps, read from its steppers and from the features and the code that call them. A step that
+ * Four rules of a repository's steps, read from its steppers and from the features, the tests and the code that call them. A step that
  * starts or keeps something and doesn't return a product takes a parameter, since a stepper starts what each feature needs as
  * the feature starts, where an option states it (lifecycle). A step has more than one call site, since what one feature alone states is a waypoint of that
  * feature or of a module's library (one call site). A step's pattern isn't another step's with a word more or less, since one
- * primitive takes the difference as a parameter (near-duplicate).
+ * primitive takes the difference as a parameter (near-duplicate). A feature line, a kireji call, a waypoint or a unit test
+ * exercises every step, since a step that doesn't run isn't shown to work (unexercised).
  */
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -18,6 +19,7 @@ import { sourceFiles, TEST_MODULE } from "./repository-files.js";
 export const STARTS_WITHOUT_PARAMETERS = "starts or keeps something without a parameter";
 export const ONE_CALL_SITE = "has at most one call site";
 export const NEAR_DUPLICATE = "states another step's pattern with a word more or less";
+export const UNEXERCISED = "isn't exercised by a feature line, a kireji call, a waypoint or a unit test";
 
 /** How a step's pattern reads a line: as a phrase with placeholders, or as the exact line. */
 type TPatternKind = "gwta" | "exact";
@@ -156,23 +158,32 @@ function statedInKireji(source: ts.SourceFile): TStated {
 }
 
 /** What each feature source of a repository states. */
-function statedInFeatures(repository: string, files: readonly string[]): TStated {
-	const stated = files
-		.filter((file) => FEATURE_SOURCE.test(file))
-		.map((file): TStated => {
-			const text = readFileSync(join(repository, file), "utf-8");
-			if (!SOURCE.test(file))
-				return {
-					lines: text
-						.split("\n")
-						.map((line) => line.trim())
-						.filter(Boolean),
-					calls: [],
-				};
-			return statedInKireji(ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true));
-		});
+const statedInFeatures = (repository: string, files: readonly string[]): TStated =>
+	statedIn(
+		repository,
+		files.filter((file) => FEATURE_SOURCE.test(file)),
+	);
+
+/** What `files` state: each line of a feature file, and the lines and kireji calls of a TypeScript source's strings. */
+function statedIn(repository: string, files: readonly string[]): TStated {
+	const stated = files.map((file): TStated => {
+		const text = readFileSync(join(repository, file), "utf-8");
+		if (!SOURCE.test(file))
+			return {
+				lines: text
+					.split("\n")
+					.map((line) => line.trim())
+					.filter(Boolean),
+				calls: [],
+			};
+		return statedInKireji(ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true));
+	});
 	return { lines: stated.flatMap((s) => s.lines), calls: stated.flatMap((s) => s.calls) };
 }
+
+/** The first word of a pattern or a line, read the same way for both, so a word a colon follows, as in `Backgrounds:`, groups its
+ *  lines with its step. */
+const FIRST_WORD = /^[a-z][\w'-]*/i;
 
 /** The ends of a line that a statement nested in it can state: the line, and its text after each space. */
 const endsOf = (line: string): string[] => [line, ...[...line.matchAll(/ /g)].map((space) => line.slice((space.index ?? 0) + 1))];
@@ -184,7 +195,7 @@ function linesStating(steps: readonly TDeclaredStep[], lines: readonly string[])
 	const byWord = new Map<string, typeof compiled>();
 	const unworded: typeof compiled = [];
 	for (const c of compiled) {
-		const first = /^[a-z][\w'-]*/i.exec(c.step.pattern)?.[0]?.toLowerCase();
+		const first = FIRST_WORD.exec(c.step.pattern)?.[0]?.toLowerCase();
 		if (first === undefined || c.step.pattern.startsWith(`${first}(`)) unworded.push(c);
 		else byWord.set(first, [...(byWord.get(first) ?? []), c]);
 	}
@@ -192,7 +203,7 @@ function linesStating(steps: readonly TDeclaredStep[], lines: readonly string[])
 	for (const line of lines)
 		for (const end of endsOf(line)) {
 			const stated = dePolite(end);
-			const word = /^[^\s]+/.exec(stated)?.[0]?.toLowerCase() ?? "";
+			const word = FIRST_WORD.exec(stated)?.[0]?.toLowerCase() ?? "";
 			for (const { step, matches } of [...(byWord.get(word) ?? []), ...unworded]) if (matches(stated)) counts.set(step, (counts.get(step) ?? 0) + 1);
 		}
 	return counts;
@@ -277,4 +288,31 @@ export function oneCallSite(repository: string, steps: readonly TDeclaredStep[])
 	return steps
 		.filter((step) => (stating.get(step) ?? 0) + calls.filter((key) => key === step.key).length + (naming.get(step) ?? 0) <= 1)
 		.map((step) => ({ file: step.file, finding: `${ONE_CALL_SITE}: ${step.stepper}.${step.key}` }));
+}
+
+/** A unit test's naming of a step it calls: through a stepper's steps, or after its stepper's name and a dash, as a call over RPC names it. */
+const TEST_NAMING = /\bsteps(?:\.|\[["'`])([A-Za-z]\w*)|["'`]([A-Za-z]\w*-[A-Za-z]\w*)["'`]/g;
+
+/** Each step that doesn't run: a feature line or a waypoint doesn't state it, a kireji call doesn't call it, and a unit test
+ *  doesn't state a line of it, call it through kireji or name it, where the test names the step's stepper. The empty line's
+ *  step is every feature's blank line, which a line isn't read as. */
+export function unexercised(repository: string, steps: readonly TDeclaredStep[]): TFound[] {
+	const files = repositoryFiles(repository);
+	const tests = files
+		.filter((file) => SOURCE.test(file) && TEST_MODULE.test(file) && !FEATURE_SOURCE.test(file))
+		.map((file) => ({ file, text: readFileSync(join(repository, file), "utf-8") }));
+	const features = statedInFeatures(repository, files);
+	const tested = statedIn(
+		repository,
+		tests.map(({ file }) => file),
+	);
+	const stating = linesStating(steps, [...features.lines, ...tested.lines]);
+	const calls = new Set([...features.calls, ...tested.calls]);
+	const named = (step: TDeclaredStep) =>
+		tests.some(
+			({ text }) => text.includes(step.stepper) && [...text.matchAll(TEST_NAMING)].some(([, key, method]) => key === step.key || method === `${step.stepper}-${step.key}`),
+		);
+	return steps
+		.filter((step) => step.pattern !== "" && !stating.has(step) && !calls.has(step.key) && !named(step))
+		.map((step) => ({ file: step.file, finding: `${UNEXERCISED}: ${step.stepper}.${step.key}` }));
 }

@@ -10,21 +10,22 @@ import { actionNotOK } from "../../domains/util.js";
 import type { StepTool } from "../../steps/pipelines/step-registry.js";
 import { hostScopedMethodName } from "../../steps/domains/step-method.js";
 import { callInput } from "../../steps/pipelines/populate-action-args.js";
-import { EVERY_DEFINITION, readShownSteps, SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, type TStepDescriptor } from "../../steps/domains/step-discovery.js";
+import { readShownSteps, SHOW_STEP_DEFINITIONS_METHOD, SHOW_STEPS_ACTION, STEP_DETAIL, type TStepDescriptor } from "../../steps/domains/step-discovery.js";
+import { NO_INPUT } from "../../steps/pipelines/call-step.js";
 import type { TRemoteSteps } from "../ports.js";
 
 /** A remote host as this process reads it: its host id, which prefixes its registry keys, and the steps it offers this process. */
 export type TRemoteHost = { hostId: number; descriptors: TStepDescriptor[] };
 
-/** Reads the host id through the handshake, then every step the host offers this process through the show steps step. Every
+/** Reads the host id through the handshake, then every step the host offers this process through the read of the step definitions. Every
  *  caller reads actuality's step declarations through that step. The call is signed like any other, so the host shows the
  *  steps this process holds there and doesn't show others. */
 export async function readRemoteHost(rpc: TRemoteSteps, remoteUrl: string): Promise<TRemoteHost> {
 	const { hostId } = await rpc.handshake();
-	const shown = await rpc.call(SHOW_STEPS_METHOD, EVERY_DEFINITION, [], SHOW_STEPS_ACTION);
+	const shown = await rpc.call(SHOW_STEP_DEFINITIONS_METHOD, NO_INPUT, [], SHOW_STEPS_ACTION);
 	if (!shown.served)
 		throw new Error(`the steps of ${remoteUrl} weren't read: ${shown.reason}. Check that the host is serving and that this process holds ${SHOW_STEPS_ACTION} there.`);
-	return { hostId, descriptors: readShownSteps(shown.result, EVERY_DEFINITION.detail).steps.map(({ _links, ...descriptor }) => descriptor) };
+	return { hostId, descriptors: readShownSteps(shown.result, STEP_DETAIL.definition).steps.map(({ _links, ...descriptor }) => descriptor) };
 }
 
 /**

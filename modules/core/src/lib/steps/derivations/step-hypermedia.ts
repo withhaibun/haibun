@@ -21,6 +21,7 @@ import { normalizeDomainKey } from "../../domains/domains.js";
  * - `_component`, `id` and `view` are added only for a domain with `ui.component`. The SPA's pane opener reads them, and
  *   a diagnostic or data-only domain doesn't open a pane.
  * - `_links` lists the steps that take the product's domain, where at least one does.
+ * - `_list` is the domain's `list`, where it declares one, so a list combinator reads the list of the last step of its statement.
  *
  * Products that already carry a `_component` string are returned unchanged, so a step that sets its own keeps it.
  */
@@ -43,6 +44,7 @@ export function augmentViewHypermedia(world: TWorld, step: TStepperStep, actionR
 	// without calling show steps. buildConcernCatalog reads the same field for the type's view. A domain has one
 	// description, and a second description on its schema could differ from the one a reader is shown.
 	if (domain?.description) markers[HYPERMEDIA.DESCRIPTION] = domain.description;
+	if (domain?.list) markers[HYPERMEDIA.LIST] = domain.list;
 	if (component) {
 		markers[HYPERMEDIA.COMPONENT] = component;
 		markers.id = productsDomain;

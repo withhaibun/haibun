@@ -6,7 +6,7 @@ import { setCookie } from "@haibun/web-server-hono/cookie.js";
 
 import { actionNotOK, actionOK, actionOKWithProducts, getFromRuntime } from "@haibun/core/lib/domains/util.js";
 import { createEnumDomainDefinition, DOMAIN_BEARER_TOKEN, DOMAIN_STRING, DOMAIN_LINK, DOMAIN_TEXT, DOMAIN_STEP_METHOD, DOMAIN_ROUTE } from "@haibun/core/lib/domains/domains.js";
-import { SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, STEP_DETAIL } from "@haibun/core/lib/step-discovery.js";
+import { MATCHING_METHOD, SHOW_STEPS_ACTION, SHOW_STEPS_LINE, STEP_DETAIL } from "@haibun/core/lib/step-discovery.js";
 import { readShownSteps } from "@haibun/core/lib/step-discovery.js";
 import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import type { TFeatureStep, IStepperCycles } from "@haibun/core/lib/astepper.js";
@@ -76,11 +76,11 @@ async function mcpListTools(url: string): Promise<Array<{ name?: string }>> {
 	return (response.result as { tools?: Array<{ name?: string }> } | undefined)?.tools ?? [];
 }
 
-/** Calls the SHOW_STEPS_METHOD tool over MCP with `text` at summary detail. `holder` signs the call for SHOW_STEPS_ACTION. Returns the method of each step in the response. */
+/** Calls the matching tool over MCP with `text` and show steps as its statement. `holder` signs the call for SHOW_STEPS_ACTION. Returns the method of each step in the response. */
 async function mcpShownSteps(url: string, text: string, holder: string): Promise<string[]> {
-	const response = await mcpRpc(url, 3, "tools/call", { name: SHOW_STEPS_METHOD, arguments: { text, detail: STEP_DETAIL.summary } }, { holder, action: SHOW_STEPS_ACTION });
+	const response = await mcpRpc(url, 3, "tools/call", { name: MATCHING_METHOD, arguments: { text, statement: SHOW_STEPS_LINE } }, { holder, action: SHOW_STEPS_ACTION });
 	const returned = mcpToolResult(response).content?.[0]?.type === "text" ? (mcpToolResult(response).content?.[0]?.text ?? "") : "";
-	if (!returned) throw new Error(`${SHOW_STEPS_METHOD} didn't return text: ${JSON.stringify(response)}`);
+	if (!returned) throw new Error(`${MATCHING_METHOD} didn't return text: ${JSON.stringify(response)}`);
 	return readShownSteps(JSON.parse(returned), STEP_DETAIL.summary).steps.map((step) => step.method);
 }
 

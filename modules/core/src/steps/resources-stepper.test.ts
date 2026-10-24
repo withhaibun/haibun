@@ -85,4 +85,20 @@ describe("ResourcesStepper typed links in a feature's prose", () => {
 		]);
 		expect(ran.failure?.error.message).toMatch(/1 of 1 citations no longer resolve:\nBody "practice" no longer states/);
 	});
+
+	it("anchors a note to a passage of a record, linking another passage, and as one value dated at its time, and reads each back", async () => {
+		const world = await worldHoldingPassage();
+		const note = JSON.stringify({ label: BODY_LABEL, id: "practice", exact: "Boatbuilding", text: "Dated.", at: new Date(0).toISOString() });
+		const feature = [
+			`annotate ${BODY_LABEL} "practice" quoting "Boatbuilding" with "A craft."`,
+			`annotate ${BODY_LABEL} "practice" linking "Boatbuilding" to "Boatbuilding" with "The same passage."`,
+			`annotate note ${note}`,
+			`get annotations for ${BODY_LABEL} "practice"`,
+		];
+		const ran = await testWithWorld(world, feature.join("\n"), [Haibun, ResourcesStepper]);
+		expect(ran.ok, JSON.stringify(ran.failure)).toBe(true);
+		const read = itemAt(ran.featureResults, 0).stepResults.at(-1)?.products as { annotations: { body?: string; links?: unknown[] }[] };
+		expect(read.annotations.map(({ body }) => body).sort()).toEqual(["A craft.", "Dated.", "The same passage."]);
+		expect(read.annotations.find(({ body }) => body === "The same passage.")?.links, "the linking note links the other passage").toHaveLength(1);
+	});
 });

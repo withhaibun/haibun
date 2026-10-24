@@ -174,6 +174,14 @@ describe("the test-runner agent's limits", () => {
 		expect(JSON.parse(nodeFS.readFileSync(path.join(dir, ACTUALITIES_FILE), "utf-8")).machine.conditions.state, "the supervisor doesn't refuse the test run").toBeUndefined();
 	});
 
+	it("clears the state of the actuality of the features a noted change names, so they run again in any state", async () => {
+		const dir = nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-noted-"));
+		const actuality = { state: "s", filter: "one", actuality: { text: "an actuality", status: "passed", tookMs: 0 }, features: {} };
+		nodeFS.writeFileSync(path.join(dir, ACTUALITIES_FILE), JSON.stringify({ machine: { conditions: actuality } }));
+		expect((await h.stepper.steps.noteSourceChanged.action({ filter: "one", where: dir })).ok).toBe(true);
+		expect(JSON.parse(nodeFS.readFileSync(path.join(dir, ACTUALITIES_FILE), "utf-8")).machine.conditions.state, "the supervisor doesn't refuse the test run").toBeUndefined();
+	});
+
 	it("refuses a test run past MAX_RUNS for an ask and states the reason", async () => {
 		for (const filter of ["one", "two", "three"]) {
 			expect((await h.run("tests", filter)).ok).toBe(true);
@@ -425,23 +433,23 @@ describe("examining a finished test run", () => {
 			const h = harness({ standing: true });
 			h.stepper.beginAsk();
 			expect((await h.run("features", "")).ok, "the standing test run starts").toBe(true);
-			const detail = { type: "string", enum: ["summary", "definition"] };
+			const ending = { type: "string", enum: ["OK", "not OK"] };
 			const registry = runRegistry(h.stepper.getWorld());
 			registry.inject([
 				{
 					descriptor: {
-						method: hostScopedMethodName(9, "Haibun-showSteps"),
+						method: hostScopedMethodName(9, "Haibun-endsWith"),
 						stepperName: "Haibun",
 						stepperDescription: "the test run's own steps",
-						stepName: "showSteps",
-						pattern: "show steps matching {text: string} as {detail: step-detail}",
-						paramDomains: { text: "string", detail: "step-detail" },
+						stepName: "endsWith",
+						pattern: "ends with {result: ending}",
+						paramDomains: { result: "ending" },
 						capability: readAction(Access.private),
 						read: true,
 						fallback: false,
 						answersTheTurn: false,
 						remoteOrigin: "http://localhost:8331",
-						inputSchema: { type: "object", properties: { text: { type: "string" }, detail }, required: ["text", "detail"] },
+						inputSchema: { type: "object", properties: { result: ending }, required: ["result"] },
 					},
 					paramDomainKeys: new Map(),
 					transport: "remote",
@@ -449,11 +457,10 @@ describe("examining a finished test run", () => {
 					handler: () => Promise.resolve(actionOKWithProducts({})),
 				},
 			]);
-			const asked = (await (h.stepper.steps.askTestRun.action as (a: { method: string; params: string }) => Promise<TResult>)({
-				method: "showSteps",
-				params: "text=GraphStepper-",
-			})) as TResult & { errorMessage?: string };
-			expect(asked.errorMessage).toContain("detail (one of summary, definition) missing");
+			const asked = (await (h.stepper.steps.askTestRun.action as (a: { method: string; params: string }) => Promise<TResult>)({ method: "endsWith", params: "" })) as TResult & {
+				errorMessage?: string;
+			};
+			expect(asked.errorMessage).toContain("result (one of OK, not OK) missing");
 		});
 
 		it("returns a summary in `text` for a model and the full response with its entries in `answer`", () => {
@@ -462,8 +469,8 @@ describe("examining a finished test run", () => {
 				'{"total":1,"vertices":"1 entries; read one through TestRunnerStepper-askTestRun"}',
 			);
 			expect(asked.answer, "`answer` holds the entries for a caller that requests them").toBe('{"total":1,"vertices":[{"id":"cmt-1"}]}');
-			const shown = answerOfRun({ detail: "summary", steps: [{ method: "GraphStepper-listTyped" }] });
-			expect(shown.text, "a step listing doesn't have a total, so its text keeps its entries").toBe('{"detail":"summary","steps":[{"method":"GraphStepper-listTyped"}]}');
+			const shown = answerOfRun({ apps: ["/muskeg"] });
+			expect(shown.text, "a response without a total keeps its entries").toBe('{"apps":["/muskeg"]}');
 			const long = answerOfRun({ total: 40, vertices: Array.from({ length: 500 }, (_, at) => ({ id: `cmt-${at}`, body: "x".repeat(40) })) });
 			expect(long.answer, "an `answer` longer than ANSWER_LIMIT ends with its full length in characters").toMatch(/characters in all\)$/);
 		});

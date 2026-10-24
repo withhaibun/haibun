@@ -107,11 +107,11 @@ import { onStepsChanged } from "../page/controllers/registry-controller.js";
 import { CLIENT_LOG_ACTION, CLIENT_LOG_METHOD } from "../page/domains/page-calls.js";
 import { authorityPort, openPageAuthority, type TPageAuthority } from "../page/authority/controllers/page-authority-controller.js";
 import type { TDelegations } from "@haibun/core/lib/domains/authority-types.js";
-import { SHOW_STEPS_METHOD, STEP_DETAIL, type TStepDefinition, type TStepDefinitions, readShownSteps, stepDefinition } from "@haibun/core/lib/step-discovery.js";
+import { SHOW_STEP_DEFINITIONS_METHOD, STEP_DETAIL, type TStepDefinition, type TStepDefinitions, readShownSteps, stepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { requiredAction, type TStepReads } from "@haibun/core/lib/domains/actions.js";
 import { steppersOf } from "@haibun/core/lib/steps/pipelines/discover-steps.js";
 import { ARTIFACTS_ROUTE } from "@haibun/core/lib/domains/run-artifact.js";
-import { buildConcernCatalog, type TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
+import { buildConcernCatalog, counted, type TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import { Access, LinkRelations, type TDomainDefinition, type TEdgeDef, type TRel, type TAnnotationView } from "@haibun/core/lib/domains/resources.js";
 import { fromJsonText } from "@haibun/core/lib/domains/json-text.js";
 import { z } from "zod";
@@ -232,7 +232,7 @@ export function stepsShown(
 		fallback: step.fallback === true,
 		answersTheTurn: step.answersTheTurn === true,
 	}));
-	const shown = { detail: STEP_DETAIL.definition, steppers: steppersOf(described), steps: described.map(stepDefinition), domains, concerns, predicates: [] };
+	const shown = { steppers: steppersOf(described), steps: described.map(stepDefinition), domains, concerns, predicates: [], ...counted(described.length) };
 	return readShownSteps(shown, STEP_DETAIL.definition);
 }
 
@@ -240,24 +240,24 @@ export function stepsShown(
 export const declaringSteps =
 	(shown: () => TStepDefinitions): TDispatch =>
 	(method) => {
-		if (method === SHOW_STEPS_METHOD) return shown();
+		if (method === SHOW_STEP_DEFINITIONS_METHOD) return shown();
 		throw new Error(`unexpected ${method}`);
 	};
 
-/** The two steps the entity surface calls, as the show steps step returns them: the fixture every entity test installs. */
+/** The two steps the entity surface calls, as the read of the step definitions returns them: the fixture every entity test installs. */
 export const ENTITY_STEP_LIST = stepsShown([
 	{ method: "GraphStepper-getIndividualWithEdges", stepperName: "GraphStepper", stepName: "getIndividualWithEdges", pattern: "get vertex {label} {id}" },
 	{ method: "ResourcesStepper-annotations", stepperName: "ResourcesStepper", stepName: "annotations", pattern: "get annotations for {label} {id}" },
 ]);
 
-/** A dispatch over the entity surface: the show steps step returns {@link ENTITY_STEP_LIST}, the two entity steps route
+/** A dispatch over the entity surface: the read of the step definitions returns {@link ENTITY_STEP_LIST}, the two entity steps route
  *  to the given responders (annotations defaults to an empty list), and anything else throws: the loud-failure signal. */
 /** The notes anchored in a record, as the annotations step returns them. */
 export const annotationList = (annotations: TAnnotationView[]): { annotations: TAnnotationView[]; total: number } => ({ annotations, total: annotations.length });
 
 export function makeEntityDispatch(over: { entity: (params: Record<string, unknown>) => unknown; annotations?: () => unknown }): TDispatch {
 	return (method, params) => {
-		if (method === SHOW_STEPS_METHOD) return ENTITY_STEP_LIST;
+		if (method === SHOW_STEP_DEFINITIONS_METHOD) return ENTITY_STEP_LIST;
 		if (method === "GraphStepper-getIndividualWithEdges") return over.entity(params);
 		if (method === "ResourcesStepper-annotations") return over.annotations ? over.annotations() : annotationList([]);
 		throw new Error(`unexpected ${method}`);

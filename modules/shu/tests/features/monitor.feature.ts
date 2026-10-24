@@ -7,7 +7,9 @@ import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
 import { createStepUI, flattenTestIds } from "@haibun/shu/test/step-ui.js";
 import { SHU_TAG } from "@haibun/shu/domains/elements.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { views } from "@haibun/shu/waypoints/backgrounds/views.feature.ts";
+import { ontology } from "@haibun/shu/waypoints/backgrounds/ontology.feature.ts";
 
 const wp = new WebPlaywright();
 const { serveShuApp } = withAction(new ShuStepper());
@@ -56,6 +58,20 @@ export const features: TKirejiExport = {
 		views.enterInStepInput('"set typed greeting to hello"'),
 		views.runLastStepForm(),
 		'variable typed greeting is "hello"',
+
+		scenario({ scenario: "The ontology a read returns opens in the class browser" }),
+		"The ontology is a read like any other: run from its form in the actions bar, its products open in the class browser, which draws the classes the declarations state.",
+		...passesStepForm("ShuStepper-showOntology", {}),
+		waitFor({ target: IDS.CLASS_BROWSER.ROOT }),
+		views.graphListsNode(`"${SHU_TAG.CLASS_BROWSER}"`, `"${SEQ_PATH_LABEL}"`),
+		"A read narrows the ontology to the terms that hold a text, ordered with the classes first, and keeps the first of them with the count of all.",
+		`set ontology from limited to 1, ordered by "kind", matching "${SEQ_PATH_LABEL}", show ontology`,
+		`variable ontology.terms.0.name is "${SEQ_PATH_LABEL}"`,
+		'variable ontology.total is more than "1"',
+		ontology.of(`"${SEQ_PATH_LABEL}"`),
+		"The reader closes the class browser, so the columns that follow stand where they stood, and returns to step mode.",
+		views.closeColumn(`"${SHU_TAG.CLASS_BROWSER}"`),
+		...enterStepMode,
 
 		scenario({ scenario: "Open monitor column via step" }),
 		"The show monitor step triggers the SPA to open a monitor log stream column.",

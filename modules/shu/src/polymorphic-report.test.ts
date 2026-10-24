@@ -13,7 +13,7 @@ import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { registerDomains } from "@haibun/core/lib/domains/domains.js";
 import { openRunRegistry } from "@haibun/core/lib/step-registry.js";
 import { RUN_AUTHORITY, runAuthorizedWith } from "@haibun/core/lib/domains/capability-context.js";
-import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
+import { SHOW_STEP_DEFINITIONS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { DOMAIN_GRAPH_QUERY } from "@haibun/core/lib/quad-types.js";
 import { QuadStore, newStoreChain } from "@haibun/core/lib/quad-store.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
@@ -117,7 +117,7 @@ describe("a report carries actuality and the site's declarations, and doesn't ca
 			carried.filter((k) => k.includes("graphQuery")),
 			"the rows a query returned are the graph, which rides in the cache",
 		).toEqual([]);
-		expect(carried.includes(SHOW_STEPS_METHOD), "and the declarations ride in the cache, not beside it").toBe(false);
+		expect(carried.includes(SHOW_STEP_DEFINITIONS_METHOD), "and the declarations ride in the cache, not beside it").toBe(false);
 	});
 });
 

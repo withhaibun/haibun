@@ -122,13 +122,11 @@ class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 		return false;
 	}
 
-	/** Embedded mount (shu-product-view hands the product here): fit the schema around the focus type's Class node.
-	 *  The scene stages it: it emits graph-scope-revealed once it holds the clusters (showing only the schema chips),
-	 *  then fits when the node is built. */
+	/** Embedded mount (shu-product-view hands the product here): fit the schema around the focus type's Class node, or, for
+	 *  the ontology a read returns, which doesn't name a focus type, around the whole schema. The scene stages it: it emits
+	 *  graph-scope-revealed once it holds the clusters (showing only the schema chips), then fits. */
 	openProducts(products: Record<string, unknown>): void {
-		const focusType = typeof products.focusType === "string" ? products.focusType : undefined;
-		if (!focusType) return;
-		this.focusType = focusType;
+		if (typeof products.focusType === "string") this.focusType = products.focusType;
 		void this.scopeWhenReady();
 	}
 
@@ -235,10 +233,8 @@ class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 		// Re-scope on a fresh mount OR when the focus type arrives after the scene (openProducts runs after first render).
 		if (freshMount || this.focusType !== this.configuredFocus) {
 			this.configuredFocus = this.focusType;
-			if (this.focusType) {
-				scene.scopeToType(this.focusType);
-				scene.setSelectedSubject(this.focusType);
-			}
+			scene.scopeToType(this.focusType);
+			if (this.focusType) scene.setSelectedSubject(this.focusType);
 			this.pushSceneModel();
 		}
 	}

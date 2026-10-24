@@ -8,7 +8,7 @@ import { AStepper } from "@haibun/core/lib/astepper.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { getStepperOptionName } from "@haibun/core/lib/domains/util.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
-import { SHOW_STEPS_METHOD, STEP_DETAIL } from "@haibun/core/lib/step-discovery.js";
+import { MATCHING_METHOD, SHOW_STEPS_LINE, SHOW_STEPS_METHOD, STEP_DETAIL } from "@haibun/core/lib/step-discovery.js";
 import { readShownSteps } from "@haibun/core/lib/step-discovery.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { ToolListChangedNotificationSchema } from "@modelcontextprotocol/sdk/types.js";
@@ -47,9 +47,7 @@ class TestStepper extends AStepper {
 					const instructions = client.getInstructions() ?? "";
 					if (instructions.includes("TestStepper")) throw Error(`the instructions, set before any caller connects, name a stepper: ${instructions}`);
 					if (!instructions.includes(SHOW_STEPS_METHOD)) throw Error(`the instructions don't state how to find a step: ${instructions}`);
-					const shown = (await client.callTool({ name: SHOW_STEPS_METHOD, arguments: { text: "TestStepper-", detail: STEP_DETAIL.summary } })) as {
-						content: Array<{ text: string }>;
-					};
+					const shown = (await client.callTool({ name: MATCHING_METHOD, arguments: { text: "TestStepper-", statement: SHOW_STEPS_LINE } })) as { content: Array<{ text: string }> };
 					const methods = readShownSteps(JSON.parse(itemAt(shown.content, 0).text), STEP_DETAIL.summary).steps.map((step) => step.method);
 					if (methods.join(",") !== "TestStepper-testA,TestStepper-verifyTools") throw Error(`show steps returned ${methods.join(", ")}`);
 					const resources = await client.listResources();

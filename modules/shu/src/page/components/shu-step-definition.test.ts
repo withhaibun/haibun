@@ -5,7 +5,7 @@
  * steps the page may call is refused with the method named, and the step is chosen in the actions bar from here.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
+import { SHOW_STEP_DEFINITIONS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { ShuStepDefinition } from "./shu-step-definition.js";
 import "./shu-ref-element.js";
@@ -51,7 +51,8 @@ describe("a step's view", () => {
 		endPage();
 		installMemoryDeviceStore();
 		handle = setupShuTest({
-			dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown([VERIFY, HOLDING, READ], { [CREDENTIAL]: { persistedAs: CREDENTIAL_TYPE }, [CHECK]: {} }) : undefined),
+			dispatch: (method) =>
+				method === SHOW_STEP_DEFINITIONS_METHOD ? stepsShown([VERIFY, HOLDING, READ], { [CREDENTIAL]: { persistedAs: CREDENTIAL_TYPE }, [CHECK]: {} }) : undefined,
 		});
 	});
 	afterEach(() => {

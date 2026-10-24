@@ -10,7 +10,7 @@ import { CACHE_SHAPE } from "../client-cache/ports.js";
 import { hydrateClientCache } from "../client-cache/controllers/device-controller.js";
 import { installCarriedConduit } from "../root.js";
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
-import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
+import { SHOW_STEP_DEFINITIONS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { installDeviceStore, installMemoryDeviceStore, pageDeviceStore } from "../client-cache/root.js";
 import { endPage } from "../adapters/page-held.js";
 
@@ -32,7 +32,7 @@ describe("the step a name indexes", () => {
 	// Two steppers may declare one step name: the site states which of them is a fallback, and a page naming the step
 	// takes the one that is not. A deployment that brings its own step is read through its own step.
 	let handle: TShuTestHandle;
-	const listing = (steps: Parameters<typeof stepsShown>[0]) => setupShuTest({ dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown(steps) : undefined) });
+	const listing = (steps: Parameters<typeof stepsShown>[0]) => setupShuTest({ dispatch: (method) => (method === SHOW_STEP_DEFINITIONS_METHOD ? stepsShown(steps) : undefined) });
 	beforeEach(() => {
 		endPage();
 		setHydration({ actualityId: PAGE_ACTUALITY, settings: SERVED_SETTINGS });
@@ -71,7 +71,7 @@ describe("the registry cached on the device", () => {
 	// so; without either, the request fails as it did.
 	const ANSWER = stepsShown([]);
 	const unreachable = () => {
-		throw new ServerUnreachable(`/rpc/${SHOW_STEPS_METHOD}`, new Error("offline"));
+		throw new ServerUnreachable(`/rpc/${SHOW_STEP_DEFINITIONS_METHOD}`, new Error("offline"));
 	};
 	let handle: TShuTestHandle;
 	beforeEach(() => {
@@ -83,7 +83,7 @@ describe("the registry cached on the device", () => {
 	});
 
 	it("caches the server's response on the device and runs on it when the server does not respond; without either, fails", async () => {
-		handle = setupShuTest({ dispatch: (method) => (method === SHOW_STEPS_METHOD ? ANSWER : undefined) });
+		handle = setupShuTest({ dispatch: (method) => (method === SHOW_STEP_DEFINITIONS_METHOD ? ANSWER : undefined) });
 		await getAvailableSteps();
 		expect(registryOrigin()).toEqual({ from: "site" });
 		const store = pageDeviceStore();
@@ -115,14 +115,14 @@ describe("the registry cached on the device", () => {
 	});
 
 	it("returns a site's refusal, not the device's copy, so the page doesn't read from the device what the site refuses", async () => {
-		handle = setupShuTest({ dispatch: (method) => (method === SHOW_STEPS_METHOD ? ANSWER : undefined) });
+		handle = setupShuTest({ dispatch: (method) => (method === SHOW_STEP_DEFINITIONS_METHOD ? ANSWER : undefined) });
 		await getAvailableSteps();
 		const store = pageDeviceStore();
 		await new Promise((r) => setTimeout(r, 0));
 		handle.teardown();
 		handle = setupShuTest({
 			dispatch: () => {
-				throw new Error(`${SHOW_STEPS_METHOD}: capability Read:public required`);
+				throw new Error(`${SHOW_STEP_DEFINITIONS_METHOD}: capability Read:public required`);
 			},
 		});
 		installDeviceStore(store);
@@ -146,7 +146,8 @@ describe("the steps a domain joins", () => {
 		];
 		setHydration({ actualityId: PAGE_ACTUALITY, settings: SERVED_SETTINGS });
 		handle = setupShuTest({
-			dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown([issue, verify, either], { [CREDENTIAL]: { persistedAs: CREDENTIAL_TYPE }, [CHECK]: {} }) : undefined),
+			dispatch: (method) =>
+				method === SHOW_STEP_DEFINITIONS_METHOD ? stepsShown([issue, verify, either], { [CREDENTIAL]: { persistedAs: CREDENTIAL_TYPE }, [CHECK]: {} }) : undefined,
 		});
 		await getAvailableSteps();
 		const joined = (name: string) => {

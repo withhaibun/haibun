@@ -337,21 +337,6 @@ export function dePolite(s: string) {
 	return s.replace(/^((given|when|then|and|should|the|it|I'm|I|am|an|a) )*/i, "");
 }
 
-export function formattedSteppers(steppers: AStepper[]) {
-	const a = steppers.reduce(
-		(acc, o) => {
-			const name = constructorName(o);
-			const description = o.description || name;
-			return {
-				...acc,
-				[name]: { description, steps: Object.entries(o.steps).map(([stepperName, stepperMatch]) => stepperName + ": " + (stepperMatch.gwta || stepperMatch.exact)) },
-			};
-		},
-		{} as { [name: string]: { description: string; steps: string[] } },
-	);
-	return a;
-}
-
 const TRUNCATE_AT = 78;
 const MAX_TRUNCATE_DEPTH = 10;
 

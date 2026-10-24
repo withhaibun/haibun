@@ -1,7 +1,11 @@
 // The graph a page reads, over the store this instance holds: the values a filter offers for a type, one individual with the
 // edges its quads name, and what a graph view shows as TPTP formulas.
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
+import { getDefaultWorld, getTestWorldWithOptions, testWithWorld } from "@haibun/core/lib/test/lib.js";
+import Haibun from "@haibun/core/steps/haibun-stepper.js";
+import ResourcesStepper from "@haibun/core/steps/resources-stepper.js";
+import type { TStepResult } from "@haibun/core/lib/domains/protocol.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { Access, AccessLevelSchema, FACT_LABEL, LinkRelations, SEQ_PATH_LABEL, commentDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
@@ -10,7 +14,7 @@ import ActivitiesStepper from "@haibun/core/steps/activities-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import { FACT_FIELD } from "@haibun/core/lib/records/domains/facts.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
-import type { TQuad } from "@haibun/core/lib/quad-types.js";
+import type { TDensityQuery, TQuad } from "@haibun/core/lib/quad-types.js";
 import { MAX_PAGE_ROWS } from "@haibun/core/lib/domains/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
@@ -279,5 +283,35 @@ describe("what a graph view shows as TPTP formulas", () => {
 				"fof(e1, axiom, inReplyTo('b@test.com', 'a@test.com')).",
 			].join("\n"),
 		);
+	});
+});
+
+describe("the counts a shape reads, and the rows of a graph query a time bounds", () => {
+	it("returns the counts the store reads for a shape, as a page reads them over its own copy", async () => {
+		const stepper = new GraphSourceStepper();
+		await stepper.setWorld(getDefaultWorld(), []);
+		const buckets = [{ start: 0, end: 10, count: 2 }];
+		stepper.getWorld().shared.getStore = vi.fn(() => mockQuadStore({ density: vi.fn(async () => ({ buckets })) }));
+		const query: TDensityQuery = { label: SEQ_PATH_LABEL, timeField: SEQ_PATH_FIELD.generatedAtTime, from: "2026-01-01", to: "2026-02-01", buckets: 1, groupBy: "status" };
+		expect(await stepper.steps.density.action({ query })).toEqual({ ok: true, products: { buckets } });
+	});
+
+	it("keeps the rows of a graph query written at or after a time, or before it", async () => {
+		const world = getTestWorldWithOptions();
+		const store = world.shared.getStore();
+		const comment = (id: string, generatedAtTime: string) => ({ id, author: "did:site:0", generatedAtTime, accessLevel: Access.public });
+		await store.upsertIndividual("Comment", comment("early", "2026-01-01T00:00:00.000Z"));
+		await store.upsertIndividual("Comment", comment("late", "2026-03-01T00:00:00.000Z"));
+		const query = JSON.stringify({ label: "Comment" });
+		const lines = [`since "2026-02-01", graph query ${query}`, `before "2026-02-01", graph query ${query}`];
+		const ran = await testWithWorld(world, lines.join("\n"), [Haibun, ResourcesStepper, GraphSourceStepper]);
+		expect(ran.ok, JSON.stringify(ran.failure)).toBe(true);
+		const ids = (line: string) => {
+			const products = (ran.world.runtime.stepResults as TStepResult[]).find((step) => step.in === line)?.products as { vertices: { id: string }[] } | undefined;
+			if (products === undefined) throw new Error(`the line ${line} didn't return products`);
+			return products.vertices.map(({ id }) => id);
+		};
+		expect(ids(itemAt(lines, 0))).toEqual(["late"]);
+		expect(ids(itemAt(lines, 1))).toEqual(["early"]);
 	});
 });

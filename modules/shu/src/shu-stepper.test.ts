@@ -1,6 +1,6 @@
 import { currentVersion } from "@haibun/core/lib/domains/current-version.js";
 import { PAGE_ACTUALITY, SERVED_SETTINGS, servedWith } from "./test/setup.js";
-import { CONTEXT_DOCUMENT, HYDRATION_ID } from "./domains/elements.js";
+import { CONTEXT_DOCUMENT, HYDRATION_ID, SHU_TAG } from "./domains/elements.js";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { getStepperOptionName } from "@haibun/core/lib/domains/util.js";
@@ -8,7 +8,9 @@ import { WEBSERVER } from "@haibun/web-server-hono/domains/web-server.js";
 import { SessionAuthority } from "@haibun/core/lib/pipelines/session-authority.js";
 import { AUTHORITY_KEY } from "@haibun/core/lib/domains/session-authority.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
+import { COMMENT_LABEL, LinkRelations, commentDomainDefinition } from "@haibun/core/lib/domains/resources.js";
+import { registerDomains } from "@haibun/core/lib/domains/domains.js";
+import { ONTOLOGY_TERM, OntologyReadSchema } from "@haibun/core/lib/records/domains/ontology-read.js";
 import ShuStepper from "./shu-stepper.js";
 import { buildSpaHtml } from "./derivations/page-html.js";
 import { mayFrame } from "./derivations/content-security-policy.js";
@@ -185,5 +187,48 @@ describe("the page a deployment serves", () => {
 		expect(buildSpaHtml("/spa", { actualityId: PAGE_ACTUALITY, settings: SERVED_SETTINGS }, NONCE)).toContain(
 			JSON.stringify({ actualityId: PAGE_ACTUALITY, settings: SERVED_SETTINGS }),
 		);
+	});
+});
+
+describe("what a deployment's shu reads of itself", () => {
+	let stepper: ShuStepper;
+	let world: TWorld;
+
+	beforeEach(async () => {
+		stepper = new ShuStepper();
+		world = getDefaultWorld();
+		world.runtime[WEBSERVER] = fakeServer(
+			vi.fn(() => undefined),
+			["Read:public"],
+		);
+		await stepper.setWorld(world, []);
+		registerDomains(world, [[...(stepper.cycles.getConcerns().domains ?? []), commentDomainDefinition]]);
+	});
+
+	it("lists the path of each app it serves", async () => {
+		await stepper.steps.serveShuApp.action({ path: "/spa" });
+		expect((await stepper.steps.showShuApps.action()).products).toEqual({ apps: ["/spa"] });
+	});
+
+	it("lists the ontology the declarations state as a counted list of classes and link relations, which opens the class browser", async () => {
+		const read = await stepper.steps.showOntology.action();
+		const ontology = OntologyReadSchema.parse(read.products);
+		const comment = ontology.terms.find((term) => term.kind === ONTOLOGY_TERM.class && term.name === COMMENT_LABEL);
+		expect(comment, "a declared type is a class, with the link relation of each of its fields").toMatchObject({
+			kind: ONTOLOGY_TERM.class,
+			properties: { author: expect.any(String) },
+		});
+		expect(
+			ontology.terms.some((term) => term.kind === ONTOLOGY_TERM.property && term.name === LinkRelations.NARRATE.rel),
+			"and each link relation is a property",
+		).toBe(true);
+		expect(ontology.total).toBe(ontology.terms.length);
+		expect(world.domains[SHU_TAG.CLASS_BROWSER]?.ui?.component, "its products open in the class browser").toBe(SHU_TAG.CLASS_BROWSER);
+	});
+
+	it("states where its graph view placed each node, for the graph the store holds", async () => {
+		const read = await stepper.steps.getGraphLayout.action();
+		expect(read.ok, read.ok ? "" : read.errorMessage).toBe(true);
+		expect(read.products).toMatchObject({ nodes: expect.any(Array), edges: expect.any(Array), clusters: expect.any(Array) });
 	});
 });

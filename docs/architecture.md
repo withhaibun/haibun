@@ -326,10 +326,11 @@ A step is a general-purpose primitive, and a combination of primitives that a fe
 module ships its waypoints as a library, `@haibun/<module>/waypoints`: the module's `waypoints/backgrounds` directory, which its
 package.json exports as `./waypoints` and `./waypoints/*` and lists in `files`. Each background exports the heads it declares as
 functions, such as `testRuns.pass(where, seconds)` in `@haibun/cli/waypoints/backgrounds/test-runs.feature.ts`, and a feature
-imports them to state a head, so the head's text is written once. The libraries are `@haibun/logic/waypoints` (what the
-records of a feature's steps state), `@haibun/cli/waypoints` (test runs), `@haibun/web-playwright/waypoints` (web pages),
-`@haibun/web-server-hono/waypoints` (served files), `@haibun/shu/waypoints` (views) and, in spopg, `@haibun/spopg/waypoints`
-(mail). Core's steps don't hold a combination that features repeat, so core doesn't ship a library.
+imports them to state a head, so the head's text is written once. The libraries are `@haibun/core/waypoints` (actuality's
+declarations, such as `show shows`), `@haibun/logic/waypoints` (what the records of a feature's steps state), `@haibun/cli/waypoints`
+(test runs), `@haibun/web-playwright/waypoints` (web pages), `@haibun/web-server-hono/waypoints` (served files),
+`@haibun/shu/waypoints` (views, and the ontology) and, in spopg, `@haibun/spopg/waypoints` (mail). spopg's service names
+`@haibun/core/waypoints` and `@haibun/shu/waypoints` beside its own, so their heads are offered where its pages are.
 
 A group names a library by its package beside its own base, such as `haibun-cli -c tests/config.json tests,@haibun/shu/waypoints`,
 and an instance's launch names it after the instance's directory in the same way, such as `start a haibun instance from
@@ -348,7 +349,7 @@ doesn't serve RPC, since a served file carries the artifact policy while the ser
 A person finds a head where a step is found. The actions bar's step input lists each head with the steps, ranked as a step is,
 marked `waypoint · <library>`, where the library is the package whose background states it, the feature that states it, or
 `saved`, and choosing one opens the sentence form of `ensure <head>`, which is recorded and gated as every step is. The language
-server completes a head with the same mark, and `show steps matching {text} as "definition"` lists each head as a predicate whose `waypoint` names its library.
+server completes a head with the same mark, and `show step definitions` lists each head as a predicate whose `waypoint` names its library.
 
 Each repository holds its steps to three rules in `scripts/steps.test.ts`, with a baseline in `scripts/steps.baseline.json` that
 only shrinks: a step that starts or keeps something and doesn't return a product takes a parameter, a step has more than one call
@@ -357,7 +358,7 @@ that names the step; where a top-level constant names it, each read of the const
 call, as a page calls a step through the constant of its method. A family of steps that differ by one value is one step that
 takes the value, such as `use Authorization {scheme} header with {credentials}` and a scenario heading that starts with Pending.
 
-shu's `waypoints` base holds the waypoints of its views. Each head names the view whose page it reads by its tag, and each activity calls only web-playwright's steps within
+shu's `waypoints` base holds the waypoints of its views and of the ontology (`show the ontology of {term}`). Each head of a view names the view whose page it reads by its tag, and each activity calls only web-playwright's steps within
 that view, reading the view's accessible document and the test ids every view shares:
 
 ```gherkin
@@ -383,6 +384,27 @@ The graph's layout, camera and pointer invariants are unit tests of the scene's 
 browser, and what only a drawn frame shows, such as when the scene draws and where a pick lands, is an integration test of
 the page.
 
+
+### List combinators
+
+A read that returns a list returns it in its domain's shape, and its domain declares which array field is its list (`list`)
+and, for a list of records, the field of each item that states its time; the products state how many items there are and
+whether that count is a floor (`total` and `saturated`, `CountedFields`). Dispatch marks a step's products with the
+declaration (`_list`). A combinator is a step that proves the statement after its comma and makes something of the list the
+statement's last step returns, through the step's `transformsList`, and returns the products with that list in place:
+
+- `matching {text}, {statement}` keeps the items that hold the text in any of their values, without regard to case
+- `counting {statement}` returns the count without the items
+- `limited to {count}, {statement}` keeps the first items, with the count of the whole list
+- `ordered by {field}, {statement}` orders the items by a field they hold
+- `since {time}, {statement}` and `before {time}, {statement}` bound a list of records by each record's time, and refuse a list
+  whose items don't state one
+
+Combinators compose, such as `limited to 1, ordered by "method", matching "Haibun-show", show steps`. The reads of actuality's
+declarations are plain: `show steps` lists the steps a caller may call, `show step definitions` adds their schemas and the
+registry's predicates, and `show steppers` lists each stepper with its steps, as the CLI's `--show-steppers` prints them. A
+summary links its definition as `matching "<method>", show step definitions`. shu's `show ontology` lists the classes and the
+link relations the declarations state, as the class browser draws them, and its products open the class browser.
 
 ## Steppers
 

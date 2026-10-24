@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
+import { SHOW_STEP_DEFINITIONS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { findStep, getAvailableSteps, onStepsChanged } from "../controllers/registry-controller.js";
 import { setupShuTest, stepsChanged, stepsShown, type TShuTestHandle } from "../../test/setup.js";
 import { installMemoryDeviceStore } from "../client-cache/root.js";
@@ -29,7 +29,7 @@ describe("the steps a page holds", () => {
 
 	it("are read again when actuality signals its steps changed, and a view's listener is called once the page reads them", async () => {
 		let declared = [aStep("passes")];
-		handle = setupShuTest({ dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown(declared) : undefined) });
+		handle = setupShuTest({ dispatch: (method) => (method === SHOW_STEP_DEFINITIONS_METHOD ? stepsShown(declared) : undefined) });
 		expect(await methodsOf()).toEqual(["RunSteps-passes"]);
 		declared = [aStep("passes"), aStep("fails")];
 		const held = heldOnceItHolds("RunSteps-fails");
@@ -39,7 +39,7 @@ describe("the steps a page holds", () => {
 
 	it("are read again when the stream opens after the page began reading them, as it does after a break", async () => {
 		let declared = [aStep("passes")];
-		handle = setupShuTest({ dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown(declared) : undefined) });
+		handle = setupShuTest({ dispatch: (method) => (method === SHOW_STEP_DEFINITIONS_METHOD ? stepsShown(declared) : undefined) });
 		expect(await methodsOf()).toEqual(["RunSteps-passes"]);
 		const held = heldOnceItHolds("RunSteps-fails");
 		handle.eventStream.disconnect();
@@ -54,7 +54,7 @@ describe("the steps a page holds", () => {
 		let reads = 0;
 		handle = setupShuTest({
 			dispatch: (method) => {
-				if (method !== SHOW_STEPS_METHOD) return undefined;
+				if (method !== SHOW_STEP_DEFINITIONS_METHOD) return undefined;
 				const answer = stepsShown(declared);
 				// The second read is held until the test releases it, so actuality changes its steps while it is under way.
 				if (++reads !== 2) return answer;
@@ -76,7 +76,7 @@ describe("the steps a page holds", () => {
 		let reads = 0;
 		handle = setupShuTest({
 			dispatch: (method) => {
-				if (method !== SHOW_STEPS_METHOD) return undefined;
+				if (method !== SHOW_STEP_DEFINITIONS_METHOD) return undefined;
 				reads++;
 				return stepsShown([aStep("passes")]);
 			},

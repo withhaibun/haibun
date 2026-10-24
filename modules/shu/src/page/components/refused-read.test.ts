@@ -7,7 +7,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { Access, LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { RefusedCall, ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
-import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
+import { SHOW_STEP_DEFINITIONS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { catalogOf, declareRegistry } from "../../test/catalog-fixture.js";
 import { setupShuTest, stepsShown, type TShuTestHandle } from "../../test/setup.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
@@ -35,7 +35,7 @@ const SIGN_IN = { do: "sign-in", at: "https://example.org/sign-in" } as const;
  *  view opens. */
 function pageFailingReads(fail: (method: string) => never): TShuTestHandle {
 	provideLayout();
-	const handle = setupShuTest({ dispatch: (method) => (method === SHOW_STEPS_METHOD ? SHOWN : fail(method)) });
+	const handle = setupShuTest({ dispatch: (method) => (method === SHOW_STEP_DEFINITIONS_METHOD ? SHOWN : fail(method)) });
 	declareRegistry(SHOWN);
 	return handle;
 }

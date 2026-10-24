@@ -185,3 +185,14 @@ describe("what the bridge carries", () => {
 		expect(steps.recordClientBlips.read, "a recorded batch is a step whose events reach the page and repaint a scene that then records what it drew").toBe(true);
 	});
 });
+
+describe("what the page logs", () => {
+	it("is logged at the level the page states, its source before its message", () => {
+		const stepper = new MonitorStepper();
+		const logged: string[] = [];
+		const at = (level: string) => (message: string) => logged.push(`${level} ${message}`);
+		(stepper as unknown as { getWorld: () => unknown }).getWorld = () => ({ eventLogger: { warn: at("warn"), error: at("error"), debug: at("debug"), info: at("info") } });
+		for (const level of ["warn", "error", "debug", "info"] as const) stepper.steps.logClient.action({ event: { level, message: "the page said", source: "page" } });
+		expect(logged).toEqual(["warn [page] the page said", "error [page] the page said", "debug [page] the page said", "info [page] the page said"]);
+	});
+});

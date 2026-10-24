@@ -37,23 +37,25 @@ afterAll(async () => {
 });
 
 describe("load the browser extension at {where}", () => {
-	it("opens the extension's page at the origin its pinned key derives", { timeout: 60_000 }, async () => {
+	it("opens the extension's page at the origin its pinned key derives, and shows the extension", { timeout: 60_000 }, async () => {
 		const feature = [
 			`set extension from load the browser extension at "${EXTENSION}"`,
 			'compose page with "{extension.origin}/page.html"',
 			"go to the page webpage",
 			'see "a page of the test extension"',
+			"show the browser extension",
 		].join("\n");
 		const result = await passWithDefaults([{ path: "/features/load.feature", content: feature }], steppers, options);
 		expect(result.ok, JSON.stringify(result.featureResults?.[0]?.stepResults?.filter((step) => !step.ok))).toBe(true);
 	});
 
-	it("refuses an extension that doesn't pin a key, and one named after a page is open", { timeout: 60_000 }, async () => {
+	it("refuses an extension that doesn't pin a key, one named after a page is open, and a read of one that isn't loaded", { timeout: 60_000 }, async () => {
 		const refusedFor = async (lines: string[]) => {
 			const result = await failWithDefaults([{ path: "/features/refused.feature", content: lines.join("\n") }], steppers, options);
 			return (result.featureResults?.[0]?.stepResults?.find((step) => !step.ok) as { errorMessage?: string } | undefined)?.errorMessage;
 		};
 		expect(await refusedFor([`load the browser extension at "${unpinned}"`])).toMatch(/doesn't pin a key in its manifest/);
+		expect(await refusedFor(["show the browser extension"]), "and a read of an extension actuality hasn't loaded").toMatch(/hasn't loaded a browser extension/);
 		expect(await refusedFor([`go to the "file://${EXTENSION}/page.html" webpage`, `load the browser extension at "${EXTENSION}"`])).toMatch(/before any step opens a page/);
 	});
 });

@@ -33,6 +33,13 @@ describe("namedInterpolation regexes", () => {
 		expect(x?.groups?.t_0).toBe("this");
 		expect(x?.groups?.t_1).toBe("that");
 	});
+
+	test("ends a quoted term before a comma at the first quote the comma follows, so a statement after it keeps its own quoted terms", () => {
+		const r = new RegExp(`^${namedInterpolation("ordered by {field}, {statement}").regexPattern}$`);
+		const x = r.exec('ordered by "method", matching "Steps-", show steps');
+		expect(x?.groups?.q_0).toBe("method");
+		expect(x?.groups?.t_1).toBe('matching "Steps-", show steps');
+	});
 });
 
 describe("getNamedWithVars", () => {

@@ -9,7 +9,7 @@
  * `describeStorage` with its own factory and a writable directory.
  */
 import { describe, it, expect } from "vitest";
-import { CAPTURE, DEFAULT_DEST } from "@haibun/core/lib/domains/protocol.js";
+import { CAPTURE, DEFAULT_DEST, OK } from "@haibun/core/lib/domains/protocol.js";
 import { getDefaultWorld, getTestWorldWithOptions } from "@haibun/core/lib/test/lib.js";
 import { relative, resolve } from "path";
 import type { AStorage } from "../domains/storage.js";
@@ -68,6 +68,16 @@ export function describeStorage(name: string, make: () => AStorage, root: string
 			expect(storage.readFile(at("kept/under/here/a.key"), "utf-8")).toEqual("what is kept");
 			expect(() => storage.writePrivateFile(at("kept/under/here/a.key"), "another"), "writePrivateFile doesn't replace an existing file").toThrow();
 			expect(storage.readFile(at("kept/under/here/a.key"), "utf-8")).toEqual("what is kept");
+		});
+
+		it("states how many files a directory holds and the whole text of a file, and refuses a count or a text that differs", async () => {
+			const storage = make();
+			storage.mkdirp(at("counted"));
+			storage.writeFileBuffer(at("counted/one.txt"), Buffer.from("the whole text"));
+			expect(await storage.steps.filesCount.action({ where: at("counted"), count: 1 })).toEqual(OK);
+			expect(await storage.steps.filesCount.action({ where: at("counted"), count: 2 })).toMatchObject({ ok: false, errorMessage: `directory ${at("counted")} has 1 files` });
+			expect(storage.steps.testIs.action({ where: at("counted/one.txt"), what: "the whole text" })).toEqual(OK);
+			expect(storage.steps.testIs.action({ where: at("counted/one.txt"), what: "the whole" })).toMatchObject({ ok: false });
 		});
 
 		it("lists what a directory holds", async () => {

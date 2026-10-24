@@ -16,6 +16,8 @@ import { CONTEXT_DOCUMENT, SHU_TYPE, SHU_TAG } from "./domains/elements.js";
 import { DOMAIN_SHU_APPS, ShuAppsSchema } from "./domains/schemas.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { DOMAIN_ROUTE } from "@haibun/core/lib/domains/domains.js";
+import { ONTOLOGY_LIST, OntologyReadSchema } from "@haibun/core/lib/records/domains/ontology-read.js";
+import { ontologyRead } from "@haibun/core/lib/records/pipelines/ontology-records.js";
 import { labelFontResponse, servedBuild, servedPage } from "./pipelines/served-page.js";
 import { LABEL_FONT, LABEL_FONT_FALLBACK_ROUTES, LABEL_FONT_FALLBACKS, PAGE_ASSETS, PAGE_CHUNKS, POLYMORPHIC_VIEW_JS } from "./domains/serving.js";
 import { graphLayout } from "./pipelines/graph-source.js";
@@ -129,11 +131,12 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 					},
 				},
 				{
-					selectors: ["shu-class-browser"],
-					schema: z.object({}),
-					description: "Schema (class/property) browser over the live graph",
+					selectors: [SHU_TAG.CLASS_BROWSER],
+					schema: OntologyReadSchema,
+					list: ONTOLOGY_LIST,
+					description: "The ontology the declarations state, its classes and properties, which the class browser draws over the live graph",
 					ui: {
-						component: "shu-class-browser",
+						component: SHU_TAG.CLASS_BROWSER,
 						// Defined in the SAME bundle as the graph view: one served asset registers both.
 						js: POLYMORPHIC_VIEW_JS,
 						jsContent: servedBundles.whole(bundleFileName(BUNDLE_NAMES.polymorphic)),
@@ -203,6 +206,20 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			description: "Where this instance serves shu: the path of each app it mounted, which a reader opens under the instance's address.",
 			productsDomain: DOMAIN_SHU_APPS,
 			action: () => actionOKWithProducts({ apps: [...this.appPaths] }),
+		},
+		showOntology: {
+			read: true,
+			readsAt: Access.public,
+			gwta: "show ontology",
+			description:
+				"Lists the ontology the declarations state, as the class browser draws it and the JSON-LD context serves it: each class, with its superclasses and the link relation of each field and edge its type declares and the classes in an edge's range, and each link relation or standard term, with its IRI, its superproperties and the classes it connects. Narrow it with the matching combinator.",
+			productsDomain: SHU_TAG.CLASS_BROWSER,
+			// The ontology is the response; keeping it on the event too holds a second copy of every class and property per read.
+			retainProducts: false,
+			action: async () => {
+				const { domains, eventLogger } = this.getWorld();
+				return actionOKWithProducts(await ontologyRead(domains, (message: string) => eventLogger.warn(message)));
+			},
 		},
 		showViews: {
 			gwta: "show views",

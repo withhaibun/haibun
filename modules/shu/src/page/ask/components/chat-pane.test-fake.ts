@@ -9,7 +9,7 @@
 
 import { buildConcernCatalog, counted, type TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
-import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
+import { SHOW_STEP_DEFINITIONS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { CLIENT_LOG_METHOD } from "../../domains/page-calls.js";
 import { ASK_PARAM, CONVERSATION_DOMAIN, CONVERSATION_MODEL_CLASS, FILE_PARAM, SESSION_PARAM, type TSessionTurn } from "@haibun/core/lib/conversation/domains/conversation.js";
@@ -57,7 +57,7 @@ export function chatDispatch(
 		concerns,
 	);
 	return (method, params) => {
-		if (method === SHOW_STEPS_METHOD) return listed;
+		if (method === SHOW_STEP_DEFINITIONS_METHOD) return listed;
 		if (method === CLIENT_LOG_METHOD) return {};
 		const step = byMethod.get(method);
 		if (!step) throw new Error(`unexpected ${method}`);

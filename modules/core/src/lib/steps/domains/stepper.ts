@@ -8,6 +8,7 @@ import type { TOptionValue, TFeatures, TSourceLocation, TStepInput } from "../..
 import type { TSeqPath, TActionResult, TStepArgs, TStepValue, TStepResult, TFeatureResult, TExecutorResult, THaibunEvent, TProvenanceIdentifier } from "../../domains/protocol.js";
 import type { TCoercionSite, TDomainDefinition } from "../../domains/resources.js";
 import type { TStepReads } from "../../domains/actions.js";
+import type { TListing } from "../../domains/lists.js";
 import type { IQuadStore } from "../ports.js";
 import { constructorName } from "../../domains/util.js";
 import { DOMAIN_TITLE } from "../../domains/domains.js";
@@ -179,6 +180,12 @@ type TStepperStepBase = TStepReads & {
 	 * step names. The step doesn't name a domain of its own. Mutually exclusive with `productsDomain` and `productsDomains`.
 	 */
 	productsOf?: string;
+	/**
+	 * For a step that returns the products of its statement (`productsOf`), what it makes of the list those products hold, as
+	 * the domain of the statement's last step declares it. The step returns the products with that list in place of the list
+	 * it read, and refuses where the products don't hold a declared list or the listing refuses.
+	 */
+	transformsList?: TListing;
 	/**
 	 * Maps each parameter that names a record by its id (`record-id`) to the parameter that names the record's type
 	 * (`persisted-type` or `domain-key`). `get {label} {id}` declares `{ id: "label" }`. A step that takes two records

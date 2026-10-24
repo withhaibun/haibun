@@ -12,7 +12,7 @@ import { typeCollectionRemedy } from "../../domains/typed-links.js";
 import { getDefaultWorld } from "../../test/lib.js";
 import type { TWorld } from "../../actuality/domains/world.js";
 import type { TStepperStep } from "../domains/stepper.js";
-import { EVERY_DEFINITION, STEP_DETAIL, SHOW_STEPS_METHOD, StepDiscoverySchema } from "../domains/step-discovery.js";
+import { MATCHING_METHOD, SHOW_STEP_DEFINITIONS_LINE, SHOW_STEPS_LINE, STEP_DETAIL, StepDefinitionsSchema, StepSummariesSchema } from "../domains/step-discovery.js";
 import { RUN_AUTHORITY } from "../../domains/capability-context.js";
 
 /** A domain with date fields and a defaulted field. A persisted type's generatedAtTime is a defaulted date field. */
@@ -77,9 +77,8 @@ const remoteTool = (stepName: string, pattern: string, capability = `RemoteSteps
 
 /** The definitions shown to a caller holding `held`. `held` defaults to RUN_AUTHORITY. Actuality's own feature holds
  *  RUN_AUTHORITY, which allows every action. */
-const definitionsOf = (world: TWorld, registry: StepRegistry, text: string, held: string[] = RUN_AUTHORITY) =>
-	discoverSteps(world, registry, { text, detail: STEP_DETAIL.definition }, held);
-const summariesOf = (world: TWorld, registry: StepRegistry, text: string) => discoverSteps(world, registry, { text, detail: STEP_DETAIL.summary }, RUN_AUTHORITY);
+const definitionsOf = (world: TWorld, registry: StepRegistry, held: string[] = RUN_AUTHORITY) => discoverSteps(world, registry, STEP_DETAIL.definition, held);
+const summariesOf = (world: TWorld, registry: StepRegistry) => discoverSteps(world, registry, STEP_DETAIL.summary, RUN_AUTHORITY);
 
 describe("what a read of actuality's declarations shows", () => {
 	const emptyWorld = { domains: {}, runtime: {} } as unknown as TWorld;
@@ -87,7 +86,7 @@ describe("what a read of actuality's declarations shows", () => {
 	it("shows an injected step of another host under its host-scoped name, with that host's origin and a stepper name that includes the host", () => {
 		const registry = new StepRegistry([new LocalSteps()], emptyWorld);
 		registry.inject([remoteTool("listTyped", "list {domain: string}")]);
-		const shown = definitionsOf(emptyWorld, registry, "");
+		const shown = definitionsOf(emptyWorld, registry);
 		expect(shown.steps.find((step) => step.method === hostScopedMethodName(9, "RemoteSteps-listTyped"))).toMatchObject({
 			pattern: "list {domain: string}",
 			remoteOrigin: "http://localhost:8331",
@@ -103,13 +102,13 @@ describe("what a read of actuality's declarations shows", () => {
 		const registry = new StepRegistry([new LocalSteps()], emptyWorld);
 		registry.inject([remoteTool("write", "write {data}", "Remote:write"), remoteTool("read", "read {data}", "Read:private")]);
 		expect(
-			definitionsOf(emptyWorld, registry, "", ["Remote:write"]).steps.map((step) => step.capability),
+			definitionsOf(emptyWorld, registry, ["Remote:write"]).steps.map((step) => step.capability),
 			"one it holds, and doesn't show a step it may not call",
 		).toEqual(["Remote:write"]);
-		expect(definitionsOf(emptyWorld, registry, "", ["Read:opened"]).steps, "a narrower read doesn't allow a broader one").toEqual([]);
-		expect(definitionsOf(emptyWorld, registry, "", []).steps, "and a caller that doesn't hold an action isn't shown a step").toEqual([]);
+		expect(definitionsOf(emptyWorld, registry, ["Read:opened"]).steps, "a narrower read doesn't allow a broader one").toEqual([]);
+		expect(definitionsOf(emptyWorld, registry, []).steps, "and a caller that doesn't hold an action isn't shown a step").toEqual([]);
 		expect(
-			definitionsOf(emptyWorld, registry, "").steppers.map((entry) => entry.stepper),
+			definitionsOf(emptyWorld, registry).steppers.map((entry) => entry.stepper),
 			"actuality is shown every step",
 		).toEqual(["LocalSteps", "host9_RemoteSteps"]);
 	});
@@ -117,12 +116,12 @@ describe("what a read of actuality's declarations shows", () => {
 	it("shows a caller the predicates of the registry that the steps it may call prove, and precedes, and not a predicate of another host", () => {
 		const registry = new StepRegistry([new LocalSteps()], emptyWorld);
 		registry.inject([remoteTool("write", "write {data}", "Remote:write")]);
-		const named = (held: string[]) => definitionsOf(emptyWorld, registry, "", held).predicates.map(({ name }) => name);
+		const named = (held: string[]) => definitionsOf(emptyWorld, registry, held).predicates.map(({ name }) => name);
 		expect(named(RUN_AUTHORITY)).toEqual(["LocalSteps-passes", "precedes"]);
 		expect(named([]), "a caller that doesn't hold an action is shown precedes alone").toEqual(["precedes"]);
 	});
 
-	it("shows the steps and domains whose text contains the text without regard to case, and the steppers of the steps that matched", () => {
+	it("shows every step and domain as a counted list of steps, with the steppers of the steps and the links that read their steps and definitions", () => {
 		class ManySteps extends AStepper {
 			description = "steps that read and write records";
 			steps = {
@@ -138,38 +137,30 @@ describe("what a read of actuality's declarations shows", () => {
 			},
 		} as unknown as TWorld;
 		const registry = new StepRegistry([new ManySteps(), new LocalSteps()], world);
-		const byStepper = summariesOf(world, registry, "manysteps-");
-		expect(StepDiscoverySchema.parse(byStepper)).toEqual(byStepper);
-		expect(
-			byStepper.steps.map((step) => step.method),
-			"a stepper's name and a hyphen match its steps",
-		).toEqual(["ManySteps-readRecord", "ManySteps-writeRecord"]);
-		expect(byStepper.steppers, "with the stepper whose steps matched, how many matched, and the link that reads its steps").toEqual([
-			{
-				stepper: "ManySteps",
-				description: "steps that read and write records",
-				steps: 2,
-				_links: { steps: { method: SHOW_STEPS_METHOD, params: { text: "ManySteps-", detail: "summary" } } },
-			},
-		]);
-		expect(byStepper.steps[0], "a summary names the step, states what it does and links its definition").toEqual({
+		const summaries = summariesOf(world, registry);
+		expect(StepSummariesSchema.parse(summaries)).toEqual(summaries);
+		expect(summaries.steps.map((step) => step.method)).toEqual(["ManySteps-readRecord", "ManySteps-writeRecord", "LocalSteps-passes"]);
+		expect({ total: summaries.total, saturated: summaries.saturated }, "counted, and the count is the whole list").toEqual({ total: 3, saturated: false });
+		expect(summaries.steppers[0], "with each stepper, how many of its steps there are, and the link that reads its steps").toEqual({
+			stepper: "ManySteps",
+			description: "steps that read and write records",
+			steps: 2,
+			_links: { steps: { method: MATCHING_METHOD, params: { text: "ManySteps-", statement: SHOW_STEPS_LINE } } },
+		});
+		expect(summaries.steps[0], "a summary names the step, states what it does and links its definition").toEqual({
 			method: "ManySteps-readRecord",
 			stepperName: "ManySteps",
 			pattern: "read record {id: record-key}",
 			description: "Reads one record.",
 			capability: "ManySteps:readRecord",
-			_links: { definition: { method: SHOW_STEPS_METHOD, params: { text: "ManySteps-readRecord", detail: "definition" } } },
+			_links: { definition: { method: MATCHING_METHOD, params: { text: "ManySteps-readRecord", statement: SHOW_STEP_DEFINITIONS_LINE } } },
 		});
-		const defined = definitionsOf(world, registry, "reads ONE");
-		expect(StepDiscoverySchema.parse(defined)).toEqual(defined);
-		expect(
-			defined.steps.map((step) => step.method),
-			"a step's description is matched without regard to case",
-		).toEqual(["ManySteps-readRecord"]);
+		expect(Object.keys(summaries.domains), "every domain").toEqual(["record-key", "colour"]);
+		const defined = definitionsOf(world, registry);
+		expect(StepDefinitionsSchema.parse(defined)).toEqual(defined);
 		const [readRecord] = defined.steps;
 		expect(readRecord?._links.call, "and a definition links the step's call").toEqual({ method: "ManySteps-readRecord" });
 		expect(readRecord?.inputSchema.required, "with the schema of its arguments").toEqual(["id"]);
-		expect(Object.keys(summariesOf(world, registry, "record").domains), "a domain is matched by its name or description").toEqual(["record-key"]);
 		expect(
 			steppersOf(registry.descriptors()).map((entry) => [entry.stepper, entry.steps]),
 			"and actuality's steppers are every stepper with every step",
@@ -230,7 +221,7 @@ describe("what the manifest states about a domain", () => {
 				},
 			},
 		} as unknown as TWorld;
-		const manifest = discoverSteps(world, new StepRegistry([], world), EVERY_DEFINITION, RUN_AUTHORITY);
+		const manifest = definitionsOf(world, new StepRegistry([], world));
 		expect(manifest.domains["x-viewer"]?.ui).toEqual({ component: "x-viewer", js: "/assets/x-viewer.js" });
 	});
 });

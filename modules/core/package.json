@@ -66,9 +66,11 @@
 		"./lib/jsonld-loader.js": { "haibun-source": "./src/lib/domains/jsonld-loader.js", "default": "./build/lib/domains/jsonld-loader.js" },
 		"./lib/session-authority.js": { "haibun-source": "./src/lib/domains/session-authority.js", "default": "./build/lib/domains/session-authority.js" },
 		"./lib/urakata.js": { "haibun-source": "./src/lib/domains/urakata.js", "default": "./build/lib/domains/urakata.js" },
+		"./waypoints": "./waypoints",
+		"./waypoints/*": "./waypoints/*",
 		"./*": { "haibun-source": "./src/*", "default": "./build/*" }
 	},
-	"files": ["build/**", "haibun-core-specl.schema.json"],
+	"files": ["build/**", "haibun-core-specl.schema.json", "waypoints/**"],
 	"scripts": {
 		"test": "vitest run",
 		"coverage": "vitest --coverage",

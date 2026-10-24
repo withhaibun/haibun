@@ -12,7 +12,8 @@ import { actualityEnded, actualityMachine } from "@haibun/core/lib/actuality/mac
 import type { IHasOptions } from "@haibun/core/lib/astepper.js";
 import { resolveSitePrincipal } from "@haibun/core/lib/domains/host-id.js";
 import { holdModuleOptions } from "@haibun/core/lib/held-module-options.js";
-import { formattedSteppers, getPre, getDefaultOptions, basesFrom, verifyRequiredOptions, verifyExtraOptions, errorDetail, createSteppers } from "@haibun/core/lib/domains/util.js";
+import { listedSteppers } from "@haibun/core/lib/steps/pipelines/discover-steps.js";
+import { getPre, getDefaultOptions, basesFrom, verifyRequiredOptions, verifyExtraOptions, errorDetail, createSteppers } from "@haibun/core/lib/domains/util.js";
 import { BaseOptions, processBaseEnvToOptionsAndErrors } from "../domains/base-options.js";
 import type { TFileSystem } from "@haibun/core/lib/adapters/workspace-lib.js";
 import { getDefaultTag } from "@haibun/core/lib/domains/ttag.js";
@@ -142,8 +143,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv, ports: TCli
 }
 
 async function showSteppersAndExit(specl: TSpecl, steppers: TCliPorts["steppers"]) {
-	const allSteppers = formattedSteppers(createSteppers(await steppers(specl.steppers)));
-	console.info("Steppers:", JSON.stringify(allSteppers, null, 2));
+	console.info("Steppers:", JSON.stringify(listedSteppers(createSteppers(await steppers(specl.steppers))), null, 2));
 	console.info(
 		"Write each step as the text after its name. Quote a literal for a {placeholder}, or name a variable that a set step or the environment defines.\nStart a prose line with a capital letter and end it with one of [.!?:;]. ",
 	);

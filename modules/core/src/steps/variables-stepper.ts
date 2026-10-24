@@ -38,7 +38,7 @@ import {
 } from "../lib/domains/domains.js";
 import { fromJsonText } from "../lib/domains/json-text.js";
 import { typeCollectionRemedy } from "../lib/domains/typed-links.js";
-import { HypermediaContextSchema, hypermediaDomainFromContext, type THypermediaContext } from "../lib/domains/hypermedia.js";
+import { counted, CountedFields, HypermediaContextSchema, hypermediaDomainFromContext, type THypermediaContext } from "../lib/domains/hypermedia.js";
 import { AccessLevelSchema, edgeRanges, isPersisted, REL_CONTEXT, LinkRelations, type TRel, type TRegisteredDomain, type TDomainDefinition } from "../lib/domains/resources.js";
 
 const clearVars = (vars: VariablesStepper) => async () => {
@@ -64,6 +64,7 @@ const DomainsSnapshotSchema = z.object({
 			_edges: z.array(DomainEdgeSchema).optional(),
 		}),
 	),
+	...CountedFields,
 });
 const DomainSnapshotSchema = z.object({
 	domain: z.string(),
@@ -104,7 +105,13 @@ const cycles = (variablesStepper: VariablesStepper): IStepperCycles => ({
 		domains: [
 			{ selectors: [DOMAIN_VARS_SNAPSHOT], schema: VarsSnapshotSchema, description: "Snapshot of feature variables", ui: { summary: varsSummary } },
 			{ selectors: [DOMAIN_VAR_SNAPSHOT], schema: VarSnapshotSchema, description: "Snapshot of a single variable", ui: { summary: varSummary } },
-			{ selectors: [DOMAIN_DOMAINS_SNAPSHOT], schema: DomainsSnapshotSchema, description: "Snapshot of every registered domain", ui: { summary: domainsSummary } },
+			{
+				selectors: [DOMAIN_DOMAINS_SNAPSHOT],
+				schema: DomainsSnapshotSchema,
+				list: { items: "items" },
+				description: "Snapshot of every registered domain",
+				ui: { summary: domainsSummary },
+			},
 			{ selectors: [DOMAIN_DOMAIN_SNAPSHOT], schema: DomainSnapshotSchema, description: "Snapshot of a registered domain and its members", ui: { summary: domainSummary } },
 		],
 	}),
@@ -367,7 +374,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 						...(_edges.length ? { _edges } : {}),
 					};
 				});
-				return actionOKWithProducts({ items });
+				return actionOKWithProducts({ items, ...counted(items.length) });
 			},
 		},
 		showDomain: {

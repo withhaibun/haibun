@@ -23,18 +23,28 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "The affordances on offer read the same rules" }),
 		"Essential, for the affordances panel. Source: pipelines/goals.ts, affordancesAt.",
 		"show affordances",
+		"The same affordances read over the facts that held at an earlier step, as a step records them and as a page reads them.",
+		'show affordances as of "0.1"',
+		'affordances on offer as of "0.1"',
 
 		scenario({ scenario: "A model's tool call and a line reach the same term" }),
 		`Essential, for a model and the page. Source: docs/reasoner.md, For a model.
 		Done for the record: a call writes one SeqPath record, which holds the call's parameters and result, the model and the ask of its turn, its delegation and the read level it ran under (step-records.ts). spopg's ToolCall record is gone, and spopg's update writes each stored ToolCall into its step record.`,
 		'the call "VariablesStepper-set" with {"what": "x", "value": "1"} is the line "set x to \\"1\\""',
 
-		scenario({ scenario: "Show steps lists the registry's predicates, and a domain's membership is member_of" }),
+		scenario({ scenario: "The step definitions list the registry's predicates, and a domain's membership is member_of" }),
 		"Essential, for a model and a person writing a formula. Source: predicate-registry.ts and discover-steps.ts.",
-		'set shown from show steps matching "member_of" as "definition"',
-		'variable shown.predicates.0.name is "member_of"',
-		'variable shown.predicates.0.method is "VariablesStepper-isIn"',
+		"set shown from show step definitions",
+		'matches shown.predicates with "*\\"name\\":\\"member_of\\"*\\"method\\":\\"VariablesStepper-isIn\\"*"',
 		'set membership from the line "\\"soup\\" is in courses" renders from its term as written',
 		"matches membership.term with \"'member_of'(*\"",
+
+		scenario({ scenario: "A list a read returns is narrowed, ordered, limited and counted by combinators that compose with the read" }),
+		"Essential, for a person, a model and the page reading a list. Source: domains/lists.ts and the combinators of haibun-stepper.ts.",
+		'set first from limited to 1, ordered by "method", matching "Haibun-show", show steps',
+		'variable first.steps.0.method is "Haibun-showStepDefinitions"',
+		"set counted from counting show steppers",
+		'variable counted.total is more than "3"',
+		"show shows",
 	],
 };

@@ -47,10 +47,14 @@ function groupOf(origin: TOrigin, matchIndex: number, nextChar: string): string 
 	if (origin === Origin.quoted) return `"(?<${TYPE_QUOTED}${matchIndex}>.*)"`;
 	// A bare literal may contain whitespace, and a quoted span inside it is atomic: `"foo with bar"` doesn't contribute its
 	// internal ` ` or `"` as a split point. A placeholder before a comma or a colon ends at that character.
-	const bare = nextChar === "," || nextChar === ":" ? `(?:[^"]|"[^"]*")+?(?=${nextChar.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})` : `(?:[^"]|"[^"]*")+?`;
+	const ends = nextChar === "," || nextChar === ":";
+	const bare = ends ? `(?:[^"]|"[^"]*")+?(?=${nextChar.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})` : `(?:[^"]|"[^"]*")+?`;
+	// A quoted term before a comma or a colon ends at the first quote that the character follows, so a statement after the
+	// comma that quotes terms of its own, as a combinator's does, isn't read into the term.
+	const quoted = ends ? ".*?" : ".*";
 	// A plain placeholder accepts several syntaxes, each captured into a distinct named group, so a match states whether the
 	// value was quoted, backticked or a bare literal.
-	return `(?:"(?<${TYPE_QUOTED}${matchIndex}>.*)"|\`(?<${TYPE_VAR}${matchIndex}>.+)\`|(?<${TYPE_ENV_OR_VAR_OR_LITERAL}${matchIndex}>${bare}))`;
+	return `(?:"(?<${TYPE_QUOTED}${matchIndex}>${quoted})"|\`(?<${TYPE_VAR}${matchIndex}>.+)\`|(?<${TYPE_ENV_OR_VAR_OR_LITERAL}${matchIndex}>${bare}))`;
 }
 
 /** Interpolates a phrase into its pattern. Throws for a placeholder without its closing brace. */

@@ -36,6 +36,8 @@ export function stepDeclaration(stepper: AStepper, stepName: string, stepDef: TS
 	const { inputSchema, paramDomainKeys } = inputSchemaOf(step, stepDef, world);
 	if (stepDef.productsOf !== undefined && paramDomainKeys.get(stepDef.productsOf) !== DOMAIN_STATEMENT)
 		throw new Error(`${step}: productsOf names {${stepDef.productsOf}}, which isn't a statement its phrase takes`);
+	if (stepDef.transformsList !== undefined && stepDef.productsOf === undefined)
+		throw new Error(`${step}: transformsList makes something of its statement's list, so state the statement in productsOf`);
 	assertRecordPairings(step, stepDef, paramDomainKeys);
 	const outputSchema = resolveOutputSchema(stepperName, stepName, stepDef, world);
 	const descriptor: TStepDescriptor = {

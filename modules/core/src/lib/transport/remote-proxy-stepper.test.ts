@@ -92,7 +92,7 @@ describe("RemoteStepperProxy", () => {
 		const authority = new SessionAuthority(actualityClock());
 		authority.registerInvoker(new FakeInvoker("proxy"));
 		(world.runtime.keys ??= {})[AUTHORITY_KEY] = authority;
-		// The host serves its declarations through the show steps step and dispatches that step like any other.
+		// The host serves its declarations through the read of its step definitions and dispatches that step like any other.
 		const hosted = [new EchoStepper(), new Haibun()];
 		for (const stepper of hosted) await stepper.setWorld(world, hosted);
 		addStepperConcerns(world, hosted);
@@ -220,7 +220,7 @@ describe("RemoteStepperProxy", () => {
 		}
 		expect(presented.get("EchoStepper-protectedPing")).toBe('fake action="EchoStepper:admin"');
 		expect(presented.get("EchoStepper-echo")).toBe('fake action="EchoStepper:echo"');
-		expect(presented.get("Haibun-showSteps"), "the host shows the steps the proxy holds there").toBe('fake action="Read:public"');
+		expect(presented.get("Haibun-showStepDefinitions"), "the host shows the steps the proxy holds there").toBe('fake action="Read:public"');
 		expect(presented.get(ACTION_BEGIN), "and the handshake doesn't require an action").toBeUndefined();
 	});
 });

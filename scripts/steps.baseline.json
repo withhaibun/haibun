@@ -55,7 +55,6 @@
 	},
 	"modules/logic/src/logic-stepper.ts": {
 		"has at most one call site: LogicStepper.advanceWalk": 1,
-		"has at most one call site: LogicStepper.affordancesOnOfferAsOf": 1,
 		"has at most one call site: LogicStepper.showAffordancesAsOf": 1,
 		"has at most one call site: LogicStepper.showDomainChainLint": 1,
 		"has at most one call site: LogicStepper.walkToward": 1
@@ -88,7 +87,6 @@
 		"has at most one call site: WebPlaywright.captureDialog": 1,
 		"has at most one call site: WebPlaywright.closeBrowserTab": 1,
 		"has at most one call site: WebPlaywright.connectToBrowser": 1,
-		"has at most one call site: WebPlaywright.currentTabIs": 1,
 		"has at most one call site: WebPlaywright.expectDownload": 1,
 		"has at most one call site: WebPlaywright.goBack": 1,
 		"has at most one call site: WebPlaywright.hoverOver": 1,

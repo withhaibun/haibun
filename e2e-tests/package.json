@@ -16,7 +16,7 @@
 		"test:capability": "HAIBUN_KEY=test haibun-cli capability",
 		"test:shu-self-test": "HAIBUN_ENV=shu_test_password=ISECRET_shu_test haibun-cli shu-self-test,@haibun/web-playwright/waypoints",
 		"test": "npm run test:tests && npm run test:capability && npm run test:run-policy && npm run test:shu-self-test",
-		"test:requirements": "HAIBUN_CONTINUE_AFTER_ERROR=true haibun-cli requirements,@haibun/cli/waypoints,@haibun/logic/waypoints",
+		"test:requirements": "HAIBUN_CONTINUE_AFTER_ERROR=true haibun-cli requirements,@haibun/cli/waypoints,@haibun/logic/waypoints,@haibun/core/waypoints",
 		"test-debug": "npm run test:tests -- --with-steppers=debugger-stepper",
 		"test-narrator": "npm run test:tests -- --with-steppers=narrator-stepper",
 		"help": "npm run test -- --help",

@@ -28,7 +28,7 @@ import WebServerStepper from "./web-server-stepper.js";
 import { WEBSERVER } from "./domains/web-server.js";
 import type { IWebServer } from "./ports.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
-import { EVERY_DEFINITION, SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, type TStepDefinition } from "@haibun/core/lib/step-discovery.js";
+import { SHOW_STEP_DEFINITIONS_METHOD, SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, STEP_DETAIL, type TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { readShownSteps } from "@haibun/core/lib/step-discovery.js";
 import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import { streamContext, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
@@ -92,11 +92,11 @@ async function rpcBody(url: string, fields: { method: string } & Record<string, 
 
 /** The steps a read of actuality's declarations at `url` shows, signed by `holder` where one is named. */
 async function shownSteps(url: string, holder?: string): Promise<TStepDefinition[]> {
-	const body = await rpcBody(url, { method: SHOW_STEPS_METHOD, params: EVERY_DEFINITION, asks: "read" });
+	const body = await rpcBody(url, { method: SHOW_STEP_DEFINITIONS_METHOD, asks: "read" });
 	const headers = { "content-type": "application/json" };
 	const res = await fetch(url, { method: "POST", headers: holder ? await new FakeInvoker(holder).sign({ method: "POST", url, headers, body }, SHOW_STEPS_ACTION) : headers, body });
 	if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-	return readShownSteps(await res.json(), EVERY_DEFINITION.detail).steps;
+	return readShownSteps(await res.json(), STEP_DETAIL.definition).steps;
 }
 
 /** A call to `method` at `url`, signed by `holder` for `action` where a holder is named, requesting a read at `readingAt`
@@ -415,7 +415,7 @@ class RpcVerifyStepper extends AStepper {
 				const res = await fetch(String(url), {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ type: "rpc", id: "1", method: SHOW_STEPS_METHOD, params: EVERY_DEFINITION }),
+					body: JSON.stringify({ type: "rpc", id: "1", method: SHOW_STEPS_METHOD, params: {} }),
 				});
 				const data = await res.json();
 				// The old format doesn't parse as a JSON-RPC 2.0 request, so it is refused and a handler doesn't process it.
@@ -775,7 +775,7 @@ rpc old format to "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" is not dis
 			content: `
 webserver is listening for "rpc-shown-steps"
 accept authority from "agent" for "PingStepper:protected,Read:public"
-steps shown at "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" to "agent" include "PingStepper-protectedPing" and not "PingStepper-adminPing"
+steps shown at "http://localhost:${port}/rpc/${SHOW_STEP_DEFINITIONS_METHOD}" to "agent" include "PingStepper-protectedPing" and not "PingStepper-adminPing"
 rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "PingStepper-adminPing" is denied for capability "PingStepper:admin" when signed by "agent" for "PingStepper:protected"
 `,
 		};
@@ -805,7 +805,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 			content: `
 webserver is listening for "rpc-injected"
 inject a step into actuality's registry
-steps shown at "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" presenting nothing include "Injected-ping"
+steps shown at "http://localhost:${port}/rpc/${SHOW_STEP_DEFINITIONS_METHOD}" presenting nothing include "Injected-ping"
 rpc call to "http://localhost:${port}/rpc/Injected-ping" with method "Injected-ping" succeeds
 `,
 		};

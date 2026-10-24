@@ -6,7 +6,7 @@ import { ShuEntityColumn } from "./shu-entity-column.js";
 import { installServedConduit } from "../root.js";
 import { installCarriedEventStream } from "../root.js";
 import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
-import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
+import { SHOW_STEP_DEFINITIONS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { ENTITY_STEP_LIST, serveThePage, newPage } from "../../test/setup.js";
 
 describe("shu-entity-column error surfacing", () => {
@@ -22,7 +22,7 @@ describe("shu-entity-column error surfacing", () => {
 		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
 			if (url.endsWith(HANDSHAKE_PATH)) return Promise.resolve(rpcAnswer({ seqPath: [0, -1, 1] }, 200));
-			if (url.endsWith(`/rpc/${SHOW_STEPS_METHOD}`)) return Promise.resolve(rpcAnswer(ENTITY_STEP_LIST, 200));
+			if (url.endsWith(`/rpc/${SHOW_STEP_DEFINITIONS_METHOD}`)) return Promise.resolve(rpcAnswer(ENTITY_STEP_LIST, 200));
 			if (url.includes("getIndividualWithEdges")) {
 				return Promise.resolve(rpcAnswer({ error: "Issuer not found: did:example:pookie" }, 422));
 			}

@@ -1578,8 +1578,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private embedScope?: { focusType: string; revealed: boolean };
 
 	/** Embedded mount (the host forwards a product's focusType): scope the view to the SCHEMA, only the Class + Property
-	 *  chips visible, and frame it once it settles. The host controls the filter, so the reveal is emitted as
-	 *  graph-scope-revealed; this owns only the camera. */
+	 *  chips visible, and frame it once it settles, around the focus type's node or, for an empty focus, the whole schema.
+	 *  The host controls the filter, so the reveal is emitted as graph-scope-revealed; this owns only the camera. */
 	scopeToType(focusType: string): void {
 		this.embedScope = { focusType, revealed: false };
 		this.applyEmbedScope();
@@ -1596,7 +1596,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			this.dispatchEvent(new CustomEvent(GRAPH_SCENE_EVENT.SCOPE_REVEALED, { detail: { types: schemaTypes() }, bubbles: true, composed: true }));
 			return;
 		}
-		if (!this.nodeMap.has(scope.focusType)) return;
+		if (scope.focusType !== "" && !this.nodeMap.has(scope.focusType)) return;
 		this.embedScope = undefined;
 		// Queued, not framed here: this runs on a repaint, with the feed's nodes still piled at the origin, so framing now
 		// fits a bounding box barely bigger than one node and leaves the camera right over it. The camera applies a

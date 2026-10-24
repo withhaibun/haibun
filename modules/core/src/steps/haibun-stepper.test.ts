@@ -8,11 +8,13 @@ import VariablesSteppers from "./variables-stepper.js";
 import { ActivitiesStepper } from "./activities-stepper.js";
 import { AStepper } from "../lib/steps/domains/stepper.js";
 import { actionOK } from "../lib/domains/util.js";
+import { listedSteppers } from "../lib/steps/pipelines/discover-steps.js";
 import { itemAt } from "../lib/domains/item-at.js";
 import { hostScopedMethodName } from "../lib/steps/domains/step-method.js";
 import { runRegistry, type StepRegistry } from "../lib/steps/pipelines/step-registry.js";
-import { STEPS_CHANGED, type THaibunEvent } from "../lib/domains/protocol.js";
-import { STEP_DETAIL, type TStepDefinitions } from "../lib/steps/domains/step-discovery.js";
+import { productData, STEPS_CHANGED, type THaibunEvent } from "../lib/domains/protocol.js";
+import { STEP_DETAIL } from "../lib/steps/domains/step-discovery.js";
+import { SteppersSchema } from "../lib/steps/domains/steppers.js";
 import { readShownSteps } from "../lib/steps/domains/step-discovery.js";
 import type { TStepResult } from "../lib/domains/protocol.js";
 import { validateStep } from "../lib/pipelines/step-validation.js";
@@ -145,18 +147,51 @@ describe("the steps actuality holds", () => {
 	});
 });
 
+/** The products of the step a feature's line ran. */
+function productsOfLine(result: { world: { runtime: { stepResults?: unknown } } }, line: string): Record<string, unknown> {
+	const products = (result.world.runtime.stepResults as TStepResult[]).find((stepResult) => stepResult.in === line)?.products;
+	if (products === undefined) throw new Error(`the line ${line} didn't return products`);
+	return products;
+}
+
 describe("show steps", () => {
-	it("shows actuality's steps whose method, pattern or description contains the text a feature line gives", async () => {
-		const feature = { path: "/features/test.feature", content: 'show steps matching "testsTEPS-passes" as "definition"' };
+	it("shows the definitions of actuality's steps, which the matching combinator narrows to the steps that hold its text", async () => {
+		const feature = { path: "/features/test.feature", content: 'matching "testsTEPS-passes", show step definitions' };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
-		const discovery = (result.world.runtime.stepResults as TStepResult[])
-			.map((stepResult) => stepResult.products as TStepDefinitions | undefined)
-			.find((products) => products?.steppers !== undefined);
-		if (!discovery) throw new Error("Expected a read of the steps");
+		const discovery = readShownSteps(productsOfLine(result, feature.content), STEP_DETAIL.definition);
 		expect(discovery.steps.map((step) => step.method)).toEqual(["TestSteps-passes"]);
+		expect(discovery.total, "counted as narrowed").toBe(1);
 		expect(itemAt(discovery.steps, 0)._links.call).toEqual({ method: "TestSteps-passes" });
-		expect(discovery.steppers.map((entry) => entry.stepper)).toEqual(["TestSteps"]);
+	});
+
+	it("lists every step's summary, and every stepper with its steps as the CLI's --show-steppers prints them", async () => {
+		const feature = { path: "/features/test.feature", content: "show steps\nshow steppers" };
+		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
+		expect(result.ok).toBe(true);
+		const summaries = readShownSteps(productsOfLine(result, "show steps"), STEP_DETAIL.summary);
+		expect(summaries.steps.map((step) => step.method)).toContain("TestSteps-passes");
+		expect(summaries.total).toBe(summaries.steps.length);
+		const steppers = SteppersSchema.parse(productData(productsOfLine(result, "show steppers")));
+		expect(steppers).toEqual(listedSteppers(result.world.runtime.steppers ?? []));
+		expect(steppers.steppers.find(({ stepper }) => stepper === "TestSteps")?.steps).toContain("passes: passes");
+	});
+
+	it("counts, limits and orders a statement's list, and refuses to bound by time a list whose items don't state one", async () => {
+		const lines = ['counting matching "TestSteps-", show steps', 'limited to 1, ordered by "method", matching "TestSteps-", show steps', 'since "2026-01-01", show steps'];
+		const result = await failWithDefaults([{ path: "/features/test.feature", content: lines.join("\n") }], [Haibun, TestSteps]);
+		const counted = readShownSteps(productsOfLine(result, itemAt(lines, 0)), STEP_DETAIL.summary);
+		expect({ steps: counted.steps, total: counted.total }, "a count without the items").toEqual({ steps: [], total: Object.keys(new TestSteps().steps).length });
+		const limited = readShownSteps(productsOfLine(result, itemAt(lines, 1)), STEP_DETAIL.summary);
+		const methods = Object.keys(new TestSteps().steps)
+			.map((key) => `TestSteps-${key}`)
+			.sort();
+		expect(
+			limited.steps.map((step) => step.method),
+			"the first of the ordered list, with the count of the whole",
+		).toEqual([methods[0]]);
+		expect(limited.total).toBe(methods.length);
+		expect(result.failure?.error.message).toContain("doesn't state a time for its items");
 	});
 
 	it("shows the steps a principal holds to a caller that acts for that principal and holds less", async () => {
@@ -168,9 +203,9 @@ describe("show steps", () => {
 					gwta: "list steps for another",
 					action: async () => {
 						const haibun = this.getWorld().runtime.steppers?.find((stepper) => stepper instanceof Haibun) as Haibun;
-						const list = async () => readShownSteps((await haibun.steps.showSteps.action({ text: "TestSteps-passes", detail: STEP_DETAIL.summary })).products, STEP_DETAIL.summary);
+						const list = async () => readShownSteps((await haibun.steps.showSteps.action()).products, STEP_DETAIL.summary);
 						for (const listed of [await runAuthorizedWith(["Read:public"], list), await runShowing(RUN_AUTHORITY, () => runAuthorizedWith(["Read:public"], list))])
-							shown.push(listed.steps.map((step) => step.method));
+							shown.push(listed.steps.map((step) => step.method).filter((method) => method === "TestSteps-passes"));
 						return actionOK();
 					},
 				},

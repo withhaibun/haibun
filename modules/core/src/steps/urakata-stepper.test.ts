@@ -39,12 +39,12 @@ class TickHarnessStepper extends AStepper {
 }
 
 describe("urakata-stepper", () => {
-	it("`stop urakata` stops a ticker by the id that another stepper's step returns as a product", async () => {
-		const result = await passWithDefaults(
-			[{ path: "/features/main.feature", content: ["set t from start tick", 'pause for "30 ms"', "stop urakata t.id", 'pause for "30 ms"'].join("\n") }],
-			[VariablesStepper, Haibun, UrakataStepper, TickHarnessStepper],
-			{ options: { DEST: "default" }, moduleOptions: {} },
-		);
+	it("`stop urakata` stops a ticker by the id that another stepper's step returns as a product, which runs until then", async () => {
+		const lines = ["set t from start tick", "urakata is running t.id", 'pause for "30 ms"', "stop urakata t.id", "not urakata is running t.id", 'pause for "30 ms"'];
+		const result = await passWithDefaults([{ path: "/features/main.feature", content: lines.join("\n") }], [VariablesStepper, Haibun, UrakataStepper, TickHarnessStepper], {
+			options: { DEST: "default" },
+			moduleOptions: {},
+		});
 		expect(result.ok).toBe(true);
 		const harness = result.world.runtime.steppers?.find((s): s is TickHarnessStepper => s instanceof TickHarnessStepper);
 		expect(harness).toBeDefined();

@@ -4,7 +4,7 @@
  */
 import { jsonSchemaFor } from "../../domains/json-schema-of.js";
 import type { TWorld } from "../../actuality/domains/world.js";
-import { buildConcernCatalog } from "../../domains/hypermedia.js";
+import { buildConcernCatalog, counted } from "../../domains/hypermedia.js";
 import { HYPERMEDIA } from "../../domains/protocol.js";
 import { isPersisted, type TRegisteredDomain } from "../../domains/resources.js";
 import {
@@ -12,14 +12,17 @@ import {
 	type TDomainDiscoveryInfo,
 	type TStepDefinitions,
 	type TStepDescriptor,
+	type TStepDetail,
 	type TStepSummaries,
 	type TStepperSummary,
-	type TStepsQuery,
 } from "../domains/step-discovery.js";
 import { hostOfMethodName, hostScopedMethodName } from "../domains/step-method.js";
-import { containsText, domainSummary, stepDefinition, stepSummary, stepperStepsLink } from "../domains/step-discovery.js";
+import { domainSummary, stepDefinition, stepSummary, stepperStepsLink } from "../domains/step-discovery.js";
 import { heldPerEntries, recordEntries } from "../derivations/held-per-entries.js";
 import type { StepRegistry } from "./step-registry.js";
+import { constructorName } from "../../domains/util.js";
+import type { AStepper } from "../domains/stepper.js";
+import type { TSteppers } from "../domains/steppers.js";
 import { predicatesOf } from "../derivations/predicate-registry.js";
 
 /** The concern catalog of a set of registered domains, built again only where a domain is added or replaced. */
@@ -28,7 +31,7 @@ export const concernCatalogOf = heldPerEntries(recordEntries, (domains: Record<s
 /** Each stepper that the steps name, in the order the steps name them. Each entry holds the stepper's description, the
  *  number of its steps in `steps` and the link that reads the summaries of its steps. A stepper that another host declares
  *  is named with that host's prefix. steppersOf returns every stepper of actuality when it reads every step of a
- *  registry. discoverSteps returns this list with the steps that matched. */
+ *  registry. discoverSteps returns this list with the steps. */
 export function steppersOf(steps: TStepDescriptor[]): TStepperSummary[] {
 	const byStepper = new Map<string, TStepperSummary>();
 	for (const step of steps) {
@@ -42,59 +45,35 @@ export function steppersOf(steps: TStepDescriptor[]): TStepperSummary[] {
 }
 
 /**
- * What actuality declares to a caller. The result holds each step and each domain whose text contains the query's text,
- * compared without regard to case. It also holds the steppers of the matched steps. A step's texts are its method, its
- * pattern and its description, so a stepper's name and a hyphen match that stepper's steps. A domain's texts are its
- * name and its description.
- *
- * A step is shown only to a caller that holds the action it requires, so a caller isn't shown a step it may not call.
- * Every matching domain is shown whatever the caller holds, since a record can't be read without the declaration of its
- * type. The registry is actuality's registry, which holds the steps a transport injected.
+ * What actuality declares to a caller at a detail: each step the caller may call, the steppers of those steps and every
+ * domain, with the concern catalog and the registry's predicates at the definition detail, as a counted list of steps. A
+ * step is shown only to a caller that holds the action it requires, so a caller isn't shown a step it may not call. Every
+ * domain is shown whatever the caller holds, since a record can't be read without the declaration of its type. The
+ * registry is actuality's registry, which holds the steps a transport injected. The list combinators narrow the steps.
  */
-export function discoverSteps(
-	world: TWorld,
-	registry: StepRegistry,
-	query: TStepsQuery & { detail: typeof STEP_DETAIL.summary },
-	held: string | string[] | undefined,
-): TStepSummaries;
-export function discoverSteps(
-	world: TWorld,
-	registry: StepRegistry,
-	query: TStepsQuery & { detail: typeof STEP_DETAIL.definition },
-	held: string | string[] | undefined,
-): TStepDefinitions;
-export function discoverSteps(world: TWorld, registry: StepRegistry, query: TStepsQuery, held: string | string[] | undefined): TStepSummaries | TStepDefinitions;
-export function discoverSteps(world: TWorld, registry: StepRegistry, query: TStepsQuery, held: string | string[] | undefined): TStepSummaries | TStepDefinitions {
-	const callable = registry.heldBy(held);
-	const steps = callable.filter((step) => containsText([step.method, step.pattern, step.description], query.text));
-	const steppers = steppersOf(steps);
-	const domains = Object.entries(world.domains).filter(([key, domain]) => containsText([key, domain.description], query.text));
-	if (query.detail === STEP_DETAIL.summary) {
-		return {
-			detail: STEP_DETAIL.summary,
-			steppers,
-			steps: steps.map(stepSummary),
-			domains: Object.fromEntries(domains.map(([key, { description }]) => [key, domainSummary(key, description)])),
-		};
-	}
-	const catalog = concernCatalogOf(world.domains);
+export function discoverSteps(world: TWorld, registry: StepRegistry, detail: typeof STEP_DETAIL.summary, held: string | string[] | undefined): TStepSummaries;
+export function discoverSteps(world: TWorld, registry: StepRegistry, detail: typeof STEP_DETAIL.definition, held: string | string[] | undefined): TStepDefinitions;
+export function discoverSteps(world: TWorld, registry: StepRegistry, detail: TStepDetail, held: string | string[] | undefined): TStepSummaries | TStepDefinitions;
+export function discoverSteps(world: TWorld, registry: StepRegistry, detail: TStepDetail, held: string | string[] | undefined): TStepSummaries | TStepDefinitions {
+	const steps = registry.heldBy(held);
+	const listed = { steppers: steppersOf(steps), ...counted(steps.length) };
+	const domains = Object.entries(world.domains);
+	if (detail === STEP_DETAIL.summary)
+		return { ...listed, steps: steps.map(stepSummary), domains: Object.fromEntries(domains.map(([key, { description }]) => [key, domainSummary(key, description)])) };
+	const { persisted, references } = concernCatalogOf(world.domains);
 	return {
-		detail: STEP_DETAIL.definition,
-		steppers,
+		...listed,
 		steps: steps.map(stepDefinition),
 		domains: Object.fromEntries(domains.map(([key, domain]) => [key, domainDiscoveryInfo(key, domain)])),
-		concerns: {
-			persisted: Object.fromEntries(Object.entries(catalog.persisted).filter(([label, concern]) => containsText([label, concern.description], query.text))),
-			references: Object.fromEntries(Object.entries(catalog.references).filter(([key, reference]) => containsText([key, reference.targetDomain], query.text))),
-		},
+		concerns: { persisted, references },
 		// A predicate a step proves is shown to a caller that may call the step, as the step is. A step another host runs proves
 		// that host's predicates.
 		predicates: predicatesOf(
-			callable.flatMap(({ method, stepperName, stepName }) => {
+			steps.flatMap(({ method, stepperName, stepName }) => {
 				const { stepDef } = registry.named(method);
 				return stepDef === undefined ? [] : [{ stepperName, actionName: stepName, step: stepDef }];
 			}),
-		).filter(({ name, line }) => containsText([name, line], query.text)),
+		),
 	};
 }
 
@@ -117,4 +96,19 @@ function domainDiscoveryInfo(key: string, domain: TRegisteredDomain): TDomainDis
 		persistedAs: isPersisted(domain.topology) ? domain.topology.persistedAs : undefined,
 		ui,
 	};
+}
+
+/** Each stepper, with what it does and each of its steps as its key and its pattern, or its key alone where it doesn't have one: what `show steppers` returns and what
+ *  the CLI's `--show-steppers` prints. */
+export function listedSteppers(steppers: AStepper[]): TSteppers {
+	const listed = steppers.map((stepper) => ({
+		stepper: constructorName(stepper),
+		description: stepper.description,
+		// A step without a pattern, such as prose, is listed by its key.
+		steps: Object.entries(stepper.steps).map(([key, step]) => {
+			const pattern = step.gwta ?? step.exact;
+			return pattern === undefined ? key : `${key}: ${pattern}`;
+		}),
+	}));
+	return { steppers: listed, ...counted(listed.length) };
 }

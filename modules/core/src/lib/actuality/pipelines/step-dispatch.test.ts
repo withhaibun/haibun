@@ -9,7 +9,7 @@ import { discoverSteps } from "../../steps/pipelines/discover-steps.js";
 import { buildFeatureStepForTransport, validatedFeatureStep } from "../../steps/pipelines/call-step.js";
 import { authorizeToolCapability } from "../../steps/pipelines/gate.js";
 import { validateToolInput } from "../../steps/derivations/tool-validation.js";
-import { EVERY_DEFINITION } from "../../steps/domains/step-discovery.js";
+import { STEP_DETAIL } from "../../steps/domains/step-discovery.js";
 import { AStepper, type IHasCycles, type TFeatureStep, type TStepperStep } from "../../steps/domains/stepper.js";
 import { OK, RECORDED_STATUS } from "../../domains/protocol.js";
 import { itemAt } from "../../domains/item-at.js";
@@ -320,7 +320,7 @@ describe("step-dispatch", () => {
 			const w = getDefaultWorld();
 			registerDomains(w, [[{ selectors: ["color"], schema: z.enum(["red", "green", "blue"]), values: ["red", "green", "blue"], description: "A colour" }]]);
 			const stepper = new PlainStepper();
-			const discovery = discoverSteps(w, new StepRegistry([stepper], w), EVERY_DEFINITION, RUN_AUTHORITY);
+			const discovery = discoverSteps(w, new StepRegistry([stepper], w), STEP_DETAIL.definition, RUN_AUTHORITY);
 			expect(Array.isArray(discovery.steps)).toBe(true);
 			expect(discovery.steps.some((m) => m.method === "PlainStepper-greet")).toBe(true);
 			expect(discovery.domains).toBeDefined();
@@ -331,7 +331,7 @@ describe("step-dispatch", () => {
 			const w = getDefaultWorld();
 			registerDomains(w, [[{ selectors: ["size"], schema: z.enum(["small", "medium", "large"]), description: "T-shirt size" }]]);
 			const stepper = new PlainStepper();
-			const discovery = discoverSteps(w, new StepRegistry([stepper], w), EVERY_DEFINITION, RUN_AUTHORITY);
+			const discovery = discoverSteps(w, new StepRegistry([stepper], w), STEP_DETAIL.definition, RUN_AUTHORITY);
 			expect(discovery.domains["size"]).toMatchObject({ description: "T-shirt size", values: ["small", "medium", "large"] });
 		});
 	});

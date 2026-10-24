@@ -208,8 +208,11 @@ describe("watching a run", () => {
 });
 
 describe("restarting an instance", () => {
-	it("refuses a port where this process didn't launch an instance, and doesn't start a new one", async () => {
+	it("refuses a port where this process didn't launch an instance, and doesn't start a new one or reach its steps", async () => {
 		await expect((stepper().steps.restartInstance.action as (a: { port: number }) => Promise<TResult>)({ port: 8299 })).rejects.toThrow(/didn't launch an instance on port 8299/);
+		await expect((stepper().steps.reachInstance.action as (a: { port: number }) => Promise<TResult>)({ port: 8299 }), "nor reaches its steps").rejects.toThrow(
+			/didn't launch an instance on port 8299/,
+		);
 	});
 
 	it("refuses to start from a directory without a config, and names the directory", async () => {

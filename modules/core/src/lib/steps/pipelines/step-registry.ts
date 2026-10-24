@@ -5,8 +5,9 @@
  */
 import type { AStepper, TStepperStep, TFeatureStep } from "../domains/stepper.js";
 import { runSteppers, type TWorld } from "../../actuality/domains/world.js";
-import { ControlEvent, STEPS_CHANGED, type TActionResult } from "../../domains/protocol.js";
+import { ControlEvent, STEPS_CHANGED, type TActionResult, type TStepArgs } from "../../domains/protocol.js";
 import { actionNotOK, errorDetail } from "../../domains/util.js";
+import { listedProducts, type TListing } from "../../domains/lists.js";
 import { mayCall } from "../../domains/actions.js";
 import { refusalCarried } from "../../transport/domains/rpc-wire.js";
 import type { TStepDescriptor } from "../domains/step-discovery.js";
@@ -162,6 +163,13 @@ export function createStepTool(stepper: AStepper, stepName: string, stepDef: TSt
 	};
 }
 
+/** A result whose products hold the list a step's listing made of the list its statement's products hold, or the refusal
+ *  of the listing, which names why. */
+function listedResult(result: TActionResult & { ok: true }, listing: TListing, args: TStepArgs): TActionResult {
+	const listed = listedProducts(result.products, listing, args);
+	return "refused" in listed ? actionNotOK(listed.refused) : { ...result, products: listed.products };
+}
+
 /**
  * Returns a handler that populates a step's arguments from featureStep.action.stepValuesMap, calls stepDef.action, and
  * returns its TActionResult. The logic engine's prover calls each built-in through this handler. A step that declares a
@@ -175,7 +183,8 @@ export function createStepHandler(stepperName: string, stepName: string, stepDef
 			const read = await argumentsOf(featureStep, world, runSteppers(world));
 			// A parameter that doesn't read is refused with the step, the parameter and the cause, which its refusal states.
 			if ("refused" in read) return actionNotOK(read.refused);
-			const result = await stepDef.action(read.args, featureStep);
+			const acted = await stepDef.action(read.args, featureStep);
+			const result = acted.ok && stepDef.transformsList !== undefined ? listedResult(acted, stepDef.transformsList, read.args) : acted;
 			// A failed result states its reason in errorMessage. Code that the types don't check can omit it, and that failure
 			// is replaced by one that names the step.
 			if (!result.ok && typeof result.errorMessage !== "string") throw new Error(`${stepperName}.${stepName} failed without stating why; return actionNotOK with the cause`);

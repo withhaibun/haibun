@@ -11,7 +11,7 @@
 import { z } from "zod";
 import { fromJsonText } from "@haibun/core/lib/domains/json-text.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { Access, AccessQueryLevelSchema, DOMAIN_PERSISTED_TYPE, type TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
+import { Access, AccessQueryLevelSchema, DOMAIN_PERSISTED_TYPE, LinkRelations, type TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import { actionNotOK, actionOKWithProducts, errorDetail } from "@haibun/core/lib/domains/util.js";
 import { typeCollectionRemedy } from "@haibun/core/lib/domains/typed-links.js";
 import {
@@ -87,7 +87,13 @@ const GRAPH_SOURCE_DOMAINS: TDomainDefinition[] = [
 	{ selectors: [DOMAIN_SUBJECT_SERVED], schema: SubjectServedSchema, description: "A subject the merged graph holds, and the site that serves it" },
 	{ selectors: [DOMAIN_SITE_FEDERATED], schema: SiteFederatedSchema, description: "The site a peer's reads were federated from" },
 	{ selectors: [DOMAIN_DENSITY], schema: DensityResultSchema, description: "How many records fall in each division of a span" },
-	{ selectors: [DOMAIN_GRAPH_ROWS], schema: GraphQueryResultSchema, description: "The rows a graph query matched, and how many there are" },
+	{
+		selectors: [DOMAIN_GRAPH_ROWS],
+		schema: GraphQueryResultSchema,
+		// Every row is a record, which states when it was written.
+		list: { items: "vertices", time: LinkRelations.GENERATED_AT_TIME.rel },
+		description: "The rows a graph query matched, and how many there are",
+	},
 	{
 		selectors: [DOMAIN_GRAPH_VIEW],
 		schema: fromJsonText(GraphViewSchema),

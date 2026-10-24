@@ -4,7 +4,7 @@
  * the steps requiring it, reads at a narrower level for a read, and every step whose action a trailing `*` begins.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
+import { SHOW_STEP_DEFINITIONS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { readAction } from "@haibun/core/lib/domains/actions.js";
 import { Access } from "@haibun/core/lib/domains/resources.js";
 import { ShuActionColumn } from "./shu-action-column.js";
@@ -29,7 +29,7 @@ describe("an action's view", () => {
 	beforeEach(() => {
 		endPage();
 		installMemoryDeviceStore();
-		handle = setupShuTest({ dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown([PUBLIC_READ, PRIVATE_READ, DELEGATES, REVOKES]) : undefined) });
+		handle = setupShuTest({ dispatch: (method) => (method === SHOW_STEP_DEFINITIONS_METHOD ? stepsShown([PUBLIC_READ, PRIVATE_READ, DELEGATES, REVOKES]) : undefined) });
 	});
 	afterEach(() => {
 		handle.teardown();

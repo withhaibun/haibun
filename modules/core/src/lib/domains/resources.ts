@@ -21,6 +21,7 @@ import { z } from "zod";
 import { MEDIA_TYPE } from "./media-types.js";
 import { FragmentSchema, isFragment } from "./media-fragments.js";
 import { fromJsonText } from "./json-text.js";
+import type { TListDeclaration } from "./lists.js";
 
 // ============================================================================
 // Resource identity
@@ -805,6 +806,8 @@ export type TDomainDefinition = {
 	topology?: TDomainTopology;
 	/** UI metadata such as slot, component and JS source. Hypermedia renderers such as the SHU SPA read it. */
 	ui?: Record<string, unknown>;
+	/** The list its products hold, for a domain whose products hold one, which the list combinators read. */
+	list?: TListDeclaration;
 };
 
 /** A domain as registration holds it. Registration supplies a coercer from the schema where the definition doesn't state one. */

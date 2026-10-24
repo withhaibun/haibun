@@ -2,14 +2,27 @@ import { z } from "zod";
 import type { TFeatures } from "../lib/actuality/domains/actuality.js";
 import type { TWorld } from "../lib/actuality/domains/world.js";
 import { OK } from "../lib/domains/protocol.js";
-import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TEndFeature, READING, SCENARIO_HEADING, UNTIL_DURATION } from "../lib/steps/domains/stepper.js";
+import {
+	AStepper,
+	IHasCycles,
+	TStepperSteps,
+	TStepperStep,
+	TFeatureStep,
+	IStepperCycles,
+	TEndFeature,
+	READING,
+	SCENARIO_HEADING,
+	UNTIL_DURATION,
+} from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts } from "../lib/domains/util.js";
 import { findFeatureStepsFromStatement } from "../lib/actuality/pipelines/resolver.js";
 import {
 	DOMAIN_BACKGROUND_NAMES,
+	DOMAIN_DATE,
 	DOMAIN_DURATION,
 	DOMAIN_LINE_COMMENT,
 	DOMAIN_LINK,
+	DOMAIN_NUMBER,
 	DOMAIN_PERSISTED_TYPES,
 	DOMAIN_STATEMENT,
 	DOMAIN_TEXT,
@@ -22,18 +35,23 @@ import { proveStatements, stepperContext } from "../lib/actuality/pipelines/step
 import { QuadStore } from "../lib/steps/pipelines/quad-store.js";
 import { remoteQuadStore } from "./root.js";
 import { requestSigner } from "../lib/domains/session-authority.js";
-import { discoverSteps } from "../lib/steps/pipelines/discover-steps.js";
+import { DOMAIN_STEPPERS, SHOW_STEPPERS_LINE, SteppersSchema } from "../lib/steps/domains/steppers.js";
+import { discoverSteps, listedSteppers } from "../lib/steps/pipelines/discover-steps.js";
 import { runRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { stepMethodName } from "../lib/steps/domains/step-method.js";
 import {
-	DOMAIN_STEP_DETAIL,
+	DOMAIN_STEP_DEFINITIONS,
+	DOMAIN_STEP_SUMMARIES,
+	SHOW_STEP_DEFINITIONS_LINE,
 	SHOW_STEPS_ACTION,
-	SHOW_STEPS_DESCRIPTION,
-	StepDetailSchema,
-	StepDiscoverySchema,
+	SHOW_STEPS_LINE,
+	STEP_DETAIL,
+	StepDefinitionsSchema,
+	StepSummariesSchema,
+	type TStepDetail,
 	type TStepValidation,
-	type TStepsQuery,
 } from "../lib/steps/domains/step-discovery.js";
+import { BOUND, boundedItems, countingItems, limitedItems, matchingItems, orderedItems, type TListing } from "../lib/domains/lists.js";
 import { shownTo } from "../lib/domains/capability-context.js";
 import { validateStep } from "../lib/pipelines/step-validation.js";
 import { Access } from "../lib/domains/resources.js";
@@ -47,9 +65,13 @@ const StepValidationSchema = z.discriminatedUnion("valid", [
 /** The store `use store at` mounts: the site that serves it, and the types routed to it. */
 const StoreInUseSchema = z.object({ site: z.string(), types: z.array(z.string()) });
 /** Product domains of Haibun's own steps. */
-const DOMAIN_STEP_DISCOVERY = "step-discovery";
 const DOMAIN_STEP_VALIDATION = "step-validation";
 const DOMAIN_STORE_IN_USE = "store-in-use";
+/** What the reads of actuality's declarations do, which their definitions state. */
+const SHOW_STEPS_DESCRIPTION = `Lists the steps its caller may call: each step's method, pattern and description, the capability it requires and the link to its definition, with every domain and the steppers of the steps. A method names its stepper and a hyphen first. Narrow the list with the matching combinator, as in \`matching "GraphStepper-", ${SHOW_STEPS_LINE}\`, and read the definition of a step you call with ${SHOW_STEP_DEFINITIONS_LINE}.`;
+const SHOW_STEP_DEFINITIONS_DESCRIPTION = `Lists the definitions of the steps its caller may call: each step's argument and product schemas and the link to its call, with every domain, the concern catalog and the registry's predicates, which a formula names. A step whose definition you read is one you may call. Read one step's definition with the matching combinator, as in \`matching "Haibun-showSteps", ${SHOW_STEP_DEFINITIONS_LINE}\`.`;
+/** The list a read of actuality's declarations holds: its steps. */
+const STEPS_LIST = { items: "steps" } as const;
 
 /** How `ends with` ends a feature. */
 const DOMAIN_ENDING = "ending";
@@ -67,8 +89,19 @@ class Haibun extends AStepper implements IHasCycles {
 	cycles: IStepperCycles = {
 		getConcerns: () => ({
 			domains: [
-				{ selectors: [DOMAIN_STEP_DETAIL], schema: StepDetailSchema, description: "How much of each declaration a read of actuality's declarations returns." },
-				{ selectors: [DOMAIN_STEP_DISCOVERY], schema: StepDiscoverySchema, description: "The steps, domains and steppers actuality declares that a read matched" },
+				{
+					selectors: [DOMAIN_STEP_SUMMARIES],
+					schema: StepSummariesSchema,
+					list: STEPS_LIST,
+					description: "The steps a caller may call, with every domain and the steppers of the steps",
+				},
+				{
+					selectors: [DOMAIN_STEP_DEFINITIONS],
+					schema: StepDefinitionsSchema,
+					list: STEPS_LIST,
+					description: "The definitions of the steps a caller may call, with every domain, the concern catalog and the registry's predicates",
+				},
+				{ selectors: [DOMAIN_STEPPERS], schema: SteppersSchema, list: { items: "steppers" }, description: "Each stepper actuality loads, with what it does and its steps" },
 				{ selectors: [DOMAIN_STEP_VALIDATION], schema: StepValidationSchema, description: "Whether a line resolves to exactly one step, and which" },
 				{ selectors: [DOMAIN_STORE_IN_USE], schema: StoreInUseSchema, description: "The store `use store at` mounts, and the types routed to it" },
 				createEnumDomainDefinition({ name: DOMAIN_ENDING, values: Object.values(ENDING), description: "How `ends with` ends a feature: OK or not OK" }),
@@ -83,6 +116,28 @@ class Haibun extends AStepper implements IHasCycles {
 			return Promise.resolve();
 		},
 	};
+
+	/** What actuality declares to the caller at a detail. */
+	private discovered(detail: TStepDetail) {
+		const world = this.getWorld();
+		return actionOKWithProducts(discoverSteps(world, runRegistry(world), detail, shownTo()));
+	}
+
+	/** A list combinator: a read that proves its statement and returns the statement's products with the list they hold as
+	 *  `listing` makes it from the line's arguments, which `args` states. Each step the statement holds is gated as it runs. */
+	private listCombinator<A extends z.ZodType>(gwta: string, description: string, args: A, listing: (values: z.infer<A>) => TListing) {
+		return {
+			read: true,
+			readsAt: Access.public,
+			gwta,
+			description,
+			productsOf: "statement",
+			// A list is the response; keeping it on the event too holds a second copy of it per read.
+			retainProducts: false,
+			transformsList: (list, values) => listing(args.parse(values))(list, values),
+			action: ({ statement }: { statement: TFeatureStep[] }, featureStep: TFeatureStep) => proveStatements(stepperContext(this.getWorld(), this.steppers), featureStep, statement),
+		} as const satisfies TStepperStep;
+	}
 
 	steps = {
 		useStoreAt: {
@@ -112,14 +167,67 @@ class Haibun extends AStepper implements IHasCycles {
 		showSteps: {
 			read: true,
 			capability: SHOW_STEPS_ACTION,
-			gwta: `show steps matching {text: ${DOMAIN_TEXT}} as {detail: ${DOMAIN_STEP_DETAIL}}`,
+			gwta: SHOW_STEPS_LINE,
 			description: SHOW_STEPS_DESCRIPTION,
-			productsDomain: DOMAIN_STEP_DISCOVERY,
-			action: ({ text, detail }: TStepsQuery) => {
-				const world = this.getWorld();
-				return actionOKWithProducts(discoverSteps(world, runRegistry(world), { text, detail }, shownTo()));
-			},
+			productsDomain: DOMAIN_STEP_SUMMARIES,
+			// The declarations are the response; keeping them on the event too holds a second copy of every step per read.
+			retainProducts: false,
+			action: () => this.discovered(STEP_DETAIL.summary),
 		},
+		showStepDefinitions: {
+			read: true,
+			capability: SHOW_STEPS_ACTION,
+			gwta: SHOW_STEP_DEFINITIONS_LINE,
+			description: SHOW_STEP_DEFINITIONS_DESCRIPTION,
+			productsDomain: DOMAIN_STEP_DEFINITIONS,
+			retainProducts: false,
+			action: () => this.discovered(STEP_DETAIL.definition),
+		},
+		showSteppers: {
+			read: true,
+			capability: SHOW_STEPS_ACTION,
+			gwta: SHOW_STEPPERS_LINE,
+			description: "Lists each stepper actuality loads, with what it does and each of its steps as its key and its pattern, as the CLI's --show-steppers prints them.",
+			productsDomain: DOMAIN_STEPPERS,
+			retainProducts: false,
+			action: () => actionOKWithProducts(listedSteppers(this.steppers)),
+		},
+		matching: this.listCombinator(
+			`matching {text: ${DOMAIN_TEXT}}, {statement: ${DOMAIN_STATEMENT}}`,
+			"Keeps the items of the statement's list that hold the text in any of their values, compared without regard to case, and counts them.",
+			z.object({ text: z.string() }),
+			({ text }) => matchingItems(text),
+		),
+		counting: this.listCombinator(
+			`counting {statement: ${DOMAIN_STATEMENT}}`,
+			"Returns how many items the statement's list holds, and whether that count is a floor, without the items.",
+			z.object({}),
+			() => countingItems,
+		),
+		limitedTo: this.listCombinator(
+			`limited to {count: ${DOMAIN_NUMBER}}, {statement: ${DOMAIN_STATEMENT}}`,
+			"Keeps the first items of the statement's list, up to the count. The count of the whole list stays.",
+			z.object({ count: z.number() }),
+			({ count }) => limitedItems(count),
+		),
+		orderedBy: this.listCombinator(
+			`ordered by {field: ${DOMAIN_TEXT}}, {statement: ${DOMAIN_STATEMENT}}`,
+			"Orders the items of the statement's list by the values of a field they hold: numbers by size and any other value by its text, with an item that doesn't hold the field last.",
+			z.object({ field: z.string() }),
+			({ field }) => orderedItems(field),
+		),
+		since: this.listCombinator(
+			`since {time: ${DOMAIN_DATE}}, {statement: ${DOMAIN_STATEMENT}}`,
+			"Keeps the records of the statement's list whose time is at or after the time, and counts them. A list that doesn't state its items' time is refused.",
+			z.object({ time: z.date() }),
+			({ time }) => boundedItems(BOUND.since, time),
+		),
+		before: this.listCombinator(
+			`before {time: ${DOMAIN_DATE}}, {statement: ${DOMAIN_STATEMENT}}`,
+			"Keeps the records of the statement's list whose time is before the time, and counts them. A list that doesn't state its items' time is refused.",
+			z.object({ time: z.date() }),
+			({ time }) => boundedItems(BOUND.before, time),
+		),
 
 		validateStep: {
 			read: true,

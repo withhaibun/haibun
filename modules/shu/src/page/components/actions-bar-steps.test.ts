@@ -7,7 +7,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
-import { SHOW_STEPS_METHOD, VALIDATE_STEP_METHOD, type TPredicate, type TStepDefinition } from "@haibun/core/lib/step-discovery.js";
+import { SHOW_STEP_DEFINITIONS_METHOD, VALIDATE_STEP_METHOD, type TPredicate, type TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { html, render } from "lit";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { CHAT_DECLARED, CHAT_DOMAINS, CHAT_STEP, CHAT_STEPPER } from "../ask/components/chat-pane.test-fake.js";
@@ -154,7 +154,7 @@ describe("a statement typed in step mode", () => {
 		offered.splice(0, offered.length, SHOW, VALIDATE);
 		t = setupShuTest({
 			dispatch: (method, params) => {
-				if (method === SHOW_STEPS_METHOD) return stepsShown(offered, CHAT_DOMAINS);
+				if (method === SHOW_STEP_DEFINITIONS_METHOD) return stepsShown(offered, CHAT_DOMAINS);
 				if (method !== VALIDATE_STEP_METHOD) throw new Error(`unexpected ${method}`);
 				return params.text === STATED ? { valid: true, method: SHOW.method, values: { name: "all" } } : { valid: false, error: `"${String(params.text)}" doesn't match a step` };
 			},
