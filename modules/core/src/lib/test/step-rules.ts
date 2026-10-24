@@ -157,17 +157,15 @@ function statedInKireji(source: ts.SourceFile): TStated {
 	return { lines: lines.map((line) => line.trim()).filter(Boolean), calls };
 }
 
-/** What each feature source of a repository states. */
-const statedInFeatures = (repository: string, files: readonly string[]): TStated =>
-	statedIn(
-		repository,
-		files.filter((file) => FEATURE_SOURCE.test(file)),
-	);
+/** A file of a repository, by its path from the repository root, with its text. */
+type TFileText = { file: string; text: string };
+
+/** Each of `files` with its text, read once. */
+const textsOf = (repository: string, files: readonly string[]): TFileText[] => files.map((file) => ({ file, text: readFileSync(join(repository, file), "utf-8") }));
 
 /** What `files` state: each line of a feature file, and the lines and kireji calls of a TypeScript source's strings. */
-function statedIn(repository: string, files: readonly string[]): TStated {
-	const stated = files.map((file): TStated => {
-		const text = readFileSync(join(repository, file), "utf-8");
+function statedIn(files: readonly TFileText[]): TStated {
+	const stated = files.map(({ file, text }): TStated => {
 		if (!SOURCE.test(file))
 			return {
 				lines: text
@@ -253,20 +251,26 @@ function namesRead(texts: readonly string[]): Map<string, number> {
 	return reads;
 }
 
+/** A naming of a step's key: after a quote, as a string names it, after a dot, as a property access names it, or after a dash,
+ *  after its stepper's name, as a call over RPC names it. */
+const KEY_NAMING = /["'`.-]([A-Za-z]\w*)\b/g;
+
+/** The keys of `keys` a text names, each with how many times it names it. */
+function keysNamed(text: string, keys: ReadonlySet<string>): Map<string, number> {
+	const counts = new Map<string, number>();
+	for (const [, key] of text.matchAll(KEY_NAMING)) if (key !== undefined && keys.has(key)) counts.set(key, (counts.get(key) ?? 0) + 1);
+	return counts;
+}
+
 /** How many times the code of a repository, apart from each step's own stepper and the tests, calls each step: each naming of
- *  its key in a string or a property access, or after its stepper's name and a dash, as a call over RPC names it. A naming in
- *  the initializer of a top-level constant calls the step wherever code reads the constant, or the property of it that holds
- *  the naming, such as each call a page makes through the constant that names a step's method. */
-function codeNaming(repository: string, files: readonly string[], steps: readonly TDeclaredStep[]): Map<TDeclaredStep, number> {
+ *  its key. A naming in the initializer of a top-level constant calls the step wherever code reads the constant, or the
+ *  property of it that holds the naming, such as each call a page makes through the constant that names a step's method. */
+function codeNaming(code: readonly TFileText[], steps: readonly TDeclaredStep[]): Map<TDeclaredStep, number> {
 	const keys = new Set(steps.map((s) => s.key));
-	const code = files
-		.filter((f) => SOURCE.test(f) && !TEST_MODULE.test(f) && !FEATURE_SOURCE.test(f))
-		.map((file) => ({ file, text: readFileSync(join(repository, file), "utf-8") }));
 	const reads = namesRead(code.map(({ text }) => text));
 	const named = new Map<string, Map<string, number>>();
 	for (const { file, text } of code) {
-		const counts = new Map<string, number>();
-		for (const [, key] of text.matchAll(/["'`.-]([A-Za-z]\w*)\b/g)) if (key !== undefined && keys.has(key)) counts.set(key, (counts.get(key) ?? 0) + 1);
+		const counts = keysNamed(text, keys);
 		for (const { key, read, declaration } of constantNamings(file, text, keys)) {
 			const elsewhere = (reads.get(read) ?? 0) - (namesRead([declaration]).get(read) ?? 0);
 			counts.set(key, (counts.get(key) ?? 0) + Math.max(1, elsewhere) - 1);
@@ -276,40 +280,49 @@ function codeNaming(repository: string, files: readonly string[], steps: readonl
 	return new Map(steps.map((step) => [step, [...named].filter(([file]) => file !== step.file).reduce((sum, [, counts]) => sum + (counts.get(step.key) ?? 0), 0)]));
 }
 
+/** A repository's feature sources, its code apart from them and the tests, and its tests, each with its text, read once. */
+function sourcesOf(repository: string): { features: TFileText[]; code: TFileText[]; tests: TFileText[] } {
+	const files = repositoryFiles(repository);
+	const sources = files.filter((file) => SOURCE.test(file) && !FEATURE_SOURCE.test(file));
+	return {
+		features: textsOf(
+			repository,
+			files.filter((file) => FEATURE_SOURCE.test(file)),
+		),
+		code: textsOf(
+			repository,
+			sources.filter((file) => !TEST_MODULE.test(file)),
+		),
+		tests: textsOf(
+			repository,
+			sources.filter((file) => TEST_MODULE.test(file)),
+		),
+	};
+}
+
 /** Each step with at most one call site: lines of features that state it, kireji calls of it, and the code that names it. */
 export function oneCallSite(repository: string, steps: readonly TDeclaredStep[]): TFound[] {
-	const files = repositoryFiles(repository);
-	const { lines, calls } = statedInFeatures(repository, files);
+	const { features, code } = sourcesOf(repository);
+	const { lines, calls } = statedIn(features);
 	const stating = linesStating(steps, lines);
-	const naming = codeNaming(repository, files, steps);
+	const naming = codeNaming(code, steps);
 	return steps
 		.filter((step) => (stating.get(step) ?? 0) + calls.filter((key) => key === step.key).length + (naming.get(step) ?? 0) <= 1)
 		.map((step) => ({ file: step.file, finding: `${ONE_CALL_SITE}: ${step.stepper}.${step.key}` }));
 }
 
-/** A unit test's naming of a step it calls: through a stepper's steps, or after its stepper's name and a dash, as a call over RPC names it. */
-const TEST_NAMING = /\bsteps(?:\.|\[["'`])([A-Za-z]\w*)|["'`]([A-Za-z]\w*-[A-Za-z]\w*)["'`]/g;
-
 /** Each step that doesn't run: a feature line or a waypoint doesn't state it, a kireji call doesn't call it, and a unit test
  *  doesn't state a line of it, call it through kireji or name it, where the test names the step's stepper. The empty line's
  *  step is every feature's blank line, which a line isn't read as. */
 export function unexercised(repository: string, steps: readonly TDeclaredStep[]): TFound[] {
-	const files = repositoryFiles(repository);
-	const tests = files
-		.filter((file) => SOURCE.test(file) && TEST_MODULE.test(file) && !FEATURE_SOURCE.test(file))
-		.map((file) => ({ file, text: readFileSync(join(repository, file), "utf-8") }));
-	const features = statedInFeatures(repository, files);
-	const tested = statedIn(
-		repository,
-		tests.map(({ file }) => file),
-	);
-	const stating = linesStating(steps, [...features.lines, ...tested.lines]);
-	const calls = new Set([...features.calls, ...tested.calls]);
-	const named = (step: TDeclaredStep) =>
-		tests.some(
-			({ text }) => text.includes(step.stepper) && [...text.matchAll(TEST_NAMING)].some(([, key, method]) => key === step.key || method === `${step.stepper}-${step.key}`),
-		);
+	const { features, tests } = sourcesOf(repository);
+	const stated = statedIn([...features, ...tests]);
+	const stating = linesStating(steps, stated.lines);
+	const calls = new Set(stated.calls);
+	const keys = new Set(steps.map((step) => step.key));
+	const named = tests.map(({ text }) => ({ text, keys: keysNamed(text, keys) }));
+	const tested = (step: TDeclaredStep) => named.some(({ text, keys }) => keys.has(step.key) && text.includes(step.stepper));
 	return steps
-		.filter((step) => step.pattern !== "" && !stating.has(step) && !calls.has(step.key) && !named(step))
+		.filter((step) => step.pattern !== "" && !stating.has(step) && !calls.has(step.key) && !tested(step))
 		.map((step) => ({ file: step.file, finding: `${UNEXERCISED}: ${step.stepper}.${step.key}` }));
 }
