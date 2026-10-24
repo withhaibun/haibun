@@ -387,18 +387,26 @@ the page.
 
 ### List combinators
 
-A read that returns a list returns it in its domain's shape, and its domain declares which array field is its list (`list`)
-and, for a list of records, the field of each item that states its time; the products state how many items there are and
-whether that count is a floor (`total` and `saturated`, `CountedFields`). Dispatch marks a step's products with the
-declaration (`_list`). A combinator is a step that proves the statement after its comma and makes something of the list the
-statement's last step returns, through the step's `transformsList`, and returns the products with that list in place:
+A read that returns a list returns it in its domain's shape, and its domain declares which array field is its list
+(`list: listOf(schema, field)`), the field of each item that states its time for a list of records, and the companion fields
+that narrow with the items; the products state how many items there are and whether that count is a floor (`total` and
+`saturated`, `CountedFields`). A combinator is a step that proves the statement after its comma. Its `transformsList` states
+its listing from its line's values, and dispatch passes the listing on to the last step of the statement, after the listings of
+any combinator that encloses it. The step whose products domain declares the list returns its list as the listings make it,
+innermost first, and narrows each companion to the items kept, so `matching "<method>", show step definitions` returns only
+the steppers, domains, concerns and predicates that step names. A statement whose last step doesn't return a declared list is
+refused. A read that takes a list query (`takesListQuery`) reads its list in the order, from the offset and to the limit the
+first listings state (`listQuery`), at its source, so its count stays its source's count; a graph query takes one where it
+doesn't state its own page or order. A list's products aren't kept on the step's event or as its fact, since the list is the
+response. A caller over a transport states a combinator's statement as a call, `{ method, params }`, which reads as that
+step's line.
 
-- `matching {text}, {statement}` keeps the items that hold the text in any of their values, without regard to case
+- `matching {text}, {statement}` keeps the items that hold the text in one of their values, without regard to case
 - `counting {statement}` returns the count without the items
 - `limited to {count}, {statement}` keeps the first items, with the count of the whole list
-- `ordered by {field}, {statement}` orders the items by a field they hold
-- `since {time}, {statement}` and `before {time}, {statement}` bound a list of records by each record's time, and refuse a list
-  whose items don't state one
+- `ordered by {field}, {statement}` orders the items by a field they hold, as a graph read orders them
+- `since {time}, {statement}` and `before {time}, {statement}` keep the records whose time is at or after the time, or before
+  it, and refuse a list whose domain doesn't state its items' time
 
 Combinators compose, such as `limited to 1, ordered by "method", matching "Haibun-show", show steps`. The reads of actuality's
 declarations are plain: `show steps` lists the steps a caller may call, `show step definitions` adds their schemas and the

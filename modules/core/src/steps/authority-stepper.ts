@@ -1,3 +1,4 @@
+import { listOf } from "../lib/domains/lists.js";
 import { z } from "zod";
 import { fromJsonText } from "../lib/domains/json-text.js";
 import { persistPrincipalIndividual } from "../lib/domains/principal-individual.js";
@@ -63,7 +64,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 				{
 					selectors: [DOMAIN_HELD_CALLS],
 					schema: HeldCallsListSchema,
-					list: { items: "capabilities" },
+					list: listOf(HeldCallsListSchema, "capabilities"),
 					description: "The calls an instance holds open, by the capability each rests on",
 				},
 				// Naming a connecting site writes a Principal record, so the type it writes is declared here.

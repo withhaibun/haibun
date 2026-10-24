@@ -20,6 +20,7 @@ import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { distinctOf } from "@haibun/core/lib/records/derivations/read-records.js";
 import { z } from "zod";
+import { callStatedStepFrom } from "@haibun/core/lib/call-step.js";
 import GraphSourceStepper from "./graph-source-stepper.js";
 import type { TGraphView } from "./pipelines/graph-source.js";
 import { ProjectionSchema, type TProjection } from "@haibun/logic/domains/logic.js";
@@ -313,5 +314,39 @@ describe("the counts a shape reads, and the rows of a graph query a time bounds"
 		};
 		expect(ids(itemAt(lines, 0))).toEqual(["late"]);
 		expect(ids(itemAt(lines, 1))).toEqual(["early"]);
+	});
+
+	it("reads the rows of a graph query in the order, from the offset and to the limit its list combinators state, where the query doesn't state them", () => {
+		const { takesListQuery } = new GraphSourceStepper().steps.graphQuery;
+		const order = { field: "generatedAtTime", descending: true };
+		expect(takesListQuery({ query: { label: "Comment" } }, { order, skip: 1, limit: 2 })).toEqual({
+			query: { label: "Comment", sortBy: "generatedAtTime", sortOrder: "desc", offset: 1, limit: 2 },
+		});
+		expect(takesListQuery({ query: { label: "Comment", limit: 5 } }, { limit: 2 }), "a query's own page stays its list").toBeUndefined();
+		expect(takesListQuery({ query: { label: "Comment", sortBy: "name" } }, { order }), "a query's own order stays its list").toBeUndefined();
+		expect(takesListQuery({ query: { label: "Comment", named: ["a"] } }, { order }), "a named read orders by its names").toBeUndefined();
+		expect(takesListQuery({ query: { label: "Comment" } }, { limit: 0 }), "a page holds a record at least").toBeUndefined();
+	});
+
+	it("limits and orders the rows at the store, with the store's count of every row, as a line or as a call that states its statement as a call", async () => {
+		const world = getTestWorldWithOptions();
+		const store = world.shared.getStore();
+		for (const [id, generatedAtTime] of [
+			["early", "2026-01-01T00:00:00.000Z"],
+			["late", "2026-03-01T00:00:00.000Z"],
+		])
+			await store.upsertIndividual("Comment", { id, author: "did:site:0", generatedAtTime, accessLevel: Access.public });
+		const line = `limited to 1, ordered by "generatedAtTime", graph query ${JSON.stringify({ label: "Comment" })}`;
+		const ran = await testWithWorld(world, line, [Haibun, ResourcesStepper, GraphSourceStepper]);
+		expect(ran.ok, JSON.stringify(ran.failure)).toBe(true);
+		const rows = (products: unknown) => z.object({ vertices: z.array(z.object({ id: z.string() })), total: z.number() }).parse(products);
+		const lined = rows((ran.world.runtime.stepResults as TStepResult[]).find((step) => step.in === line)?.products);
+		expect({ ids: lined.vertices.map(({ id }) => id), total: lined.total }).toEqual({ ids: ["early"], total: 2 });
+		const statement = { method: "GraphSourceStepper-graphQuery", params: { query: { label: "Comment" } } };
+		const called = await runAuthorizedWith(RUN_AUTHORITY, () =>
+			callStatedStepFrom({ getWorld: () => ran.world, steppers: ran.world.runtime.steppers ?? [] }, "Haibun-limitedTo", { count: 1, statement }),
+		);
+		expect(called.result.ok, JSON.stringify(called.result)).toBe(true);
+		expect(rows(called.result.products).total).toBe(2);
 	});
 });

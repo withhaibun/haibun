@@ -43,7 +43,13 @@ export function remoteTools(rpc: TRemoteSteps, remoteUrl: string, { hostId, desc
 			// The RPC call uses the unprefixed method name. The prefix names the tool in the local registry and isn't part
 			// of the wire call. A statement's values are read where the statement was written, as a local step's are, so
 			// the remote host receives values.
-			handler: async (featureStep, world) => callRemote(rpc, descriptor, await callInput(featureStep, world, runSteppers(world)), featureStep.seqPath),
+			// A list combinator's listings are functions this process holds, so a statement the host runs states its own combinators.
+			handler: async (featureStep, world) =>
+				featureStep.listings !== undefined && featureStep.listings.length > 0
+					? actionNotOK(
+							`${descriptor.method} runs at ${remoteOrigin}, so a list combinator here doesn't apply to its list; state the combinator in the statement the host runs, as in \`on host ${hostId}, limited to 3, ${descriptor.pattern}\``,
+						)
+					: callRemote(rpc, descriptor, await callInput(featureStep, world, runSteppers(world)), featureStep.seqPath),
 		}),
 	);
 }

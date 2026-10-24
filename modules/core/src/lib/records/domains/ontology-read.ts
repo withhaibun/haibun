@@ -38,5 +38,3 @@ const OntologyPropertySchema = z
  *  view, so dispatch adds the view's markers beside them, which the schema doesn't state. */
 export const OntologyReadSchema = z.object({ terms: z.array(z.discriminatedUnion("kind", [OntologyClassSchema, OntologyPropertySchema])), ...CountedFields });
 export type TOntologyRead = z.infer<typeof OntologyReadSchema>;
-/** The list a read of the ontology holds: its terms. */
-export const ONTOLOGY_LIST = { items: "terms" } as const;

@@ -19,7 +19,7 @@ import { SEQ_PATH_ACCESS, actualityFeatureOf, type TRecordName } from "../domain
 import { runRegistry, type StepRegistry } from "../../steps/pipelines/step-registry.js";
 import { stepMethodName, hostScopedMethodName } from "../../steps/domains/step-method.js";
 import { authorizeToolCapability } from "../../steps/pipelines/gate.js";
-import { augmentViewHypermedia, isViewOnlyDomain } from "../../steps/derivations/step-hypermedia.js";
+import { augmentViewHypermedia, isViewOnlyDomain, productsRetained } from "../../steps/derivations/step-hypermedia.js";
 import { RESULTS_READ_IN_FULL, afterStepOutcome, foldStep, retainedProducts, stepResultOf } from "../derivations/step-results.js";
 import type { TProver } from "../ports.js";
 import {
@@ -291,7 +291,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	const error = actionResult.ok ? undefined : actionResult.errorMessage;
 	await moveActuality(
 		world,
-		stepEndEvent(stated, called, { status: ended, error, products: retainedProducts(actionResult.products, action.step.retainProducts) }, world.clock.now()),
+		stepEndEvent(stated, called, { status: ended, error, products: retainedProducts(actionResult.products, productsRetained(world, action.step)) }, world.clock.now()),
 	);
 	// A call a transport carries states what it read back, since its caller reads the result and not a line.
 	const result = featureStep.programmatic === true && actionResult.products !== undefined ? { result: resultText(actionResult.products) } : {};
@@ -331,7 +331,7 @@ function callOf(ctx: DispatchContext): TStepCall {
  */
 async function autoAssertProducts(world: TWorld, stepName: TRecordName, step: TStepperStep, actionResult: TActionResult): Promise<void> {
 	// Actuality holds a fact for as long as it runs, so the fact holds only what the step retains, as the step's end event does.
-	const products = retainedProducts(actionResult.products, step.retainProducts);
+	const products = retainedProducts(actionResult.products, productsRetained(world, step));
 	if (!products) return;
 	const store = world.shared.getStore();
 	const generatedAtTime = recordTime(world);

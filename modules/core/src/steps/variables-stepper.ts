@@ -1,3 +1,4 @@
+import { listOf } from "../lib/domains/lists.js";
 import { z } from "zod";
 
 import { runEnvVariable, type TWorld } from "../lib/actuality/domains/world.js";
@@ -108,7 +109,7 @@ const cycles = (variablesStepper: VariablesStepper): IStepperCycles => ({
 			{
 				selectors: [DOMAIN_DOMAINS_SNAPSHOT],
 				schema: DomainsSnapshotSchema,
-				list: { items: "items" },
+				list: listOf(DomainsSnapshotSchema, "items"),
 				description: "Snapshot of every registered domain",
 				ui: { summary: domainsSummary },
 			},

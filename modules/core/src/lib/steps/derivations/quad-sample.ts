@@ -3,7 +3,8 @@
  * holds its quads in memory samples and counts them through these derivations.
  */
 import { displayLabelForQuads } from "../../domains/hypermedia.js";
-import { compareByOrder, readOrder, type TReadDeclaration } from "../../records/derivations/read-records.js";
+import { readOrder, type TReadDeclaration } from "../../records/derivations/read-records.js";
+import { compareByOrder } from "../domains/quad-types.js";
 import { BODY_LABEL, LinkRelations } from "../../domains/resources.js";
 import { GraphQuerySchema, ORDER_KEY, statedQuery, type TCluster, type TClusteredQuads, type TOrderKey, type TQuad } from "../domains/quad-types.js";
 

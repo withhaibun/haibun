@@ -2,9 +2,12 @@
  * What actuality declares to a caller: the steps a caller may call, the domains, the concern catalog, the predicates of the
  * registry, and the steppers of the steps that matched. The catalog is built once for each set of registered domains.
  */
+import { z } from "zod";
 import { jsonSchemaFor } from "../../domains/json-schema-of.js";
+import { listOf, type TListItem } from "../../domains/lists.js";
+import { phraseParts } from "../domains/phrase.js";
 import type { TWorld } from "../../actuality/domains/world.js";
-import { buildConcernCatalog, counted } from "../../domains/hypermedia.js";
+import { ConcernCatalogSchema, buildConcernCatalog, counted } from "../../domains/hypermedia.js";
 import { HYPERMEDIA } from "../../domains/protocol.js";
 import { isPersisted, type TRegisteredDomain } from "../../domains/resources.js";
 import {
@@ -17,7 +20,7 @@ import {
 	type TStepperSummary,
 } from "../domains/step-discovery.js";
 import { hostOfMethodName, hostScopedMethodName } from "../domains/step-method.js";
-import { domainSummary, stepDefinition, stepSummary, stepperStepsLink } from "../domains/step-discovery.js";
+import { StepDefinitionsSchema, StepSummariesSchema, domainSummary, stepDefinition, stepSummary, stepperStepsLink } from "../domains/step-discovery.js";
 import { heldPerEntries, recordEntries } from "../derivations/held-per-entries.js";
 import type { StepRegistry } from "./step-registry.js";
 import { constructorName } from "../../domains/util.js";
@@ -78,6 +81,57 @@ export function discoverSteps(world: TWorld, registry: StepRegistry, detail: TSt
 		),
 	};
 }
+
+/** The fields of a listed step that name what it names: its method, its pattern, and, at the definition detail, the domain
+ *  of each parameter and of its products. */
+const NamingStepSchema = z.object({ method: z.string(), pattern: z.string(), paramDomains: z.record(z.string(), z.string()).optional(), productsDomain: z.string().optional() });
+const namingSteps = (items: readonly TListItem[]) => items.map((item) => NamingStepSchema.parse(item));
+/** The keys of the domains the steps name: each part of its pattern, and the domains its definition states. */
+const namedDomains = (items: readonly TListItem[]): Set<string> =>
+	new Set(
+		namingSteps(items).flatMap(({ pattern, paramDomains, productsDomain }) => [
+			...phraseParts(pattern).map(({ domain }) => domain),
+			...(paramDomains === undefined ? [] : Object.values(paramDomains)),
+			...(productsDomain === undefined ? [] : [productsDomain]),
+		]),
+	);
+/** The entries of a record whose keys are in `kept`. */
+const keptEntries = <T>(record: Record<string, T>, kept: ReadonlySet<string>): Record<string, T> => Object.fromEntries(Object.entries(record).filter(([key]) => kept.has(key)));
+
+/** Each stepper of the kept steps, with how many of them it declares. */
+const keptSteppers = (items: readonly TListItem[], products: Readonly<Record<string, unknown>>): TStepperSummary[] => {
+	const methods = namingSteps(items).map(({ method }) => method);
+	return StepSummariesSchema.shape.steppers.parse(products.steppers).flatMap((entry) => {
+		const steps = methods.filter((method) => method.startsWith(`${entry.stepper}-`)).length;
+		return steps === 0 ? [] : [{ ...entry, steps }];
+	});
+};
+const keptDomains = (items: readonly TListItem[], products: Readonly<Record<string, unknown>>) =>
+	keptEntries(z.record(z.string(), z.unknown()).parse(products.domains), namedDomains(items));
+
+/** The list of a read of the step summaries: its steps, with the steppers and the domains they name. */
+export const STEP_SUMMARIES_LIST = listOf(StepSummariesSchema, "steps", { narrows: { steppers: keptSteppers, domains: keptDomains } });
+/** The list of a read of the step definitions: its steps, with the steppers, the domains, the concerns and the predicates they name. */
+export const STEP_DEFINITIONS_LIST = listOf(StepDefinitionsSchema, "steps", {
+	narrows: {
+		steppers: keptSteppers,
+		domains: keptDomains,
+		concerns: (items, products) => {
+			const named = namedDomains(items);
+			const domains = StepDefinitionsSchema.shape.domains.parse(products.domains);
+			const { persisted, references } = ConcernCatalogSchema.parse(products.concerns);
+			const kept = keptEntries(references, named);
+			const types = new Set(
+				[...[...named].map((key) => domains[key]?.persistedAs), ...Object.values(kept).map(({ targetPersistedAs }) => targetPersistedAs)].filter((type) => type !== undefined),
+			);
+			return { persisted: Object.fromEntries(Object.entries(persisted).filter(([type]) => types.has(type))), references: kept };
+		},
+		predicates: (items, products) => {
+			const methods = new Set(namingSteps(items).map(({ method }) => method));
+			return StepDefinitionsSchema.shape.predicates.parse(products.predicates).filter(({ method }) => method !== undefined && methods.has(method));
+		},
+	},
+});
 
 /** The values a domain lists: its declared values, or the enum its schema states. A domain of open values doesn't list values. */
 function valuesOf(key: string, domain: TRegisteredDomain): string[] | undefined {

@@ -20,6 +20,8 @@ import {
 import {
 	ORDER_KEY,
 	VIA_FIELD,
+	compareByOrder,
+	satisfies,
 	statedQuery,
 	type TDistinctValues,
 	type TGraphQuery,
@@ -224,50 +226,6 @@ export function readOrder(query: Pick<TStatedQuery, "named" | "references" | "re
 	];
 }
 
-/** Compares two held values. Numbers compare as numbers where both are numbers, and other values compare as text, which
- *  orders an ISO instant by time. A value a record doesn't hold sorts before one it holds. */
-export function compareHeld(a: unknown, b: unknown): number {
-	if (a === undefined || a === null) return b === undefined || b === null ? 0 : -1;
-	if (b === undefined || b === null) return 1;
-	if (typeof a === "number" && typeof b === "number") return a < b ? -1 : a > b ? 1 : 0;
-	const [x, y] = [String(a), String(b)];
-	return x < y ? -1 : x > y ? 1 : 0;
-}
-
-/** Returns true where a held value satisfies one condition. Numbers compare as numbers where both sides are numbers, and other
- *  values compare as text, which orders an ISO instant by time. A value the record doesn't hold doesn't satisfy a condition. */
-export function satisfies(held: unknown, condition: TSearchCondition): boolean {
-	if (held === undefined || held === null) return false;
-	const order = (against: string): number => {
-		const a = typeof held === "number" ? held : Number(held);
-		const b = Number(against);
-		if (!Number.isNaN(a) && !Number.isNaN(b) && typeof held !== "string") return a < b ? -1 : a > b ? 1 : 0;
-		const text = String(held);
-		return text < against ? -1 : text > against ? 1 : 0;
-	};
-	switch (condition.operator) {
-		case "eq":
-			return String(held) === condition.value;
-		case "in":
-			return (condition.values ?? [condition.value]).includes(String(held));
-		case "contains":
-			return String(held).includes(condition.value);
-		case "gt":
-			return order(condition.value) > 0;
-		case "gte":
-			return order(condition.value) >= 0;
-		case "lt":
-			return order(condition.value) < 0;
-		case "lte":
-			return order(condition.value) <= 0;
-		case "between":
-			if (condition.value2 === undefined) throw new Error(`a "between" condition on ${condition.predicate} names only one bound`);
-			return order(condition.value) >= 0 && order(condition.value2) <= 0;
-		default:
-			throw new Error(`a store of quads doesn't compare by the "${condition.operator}" condition on ${condition.predicate}`);
-	}
-}
-
 /** One edge of a held record: its relation, and the type and id of the record at its other end. */
 export type THeldEdge = { rel: string; label: string; id: string };
 
@@ -331,18 +289,6 @@ function filtered(record: THeldRecord, filter: TSearchCondition, relations: read
 	if (!relations.includes(filter.predicate)) return satisfies(record.fields[filter.predicate], filter);
 	const ids = filter.operator === "in" ? (filter.values ?? [filter.value]) : [filter.value];
 	return record.edges.some((edge) => edge.rel === filter.predicate && ids.includes(edge.id));
-}
-
-/** Returns a comparison of two items by `keys`, each compared by `compareHeld` in its key's direction. `keyValue` returns an
- *  item's value of one key. */
-export function compareByOrder<T>(keys: readonly TOrderKey[], keyValue: (key: string, item: T) => unknown): (a: T, b: T) => number {
-	return (a, b) => {
-		for (const { key, order } of keys) {
-			const compared = compareHeld(keyValue(key, a), keyValue(key, b));
-			if (compared !== 0) return order === "asc" ? compared : -compared;
-		}
-		return 0;
-	};
 }
 
 /** Returns a comparison of two reached records by the read's order keys. */

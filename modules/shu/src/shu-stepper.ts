@@ -16,7 +16,8 @@ import { CONTEXT_DOCUMENT, SHU_TYPE, SHU_TAG } from "./domains/elements.js";
 import { DOMAIN_SHU_APPS, ShuAppsSchema } from "./domains/schemas.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { DOMAIN_ROUTE } from "@haibun/core/lib/domains/domains.js";
-import { ONTOLOGY_LIST, OntologyReadSchema } from "@haibun/core/lib/records/domains/ontology-read.js";
+import { OntologyReadSchema } from "@haibun/core/lib/records/domains/ontology-read.js";
+import { listOf } from "@haibun/core/lib/domains/lists.js";
 import { ontologyRead } from "@haibun/core/lib/records/pipelines/ontology-records.js";
 import { labelFontResponse, servedBuild, servedPage } from "./pipelines/served-page.js";
 import { LABEL_FONT, LABEL_FONT_FALLBACK_ROUTES, LABEL_FONT_FALLBACKS, PAGE_ASSETS, PAGE_CHUNKS, POLYMORPHIC_VIEW_JS } from "./domains/serving.js";
@@ -133,7 +134,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				{
 					selectors: [SHU_TAG.CLASS_BROWSER],
 					schema: OntologyReadSchema,
-					list: ONTOLOGY_LIST,
+					list: listOf(OntologyReadSchema, "terms"),
 					description: "The ontology the declarations state, its classes and properties, which the class browser draws over the live graph",
 					ui: {
 						component: SHU_TAG.CLASS_BROWSER,

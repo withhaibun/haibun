@@ -7,12 +7,13 @@ import type { AStepper, TStepperStep, TFeatureStep } from "../domains/stepper.js
 import { runSteppers, type TWorld } from "../../actuality/domains/world.js";
 import { ControlEvent, STEPS_CHANGED, type TActionResult, type TStepArgs } from "../../domains/protocol.js";
 import { actionNotOK, errorDetail } from "../../domains/util.js";
-import { listedProducts, type TListing } from "../../domains/lists.js";
+import { listQueries, listedProducts, type TListDeclaration, type TListStage } from "../../domains/lists.js";
+import { stepList } from "../derivations/step-hypermedia.js";
 import { mayCall } from "../../domains/actions.js";
 import { refusalCarried } from "../../transport/domains/rpc-wire.js";
 import type { TStepDescriptor } from "../domains/step-discovery.js";
 import { stepDeclaration } from "../derivations/step-tools.js";
-import { validateProducts } from "../derivations/tool-validation.js";
+import { StatementStepsSchema, validateProducts } from "../derivations/tool-validation.js";
 import { argumentsOf } from "./populate-action-args.js";
 
 /** A registered step tool. Every transport (RPC, MCP, a model's turn) dispatches a step through one. */
@@ -163,10 +164,36 @@ export function createStepTool(stepper: AStepper, stepName: string, stepDef: TSt
 	};
 }
 
-/** A result whose products hold the list a step's listing made of the list its statement's products hold, or the refusal
- *  of the listing, which names why. */
-function listedResult(result: TActionResult & { ok: true }, listing: TListing, args: TStepArgs): TActionResult {
-	const listed = listedProducts(result.products, listing, args);
+/** A call with the stages of a statement's list: a list combinator's call passes them on to the last step of its statement,
+ *  and the step whose products domain declares the list takes the query of their first stages where it takes one, and
+ *  returns its list as the rest make it. */
+type TListedCall = { args: TStepArgs; declared?: TListDeclaration; stages: readonly TListStage[] };
+
+/** The refusal of a statement whose last step doesn't return a list. */
+const NOT_A_LIST = "the statement's products don't hold a list, since its step's products domain doesn't declare one; state a step that returns a list, such as show steps";
+
+/** Returns the call of a step under the stages of its statement's list, or why the stages can't apply to it. */
+function listedCall(world: TWorld, stepDef: TStepperStep, args: TStepArgs, stages: readonly TListStage[]): TListedCall | { refused: string } {
+	const { productsOf } = stepDef;
+	if (productsOf !== undefined) {
+		const statement = StatementStepsSchema.parse(args[productsOf]);
+		const last = statement.at(-1);
+		if (last === undefined || (last.action.step.productsOf === undefined && stepList(world, last.action.step) === undefined)) return { refused: NOT_A_LIST };
+		return { args: { ...args, [productsOf]: [...statement.slice(0, -1), { ...last, listings: stages }] }, stages: [] };
+	}
+	const declared = stepList(world, stepDef);
+	if (declared === undefined) return { refused: NOT_A_LIST };
+	for (const { query, stated } of listQueries(stages)) {
+		const queried = stepDef.takesListQuery?.(args, query);
+		if (queried !== undefined) return { args: queried, declared, stages: stages.slice(stated) };
+	}
+	return { args, declared, stages };
+}
+
+/** A result whose products hold the list the stages made of the list the step returned, or the refusal of a stage, which names why. */
+function listedResult(result: TActionResult & { ok: true }, declared: TListDeclaration, stages: readonly TListStage[]): TActionResult {
+	if (result.products === undefined) return actionNotOK(NOT_A_LIST);
+	const listed = listedProducts(result.products, declared, stages);
 	return "refused" in listed ? actionNotOK(listed.refused) : { ...result, products: listed.products };
 }
 
@@ -183,8 +210,12 @@ export function createStepHandler(stepperName: string, stepName: string, stepDef
 			const read = await argumentsOf(featureStep, world, runSteppers(world));
 			// A parameter that doesn't read is refused with the step, the parameter and the cause, which its refusal states.
 			if ("refused" in read) return actionNotOK(read.refused);
-			const acted = await stepDef.action(read.args, featureStep);
-			const result = acted.ok && stepDef.transformsList !== undefined ? listedResult(acted, stepDef.transformsList, read.args) : acted;
+			const own = stepDef.transformsList === undefined ? [] : [{ listing: stepDef.transformsList(read.args), query: stepDef.listQuery?.(read.args) }];
+			const stages = featureStep.listings === undefined ? own : [...own, ...featureStep.listings];
+			const call = stages.length === 0 ? { args: read.args, stages } : listedCall(world, stepDef, read.args, stages);
+			if ("refused" in call) return actionNotOK(call.refused);
+			const acted = await stepDef.action(call.args, featureStep);
+			const result = acted.ok && call.declared !== undefined ? listedResult(acted, call.declared, call.stages) : acted;
 			// A failed result states its reason in errorMessage. Code that the types don't check can omit it, and that failure
 			// is replaced by one that names the step.
 			if (!result.ok && typeof result.errorMessage !== "string") throw new Error(`${stepperName}.${stepName} failed without stating why; return actionNotOK with the cause`);

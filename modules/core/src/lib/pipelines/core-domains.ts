@@ -53,10 +53,13 @@ import {
 	NameSchema,
 } from "../domains/domains.js";
 import { findFeatureStepsFromStatement } from "../actuality/pipelines/resolver.js";
+import { lineOfCall } from "../steps/derivations/named-vars.js";
 
 const numberSchema = z.coerce.number({ error: "invalid number" }).refine((value) => Number.isFinite(value), "invalid number");
 const stringSchema = z.coerce.string({ error: "value is required" });
 const statementSchema = z.string({ error: "statement label is required" }).min(1, "statement cannot be empty");
+/** A statement as a call states it: its step's method and the step's parameters. */
+const StatementCallSchema = z.object({ method: z.string().min(1), params: z.record(z.string(), z.unknown()) }).strict();
 const dateSchema = z.coerce.date({ error: "invalid date" });
 /** Reads a step's place from its dot-joined sequence path, or from an id that begins with one. */
 const stepPathSchema = z.preprocess((value, ctx) => {
@@ -190,9 +193,19 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	{ selectors: [DOMAIN_JSON_OBJECT], schema: JsonObjectTextSchema, description: "A JSON object, given as its text or as the object." },
 	{
 		selectors: [DOMAIN_STATEMENT],
-		schema: statementSchema,
+		// A caller over a transport states a statement as a call: the method of its step and the step's parameters, which read as
+		// the step's line. A list combinator's caller states the read it lists that way.
+		schema: z.union([
+			statementSchema,
+			StatementCallSchema.transform(({ method, params }, ctx) => {
+				const tool = world.runtime.stepRegistry?.get(method);
+				if (tool !== undefined) return lineOfCall(tool.descriptor.pattern, params);
+				ctx.addIssue({ code: "custom", message: `"${method}" isn't a step actuality registers; show steps lists the method names actuality registers` });
+				return z.NEVER;
+			}),
+		]),
 		written: true,
-		description: "A reference to another Haibun statement.",
+		description: "A reference to another Haibun statement: its line, or a call of its step by method and parameters.",
 		coerce: (proto: TStepValue, site?: TCoercionSite) => {
 			if (site === undefined) throw new Error("a statement is coerced at the step it fills, and this coercion doesn't state the seqPath and the steppers of one");
 			return findFeatureStepsFromStatement(statementSchema.parse(proto.value), site.steppers, world, site.path, [...site.seqPath, 0]);

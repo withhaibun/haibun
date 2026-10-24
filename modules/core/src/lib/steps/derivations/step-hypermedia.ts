@@ -8,6 +8,16 @@ import { stepParts } from "../domains/phrase.js";
 import { stepMethodName } from "../domains/step-method.js";
 import { declaredSteps } from "./predicate-registry.js";
 import { normalizeDomainKey } from "../../domains/domains.js";
+import type { TListDeclaration } from "../../domains/lists.js";
+
+/** The list a step's products domain declares, where it declares one. */
+export const stepList = (world: TWorld, step: TStepperStep): TListDeclaration | undefined =>
+	step.productsDomain === undefined ? undefined : world.domains[normalizeDomainKey(step.productsDomain)]?.list;
+
+/** Which of a step's products its lifecycle event and its fact keep: what the step states. A step whose products hold a list
+ *  and a list combinator don't keep them, since the list is the response, and a second copy of it per read would grow the events. */
+export const productsRetained = (world: TWorld, step: TStepperStep): TStepperStep["retainProducts"] =>
+	step.retainProducts ?? (step.transformsList !== undefined || stepList(world, step) !== undefined ? false : undefined);
 
 /**
  * Adds hypermedia markers to a step's products. Every step with a `productsDomain` receives them. The registered
@@ -21,7 +31,6 @@ import { normalizeDomainKey } from "../../domains/domains.js";
  * - `_component`, `id` and `view` are added only for a domain with `ui.component`. The SPA's pane opener reads them, and
  *   a diagnostic or data-only domain doesn't open a pane.
  * - `_links` lists the steps that take the product's domain, where at least one does.
- * - `_list` is the domain's `list`, where it declares one, so a list combinator reads the list of the last step of its statement.
  *
  * Products that already carry a `_component` string are returned unchanged, so a step that sets its own keeps it.
  */
@@ -44,7 +53,6 @@ export function augmentViewHypermedia(world: TWorld, step: TStepperStep, actionR
 	// without calling show steps. buildConcernCatalog reads the same field for the type's view. A domain has one
 	// description, and a second description on its schema could differ from the one a reader is shown.
 	if (domain?.description) markers[HYPERMEDIA.DESCRIPTION] = domain.description;
-	if (domain?.list) markers[HYPERMEDIA.LIST] = domain.list;
 	if (component) {
 		markers[HYPERMEDIA.COMPONENT] = component;
 		markers.id = productsDomain;

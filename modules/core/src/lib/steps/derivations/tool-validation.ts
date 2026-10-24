@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { AStepper, TStepperStep } from "../domains/stepper.js";
+import type { AStepper, TFeatureStep, TStepperStep } from "../domains/stepper.js";
 import type { TWorld } from "../../actuality/domains/world.js";
 import { Origin, productData, type THypermediaProducts, type TSeqPath, type TStepArgs } from "../../domains/protocol.js";
 import { normalizeDomainKey, registeredDomain } from "../../domains/domains.js";
@@ -61,9 +61,10 @@ const RanStepSchema = z.object({
 		step: z.custom<TStepperStep>((step) => typeof step === "object" && step !== null && "action" in step && typeof step.action === "function"),
 	}),
 });
-/** The statements a step ran. Only the last statement is read, since its result is the one the step returns. */
-const RanStatementsSchema = z.array(z.unknown()).optional();
-const LastRanStepSchema = RanStepSchema.optional();
+/** The steps of a statement a step's argument holds, as dispatch runs them. */
+export const StatementStepsSchema = z.array(
+	z.custom<TFeatureStep>((step) => RanStepSchema.safeParse(step).success, "a statement's step states its stepper, its action and its step"),
+);
 
 /** The step whose domain holds the products. `passedOn` is true where it is a statement's step whose products another
  *  step returns as its own. */
@@ -75,7 +76,8 @@ type TAnsweringStep = { stepperName: string; actionName: string; step: TStepperS
  *  `args` doesn't hold a statement for productsOf. */
 function answeringStep(stepperName: string, actionName: string, stepDef: TStepperStep, args: TStepArgs): TAnsweringStep | string {
 	if (stepDef.productsOf === undefined) return { stepperName, actionName, step: stepDef, passedOn: false };
-	const ran = LastRanStepSchema.parse(RanStatementsSchema.parse(args[stepDef.productsOf])?.at(-1));
+	// Only the last statement is read, since its result is the one the step returns.
+	const ran = StatementStepsSchema.optional().parse(args[stepDef.productsOf])?.at(-1);
 	if (!ran) return `step ${stepperName}.${actionName} passes on the products of {${stepDef.productsOf}}, which doesn't hold a statement; state a step in it`;
 	return { stepperName: ran.action.stepperName, actionName: ran.action.actionName, step: ran.action.step, passedOn: true };
 }

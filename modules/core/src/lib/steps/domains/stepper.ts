@@ -8,7 +8,7 @@ import type { TOptionValue, TFeatures, TSourceLocation, TStepInput } from "../..
 import type { TSeqPath, TActionResult, TStepArgs, TStepValue, TStepResult, TFeatureResult, TExecutorResult, THaibunEvent, TProvenanceIdentifier } from "../../domains/protocol.js";
 import type { TCoercionSite, TDomainDefinition } from "../../domains/resources.js";
 import type { TStepReads } from "../../domains/actions.js";
-import type { TListing } from "../../domains/lists.js";
+import type { TListing, TListQuery, TListStage } from "../../domains/lists.js";
 import type { IQuadStore } from "../ports.js";
 import { constructorName } from "../../domains/util.js";
 import { DOMAIN_TITLE } from "../../domains/domains.js";
@@ -110,6 +110,9 @@ export type TFeatureStep = {
 	 * `on host {hostId}, {statement}` in haibun.ts sets it.
 	 */
 	targetHostId?: number;
+	/** The list combinators whose statement this step ends, innermost first. The step returns its list as their listings make
+	 *  it. A list combinator sets them on the last step of its statement, after its own. */
+	listings?: readonly TListStage[];
 	/** True for a dispatch that doesn't run a feature for a person. `buildFeatureStepForTransport` sets it for an RPC or MCP call. A lifecycle hook that would call `world.prompter.prompt()` skips the prompt where this is set. */
 	programmatic?: boolean;
 };
@@ -181,11 +184,20 @@ type TStepperStepBase = TStepReads & {
 	 */
 	productsOf?: string;
 	/**
-	 * For a step that returns the products of its statement (`productsOf`), what it makes of the list those products hold, as
-	 * the domain of the statement's last step declares it. The step returns the products with that list in place of the list
-	 * it read, and refuses where the products don't hold a declared list or the listing refuses.
+	 * For a step that returns the products of its statement (`productsOf`), the listing its line's values state, which makes
+	 * something of the list the domain of the statement's last step declares. Dispatch refuses a statement whose last step
+	 * doesn't return a declared list, and the listing's refusal.
 	 */
-	transformsList?: TListing;
+	transformsList?(values: TStepArgs): TListing;
+	/** For a list combinator, the order, offset or limit its listing states, which a read that takes a list query applies at
+	 *  its source in its place. */
+	listQuery?(values: TStepArgs): TListQuery;
+	/**
+	 * For a step whose products domain declares a list, the arguments that read its list in the order, from the offset and to
+	 * the limit a query states, so its source counts the whole list. Returns undefined where the step's arguments state a part
+	 * of the query, since the query would replace it, and the listings then apply to the list the step reads.
+	 */
+	takesListQuery?(args: TStepArgs, query: TListQuery): TStepArgs | undefined;
 	/**
 	 * Maps each parameter that names a record by its id (`record-id`) to the parameter that names the record's type
 	 * (`persisted-type` or `domain-key`). `get {label} {id}` declares `{ id: "label" }`. A step that takes two records

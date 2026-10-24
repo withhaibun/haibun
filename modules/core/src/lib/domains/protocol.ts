@@ -333,12 +333,10 @@ export const HYPERMEDIA = {
 	LINKS: "_links",
 	/** For destructive operations: condition to check reversibility, apply to execute undo */
 	UNDO: "_undo",
-	/** The list the products hold, as their domain declares it (`TListDeclaration`), which a list combinator reads. */
-	LIST: "_list",
 } as const;
 
-/** Returns a product's own data. The result omits the `_seqPath` trace and the `_type`, `_summary`, `_description`,
- *  `_links` and `_list` markers that dispatch adds to a product of a named domain. A reader parses the result with the product's own
+/** Returns a product's own data. The result omits the `_seqPath` trace and the `_type`, `_summary`, `_description` and
+ *  `_links` markers that dispatch adds to a product of a named domain. A reader parses the result with the product's own
  *  schema. */
 export function productData(products: Record<string, unknown>): Record<string, unknown> {
 	const {
@@ -347,7 +345,6 @@ export function productData(products: Record<string, unknown>): Record<string, u
 		[HYPERMEDIA.SUMMARY]: _summary,
 		[HYPERMEDIA.DESCRIPTION]: _description,
 		[HYPERMEDIA.LINKS]: _links,
-		[HYPERMEDIA.LIST]: _list,
 		...data
 	} = products;
 	return data;

@@ -17,6 +17,7 @@ import type { AStepper, TStepperStep, TFeatureStep } from "../domains/stepper.js
 import { lineOfCall, mapInputToStepValues } from "../derivations/named-vars.js";
 import { validateToolInput } from "../derivations/tool-validation.js";
 import { actionNotOK } from "../../domains/util.js";
+import { DOMAIN_STATEMENT, registeredDomain } from "../../domains/domains.js";
 import { proveAllocated, type DispatchContext } from "../../actuality/pipelines/step-dispatch.js";
 import { allocateSyntheticSeqPath } from "../../domains/host-id.js";
 import type { TSeqPath, TStepResult } from "../../domains/protocol.js";
@@ -36,7 +37,17 @@ export const buildFeatureStepForTransport = (tool: StepTool, input: Readonly<Rec
  * than as its resolved steps. Throws where the input doesn't validate.
  */
 export const validatedFeatureStep = (tool: StepTool, input: Record<string, unknown>, seqPath: TSeqPath, world: TWorld, steppers: AStepper[]): TFeatureStep =>
-	featureStepOfCall(tool, input, validateToolInput(seqPath, tool, input, world, steppers), seqPath);
+	featureStepOfCall(tool, statedLines(tool, input, world), validateToolInput(seqPath, tool, input, world, steppers), seqPath);
+
+/** A call's input with each statement it states as a call stated as that call's line, so the line of the call states it. */
+const statedLines = (tool: StepTool, input: Record<string, unknown>, world: TWorld): Record<string, unknown> =>
+	Object.fromEntries(
+		Object.entries(input).map(([key, value]) =>
+			tool.paramDomainKeys.get(key) === DOMAIN_STATEMENT && typeof value !== "string"
+				? [key, registeredDomain(world.domains, DOMAIN_STATEMENT, key).schema.parse(value)]
+				: [key, value],
+		),
+	);
 
 /** The feature step of a call whose line states `stated` and whose values are `values`. */
 function featureStepOfCall(tool: StepTool, stated: Readonly<Record<string, unknown>>, values: Readonly<Record<string, unknown>>, seqPath: TSeqPath): TFeatureStep {

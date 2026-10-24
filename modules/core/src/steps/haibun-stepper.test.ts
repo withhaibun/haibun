@@ -164,6 +164,13 @@ describe("show steps", () => {
 		expect(discovery.steps.map((step) => step.method)).toEqual(["TestSteps-passes"]);
 		expect(discovery.total, "counted as narrowed").toBe(1);
 		expect(itemAt(discovery.steps, 0)._links.call).toEqual({ method: "TestSteps-passes" });
+		expect(
+			discovery.steppers.map(({ stepper, steps }) => ({ stepper, steps })),
+			"the steppers, domains, concerns and predicates narrow to what the kept step names",
+		).toEqual([{ stepper: "TestSteps", steps: 1 }]);
+		expect(discovery.domains).toEqual({});
+		expect(discovery.concerns).toEqual({ persisted: {}, references: {} });
+		expect(discovery.predicates.map(({ method }) => method)).toEqual(["TestSteps-passes"]);
 	});
 
 	it("lists every step's summary, and every stepper with its steps as the CLI's --show-steppers prints them", async () => {
