@@ -12,7 +12,7 @@ import { shuBaseStyles } from "./styles.js";
 import { hasConduit } from "../controllers/conduit-controller.js";
 import { affordancesOnOffer } from "../controllers/read-controller.js";
 import { LoadController } from "../controllers/load-controller.js";
-import { refusalTpl } from "./load-renders.js";
+import { loadRenders } from "./load-renders.js";
 import {
 	isStepEnd,
 	type TAffordances as TOffered,
@@ -44,6 +44,9 @@ import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { typeShownIn } from "../controllers/catalog-controller.js";
 import "./shu-spinner.js";
 import "./shu-copy-button.js";
+import { SHOW_AFFORDANCES_METHOD } from "../domains/leads-on.js";
+import { emptyState } from "./empty-state.js";
+import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 
 /** The name of the delay before the panel reads its affordances again. */
 const REFRESH = "refresh";
@@ -210,7 +213,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 			return;
 		}
 		const step = producingStepOf(node);
-		if (step !== undefined) openRef(e, REF_DENOTES.individual, { persistedAs: typeShownIn(SHU_TAG.STEP_DETAIL), id: step }, false);
+		if (step !== undefined) openRef(e, { kind: REF_DENOTES.individual, target: { persistedAs: typeShownIn(SHU_TAG.STEP_DETAIL), id: step } }, false);
 	}
 
 	/** Returns a snapshot with the waypoints the panel shows where the snapshot doesn't carry them, as a live update after a
@@ -465,7 +468,6 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	];
 
 	render(): TemplateResult {
-		const loading = this.#affordances.running;
 		const empty = this.#affordances.pending;
 		const shown = this.#affordances.completed;
 		const goals = this.affordances?.goals ?? [];
@@ -486,9 +488,16 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				</div>
 			</details>
 			${this.renderAsOfBannerTpl()}
-			${this.#affordances.render<TemplateResult | typeof nothing>({ pending: () => nothing, running: () => nothing, completed: () => nothing, failed: (refusal) => refusalTpl(refusal, this.#affordances) })}
-			${loading ? html`<shu-spinner visible status="Loading affordances…"></shu-spinner>` : ""}
-			${empty ? html`<div class="empty" data-testid="affordances-empty">The panel doesn't hold affordances yet. Invoke <code>show affordances</code> from the actions bar (Step mode) to populate this view, or run any step: every step end announces a change this panel follows.</div>` : ""}
+			${this.#affordances.render<TemplateResult | typeof nothing>({ ...loadRenders(html`Loading affordances`, this.#affordances), pending: () => nothing, completed: () => nothing })}
+			${
+				empty
+					? emptyState({
+							message: "The panel doesn't hold affordances yet.",
+							next: html`Read them with ${stepRef(SHOW_AFFORDANCES_METHOD)}, or run any step: every step end announces a change this panel follows.`,
+							testId: "affordances-empty",
+						})
+					: ""
+			}
 			${
 				shown && waypoints.length > 0
 					? html`
@@ -501,7 +510,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				shown
 					? html`
 				<div class="section-header"><h3>Goals (${goals.length})</h3><shu-copy-button data-copy-id="goals" label="Copy" title="Copy Goals JSON to clipboard" .source=${goalsCopySource}></shu-copy-button></div>
-				<div data-testid="affordances-goals">${goals.length === 0 ? html`<div class="empty">A goal-producing step isn't loaded.</div>` : goals.map((g, idx) => this.renderGoalTpl(g, idx, openGoal))}</div>
+				<div data-testid="affordances-goals">${goals.length === 0 ? emptyState({ message: "A goal-producing step isn't loaded.", next: html`The steps actuality declares: ${stepRef(SHOW_STEPS_METHOD)}.` }) : goals.map((g, idx) => this.renderGoalTpl(g, idx, openGoal))}</div>
 			`
 					: ""
 			}

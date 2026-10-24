@@ -398,7 +398,8 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		}
 		this.dispatchContextChange();
 		// The result table is the source, since the pruning of the columns starts from the query's pane.
-		if (this.selectedIds.size > 0) openRef(e.target as Element, REF_DENOTES.individual, { persistedAs: this.qLabel ?? firstDeclaredType(), id: vid }, ctrlKey === true);
+		if (this.selectedIds.size > 0)
+			openRef(e.target as Element, { kind: REF_DENOTES.individual, target: { persistedAs: this.qLabel ?? firstDeclaredType(), id: vid } }, ctrlKey === true);
 	};
 
 	/** Show why the query wasn't sent, with the links that remedy it, and clear the rows. */

@@ -14,7 +14,7 @@ import { AStepper } from "../steps/domains/stepper.js";
 import { namedInterpolation } from "../steps/derivations/named-vars.js";
 import { constructorName, dePolite } from "../domains/util.js";
 import type { TFound } from "./baseline.js";
-import { sourceFiles, TEST_MODULE } from "./repository-files.js";
+import { sourceFiles, TEST_MODULE, unwrapped } from "./repository-files.js";
 
 export const STARTS_WITHOUT_PARAMETERS = "starts or keeps something without a parameter";
 export const ONE_CALL_SITE = "has at most one call site";
@@ -219,9 +219,6 @@ function matcherOf({ kind, pattern }: TDeclaredStep): (line: string) => boolean 
 
 /** A string that names a step: its key, or its key after its stepper's name and a dash, as a call over RPC names it. */
 const NAMED_KEY = /^(?:[A-Za-z]\w*-)?([A-Za-z]\w*)$/;
-/** An expression that only states the type of the expression it holds. */
-const typed = (node: ts.Expression): ts.Expression =>
-	ts.isAsExpression(node) || ts.isSatisfiesExpression(node) || ts.isParenthesizedExpression(node) ? typed(node.expression) : node;
 
 /** Each naming of a step in the initializer of a top-level constant of a source, with the name code reads it through: the
  *  constant, or the constant and the property of its object that holds the naming, and the statement that declares it. */
@@ -231,7 +228,7 @@ function constantNamings(file: string, text: string, keys: ReadonlySet<string>):
 		statement.declarationList.declarations.flatMap((declaration) => {
 			if (!ts.isIdentifier(declaration.name) || declaration.initializer === undefined) return [];
 			const constant = declaration.name.text;
-			const object = typed(declaration.initializer);
+			const object = unwrapped(declaration.initializer);
 			const found: { key: string; read: string; declaration: string }[] = [];
 			const visit = (node: ts.Node, read: string): void => {
 				const key = ts.isStringLiteralLike(node) ? NAMED_KEY.exec(node.text)?.[1] : undefined;

@@ -19,14 +19,15 @@ import { subscribeBatchedEvents } from "../controllers/event-stream-controller.j
 import { variablesSetBy, type TVariableSet } from "../derivations/step-variables.js";
 import { anIndividual, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { formatSeqPath, parseRecordName, stepLine, type TStepLine } from "@haibun/core/lib/seq-path.js";
-import { actionRef, calledRef, originLink, refTpl } from "./shu-ref.js";
-import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
+import { actionRef, calledRef, originLink, recordRef } from "./shu-ref.js";
 import { ClockController } from "../controllers/clock-controller.js";
 import { appAccessLevel } from "../controllers/view-query-controller.js";
 import { typeShownIn } from "../controllers/catalog-controller.js";
 import { clusteredQuads, recordRead } from "../controllers/read-controller.js";
 import { LoadController } from "../controllers/load-controller.js";
-import { loadRenders, refusalTpl, waitingTpl } from "./load-renders.js";
+import { loadRenders, refusalTpl } from "./load-renders.js";
+import { emptyState, waitingTpl } from "./empty-state.js";
+import { actualityStepsNext } from "./actuality-states.js";
 
 /** The name of the delay before the pane reads a running step again. */
 const STEP_RE_READ = "step-re-read";
@@ -135,7 +136,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 
 	/** A variable the step set, as a link to its record. */
 	private variableRef({ name, graph }: TVariableSet): TemplateResult {
-		return refTpl(REF_DENOTES.individual, { persistedAs: graph, id: name }, name);
+		return recordRef({ persistedAs: graph, id: name }, name);
 	}
 
 	render(): TemplateResult {
@@ -145,7 +146,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		const key = name === undefined ? record.id : formatSeqPath(name.path);
 		return this.#load.render({
 			...loadRenders(html`Loading step [${key}]`, this.#load),
-			failed: (refusal) => html`<div class="empty">Step [${key}] wasn't read.</div>${refusalTpl(refusal, this.#load)}`,
+			failed: (refusal) => emptyState({ message: `Step [${key}] wasn't read.`, next: refusalTpl(refusal, this.#load) }),
 			completed: (data) => this.renderContent(key, data),
 		});
 	}
@@ -164,7 +165,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 
 	private renderContent(key: string, data: TStepData): TemplateResult {
 		const { step, variablesSet } = data;
-		if (!step && variablesSet.length === 0) return html`<div class="empty">Actuality doesn't hold a record of step [${key}]</div>`;
+		if (!step && variablesSet.length === 0) return emptyState({ message: `Actuality doesn't hold a record of step [${key}].`, next: actualityStepsNext() });
 		const line = step === undefined ? undefined : stepLine(step);
 		return html`<div class="step-detail">
 			<h4>Step [${key}]</h4>

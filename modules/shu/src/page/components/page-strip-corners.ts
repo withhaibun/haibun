@@ -8,13 +8,14 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { AccessQueryLevelSchema, type AccessQueryLevel } from "@haibun/core/lib/domains/resources.js";
 import { AuthorityController } from "../controllers/authority-controller.js";
 import { AWAITING_DECISION, PERMISSIONS_SLOT, SHU_TAG } from "../../domains/elements.js";
+import { MONITOR_LABEL } from "./actuality-states.js";
 import { actualitySpan } from "../client-cache/controllers/actuality-controller.js";
 import { getUiExtensionTags } from "../controllers/catalog-controller.js";
 import { PERMISSIONS_SUMMARY, summaryOf, type TPermissionsSummary } from "./shu-permissions.js";
 import type { TControllerHost } from "./controller-host.js";
 import { reportToRun } from "../controllers/client-log-controller.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
-import { isRefKind, type TRefKind } from "../derivations/markdown.js";
+import { refOf, type TRef } from "../derivations/markdown.js";
 import { requestPane, showsPane } from "../controllers/pane-controller.js";
 import "./shu-theme-switch.js";
 import "./shu-playback.js";
@@ -30,14 +31,15 @@ const CORNER_DISMISS: Record<TCorner, "click-away" | "panel"> = { settings: "cli
 
 /** What an extension in the permissions area reports awaits the reader's decision: how many, and the reference that leads
  *  to them. */
-type TAwaiting = { count: number; ref: { kind: TRefKind; target: Record<string, unknown> } | null };
+type TAwaiting = { count: number; ref: TRef | null };
 
 /** The awaiting mark an event's detail states, or null for a detail whose count is not a number, which doesn't state a mark.
  *  A count below zero is zero, and a reference of a kind a ref cannot open isn't a reference. */
 export function awaitingOf(detail: { count?: unknown; kind?: string; target?: Record<string, unknown> } | undefined): TAwaiting | null {
 	const count = Number(detail?.count ?? 0);
 	if (!Number.isFinite(count)) return null;
-	return { count: Math.max(0, count), ref: isRefKind(detail?.kind) && detail?.target ? { kind: detail.kind, target: detail.target } : null };
+	const ref = refOf(detail?.kind, detail?.target);
+	return { count: Math.max(0, count), ref: ref === undefined ? null : ref };
 }
 
 /** A span in seconds or minutes, whichever reads shorter. */
@@ -157,7 +159,7 @@ export class PageStripCorners implements ReactiveController {
 	 *  and left as the reader has it where it is. It also opens playback, the controls a rail cannot offer. */
 	onTimeOffsetClick = (e: Event): void => {
 		const tag = SHU_TAG.MONITOR_COLUMN;
-		requestPane({ paneType: "component", tag, label: "Monitor", ...(showsPane(tag) ? {} : { flag: "min" as const }) });
+		requestPane({ paneType: "component", tag, label: MONITOR_LABEL, ...(showsPane(tag) ? {} : { flag: "min" as const }) });
 		this.toggle("playback")(e);
 	};
 

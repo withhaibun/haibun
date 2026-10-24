@@ -21,7 +21,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
 import type { TFound } from "./baseline.js";
-import { constInitializers, lineOf, type TSources } from "./repository-files.js";
+import { constInitializers, lineOf, unwrapped, type TSources } from "./repository-files.js";
 
 export const FILLS_ABSENT = "fills an absent value with a constant through ??";
 export const FILLS_FALSY = "fills a falsy value with a constant through ||";
@@ -67,8 +67,7 @@ function constantProperty(node: ts.PropertyAccessExpression): boolean {
 /** Returns whether an expression is a constant expression, reading a name through the file's consts. */
 function isConstant(node: ts.Expression, consts: Map<string, ts.Expression>, reading: ReadonlySet<string>): boolean {
 	if (LITERAL_KINDS.has(node.kind)) return true;
-	if (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isSatisfiesExpression(node) || ts.isNonNullExpression(node) || ts.isTypeAssertionExpression(node))
-		return isConstant(node.expression, consts, reading);
+	if (unwrapped(node) !== node) return isConstant(unwrapped(node), consts, reading);
 	if (ts.isPrefixUnaryExpression(node)) return SIGNS.has(node.operator) && isConstant(node.operand, consts, reading);
 	if (ts.isConditionalExpression(node)) return isConstant(node.whenTrue, consts, reading) && isConstant(node.whenFalse, consts, reading);
 	if (ts.isPropertyAccessExpression(node)) return constantProperty(node) || CONSTANT_NAME.test(node.name.text);

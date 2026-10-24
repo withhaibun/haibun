@@ -3,9 +3,7 @@ import { html, nothing, type TemplateResult } from "lit";
 import type { TPageRefusal } from "../domains/refusal.js";
 import "./shu-refusal.js";
 import "./shu-spinner.js";
-
-/** A wait for a read, stating what it reads. */
-export const waitingTpl = (reading: TemplateResult | typeof nothing): TemplateResult => html`<div class="empty"><shu-spinner></shu-spinner> ${reading}</div>`;
+import { waitingTpl } from "./empty-state.js";
 
 /** A read a refusal reads again. */
 export type TReadAgain = { run(): Promise<void> };

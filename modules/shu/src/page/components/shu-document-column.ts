@@ -8,7 +8,7 @@
  * dimming, click-to-scrub, jump-to-row from another view, and failed-step glyphs on the rail all operate on the rows.
  * Product views are embedded inside their row (once per element, so the virtualizer recycling a row does not re-open it).
  */
-import { html, css, type TemplateResult } from "lit";
+import { html, css, nothing, type TemplateResult } from "lit";
 import { ARTIFACT_SANDBOX } from "@haibun/core/lib/domains/run-artifact.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
@@ -36,6 +36,8 @@ import { artifactUrl } from "../controllers/artifact-controller.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
 import { esc, renderRefBody } from "../derivations/markdown.js";
+import { unavailableState } from "./empty-state.js";
+import { actualityUnavailable } from "./actuality-states.js";
 
 const DocumentColumnSchema = z.object({ level: z.enum(HAIBUN_LOG_LEVELS) });
 
@@ -402,6 +404,12 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		}
 	}
 
+	/** Why actuality couldn't be read, with the control that reads it again, where it couldn't. */
+	#unavailable(): TemplateResult | typeof nothing {
+		const unavailable = actualityUnavailable(this.#run);
+		return unavailable === undefined ? nothing : unavailableState(unavailable);
+	}
+
 	render(): TemplateResult {
 		return html`
 			<div class="doc-controls">
@@ -409,7 +417,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 					${HAIBUN_LOG_LEVELS.map((l) => html`<option value=${l} ?selected=${l === this.state.level}>${l}</option>`)}
 				</select></label>
 			</div>
-			${this.#run.unavailable ? html`<div class="empty unavailable">${this.#run.unavailable}</div>` : ""}
+			${this.#unavailable()}
 			<shu-virtual-column data-testid=${SHU_TEST_IDS.DOCUMENT.ROOT} .cursor=${this.#cursorMark} .source=${this.#source} .renderRow=${(i: number, r: unknown) => this.#renderRow(i, r)} ?follow=${true}></shu-virtual-column>
 		`;
 	}

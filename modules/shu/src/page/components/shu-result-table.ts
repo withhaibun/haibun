@@ -15,6 +15,7 @@
  */
 import { html, css, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
+import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { shuBaseStyles } from "./styles.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { viewCollection } from "@haibun/core/lib/domains/hypermedia.js";
@@ -275,7 +276,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 				// therefore clickable cell by cell, without a table of its own.
 				const reference = referenceOf(v[p]);
 				if (reference)
-					return html`<span class="td" title=${reference["@id"]} data-testid=${testId}>${unsafeHTML(renderRef("entity", { persistedAs: reference["@type"], id: reference["@id"] }))}</span>`;
+					return html`<span class="td" title=${reference["@id"]} data-testid=${testId}>${unsafeHTML(renderRef({ kind: REF_DENOTES.individual, target: { persistedAs: reference["@type"], id: reference["@id"] } }))}</span>`;
 				const raw = String(v[p] ?? "");
 				const display = isDateValue(raw) ? formatInstant(raw, new Date(), readerZone()) : ellipsize(raw, CELL_MAX);
 				return html`<span class="td" title=${raw} data-testid=${testId}>${display}</span>`;

@@ -13,7 +13,7 @@ import { RECORD_JSON } from "./json-disclosure.js";
 import { persistedTypeDefinition } from "../../test/setup.js";
 
 /** The href of a link to a type's view, as the column's markup serializes it. */
-const typeHref = (domain: string) => `href="${refHref(REF_DENOTES.type, { domain })}"`;
+const typeHref = (domain: string) => `href="${refHref({ kind: REF_DENOTES.type, target: { domain } })}"`;
 
 const render = async (type: string): Promise<string> => {
 	const el = document.createElement("shu-entity-column") as ShuEntityColumn;

@@ -15,8 +15,8 @@ import type { TRpcMethod } from "../transport/ports.js";
 
 export const STORE_METHOD_PREFIX = "store.";
 
-export const STORE_READ = "store.read";
-export const STORE_WRITE = "store.write";
+export const STORE_READ: TAction = ActionSchema.parse("store.read");
+export const STORE_WRITE: TAction = ActionSchema.parse("store.write");
 
 const QuadInputSchema = z.object({
 	subject: z.string(),
@@ -73,7 +73,7 @@ export function requiredStoreCapability(method: string): TAction {
 	const name = method.slice(STORE_METHOD_PREFIX.length) as TStoreMethod;
 	const def = STORE_METHODS[name];
 	if (!def) throw new Error(`${method} isn't a store method; the store methods are ${Object.keys(STORE_METHODS).join(", ")}`);
-	return ActionSchema.parse(def.write ? STORE_WRITE : STORE_READ);
+	return def.write ? STORE_WRITE : STORE_READ;
 }
 
 /**

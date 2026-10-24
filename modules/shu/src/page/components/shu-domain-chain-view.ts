@@ -31,6 +31,8 @@ import type { TGraphPresenter, TPresenterNodeClick } from "../ports.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { typeShownIn } from "../controllers/catalog-controller.js";
 import "./shu-spinner.js";
+import { emptyState } from "./empty-state.js";
+import { SHOW_AFFORDANCES_METHOD, SHOW_VIEWS_METHOD } from "../domains/leads-on.js";
 
 /** Where the chain's graph is placed in the view, which is also the test id it is found by, and the scope it keeps its
  *  settings under. */
@@ -153,8 +155,12 @@ export class ShuDomainChainView extends ShuElement<typeof EmptyStateSchema> {
 		return this.#chain.render({
 			pending: () => this.loadingTemplate(),
 			running: () => this.loadingTemplate(),
-			failed: (refusal) => html`${refusalTpl(refusal, this.#chain)}
-				<div class="empty" data-testid=${SHU_TEST_IDS.DOMAIN_CHAIN.EMPTY}>The chain wasn't read. Invoke <code>show affordances</code> from the actions bar (Step mode), or run any step.</div>`,
+			failed: (refusal) =>
+				emptyState({
+					message: "The chain wasn't read.",
+					next: html`${refusalTpl(refusal, this.#chain)} Read it with ${stepRef(SHOW_AFFORDANCES_METHOD)}, or run any step.`,
+					testId: SHU_TEST_IDS.DOMAIN_CHAIN.EMPTY,
+				}),
 			completed: () => this.chainTemplate(),
 		});
 	}
@@ -172,7 +178,7 @@ export class ShuDomainChainView extends ShuElement<typeof EmptyStateSchema> {
 			${
 				graphPresenterTag()
 					? html`<div class="graph" data-testid=${CHAIN_GRAPH.slot}><slot name=${CHAIN_GRAPH.slot}></slot></div>`
-					: html`<div class="empty">The site doesn't declare a graph view that draws the chain.</div>`
+					: emptyState({ message: "The site doesn't declare a graph view that draws the chain.", next: html`The views it declares: ${stepRef(SHOW_VIEWS_METHOD)}.` })
 			}
 			${
 				this.findings.length
@@ -220,7 +226,7 @@ export class ShuDomainChainView extends ShuElement<typeof EmptyStateSchema> {
 		// A fact-instance node opens the step that produced the fact.
 		const step = node.kind === NODE_KIND.factInstance ? producingStepOf(node) : undefined;
 		if (step !== undefined) {
-			openRef(this, REF_DENOTES.individual, { persistedAs: typeShownIn(SHU_TAG.STEP_DETAIL), id: step }, false);
+			openRef(this, { kind: REF_DENOTES.individual, target: { persistedAs: typeShownIn(SHU_TAG.STEP_DETAIL), id: step } }, false);
 			return;
 		}
 		// Every other node of the chain projection deep-links into the affordances panel.

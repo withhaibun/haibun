@@ -12,9 +12,8 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { PageKeySchema } from "../../domains/schemas.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { refTpl } from "./shu-ref.js";
+import { recordRef } from "./shu-ref.js";
 import { principalAddress } from "@haibun/core/lib/domains/resources.js";
-import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import "./shu-copy-button.js";
 
 export class ShuPageKey extends ShuElement<typeof PageKeySchema> {
@@ -42,7 +41,7 @@ export class ShuPageKey extends ShuElement<typeof PageKeySchema> {
 		const { controller } = this.state;
 		// The key a delegation names is recorded as the Principal it is, so it opens as that record.
 		return html`<p>This is the page's public key, to which a holder delegates. It isn't a secret: the private key stays in this browser and isn't sent.</p>
-			<div class="key"><code data-testid=${SHU_TEST_IDS.APP.PAGE_KEY}>${refTpl(REF_DENOTES.individual, principalAddress(controller), controller)}</code><shu-copy-button label="copy" title="copy this page's public key, which a holder delegates to" .source=${controller}></shu-copy-button></div>`;
+			<div class="key"><code data-testid=${SHU_TEST_IDS.APP.PAGE_KEY}>${recordRef(principalAddress(controller), controller)}</code><shu-copy-button label="copy" title="copy this page's public key, which a holder delegates to" .source=${controller}></shu-copy-button></div>`;
 	}
 }
 

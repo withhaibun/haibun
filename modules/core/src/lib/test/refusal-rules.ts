@@ -6,7 +6,7 @@
  */
 import ts from "typescript";
 import type { TFound } from "./baseline.js";
-import { constInitializers, lineOf, type TSources } from "./repository-files.js";
+import { constInitializers, lineOf, unwrapped, type TSources } from "./repository-files.js";
 
 /** The words a refusal's own text holds at least, where it doesn't include another value: a subject, a verb and an object. */
 const WORDS_OF_A_CAUSE = 3;
@@ -59,10 +59,6 @@ function caughtBindings(source: ts.SourceFile): { name: string; scope: ts.Node }
 }
 
 const wordsIn = (text: string): number => [...text.matchAll(WORD)].length;
-const unwrapped = (node: ts.Expression): ts.Expression =>
-	ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isNonNullExpression(node) || ts.isSatisfiesExpression(node) || ts.isTypeAssertionExpression(node)
-		? unwrapped(node.expression)
-		: node;
 /** Each pair of alternatives joined, as a message holds both parts. */
 const joined = (left: TMessage[], right: TMessage[]): TMessage[] =>
 	left.flatMap((a) => right.map((b) => ({ words: a.words + b.words, caught: a.caught || b.caught, relays: a.relays || b.relays })));

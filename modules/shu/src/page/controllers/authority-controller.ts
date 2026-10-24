@@ -1,4 +1,5 @@
 import type { TAction } from "@haibun/core/lib/domains/actions.js";
+import type { TIndividualAddress } from "@haibun/core/lib/domains/typed-links.js";
 import type { ReactiveController, ReactiveControllerHost } from "lit";
 import { Access, principalRow, principalsQuery, type TPrincipalRow } from "@haibun/core/lib/domains/resources.js";
 import { capabilityAllows, delegatedActions, readAction, recordReadAction } from "@haibun/core/lib/domains/actions.js";
@@ -18,28 +19,32 @@ const pageAuthorityReady = () => pageAuthorityPort().ready();
 
 export type { TPrincipalRow };
 
-/** A record a view opens: the type the deployment records it as, and its id. */
-type TRecordRef = { persistedAs: string; id: string };
-
 /** What holds here: the key this page signs as, what it may do, the delegation that granted each action it was
  *  delegated, and the principals the deployment holds. */
-export type TAuthority = { controller?: string; holds: TAction[]; grantedBy: Record<string, TRecordRef>; principals: TPrincipalRow[] };
+export type TAuthority = { controller?: string; holds: TAction[]; grantedBy: Record<string, TIndividualAddress>; principals: TPrincipalRow[] };
+
+/** The delegations of each authority the page held, derived once for each, since each action a view shows reads them. */
+const heldDelegations = new WeakMap<TPageAuthority, Record<string, TIndividualAddress>>();
 
 /** The delegation of each action the page was delegated, by the action it lists: the first delegation that lists
  *  it whose record this page may read, so an action doesn't offer a way to a record the page would be refused. */
-function delegationsOf(authority: TPageAuthority | undefined): Record<string, TRecordRef> {
-	const delegated: Record<string, TRecordRef> = {};
-	for (const delegation of authority?.delegations ?? []) {
-		const record = typeof delegation.id === "string" ? authority?.records?.[delegation.id] : undefined;
+function delegationsOf(authority: TPageAuthority | undefined): Record<string, TIndividualAddress> {
+	if (authority === undefined) return {};
+	const held = heldDelegations.get(authority);
+	if (held !== undefined) return held;
+	const delegated: Record<string, TIndividualAddress> = {};
+	for (const delegation of authority.delegations) {
+		const record = typeof delegation.id === "string" ? authority.records?.[delegation.id] : undefined;
 		if (!record || !pageMay(recordReadAction(record))) continue;
 		for (const action of delegatedActions(delegation)) delegated[action] ??= { persistedAs: record.persistedAs, id: String(delegation.id) };
 	}
+	heldDelegations.set(authority, delegated);
 	return delegated;
 }
 
 /** Whether the page's key holds an action, and the delegation of the action to it, where it holds the action through a
  *  delegation whose record it may read. */
-export type THolder = { holds: boolean; delegation?: TRecordRef };
+export type THolder = { holds: boolean; delegation?: TIndividualAddress };
 
 /** Who holds `action` here: whether this page's key does, and the delegation of the action to it. */
 export async function holderOf(action: TAction): Promise<THolder> {

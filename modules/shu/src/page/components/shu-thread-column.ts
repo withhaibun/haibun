@@ -27,6 +27,7 @@ import { addsToSelection } from "../derivations/pane-kinds.js";
 import { relatedRecords } from "../controllers/read-controller.js";
 import { LoadController } from "../controllers/load-controller.js";
 import { loadRenders } from "./load-renders.js";
+import { emptyState } from "./empty-state.js";
 
 /** Where the thread's graph is placed in the column, and the scope it keeps its settings under, apart from the main graph's. */
 const THREAD_GRAPH = { slot: "thread-graph", scope: "thread" } as const;
@@ -127,7 +128,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 			const { nodeId } = (e as CustomEvent<TPresenterNodeClick>).detail;
 			const vertex = this.thread.find((v) => idOf(v) === nodeId);
 			if (!vertex) throw new Error(`thread graph node "${nodeId}" isn't a record of the thread`);
-			openRef(e, REF_DENOTES.individual, { persistedAs: persistedTypeOf(vertex) || this.state.label, id: nodeId });
+			openRef(e, { kind: REF_DENOTES.individual, target: { persistedAs: persistedTypeOf(vertex) || this.state.label, id: nodeId } });
 		});
 	}
 
@@ -170,7 +171,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 	private onCardClick =
 		(id: string, cardLabel: string) =>
 		(e: MouseEvent): void =>
-			openRef(e, REF_DENOTES.individual, { persistedAs: cardLabel, id }, addsToSelection(e));
+			openRef(e, { kind: REF_DENOTES.individual, target: { persistedAs: cardLabel, id } }, addsToSelection(e));
 
 	/** The graph mode draws the thread in the site's graph presenter, mounted once and given the thread on each update. */
 	protected updated(): void {
@@ -192,16 +193,19 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 	/** The thread, or, where it doesn't hold a reply, a link to the record it was read from, or for items the column was given,
 	 *  to their type. */
 	render(): TemplateResult {
-		const { label, individualId } = this.state;
+		const { individualId } = this.state;
 		return this.#thread.render({
 			...loadRenders(html`Reading the thread of ${individualId}`, this.#thread),
-			completed: (thread) =>
-				thread.length
-					? this.threadTemplate()
-					: html`<div class="empty" data-testid=${SHU_TEST_IDS.THREAD.UNREPLIED}>
-							${individualId ? html`${recordRef({ persistedAs: label, id: individualId })} doesn't have a reply.` : html`The items of ${typeRef(label)} don't have a reply.`}
-						</div>`,
+			completed: (thread) => (thread.length ? this.threadTemplate() : this.unrepliedTpl()),
 		});
+	}
+
+	/** The record the thread was read from, or for items the column was given, their type, which doesn't have a reply. */
+	private unrepliedTpl(): TemplateResult {
+		const { label, individualId } = this.state;
+		const testId = SHU_TEST_IDS.THREAD.UNREPLIED;
+		if (individualId) return emptyState({ message: "It doesn't have a reply:", next: recordRef({ persistedAs: label, id: individualId }), testId });
+		return emptyState({ message: "These items don't have a reply:", next: typeRef(label), testId });
 	}
 
 	private threadTemplate(): TemplateResult {

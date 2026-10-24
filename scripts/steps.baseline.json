@@ -73,8 +73,7 @@
 	"modules/shu/src/shu-stepper.ts": {
 		"has at most one call site: ShuStepper.getGraphLayout": 1,
 		"has at most one call site: ShuStepper.showPolymorphicGraphView": 1,
-		"has at most one call site: ShuStepper.showShuApps": 1,
-		"has at most one call site: ShuStepper.showViews": 1
+		"has at most one call site: ShuStepper.showShuApps": 1
 	},
 	"modules/storage-fs/src/storage-fs-stepper.ts": {
 		"has at most one call site: AStorage.createDirectory": 1,

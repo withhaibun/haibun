@@ -16,7 +16,7 @@ import { SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { JsonObjectTextSchema } from "@haibun/core/lib/domains/json-text.js";
 import { refHref } from "./ref-navigation.js";
-import { isRefKind } from "../derivations/markdown.js";
+import { refOf } from "../derivations/markdown.js";
 import { ShuElement, EmptyStateSchema, type TLinkedData } from "./shu-element.js";
 
 export class ShuRef extends ShuElement<typeof EmptyStateSchema> {
@@ -43,9 +43,9 @@ export class ShuRef extends ShuElement<typeof EmptyStateSchema> {
 	/** The address of the reference's target, or undefined for a kind without a pane, or markup a body carries whose target
 	 *  isn't a JSON object. */
 	private href(): string | undefined {
-		if (!isRefKind(this.kind)) return undefined;
 		const target = JsonObjectTextSchema.safeParse(this.linkTarget);
-		return target.success ? refHref(this.kind, target.data) : undefined;
+		const ref = target.success ? refOf(this.kind, target.data) : undefined;
+		return ref === undefined ? undefined : refHref(ref);
 	}
 
 	render(): TemplateResult {

@@ -24,6 +24,7 @@ import { mayCall, requiredAction } from "@haibun/core/lib/domains/actions.js";
 import { declaredSteps, registeredPredicate } from "@haibun/core/lib/steps/derivations/predicate-registry.js";
 import { stepParts } from "@haibun/core/lib/steps/domains/phrase.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
+import { heldPerEntries } from "@haibun/core/lib/steps/derivations/held-per-entries.js";
 import { unwrap, unwrapToShape } from "@haibun/core/lib/domains/zod-unwrap.js";
 import { DOMAIN_INDIVIDUAL_ADDRESS } from "@haibun/core/lib/domains/typed-links.js";
 import { FieldDomainSchema, type TBinding, type TCompositeRanges, type TFieldBinding, type TForwardAffordance, type TPlan } from "@haibun/core/lib/domains/goal-resolution.js";
@@ -43,7 +44,7 @@ export const FACTS_HELD = { predicate: FACT_FIELD.domain, namedGraph: FACT_LABEL
 /** A step's signature: its method, the domains it takes other than primitives, the domains it returns, and the action it requires. */
 export type TStepSignature = Omit<TForwardAffordance, "readyToRun">;
 
-export function stepSignatures(steppers: readonly AStepper[]): TStepSignature[] {
+function signaturesOf(steppers: readonly AStepper[]): TStepSignature[] {
 	return declaredSteps(steppers).map(({ stepperName, actionName: stepName, step }) => {
 		const outputs = step.productsDomain !== undefined ? [step.productsDomain] : step.productsDomains === undefined ? [] : Object.values(step.productsDomains);
 		return {
@@ -57,6 +58,10 @@ export function stepSignatures(steppers: readonly AStepper[]): TStepSignature[] 
 		};
 	});
 }
+
+/** The signature of each step of the steppers, derived again only where a step is added, removed or replaced, since a graph
+ *  source's build and each goal read it. */
+export const stepSignatures = heldPerEntries((steppers: readonly AStepper[]) => steppers.flatMap((stepper) => [stepper, ...Object.values(stepper.steps)]), signaturesOf);
 
 /** The fields of a domain whose schema is an object, each with the domain `topology.ranges` names for it. */
 function compositeFields(domain: TRegisteredDomain | undefined, domains: TDomains): string[] {

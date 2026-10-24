@@ -11,10 +11,10 @@ import { PageStripCorners, CORNERS, awaitingOf, timeOffsetLabel } from "./page-s
 import { aControllerHost, type ControllerHostFake } from "./controller-host.test-fake.js";
 import { PERMISSIONS_SUMMARY } from "./shu-permissions.js";
 import { pageHolding } from "../controllers/authority-controller.test-fake.js";
-import { REF_KIND } from "../derivations/markdown.js";
+import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 
-/** A kind of reference a ref opens. */
-const OPENABLE = REF_KIND[1];
+/** A reference a ref opens: an individual, by its address. */
+const OPENABLE = { kind: REF_DENOTES.individual, target: { persistedAs: "Petition", id: "a" } };
 
 const PREFIX = "app-";
 /** The corner used beside the view, which only its own control closes; every other corner is a picker. */
@@ -92,11 +92,15 @@ describe("the page strip's corners", () => {
 	});
 
 	it("mark what awaits the reader from the detail an extension reports, and ignore a detail without a count", () => {
-		expect(awaitingOf({ count: 2, kind: OPENABLE, target: { id: "a" } })).toEqual({ count: 2, ref: { kind: OPENABLE, target: { id: "a" } } });
-		expect(awaitingOf({ count: -1, kind: "elsewhere", target: { id: "a" } }), "the count doesn't go below zero, and other kinds don't get a ref").toEqual({ count: 0, ref: null });
+		expect(awaitingOf({ count: 2, ...OPENABLE })).toEqual({ count: 2, ref: OPENABLE });
+		expect(awaitingOf({ count: -1, kind: "elsewhere", target: OPENABLE.target }), "the count doesn't go below zero, and other kinds don't get a ref").toEqual({
+			count: 0,
+			ref: null,
+		});
+		expect(awaitingOf({ count: 1, kind: OPENABLE.kind, target: { id: "a" } }), "nor does a target its kind doesn't name").toEqual({ count: 1, ref: null });
 		expect(awaitingOf({ count: "several" })).toBeNull();
 		const page = aCornersPage();
-		document.dispatchEvent(new CustomEvent(AWAITING_DECISION, { detail: { count: 3, kind: OPENABLE, target: { id: "a" } } }));
+		document.dispatchEvent(new CustomEvent(AWAITING_DECISION, { detail: { count: 3, ...OPENABLE } }));
 		document.dispatchEvent(new CustomEvent(AWAITING_DECISION, { detail: { count: "several" } }));
 		renderControls(page);
 		expect(control(page.host, "access-indicator").querySelector(".awaiting-count")?.textContent).toBe("3");

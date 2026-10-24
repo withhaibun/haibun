@@ -19,13 +19,18 @@ export function actionList(listed: string | undefined): string[] {
 		.filter((action) => action.length > 0);
 }
 
+/** The grammar of an action: every action (`*`), a name such as `store.read`, a stepper's name and one of its steps or a read's
+ *  level after a colon, such as `Read:public`, or a prefix that a trailing `*` ends, which allows every action it begins. */
+const ACTION_GRAMMAR = /^(\*|[A-Za-z][\w.-]*(:[\w.-]*)?\*?)$/;
+
 /** An action as a reader states it: what a caller holds or a step requires. A reference to an action takes one, so a step's
- *  method isn't taken for an action. */
-export const ActionSchema = z.string().min(1).brand<"Action">();
+ *  method isn't taken for an action. An action a link, a call, a delegation or a step's declaration states is parsed with its
+ *  grammar, and a refusal states the grammar's pattern; one this module builds is stated in that grammar. */
+export const ActionSchema = z.string().regex(ACTION_GRAMMAR).brand<"Action">();
 export type TAction = z.infer<typeof ActionSchema>;
 
 /** The action a read at `level` requires. */
-export const readAction = (level: AccessLevel): TAction => ActionSchema.parse(`${READ_PREFIX}${level}`);
+export const readAction = (level: AccessLevel): TAction => `${READ_PREFIX}${level}` as TAction;
 
 /** The read action a reader holds to open a record, at the level the record states. */
 export const recordReadAction = (record: { accessLevel: AccessLevel }): TAction => readAction(record.accessLevel);
@@ -58,7 +63,7 @@ export type TStepReads =
  */
 export function requiredAction(stepperName: string, stepName: string, step: TStepReads): TAction {
 	if (step.capability !== undefined) return ActionSchema.parse(step.capability);
-	if (!step.read) return ActionSchema.parse(`${stepperName}:${stepName}`);
+	if (!step.read) return `${stepperName}:${stepName}` as TAction;
 	if (step.readsAt === undefined) throw new Error(`${stepperName}.${stepName} reads and doesn't state readsAt or a capability. State readsAt as the level of its read.`);
 	return readAction(step.readsAt);
 }

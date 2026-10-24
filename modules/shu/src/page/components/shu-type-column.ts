@@ -126,7 +126,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 	/** A row opens the individual it is, exactly as a row in the query or filter view does. */
 	private onRowClick = (e: Event): void => {
 		const { individualId, label, ctrlKey } = (e as CustomEvent).detail;
-		if (individualId) openRef(e, REF_DENOTES.individual, { persistedAs: label || this.state.persistedAs, id: individualId }, ctrlKey);
+		if (individualId) openRef(e, { kind: REF_DENOTES.individual, target: { persistedAs: label || this.state.persistedAs, id: individualId } }, ctrlKey);
 	};
 
 	/** The site's schema presenter (the class browser) if declared, else its general graph presenter. */

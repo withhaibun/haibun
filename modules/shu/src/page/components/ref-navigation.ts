@@ -3,52 +3,42 @@
  * any context, a component, a graph click handler, a node test, without dragging a DOM class into the module graph.
  * A link is an anchor whose href is the address of a pane (`paneHref`), and the page follows its own addresses
  * (`followPaneLink`): a click opens the addressed pane beside the one in which it was clicked. A typed reference (seqPath /
- * entity / domain / step) is addressed through `refHref`, and a view that isn't an anchor, a row or a card, opens the
+ * entity / domain / step / action) is addressed through `refHref`, and a view that isn't an anchor, a row or a card, opens the
  * same pane with `openRef`.
  */
 import { ACTIVE_PARAM, COLUMN_PARAM, hashParams, hashWithColumns } from "../derivations/address.js";
 import { mergeHashParams } from "../controllers/hash-controller.js";
 import { DEEP_LINK_PREFIX } from "../../domains/elements.js";
-import { PartSchema } from "@haibun/core/lib/domains/resources.js";
-import { ActionSchema } from "@haibun/core/lib/domains/actions.js";
-import { StepMethodSchema } from "@haibun/core/lib/steps/domains/step-method.js";
 import { formatRecordName } from "@haibun/core/lib/seq-path.js";
 import { readingActualityFeature } from "../client-cache/controllers/device-controller.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
-import { esc, escAttr, stepPathOf, type TRefKind } from "../derivations/markdown.js";
+import { esc, escAttr, stepPathOf, type TNamedRef, type TRef, type TRefTarget } from "../derivations/markdown.js";
 import { paneOfEntry, requestPaneFrom } from "../controllers/pane-controller.js";
 import { addsToSelection, columnEntryOf, type DesiredPane } from "../derivations/pane-kinds.js";
 import { typeShownIn } from "../controllers/catalog-controller.js";
 import { SHU_TAG } from "../../domains/elements.js";
 
-/** The pane a reference opens. ONE reading of (kind, linkTarget), so what a ref's href addresses is what clicking it
- *  opens: a second reading would drift, and the href would then advertise the wrong destination. */
-export function desiredPaneFor(kind: TRefKind, linkTarget: Record<string, unknown>): DesiredPane | null {
-	// A step is a record, named by the actuality feature being read and its path, and opens as its record's view (CA4D9). A typed
-	// fact's subject is its step's path, so a reference to a fact's step opens the step that produced it. Before the page
-	// reads an actuality feature, a step's path doesn't name a record.
-	const path = stepPathOf(kind, linkTarget);
-	if (path !== undefined) {
-		const actualityFeature = readingActualityFeature();
-		return actualityFeature === undefined
-			? null
-			: { paneType: "entity", persistedAs: typeShownIn(SHU_TAG.STEP_DETAIL), id: formatRecordName({ actuality: actualityFeature, path }) };
-	}
-	if (kind === REF_DENOTES.individual && typeof linkTarget.persistedAs === "string" && typeof linkTarget.id === "string") {
-		// A part addresses a passage or a fragment of media INSIDE the individual; the pane identity stays the individual:
-		// same document, same column, and the part rides along for the column to show.
-		const parsed = PartSchema.safeParse(linkTarget.selector);
-		const selector = parsed.success ? parsed.data : undefined;
-		return { paneType: "entity", persistedAs: linkTarget.persistedAs, id: linkTarget.id, ...(selector ? { selector } : {}) };
-	}
-	// A type reference opens the type column: its description, schema graph, and individuals.
-	if (kind === REF_DENOTES.type && typeof linkTarget.domain === "string") return { paneType: "type", persistedAs: linkTarget.domain };
-	// A step reference opens the step as actuality declares it.
-	if (kind === "step" && typeof linkTarget.method === "string") return { paneType: "step", method: StepMethodSchema.parse(linkTarget.method) };
-	// An action reference opens what the action allows.
-	if (kind === "action" && typeof linkTarget.action === "string") return { paneType: "action", action: ActionSchema.parse(linkTarget.action) };
-	return null;
+/** The pane each kind of reference to a record opens. A part of an individual addresses a passage or a fragment of media inside
+ *  it, so the pane stays the individual's and the part rides along. A type opens the type column, a step its declaration, and
+ *  an action what it allows. */
+const PANE_OF: { [K in TNamedRef["kind"]]: (target: TRefTarget<K>) => DesiredPane } = {
+	[REF_DENOTES.individual]: ({ persistedAs, id, selector }) => ({ paneType: "entity", persistedAs, id, ...(selector === undefined ? {} : { selector }) }),
+	[REF_DENOTES.type]: ({ domain }) => ({ paneType: "type", persistedAs: domain }),
+	step: ({ method }) => ({ paneType: "step", method }),
+	action: ({ action }) => ({ paneType: "action", action }),
+};
+
+/** The pane a reference opens. ONE reading of a reference, so what a ref's href addresses is what clicking it opens: a second
+ *  reading would drift, and the href would then advertise the wrong destination. A step is a record, named by the actuality
+ *  feature being read and its path, and opens as its record's view (CA4D9); a typed fact's subject is its step's path, so a
+ *  reference to a fact's step opens the step that produced it, and before the page reads an actuality feature a step's path
+ *  doesn't name a record. */
+export function desiredPaneFor(ref: TRef): DesiredPane | null {
+	const path = stepPathOf(ref);
+	if (path === undefined) return (PANE_OF[(ref as TNamedRef).kind] as (target: TRef["target"]) => DesiredPane)(ref.target);
+	const actualityFeature = readingActualityFeature();
+	return actualityFeature === undefined ? null : { paneType: "entity", persistedAs: typeShownIn(SHU_TAG.STEP_DETAIL), id: formatRecordName({ actuality: actualityFeature, path }) };
 }
 
 /** The address of a pane, written as the address bar writes a column, so a link to it can be opened in a tab, copied
@@ -84,8 +74,8 @@ export function followDeepLink(from: Element | Event, link: TDeepLink, addToSele
  * page opens the pane beside the one it was clicked from (Miller-column), which is a different, composite address. So
  * this addresses the thing itself, not the reader's resulting column set.
  */
-export function refHref(kind: TRefKind, linkTarget: Record<string, unknown>): string | undefined {
-	const desired = desiredPaneFor(kind, linkTarget);
+export function refHref(ref: TRef): string | undefined {
+	const desired = desiredPaneFor(ref);
 	return desired ? paneHref(desired) : undefined;
 }
 
@@ -102,9 +92,9 @@ export function followPaneLink(e: MouseEvent): void {
 }
 
 /** Open what a reference points at from a view that isn't a link. */
-export function openRef(source: Element | Event, kind: TRefKind, linkTarget: Record<string, unknown>, addToSelection = false): void {
-	const desired = desiredPaneFor(kind, linkTarget);
-	if (!desired) throw new Error(`a ${kind} reference to ${JSON.stringify(linkTarget)} doesn't address a pane`);
+export function openRef(source: Element | Event, ref: TRef, addToSelection = false): void {
+	const desired = desiredPaneFor(ref);
+	if (!desired) throw new Error(`a ${ref.kind} reference to ${JSON.stringify(ref.target)} doesn't address a pane`);
 	requestPaneFrom(source, desired, addToSelection);
 }
 

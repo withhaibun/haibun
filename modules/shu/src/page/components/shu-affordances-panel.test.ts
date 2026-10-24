@@ -20,7 +20,7 @@ import { desiredPaneFor } from "./ref-navigation.js";
 import { PANE_ATTACH } from "../controllers/pane-controller.js";
 import { ShuStepDefinition } from "./shu-step-definition.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import type { TRefKind } from "../derivations/markdown.js";
+import { refOf } from "../derivations/markdown.js";
 
 /** The step that reads the affordances on offer, as the show steps step describes it. */
 const AFFORDANCES_STEP = {
@@ -159,7 +159,8 @@ describe("shu-affordances-panel", () => {
 		(panel.shadowRoot?.querySelector('button[data-testid="goal-vc-toggle"]') as HTMLButtonElement | null)?.click();
 		await applied(panel);
 		const ref = panel.shadowRoot?.querySelector(".plan-steps li shu-ref");
-		const pane = desiredPaneFor(ref?.getAttribute("kind") as TRefKind, JSON.parse(ref?.getAttribute("linkTarget") ?? "{}"));
+		const read = refOf(ref?.getAttribute("kind"), JSON.parse(ref?.getAttribute("linkTarget") ?? "{}"));
+		const pane = read === undefined ? undefined : desiredPaneFor(read);
 		expect(pane).toEqual({ paneType: "step", method: ISSUE.method });
 		const attach = PANE_ATTACH.step;
 		if (pane?.paneType !== "step" || attach === undefined) throw new Error("a plan step's reference opens a step pane, which the page attaches");

@@ -8,7 +8,6 @@
 import { SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { html, css, nothing, type TemplateResult } from "lit";
-import { property } from "lit/decorators.js";
 import { ref, createRef } from "lit/directives/ref.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
@@ -25,7 +24,7 @@ import { appAccessLevel } from "../controllers/view-query-controller.js";
 import { queryGraph, queryRead, incomingEdges, incomingRead } from "../controllers/read-controller.js";
 import { LoadController } from "../controllers/load-controller.js";
 import type { TCallOutcome } from "../pipelines/call-step.js";
-import { refusalTpl } from "./load-renders.js";
+import { loadRenders } from "./load-renders.js";
 import "./shu-spinner.js";
 import "./shu-result-table.js";
 
@@ -47,7 +46,6 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		`,
 	];
 
-	@property({ attribute: false }) accessor spinnerStatus = "Waiting...";
 	/** The read the column opened at: its rows, as a windowed source that reads each later window. */
 	#readPage: () => Promise<TCallOutcome<WindowedSource<VertexData>>> = () => Promise.resolve({ ok: false, refusal: { error: "the column isn't opened at a filter" } });
 	readonly #page = new LoadController<WindowedSource<VertexData>>(this, () => this.#readPage());
@@ -64,17 +62,15 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		// A read refuses a filter on the id field, which isn't in the type's filter surface. A filter on the id names one
 		// record, so the column opens that record in the entity column and doesn't run a graph query.
 		if (property === getIdField(label)) {
-			openRef(this, REF_DENOTES.individual, { persistedAs: label, id: value });
+			openRef(this, { kind: REF_DENOTES.individual, target: { persistedAs: label, id: value } });
 			return;
 		}
 		this.setState({ property, value, persistedAs: label, incoming: undefined });
-		this.spinnerStatus = "Fetching...";
 		await this.fetchResults({ label, filters: [{ predicate: property, operator: "eq", value }], sortOrder: "desc", limit: 50, offset: 0, accessLevel: appAccessLevel() });
 	}
 
 	async openProperty(property: string, label: string = firstDeclaredType()): Promise<void> {
 		this.setState({ property, value: undefined, persistedAs: label, incoming: undefined });
-		this.spinnerStatus = "Fetching...";
 		// Sort by the clicked property only when the topology declares it sortable; otherwise (the idField, or any field
 		// not in sortColumns, e.g. a SeqPath's id) fall back to the default sort so browsing all of this type still works
 		// instead of the store rejecting an undeclared sortBy.
@@ -84,7 +80,6 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 
 	async openIncoming(targetId: string, targetLabel: string): Promise<void> {
 		this.setState({ persistedAs: targetLabel, property: undefined, value: undefined, incoming: targetId });
-		this.spinnerStatus = "Fetching...";
 		await this.fetchIncoming(targetLabel, targetId, 50, 0);
 	}
 
@@ -128,7 +123,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 
 	private onRowClick = (e: Event): void => {
 		const { individualId: vid, label: rowLabel, ctrlKey } = (e as CustomEvent).detail;
-		if (vid) openRef(e, REF_DENOTES.individual, { persistedAs: rowLabel || this.state.persistedAs || firstDeclaredType(), id: vid }, ctrlKey);
+		if (vid) openRef(e, { kind: REF_DENOTES.individual, target: { persistedAs: rowLabel || this.state.persistedAs || firstDeclaredType(), id: vid } }, ctrlKey);
 	};
 
 	private onSortChange = (e: Event): void => {
@@ -165,14 +160,8 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 
 	render(): TemplateResult {
 		const shown = this.#page.completed;
-		const loading = html`<shu-spinner .status=${this.spinnerStatus} .visible=${true}></shu-spinner>`;
 		return html`
-			${this.#page.render<TemplateResult | typeof nothing>({
-				pending: () => loading,
-				running: () => loading,
-				completed: () => nothing,
-				failed: (refusal) => refusalTpl(refusal, this.#page),
-			})}
+			${this.#page.render<TemplateResult | typeof nothing>({ ...loadRenders(html`Reading the records`, this.#page), completed: () => nothing })}
 			${shown ? html`<shu-result-table ${ref(this.tableRef)} style="flex:1" @row-click=${this.onRowClick} @sort-change=${this.onSortChange}></shu-result-table>` : nothing}
 		`;
 	}

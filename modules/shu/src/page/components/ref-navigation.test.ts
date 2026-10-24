@@ -10,6 +10,7 @@ import { StepMethodSchema } from "@haibun/core/lib/steps/domains/step-method.js"
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { deepLinkOf, desiredPaneFor, followPaneLink, paneHref, refHref } from "./ref-navigation.js";
+import { refOf } from "../derivations/markdown.js";
 import { hashWithColumns } from "../derivations/address.js";
 import { declareSpec } from "../../test/catalog-fixture.js";
 import { readActualityFeature } from "../client-cache/controllers/device-controller.js";
@@ -19,30 +20,37 @@ import { followPaneRequests } from "../../test/pane-requests.js";
 
 describe("refHref", () => {
 	it("addresses one column view, not the reader's trail of columns", () => {
-		const href = refHref("domain", { domain: "Principal" });
+		const href = refHref({ kind: REF_DENOTES.type, target: { domain: "Principal" } });
 		expect(href).toBe("#?col=type%3APrincipal");
 		expect(href?.match(/col=/g)).toHaveLength(1);
 	});
 
 	it("addresses an individual, and a step as its record in the actuality feature the page reads (CA4D9)", () => {
-		expect(refHref("entity", { persistedAs: "Person", id: "ada@test.com" })).toContain("col=");
+		expect(refHref({ kind: REF_DENOTES.individual, target: { persistedAs: "Person", id: "ada@test.com" } })).toContain("col=");
 		declareSpec({ types: ["SeqPath"], ui: { SeqPath: { component: SHU_TAG.STEP_DETAIL } } });
 		readActualityFeature(undefined);
-		expect(desiredPaneFor("seqPath", { seqPath: [0, 1, 2] }), "a step's path doesn't name a record before the page reads an actuality feature").toBeNull();
+		expect(desiredPaneFor({ kind: "seqPath", target: { seqPath: [0, 1, 2] } }), "a step's path doesn't name a record before the page reads an actuality feature").toBeNull();
 		readActualityFeature("1790000000000-1");
-		expect(desiredPaneFor("seqPath", { seqPath: [0, 1, 2] })).toEqual({ paneType: "entity", persistedAs: "SeqPath", id: "1790000000000-1.0.1.2" });
+		expect(desiredPaneFor({ kind: "seqPath", target: { seqPath: [0, 1, 2] } })).toEqual({ paneType: "entity", persistedAs: "SeqPath", id: "1790000000000-1.0.1.2" });
 		readActualityFeature(undefined);
 	});
 
 	it("addresses exactly the pane a click opens: one reading of (kind, target) serves both, so they cannot drift", () => {
-		expect(desiredPaneFor("domain", { domain: "Principal" })).toEqual({ paneType: "type", persistedAs: "Principal" });
-		expect(desiredPaneFor("entity", { persistedAs: "Person", id: "ada@test.com" })).toEqual({ paneType: "entity", persistedAs: "Person", id: "ada@test.com" });
-		expect(desiredPaneFor("step", { method: "S-s" })).toEqual({ paneType: "step", method: "S-s" });
+		expect(desiredPaneFor({ kind: REF_DENOTES.type, target: { domain: "Principal" } })).toEqual({ paneType: "type", persistedAs: "Principal" });
+		expect(desiredPaneFor({ kind: REF_DENOTES.individual, target: { persistedAs: "Person", id: "ada@test.com" } })).toEqual({
+			paneType: "entity",
+			persistedAs: "Person",
+			id: "ada@test.com",
+		});
+		expect(desiredPaneFor({ kind: "step", target: { method: StepMethodSchema.parse("S-s") } })).toEqual({ paneType: "step", method: "S-s" });
 	});
 
-	it("isn't a link for a kind without a pane, rather than a link that doesn't open a pane", () => {
-		expect(refHref("step", { stepperName: "S", stepName: "s" }), "a step is named by its method").toBeUndefined();
-		expect(refHref("domain", {})).toBeUndefined();
+	it("reads a reference that arrives as data only where its target is what its kind names, rather than a link that doesn't open a pane", () => {
+		expect(refOf("step", { stepperName: "S", stepName: "s" }), "a step is named by its method").toBeUndefined();
+		expect(refOf("step", { method: "not a method" }), "in a method's grammar").toBeUndefined();
+		expect(refOf(REF_DENOTES.type, {})).toBeUndefined();
+		expect(refOf("nothing", { domain: "Principal" }), "a kind that isn't a reference's").toBeUndefined();
+		expect(refOf(REF_DENOTES.type, { domain: "Principal" })).toEqual({ kind: REF_DENOTES.type, target: { domain: "Principal" } });
 	});
 });
 
@@ -97,7 +105,7 @@ describe("a link to a pane", () => {
 		};
 
 		it("opens the pane it addresses beside the one it was clicked in, and a listener under the page doesn't take the click", () => {
-			const { anchor, heard, opened } = linkIn(refHref(REF_DENOTES.individual, { persistedAs: "Email", id: "m-1" }) ?? "");
+			const { anchor, heard, opened } = linkIn(refHref({ kind: REF_DENOTES.individual, target: { persistedAs: "Email", id: "m-1" } }) ?? "");
 			const click = new MouseEvent("click", { bubbles: true, composed: true, cancelable: true });
 			anchor.dispatchEvent(click);
 			expect(opened.requested).toEqual([{ paneType: "entity", persistedAs: "Email", id: "m-1" }]);

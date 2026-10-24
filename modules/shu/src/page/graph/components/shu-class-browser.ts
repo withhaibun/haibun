@@ -18,6 +18,7 @@
  */
 import { CONTEXT_DOCUMENT, SHU_TAG } from "../../../domains/elements.js";
 import { defineElement } from "../../controllers/element-controller.js";
+import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { html, type TemplateResult } from "lit";
 import type { TLinkedData } from "../../components/shu-element.js";
@@ -208,7 +209,7 @@ class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 		const list = this.individuals;
 		if (list === null) return html`<div class="individuals-view"><span class="empty">Loading…</span></div>`;
 		return html`<div class="individuals-view" data-testid=${SHU_TEST_IDS.CLASS_BROWSER.INDIVIDUALS_VIEW}>
-			${list.length ? html`<ul>${list.map((v) => html`<li>${unsafeHTML(renderRef("entity", { persistedAs: this.focusType, id: idOf(v) }, instanceLabel(v)))}</li>`)}</ul>` : html`<span class="empty">The store doesn't hold an individual of this type.</span>`}
+			${list.length ? html`<ul>${list.map((v) => html`<li>${unsafeHTML(renderRef({ kind: REF_DENOTES.individual, target: { persistedAs: this.focusType, id: idOf(v) } }, instanceLabel(v)))}</li>`)}</ul>` : html`<span class="empty">The store doesn't hold an individual of this type.</span>`}
 		</div>`;
 	}
 

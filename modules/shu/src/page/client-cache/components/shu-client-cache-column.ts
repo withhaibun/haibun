@@ -21,7 +21,8 @@ import { rowAtCursor, timedRows, type Range } from "../../derivations/rail.js";
 import { EventLevelSchema, HAIBUN_LOG_LEVELS } from "@haibun/core/lib/domains/protocol.js";
 import { registryOrigin } from "../../controllers/registry-controller.js";
 import { serverLastRespondedAt } from "../../controllers/conduit-controller.js";
-import { emptyOrLoading } from "../../components/empty-state.js";
+import { emptyOrLoading, emptyState } from "../../components/empty-state.js";
+import { actualityStepsNext } from "../../components/actuality-states.js";
 import { atLiveEdge, actualityReadingAt, actualitySources, subscribeActualitySources, type ActualitySource } from "../controllers/actuality-controller.js";
 import { actualityOf } from "@haibun/core/lib/seq-path.js";
 import { actualitiesHeld, deleteActuality, FEATURES_READ, readHeldActuality, type THeldActuality } from "../controllers/held-actualities-controller.js";
@@ -338,7 +339,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 			<h4>Live stream since this view opened (device time ${at(this.#openedAt)})</h4>
 			${
 				this.#liveByLevel.size === 0
-					? html`<div class="empty">An event hasn't arrived since this view opened.</div>`
+					? emptyState({ message: "An event hasn't arrived since this view opened.", next: actualityStepsNext() })
 					: html`<table>
 							<tr>
 								<th>level</th>
@@ -357,7 +358,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 			<h4>Actuality sources</h4>
 			${
 				sources.length === 0
-					? html`<div class="empty">A view hasn't read actuality yet.</div>`
+					? emptyState({ message: "A view hasn't read actuality yet.", next: actualityStepsNext() })
 					: html`<table>
 							<tr>
 								<th>level</th>
@@ -391,7 +392,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 			</div>
 			${
 				this.#held.length === 0
-					? emptyOrLoading(this.#deviceRead, "This device doesn't hold an actuality.")
+					? emptyOrLoading(this.#deviceRead, { message: "This device doesn't hold an actuality.", next: actualityStepsNext() })
 					: html`<table data-testid=${IDS.HELD}>
 							<tr>
 								<th>actuality</th>
@@ -420,7 +421,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 			<h4>IndexedDB <small>(this build reads ${CACHE_SHAPE}; a cache written to another rule is cleared on open)</small></h4>
 			${
 				this.#databases.length === 0
-					? emptyOrLoading(this.#deviceRead, "This origin doesn't hold an IndexedDB database.")
+					? emptyOrLoading(this.#deviceRead, { message: "This origin doesn't hold an IndexedDB database.", next: actualityStepsNext() })
 					: html`<table>
 							<tr>
 								<th>database</th>
@@ -444,7 +445,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 			<h4>Graph <small>(each database holds its graph within a bound, and drops its oldest quads past it)</small></h4>
 			${
 				this.#graphs.length === 0
-					? emptyOrLoading(this.#deviceRead, "This device doesn't hold a graph.")
+					? emptyOrLoading(this.#deviceRead, { message: "This device doesn't hold a graph.", next: actualityStepsNext() })
 					: html`<table>
 							<tr>
 								<th>database</th>

@@ -159,6 +159,12 @@ export function resolvedSource(repository: string, importer: string, specifier: 
 	return [...SOURCE_EXTENSIONS.map((extension) => `${stem}${extension}`), `${stem}/index.ts`].find((candidate) => existsSync(join(repository, candidate)));
 }
 
+/** The expression an expression stands for, through parentheses, non-null assertions and type assertions. */
+export const unwrapped = (node: ts.Expression): ts.Expression =>
+	ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isNonNullExpression(node) || ts.isSatisfiesExpression(node) || ts.isTypeAssertionExpression(node)
+		? unwrapped(node.expression)
+		: node;
+
 export const lineOf = (node: ts.Node): number => node.getSourceFile().getLineAndCharacterOfPosition(node.getStart()).line + 1;
 const namedTypeOnly = (elements: ts.NodeArray<ts.ImportSpecifier | ts.ExportSpecifier>) => elements.length > 0 && elements.every((element) => element.isTypeOnly);
 

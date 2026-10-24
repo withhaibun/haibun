@@ -11,16 +11,15 @@
 import type { TAction } from "@haibun/core/lib/domains/actions.js";
 import { SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
-import { html, css, type TemplateResult } from "lit";
+import { html, css, nothing, type TemplateResult } from "lit";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { PermissionsSchema } from "../../domains/schemas.js";
 import { AuthorityController, type TAuthority } from "../controllers/authority-controller.js";
 import { principalAddress } from "@haibun/core/lib/domains/resources.js";
-import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
-import { actionRef, refTpl } from "./shu-ref.js";
+import { actionRef, refTpl, recordRef } from "./shu-ref.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import type { TRefKind } from "../derivations/markdown.js";
+import type { TRef } from "../derivations/markdown.js";
 import { LoadController } from "../controllers/load-controller.js";
 import { refusalTpl } from "./load-renders.js";
 import "./shu-page-key.js";
@@ -39,7 +38,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 	/** How many items await the reader's decision, and the reference that leads to them. Set by the host, which receives
 	 *  it from whichever extension reports it: the panel states the count in a row of its own beside the access level. */
 	awaiting = 0;
-	awaitingRef: { kind: TRefKind; target: Record<string, unknown> } | null = null;
+	awaitingRef: TRef | null = null;
 
 	/** The read access in force and the ones on offer, owned by the host that reads them from the view hash. */
 	declare level: string;
@@ -104,7 +103,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 	 */
 	private grantedAt(held: TAuthority, action: TAction): TemplateResult {
 		const grantedBy = held.grantedBy[action];
-		if (grantedBy) return refTpl("entity", { persistedAs: grantedBy.persistedAs, id: grantedBy.id }, action, SHU_TEST_IDS.APP.HELD);
+		if (grantedBy) return recordRef({ persistedAs: grantedBy.persistedAs, id: grantedBy.id }, action, SHU_TEST_IDS.APP.HELD);
 		return html`<span class="action">${actionRef(action)}</span>`;
 	}
 
@@ -124,7 +123,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 			<div class="awaiting-row" role="alert" ?hidden=${this.awaiting <= 0}>
 				<span class="awaiting-count">${this.awaiting}</span>
 				<span>${this.awaiting === 1 ? "petition awaits your decision" : "petitions await your decision"}</span>
-				${refTpl(this.awaitingRef?.kind ?? "domain", this.awaitingRef?.target ?? {}, "read them", "permissions-awaiting")}
+				${this.awaitingRef === null ? nothing : refTpl(this.awaitingRef, "read them", "permissions-awaiting")}
 			</div>
 			${this.#held.render<TemplateResult>({
 				pending: () => html`<p class="none">reading what holds here</p>`,
@@ -159,7 +158,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 			${
 				this.state.showPrincipals
 					? html`<ul>
-						${principals.map((p) => html`<li>${refTpl(REF_DENOTES.individual, principalAddress(p.id), p.id)}</li>`)}
+						${principals.map((p) => html`<li>${recordRef(principalAddress(p.id), p.id)}</li>`)}
 					</ul>`
 					: ""
 			}

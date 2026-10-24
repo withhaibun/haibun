@@ -11,7 +11,11 @@ import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
 import { esc, headingAnchor } from "@haibun/core/lib/domains/document-content.js";
 import { jsonCarried, JsonObjectTextSchema } from "@haibun/core/lib/domains/json-text.js";
-import { REF_DENOTES, parseRefHref } from "@haibun/core/lib/domains/typed-links.js";
+import { IndividualAddressSchema, REF_DENOTES, parseRefHref } from "@haibun/core/lib/domains/typed-links.js";
+import { PartSchema } from "@haibun/core/lib/domains/resources.js";
+import { StepMethodSchema } from "@haibun/core/lib/steps/domains/step-method.js";
+import { ActionSchema } from "@haibun/core/lib/domains/actions.js";
+import { z } from "zod";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import type { TPropertyDefinition } from "./catalog.js";
 
@@ -29,44 +33,54 @@ export function utf8ToBase64(str: string): string {
 
 /** The kind of a reference to a step by its path within the actuality feature the page reads. */
 const STEP_PATH_KIND = "seqPath";
-/** The kinds of reference a `<shu-ref>` names. */
-export const REF_KIND = [STEP_PATH_KIND, REF_DENOTES.individual, REF_DENOTES.type, "step", "action"] as const;
-export type TRefKind = (typeof REF_KIND)[number];
+
+/** A kind of reference: the schema of the target it names, read at the boundary where a reference arrives as text, an
+ *  element's attributes, an event's detail or a remedy, and the words it reads as where its text isn't given. */
+const refKind = <S extends z.ZodType<Record<string, unknown>>>(target: S, label: (named: z.infer<S>) => string) => ({ target, label });
+
+/** The kinds of reference a `<shu-ref>` names: a step by its path within the actuality feature the page reads, an individual
+ *  (or a part of it), a type, a step by its method, and an action. */
+export const REF_KINDS = {
+	[STEP_PATH_KIND]: refKind(z.object({ seqPath: z.array(z.number()) }), ({ seqPath }) => seqPath.join(".")),
+	[REF_DENOTES.individual]: refKind(IndividualAddressSchema.extend({ selector: PartSchema.optional() }), ({ id }) => id),
+	[REF_DENOTES.type]: refKind(z.object({ domain: z.string() }), ({ domain }) => domain),
+	step: refKind(z.object({ method: StepMethodSchema }), ({ method }) => method),
+	action: refKind(z.object({ action: ActionSchema }), ({ action }) => action),
+} as const;
+export type TRefKind = keyof typeof REF_KINDS;
+/** The target a reference of kind `K` names. */
+export type TRefTarget<K extends TRefKind> = z.infer<(typeof REF_KINDS)[K]["target"]>;
+/** A reference: its kind and the target that kind names. */
+export type TRef = { [K in TRefKind]: { kind: K; target: TRefTarget<K> } }[TRefKind];
 
 /** Whether `v` names a kind of reference. */
-export const isRefKind = (v: string | null | undefined): v is TRefKind => typeof v === "string" && (REF_KIND as readonly string[]).includes(v);
+export const isRefKind = (v: string | null | undefined): v is TRefKind => typeof v === "string" && Object.hasOwn(REF_KINDS, v);
 
-/** A reference to the step at `path` within the actuality feature the page reads: its kind and its target. */
-export const stepPathRef = (path: readonly number[]): { kind: TRefKind; target: Record<string, unknown> } => ({ kind: STEP_PATH_KIND, target: { seqPath: [...path] } });
-
-/** Returns the step path a reference names, where it is a reference to a step by its path. */
-export function stepPathOf(kind: string, target: Record<string, unknown>): number[] | undefined {
-	if (kind !== STEP_PATH_KIND) return undefined;
-	const path = target.seqPath;
-	if (!Array.isArray(path) || !path.every((n) => typeof n === "number")) throw new Error(`a reference to a step names its path as ${JSON.stringify(path)}, not numbers`);
-	return path;
+/** The reference a kind and a target that arrived as data state, or undefined where the kind isn't a reference's or the target
+ *  isn't what the kind names. */
+export function refOf(kind: string | null | undefined, target: unknown): TRef | undefined {
+	if (!isRefKind(kind)) return undefined;
+	const parsed = REF_KINDS[kind].target.safeParse(target);
+	return parsed.success ? ({ kind, target: parsed.data } as TRef) : undefined;
 }
 
-/** Returns the words a reference of `kind` to `targetJson` reads as where its text isn't given, or an empty text where the
- *  element's attributes don't state a kind and a target. */
-export function refLabel(kind: string | null, targetJson: string | null): string {
-	if (!kind || !targetJson) return "";
-	const target = JsonObjectTextSchema.parse(targetJson);
-	const path = stepPathOf(kind, target);
-	if (path !== undefined) return path.join(".");
-	if (kind === REF_DENOTES.individual && typeof target.id === "string") return target.id;
-	if (kind === REF_DENOTES.type && typeof target.domain === "string") return target.domain;
-	if (kind === "step" && typeof target.method === "string") return target.method;
-	if (kind === "action" && typeof target.action === "string") return target.action;
-	return "";
-}
+/** A reference to a record by what it names, rather than to a step by its path. */
+export type TNamedRef = Exclude<TRef, { kind: typeof STEP_PATH_KIND }>;
+
+/** The path of the step a reference names, where it names a step by its path. */
+export const stepPathOf = (ref: TRef): number[] | undefined => (ref.kind === STEP_PATH_KIND ? ref.target.seqPath : undefined);
+
+/** A reference to the step at `path` within the actuality feature the page reads. */
+export const stepPathRef = (path: readonly number[]): TRef => ({ kind: STEP_PATH_KIND, target: { seqPath: [...path] } });
+
+/** The words a reference reads as where its text isn't given. */
+export const refLabel = ({ kind, target }: TRef): string => (REF_KINDS[kind].label as (named: TRef["target"]) => string)(target);
 
 /** Returns a reference's markup. The words are also its child text, so a surface where the element isn't defined (the
  *  sandboxed body iframe) shows them; the defined element's shadow root doesn't have a slot, so they never show twice. */
-export function renderRef(kind: TRefKind, linkTarget: Record<string, unknown>, text?: string): string {
-	const targetJson = JSON.stringify(linkTarget);
-	const display = text ?? refLabel(kind, targetJson);
-	return `<shu-ref kind="${escAttr(kind)}" linkTarget="${escAttr(targetJson)}" text="${escAttr(display)}">${esc(display)}</shu-ref>`;
+export function renderRef(ref: TRef, text?: string): string {
+	const display = text ?? refLabel(ref);
+	return `<shu-ref kind="${escAttr(ref.kind)}" linkTarget="${escAttr(JSON.stringify(ref.target))}" text="${escAttr(display)}">${esc(display)}</shu-ref>`;
 }
 
 /** What a text's references read from the catalog: whether a name is a persisted type, and what the ontology declares of a
@@ -107,7 +121,7 @@ export function refLinksPlugin(md: MarkdownIt, refs: TRefContext): void {
 				}
 				if (j >= children.length) continue; // an unbalanced link stays as it is
 				const tok = new state.Token("html_inline", "", 0);
-				tok.content = renderRef(ref.kind, ref.target, text ? displayForLinkText(text, refs) : undefined);
+				tok.content = renderRef(ref, text ? displayForLinkText(text, refs) : undefined);
 				children.splice(i, j - i + 1, tok);
 			}
 		}
@@ -161,8 +175,8 @@ function textOf(node: Node): string {
 	return text;
 }
 
-/** A reference a rendered text makes: its kind, its target, and the words that name it. */
-export type TContentRef = { kind: TRefKind; target: Record<string, unknown>; text: string };
+/** A reference a rendered text makes, and the words that name it. */
+export type TContentRef = { ref: TRef; text: string };
 
 /** Returns the references a rendered text makes, once each: each `<shu-ref>` its markdown became, and each reference link an
  *  HTML text carries. A surface that shows the text without live references, the sandboxed body iframe, lists them beside it. */
@@ -170,17 +184,18 @@ export function refsInContent(html: string, refs: TRefContext): TContentRef[] {
 	const template = document.createElement("template");
 	template.innerHTML = html;
 	const found = new Map<string, TContentRef>();
-	for (const ref of template.content.querySelectorAll("shu-ref")) {
-		const kind = ref.getAttribute("kind");
+	for (const element of template.content.querySelectorAll("shu-ref")) {
+		const kind = element.getAttribute("kind");
 		if (!isRefKind(kind)) continue;
-		const [targetJson, text] = [ref.getAttribute("linkTarget"), ref.getAttribute("text")];
+		const [targetJson, text] = [element.getAttribute("linkTarget"), element.getAttribute("text")];
 		if (targetJson === null || text === null) throw new Error(`a <shu-ref kind="${kind}"> doesn't carry its linkTarget and its text, which renderRef writes`);
-		const target = JsonObjectTextSchema.parse(targetJson);
-		found.set(`${kind} ${JSON.stringify(target)}`, { kind, target, text });
+		const ref = refOf(kind, JsonObjectTextSchema.parse(targetJson));
+		if (ref === undefined) throw new Error(`a <shu-ref kind="${kind}"> names ${targetJson}, which isn't what a ${kind} reference names`);
+		found.set(`${kind} ${JSON.stringify(ref.target)}`, { ref, text });
 	}
 	for (const anchor of template.content.querySelectorAll("a[href]")) {
 		const ref = parseRefHref(anchor.getAttribute("href"), refs.isType);
-		if (ref) found.set(`${ref.kind} ${JSON.stringify(ref.target)}`, { kind: ref.kind, target: ref.target, text: textOf(anchor) });
+		if (ref) found.set(`${ref.kind} ${JSON.stringify(ref.target)}`, { ref, text: textOf(anchor) });
 	}
 	return [...found.values()];
 }

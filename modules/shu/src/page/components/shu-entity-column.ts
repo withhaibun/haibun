@@ -415,7 +415,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	 *  navigation a @type value and a #Type reference use. Empty for an ad-hoc result view without a registered type. */
 	private typeLine(persistedAs: string): string {
 		if (getRels(persistedAs) === undefined) return "";
-		const link = linkHtml(refHref(REF_DENOTES.type, { domain: persistedAs }), persistedAs, ` data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_TYPE_LINK}"`);
+		const link = linkHtml(refHref({ kind: REF_DENOTES.type, target: { domain: persistedAs } }), persistedAs, ` data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_TYPE_LINK}"`);
 		return `<div class="entity-detail" data-testid="entity-details">${link}</div>`;
 	}
 
@@ -436,7 +436,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			const rows = items
 				.map(
 					(item) =>
-						`<tr>${records ? `<td>${linkHtml(typeof item["@type"] === "string" ? refHref(REF_DENOTES.individual, { persistedAs: item["@type"], id: idOf(item) }) : undefined, idOf(item))}</td>` : ""}${keys
+						`<tr>${records ? `<td>${linkHtml(typeof item["@type"] === "string" ? refHref({ kind: REF_DENOTES.individual, target: { persistedAs: item["@type"], id: idOf(item) } }) : undefined, idOf(item))}</td>` : ""}${keys
 							.map((key) => {
 								const val = item[key];
 								return `<td>${esc(typeof val === "object" && val !== null ? JSON.stringify(val) : String(val ?? ""))}</td>`;
@@ -460,7 +460,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	/** The address of an edge's target, typed by the edge's range where it names one type and by the target otherwise. */
 	private edgeTargetHref(edgeType: string, target: VertexData): string | undefined {
 		const persistedAs = edgeRecordType(this.state.persistedAs, edgeType) ?? (target["@type"] as string) ?? firstDeclaredType();
-		return refHref(REF_DENOTES.individual, { persistedAs, id: idOf(target) });
+		return refHref({ kind: REF_DENOTES.individual, target: { persistedAs, id: idOf(target) } });
 	}
 
 	/** Plain-language names for the roles CORE's own general rels name. A consumer edge's phrase comes from its declared
@@ -572,7 +572,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		// References don't work inside the sandbox, so the ones the body makes are listed beside it.
 		const refs = refsInContent(content, refContext);
 		const refsHtml = refs.length
-			? `<div class="body-refs" data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_REFS}">${refs.map((ref) => renderRef(ref.kind, ref.target, ref.text)).join(", ")}</div>`
+			? `<div class="body-refs" data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_REFS}">${refs.map(({ ref, text }) => renderRef(ref, text)).join(", ")}</div>`
 			: "";
 		return `<div class="body-container">${toolbar}${iframeHtml}${refsHtml}</div>`;
 	}
@@ -702,7 +702,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	 *  filter), an edge-valued or queryable field links through valueLink, and anything else is text. */
 	private fieldValueHtml(value: string, propertyName: string): string {
 		const label = this.state.persistedAs;
-		if (propertyName === getIdField(label)) return linkHtml(refHref(REF_DENOTES.individual, { persistedAs: label, id: value }), value);
+		if (propertyName === getIdField(label)) return linkHtml(refHref({ kind: REF_DENOTES.individual, target: { persistedAs: label, id: value } }), value);
 		if (rangeOf(label, propertyName) === "iri" || getQueryableFields(label).includes(propertyName)) return this.valueLink(value, propertyName);
 		return esc(value);
 	}
@@ -749,7 +749,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const classes = Array.isArray(value) ? value : [value];
 		const links = classes
 			.filter((c) => c)
-			.map((c) => linkHtml(refHref(REF_DENOTES.type, { domain: c }), c, ` data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.TYPE_VALUE}"`))
+			.map((c) => linkHtml(refHref({ kind: REF_DENOTES.type, target: { domain: c } }), c, ` data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.TYPE_VALUE}"`))
 			.join(", ");
 		return `<tr><td class="field-name">@type</td><td data-testid="entity-field-${escAttr(propertyName)}">${links}</td></tr>`;
 	}

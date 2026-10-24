@@ -9,7 +9,7 @@ import { property } from "lit/decorators.js";
 import { SHU_TAG } from "../../domains/elements.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import type { TPageRefusal, TPageRemedy } from "../domains/refusal.js";
-import { isRefKind, refLabel } from "../derivations/markdown.js";
+import { refLabel, refOf } from "../derivations/markdown.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { reloadFor } from "../controllers/remedy-controller.js";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
@@ -57,9 +57,9 @@ export class ShuRefusal extends ShuElement<typeof EmptyStateSchema> {
 		if (remedy.do === "request")
 			return html`<span data-testid=${id}>Request ${remedy.action} from a key that delegates it</span>
 				<shu-copy-button label="copy the action" title="copy the action to request" .source=${remedy.action}></shu-copy-button>`;
-		const { kind, target } = remedy.ref;
-		if (!isRefKind(kind)) throw new Error(`<shu-refusal> opens a reference of the kind ${kind}, which isn't a reference's`);
-		return html`<a href=${refHref(kind, target) ?? nothing} data-testid=${id}>Open ${refLabel(kind, JSON.stringify(target))}</a>`;
+		const ref = refOf(remedy.ref.kind, remedy.ref.target);
+		if (ref === undefined) throw new Error(`<shu-refusal> opens a reference of the kind ${remedy.ref.kind}, which doesn't name its target`);
+		return html`<a href=${refHref(ref) ?? nothing} data-testid=${id}>Open ${refLabel(ref)}</a>`;
 	}
 
 	render(): TemplateResult {

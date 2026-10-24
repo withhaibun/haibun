@@ -20,12 +20,12 @@ import { SHU_EVENT, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import type { WindowedSource } from "../derivations/windowed-source.js";
 import { artifactAt, artifactUrl } from "../controllers/artifact-controller.js";
-import { unavailableOrEmpty } from "./empty-state.js";
-import { actionRef, originLink, refTpl, stepPathTpl } from "./shu-ref.js";
+import { readAgainControl, unavailableOrEmpty } from "./empty-state.js";
+import { actualityUnavailable } from "./actuality-states.js";
+import { actionRef, originLink, stepPathTpl, recordRef } from "./shu-ref.js";
 import { StepLineSchema, type TStepLine } from "@haibun/core/lib/seq-path.js";
 import { stepPathOfEvent } from "../derivations/steps.js";
 import { artifactOf } from "@haibun/core/lib/domains/run-artifact.js";
-import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { principalAddress } from "@haibun/core/lib/domains/resources.js";
 import { cursorMark, rowAtCursor, timedRows, type TScrollMarker, type TTimedRows } from "../derivations/rail.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
@@ -388,7 +388,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			}
 			${
 				total === 0 && !spine
-					? html`<div class="log-rows">${unavailableOrEmpty(this.#run.loaded, this.#run.unavailable, "Actuality doesn't hold an event at this level.")}</div>`
+					? html`<div class="log-rows">${unavailableOrEmpty(this.#run.loaded, actualityUnavailable(this.#run), { message: "Actuality doesn't hold an event at this level.", next: readAgainControl(() => void this.#run.readAt()) })}</div>`
 					: html`<shu-virtual-column ?spine=${spine} .cursor=${this.#cursorMark} .source=${this.#source} .renderRow=${this.renderLogRow} ?follow=${this.state.tail}></shu-virtual-column>`
 			}
 		`;
@@ -418,7 +418,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		const action = r.line?.action;
 		const capabilityRefused = action !== undefined && action.allowed === undefined;
 		const capability = action
-			? html`${capabilityRefused ? "🔒" : "🔓"} ${actionRef(action.required)}${action.holder ? html` ${refTpl(REF_DENOTES.individual, principalAddress(action.holder), action.holder)}` : ""}`
+			? html`${capabilityRefused ? "🔒" : "🔓"} ${actionRef(action.required)}${action.holder ? html` ${recordRef(principalAddress(action.holder), action.holder)}` : ""}`
 			: "";
 		// What the step produced, beside its words: the row of the step a reader sees is where a screenshot taken during it
 		// is shown, and pressing one opens the image itself.

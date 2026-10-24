@@ -10,7 +10,7 @@ import { z } from "zod";
 import { ConcernCatalogSchema, CountedFields } from "../../domains/hypermedia.js";
 import { HYPERMEDIA, productData } from "../../domains/protocol.js";
 import { ActionSchema, readAction } from "../../domains/actions.js";
-import { StepMethodSchema } from "./step-method.js";
+import { StepMethodSchema, type TStepMethod } from "./step-method.js";
 import { DomainKeySchema } from "../../domains/domains.js";
 import { Access, AccessLevelSchema } from "../../domains/resources.js";
 
@@ -18,18 +18,18 @@ import { Access, AccessLevelSchema } from "../../domains/resources.js";
  *  definitions, and the steppers. The `Haibun` stepper declares them, so the configuration of an instance that serves
  *  callers lists `haibun`. */
 export const SHOW_STEPS_LINE = "show steps";
-export const SHOW_STEPS_METHOD = "Haibun-showSteps";
+export const SHOW_STEPS_METHOD = "Haibun-showSteps" as TStepMethod;
 export const SHOW_STEP_DEFINITIONS_LINE = "show step definitions";
-export const SHOW_STEP_DEFINITIONS_METHOD = "Haibun-showStepDefinitions";
+export const SHOW_STEP_DEFINITIONS_METHOD = "Haibun-showStepDefinitions" as TStepMethod;
 /** The method of the combinator that keeps the items of a statement's list that hold a text. */
-export const MATCHING_METHOD = "Haibun-matching";
+export const MATCHING_METHOD = "Haibun-matching" as TStepMethod;
 
 /** The action the reads of actuality's declarations require: a public read. A caller reads them before it reads any step's
  *  declaration, so a caller names this action without a prior read. */
 export const SHOW_STEPS_ACTION = readAction(Access.public);
 
 /** The method of the step that resolves a line to one of the steps a caller may call. */
-export const VALIDATE_STEP_METHOD = "Haibun-validateStep";
+export const VALIDATE_STEP_METHOD = "Haibun-validateStep" as TStepMethod;
 
 /** Whether a line resolves to one step: the method of that step and each of its parameters' terms as the line states them,
  *  or why the line doesn't resolve to exactly one. */

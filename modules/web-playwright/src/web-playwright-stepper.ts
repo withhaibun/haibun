@@ -14,7 +14,7 @@ import {
 	type TFeatureStep,
 	type TStepperSteps,
 } from "@haibun/core/lib/astepper.js";
-import { ActionSchema, readAction } from "@haibun/core/lib/domains/actions.js";
+import { ActionSchema, readAction, type TAction } from "@haibun/core/lib/domains/actions.js";
 import { stepInFlight } from "@haibun/core/lib/domains/capability-context.js";
 import { DOMAIN_FILE_PATH, DOMAIN_GLOB, DOMAIN_JSON, DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_STATEMENT, DOMAIN_TEXT, DOMAIN_VARIABLE_NAME } from "@haibun/core/lib/domains/domains.js";
 import { DOMAIN_IMAGE_REFERENCE } from "@haibun/core/lib/domains/media-object.js";
@@ -129,6 +129,9 @@ import { captureScreenshot } from "./pipelines/screenshots.js";
 import { keepText } from "./pipelines/variables.js";
 import type { TBrowserOptions, TBrowserRelay, TTwin } from "./ports.js";
 import { browserPorts, serveRelay, type TBrowserPorts } from "./root.js";
+
+/** The action that attaches a browser a person runs to the relay. */
+const WEB_PLAYWRIGHT_ATTACH: TAction = ActionSchema.parse(WEB_PLAYWRIGHT_ACTIONS.attach);
 
 export const WEB_PAGE = "webpage";
 const HTTP = "HTTP";
@@ -299,7 +302,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		const webserver = world.runtime[WEBSERVER] as IWebServer | undefined;
 		if (webserver === undefined)
 			throw new Error(`${BROWSER_RELAY} serves the browser relay on each feature's web server, and actuality doesn't hold one: load @haibun/web-server-hono/web-server-stepper`);
-		const relay = serveRelay(webserver, ActionSchema.parse(WEB_PLAYWRIGHT_ACTIONS.attach), (error) => world.eventLogger.error(`browser relay: ${errorDetail(error)}`));
+		const relay = serveRelay(webserver, WEB_PLAYWRIGHT_ATTACH, (error) => world.eventLogger.error(`browser relay: ${errorDetail(error)}`));
 		this.#relay = relay;
 		const connected = this.#connectTo(() => relay.transport());
 		if (!connected.ok) throw new Error(connected.errorMessage);
