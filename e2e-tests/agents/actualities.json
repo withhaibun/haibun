@@ -33,24 +33,24 @@
 			"actuality": {
 				"text": "AGENTS.md",
 				"status": "passed",
-				"tookMs": 600,
+				"tookMs": 1100,
 				"digest": {
-					"AGENTS.md": "4456c37226714cc282a65ae43851ad00934392bb1c00e5ae1ec7c126dd3f40ec",
-					"modules/core/src": "4f5e4b784ec903a21cf85daab4c5ce5dc50ad9748fad7db9c70b06e3846b6bf9",
-					"modules/domain-storage/src": "81db7fdff3defef85227dbeb75c12e08a466f7a71cd0a8f52baa3f728216b850",
-					"modules/logic/src": "46706eac7acca3085acc44e834cf66549bac2b4b4d0726014b9db7a0ef38a1a5",
+					"AGENTS.md": "5369f1e19c004a0a188e26108d66e647f9f40a1ec49a270ea80162f902deb8b4",
+					"modules/core/src": "85b5b56178b028f4974a1e9f4356cf8a007d0e07edc28fc663f649e7c649cbcd",
+					"modules/domain-storage/src": "3dcfc208ea1dd71ecc2f14c13926d46b10f0ee7ffc9598637e7a616c9f627541",
+					"modules/logic/src": "5e346c54bbd3de3ceada658480b90de91634fb9102ac459cedec85079157eaca",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
-					"modules/web-playwright/src": "90ade6d6f94ab59bb8a0baf3e380a7cb3dfb5b15bdaa7de286142b53811c1fbf",
-					"modules/web-server-hono/src": "f7029189b67236103885028972caffcdb44b3769409669ed0d9e91dfe1516a3e"
+					"modules/web-playwright/src": "50b03b34cefe428b4876cf48ebc93d32807afd1c7bd5329975500424c852dc38",
+					"modules/web-server-hono/src": "334a21921dcfe06774443de2bfd77b09c58931fc7b738352cd5f9b02c9c51053"
 				}
 			},
 			"features": {
 				"/AGENTS.md": {
 					"text": "/AGENTS",
 					"status": "passed",
-					"tookMs": 600,
-					"steps": 360
+					"tookMs": 1000,
+					"steps": 394
 				}
 			}
 		},

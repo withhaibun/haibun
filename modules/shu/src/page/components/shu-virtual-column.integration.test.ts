@@ -52,13 +52,24 @@ const railAt = (at: number) =>
 		at,
 		{ timeout: SHOWS_MS },
 	);
-/** Waits until the column has taken in what a step appended: its update, its virtualizer's layout and the frames after them. */
-const settled = () =>
-	opened.page.evaluate(async () => {
-		await (document.querySelector("shu-virtual-column") as (Element & { updateComplete: Promise<boolean> }) | null)?.updateComplete;
-		await (document.querySelector("lit-virtualizer") as (Element & { layoutComplete: Promise<void> }) | null)?.layoutComplete;
-		await new Promise((drawn) => requestAnimationFrame(() => requestAnimationFrame(drawn)));
-	});
+/** Appends rows to the column and waits until it has taken them in: the virtualizer reports the items it took as a changed range,
+ *  then lays them out, then the column's update and the frames after them draw what the column did with them. The virtualizer
+ *  creates its layout's promise when it is read and resolves it only by a layout under way, so it is read as the range is
+ *  reported, as the column reads it; read after that layout ends, the promise doesn't settle. */
+const appendTakenIn = (shows: boolean[]) =>
+	opened.page.evaluate(
+		async ({ call, more }) => {
+			const virtualizer = document.querySelector("lit-virtualizer") as (Element & { layoutComplete: Promise<void> }) | null;
+			const column = document.querySelector("shu-virtual-column") as (Element & { updateComplete: Promise<boolean> }) | null;
+			if (virtualizer === null || column === null) throw new Error("the page doesn't hold a column with its virtualizer");
+			const laidOut = new Promise<void>((done) => virtualizer.addEventListener("rangeChanged", () => done(virtualizer.layoutComplete), { once: true }));
+			(globalThis as unknown as Record<string, (rows: boolean[]) => void>)[call]?.(more);
+			await laidOut;
+			await column.updateComplete;
+			await new Promise((drawn) => requestAnimationFrame(() => requestAnimationFrame(drawn)));
+		},
+		{ call: VIRTUAL_COLUMN_PAGE.appendRows, more: shows },
+	);
 
 test("states its end on the rail as rows that show content arrive, and as rows that don't take room arrive after them", { timeout: TEST_MS }, async () => {
 	await append(Array.from({ length: 100 }, () => true));
@@ -82,8 +93,7 @@ test("keeps a pressed row under the pointer while rows arrive, so the press's cl
 	if (pressed === undefined) throw new Error(`the column doesn't render a row to press. ${opened.failures()}`);
 	await opened.page.mouse.move(pressed.x, pressed.y);
 	await opened.page.mouse.down();
-	await append(Array.from({ length: 5 }, () => true));
-	await settled();
+	await appendTakenIn(Array.from({ length: 5 }, () => true));
 	await opened.page.mouse.up();
 	expect(await opened.page.evaluate((key) => (globalThis as unknown as Record<string, string[]>)[key], VIRTUAL_COLUMN_PAGE.clicked)).toEqual([pressed.text]);
 });
