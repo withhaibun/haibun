@@ -55,14 +55,17 @@ async function mcpServes() {
 async function lspServes() {
 	const child = serve("vscode-extension/lsp-server", "serve-lsp");
 	try {
-		let received = "";
+		let received = Buffer.alloc(0);
 		child.stdout.on("data", (chunk) => {
-			received += chunk.toString();
+			received = Buffer.concat([received, chunk]);
 		});
 		const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { processId: process.pid, rootUri: null, capabilities: {} } });
 		child.stdin.write(`Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`);
 		const capabilities = await within("the language server's feature", child, () => {
-			const framed = received.split(/Content-Length: \d+\r\n\r\n/).slice(1);
+			// Each message is the number of bytes its header states, so a line the feature writes after it isn't read as part of it.
+			const framed = [...received.toString("latin1").matchAll(/Content-Length: (\d+)\r\n\r\n/g)].map((header) =>
+				received.subarray(header.index + header[0].length, header.index + header[0].length + Number(header[1])).toString(),
+			);
 			const result = framed.map((text) => JSON.parse(text)).find((message) => message.id === 1);
 			return result?.result?.capabilities;
 		});
