@@ -207,7 +207,7 @@ describe("what a deployment's shu reads of itself", () => {
 
 	it("lists the path of each app it serves", async () => {
 		await stepper.steps.serveShuApp.action({ path: "/spa" });
-		expect((await stepper.steps.showShuApps.action()).products).toEqual({ apps: [{ path: "/spa" }], total: 1, saturated: false });
+		expect((await stepper.steps.showShuApps.action()).products).toEqual({ apps: ["/spa"] });
 	});
 
 	it("lists the ontology the declarations state as a counted list of classes and link relations, which opens the class browser", async () => {

@@ -20,7 +20,6 @@ import { variablesSetBy, type TVariableSet } from "../derivations/step-variables
 import { anIndividual, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { formatSeqPath, parseRecordName, stepLine, type TStepLine } from "@haibun/core/lib/seq-path.js";
 import { actionRef, calledRef, originLink, recordRef } from "./shu-ref.js";
-import { actionList, type TAction } from "@haibun/core/lib/domains/actions.js";
 import { ClockController } from "../controllers/clock-controller.js";
 import { appAccessLevel } from "../controllers/view-query-controller.js";
 import { typeShownIn } from "../controllers/catalog-controller.js";
@@ -161,7 +160,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 			<div class="field"><span class="label">Action:</span> <span class="value">${STATUS_MARKS.get(line.status)?.icon} ${line.called === undefined ? "" : calledRef(line.called)}</span></div>
 			${line.error === undefined ? "" : html`<div class="field"><span class="label">Error:</span> <span class="value" style="color:var(--shu-error)">${line.error}</span></div>`}
 			<div class="section"><span class="label">Ran:</span> <span class="value">${dispatch === undefined ? "" : dispatch.via}${dispatch?.on === undefined ? "" : html` ${originLink(dispatch.on)}`}${line.tookMs === undefined ? "" : ` ${line.tookMs}ms`}</span></div>
-			${action === undefined ? "" : html`<div class="field"><span class="label">Capability:</span> <span class="value">${actionRef(action.required)}${action.allowed === undefined ? "" : html` allowed by${actionList(action.allowed).map((held) => html` ${actionRef(held as TAction)}`)}`}</span></div>`}`;
+			${action === undefined ? "" : html`<div class="field"><span class="label">Capability:</span> <span class="value">${actionRef(action.required)}${action.allowed && ` allowed by ${action.allowed}`}</span></div>`}`;
 	}
 
 	private renderContent(key: string, data: TStepData): TemplateResult {
