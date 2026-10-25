@@ -664,6 +664,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	/** Replace the whole data slice and repaint via the streamed-data path (a trailing coalesce, positions preserved). */
 	setModel(model: GraphSceneModel): void {
 		this.model = model;
+		this.revealEmbedScope();
 		this.scheduleData();
 	}
 
@@ -1571,7 +1572,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.animateFreshLinks(freshLinks);
 		// Re-assert any active focus once the lib has (re)built the sprites for the new data.
 		if (this.hoverSubject || this.selectedSubject) this.reassertFocus();
-		this.applyEmbedScope();
+		this.frameEmbedScope();
 	}
 
 	// An embedded mount's requested scope (scopeToType with a focusType), applied in stages as the data arrives.
@@ -1582,21 +1583,26 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  The host controls the filter, so the reveal is emitted as graph-scope-revealed; this owns only the camera. */
 	scopeToType(focusType: string): void {
 		this.embedScope = { focusType, revealed: false };
-		this.applyEmbedScope();
+		this.revealEmbedScope();
 	}
 
-	/** Staged one-shots (the data lands over several repaints): first request that the host show only the schema chips once the
-	 *  clusters arrive (emit graph-scope-revealed exactly once), then fit around the focus type's node once built. */
-	private applyEmbedScope(): void {
+	/** The first stage, read from the model as it arrives rather than from a repaint: once the model holds the schema's
+	 *  clusters, request that the host show only the schema chips (emit graph-scope-revealed exactly once). Every type is
+	 *  hidden until then, so the model doesn't change what the scene draws, and a repaint that leaves the drawing as it was returns
+	 *  before its final stages. */
+	private revealEmbedScope(): void {
 		const scope = this.embedScope;
-		if (!scope) return;
-		if (!scope.revealed) {
-			if (!holdsSchema(this.model.knownClusters)) return;
-			scope.revealed = true;
-			this.dispatchEvent(new CustomEvent(GRAPH_SCENE_EVENT.SCOPE_REVEALED, { detail: { types: schemaTypes() }, bubbles: true, composed: true }));
-			return;
-		}
-		if (scope.focusType !== "" && !this.nodeMap.has(scope.focusType)) return;
+		if (!scope || scope.revealed || !holdsSchema(this.model.knownClusters)) return;
+		scope.revealed = true;
+		this.dispatchEvent(new CustomEvent(GRAPH_SCENE_EVENT.SCOPE_REVEALED, { detail: { types: schemaTypes() }, bubbles: true, composed: true }));
+	}
+
+	/** The second stage, on the repaint that draws the revealed schema: fit around the focus type's node once it is built, or
+	 *  around the whole schema once a node of it is. */
+	private frameEmbedScope(): void {
+		const scope = this.embedScope;
+		if (!scope?.revealed) return;
+		if (scope.focusType === "" ? this.nodeMap.size === 0 : !this.nodeMap.has(scope.focusType)) return;
 		this.embedScope = undefined;
 		// Queued, not framed here: this runs on a repaint, with the feed's nodes still piled at the origin, so framing now
 		// fits a bounding box barely bigger than one node and leaves the camera right over it. The camera applies a

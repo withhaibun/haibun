@@ -35,5 +35,42 @@
 				}
 			}
 		}
+	},
+	"linux-x64-4x-intel-xeon-processor-2-80ghz": {
+		"65291bb0b3badd72": {
+			"filter": "",
+			"actuality": {
+				"text": "e2e-tests/capability",
+				"status": "passed",
+				"tookMs": 600,
+				"digest": {
+					"e2e-tests/capability": "ed31d4e33b117d71f741692b27aec0102d8cf876b2645ce94b121d3f1e3eec4b",
+					"e2e-tests/src": "425dc5ff34248b861f6f819a90ae7579fd9bf5a7d35d8cca3c5525423f42d689",
+					"modules/cli/src": "d72ef31d24fa6fe08b8b39e1313390ede6b7f9254047b51146152ded9d136054",
+					"modules/core/src": "85b5b56178b028f4974a1e9f4356cf8a007d0e07edc28fc663f649e7c649cbcd",
+					"modules/domain-storage/src": "3dcfc208ea1dd71ecc2f14c13926d46b10f0ee7ffc9598637e7a616c9f627541",
+					"modules/logic/src": "5e346c54bbd3de3ceada658480b90de91634fb9102ac459cedec85079157eaca",
+					"modules/monitor-otel/src": "535e89f34027e3439982f0f7ca45bfe7cdb65a26393d88fa94b2743cc41024de",
+					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
+					"modules/out-junit/src": "ab9e53bc6fa979f6de0adf9fa7d370954e1db2e4a11ecf4fa5f40a927328a263",
+					"modules/recorder/src": "4e1f4c42c968bc4a395d7bca41861260dabef7681811a2022ffabc6394916eeb",
+					"modules/shu/src": "3c8ec42081feef4d8481f8ba0525ae2ddb6f0d64278ee0c24178eb9ef81c8d1d",
+					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
+					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
+					"modules/utils/src": "128195b8e9b52a9197bfd78e93a19be17009af4fc3fa03d78930236c955079c4",
+					"modules/web-accessibility-axe/src": "ec44f655ec72d5b0e69567170037fbe21e0209aab8f10a9e0c8cab4a72dd251e",
+					"modules/web-playwright/src": "50b03b34cefe428b4876cf48ebc93d32807afd1c7bd5329975500424c852dc38",
+					"modules/web-server-hono/src": "334a21921dcfe06774443de2bfd77b09c58931fc7b738352cd5f9b02c9c51053"
+				}
+			},
+			"features": {
+				"/features/identity-and-capability.feature.ts": {
+					"text": "Identity and capability authorization",
+					"status": "passed",
+					"tookMs": 400,
+					"steps": 28
+				}
+			}
+		}
 	}
 }

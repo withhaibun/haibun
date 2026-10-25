@@ -4,9 +4,13 @@
  * cancelled, its gate stops A-Frame's loop, and its renderer's context is released. A scene that ends before it loads
  * doesn't draw a frame: the scene doesn't show A-Frame's loading screen, which draws on a loop of its own. A model set
  * as a scene is made is fed once the library laid out its first data, so the library's engine doesn't tick before it holds
- * a layout.
+ * a layout. A scene scoped to the schema emits the request that its host reveal the schema as soon as its model holds the
+ * schema's clusters, though that model hides every type it holds, so it doesn't change what the scene draws.
  */
 import { afterAll, beforeAll, expect, test } from "vitest";
+import { SCHEMA_TYPES } from "../../../domains/ontology.js";
+import { GRAPH_SCENE_EVENT } from "../domains/graph-types.js";
+import type { GraphSceneModel } from "./scene.js";
 import { modelIn, mountPolymorphicPage, quadsNamed, type TMountedPage, type TQuadFed, type TViewElement } from "../../../test/polymorphic-page.js";
 
 /** Animation frames the page runs after a scene's end, over which the ended scene mustn't draw. */
@@ -91,5 +95,26 @@ test("a model set as a scene is made is drawn once the library laid out its firs
 	await mounted.page.evaluate(`(${madeAndFed})(${JSON.stringify(fed)}, ${modelIn})`);
 	await mounted.draws(fed.length);
 	await mounted.atRest();
+	expect(mounted.errors(), "page errors").toEqual([]);
+});
+
+test("a scene scoped to the schema reveals it as its model arrives, though the model hides every type", { timeout: 60_000 }, async () => {
+	const schema = [...SCHEMA_TYPES];
+	const revealed = await mounted.scene(
+		(scene, { event, types }) => {
+			const scoped = scene as unknown as HTMLElement & { scopeToType(focusType: string): void; setModel(model: GraphSceneModel): void };
+			const asked: string[][] = [];
+			scoped.addEventListener(event, (e) => asked.push((e as CustomEvent<{ types: string[] }>).detail.types));
+			const empty = { quads: [], visibleQuads: [], clusters: [], hiddenGraphs: types, hiddenPredicates: [], perTypeLimit: 1000, timeCursor: null };
+			const hidingAll = (clusterTypes: string[]) => ({ ...empty, knownClusters: new Map(clusterTypes.map((type) => [type, { type }])) }) as unknown as GraphSceneModel;
+			scoped.setModel(hidingAll([]));
+			scoped.scopeToType("");
+			const beforeSchema = asked.length;
+			scoped.setModel(hidingAll(types));
+			return { beforeSchema, asked };
+		},
+		{ event: GRAPH_SCENE_EVENT.SCOPE_REVEALED, types: schema },
+	);
+	expect(revealed, "the reveals the scene requested, before and after its model held the schema").toEqual({ beforeSchema: 0, asked: [schema] });
 	expect(mounted.errors(), "page errors").toEqual([]);
 });
