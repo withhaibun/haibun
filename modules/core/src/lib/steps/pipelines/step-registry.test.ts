@@ -235,6 +235,15 @@ describe("what the manifest states about a domain", () => {
 		const manifest = definitionsOf(world, new StepRegistry([], world));
 		expect(manifest.domains["x-viewer"]?.ui).toEqual({ component: "x-viewer", js: "/assets/x-viewer.js" });
 	});
+
+	it("follows a component advertised and withdrawn in place, as a stepper does where a feature stops serving its assets", () => {
+		const viewer = { name: "x-viewer", schema: z.object({}), description: "a viewer", ui: { component: "x-viewer", js: "/assets/x-viewer.js" } as unknown };
+		const world = { runtime: {}, domains: { "x-viewer": viewer } } as unknown as TWorld;
+		const registry = new StepRegistry([], world);
+		expect(definitionsOf(world, registry).domains["x-viewer"]?.ui).toEqual({ component: "x-viewer", js: "/assets/x-viewer.js" });
+		viewer.ui = undefined;
+		expect(definitionsOf(world, registry).domains["x-viewer"]?.ui, "a withdrawn component isn't advertised").toBeUndefined();
+	});
 });
 
 describe("the refusal a caller from outside actuality receives", () => {

@@ -55,10 +55,15 @@ type TDeclarations = {
 /** The declarations of a registry, held for one version of its steps and one set of registered domains. */
 const heldDeclarations = new WeakMap<StepRegistry, { version: number; domains: readonly unknown[]; declarations: TDeclarations }>();
 
+/** The entries of the registered domains that the declarations read: each domain, and the component it advertises, which a
+ *  stepper sets and withdraws in place as it serves and stops serving the component's assets. */
+const declaredDomainEntries = (domains: Readonly<Record<string, TRegisteredDomain>>): readonly unknown[] =>
+	Object.entries(domains).flatMap(([key, domain]) => [key, domain, domain.ui]);
+
 /** Returns what actuality declares to every caller. It is derived again where the registry's steps changed since the last
- *  derivation, which emits STEPS_CHANGED, or where a domain was declared since. */
+ *  derivation, which emits STEPS_CHANGED, or where a domain was declared, or its component advertised or withdrawn, since. */
 function declarationsOf(world: TWorld, registry: StepRegistry): TDeclarations {
-	const domains = recordEntries(world.domains);
+	const domains = declaredDomainEntries(world.domains);
 	const held = heldDeclarations.get(registry);
 	if (held !== undefined && held.version === registry.version && sameEntries(held.domains, domains)) return held.declarations;
 	const steps = registry.descriptors();
