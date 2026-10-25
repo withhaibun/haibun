@@ -12,10 +12,16 @@ import type { IFile, TStorageFiles } from "../ports.js";
 import { AStepper, StepperKinds, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
 import { DOMAIN_NUMBER, DOMAIN_FILE_PATH, DOMAIN_TEXT } from "@haibun/core/lib/domains/domains.js";
+import { listOf } from "@haibun/core/lib/domains/lists.js";
+import { CountedFields, counted } from "@haibun/core/lib/domains/hypermedia.js";
 
 const FileContentsSchema = z.object({ contents: z.string() });
 /** The domain of a file's contents, as a storage read them. */
 const DOMAIN_FILE_CONTENTS = "file-contents";
+/** The files a directory holds, by name, as a counted list. */
+const FileListSchema = z.object({ files: z.array(z.object({ name: z.string() })), ...CountedFields });
+/** The domain of the files a directory holds. */
+const DOMAIN_FILE_LIST = "file-list";
 
 /**
  * Result from saveArtifact with paths for different consumption contexts.
@@ -44,7 +50,12 @@ function inside(dir: string, path: string): boolean {
 
 export abstract class AStorage extends AStepper implements IHasCycles {
 	cycles: IStepperCycles = {
-		getConcerns: () => ({ domains: [{ selectors: [DOMAIN_FILE_CONTENTS], schema: FileContentsSchema, description: "A file's contents, as a storage read them" }] }),
+		getConcerns: () => ({
+			domains: [
+				{ selectors: [DOMAIN_FILE_CONTENTS], schema: FileContentsSchema, description: "A file's contents, as a storage read them" },
+				{ selectors: [DOMAIN_FILE_LIST], schema: FileListSchema, list: listOf(FileListSchema, "files"), description: "The files a directory holds, by name" },
+			],
+		}),
 	};
 	description = "Create files, directories, and manage test artifacts";
 
@@ -169,13 +180,6 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 				return OK;
 			},
 		},
-		filesCount: {
-			gwta: `directory {where: ${DOMAIN_FILE_PATH}} has {count: ${DOMAIN_NUMBER}} files`,
-			action: async ({ where, count }: { where: string; count: number }) => {
-				const files = await this.readdir(where);
-				return files.length === count ? OK : actionNotOK(`directory ${where} has ${files.length} files`);
-			},
-		},
 		testIs: {
 			gwta: `text at {where: ${DOMAIN_FILE_PATH}} is {what: ${DOMAIN_TEXT}}`,
 			action: ({ where, what }: { where: string; what: string }) => {
@@ -192,10 +196,11 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 		},
 		listFiles: {
 			gwta: `list files from {where: ${DOMAIN_FILE_PATH}}`,
+			description: 'Lists the files a directory holds, by name. Count them with `exactly` or `at least`, as in `exactly 2, list files from "tmp"`.',
+			productsDomain: DOMAIN_FILE_LIST,
 			action: async ({ where }: { where: string }) => {
 				const files = await this.readdir(where);
-				this.getWorld().eventLogger.info(`files from ${where}: ${files.join(", ")}`);
-				return OK;
+				return actionOKWithProducts({ files: files.map((name) => ({ name })), ...counted(files.length) });
 			},
 		},
 		fileExists: {

@@ -328,7 +328,7 @@ describe("the counts a shape reads, and the rows of a graph query a time bounds"
 		expect(takesListQuery({ query: { label: "Comment" } }, { limit: 0 }), "a page holds a record at least").toBeUndefined();
 	});
 
-	it("limits and orders the rows at the store, with the store's count of every row, as a line or as a call that states its statement as a call", async () => {
+	it("limits and orders the rows at the store, with the store's count of every row, as a line, as a call that states its statement as a call, and as calls nested", async () => {
 		const world = getTestWorldWithOptions();
 		const store = world.shared.getStore();
 		for (const [id, generatedAtTime] of [
@@ -348,5 +348,13 @@ describe("the counts a shape reads, and the rows of a graph query a time bounds"
 		);
 		expect(called.result.ok, JSON.stringify(called.result)).toBe(true);
 		expect(rows(called.result.products).total).toBe(2);
+		const ordered = { method: "Haibun-orderedBy", params: { field: "generatedAtTime", statement } };
+		const skipped = { method: "Haibun-skipping", params: { count: 1, statement: ordered } };
+		const nested = await runAuthorizedWith(RUN_AUTHORITY, () =>
+			callStatedStepFrom({ getWorld: () => ran.world, steppers: ran.world.runtime.steppers ?? [] }, "Haibun-limitedTo", { count: 1, statement: skipped }),
+		);
+		expect(nested.result.ok, JSON.stringify(nested.result)).toBe(true);
+		const page = rows(nested.result.products);
+		expect({ ids: page.vertices.map(({ id }) => id), total: page.total }, "a call that states a combinator's call as its statement").toEqual({ ids: ["late"], total: 2 });
 	});
 });

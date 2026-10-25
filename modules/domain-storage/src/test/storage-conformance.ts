@@ -70,12 +70,11 @@ export function describeStorage(name: string, make: () => AStorage, root: string
 			expect(storage.readFile(at("kept/under/here/a.key"), "utf-8")).toEqual("what is kept");
 		});
 
-		it("states how many files a directory holds and the whole text of a file, and refuses a count or a text that differs", async () => {
+		it("lists the files a directory holds and states the whole text of a file, and refuses a text that differs", async () => {
 			const storage = make();
 			storage.mkdirp(at("counted"));
 			storage.writeFileBuffer(at("counted/one.txt"), Buffer.from("the whole text"));
-			expect(await storage.steps.filesCount.action({ where: at("counted"), count: 1 })).toEqual(OK);
-			expect(await storage.steps.filesCount.action({ where: at("counted"), count: 2 })).toMatchObject({ ok: false, errorMessage: `directory ${at("counted")} has 1 files` });
+			expect(await storage.steps.listFiles.action({ where: at("counted") })).toEqual({ ok: true, products: { files: [{ name: "one.txt" }], total: 1, saturated: false } });
 			expect(storage.steps.testIs.action({ where: at("counted/one.txt"), what: "the whole text" })).toEqual(OK);
 			expect(storage.steps.testIs.action({ where: at("counted/one.txt"), what: "the whole" })).toMatchObject({ ok: false });
 		});

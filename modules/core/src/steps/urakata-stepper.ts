@@ -3,6 +3,8 @@
  * lifecycle steps. Other steppers retrieve the registry via
  * `world.runtime[URAKATA]` and register their tickers there.
  */
+import { listOf } from "../lib/domains/lists.js";
+import { CountedFields, counted } from "../lib/domains/hypermedia.js";
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts } from "../lib/domains/util.js";
@@ -13,7 +15,7 @@ import { URAKATA, URAKATA_ID_DOMAIN, URAKATA_LABEL, UrakataSchema, type IHasUrak
 import { ENDED_BY_FIELD, ACTUALITY_FIELD } from "../lib/actuality/domains/seq-path.js";
 
 const DOMAIN_URAKATA_LIST = "urakata-list";
-const UrakataListSchema = z.object({ urakata: z.array(UrakataSchema) });
+const UrakataListSchema = z.object({ urakata: z.array(UrakataSchema), ...CountedFields });
 
 /**
  * The persisted Urakata type: a task's lifecycle facts, queryable like any other individual. `actuality` is a CONTEXT
@@ -67,7 +69,13 @@ class UrakataStepper extends AStepper implements IHasCycles, IHasUrakata {
 			domains: [
 				urakataIdDomainDefinition,
 				urakataTaskDomainDefinition,
-				{ selectors: [DOMAIN_URAKATA_LIST], schema: UrakataListSchema, description: "List of running urakata", ui: { component: "shu-result-table", summary: "Urakata" } },
+				{
+					selectors: [DOMAIN_URAKATA_LIST],
+					schema: UrakataListSchema,
+					list: listOf(UrakataListSchema, "urakata"),
+					description: "List of running urakata",
+					ui: { component: "shu-result-table", summary: "Urakata" },
+				},
 			],
 		}),
 		startFeature: () => {
@@ -98,7 +106,14 @@ class UrakataStepper extends AStepper implements IHasCycles, IHasUrakata {
 	};
 
 	steps = {
-		showUrakata: { gwta: "show urakata", productsDomain: DOMAIN_URAKATA_LIST, action: () => actionOKWithProducts({ urakata: this.urakata().list() }) },
+		showUrakata: {
+			gwta: "show urakata",
+			productsDomain: DOMAIN_URAKATA_LIST,
+			action: () => {
+				const urakata = this.urakata().list();
+				return actionOKWithProducts({ urakata, ...counted(urakata.length) });
+			},
+		},
 
 		stopUrakata: {
 			gwta: `stop urakata {id: ${URAKATA_ID_DOMAIN}}`,

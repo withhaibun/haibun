@@ -42,6 +42,7 @@ import { PAGE_READ, READS_THE_PAGE, WEB_PLAYWRIGHT_ACTIONS } from "./domains/act
 import { DOMAIN_BROWSER_TAB, DOMAIN_BROWSER_TABS, DOMAIN_BROWSER_TAB_TEXT, DOMAIN_RELAY_ATTACHMENT } from "./domains/relay.js";
 import {
 	DOMAIN_ACCESSIBILITY_SNAPSHOT,
+	DOMAIN_JSON_RESPONSE,
 	DOMAIN_BROWSER_EXTENSION,
 	DOMAIN_BROWSER_TYPE,
 	DOMAIN_COOKIE_NAME,
@@ -51,8 +52,6 @@ import {
 	DOMAIN_HTTP_METHOD,
 	DOMAIN_HTTP_METHOD_WITH_BODY,
 	DOMAIN_HTTP_METHOD_WITHOUT_BODY,
-	DOMAIN_JSON_PROPERTY,
-	DOMAIN_JSON_RESPONSE_COUNT,
 	DOMAIN_KEYBOARD_KEY,
 	DOMAIN_MEDIA_TYPE,
 	DOMAIN_PAGE_LOCATOR,
@@ -61,7 +60,6 @@ import {
 	DOMAIN_PAGE_TEXT,
 	DOMAIN_QUERY_PARAMETER,
 	DOMAIN_REQUEST_STATE,
-	DOMAIN_RESPONSE_LIST,
 	DOMAIN_RUNNING_BROWSER_EXTENSION,
 	DOMAIN_URL_GLOB,
 	REQUEST_STATE,
@@ -69,7 +67,6 @@ import {
 	type TBrowserTypes,
 	type TFindWay,
 	type TAuthorizationScheme,
-	type TResponseList,
 } from "./domains/web-playwright.js";
 import { BrowserSession, type TPageAction } from "./pipelines/browser-session.js";
 import { connecting, loadedResult, loadingExtension, type TLoadedExtension } from "./pipelines/browser-options.js";
@@ -111,24 +108,12 @@ import {
 	waitUntilGone,
 } from "./pipelines/page-reads.js";
 import { listTabs, openTab, readTab } from "./pipelines/relay-tabs.js";
-import {
-	AUTHORIZATION,
-	authorization,
-	filterResponse,
-	logout,
-	request,
-	requestEachFiltered,
-	requestToken,
-	responseCount,
-	responseLengthIs,
-	setExtraHTTPHeaders,
-	statusIs,
-	type TRestContext,
-} from "./pipelines/rest.js";
+import { AUTHORIZATION, authorization, logout, request, requestToken, setExtraHTTPHeaders, statusIs, type TRestContext, jsonResponse } from "./pipelines/rest.js";
 import { captureScreenshot } from "./pipelines/screenshots.js";
 import { keepText } from "./pipelines/variables.js";
 import type { TBrowserOptions, TBrowserRelay, TTwin } from "./ports.js";
 import { browserPorts, serveRelay, type TBrowserPorts } from "./root.js";
+import { counted } from "@haibun/core/lib/domains/hypermedia.js";
 
 /** The action that attaches a browser a person runs to the relay. */
 const WEB_PLAYWRIGHT_ATTACH: TAction = ActionSchema.parse(WEB_PLAYWRIGHT_ACTIONS.attach);
@@ -505,7 +490,11 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			gwta: "list the attached browser's tabs",
 			description: "Every tab open in the browser a person attached through the relay, attached or not: its id, title and address.",
 			productsDomain: DOMAIN_BROWSER_TABS,
-			action: () => this.#withRelay(async (relay) => actionOKWithProducts(await listTabs(relay))),
+			action: () =>
+				this.#withRelay(async (relay) => {
+					const { tabs } = await listTabs(relay);
+					return actionOKWithProducts({ tabs, ...counted(tabs.length) });
+				}),
 		},
 		readBrowserTab: {
 			read: true,
@@ -662,28 +651,13 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			action: ({ method, endpoint, payload }: { method: string; endpoint: string; payload: unknown }, featureStep: TFeatureStep) =>
 				request(this.#rest, featureStep, endpoint, method, { postData: JSON.stringify(payload), headers: { "Content-Type": "application/json" } }),
 		},
-		filterResponseJson: {
+		showJsonResponse: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `filter JSON response by {property: ${DOMAIN_JSON_PROPERTY}} matching {match: ${DOMAIN_TEXT}}`,
-			action: ({ property, match }: { property: string; match: string }, featureStep: TFeatureStep) => filterResponse(this.getWorld(), featureStep, property, match),
-		},
-		responseLengthIs: {
-			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `{list: ${DOMAIN_RESPONSE_LIST}} response length is {length: ${DOMAIN_NUMBER}}`,
-			description: "Whether the last response's JSON list, or the members a filter kept of it, holds the number of members.",
-			action: ({ list, length }: { list: TResponseList; length: number }) => responseLengthIs(this.getWorld(), list, length),
-		},
-		showResponseLength: {
-			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: "show JSON response count",
-			productsDomain: DOMAIN_JSON_RESPONSE_COUNT,
-			action: () => responseCount(this.getWorld()),
-		},
-		restFilterPropertyRequest: {
-			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `for each filtered {property: ${DOMAIN_JSON_PROPERTY}}, make REST {method: ${DOMAIN_HTTP_METHOD_WITHOUT_BODY}} to {endpoint: ${DOMAIN_LINK}} yielding status {status: ${DOMAIN_NUMBER}}`,
-			action: ({ property, method, endpoint, status }: { property: string; method: string; endpoint: string; status: number }) =>
-				requestEachFiltered(this.#rest, property, method, endpoint, status),
+			gwta: "show JSON response",
+			description:
+				'Lists the members of the last JSON response. Narrow, count and iterate them with the list combinators, as in `exactly 2, whose "name" matches "Include", show JSON response`.',
+			productsDomain: DOMAIN_JSON_RESPONSE,
+			action: () => jsonResponse(this.getWorld()),
 		},
 		restLastStatusIs: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,

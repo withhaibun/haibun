@@ -37,7 +37,7 @@ export const followCall = <T>(link: TCallLink, why: string): Promise<T> => CallS
 export const affordancesOnOffer = (asOf: string | undefined): Promise<CallStep.TCallOutcome<Record<string, unknown>>> =>
 	asOf === undefined
 		? callStep(RPC_METHOD.AFFORDANCES_ON_OFFER, {}, "the affordances on offer")
-		: callStep(RPC_METHOD.AFFORDANCES_ON_OFFER_AS_OF, { asOf }, `the affordances on offer as of ${asOf}`);
+		: callStep(RPC_METHOD.AS_OF, { asOf, statement: { method: RPC_METHOD.AFFORDANCES_ON_OFFER, params: {} } }, `the affordances on offer as of ${asOf}`);
 
 /** Returns the records related to a record, `depth` edges away, and the root record of their thread. */
 export const relatedRecords = <V>(label: string, id: string, depth: number): Promise<CallStep.TCallOutcome<{ items: V[]; contextRoot: string }>> =>

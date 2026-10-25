@@ -32,6 +32,13 @@ Feature: Auth-bearer Authentication
     make auth scheme "bearer"
     API user agent is "curl/8.5.0"
 
+
+    A resource is deleted at the address its id names under the resource route, whose response is empty.
+    Activity: Delete the resource
+    compose Deleted Resource with {Resource API}/{resource/id}
+    make an HTTP DELETE to Deleted Resource
+    HTTP status is 204
+    waypoint the resource is deleted
     Scenario: Fail authentication without an auth header
         go to the REST Home webpage
         make an HTTP GET to Profile API
@@ -75,10 +82,8 @@ Feature: Auth-bearer Authentication
         HTTP status is OK
         accept "application/json" using HTTP GET to Resources API
         HTTP status is OK
-        show JSON response count
-        JSON response length is 3
-        filter JSON response by "name" matching "Include"
-        filtered response length is 2
-        for each filtered "id", make REST DELETE to Resource API yielding status 204
+        exactly 3, show JSON response
+        exactly 2, whose "name" matches "Include", show JSON response
+        for each resource of whose "name" matches "Include", show JSON response: the resource is deleted
         accept "application/json" using HTTP GET to Resources API
-        JSON response length is 1
+        exactly 1, show JSON response

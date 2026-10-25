@@ -23,6 +23,10 @@ export const SHOW_STEP_DEFINITIONS_LINE = "show step definitions";
 export const SHOW_STEP_DEFINITIONS_METHOD = "Haibun-showStepDefinitions" as TStepMethod;
 /** The method of the combinator that keeps the items of a statement's list that hold a text. */
 export const MATCHING_METHOD = "Haibun-matching" as TStepMethod;
+/** The methods of the combinators that keep the first items of a statement's list, and the items after the first. A caller
+ *  over a transport reads a window of a list with them, stating the read as a call. */
+export const LIMITED_TO_METHOD = "Haibun-limitedTo" as TStepMethod;
+export const SKIPPING_METHOD = "Haibun-skipping" as TStepMethod;
 
 /** The action the reads of actuality's declarations require: a public read. A caller reads them before it reads any step's
  *  declaration, so a caller names this action without a prior read. */

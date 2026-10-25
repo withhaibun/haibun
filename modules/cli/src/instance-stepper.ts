@@ -49,6 +49,8 @@ import { actingAs, askedIn } from "@haibun/core/lib/domains/capability-context.j
 import { signInOf, verifiedRun } from "./pipelines/run-conditions.js";
 import { INSTANCE_PORT_ENV, KEY_ENV, RUN_DOMAIN, RunTail, SUPERVISOR_CAPABILITIES, runDomainDefinitions, runEnvironment } from "./domains/run.js";
 import { DOMAIN_FILE_PATH, DOMAIN_NUMBER } from "@haibun/core/lib/domains/domains.js";
+import { listOf } from "@haibun/core/lib/domains/lists.js";
+import { CountedFields, counted } from "@haibun/core/lib/domains/hypermedia.js";
 
 const READY_POLL_MS = 300;
 const STDERR_TAIL_CHARS = 4_000;
@@ -90,6 +92,7 @@ const InstancesSchema = z.object({
 		.array(z.object({ hostId: z.number(), origin: z.string(), label: z.string() }))
 		.describe("Each instance this process launched and still supervises: its host id, its origin, and the directory from which it was launched."),
 	runs: z.array(z.object({ run: z.string(), status: z.string() })).describe("Each run this process started, and whether it is running or ended."),
+	...CountedFields,
 });
 
 /** Returns an instance's response to the action.begin handshake, or undefined while the instance doesn't accept the call.
@@ -167,7 +170,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 	cycles: IStepperCycles = {
 		getConcerns: () => ({
 			domains: [
-				{ selectors: [DOMAIN_INSTANCES], schema: InstancesSchema, description: "The instances and runs a process started" },
+				{ selectors: [DOMAIN_INSTANCES], schema: InstancesSchema, list: listOf(InstancesSchema, "instances"), description: "The instances and runs a process started" },
 				{ selectors: [DOMAIN_INSTANCE_STARTED], schema: instanceStartedSchema, description: "An instance a process started, with its url, its site principal and its host id" },
 				...runDomainDefinitions,
 			],
@@ -253,6 +256,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 					actionOKWithProducts({
 						instances: this.children.map(({ label, launch }) => ({ hostId: launch.hostId, origin: localOrigin(launch.port), label })),
 						runs: [...this.runs].map(([run, held]) => ({ run, status: runStatus(held) })),
+						...counted(this.children.length),
 					}),
 				),
 		},

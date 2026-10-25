@@ -25,8 +25,8 @@ export const features: TKirejiExport = {
 		"Essential, for the affordances panel. Source: pipelines/goals.ts, affordancesAt.",
 		"show affordances",
 		"The same affordances read over the facts that held at an earlier step, as a step records them and as a page reads them.",
-		'show affordances as of "0.1"',
-		'affordances on offer as of "0.1"',
+		'as of "0.1", show affordances',
+		'as of "0.1", affordances on offer',
 
 		scenario({ scenario: "A model's tool call and a line reach the same term" }),
 		`Essential, for a model and the page. Source: docs/reasoner.md, For a model.
@@ -56,7 +56,7 @@ export const features: TKirejiExport = {
 		'variable each.total is more than "3"',
 		"set asOf from as of 0.1, counting show steppers",
 		'variable asOf.total is more than "3"',
-		"for each stepper of show steppers, matching stepper/stepper, show steppers",
+		'for each stepper of whose "stepper" matches "e", show steppers: matching stepper/stepper, show steppers',
 		declarations.shows,
 	],
 };

@@ -133,6 +133,8 @@ describe("the instances and runs a process started", () => {
 				{ run: "a-run", status: "running" },
 				{ run: "an-ended-run", status: "ended" },
 			],
+			total: 0,
+			saturated: false,
 		});
 	});
 });

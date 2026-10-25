@@ -8,15 +8,9 @@ import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/domains/util
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK, Origin, type TActionResult } from "@haibun/core/lib/domains/protocol.js";
 import { basicAuthorization, basicAuthUsers } from "@haibun/core/lib/domains/basic-auth.js";
-import {
-	AUTHORIZATION_SCHEMES,
-	CapturedResponseSchema,
-	HTTP_METHODS_WITH_BODY,
-	RESPONSE_LISTS,
-	type TAuthorizationScheme,
-	type TCapturedResponse,
-	type TResponseList,
-} from "../domains/web-playwright.js";
+import { AUTHORIZATION_SCHEMES, CapturedResponseSchema, HTTP_METHODS_WITH_BODY, type TAuthorizationScheme, type TCapturedResponse } from "../domains/web-playwright.js";
+import { RecordsSchema } from "@haibun/core/lib/domains/json-text.js";
+import { counted } from "@haibun/core/lib/domains/hypermedia.js";
 import type { TPageFetch } from "../ports.js";
 import type { BrowserSession } from "./browser-session.js";
 
@@ -100,47 +94,13 @@ export async function logout(context: TRestContext, featureStep: TFeatureStep, e
 	return OK;
 }
 
-/** Keeps the members of the last JSON response whose `property` matches `match` as its filtered members. */
-export async function filterResponse(world: TWorld, featureStep: TFeatureStep, property: string, match: string): Promise<TActionResult> {
-	const last = await lastResponse(world);
-	if (last?.json === undefined || !Array.isArray(last.json)) return actionNotOK(`the last response ${JSON.stringify(last)} isn't a JSON list to filter`);
-	const filtered = last.json.filter((item) => typeof item[property] === "string" && item[property].match(match) !== null);
-	await keepResponse(world, { ...last, filtered }, featureStep);
-	return OK;
-}
-
-/** The list of the last response a step counts: its JSON body, or the members a filter kept. */
-function listOf(last: TCapturedResponse | undefined, list: TResponseList): unknown[] | undefined {
-	if (list === RESPONSE_LISTS.filtered) return last?.filtered;
-	return Array.isArray(last?.json) ? last.json : undefined;
-}
-
-/** Whether a list of the last response holds `length` members. */
-export async function responseLengthIs(world: TWorld, list: TResponseList, length: number): Promise<TActionResult> {
-	const members = listOf(await lastResponse(world), list);
-	if (members === undefined) return actionNotOK(`the last response doesn't hold a ${list} list to count`);
-	return members.length === length ? OK : actionNotOK(`Expected ${length}, got ${members.length}`);
-}
-
-/** How many members the last JSON response holds. */
-export async function responseCount(world: TWorld): Promise<TActionResult> {
-	const members = listOf(await lastResponse(world), RESPONSE_LISTS.json);
-	if (members === undefined) return actionNotOK("the last response isn't a JSON list to count: a step that makes a request receives one");
-	world.eventLogger.info(`lastResponse JSON count is ${members.length}`);
-	return actionOKWithProducts({ summary: `JSON response contains ${members.length} items`, details: { count: members.length } });
-}
-
-/** Requests `endpoint/{property}` for each filtered member, and requires each response to have `status`. */
-export async function requestEachFiltered(context: TRestContext, property: string, method: string, endpoint: string, status: number): Promise<TActionResult> {
-	const filtered = (await lastResponse(context.world))?.filtered;
-	if (filtered === undefined) return actionNotOK("the last response doesn't hold filtered members: `filter JSON response by` filters them");
-	if (!filtered.every((item) => item[property] !== undefined)) return actionNotOK(`Property ${property} not found in all items`);
-	for (const item of filtered) {
-		const path = `${endpoint}/${String(item[property])}`;
-		const response = await fetchInPage(context, path, method, {});
-		if (response.status !== status) return actionNotOK(`Expected status ${status} to ${path}, got ${response.status}`);
-	}
-	return OK;
+/** The members of the last JSON response, as a counted list. Refuses a response that isn't a JSON list of members. */
+export async function jsonResponse(world: TWorld): Promise<TActionResult> {
+	const json = (await lastResponse(world))?.json;
+	const members = RecordsSchema.safeParse(json);
+	if (!members.success)
+		return actionNotOK(`the last response isn't a JSON list of members: a step that makes a request to an endpoint that lists them receives one. It holds ${JSON.stringify(json)}`);
+	return actionOKWithProducts({ members: members.data, ...counted(members.data.length) });
 }
 
 export async function statusIs(world: TWorld, status: number): Promise<TActionResult> {

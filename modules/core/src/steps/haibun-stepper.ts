@@ -255,6 +255,8 @@ class Haibun extends AStepper implements IHasCycles {
 		),
 
 		asOf: {
+			read: true,
+			readsAt: Access.public,
 			gwta: `as of {asOf: ${DOMAIN_STEP_PATH}}, {statement: ${DOMAIN_STATEMENT}}`,
 			description: "Proves the statement as of a step of actuality, so a read the statement makes that reads actuality at a step, such as the affordances, reads it at that step.",
 			productsOf: "statement",
@@ -262,9 +264,9 @@ class Haibun extends AStepper implements IHasCycles {
 			context: ({ asOf }) => Promise.resolve(<T>(run: () => Promise<T>) => runAsOf(StepPathValueSchema.parse(asOf), run)),
 		},
 		forEach: {
-			gwta: `for each {what: ${DOMAIN_VARIABLE_NAME}} of {list: ${DOMAIN_STATEMENT}}, {statement: ${DOMAIN_STATEMENT}}`,
+			gwta: `for each {what: ${DOMAIN_VARIABLE_NAME}} of {list: ${DOMAIN_STATEMENT}}: {statement: ${DOMAIN_STATEMENT}}`,
 			description:
-				"Proves the statement for each item of the list's statement, as its combinators make the list, with the item bound to the variable: its id, and each of its values as variable/field. Holds where the statement holds for every item, and is refused with the first item's refusal otherwise.",
+				"Proves the statement after the colon for each item of the list's statement, as its combinators make the list, with the item bound to the variable: its id, and each of its values as variable/field. Holds where the statement holds for every item, and is refused with the first item's refusal otherwise.",
 			action: async ({ what, list, statement }: { what: string; list: TFeatureStep[]; statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				const ctx = stepperContext(this.getWorld(), this.steppers);
 				let items: TListItem[] | undefined;

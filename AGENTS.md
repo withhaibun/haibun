@@ -354,7 +354,7 @@ The list combinators compose before a comma, innermost first. A count states how
     limited to 1, skipping 1, ordered by "method" descending, matching "Haibun-show", show steps
     limited to 1 per "stepperName", show steps
     as of 0.1, counting show steppers
-    for each stepper of show steppers, matching stepper/stepper, show steppers
+    for each stepper of whose "stepper" matches "e", show steppers: matching stepper/stepper, show steppers
 
 
 A module holds the waypoints every group uses in a base of backgrounds, which a group names beside its own base. shu's `waypoints` base holds the waypoints of its views, which call web-playwright's steps within a view, so a feature states what a view shows without a step of its own. A graph view's waypoints read its accessible document: the nodes it names, the active, dimmed and pinned states, the group titles and the lifelines. A head every view benefits from is general, and a head for what only the graph draws names the graph (see [architecture](docs/architecture.md#activities-and-waypoints)).

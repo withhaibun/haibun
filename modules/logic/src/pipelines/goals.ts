@@ -204,7 +204,7 @@ export async function walkAdvanced(scope: TGoalScope, parent: TFeatureStep, walk
 
 /** The steps on offer and the resolution of each goal a step returns, over the facts that held at `asOf` where it is stated. A
  *  goal whose every plan is one step on offer is left out, and a fact whose id doesn't name a step holds at every step. */
-async function snapshotOf(scope: TGoalScope, asOf: number[] | undefined) {
+async function snapshotOf(scope: TGoalScope, asOf: readonly number[] | undefined) {
 	const { steppers, world } = scope.ctx;
 	const reader = readerOf(storeOf(scope), asOf);
 	const facts = await factsOf(reader);
@@ -231,7 +231,7 @@ async function snapshotOf(scope: TGoalScope, asOf: number[] | undefined) {
 }
 
 /** The affordances over the facts that held at `asOf` where it is stated, with each stepper's waypoints where it isn't. */
-export async function affordancesAt(scope: TGoalScope, parent: TFeatureStep, asOf: number[] | undefined): Promise<TActionResult> {
+export async function affordancesAt(scope: TGoalScope, parent: TFeatureStep, asOf: readonly number[] | undefined): Promise<TActionResult> {
 	const waypointers = asOf === undefined ? scope.ctx.steppers.filter(providesWaypoints) : [];
 	const waypoints = (await Promise.all(waypointers.map((stepper) => stepper.waypointEntries(parent)))).flat();
 	return actionOKWithProducts(AffordancesSchema.parse({ ...(await snapshotOf(scope, asOf)), waypoints }));

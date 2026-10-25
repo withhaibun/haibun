@@ -5,7 +5,6 @@ import { z } from "zod";
 import { SearchConditionSchema, SortOrderSchema, type TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { AccessQueryLevelSchema } from "@haibun/core/lib/domains/resources.js";
 import { CountedSchema } from "@haibun/core/lib/domains/hypermedia.js";
-import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { ChatStatusSchema, ContextQuerySchema } from "@haibun/core/lib/conversation/domains/conversation.js";
 
 // --- Combobox ---
@@ -190,10 +189,3 @@ export type TBundle = z.infer<typeof BundleSchema>;
  *  converses with a model, and the mode control offers it only where actuality registers an ask-capable step. */
 export const BAR_MODES = ["search", "ask", "step"] as const;
 export const ActionsBarSchema = z.object({ mode: z.enum(BAR_MODES) });
-
-/** The domain of where an instance serves shu. */
-export const DOMAIN_SHU_APPS = "shu-apps";
-/** Where an instance serves shu: the path of each app it mounted, which a reader opens under the instance's address. */
-export const ShuAppsSchema = z.object({ apps: z.array(z.string()).describe("The path of each app this instance serves shu at, under its address.") });
-/** The step that states where an instance serves shu. */
-export const SHU_APPS_METHOD = stepMethodName("ShuStepper", "showShuApps");

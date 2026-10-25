@@ -19,7 +19,6 @@ import {
 	DOMAIN_JSON,
 	DOMAIN_DOMAIN_KEY,
 	DOMAIN_JSON_OBJECT,
-	DOMAIN_STEP_PATH,
 	DOMAIN_WAYPOINT_ARGUMENT,
 } from "@haibun/core/lib/domains/domains.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
@@ -28,7 +27,7 @@ import { argumentsOf } from "@haibun/core/lib/steps/pipelines/populate-action-ar
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { Access, SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_FIELD, calledParts, actualityFeatureOf, stepRecordOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
-import { callerHolds } from "@haibun/core/lib/domains/capability-context.js";
+import { callerHolds, readingAsOf } from "@haibun/core/lib/domains/capability-context.js";
 import {
 	DOMAIN_AFFORDANCES,
 	DOMAIN_CHAIN_LINT,
@@ -198,31 +197,17 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 		},
 		showAffordances: {
 			gwta: "show affordances",
-			description: "Returns the steps the caller may call next and the resolution of each goal a step returns.",
+			description: "Returns the steps the caller may call next and the resolution of each goal a step returns, over the facts that hold now, or, under `as of`, at a step.",
 			productsDomain: DOMAIN_AFFORDANCES,
-			action: async (_args, featureStep: TFeatureStep) => affordancesAt(await this.goalScope(), featureStep, undefined),
-		},
-		showAffordancesAsOf: {
-			gwta: `show affordances as of {asOf: ${DOMAIN_STEP_PATH}}`,
-			description: "Returns the affordances over the facts that held at a step.",
-			productsDomain: DOMAIN_AFFORDANCES,
-			action: async ({ asOf }: { asOf: number[] }, featureStep: TFeatureStep) => affordancesAt(await this.goalScope(), featureStep, asOf),
+			action: async (_args, featureStep: TFeatureStep) => affordancesAt(await this.goalScope(), featureStep, readingAsOf()),
 		},
 		affordancesOnOffer: {
 			gwta: "affordances on offer",
 			read: true,
 			readsAt: Access.public,
-			description: "Reads the affordances, as a page does after a step; a read from outside isn't recorded as actuality's step.",
+			description: "Reads the affordances, as a page does after a step, now, or, under `as of`, at a step; a read from outside isn't recorded as actuality's step.",
 			productsDomain: DOMAIN_AFFORDANCES,
-			action: async (_args, featureStep: TFeatureStep) => affordancesAt(await this.goalScope(), featureStep, undefined),
-		},
-		affordancesOnOfferAsOf: {
-			gwta: `affordances on offer as of {asOf: ${DOMAIN_STEP_PATH}}`,
-			read: true,
-			readsAt: Access.public,
-			description: "Reads the affordances over the facts that held at a step.",
-			productsDomain: DOMAIN_AFFORDANCES,
-			action: async ({ asOf }: { asOf: number[] }, featureStep: TFeatureStep) => affordancesAt(await this.goalScope(), featureStep, asOf),
+			action: async (_args, featureStep: TFeatureStep) => affordancesAt(await this.goalScope(), featureStep, readingAsOf()),
 		},
 		showDomainChainLint: {
 			gwta: "show chain lint",

@@ -10,7 +10,6 @@ import { z } from "zod";
 import { CountedFields } from "../../domains/hypermedia.js";
 import { SearchConditionSchema, type TSearchCondition } from "../../steps/domains/quad-types.js";
 import { DENOTES, IndividualAddressSchema } from "../../domains/typed-links.js";
-import type { TDomainDefinition } from "../../domains/resources.js";
 import { STATUS } from "../../domains/protocol.js";
 
 /** The domains of a conversation's steps. */
@@ -155,25 +154,5 @@ export const TurnEnvelopeSchema = z
 	.refine((envelope) => envelope.inReplyTo === undefined || envelope.session !== undefined, { message: "a reply names the session it replies in", path: ["session"] });
 export type TTurnEnvelope = z.input<typeof TurnEnvelopeSchema>;
 
-/** A model's response: the whole text, which a streaming caller also receives as a sequence of chunks. */
-export const ResponseSchema = z.object({ text: z.string().describe("The whole text the model produced.") });
-
 /** A key made for one turn: its did:key, when a delegation to it must end, and the actions a turn takes beyond its read. */
 export const TurnKeySchema = z.object({ controller: z.string(), expires: z.string(), actions: z.array(z.string()) });
-
-/** The record a file a person adds to a question is kept as, which the stepper that keeps files registers. */
-export const questionFileDomainDefinition: TDomainDefinition = {
-	selectors: [CONVERSATION_DOMAIN.FILE],
-	schema: IndividualAddressSchema,
-	description: "The record a file a person adds to a question is kept as",
-};
-
-/** The domains a conversation stepper registers beside its question, whose schema the stepper states, since it reads the
- *  question from the line that sends the turn. */
-export const conversationDomainDefinitions: TDomainDefinition[] = [
-	{ selectors: [CONVERSATION_DOMAIN.RESPONSE], schema: ResponseSchema, description: "A model's response" },
-	{ selectors: [CONVERSATION_DOMAIN.SESSION], schema: SessionReadSchema, description: "The turns of a conversation's session" },
-	{ selectors: [CONVERSATION_DOMAIN.SESSIONS], schema: SessionListSchema, description: "The sessions of conversations a store holds" },
-	{ selectors: [CONVERSATION_DOMAIN.TURN_KEY], schema: TurnKeySchema, description: "A key made for one turn, and what a turn takes beyond its read" },
-	questionFileDomainDefinition,
-];

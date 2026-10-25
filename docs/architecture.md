@@ -415,9 +415,9 @@ step's line.
   refused with the count it holds otherwise, so `until` waits for a count
 
 Two steps compose with any statement. `as of {step path}, {statement}` proves its statement as of a step of actuality, so a
-read that reads actuality at a step, such as the affordances, reads it there. `for each {what} of {list}, {statement}` proves
+read that reads actuality at a step, such as the affordances, reads it there. `for each {what} of {list}: {statement}` proves
 its statement for each item of the list's statement, with the item bound to the variable and each of its values bound as
-`{what}/{field}`; the list's statement ends at the first comma, so it is one read, without a combinator.
+`{what}/{field}`; the list's statement ends at the first colon outside a quoted term, so it composes combinators.
 
 Combinators compose, such as `limited to 1, ordered by "method", matching "Haibun-show", show steps`. The reads of actuality's
 declarations are plain: `show steps` lists every step actuality declares, each with whether its caller may call it

@@ -14,10 +14,15 @@ import type { TListDeclaration } from "../../domains/lists.js";
 export const stepList = (world: TWorld, step: TStepperStep): TListDeclaration | undefined =>
 	step.productsDomain === undefined ? undefined : world.domains[normalizeDomainKey(step.productsDomain)]?.list;
 
-/** Which of a step's products its lifecycle event and its fact keep: what the step states. A step whose products hold a list
- *  and a list combinator don't keep them, since the list is the response, and a second copy of it per read would grow the events. */
-export const productsRetained = (world: TWorld, step: TStepperStep): TStepperStep["retainProducts"] =>
-	step.retainProducts ?? (step.transformsList !== undefined || stepList(world, step) !== undefined ? false : undefined);
+/** Which of a step's products its lifecycle event and its fact keep: what the step states. A list combinator and a step whose
+ *  products hold a list don't keep them, since the list is the response, and a second copy of it per read would grow the events.
+ *  A list whose domain opens a view is kept, since a report mounts the view again from what the event and the fact keep. */
+export function productsRetained(world: TWorld, step: TStepperStep): TStepperStep["retainProducts"] {
+	if (step.retainProducts !== undefined) return step.retainProducts;
+	if (step.transformsList !== undefined) return false;
+	const domain = step.productsDomain === undefined ? undefined : world.domains[normalizeDomainKey(step.productsDomain)];
+	return domain?.list !== undefined && typeof domain.ui?.component !== "string" ? false : undefined;
+}
 
 /**
  * Adds hypermedia markers to a step's products. Every step with a `productsDomain` receives them. The registered

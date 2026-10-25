@@ -249,9 +249,10 @@ describe("show steps", () => {
 			description = "Records what a statement notes.";
 			steps = { note: { gwta: "note {value: text}", action: ({ value }: { value: string }) => (noted.push(value), Promise.resolve(actionOK())) } };
 		}
-		const result = await passWithDefaults("for each stepper of show steppers, note stepper/stepper", [Haibun, TestSteps, Notes]);
+		const result = await passWithDefaults('for each stepper of whose "stepper" matches "s", show steppers: note stepper/stepper', [Haibun, TestSteps, Notes]);
 		expect(result.ok, JSON.stringify(result.failure)).toBe(true);
-		expect(noted, "once for each stepper").toEqual(listedSteppers(result.world.runtime.steppers ?? []).steppers.map(({ stepper }) => stepper));
+		const kept = listedSteppers(result.world.runtime.steppers ?? []).steppers.flatMap(({ stepper }) => (stepper.toLowerCase().includes("s") ? [stepper] : []));
+		expect(noted, "once for each stepper the list's combinator keeps").toEqual(kept);
 		expect(noted).toEqual(expect.arrayContaining(["TestSteps", "Notes"]));
 		const refused = await failWithDefaults("counting as of 0.1, show steps", [Haibun, TestSteps]);
 		expect(refused.failure?.error.message).toContain("passes on its statement's products by its reading");

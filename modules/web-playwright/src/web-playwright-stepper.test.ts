@@ -33,12 +33,3 @@ describe("requestsMatching", () => {
 		expect(itemAt(steps, 0).featureSteps.map((f) => f.action.actionName)).toEqual(["requestsMatching", "requestsMatching"]);
 	});
 });
-describe("the response-length step", () => {
-	it("counts the JSON list and the filtered members with one step", async () => {
-		const features = asExpandedFeatures([{ path: "l1", content: "JSON response length is 3\nfiltered response length is 2" }]);
-		const steps = await new Resolver(createSteppers([WebPlaywright]), []).resolveStepsFromFeatures(features);
-		const actions = itemAt(steps, 0).featureSteps.map((step) => step.action);
-		expect(actions.map((action) => action.actionName)).toEqual(["responseLengthIs", "responseLengthIs"]);
-		expect(actions.map((action) => action.stepValuesMap?.list?.term)).toEqual(["JSON", "filtered"]);
-	});
-});

@@ -20,4 +20,4 @@ Backgrounds: int/web-server, int/upload-form
     list files from "tmp"
     receive download as "tmp/test-downloaded.jpg"
     Then "files/picture.jpg" has the contents of "tmp/test-downloaded.jpg"
-    list files from "tmp"
+    at least 1, list files from "tmp"

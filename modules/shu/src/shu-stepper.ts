@@ -6,14 +6,14 @@ import { z } from "zod";
 import { AStepper, type TStepperSteps, type IHasOptions } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK, actionOKWithProducts, errorDetail, getFromRuntime, getStepperOption, intOrError } from "@haibun/core/lib/domains/util.js";
 import { RESPONSE_TIMEOUT_MS, type TDeploymentSettings, type TServedHydration } from "./domains/hydration.js";
-import { getJsonLdContext } from "@haibun/core/lib/domains/hypermedia.js";
+import { CountedFields, counted, getJsonLdContext } from "@haibun/core/lib/domains/hypermedia.js";
+import { DOMAIN_SHU_APPS, ShuAppsSchema } from "./domains/shu-apps.js";
 import { Access, haibunNsForHost, isPersisted } from "@haibun/core/lib/domains/resources.js";
 import { requestBaseIri } from "@haibun/core/lib/request-context.js";
 import { getAuthority } from "@haibun/core/lib/domains/session-authority.js";
 import { WEBSERVER } from "@haibun/web-server-hono/domains/web-server.js";
 import type { IWebServer, Context } from "@haibun/web-server-hono/defs.js";
 import { CONTEXT_DOCUMENT, SHU_TYPE, SHU_TAG } from "./domains/elements.js";
-import { DOMAIN_SHU_APPS, ShuAppsSchema } from "./domains/schemas.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { DOMAIN_ROUTE } from "@haibun/core/lib/domains/domains.js";
 import { OntologyReadSchema } from "@haibun/core/lib/records/domains/ontology-read.js";
@@ -29,7 +29,12 @@ import { BUNDLE_NAMES, bundleFileName } from "./domains/bundle-files.js";
 /** The domain of where a graph view placed each node. */
 const DOMAIN_GRAPH_LAYOUT = "graph-layout";
 const DOMAIN_SHU_VIEW_COLLECTION = "shu-view-collection";
-const ShuViewCollectionSchema = z.object({ view: z.string().optional(), views: z.array(z.object({ id: z.string(), description: z.string(), component: z.string() })) });
+
+const ShuViewCollectionSchema = z.object({
+	view: z.string().optional(),
+	views: z.array(z.object({ id: z.string(), description: z.string(), component: z.string() })),
+	...CountedFields,
+});
 
 // Nodes and edges as pipe-delimited tokens, node `graph|subject|label`, edge `source|predicate|target`:
 // so a feature can match a relationship without parsing the rendered graph (e.g. `matches g.edges with "*|discloses|*"`).
@@ -148,11 +153,12 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				},
 				{ selectors: [SHU_TAG.MONITOR_COLUMN], schema: z.object({}), description: "Actuality's monitor and event log", ui: { component: SHU_TAG.MONITOR_COLUMN } },
 				{ selectors: [SHU_TAG.DOCUMENT_COLUMN], schema: z.object({}), description: "Document/artifact viewer", ui: { component: SHU_TAG.DOCUMENT_COLUMN } },
-				{ selectors: [DOMAIN_SHU_APPS], schema: ShuAppsSchema, description: "Where an instance serves shu" },
+				{ selectors: [DOMAIN_SHU_APPS], schema: ShuAppsSchema, list: listOf(ShuAppsSchema, "apps"), description: "Where an instance serves shu" },
 				{ selectors: [DOMAIN_GRAPH_LAYOUT], schema: GraphLayoutSchema, description: "Where a graph view placed each node" },
 				{
 					selectors: [DOMAIN_SHU_VIEW_COLLECTION],
 					schema: ShuViewCollectionSchema,
+					list: listOf(ShuViewCollectionSchema, "views"),
 					description: "Catalog of registered views",
 					ui: { component: SHU_TYPE.VIEW_COLLECTION, summary: "Available Views" },
 				},
@@ -206,7 +212,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			gwta: "show shu apps",
 			description: "Where this instance serves shu: the path of each app it mounted, which a reader opens under the instance's address.",
 			productsDomain: DOMAIN_SHU_APPS,
-			action: () => actionOKWithProducts({ apps: [...this.appPaths] }),
+			action: () => actionOKWithProducts({ apps: [...this.appPaths].map((path) => ({ path })), ...counted(this.appPaths.size) }),
 		},
 		showOntology: {
 			read: true,
@@ -215,6 +221,8 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			description:
 				"Lists the ontology the declarations state, as the class browser draws it and the JSON-LD context serves it: each class, with its superclasses and the link relation of each field and edge its type declares and the classes in an edge's range, and each link relation or standard term, with its IRI, its superproperties and the classes it connects. Narrow it with the matching combinator.",
 			productsDomain: SHU_TAG.CLASS_BROWSER,
+			// The class browser reads the ontology from the live graph, so the event doesn't keep a second copy of every class and property per read.
+			retainProducts: false,
 			action: async () => {
 				const { domains, eventLogger } = this.getWorld();
 				return actionOKWithProducts(await ontologyRead(domains, (message: string) => eventLogger.warn(message)));
@@ -232,7 +240,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 						description: d.description || d.selectors[0],
 						component: String(d.ui?.component),
 					}));
-				return actionOKWithProducts({ view: "views", views });
+				return actionOKWithProducts({ view: "views", views, ...counted(views.length) });
 			},
 		},
 		showPolymorphicGraphView: {

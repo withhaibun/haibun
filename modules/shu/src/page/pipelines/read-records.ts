@@ -10,6 +10,7 @@ import { GraphQuerySchema, type TDensityQuery, type TDensityResult, type TGraphQ
 import { type IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { incomingEdges as incomingEdgesHeld, recordWithEdges } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
+import { LIMITED_TO_METHOD, SKIPPING_METHOD } from "@haibun/core/lib/step-discovery.js";
 import * as Steps from "../derivations/steps.js";
 import { selectFields, type TCatalog } from "../derivations/catalog.js";
 import { reads } from "../domains/links.js";
@@ -75,7 +76,11 @@ export const readIndividual = (scope: TReadScope, label: string, id: string, acc
 export const incomingEdges = (scope: TReadScope, label: string, id: string, accessLevel: string, window: TEdgeWindow): Promise<TIncomingEdges> =>
 	askElseHeld(
 		scope,
-		(list) => scope.conduit().follow<TIncomingEdges>(reads(Steps.methodOf(list, "getIncomingEdges"), { label, id, accessLevel, ...window }), `what points at ${label}:${id}`),
+		(list) => {
+			const read = { method: Steps.methodOf(list, "getIncomingEdges"), params: { label, id, accessLevel } };
+			const windowed = { count: window.limit, statement: { method: SKIPPING_METHOD, params: { count: window.offset, statement: read } } };
+			return scope.conduit().follow<TIncomingEdges>(reads(LIMITED_TO_METHOD, windowed), `what points at ${label}:${id}`);
+		},
 		async () => (declares(scope, label) ? await incomingEdgesHeld(scope.held(), label, id, window) : undefined),
 	);
 

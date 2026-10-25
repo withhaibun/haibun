@@ -190,7 +190,7 @@ export function refsInContent(html: string, refs: TRefContext): TContentRef[] {
 		const [targetJson, text] = [element.getAttribute("linkTarget"), element.getAttribute("text")];
 		if (targetJson === null || text === null) throw new Error(`a <shu-ref kind="${kind}"> doesn't carry its linkTarget and its text, which renderRef writes`);
 		const ref = refOf(kind, JsonObjectTextSchema.parse(targetJson));
-		if (ref === undefined) throw new Error(`a <shu-ref kind="${kind}"> names ${targetJson}, which isn't what a ${kind} reference names`);
+		if (ref === undefined) throw new Error(`a <shu-ref kind="${kind}"> names a target that its kind doesn't name: ${targetJson}`);
 		found.set(`${kind} ${JSON.stringify(ref.target)}`, { ref, text });
 	}
 	for (const anchor of template.content.querySelectorAll("a[href]")) {

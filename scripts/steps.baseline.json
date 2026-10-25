@@ -55,7 +55,6 @@
 	},
 	"modules/logic/src/logic-stepper.ts": {
 		"has at most one call site: LogicStepper.advanceWalk": 1,
-		"has at most one call site: LogicStepper.showAffordancesAsOf": 1,
 		"has at most one call site: LogicStepper.showDomainChainLint": 1,
 		"has at most one call site: LogicStepper.walkToward": 1
 	},
@@ -79,7 +78,6 @@
 		"has at most one call site: AStorage.createDirectory": 1,
 		"has at most one call site: AStorage.fileExists": 1,
 		"has at most one call site: AStorage.fileIsRecent": 1,
-		"has at most one call site: AStorage.filesCount": 1,
 		"has at most one call site: AStorage.testIs": 1
 	},
 	"modules/web-playwright/src/web-playwright-stepper.ts": {

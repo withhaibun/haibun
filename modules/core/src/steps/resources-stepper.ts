@@ -8,6 +8,8 @@
  * It also implements the reads of what a text states. It reads a feature's prose as facts, checks that every cited
  * passage still resolves, and reads the statements made with a predicate.
  */
+import { listOf } from "../lib/domains/lists.js";
+import { CountedFields, counted } from "../lib/domains/hypermedia.js";
 import { itemAt } from "../lib/domains/item-at.js";
 import { z } from "zod";
 import { AStepper, IHasCycles, TStepperSteps, IStepperCycles, type TBeforeStep } from "../lib/steps/domains/stepper.js";
@@ -83,8 +85,10 @@ const StatementsSchema = z.object({
 			outcome: z.string().optional(),
 		}),
 	),
-	total: z.number(),
+	...CountedFields,
 });
+/** The annotations anchored in a record, as a counted list. A page reads them as `AnnotationListSchema` states them. */
+const AnnotationsListSchema = AnnotationListSchema.extend(CountedFields);
 /** Product domains of this stepper's steps. */
 const DOMAIN_CITATIONS_CHECKED = "citations-checked";
 const DOMAIN_STATEMENTS = "statements";
@@ -107,10 +111,10 @@ const cycles = (stepper: ResourcesStepper): IStepperCycles => ({
 			bodyDomainDefinition,
 			commentDomainDefinition,
 			{ selectors: [DOMAIN_CITATIONS_CHECKED], schema: CitationsCheckedSchema, description: "How many citations a check read" },
-			{ selectors: [DOMAIN_STATEMENTS], schema: StatementsSchema, description: "The statements made with a predicate" },
+			{ selectors: [DOMAIN_STATEMENTS], schema: StatementsSchema, list: listOf(StatementsSchema, "statements"), description: "The statements made with a predicate" },
 			{ selectors: [DOMAIN_COMMENT_CREATED], schema: CommentCreatedSchema, description: "A comment a step wrote" },
 			{ selectors: [DOMAIN_ANNOTATION_CREATED], schema: AnnotationCreatedSchema, description: "An annotation a step anchored in a record" },
-			{ selectors: [DOMAIN_ANNOTATIONS], schema: AnnotationListSchema, description: "The annotations anchored in a record" },
+			{ selectors: [DOMAIN_ANNOTATIONS], schema: AnnotationsListSchema, list: listOf(AnnotationsListSchema, "annotations"), description: "The annotations anchored in a record" },
 			readingDomainDefinition,
 			principalDomainDefinition,
 			sceneDomainDefinition,
@@ -195,7 +199,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			productsDomain: DOMAIN_STATEMENTS,
 			action: async ({ rel }: { rel: string }) => {
 				const statements = (await statementsWith(this.getWorld().shared.getStore(), rel)) as TStatementRow[];
-				return actionOKWithProducts({ statements, total: statements.length });
+				return actionOKWithProducts({ statements, ...counted(statements.length) });
 			},
 		},
 		comment: {
@@ -252,7 +256,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 				// SpecificResource: hasSource → id, hasSelector → TextQuoteSelector.
 				// Comment: hasTarget → SpecificResource, and optionally linksTo → another SpecificResource.
 				const srIds = [...new Set((await store.query({ predicate: LinkRelations.HAS_SOURCE.rel, object: id, namedGraph: SPECIFIC_RESOURCE_LABEL })).map((q) => String(q.subject)))];
-				if (srIds.length === 0) return actionOKWithProducts({ annotations: [], total: 0 });
+				if (srIds.length === 0) return actionOKWithProducts({ annotations: [], ...counted(0) });
 				const objectsOf = async (subject: string, predicate: string, namedGraph: string): Promise<string[]> =>
 					(await store.query({ subject, predicate, namedGraph })).map((q) => String(q.object));
 				const targeting = await Promise.all(
@@ -288,7 +292,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 					const quote = quoteOf(srId);
 					return quote ? comments.map((commentId) => ({ commentId, specificResourceId: srId, quote })) : [];
 				});
-				if (anchored.length === 0) return actionOKWithProducts({ annotations: [], total: 0 });
+				if (anchored.length === 0) return actionOKWithProducts({ annotations: [], ...counted(0) });
 				const commentIds = [...new Set(anchored.map(({ commentId }) => commentId))];
 				const [comments, noteTexts] = await Promise.all([
 					readEvery(store, { label: COMMENT_LABEL, named: commentIds }),
@@ -314,7 +318,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 						},
 					];
 				});
-				return actionOKWithProducts({ annotations, total: annotations.length });
+				return actionOKWithProducts({ annotations, ...counted(annotations.length) });
 			},
 		},
 	} as const satisfies TStepperSteps;

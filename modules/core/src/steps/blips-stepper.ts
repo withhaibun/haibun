@@ -6,6 +6,8 @@
  * in order. The counts state how many occurrences each name had. The window states their order. `observed in` reads both
  * observation sources.
  */
+import { listOf } from "../lib/domains/lists.js";
+import { CountedFields, counted } from "../lib/domains/hypermedia.js";
 import { AStepper, observedOf, type IHasCycles, type IObservationSource, type IStepperCycles, type TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { blipDeclarations, blipDeclared, blipRollup, blipWatch, renderOccurrence, WATCH_WINDOW, type TBlipSeries } from "../lib/domains/blips.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/domains/util.js";
@@ -16,8 +18,24 @@ import { listedSchema } from "../lib/domains/domains.js";
 
 const WatchSchema = z.object({ watching: z.array(z.string()), window: z.number() });
 const SeriesSchema = z.object({ name: z.string(), labels: z.record(z.string(), z.string()), count: z.number(), sum: z.number().optional(), max: z.number().optional() });
-const ShowSchema = z.object({ text: z.string(), held: z.number(), seen: z.number(), watching: z.array(z.string()), totals: z.array(SeriesSchema) });
-const DeclaredSchema = z.object({ text: z.string(), names: z.array(z.string()) });
+/** The watched occurrences as a list: the window's occurrences, oldest first, each with its position, and the count of every
+ *  occurrence recorded. */
+const ShowSchema = z.object({
+	text: z.string(),
+	occurrences: z.array(z.record(z.string(), z.unknown())),
+	held: z.number(),
+	seen: z.number(),
+	watching: z.array(z.string()),
+	totals: z.array(SeriesSchema),
+	...CountedFields,
+});
+/** The declared blips as a list, each with its description, its unit and where it is declared, where it states them. */
+const DeclaredSchema = z.object({
+	text: z.string(),
+	blips: z.array(z.object({ name: z.string(), description: z.string(), unit: z.string().optional(), declaredAt: z.string().optional() })),
+	names: z.array(z.string()),
+	...CountedFields,
+});
 /** The product domain of `watch blips`. */
 const DOMAIN_BLIP_WATCH = "blip-watch";
 /** The blips a watch names, as a list. A dotted namespace names every blip under it. */
@@ -83,8 +101,8 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 					schema: listedSchema(z.string().min(1), "blip"),
 					description: "The blips a watch names, given as a list or as text separated by commas. A dotted namespace names every blip under it",
 				},
-				{ selectors: [DOMAIN_WATCHED_BLIPS], schema: ShowSchema, description: "The occurrences a watch holds, and their totals" },
-				{ selectors: [DOMAIN_DECLARED_BLIPS], schema: DeclaredSchema, description: "The blips actuality declares" },
+				{ selectors: [DOMAIN_WATCHED_BLIPS], schema: ShowSchema, list: listOf(ShowSchema, "occurrences"), description: "The occurrences a watch holds, and their totals" },
+				{ selectors: [DOMAIN_DECLARED_BLIPS], schema: DeclaredSchema, list: listOf(DeclaredSchema, "blips"), description: "The blips actuality declares" },
 			],
 		}),
 		startActuality: async () => {
@@ -140,6 +158,8 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 				const totals = blipWatch.totals();
 				return actionOKWithProducts({
 					text: renderWatch(held, blipWatch.seen, totals),
+					occurrences: held.map((blip, i) => ({ ...blip.attributes, index: i + 1, name: blip.name, step: blip.seqPath, value: blip.value })),
+					...counted(blipWatch.seen),
 					held: held.length,
 					seen: blipWatch.seen,
 					watching: [...blipWatch.names],
@@ -159,7 +179,8 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 					declared.length === 0
 						? "Actuality doesn't declare a blip."
 						: declared.map((d) => `${d.name}${d.unit ? ` (${d.unit})` : ""}: ${d.description}${d.declaredAt ? ` [declared at ${d.declaredAt}]` : ""}`).join("\n");
-				return actionOKWithProducts({ text, names: declared.map((d) => d.name) });
+				const blips = declared.map(({ name, description, unit, declaredAt }) => ({ name, description, ...(unit ? { unit } : {}), ...(declaredAt ? { declaredAt } : {}) }));
+				return actionOKWithProducts({ text, blips, names: declared.map((d) => d.name), ...counted(blips.length) });
 			},
 		},
 	} as const satisfies TStepperSteps;

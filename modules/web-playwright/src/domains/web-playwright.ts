@@ -1,6 +1,8 @@
 /** The browser's domains: the ways a step locates an element, what reading a page and a response returns, the HTTP and network records the page's observer keeps, and the options a step takes. */
 import { HYPERMEDIA } from "@haibun/core/lib/domains/protocol.js";
 import { RecordSchema, RecordsSchema } from "@haibun/core/lib/domains/json-text.js";
+import { listOf } from "@haibun/core/lib/domains/lists.js";
+import { CountedFields } from "@haibun/core/lib/domains/hypermedia.js";
 import { z } from "zod";
 import {
 	Access,
@@ -24,6 +26,9 @@ import {
 	DOMAIN_RELAY_ATTACHMENT,
 	RelayAttachmentSchema,
 } from "./relay.js";
+
+/** Every tab open in the attached browser, as a counted list. */
+export const BrowserTabsListSchema = BrowserTabsSchema.extend(CountedFields);
 
 /** A page the browser opened by navigation. */
 export const VISITED_PAGE_LABEL = "VisitedPage";
@@ -59,7 +64,6 @@ export const DOMAIN_QUERY_PARAMETER = "query-parameter";
 /** A media type, such as application/json. */
 export const DOMAIN_MEDIA_TYPE = "media-type";
 /** A property of a JSON response's members, by name. */
-export const DOMAIN_JSON_PROPERTY = "json-property";
 
 const locatorSchema = z.string().min(1, "locator cannot be empty");
 const AccessibilitySnapshotSchema = z.object({
@@ -68,10 +72,11 @@ const AccessibilitySnapshotSchema = z.object({
 	snapshot: z.string().describe("The page's aria snapshot, in YAML, each element with its reference, such as [ref=e2]."),
 	[HYPERMEDIA.LINKS]: z.record(z.string(), z.object({ method: z.string() }).strict()),
 });
-const RestJsonCountSchema = z.object({ summary: z.string(), details: z.object({ count: z.number() }) });
+/** The members of the last JSON response, as a counted list. */
+const JsonResponseListSchema = z.object({ members: RecordsSchema, ...CountedFields });
 /** The domains of what reading a page and a JSON response return. */
 export const DOMAIN_ACCESSIBILITY_SNAPSHOT = "accessibility-snapshot";
-export const DOMAIN_JSON_RESPONSE_COUNT = "json-response-count";
+export const DOMAIN_JSON_RESPONSE = "json-response";
 /** The domain of an extension loaded into the browser actuality launches: its id and the origin of its pages. */
 export const DOMAIN_BROWSER_EXTENSION = "browser-extension";
 const BrowserExtensionSchema = z.object({ id: z.string(), origin: z.string() });
@@ -130,19 +135,14 @@ export const CapturedResponseSchema = z.object({
 	/** The body read as JSON, absent where it isn't JSON. */
 	json: JsonResponseSchema.optional(),
 	text: z.string(),
-	filtered: RecordsSchema.optional(),
 });
 export type TCapturedResponse = z.infer<typeof CapturedResponseSchema>;
 
-/** The lists of the last response a step counts: its JSON body, or the members a filter kept. */
 /** The schemes an Authorization header sends credentials under: Basic, as user:password (RFC 7617), and Bearer, as a token (RFC 6750). */
 export const AUTHORIZATION_SCHEMES = { basic: "Basic", bearer: "Bearer" } as const;
 export type TAuthorizationScheme = (typeof AUTHORIZATION_SCHEMES)[keyof typeof AUTHORIZATION_SCHEMES];
 export const DOMAIN_AUTHORIZATION_SCHEME = "authorization-scheme";
 export const DOMAIN_AUTHORIZATION_CREDENTIALS = "authorization-credentials";
-export const RESPONSE_LISTS = { json: "JSON", filtered: "filtered" } as const;
-export type TResponseList = (typeof RESPONSE_LISTS)[keyof typeof RESPONSE_LISTS];
-export const DOMAIN_RESPONSE_LIST = "response-list";
 
 export const WebPlaywrightDomains: TDomainDefinition[] = [
 	createEnumDomainDefinition({ name: DOMAIN_HTTP_METHOD, values: [...HTTP_METHODS_WITHOUT_BODY, ...HTTP_METHODS_WITH_BODY], description: "An HTTP method a request is made with" }),
@@ -160,11 +160,6 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 	}),
 	createEnumDomainDefinition({ name: DOMAIN_BROWSER_TYPE, values: [...BROWSER_TYPES], description: "A browser actuality drives" }),
 	createEnumDomainDefinition({
-		name: DOMAIN_RESPONSE_LIST,
-		values: Object.values(RESPONSE_LISTS),
-		description: "A list of the last response: its JSON body, or the members a filter kept",
-	}),
-	createEnumDomainDefinition({
 		name: DOMAIN_AUTHORIZATION_SCHEME,
 		values: Object.values(AUTHORIZATION_SCHEMES),
 		description: "The scheme an Authorization header sends credentials under",
@@ -176,7 +171,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 	},
 	{ selectors: [DOMAIN_URL_GLOB], schema: NameSchema, description: "A URL pattern as a page routes requests by it: * within a path segment, ** across segments" },
 	{ selectors: [DOMAIN_ACCESSIBILITY_SNAPSHOT], schema: AccessibilitySnapshotSchema, description: "A page as its accessibility tree reads, with the steps that act on it" },
-	{ selectors: [DOMAIN_JSON_RESPONSE_COUNT], schema: RestJsonCountSchema, description: "How many entries the last JSON response held" },
+	{ selectors: [DOMAIN_JSON_RESPONSE], schema: JsonResponseListSchema, list: listOf(JsonResponseListSchema, "members"), description: "The members of the last JSON response" },
 	{
 		selectors: [DOMAIN_BROWSER_EXTENSION],
 		schema: BrowserExtensionSchema,
@@ -189,7 +184,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 	},
 	{ selectors: [DOMAIN_RELAY_ATTACHMENT], schema: RelayAttachmentSchema, description: "What the browser relay holds: a person's attached browser, its holder and its tabs" },
 	{ selectors: [DOMAIN_BROWSER_TAB], schema: BrowserTabSchema, description: "A tab open in the attached browser: its id, title and address" },
-	{ selectors: [DOMAIN_BROWSER_TABS], schema: BrowserTabsSchema, description: "Every tab open in the attached browser" },
+	{ selectors: [DOMAIN_BROWSER_TABS], schema: BrowserTabsListSchema, list: listOf(BrowserTabsListSchema, "tabs"), description: "Every tab open in the attached browser" },
 	{ selectors: [DOMAIN_BROWSER_TAB_TEXT], schema: BrowserTabTextSchema, description: "A tab of the attached browser and the text its page shows" },
 	{
 		selectors: [HTTP_REQUEST_LABEL],
@@ -268,7 +263,6 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 	{ selectors: [DOMAIN_COOKIE_NAME], schema: NameSchema, description: "The name of a cookie a page holds" },
 	{ selectors: [DOMAIN_QUERY_PARAMETER], schema: NameSchema, written: true, description: "The name of a parameter of a page's address query, as the line writes it" },
 	{ selectors: [DOMAIN_MEDIA_TYPE], schema: z.string().regex(/^[\w.+-]+\/[\w.+*-]+/, "isn't a media type"), description: "A media type, such as application/json" },
-	{ selectors: [DOMAIN_JSON_PROPERTY], schema: NameSchema, description: "A property of a JSON response's members, by name" },
 	{ selectors: [DOMAIN_PAGE_TEST_ID], schema: locatorSchema, description: "Playwright getByTestId selector (data-testid attribute)" },
 	{ selectors: [DOMAIN_PAGE_LABEL], schema: locatorSchema, description: "Playwright getByLabel selector (label text)" },
 	{ selectors: [DOMAIN_PAGE_PLACEHOLDER], schema: locatorSchema, description: "Playwright getByPlaceholder selector (placeholder text)" },

@@ -60,6 +60,24 @@ const stringSchema = z.coerce.string({ error: "value is required" });
 const statementSchema = z.string({ error: "statement label is required" }).min(1, "statement cannot be empty");
 /** A statement as a call states it: its step's method and the step's parameters. */
 const StatementCallSchema = z.object({ method: z.string().min(1), params: z.record(z.string(), z.unknown()) }).strict();
+
+/** The line of a call: its step's pattern with its parameters, each statement a parameter states as a call read as that call's
+ *  line, so a call nests the calls of a statement's steps. Refuses a method actuality doesn't register. */
+function callLine(world: TWorld, { method, params }: z.infer<typeof StatementCallSchema>): string | { refused: string } {
+	const tool = world.runtime.stepRegistry?.get(method);
+	if (tool === undefined) return { refused: `"${method}" isn't a step actuality registers; show steps lists the method names actuality registers` };
+	const stated: Record<string, unknown> = {};
+	for (const [name, value] of Object.entries(params)) {
+		const call = tool.paramDomainKeys.get(name) === DOMAIN_STATEMENT ? StatementCallSchema.safeParse(value) : undefined;
+		if (call === undefined || !call.success) stated[name] = value;
+		else {
+			const nested = callLine(world, call.data);
+			if (typeof nested !== "string") return nested;
+			stated[name] = nested;
+		}
+	}
+	return lineOfCall(tool.descriptor.pattern, stated);
+}
 const dateSchema = z.coerce.date({ error: "invalid date" });
 /** Reads a step's place from its dot-joined sequence path, or from an id that begins with one. */
 const stepPathSchema = z.preprocess((value, ctx) => {
@@ -197,10 +215,10 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		// the step's line. A list combinator's caller states the read it lists that way.
 		schema: z.union([
 			statementSchema,
-			StatementCallSchema.transform(({ method, params }, ctx) => {
-				const tool = world.runtime.stepRegistry?.get(method);
-				if (tool !== undefined) return lineOfCall(tool.descriptor.pattern, params);
-				ctx.addIssue({ code: "custom", message: `"${method}" isn't a step actuality registers; show steps lists the method names actuality registers` });
+			StatementCallSchema.transform((call, ctx) => {
+				const line = callLine(world, call);
+				if (typeof line === "string") return line;
+				ctx.addIssue({ code: "custom", message: line.refused });
 				return z.NEVER;
 			}),
 		]),
