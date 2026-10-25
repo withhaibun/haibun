@@ -17,6 +17,8 @@ export const DOMAIN_ALTERNATIVES = "statement-alternatives";
 export const DOMAIN_OBSERVATION_SOURCE = "observation-source";
 /** The verdict a statement's proof ended with, which maybe returns. */
 export const DOMAIN_STATUS = "status";
+/** Why the statement `not` holds over didn't hold, which `not` returns: its failing step's error text and seqPath. */
+export const DOMAIN_REFUSAL = "refusal";
 
 export const readingDomainDefinitions: TDomainDefinition[] = [
 	{ selectors: [DOMAIN_ALTERNATIVES], schema: z.string().min(1), written: true, description: "The comma-separated statements of a disjunction" },
@@ -27,6 +29,11 @@ export const readingDomainDefinitions: TDomainDefinition[] = [
 		description: "The name of an observation source a stepper declares, which a quantifier ranges over",
 	},
 	{ selectors: [DOMAIN_STATUS], schema: z.object({ verdict: z.enum(VERDICT) }), description: "The verdict of a statement's proof: proved, refuted, unknown or contradiction" },
+	{
+		selectors: [DOMAIN_REFUSAL],
+		schema: z.object({ refusal: z.string(), seqPath: z.string() }),
+		description: "Why a statement didn't hold: its failing step's error text, and that step's seqPath",
+	},
 ];
 
 /** A quantifier's variable and its range: a domain's members, or the items an observation source returns. */

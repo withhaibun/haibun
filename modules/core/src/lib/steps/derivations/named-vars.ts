@@ -5,7 +5,7 @@
  */
 import type { TStepperStep, TStepAction } from "../domains/stepper.js";
 import { type TStepValue, type TOrigin, Origin } from "../../domains/protocol.js";
-import { DOMAIN_DURATION, DOMAIN_STATEMENT, DOMAIN_STRING, DURATION_TERM } from "../../domains/domains.js";
+import { DOMAIN_DURATION, DOMAIN_JSON, DOMAIN_STATEMENT, DOMAIN_STRING, DURATION_TERM } from "../../domains/domains.js";
 import { itemAt } from "../../domains/item-at.js";
 import { phraseParts, placeholderOf } from "../domains/phrase.js";
 
@@ -41,14 +41,17 @@ const inferOrigin = (char: string): TOrigin => {
 };
 
 /** The capture group of one placeholder, by the origin its delimiter states. */
-function groupOf(origin: TOrigin, matchIndex: number, nextChar: string): string {
+function groupOf(origin: TOrigin, matchIndex: number, nextChar: string, domain: string): string {
 	if (origin === Origin.env) return `\\$(?<${TYPE_ENV}${matchIndex}>[A-Za-z_][A-Za-z0-9_]*)\\$`;
 	if (origin === Origin.var) return `\`(?<${TYPE_VAR}${matchIndex}>.+)\``;
 	if (origin === Origin.quoted) return `"(?<${TYPE_QUOTED}${matchIndex}>.*)"`;
 	// A bare literal may contain whitespace, and a quoted span inside it is atomic: `"foo with bar"` doesn't contribute its
 	// internal ` ` or `"` as a split point. A placeholder before a comma or a colon ends at that character.
 	const ends = nextChar === "," || nextChar === ":";
-	const bare = ends ? `(?:[^"]|"[^"]*")+?(?=${nextChar.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})` : `(?:[^"]|"[^"]*")+?`;
+	// A JSON object or list before a comma ends at a closing brace or bracket the comma follows, so the commas between its keys
+	// or items don't end it.
+	const closes = domain === DOMAIN_JSON && nextChar === ",";
+	const bare = closes ? `(?:[^"]|"[^"]*")*?[}\\]](?=,)` : ends ? `(?:[^"]|"[^"]*")+?(?=${nextChar.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})` : `(?:[^"]|"[^"]*")+?`;
 	// A quoted term before a comma or a colon ends at the first quote that the character follows, so a statement after the
 	// comma that quotes terms of its own, as a combinator's does, isn't read into the term.
 	const quoted = ends ? ".*?" : ".*";
@@ -78,7 +81,7 @@ function interpolate(inp: string): TInterpolation {
 		// delimiter after the brace is skipped.
 		if (delimited) regexPattern = regexPattern.slice(0, -1);
 		stepValuesMap[name] = { term: name, domain, origin };
-		regexPattern += groupOf(origin, matchIndex, inp.substring(be + 1, be + 2));
+		regexPattern += groupOf(origin, matchIndex, inp.substring(be + 1, be + 2), domain);
 		matchIndex++;
 		bs = inp.indexOf("{", be);
 		last = delimited ? be + 2 : be + 1;

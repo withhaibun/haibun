@@ -6,7 +6,7 @@ import { testRuns } from "@haibun/cli/waypoints/backgrounds/test-runs.feature.ts
 
 const { noteEverythingChanged } = withAction(new TestRunnerStepper());
 const { not } = withAction(new LogicStepper());
-const { feature, scenario } = withAction(new Haibun());
+const { feature, scenario, producing } = withAction(new Haibun());
 
 const GROUP = '"once"';
 const RUN_ALL = `run all the tests in ${GROUP}`;
@@ -25,7 +25,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "A second run against the same state is refused" }),
 		"The group's dependencies haven't changed since the group passed. A second run would repeat that outcome, so the step that starts a run fails without starting one.",
-		not({ statements: RUN_ALL }),
+		producing({ expected: { refusal: "*passed against its present dependencies*" }, statement: not({ statements: RUN_ALL }) }),
 
 		scenario({ scenario: "Noting that the group changed lets it run again" }),
 		noteEverythingChanged({ where: GROUP }),

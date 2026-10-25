@@ -53,7 +53,7 @@ import {
 	formulaDomainDefinition,
 	logicDomainDefinitions,
 } from "./domains/logic.js";
-import { DOMAIN_ALTERNATIVES, DOMAIN_OBSERVATION_SOURCE, DOMAIN_STATUS, readingDomainDefinitions } from "./domains/readings.js";
+import { DOMAIN_ALTERNATIVES, DOMAIN_OBSERVATION_SOURCE, DOMAIN_REFUSAL, DOMAIN_STATUS, readingDomainDefinitions } from "./domains/readings.js";
 
 /** The feature's step records as an observation source: each record's fields, the stepper of the step it called, and its
  *  duration, from its start to its end in milliseconds, where it ended. */
@@ -109,7 +109,9 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 		anyOf: { gwta: `any of {alternatives: ${DOMAIN_ALTERNATIVES}}`, description: "Holds where one of the comma-separated statements holds: A ∨ B ∨ C.", reading: READING.anyOf },
 		not: {
 			gwta: `not {statements:${DOMAIN_STATEMENT}}`,
-			description: "Holds where the statement isn't proved, as negation as failure over the results of its line. Its record states whether the statement is refuted or unknown.",
+			description:
+				"Holds where the statement isn't proved, as negation as failure over the results of its line, and returns why it didn't hold: its failing step's error text and seqPath. Its record states whether the statement is refuted or unknown.",
+			productsDomain: DOMAIN_REFUSAL,
 			reading: READING.not,
 		},
 		maybe: {

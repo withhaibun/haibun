@@ -24,7 +24,7 @@ import {
 	type TWaypointRule,
 } from "@haibun/core/lib/steps/domains/stepper.js";
 import { matchesQuadPattern, type TQuadPattern } from "@haibun/core/lib/steps/domains/quad-types.js";
-import { stepRecordOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
+import { formatSeqPath, stepRecordOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import type { TStepInput } from "@haibun/core/lib/actuality/domains/actuality.js";
 import {
 	CALL_OUTCOME,
@@ -277,7 +277,7 @@ class Proof {
 	private async close(path: number[], request: TCloseRequest): Promise<string> {
 		const opened = this.opened.get(keyOf(path));
 		if (opened === undefined) throw this.differentBuilds("ends a step it didn't open");
-		const products = this.node(request.node).step.action.step.reading === READING.maybe ? { verdict: verdictOf(this.lastPart(path)) } : this.productsUnder.get(keyOf(path));
+		const products = request.verdict === VERDICT.proved ? this.productsOf(path, request.node) : undefined;
 		opened.close(
 			request.verdict === VERDICT.proved
 				? { ok: true, verdict: request.verdict, ...(products === undefined ? {} : { products }) }
@@ -285,6 +285,17 @@ class Proof {
 		);
 		this.hold(path, await opened.dispatched);
 		return "closed";
+	}
+
+	/** The products of a node that holds: maybe's verdict, why the statement under not didn't hold, and otherwise the products of
+	 *  its statements. */
+	private productsOf(path: readonly number[], node: string): Record<string, unknown> | undefined {
+		const { reading } = this.node(node).step.action.step;
+		if (reading === READING.maybe) return { verdict: verdictOf(this.lastPart(path)) };
+		if (reading !== READING.not) return this.productsUnder.get(keyOf(path));
+		const failed = this.lastPart(path);
+		if (failed.ok) throw this.differentBuilds("holds not over a statement that held");
+		return { refusal: failed.errorMessage, seqPath: formatSeqPath(failed.seqPath) };
 	}
 
 	/** Why a node's verdict isn't proved: the part that determined it, with that part's own reason, the record that stated its

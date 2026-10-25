@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { TFeatures } from "../lib/actuality/domains/actuality.js";
 import type { TWorld } from "../lib/actuality/domains/world.js";
-import { OK } from "../lib/domains/protocol.js";
+import { OK, type TActionResult } from "../lib/domains/protocol.js";
 import {
 	AStepper,
 	IHasCycles,
@@ -20,6 +20,7 @@ import {
 	DOMAIN_BACKGROUND_NAMES,
 	DOMAIN_DATE,
 	DOMAIN_DURATION,
+	DOMAIN_JSON,
 	DOMAIN_LINE_COMMENT,
 	DOMAIN_LINK,
 	DOMAIN_NUMBER,
@@ -34,6 +35,7 @@ import {
 } from "../lib/domains/domains.js";
 import { findFeatures } from "../lib/domains/features.js";
 import { proveStatements, stepperContext } from "../lib/actuality/pipelines/step-dispatch.js";
+import { partialDifference } from "../lib/domains/partial-value.js";
 import { QuadStore } from "../lib/steps/pipelines/quad-store.js";
 import { remoteQuadStore } from "./root.js";
 import { requestSigner } from "../lib/domains/session-authority.js";
@@ -145,17 +147,23 @@ class Haibun extends AStepper implements IHasCycles {
 		return { read: true, capability: SHOW_STEPS_ACTION, gwta, description, productsDomain, action: () => actionOKWithProducts(read()) } as const satisfies TStepperStep;
 	}
 
-	/** A list combinator: a read that proves its statement and returns the statement's products with the list its listing makes
-	 *  of the list they hold. Each step the statement holds is gated as it runs. */
+	/** A combinator: a read that proves its statement and returns the statement's products. Each step the statement holds is
+	 *  gated as it runs. */
+	private combinator(gwta: string, description: string) {
+		return { read: true, readsAt: Access.public, gwta, description, productsOf: "statement" } as const satisfies Omit<TStepperStep, "action">;
+	}
+
+	/** Proves the statement of a combinator's step. */
+	private proved(featureStep: TFeatureStep, statement: TFeatureStep[]): Promise<TActionResult> {
+		return proveStatements(stepperContext(this.getWorld(), this.steppers), featureStep, statement);
+	}
+
+	/** A list combinator: a combinator that returns its statement's products with the list its listing makes of the list they hold. */
 	private listCombinator(gwta: string, description: string, stage: Pick<TStepperStep, "transformsList" | "listQuery" | "precludes">) {
 		return {
-			read: true,
-			readsAt: Access.public,
-			gwta,
-			description,
-			productsOf: "statement",
+			...this.combinator(gwta, description),
 			...stage,
-			action: ({ statement }: { statement: TFeatureStep[] }, featureStep: TFeatureStep) => proveStatements(stepperContext(this.getWorld(), this.steppers), featureStep, statement),
+			action: ({ statement }: { statement: TFeatureStep[] }, featureStep: TFeatureStep) => this.proved(featureStep, statement),
 		} as const satisfies TStepperStep;
 	}
 
@@ -233,6 +241,23 @@ class Haibun extends AStepper implements IHasCycles {
 			"Keeps the items of the statement's list whose value of a field holds the text, compared without regard to case, and counts them.",
 			{ transformsList: ({ field, text }: { field: string; text: string }) => whoseItems(field, text) },
 		),
+		producing: {
+			...this.combinator(
+				`producing {expected: ${DOMAIN_JSON}}, {statement: ${DOMAIN_STATEMENT}}`,
+				"Proves the statement and holds where its products hold the expected value: each key it names, with each string a pattern whose * matches any characters, as matches reads one. Under not, the products are why the statement didn't hold.",
+			),
+			action: async ({ expected, statement }: { expected: unknown; statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
+				const result = await this.proved(featureStep, statement);
+				const line = statement.map((step) => step.in).join(", ");
+				if (!result.ok)
+					return actionNotOK(
+						`\`${line}\` didn't hold, so it didn't produce what producing expects: ${result.errorMessage}. State a statement that holds, as not around a call that should fail`,
+					);
+				const differs = partialDifference(expected, result.products, "products");
+				if (differs === undefined) return result;
+				return actionNotOK(`\`${line}\` didn't produce what producing expects: ${differs}. State the products it produces, or under not the cause it should fail for`);
+			},
+		},
 		exactly: this.listCombinator(
 			`exactly {count: ${DOMAIN_NUMBER}}, {statement: ${DOMAIN_STATEMENT}}`,
 			"Returns the statement's list where it holds exactly the count of items, and is refused with the count it holds otherwise. Under until, it waits for the count.",
