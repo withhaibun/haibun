@@ -41,3 +41,6 @@ const nodeShapeClass = (v: ViewType): string => (v === VIEW.gantt ? "gantt-bar" 
  *  a shape-class boundary (force→sequence is chip→activation bar), false within one (force→td keeps the chips). Without
  *  the flag the actors keep stale chip objects on the first switch into the sequence: a pure decision, not a render fact. */
 export const viewChangeRebuildsNodes = (prev: ViewType, next: ViewType): boolean => nodeShapeClass(prev) !== nodeShapeClass(next);
+
+/** How an accessible reading states a node the reader dropped, and one a focus or a preview dims. */
+export const READ_STATE = { pinned: "pinned", dimmed: "dimmed" } as const;

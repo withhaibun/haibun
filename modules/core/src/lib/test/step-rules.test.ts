@@ -3,11 +3,23 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { z } from "zod";
 import { AStepper, type TStepperSteps } from "../steps/domains/stepper.js";
 import { OK } from "../domains/protocol.js";
 import { Access } from "../domains/resources.js";
+import type { TList } from "../domains/lists.js";
 import {
+	DECLARED_STEPS,
 	declaredSteps,
+	FIXED_STATEMENT,
+	fixedStatements,
+	LIST_OPERATION,
+	listOperations,
+	REPOSITORY_FILE,
+	stepCount,
+	UNDECLARED_LIST,
+	undeclaredLists,
+	UNUSED_SELECTION,
 	NEAR_DUPLICATE,
 	nearDuplicates,
 	ONE_CALL_SITE,
@@ -144,5 +156,79 @@ describe("the steps a repository exercises", () => {
 			"DemoStepper.quiet",
 			"DemoStepper.heading",
 		]);
+	});
+});
+
+/** Steps whose patterns and products the list rules read. */
+class ListingStepper extends AStepper {
+	description = "Steps that read lists";
+	cycles = {
+		getConcerns: () => ({
+			domains: [
+				{ selectors: ["rows"], schema: z.object({ rows: z.array(z.object({ id: z.string() })) }), description: "Rows without a declared list" },
+				{ selectors: ["counted"], schema: z.object({ total: z.number(), saturated: z.boolean() }), description: "A count without a declared list" },
+				{ selectors: ["listed"], schema: z.object({ rows: z.array(z.object({ id: z.string() })) }), list: { items: "rows" }, description: "Rows with their list" },
+				{ selectors: ["names"], schema: z.object({ names: z.array(z.string()) }), description: "Names, which aren't records" },
+			],
+		}),
+	};
+	steps = {
+		firstRows: { gwta: "show the first {n: number} rows", read: true, readsAt: Access.public, productsDomain: "rows", action: () => OK },
+		rowsMatching: { gwta: "show rows matching {text: string}", read: true, readsAt: Access.public, productsDomain: "counted", action: () => OK },
+		rowsSince: { gwta: "show rows since {at: date}", read: true, readsAt: Access.public, productsDomain: "listed", action: () => OK },
+		linesFromTo: { gwta: "show lines from {from: number} to {to: number}", read: true, readsAt: Access.public, productsDomain: "names", action: () => OK },
+		resize: { gwta: "resize to {width: number}", ...ACTS },
+		delegate: { gwta: "delegate reading until {expires: date}", ...ACTS },
+		combine: { gwta: "limited to {count: number}, {statement: statement}", transformsList: () => (list: TList) => list, ...ACTS },
+		selected: { gwta: "run the tests matching {filter: string}", ...ACTS },
+	} as const satisfies TStepperSteps;
+}
+const listing = () => declaredSteps([{ file: STEPPER_FILE, stepper: new ListingStepper() }]);
+
+describe("the lists steps read", () => {
+	it("count each declared step under the repository", () => {
+		expect(stepCount(listing())).toEqual(listing().map(() => ({ file: REPOSITORY_FILE, finding: DECLARED_STEPS })));
+	});
+
+	it("flag a pattern that filters, bounds, pages, orders or counts its own list, apart from a combinator, a selection with its reason and a step that acts until a time", () => {
+		const selections = { "ListingStepper.selected": "matching names the tests a run runs", "ListingStepper.resize": "a width isn't a list's" };
+		expect(keysOf(listOperations(listing(), selections), UNUSED_SELECTION), "a selection the rule doesn't flag").toEqual(["ListingStepper.resize"]);
+		expect(keysOf(listOperations(listing(), selections), LIST_OPERATION)).toEqual([
+			"ListingStepper.firstRows",
+			"ListingStepper.rowsMatching",
+			"ListingStepper.rowsSince",
+			"ListingStepper.linesFromTo",
+		]);
+	});
+
+	it("flag a domain of records or of a count that doesn't declare its list, apart from a list of values that aren't records", () => {
+		expect(keysOf(undeclaredLists([{ stepper: new ListingStepper() }], listing()), UNDECLARED_LIST)).toEqual([
+			"ListingStepper.firstRows (rows)",
+			"ListingStepper.rowsMatching (counted)",
+		]);
+	});
+});
+
+describe("a step that only states other steps", () => {
+	let repository = "";
+	beforeEach(() => {
+		repository = mkdtempSync(join(tmpdir(), "haibun-step-fixed-"));
+	});
+	afterEach(() => rmSync(repository, { recursive: true, force: true }));
+
+	it("is flagged where its action ignores its input and states steps with fixed arguments, and not where an argument varies", () => {
+		mkdirSync(dirname(join(repository, STEPPER_FILE)), { recursive: true });
+		writeFileSync(
+			join(repository, STEPPER_FILE),
+			[
+				"steps = {",
+				'	openStore: { action: () => findFeatureStepsFromStatement("show the store", steppers, world) },',
+				'	openKey: { action: (_: unknown) => this.steps.readStore.action({ label: "Comment" }) },',
+				"	watchEvery: { action: ({ seconds }) => findFeatureStepsFromStatement(`watch ${seconds}`, steppers, world) },",
+				"	readStore: { action: () => OK },",
+				"};",
+			].join("\n"),
+		);
+		expect(keysOf(fixedStatements(repository, steps()), FIXED_STATEMENT)).toEqual(["DemoStepper.openStore", "DemoStepper.openKey"]);
 	});
 });

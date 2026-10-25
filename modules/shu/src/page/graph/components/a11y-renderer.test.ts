@@ -6,7 +6,8 @@
  */
 import { describe, it, expect, vi } from "vitest";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
-import { A11yRenderer, READ_STATE, type TA11yRendererDeps, type TReadingMarks } from "./a11y-renderer.js";
+import { A11yRenderer, type TA11yRendererDeps, type TReadingMarks } from "./a11y-renderer.js";
+import { READ_STATE } from "../domains/views.js";
 import type { FGLink, FGNode } from "../domains/graph-types.js";
 import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
 

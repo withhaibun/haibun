@@ -8,7 +8,7 @@ import { SHARED_CELLS_KEY } from "../page/adapters/shared-cell.js";
 import type { TSubjectState } from "../page/machines/current-subject.js";
 import type { TPaneOpen } from "../page/derivations/pane-kinds.js";
 import type { GraphSceneConfig, GraphSceneModel, ShuGraphScene } from "../page/graph/components/scene.js";
-import { READ_STATE } from "../page/graph/components/a11y-renderer.js";
+import { READ_STATE } from "../page/graph/domains/views.js";
 import { DISPATCHED_KEY, POLYMORPHIC_ROUTE } from "./polymorphic-routes.js";
 import { LABEL_FONT, LABEL_FONT_FALLBACKS } from "../domains/serving.js";
 import { labelFontResponse } from "../pipelines/served-page.js";

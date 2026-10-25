@@ -19,6 +19,8 @@ const modules = directoriesIn(MODULES);
 export const MODULE_PACKAGES = workspacePackages(REPOSITORY, MODULES);
 /** Each module's source directory. */
 export const MODULE_SOURCES = Object.values(MODULE_PACKAGES).map(sourceDirectoryOf).sort();
+/** Each module's library of waypoints, whose backgrounds build features for other groups. */
+export const MODULE_WAYPOINTS = modules.filter((name) => directoriesIn(join(MODULES, name)).includes("waypoints")).map((name) => `${MODULES}/${name}/waypoints`);
 /** What the prose check reads: each module's source and feature directories, the end-to-end tests, the documents and the scripts. */
 export const PROSE_ROOTS = [
 	...MODULE_SOURCES,

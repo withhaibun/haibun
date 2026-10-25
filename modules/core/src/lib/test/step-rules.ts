@@ -1,16 +1,22 @@
 /**
- * Four rules of a repository's steps, read from its steppers and from the features, the tests and the code that call them. A step that
+ * The rules of a repository's steps, read from its steppers and from the features, the tests and the code that call them. A step that
  * starts or keeps something and doesn't return a product takes a parameter, since a stepper starts what each feature needs as
  * the feature starts, where an option states it (lifecycle). A step has more than one call site, since what one feature alone states is a waypoint of that
  * feature or of a module's library (one call site). A step's pattern isn't another step's with a word more or less, since one
  * primitive takes the difference as a parameter (near-duplicate). A feature line, a kireji call, a waypoint or a unit test
- * exercises every step, since a step that doesn't run isn't shown to work (unexercised).
+ * exercises every step, since a step that doesn't run isn't shown to work (unexercised). The count of declared steps only falls,
+ * so a change that adds a step removes one that it replaces (step count). A step's pattern doesn't filter, bound, page, order or count
+ * its own list, since a combinator applies each of those to a plain read (list operation). A domain whose products hold a list
+ * of records or a count declares its list, so a combinator reads it (undeclared list). A step whose action only states other
+ * steps with fixed arguments is a waypoint of a module's library (fixed statement).
  */
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
-import { AStepper } from "../steps/domains/stepper.js";
+import { z } from "zod";
+import { AStepper, hasCycles } from "../steps/domains/stepper.js";
+import type { TDomainDefinition } from "../domains/resources.js";
 import { namedInterpolation } from "../steps/derivations/named-vars.js";
 import { constructorName, dePolite } from "../domains/util.js";
 import type { TFound } from "./baseline.js";
@@ -20,6 +26,13 @@ export const STARTS_WITHOUT_PARAMETERS = "starts or keeps something without a pa
 export const ONE_CALL_SITE = "has at most one call site";
 export const NEAR_DUPLICATE = "states another step's pattern with a word more or less";
 export const UNEXERCISED = "isn't exercised by a feature line, a kireji call, a waypoint or a unit test";
+export const DECLARED_STEPS = "declares steps";
+export const LIST_OPERATION = "filters, bounds, pages, orders or counts its own list";
+export const UNDECLARED_LIST = "returns a list of records or a count its domain doesn't declare as a list";
+export const FIXED_STATEMENT = "only states other steps with fixed arguments";
+export const UNUSED_SELECTION = "names as a selection a step whose pattern doesn't operate on a list";
+/** The file a repository's count of declared steps is recorded under: the repository itself. */
+export const REPOSITORY_FILE = ".";
 
 /** How a step's pattern reads a line: as a phrase with placeholders, or as the exact line. */
 type TPatternKind = "gwta" | "exact";
@@ -34,6 +47,10 @@ export type TDeclaredStep = {
 	read: boolean;
 	products: boolean;
 	precludes: readonly string[];
+	/** Whether the step applies a listing to its statement's list: a list combinator. */
+	combinator: boolean;
+	/** The domains its products are, by name. */
+	productsDomains: readonly string[];
 };
 
 /** A line that starts or keeps something, which a stepper's start cycle does where an option states it. */
@@ -70,8 +87,13 @@ export function declaredSteps(steppers: readonly { file: string; stepper: AStepp
 			if (pattern === undefined || seen.has(`${declaredBy}.${key}`)) return [];
 			seen.add(`${declaredBy}.${key}`);
 			const kind: TPatternKind = step.gwta === undefined ? "exact" : "gwta";
-			const products = step.productsDomain !== undefined || step.productsDomains !== undefined;
-			return [{ file, stepper: declaredBy, key, kind, pattern, parameters: pattern.includes("{"), read: step.read === true, products, precludes: step.precludes ?? [] }];
+			const productsDomains = [
+				...(step.productsDomain === undefined ? [] : [step.productsDomain]),
+				...(step.productsDomains === undefined ? [] : Object.values(step.productsDomains)),
+			];
+			const combinator = step.transformsList !== undefined;
+			const declared = { file, stepper: declaredBy, key, kind, pattern, parameters: pattern.includes("{"), read: step.read === true, products: productsDomains.length > 0 };
+			return [{ ...declared, precludes: step.precludes ?? [], combinator, productsDomains }];
 		}),
 	);
 }
@@ -325,4 +347,114 @@ export function unexercised(repository: string, steps: readonly TDeclaredStep[])
 	return steps
 		.filter((step) => step.pattern !== "" && !stating.has(step) && !calls.has(step.key) && !tested(step))
 		.map((step) => ({ file: step.file, finding: `${UNEXERCISED}: ${step.stepper}.${step.key}` }));
+}
+
+/** One finding for each declared step, under the repository, so its baseline holds the count of steps, which only falls. */
+export const stepCount = (steps: readonly TDeclaredStep[]): TFound[] => steps.map(() => ({ file: REPOSITORY_FILE, finding: DECLARED_STEPS }));
+
+/** A word of a pattern, outside its placeholders, that filters, bounds, pages, orders or counts a list. A web page and an ordered
+ *  set aren't a list's page or order, so `page` and `ordered` aren't read. */
+const LIST_WORD = /\b(?:limit|limited|offset|matching|whose|count|counting|first|top|sorted|per|number of)\b/i;
+/** A bound of a read's list by a number or a time: a time word before such a placeholder, as `since {date}`, or a range of them,
+ *  as `from {n} to {m}`. A step that acts, such as one that delegates until a date, doesn't bound a list. */
+const BOUNDING_WORD = /\b(?:since|before|after|until)\s+\{[^}:]+:\s*[^}]*(?:number|date|time)[^}]*\}|\bfrom\s+\{[^}:]+:\s*[^}]*number[^}]*\}\s+to\s+\{/i;
+
+/** Each step whose pattern filters, bounds, pages, orders or counts its own list, apart from the combinators, which apply those
+ *  to any read, and from `selections`: the steps whose such parameter selects what they act on, each with why. A selection
+ *  that names a step the rule doesn't flag is a finding, so the list holds only what it excuses. */
+export function listOperations(steps: readonly TDeclaredStep[], selections: Readonly<Record<string, string>>): TFound[] {
+	const operating = steps.filter((s) => !s.combinator && (LIST_WORD.test(s.pattern.replace(/\{[^}]*\}/g, " ")) || (s.read && BOUNDING_WORD.test(s.pattern))));
+	const named = new Set(operating.map((s) => `${s.stepper}.${s.key}`));
+	return [
+		...operating.filter((s) => selections[`${s.stepper}.${s.key}`] === undefined).map((s) => ({ file: s.file, finding: `${LIST_OPERATION}: ${s.stepper}.${s.key}` })),
+		...Object.keys(selections)
+			.filter((step) => !named.has(step))
+			.map((step) => ({ file: REPOSITORY_FILE, finding: `${UNUSED_SELECTION}: ${step}` })),
+	];
+}
+
+/** The schema a field holds, past what makes it optional or nullable. */
+function heldSchema(schema: z.ZodType): z.ZodType {
+	return schema instanceof z.ZodOptional || schema instanceof z.ZodNullable ? heldSchema(schema.unwrap() as z.ZodType) : schema;
+}
+
+/** Whether a domain's products hold a list of records or a count: an array of objects or records, or a total with whether it is a floor. */
+function holdsList(schema: z.ZodType): boolean {
+	const held = heldSchema(schema);
+	if (!(held instanceof z.ZodObject)) return false;
+	const shape: Record<string, z.ZodType> = held.shape;
+	if ("total" in shape && "saturated" in shape) return true;
+	return Object.values(shape).some((field) => {
+		const array = heldSchema(field);
+		if (!(array instanceof z.ZodArray)) return false;
+		const element = heldSchema(array.element as z.ZodType);
+		return element instanceof z.ZodObject || element instanceof z.ZodRecord;
+	});
+}
+
+/** Each step whose products domain, as its stepper's concerns declare it, holds a list of records or a count without a list
+ *  declaration, so a combinator can't read its list. */
+export function undeclaredLists(steppers: readonly { stepper: AStepper }[], steps: readonly TDeclaredStep[]): TFound[] {
+	const definitions = new Map<string, TDomainDefinition>();
+	for (const { stepper } of steppers)
+		for (const definition of hasCycles(stepper) ? (stepper.cycles.getConcerns?.().domains ?? []) : [])
+			for (const selector of definition.selectors) definitions.set(selector, definition);
+	return steps.flatMap((s) =>
+		s.productsDomains
+			.filter((name) => {
+				const definition = definitions.get(name);
+				return definition !== undefined && definition.list === undefined && holdsList(definition.schema);
+			})
+			.map((name) => ({ file: s.file, finding: `${UNDECLARED_LIST}: ${s.stepper}.${s.key} (${name})` })),
+	);
+}
+
+/** The calls that state steps: resolving a statement's line, and calling a step's action. */
+const STATING_CALL = /^(?:findFeatureStepsFromStatement|.*\.steps\.\w+\.action)$/;
+
+/** Whether an argument is fixed: a literal, or an object or array of literals. */
+function fixedArgument(node: ts.Expression): boolean {
+	if (ts.isStringLiteralLike(node) || ts.isNumericLiteral(node) || node.kind === ts.SyntaxKind.TrueKeyword || node.kind === ts.SyntaxKind.FalseKeyword) return true;
+	if (ts.isArrayLiteralExpression(node)) return node.elements.every(fixedArgument);
+	if (ts.isObjectLiteralExpression(node)) return node.properties.every((p) => ts.isPropertyAssignment(p) && fixedArgument(p.initializer));
+	return false;
+}
+
+/** Each step of a stepper source whose action ignores its input and states other steps with fixed arguments, which is a waypoint
+ *  of a module's library rather than a step. */
+export function fixedStatements(repository: string, steps: readonly TDeclaredStep[]): TFound[] {
+	const byFile = Map.groupBy(steps, (s) => s.file);
+	return [...byFile].flatMap(([file, declared]) => {
+		const source = ts.createSourceFile(file, readFileSync(join(repository, file), "utf-8"), ts.ScriptTarget.Latest, true);
+		const keys = new Set(declared.map((s) => s.key));
+		const found: TFound[] = [];
+		const visit = (node: ts.Node): void => {
+			if (ts.isPropertyAssignment(node) && keys.has(node.name.getText(source)) && ts.isObjectLiteralExpression(node.initializer)) {
+				const action = node.initializer.properties.find((p): p is ts.PropertyAssignment => ts.isPropertyAssignment(p) && p.name.getText(source) === "action");
+				const fn = action?.initializer;
+				if (fn !== undefined && (ts.isArrowFunction(fn) || ts.isFunctionExpression(fn)) && ignoresInput(fn) && statesFixed(fn, source))
+					found.push({ file, finding: `${FIXED_STATEMENT}: ${declared.find((s) => s.key === node.name.getText(source))?.stepper}.${node.name.getText(source)}` });
+			}
+			ts.forEachChild(node, visit);
+		};
+		visit(source);
+		return found;
+	});
+}
+
+/** Whether an action ignores its input: its first parameter is absent, an empty pattern, or a name that starts with an underscore. */
+const ignoresInput = (fn: ts.ArrowFunction | ts.FunctionExpression): boolean => {
+	const [first] = fn.parameters;
+	return first === undefined || (ts.isObjectBindingPattern(first.name) && first.name.elements.length === 0) || (ts.isIdentifier(first.name) && first.name.text.startsWith("_"));
+};
+
+/** Whether an action states a step, and every step it states, with fixed arguments. */
+function statesFixed(fn: ts.ArrowFunction | ts.FunctionExpression, source: ts.SourceFile): boolean {
+	const calls: ts.CallExpression[] = [];
+	const visit = (node: ts.Node): void => {
+		if (ts.isCallExpression(node) && STATING_CALL.test(node.expression.getText(source))) calls.push(node);
+		ts.forEachChild(node, visit);
+	};
+	visit(fn.body);
+	return calls.length > 0 && calls.every((call) => call.arguments.length > 0 && fixedArgument(call.arguments[0] as ts.Expression));
 }

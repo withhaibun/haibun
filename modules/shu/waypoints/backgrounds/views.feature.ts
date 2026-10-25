@@ -2,8 +2,7 @@ import type { TKirejiExport } from "@haibun/core/kireji/derivations/withAction.j
 import { RAIL_EDGE_TITLE, SETTINGS_GROUP, SHU_ATTR, SHU_TAG, TIME_SYNC_CLASS } from "@haibun/shu/domains/elements.js";
 import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
 import { RAIL_POSITION_MAX } from "@haibun/shu/page/derivations/rail.js";
-import { VIEW_LABELS } from "@haibun/shu/page/graph/domains/views.js";
-import { READ_STATE } from "@haibun/shu/page/graph/components/a11y-renderer.js";
+import { READ_STATE, VIEW_LABELS } from "@haibun/shu/page/graph/domains/views.js";
 
 /** A waypoint's placeholder for the view whose page it reads, which a feature names by its tag, quoted. */
 const VIEW = "{view}";

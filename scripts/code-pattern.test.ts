@@ -12,17 +12,19 @@ import { codeKindFindings, UNPOSITIONED } from "@haibun/core/lib/test/code-kinds
 import { composeFiles, defaultFindings } from "@haibun/core/lib/test/default-rules.js";
 import { refusalFindings } from "@haibun/core/lib/test/refusal-rules.js";
 import { parsedSources, sourceFiles } from "@haibun/core/lib/test/repository-files.js";
-import { MODULE_PACKAGES, MODULE_SOURCES, REPOSITORY } from "./roots.js";
+import { MODULE_PACKAGES, MODULE_SOURCES, MODULE_WAYPOINTS, REPOSITORY } from "./roots.js";
 
 const TEST_FILE = "scripts/code-pattern.test.ts";
-const files = sourceFiles(REPOSITORY, MODULE_SOURCES);
+const files = sourceFiles(REPOSITORY, [...MODULE_SOURCES, ...MODULE_WAYPOINTS]);
 const sources = parsedSources(REPOSITORY, files);
 
 describe(
 	"the source of this repository",
 	() => {
-		it("reads every module's source", () => {
-			expect(files).toEqual(expect.arrayContaining(["modules/core/src/lib/domains/util.ts", "modules/shu/src/page/components/shu-element.ts"]));
+		it("reads every module's source and library of waypoints", () => {
+			expect(files).toEqual(
+				expect.arrayContaining(["modules/core/src/lib/domains/util.ts", "modules/shu/src/page/components/shu-element.ts", "modules/shu/waypoints/backgrounds/views.feature.ts"]),
+			);
 		});
 
 		it("places each file in a kind position that imports only its row's kinds, apart from what code-kinds.baseline.json records (CR1)", () => {

@@ -1,0 +1,12 @@
+#!/bin/sh
+# States in each commit's message the net source lines it changes and the change in its count of declared steps, which the
+# steps baseline records, so every commit shows both. A merge, a squash and an amended message already hold them.
+case "$2" in merge | squash | commit) exit 0 ;; esac
+grep -q '^Net source lines: ' "$1" && exit 0
+# Source is code apart from tests, features, waypoint backgrounds and fakes.
+net=$(git diff --cached --numstat -- '*.ts' '*.mjs' '*.js' | awk '$1 != "-" && $3 !~ /(\.test\.ts$|\.feature\.ts$|test-fake|(^|\/)(test|tests[^\/]*|e2e-tests|features|backgrounds)\/)/ { n += $1 - $2 } END { print n + 0 }')
+steps() { git show "$1scripts/steps.baseline.json" 2>/dev/null | sed -n 's/.*"declares steps": \([0-9]*\).*/\1/p'; }
+before=$(steps HEAD:)
+after=$(steps :)
+if [ -n "$before" ] && [ -n "$after" ]; then delta=" ($(printf "%+d" $((after - before))))"; else delta=""; fi
+printf '\nNet source lines: %s\nDeclared steps: %s%s\n' "$net" "${after:-unrecorded}" "$delta" >> "$1"

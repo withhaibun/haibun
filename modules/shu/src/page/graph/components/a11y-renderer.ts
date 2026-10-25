@@ -17,6 +17,7 @@
  * drawn around a group, and that the graph is busy while what it shows still changes.
  */
 import { linkEndId, type FGNode } from "../domains/graph-types.js";
+import { READ_STATE } from "../domains/views.js";
 import { graphSummary } from "./renderer.js";
 import type { TDrawn, TGraphRenderer } from "../ports.js";
 import type { FocusState } from "../derivations/focus-policy.js";
@@ -48,8 +49,6 @@ export type TA11yRendererDeps = {
 export type TReadingMarks = { active: string | null; tierOf: (n: FGNode) => FocusState; pinned: (id: string) => boolean };
 
 const NODE_ID_ATTR = "data-node-id";
-/** How an entry states a node the reader dropped, and one a focus or a preview dims. */
-export const READ_STATE = { pinned: "pinned", dimmed: "dimmed" } as const;
 const DIMMED: FocusState = "dimmed";
 
 /** A node's type as a reader reads it: after the badge its projection puts on the type's cluster, and unbound where the node

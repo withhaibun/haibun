@@ -13,7 +13,8 @@ import { importsOf, lineOf, RELATIVE, resolvedSource, type TPackages, type TSour
 export const CODE_KINDS = ["domain", "derivation", "machine", "pipeline", "port", "adapter", "composition root", "stepper", "feature", "controller", "view"] as const;
 export type TCodeKind = (typeof CODE_KINDS)[number];
 
-/** The directory of an area that holds each kind. A view is a component, a controller is a Lit `ReactiveController`, and a feature builds features. */
+/** The directory of an area that holds each kind. A view is a component, a controller is a Lit `ReactiveController`, and a feature
+ *  builds features, as the backgrounds of a library of waypoints do. */
 const KIND_DIRECTORIES: Record<string, TCodeKind> = {
 	domains: "domain",
 	derivations: "derivation",
@@ -21,6 +22,7 @@ const KIND_DIRECTORIES: Record<string, TCodeKind> = {
 	pipelines: "pipeline",
 	adapters: "adapter",
 	features: "feature",
+	backgrounds: "feature",
 	controllers: "controller",
 	components: "view",
 };

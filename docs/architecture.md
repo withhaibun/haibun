@@ -351,9 +351,16 @@ marked `waypoint · <library>`, where the library is the package whose backgroun
 `saved`, and choosing one opens the sentence form of `ensure <head>`, which is recorded and gated as every step is. The language
 server completes a head with the same mark, and `show step definitions` lists each head as a predicate whose `waypoint` names its library.
 
-Each repository holds its steps to three rules in `scripts/steps.test.ts`, with a baseline in `scripts/steps.baseline.json` that
-only shrinks: a step that starts or keeps something and doesn't return a product takes a parameter, a step has more than one call
-site, and a step's pattern isn't another step's with a word more or less. A call site is a feature line, a kireji call, or code
+Each repository holds its steps to the rules of `modules/core/src/lib/test/step-rules.ts` in `scripts/steps.test.ts`, with a baseline in
+`scripts/steps.baseline.json` that only shrinks: a step that starts or keeps something and doesn't return a product takes a
+parameter, a step has more than one call site, a step's pattern isn't another step's with a word more or less, and something runs
+each step. The count of declared steps is in the baseline too, so a change that adds a step removes one it replaces, or the operator raises
+the count, as a bundle budget is raised. A step's pattern doesn't filter, bound, page, order or count its own list (`limit`,
+`matching`, `whose`, `count`, `first`, `per`, a read's `since {date}` or `from {n} to {m}`): a combinator applies each of those to
+a plain read, and a step whose such word selects what it acts on, such as the features a test run runs, is listed in the test with
+why. A domain whose products hold a list of records or a count declares its list, and a step whose action only states other steps
+with fixed arguments is a waypoint of a module's library. The commit hook appends each commit's net source lines and the change in
+its count of declared steps to its message. A call site is a feature line, a kireji call, or code
 that names the step; where a top-level constant names it, each read of the constant, or of its property that holds the name, is a
 call, as a page calls a step through the constant of its method. A family of steps that differ by one value is one step that
 takes the value, such as `use Authorization {scheme} header with {credentials}` and a scenario heading that starts with Pending.
