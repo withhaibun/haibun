@@ -1,15 +1,17 @@
 /**
  * Rules for the test groups of a repository and for its first-read documents. A group states its options in its config's
  * `moduleOptions`, and its script calls `haibun-cli` without any. A group names what it uses by its package rather than by a
- * parent path or a link. A first-read document names only paths that exist.
+ * parent path or a link. A first-read document names only paths that exist. A group's actualities file and every baseline are
+ * tracked, so each commit holds the measurements of the code it holds.
  */
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, normalize, resolve } from "node:path";
 import { z } from "zod";
 import { itemAt } from "../domains/item-at.js";
 import type { TFound } from "./baseline.js";
 import { TEST_MODULE } from "./repository-files.js";
+import { ACTUALITIES_FILE } from "../adapters/dependency-state.js";
 
 const HAIBUN_CLI = /\bhaibun-cli\b/;
 const MODULE_OPTION_ASSIGNMENT = /\bHAIBUN_O_[A-Z0-9_]+(?==)/g;
@@ -27,8 +29,16 @@ const LINK_MODE = "120000";
 const FEATURE_SOURCE = /\.feature\.ts$|\/(features|backgrounds)\/[^/]+\.ts$/;
 const PACKAGE_CODE = /(^|\/)(src|build)\//;
 const IMPORTED = /\bfrom\s+["']([^"']+)["']/g;
-/** A config of a group, which lists the steppers it loads. */
-const GroupConfigSchema = z.object({ steppers: z.array(z.unknown()) });
+/** A config of a group, which lists the steppers it loads and the external environments its features use. */
+const GroupConfigSchema = z.object({ steppers: z.array(z.unknown()), environments: z.array(z.string()).optional() });
+/** The arguments of each `haibun-cli` call of a script, up to the shell operator that ends the call. */
+const HAIBUN_CLI_CALL = /\bhaibun-cli\s+([^&|;]*)/g;
+const CONFIG_FLAGS = ["-c", "--config"];
+/** A script that runs a test group: a script whose name begins with `test`, or one that such a script runs. */
+const TEST_SCRIPT = /^test/;
+const NPM_RUN = /\bnpm run ([\w:.-]+)/g;
+/** A baseline that a rule test reads, a long-term tracking file beside a group's actualities file. */
+const BASELINE = ":(glob)**/*.baseline.json";
 
 /** The files git tracks in a repository that match a pattern, by their paths from the repository root. */
 export const trackedFiles = (repository: string, pattern: string): string[] =>
@@ -72,6 +82,63 @@ export function linksAndParentPaths(repository: string): TFound[] {
 				.map((specifier) => ({ file, finding: `imports ${specifier}, a package's code, by a parent path` })),
 		);
 	return [...links, ...configs, ...scripts, ...imports];
+}
+
+/** Each `haibun-cli` call of a script: the first base it names and the config it reads, the one `-c` or `--config` names or the first
+ *  base's config.json, each by its path from the script's package directory. Throws for a call that doesn't name a base. */
+export function haibunCliCalls(script: string): { base: string; config: string }[] {
+	return [...script.matchAll(HAIBUN_CLI_CALL)].map((call) => {
+		const words = itemAt(call, 1).split(/\s+/).filter(Boolean);
+		const flag = words.findIndex((word) => CONFIG_FLAGS.includes(word));
+		const base = words.find((word, i) => !word.startsWith("-") && (flag === -1 || i !== flag + 1))?.split(",")[0];
+		if (base === undefined) throw new Error(`a haibun-cli call doesn't name a base: ${script}. Name the group's base after its options.`);
+		return { base, config: normalize(flag === -1 ? join(base, "config.json") : itemAt(words, flag + 1)) };
+	});
+}
+
+/** The directory of each config that a test script of the package.json files, by their paths from the repository root, reads through
+ *  `haibun-cli`, by its path from the repository root. A test script is one whose name begins with `test`, or one it runs. */
+export function testGroupDirectories(repository: string, packageFiles: readonly string[]): string[] {
+	const found = packageFiles.flatMap((file) => {
+		const scripts = PackageScriptsSchema.parse(JSON.parse(readFileSync(join(repository, file), "utf-8"))).scripts ?? {};
+		const ran = new Set(Object.keys(scripts).filter((name) => TEST_SCRIPT.test(name)));
+		for (const name of ran) for (const m of (scripts[name] ?? "").matchAll(NPM_RUN)) if (scripts[itemAt(m, 1)] !== undefined) ran.add(itemAt(m, 1));
+		return [...ran].flatMap((name) => haibunCliCalls(scripts[name] ?? "").map(({ config }) => dirname(join(dirname(file), config))));
+	});
+	return [...new Set(found)].sort();
+}
+
+/** The paths of `files` that a .gitignore entry of the repository ignores, whether or not git tracks them. */
+function ignoredOf(repository: string, files: readonly string[]): Set<string> {
+	const checked = spawnSync("git", ["check-ignore", "--no-index", "--stdin"], { cwd: repository, input: files.join("\n"), encoding: "utf-8" });
+	if (checked.status !== 0 && checked.status !== 1) throw new Error(`git check-ignore failed in ${repository}: ${checked.stderr}. Check that git runs there.`);
+	return new Set(checked.stdout.split("\n").filter(Boolean));
+}
+
+/**
+ * Each long-term tracking file that a repository doesn't hold with its version. Every group directory, by its path from the repository
+ * root, and every directory under it that holds a group's config, such as an instance a feature launches, holds its actualities file
+ * tracked, since a commit holds the durations and outcomes of the code it measures. A config that declares an environment runs
+ * where that environment is, which commits its actualities file from there. A baseline is tracked. A .gitignore entry doesn't
+ * ignore either, since a later run would write a file git leaves out.
+ */
+export function untrackedRecords(repository: string, groupDirectories: readonly string[]): TFound[] {
+	const tracked = new Set(trackedFiles(repository, "."));
+	const nested = groupDirectories.flatMap((dir) =>
+		trackedFiles(repository, `:(glob)${dir}/**/config*.json`)
+			.filter((file) => {
+				const config = GroupConfigSchema.safeParse(JSON.parse(readFileSync(join(repository, file), "utf-8")));
+				return config.success && !config.data.environments?.length;
+			})
+			.map(dirname),
+	);
+	const records = [...new Set([...groupDirectories, ...nested])].sort().map((dir) => join(dir, ACTUALITIES_FILE));
+	const baselines = execFileSync("git", ["ls-files", "--cached", "--others", "--", BASELINE], { cwd: repository, encoding: "utf-8" }).split("\n").filter(Boolean);
+	const ignored = ignoredOf(repository, [...records, ...baselines]);
+	return [...records, ...baselines].flatMap((file) => [
+		...(tracked.has(file) ? [] : [{ file, finding: "isn't tracked: run its group, or its rule test, and commit the file with the code it measures" }]),
+		...(ignored.has(file) ? [{ file, finding: "is ignored by a .gitignore entry: remove the entry, so a commit holds the file" }] : []),
+	]);
 }
 
 /** Each relative link and each quoted path of the markdown documents, by their paths from the repository root, that names a path

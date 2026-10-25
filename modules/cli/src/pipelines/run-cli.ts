@@ -6,7 +6,7 @@ import { newActualityId } from "@haibun/core/lib/rpc-wire.js";
 import { namesPackage, type TSpecl, type TFeaturesBackgrounds } from "@haibun/core/lib/actuality.js";
 import { BASE_WITHOUT_FEATURES } from "@haibun/core/lib/actuality/ports.js";
 import type { TBase, TBaseOptions, TProtoOptions, TWorld } from "@haibun/core/lib/world.js";
-import { BASE_PREFIX, CHECK_NO, CHECK_YES, NDJSON, RECORDED_STATUS, STAY, Timer, TExecutorResult } from "@haibun/core/lib/domains/protocol.js";
+import { BASE_PREFIX, CHECK_NO, CHECK_YES, NDJSON, RECORDED_STATUS, STAY, STAY_ALWAYS, Timer, TExecutorResult } from "@haibun/core/lib/domains/protocol.js";
 import { staysAfterActuality } from "@haibun/core/lib/actuality/derivations/actuality-end.js";
 import { actualityEnded, actualityMachine } from "@haibun/core/lib/actuality/machines/actuality.js";
 import type { IHasOptions } from "@haibun/core/lib/astepper.js";
@@ -83,14 +83,12 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv, ports: TCli
 				: undefined;
 		if (verification) world.runtime.digest = verification.digest;
 		if (runsOnce(parsed, protoOptions.options)) {
-			if (!verification)
-				console.info(
-					`${OPTION_ONCE}: ${parsed.dryRun ? "a rehearsal" : parsed.statements.length ? "a run of statements" : "a run of features that depends on an untracked directory"} doesn't record a pass against its dependencies, so it runs`,
-				);
+			const regardless = runsRegardless(parsed, protoOptions.options, verification !== undefined);
+			if (regardless) console.info(`${OPTION_ONCE}: ${regardless}, so it runs`);
 			// A group whose last run passed where every dependency holds the digest it held then would pass again, so it exits as
 			// passed without running. A group whose last run failed runs again, so a person can retry a failure whose cause is
 			// outside the sources without changing anything.
-			else if (ports.actualities.outcomeAgainst(verification) === RECORDED_STATUS.completed) return verifiedExit(bases);
+			else if (verification && ports.actualities.outcomeAgainst(verification) === RECORDED_STATUS.completed) return verifiedExit(bases);
 		}
 
 		const featuresBackgrounds = await pr.tryPhase("Collector", () => collect(ports, bases, featureFilter, parsed.statements, policyConfig));
@@ -341,6 +339,16 @@ export async function collect(
  *  `@haibun/shu/waypoints`, which is found from the working directory as Node finds a package. */
 export function runBases(named: string | undefined, fs: TConfigFiles): TBase {
 	return basesFrom(named?.replace(/\/$/, "")).map((base) => (namesPackage(base) ? fs.packageLocation(base, process.cwd()) : base));
+}
+
+/** Returns why a run given --once runs without reading the record of its group's last run, or undefined where a recorded pass
+ *  skips it. A rehearsal, a run of statements and a run of features whose dependencies can't be read don't record a pass. A run
+ *  that stays after its features end, such as a launched instance or a service, serves what they start, which a pass doesn't. */
+export function runsRegardless(parsed: { dryRun: boolean; statements: readonly string[] }, options: TBaseOptions, verified: boolean): string | undefined {
+	if (parsed.dryRun) return "a rehearsal doesn't record a pass against its dependencies";
+	if (parsed.statements.length > 0) return "a run of statements doesn't record a pass against its dependencies";
+	if (options[STAY] === STAY_ALWAYS) return "a run that stays after its features end serves what they start, which a recorded pass doesn't";
+	return verified ? undefined : "a run of features that depends on an untracked directory doesn't record a pass against its dependencies";
 }
 
 /** Returns whether the CLI reads the record of a group's last run before it runs the group. `--once` sets this for one

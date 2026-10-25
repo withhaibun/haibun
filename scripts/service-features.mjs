@@ -2,9 +2,11 @@
 // until an MCP client initializes with it, and the language server's feature until it returns the result of an LSP
 // initialize over standard input and output. A service stays after its feature ends, as HAIBUN_STAY states, so each run is
 // stopped once it is checked.
-// Run it after the build and the link of the workspaces' commands: `node scripts/service-features.mjs`.
+// Run it after the build and the link of the workspaces' commands: `node scripts/service-features.mjs`. The rule tests import its bases.
 import { spawn } from "node:child_process";
 
+/** The base of each service feature, which holds the service's config.json and its actualities file. */
+export const SERVICE_BASES = { mcp: "mcp-server", lsp: "vscode-extension/lsp-server" };
 /** The cli's command, run as its own process so that stopping it stops the service. */
 const CLI = "node_modules/.bin/haibun-cli";
 const READY_WITHIN_MS = 60_000;
@@ -38,7 +40,7 @@ async function within(what, child, check) {
 
 /** The MCP server's feature serves once an MCP client initializes with it. */
 async function mcpServes() {
-	const child = serve("mcp-server", "serve-mcp");
+	const child = serve(SERVICE_BASES.mcp, "serve-mcp");
 	try {
 		const url = `http://localhost:${MCP_PORT}/mcp`;
 		const serverInfo = await within("the MCP server's feature", child, async () => {
@@ -53,7 +55,7 @@ async function mcpServes() {
 
 /** The language server's feature serves once it returns the result of an LSP initialize, framed by its content length. */
 async function lspServes() {
-	const child = serve("vscode-extension/lsp-server", "serve-lsp");
+	const child = serve(SERVICE_BASES.lsp, "serve-lsp");
 	try {
 		let received = Buffer.alloc(0);
 		child.stdout.on("data", (chunk) => {
@@ -75,4 +77,4 @@ async function lspServes() {
 	}
 }
 
-for (const check of [mcpServes, lspServes]) console.log(await check());
+if (import.meta.main) for (const check of [mcpServes, lspServes]) console.log(await check());

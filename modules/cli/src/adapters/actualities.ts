@@ -6,7 +6,8 @@
  * their durations at each change.
  *
  * An actuality is evidence about the state it read. The CLI's --once option skips a group whose last actuality passed where
- * every dependency holds the digest it held then, and runs a group that failed, so a person can retry a failure.
+ * every dependency holds the digest it held then, and runs a group that failed, so a person can retry a failure. It doesn't skip a
+ * run that stays after its features end, such as a launched instance or a service, since that run serves what they start.
  * InstanceStepper's startRun refuses a run in both cases, because an agent's second run over unchanged features is a loop.
  * An actuality of statements or a rehearsal doesn't verify the group against a state, and doesn't read or write the file.
  */
@@ -70,8 +71,9 @@ type TActualityConditions = {
 };
 
 /** Options that vary per actuality without changing what runs or what it reports. actualityConditions leaves them out of the key.
- *  KEY names an actuality, and STAY keeps the process up afterwards. */
-const PER_ACTUALITY_OPTIONS = new Set(["KEY", "STAY"]);
+ *  KEY names an actuality, STAY keeps the process up afterwards, and ONCE has the CLI read the file first, so the record of a run
+ *  without it skips a run with it, as it does a run given --once. */
+const PER_ACTUALITY_OPTIONS = new Set(["KEY", "STAY", "ONCE"]);
 
 /** Serializes a value with its object keys sorted, so equal conditions produce equal text in any key order. */
 const stable = (value: unknown): string =>

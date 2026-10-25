@@ -144,6 +144,66 @@
 				}
 			}
 		},
+		"2d9ed0da9248dfd0": {
+			"filter": "",
+			"actuality": {
+				"text": "modules/shu/tests, modules/shu/waypoints",
+				"status": "passed",
+				"tookMs": 23800,
+				"digest": {
+					"modules/cli/src": "d72ef31d24fa6fe08b8b39e1313390ede6b7f9254047b51146152ded9d136054",
+					"modules/core/src": "85b5b56178b028f4974a1e9f4356cf8a007d0e07edc28fc663f649e7c649cbcd",
+					"modules/domain-storage/src": "3dcfc208ea1dd71ecc2f14c13926d46b10f0ee7ffc9598637e7a616c9f627541",
+					"modules/logic/src": "5e346c54bbd3de3ceada658480b90de91634fb9102ac459cedec85079157eaca",
+					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
+					"modules/shu/src": "6cc16531b7428b4b4c317270c8b63c37bbf6c38dbf3aa0822babad49a4f93194",
+					"modules/shu/tests": "947335cf39d826200740f443002266442743657624ff2ef64782affac2392a8e",
+					"modules/shu/waypoints": "786b9c5379feae569f6be5a00dc7e89567d67f98adff446d62c7712cc6668e19",
+					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
+					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
+					"modules/web-playwright/src": "50b03b34cefe428b4876cf48ebc93d32807afd1c7bd5329975500424c852dc38",
+					"modules/web-server-hono/src": "334a21921dcfe06774443de2bfd77b09c58931fc7b738352cd5f9b02c9c51053"
+				}
+			},
+			"features": {
+				"/features/address.feature.ts": {
+					"text": "An address names a type",
+					"status": "passed",
+					"tookMs": 1100,
+					"steps": 201
+				},
+				"/features/federate.feature.ts": {
+					"text": "Federated graph reads from a sibling instance",
+					"status": "passed",
+					"tookMs": 1300,
+					"steps": 6
+				},
+				"/features/monitor-serves.feature.ts": {
+					"text": "The monitor serves shu on a port of its own",
+					"status": "passed",
+					"tookMs": 1600,
+					"steps": 198
+				},
+				"/features/monitor.feature.ts": {
+					"text": "Monitor view collects and displays actuality's events",
+					"status": "passed",
+					"tookMs": 13200,
+					"steps": 697
+				},
+				"/features/remote-store.feature.ts": {
+					"text": "A satellite instance keeps its records in the main instance's store",
+					"status": "passed",
+					"tookMs": 1400,
+					"steps": 8
+				},
+				"/features/voice-ui.feature.ts": {
+					"text": "UI extension propagation: domain ui → concern catalog → SPA actions bar",
+					"status": "passed",
+					"tookMs": 2900,
+					"steps": 214
+				}
+			}
+		},
 		"c3ae834a35614390": {
 			"filter": "",
 			"actuality": {

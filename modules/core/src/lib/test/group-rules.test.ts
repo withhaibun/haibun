@@ -3,9 +3,9 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { linksAndParentPaths } from "./group-rules.js";
+import { haibunCliCalls, linksAndParentPaths, testGroupDirectories, untrackedRecords } from "./group-rules.js";
 
-describe("the parent paths of a repository's groups", () => {
+describe("the parent paths and tracking files of a repository's groups", () => {
 	let repository = "";
 	const committed = (files: Record<string, string>) => {
 		for (const [file, text] of Object.entries(files)) {
@@ -30,6 +30,38 @@ describe("the parent paths of a repository's groups", () => {
 		expect(linksAndParentPaths(repository)).toEqual([
 			{ file: "service/backgrounds/gate.ts", finding: "imports ../../src/domains/listed.ts, a package's code, by a parent path" },
 			{ file: "service/features/serve.feature.ts", finding: "imports ../../build/graph/graph-stepper.js, a package's code, by a parent path" },
+		]);
+	});
+
+	it("read the base and config of each haibun-cli call of a script, from the script's package directory", () => {
+		expect(haibunCliCalls("rm -rf /tmp/p && haibun-cli -c ./profile/config.json ./profile,./waypoints a- && HAIBUN_KEY=k haibun-cli tests,@haibun/cli/waypoints")).toEqual([
+			{ base: "./profile", config: "profile/config.json" },
+			{ base: "tests", config: "tests/config.json" },
+		]);
+		expect(() => haibunCliCalls("haibun-cli --config c.json"), "a call without a base").toThrow("doesn't name a base");
+	});
+
+	it("find each group a test script runs, an untracked or ignored actualities file of a group or an instance under it that doesn't need an environment, and an untracked baseline", () => {
+		const group = { steppers: [] };
+		committed({
+			"e2e/package.json": JSON.stringify({ scripts: { test: "npm run policy", policy: "haibun-cli -c p/config.json p", record: "haibun-cli record", "test:t": "haibun-cli t" } }),
+			"e2e/p/config.json": JSON.stringify(group),
+			"e2e/p/actualities.json": "{}\n",
+			"e2e/t/config.json": JSON.stringify(group),
+			"e2e/t/peer/config.json": JSON.stringify(group),
+			"e2e/t/peer/actualities.json": "{}\n",
+			"e2e/t/mail/config.json": JSON.stringify({ ...group, environments: ["imap"] }),
+			".gitignore": "e2e/t/peer/actualities.json\n",
+			"scripts/steps.baseline.json": "{}\n",
+		});
+		writeFileSync(join(repository, "scripts/prose.baseline.json"), "{}\n");
+		const groups = testGroupDirectories(repository, ["e2e/package.json"]);
+		expect(groups, "a script that a test script doesn't run isn't a group's").toEqual(["e2e/p", "e2e/t"]);
+		expect(untrackedRecords(repository, groups)).toEqual([
+			{ file: "e2e/t/actualities.json", finding: "isn't tracked: run its group, or its rule test, and commit the file with the code it measures" },
+			{ file: "e2e/t/peer/actualities.json", finding: "isn't tracked: run its group, or its rule test, and commit the file with the code it measures" },
+			{ file: "e2e/t/peer/actualities.json", finding: "is ignored by a .gitignore entry: remove the entry, so a commit holds the file" },
+			{ file: "scripts/prose.baseline.json", finding: "isn't tracked: run its group, or its rule test, and commit the file with the code it measures" },
 		]);
 	});
 });

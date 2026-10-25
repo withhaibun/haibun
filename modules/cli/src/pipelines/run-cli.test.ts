@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { vitest, describe, it, expect } from "vitest";
 
-import { CONTINUE_AFTER_ERROR, DEFAULT_DEST, MODULE_OPTION_PREFIX, STAY, STAY_ALWAYS, STEP_DELAY } from "@haibun/core/lib/domains/protocol.js";
+import { CONTINUE_AFTER_ERROR, DEFAULT_DEST, MODULE_OPTION_PREFIX, STAY, STAY_ALWAYS, STAY_FAILURE, STEP_DELAY } from "@haibun/core/lib/domains/protocol.js";
 
 const OTHER_OPTION = `${MODULE_OPTION_PREFIX}TESTSTEPSWITHOPTIONS_OTHER`;
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, passWithDefaults } from "@haibun/core/lib/test/lib.js";
@@ -82,6 +82,16 @@ describe("processEnv", () => {
 		expect(lib.runsOnce({ once: false }, processBaseEnvToOptionsAndErrors({}, NO_CONFIG).options), "without either").toBe(false);
 		expect(lib.runsOnce({ once: false }, processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "false" }, NO_CONFIG).options), "the environment set to false").toBe(false);
 		expect(() => processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "yes" }, NO_CONFIG), "a value other than true or false").toThrow();
+	});
+	it("doesn't let a recorded pass skip a run that stays to serve, a rehearsal, statements or a run whose dependencies can't be read", () => {
+		const options = (env: Record<string, string>) => processBaseEnvToOptionsAndErrors(env, NO_CONFIG).options;
+		const features = { dryRun: false, statements: [] };
+		expect(lib.runsRegardless(features, options({}), true), "a run of features against its dependencies").toBeUndefined();
+		expect(lib.runsRegardless(features, options({ [`HAIBUN_${STAY}`]: STAY_FAILURE }), true), "a run that stays only after a failure").toBeUndefined();
+		expect(lib.runsRegardless(features, options({ [`HAIBUN_${STAY}`]: STAY_ALWAYS }), true), "a launched instance or a service").toMatch(/stays after its features end/);
+		expect(lib.runsRegardless(features, options({}), false)).toMatch(/untracked directory/);
+		expect(lib.runsRegardless({ dryRun: true, statements: [] }, options({}), false)).toMatch(/rehearsal/);
+		expect(lib.runsRegardless({ dryRun: false, statements: ["a line"] }, options({}), false)).toMatch(/statements/);
 	});
 	it("assigns int", () => {
 		const { options } = processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: "1" }, NO_CONFIG);

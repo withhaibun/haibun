@@ -1,0 +1,48 @@
+{
+	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
+		"3e3e1e606d50e1cf": {
+			"filter": "serve-lsp",
+			"actuality": {
+				"text": "vscode-extension/lsp-server",
+				"status": "passed",
+				"tookMs": 0,
+				"digest": {
+					"modules/core/src": "4b0802a6d778605b34c60a38758be3148170f59135b0ccabfe393b54874e3ea3",
+					"modules/logic/src": "5e346c54bbd3de3ceada658480b90de91634fb9102ac459cedec85079157eaca",
+					"modules/lsp/src": "6877b36b59ae7fa911d8193965639eaa3497a67e797ecee13678fe48557a1407",
+					"vscode-extension/lsp-server": "8ea6e899022a1e3cfd2555d0d7fee02dc8e59af4c98af1b65985a19644e579b0"
+				}
+			},
+			"features": {
+				"/features/serve-lsp.feature": {
+					"text": "/features/serve-lsp",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				}
+			}
+		},
+		"440f85307b743d38": {
+			"filter": "serve-lsp",
+			"actuality": {
+				"text": "vscode-extension/lsp-server",
+				"status": "passed",
+				"tookMs": 0,
+				"digest": {
+					"modules/core/src": "85b5b56178b028f4974a1e9f4356cf8a007d0e07edc28fc663f649e7c649cbcd",
+					"modules/logic/src": "5e346c54bbd3de3ceada658480b90de91634fb9102ac459cedec85079157eaca",
+					"modules/lsp/src": "6877b36b59ae7fa911d8193965639eaa3497a67e797ecee13678fe48557a1407",
+					"vscode-extension/lsp-server": "8ea6e899022a1e3cfd2555d0d7fee02dc8e59af4c98af1b65985a19644e579b0"
+				}
+			},
+			"features": {
+				"/features/serve-lsp.feature": {
+					"text": "/features/serve-lsp",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				}
+			}
+		}
+	}
+}

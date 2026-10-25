@@ -167,20 +167,21 @@ describe("the test-runner agent's limits", () => {
 		expect(h.stepper.usage().runs).toBe(1);
 	});
 
-	it("clears the state of every actuality of a base's features when a change to every feature is noted, so the features run again in any state", () => {
+	const heldDigest = (dir: string) => JSON.parse(nodeFS.readFileSync(path.join(dir, ACTUALITIES_FILE), "utf-8")).machine.conditions.actuality.digest;
+	it("clears the digests of every actuality of a base's features when a change to every feature is noted, so the features run again in any state", () => {
 		const dir = nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-noted-"));
-		const actuality = { state: "s", filter: "", actuality: { text: "an actuality", status: "passed", tookMs: 0 }, features: {} };
+		const actuality = { filter: "", actuality: { text: "an actuality", status: "passed", tookMs: 0, digest: { features: "d" } }, features: {} };
 		nodeFS.writeFileSync(path.join(dir, ACTUALITIES_FILE), JSON.stringify({ machine: { conditions: actuality } }));
 		h.stepper.noteApplied("", dir);
-		expect(JSON.parse(nodeFS.readFileSync(path.join(dir, ACTUALITIES_FILE), "utf-8")).machine.conditions.state, "the supervisor doesn't refuse the test run").toBeUndefined();
+		expect(heldDigest(dir), "the supervisor doesn't refuse the test run").toBeUndefined();
 	});
 
-	it("clears the state of the actuality of the features a noted change names, so they run again in any state", async () => {
+	it("clears the digests of the actuality of the features a noted change names, so they run again in any state", async () => {
 		const dir = nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-noted-"));
-		const actuality = { state: "s", filter: "one", actuality: { text: "an actuality", status: "passed", tookMs: 0 }, features: {} };
+		const actuality = { filter: "one", actuality: { text: "an actuality", status: "passed", tookMs: 0, digest: { features: "d" } }, features: {} };
 		nodeFS.writeFileSync(path.join(dir, ACTUALITIES_FILE), JSON.stringify({ machine: { conditions: actuality } }));
 		expect((await h.stepper.steps.noteSourceChanged.action({ filter: "one", where: dir })).ok).toBe(true);
-		expect(JSON.parse(nodeFS.readFileSync(path.join(dir, ACTUALITIES_FILE), "utf-8")).machine.conditions.state, "the supervisor doesn't refuse the test run").toBeUndefined();
+		expect(heldDigest(dir), "the supervisor doesn't refuse the test run").toBeUndefined();
 	});
 
 	it("refuses a test run past MAX_RUNS for an ask and states the reason", async () => {
