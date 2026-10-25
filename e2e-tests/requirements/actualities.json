@@ -372,7 +372,7 @@
 			"actuality": {
 				"text": "e2e-tests/requirements, node_modules/@haibun/cli/waypoints, node_modules/@haibun/logic/waypoints, node_modules/@haibun/core/waypoints",
 				"status": "passed",
-				"tookMs": 5900,
+				"tookMs": 5300,
 				"digest": {
 					"e2e-tests/requirements": "c638cdee44ee81af0896bd52598f4a4b7f35b7fda44f334a9dc0e9a3033d20db",
 					"e2e-tests/src": "425dc5ff34248b861f6f819a90ae7579fd9bf5a7d35d8cca3c5525423f42d689",
@@ -387,7 +387,7 @@
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/out-junit/src": "ab9e53bc6fa979f6de0adf9fa7d370954e1db2e4a11ecf4fa5f40a927328a263",
 					"modules/recorder/src": "4e1f4c42c968bc4a395d7bca41861260dabef7681811a2022ffabc6394916eeb",
-					"modules/shu/src": "3c8bd8fc8bef7b63898ab28a4ff26c4fe0e36b8b38e449266a1c057303e8c4d5",
+					"modules/shu/src": "6938f7533540d11e94ae69c73ad20cd7ccc08f3dcd0575f45dc29eccec57810c",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/utils/src": "128195b8e9b52a9197bfd78e93a19be17009af4fc3fa03d78930236c955079c4",
@@ -400,13 +400,13 @@
 				"/features/01-prose-and-steps.feature.ts": {
 					"text": "Prose and steps",
 					"status": "passed",
-					"tookMs": 200,
+					"tookMs": 100,
 					"steps": 24
 				},
 				"/features/02-authority.feature.ts": {
 					"text": "Capabilities authorize every call",
 					"status": "passed",
-					"tookMs": 300,
+					"tookMs": 200,
 					"steps": 43
 				},
 				"/features/03-activities.feature.ts": {
@@ -436,7 +436,7 @@
 				"/features/07-records.feature.ts": {
 					"text": "Records, events and actualities",
 					"status": "passed",
-					"tookMs": 300,
+					"tookMs": 400,
 					"steps": 116
 				},
 				"/features/08-timing.feature.ts": {
@@ -448,13 +448,13 @@
 				"/features/09-surfaces.feature.ts": {
 					"text": "One path for every surface",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 500,
 					"steps": 95
 				},
 				"/features/10-cli.feature.ts": {
 					"text": "The command line",
 					"status": "passed",
-					"tookMs": 1700,
+					"tookMs": 1400,
 					"steps": 11
 				},
 				"/features/11-performance.feature.ts": {
@@ -472,7 +472,7 @@
 				"/features/13-formulas.feature.ts": {
 					"text": "Formula notation",
 					"status": "passed",
-					"tookMs": 300,
+					"tookMs": 200,
 					"steps": 45
 				},
 				"/features/14-model-loop.feature.ts": {
