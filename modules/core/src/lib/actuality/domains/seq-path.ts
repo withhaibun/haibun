@@ -11,7 +11,7 @@
  * stores for its status (RECORDED_STATUS). This file declares the schema, the domain
  * selectors and the domain definition that steppers register.
  */
-import { ActionSchema } from "../../domains/actions.js";
+import { ActionSchema, HeldActionsSchema } from "../../domains/actions.js";
 import { itemAt } from "../../domains/item-at.js";
 import { z } from "zod";
 import { ACTUALITY_LEVELS, HAIBUN_LOG_LEVELS, RECORDED_STATUS, VERDICT, type TActualityLevel } from "../../domains/protocol.js";
@@ -293,7 +293,7 @@ export const SeqPathSchema = PersistedVertexSchema.extend({
 	[SEQ_PATH_FIELD.error]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.showed]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.capabilityAction]: OPTIONAL_ACTION,
-	[SEQ_PATH_FIELD.allowedAction]: OPTIONAL_ACTION,
+	[SEQ_PATH_FIELD.allowedAction]: HeldActionsSchema.optional(),
 	[SEQ_PATH_FIELD.generatedAtTime]: z.string(),
 	[SEQ_PATH_FIELD.endedAtTime]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.path]: OPTIONAL_TEXT,
@@ -329,7 +329,7 @@ export const StepLineSchema = z.object({
 	ended: OPTIONAL_TEXT,
 	tookMs: z.number().optional(),
 	dispatch: z.object({ via: z.enum(RAN_VIA), on: OPTIONAL_TEXT }).optional(),
-	action: z.object({ required: ActionSchema, allowed: OPTIONAL_ACTION, holder: OPTIONAL_TEXT }).optional(),
+	action: z.object({ required: ActionSchema, allowed: HeldActionsSchema.optional(), holder: OPTIONAL_TEXT }).optional(),
 });
 export type TStepLine = z.infer<typeof StepLineSchema>;
 

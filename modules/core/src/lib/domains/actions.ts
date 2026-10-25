@@ -21,13 +21,16 @@ export function actionList(listed: string | undefined): string[] {
 
 /** The grammar of an action: every action (`*`), a name such as `store.read`, a stepper's name and one of its steps or a read's
  *  level after a colon, such as `Read:public`, or a prefix that a trailing `*` ends, which allows every action it begins. */
-const ACTION_GRAMMAR = /^(\*|[A-Za-z][\w.-]*(:[\w.-]*)?\*?)$/;
+const ACTION = String.raw`(\*|[A-Za-z][\w.-]*(:[\w.-]*)?\*?)`;
+const ACTION_GRAMMAR = new RegExp(`^${ACTION}$`);
 
 /** An action as a reader states it: what a caller holds or a step requires. A reference to an action takes one, so a step's
  *  method isn't taken for an action. An action a link, a call, a delegation or a step's declaration states is parsed with its
  *  grammar, and a refusal states the grammar's pattern; one this module builds is stated in that grammar. */
 export const ActionSchema = z.string().regex(ACTION_GRAMMAR).brand<"Action">();
 export type TAction = z.infer<typeof ActionSchema>;
+/** The actions a caller held for a step, as a comma-separated list, each in an action's grammar. */
+export const HeldActionsSchema = z.string().regex(new RegExp(`^${ACTION}(, *${ACTION})*$`));
 
 /** The action a read at `level` requires. */
 export const readAction = (level: AccessLevel): TAction => `${READ_PREFIX}${level}` as TAction;
