@@ -1278,7 +1278,7 @@ export type TDiscourseStore = {
 	upsertIndividual(label: string, data: unknown): Promise<string>;
 	deleteIndividual(label: string, id: string): Promise<void>;
 	set(subject: string, predicate: string, object: unknown, namedGraph: string): Promise<void>;
-	query(pattern: { subject?: string; predicate?: string; object?: unknown }): Promise<Array<{ subject: string; predicate: string; object: unknown }>>;
+	query(pattern: { subject?: string; predicate?: string; object?: unknown; namedGraph?: string }): Promise<Array<{ subject: string; predicate: string; object: unknown }>>;
 	add(quad: { subject: string; predicate: string; object: unknown; namedGraph: string; objectType?: string }): Promise<void>;
 	remove(pattern: { subject?: string; predicate?: string; object?: unknown; namedGraph?: string }): Promise<void>;
 	createEdge?(fromLabel: string, fromId: string, edgeLabel: string, toLabel: string, toId: string): Promise<void>;
@@ -1355,10 +1355,11 @@ export async function anchorPart(
 const GROUNDING_RELS = new Set<string>([LinkRelations.TARGET.rel, LinkRelations.ATTACHMENT.rel]);
 
 /** Throws unless a Comment references its subject through an oa:hasTarget subject, an attachment, or the comment it
- *  replies to in a thread. A conversation root without a subject is a general question and its own origin, so callers
+ *  replies to in a thread. The comment's edges are read from the Comment type alone, so the read doesn't look for it in
+ *  every type. A conversation root without a subject is a general question and its own origin, so callers
  *  skip the check there. */
 export async function assertCommentGrounded(store: TDiscourseStore, commentId: string): Promise<void> {
-	const quads = await store.query({ subject: commentId });
+	const quads = await store.query({ subject: commentId, namedGraph: COMMENT_LABEL });
 	const grounded = quads.some((q) => GROUNDING_RELS.has(q.predicate) || isReplyEdge(q.predicate));
 	if (!grounded) throw new Error(`Comment "${commentId}" is not grounded: every comment must reference its subject through hasTarget, attachment or a reply edge.`);
 }

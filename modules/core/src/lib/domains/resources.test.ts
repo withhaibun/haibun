@@ -736,6 +736,12 @@ describe("assertCommentGrounded: every comment is grounded", () => {
 	it("throws when only hasBody and seqPath are present, because content and position don't ground a comment in a subject", async () => {
 		await expect(assertCommentGrounded(withEdges([LinkRelations.HAS_BODY.rel, LinkRelations.SEQ_PATH.rel]), "c1")).rejects.toThrow(/not grounded/);
 	});
+	it("reads the comment's edges from the Comment type, so the read doesn't look for it in every type", async () => {
+		const patterns: unknown[] = [];
+		const store = { query: (pattern: unknown) => (patterns.push(pattern), Promise.resolve([{ subject: "c1", predicate: LinkRelations.TARGET.rel, object: "x" }])) };
+		await assertCommentGrounded(store as unknown as TDiscourseStore, "c1");
+		expect(patterns).toEqual([{ subject: "c1", namedGraph: COMMENT_LABEL }]);
+	});
 });
 
 describe("writeAnnotation, self-contained on a plain quad store (without createEdge)", () => {

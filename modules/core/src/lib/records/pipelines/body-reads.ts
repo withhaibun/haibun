@@ -57,9 +57,14 @@ export function bodyByMediaType(store: TRecordReader, record: { label: string; i
  *  record, read by its id, and the bodies those edges reach, in one read by id. Returns the text by the id of each record
  *  that holds a form in that media type, the first where it holds several, as `bodyByMediaType` reads one record's. */
 export async function bodiesByMediaType(store: Pick<IQuadStore, "readRecords" | "query">, label: string, ids: readonly string[], mediaType: string): Promise<Map<string, string>> {
-	const recordOfBody = new Map<string, string>();
 	const edges = await Promise.all([...new Set(ids)].map((id) => store.query({ subject: id, predicate: LinkRelations.HAS_BODY.rel, namedGraph: label })));
-	for (const { subject, object } of edges.flat()) recordOfBody.set(String(object), String(subject));
+	return bodyTextsOf(store, new Map(edges.flat().map(({ subject, object }) => [String(object), String(subject)])), mediaType);
+}
+
+/** Reads the bodies `recordOfBody` names, in one read by id, and returns the text of each body's form in `mediaType` by the
+ *  id of the record `recordOfBody` states for it, the first where a record holds several. A record has text only from a
+ *  body the read returns at the level in force that holds a form in that media type. */
+export async function bodyTextsOf(store: TRecordReader, recordOfBody: ReadonlyMap<string, string>, mediaType: string): Promise<Map<string, string>> {
 	const texts = new Map<string, string>();
 	if (recordOfBody.size === 0) return texts;
 	for (const body of await readEvery(store, { label: BODY_LABEL, named: [...recordOfBody.keys()] })) {
