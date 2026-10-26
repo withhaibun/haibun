@@ -89,7 +89,6 @@
 	"modules/shu/src/shu-stepper.ts": {
 		"has at most one call site: ShuStepper.getGraphLayout": 1,
 		"has at most one call site: ShuStepper.showPolymorphicGraphView": 1,
-		"has at most one call site: ShuStepper.showShuApps": 1,
 		"returns a list of records or a count its domain doesn't declare as a list: ShuStepper.getGraphLayout (graph-layout)": 1
 	},
 	"modules/storage-fs/src/storage-fs-stepper.ts": {

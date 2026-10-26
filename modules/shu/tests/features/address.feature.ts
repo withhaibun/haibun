@@ -30,6 +30,7 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "Setup" }),
 		serveShuApp({ path: '"/spa"' }),
 		'webserver is listening for "address-test"',
+		'exactly 1, whose "path" matches "/spa", show shu apps',
 
 		scenario({ scenario: "An address names a type actuality doesn't hold" }),
 		"An address can name a type that an earlier actuality held and this actuality doesn't. The page keeps the address, states that actuality doesn't hold the type, and links the query of each type actuality holds. Following the link of the step records opens their query.",

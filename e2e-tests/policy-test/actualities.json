@@ -219,7 +219,7 @@
 			"actuality": {
 				"text": "e2e-tests/policy-test",
 				"status": "passed",
-				"tookMs": 100,
+				"tookMs": 200,
 				"digest": {
 					"e2e-tests/policy-test": "06495ce736817be3153244382897d76c9e8844a442e845481aa51b89466b4a73",
 					"modules/core/src": "c4bdfc278fde9f1a38cd3a2a34f7852dc963b751d9e6cd365287c8b5659c5934",

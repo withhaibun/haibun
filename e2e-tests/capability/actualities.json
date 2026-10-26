@@ -77,7 +77,7 @@
 			"actuality": {
 				"text": "e2e-tests/capability",
 				"status": "passed",
-				"tookMs": 500,
+				"tookMs": 600,
 				"digest": {
 					"e2e-tests/capability": "ed31d4e33b117d71f741692b27aec0102d8cf876b2645ce94b121d3f1e3eec4b",
 					"e2e-tests/src": "425dc5ff34248b861f6f819a90ae7579fd9bf5a7d35d8cca3c5525423f42d689",
@@ -89,7 +89,7 @@
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/out-junit/src": "ab9e53bc6fa979f6de0adf9fa7d370954e1db2e4a11ecf4fa5f40a927328a263",
 					"modules/recorder/src": "4e1f4c42c968bc4a395d7bca41861260dabef7681811a2022ffabc6394916eeb",
-					"modules/shu/src": "6938f7533540d11e94ae69c73ad20cd7ccc08f3dcd0575f45dc29eccec57810c",
+					"modules/shu/src": "2353134cc4790ebb92e35ea2b3e5e11270e1e388c95ab032aa3d980ca13862d8",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/utils/src": "128195b8e9b52a9197bfd78e93a19be17009af4fc3fa03d78930236c955079c4",

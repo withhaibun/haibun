@@ -1073,7 +1073,7 @@
 			"actuality": {
 				"text": "e2e-tests/tests, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
 				"status": "passed",
-				"tookMs": 25400,
+				"tookMs": 23200,
 				"digest": {
 					"e2e-tests/src": "425dc5ff34248b861f6f819a90ae7579fd9bf5a7d35d8cca3c5525423f42d689",
 					"e2e-tests/tests": "f73befb90b3c5c9199c0ef461e4937a4489e3bf78d5cfed68cc1b02e30feada9",
@@ -1086,7 +1086,7 @@
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/out-junit/src": "ab9e53bc6fa979f6de0adf9fa7d370954e1db2e4a11ecf4fa5f40a927328a263",
 					"modules/recorder/src": "4e1f4c42c968bc4a395d7bca41861260dabef7681811a2022ffabc6394916eeb",
-					"modules/shu/src": "6938f7533540d11e94ae69c73ad20cd7ccc08f3dcd0575f45dc29eccec57810c",
+					"modules/shu/src": "2353134cc4790ebb92e35ea2b3e5e11270e1e388c95ab032aa3d980ca13862d8",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/utils/src": "128195b8e9b52a9197bfd78e93a19be17009af4fc3fa03d78930236c955079c4",
@@ -1100,7 +1100,7 @@
 				"/features/a11y-fail.feature": {
 					"text": "/features/a11y-fail",
 					"status": "passed",
-					"tookMs": 900,
+					"tookMs": 1000,
 					"steps": 13
 				},
 				"/features/a11y-pass.feature": {
@@ -1124,25 +1124,25 @@
 				"/features/auth-bearer.feature": {
 					"text": "/features/auth-bearer",
 					"status": "passed",
-					"tookMs": 900,
+					"tookMs": 1000,
 					"steps": 78
 				},
 				"/features/auth-form.feature": {
 					"text": "/features/auth-form",
 					"status": "passed",
-					"tookMs": 1100,
+					"tookMs": 1200,
 					"steps": 24
 				},
 				"/features/counter.feature": {
 					"text": "/features/counter",
 					"status": "passed",
-					"tookMs": 2600,
+					"tookMs": 1000,
 					"steps": 20
 				},
 				"/features/counter.feature.ts": {
 					"text": "Counts feature",
 					"status": "passed",
-					"tookMs": 2200,
+					"tookMs": 1000,
 					"steps": 20
 				},
 				"/features/counts.feature.ts": {
@@ -1154,7 +1154,7 @@
 				"/features/elements.feature": {
 					"text": "/features/elements",
 					"status": "passed",
-					"tookMs": 1000,
+					"tookMs": 900,
 					"steps": 17
 				},
 				"/features/executor-rpc.feature.ts": {
@@ -1184,7 +1184,7 @@
 				"/features/once.feature.ts": {
 					"text": "A group of features runs once per state of what it depends on",
 					"status": "passed",
-					"tookMs": 3000,
+					"tookMs": 2900,
 					"steps": 20
 				},
 				"/features/page-visits.feature.ts": {
@@ -1220,13 +1220,13 @@
 				"/features/upload-verify.feature": {
 					"text": "/features/upload-verify",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 800,
 					"steps": 20
 				},
 				"/features/visited-pages.feature": {
 					"text": "/features/visited-pages",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 800,
 					"steps": 31
 				},
 				"/features/workflow.feature.ts": {
@@ -1238,7 +1238,7 @@
 				"/features/xss.feature": {
 					"text": "/features/xss",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 800,
 					"steps": 13
 				}
 			}

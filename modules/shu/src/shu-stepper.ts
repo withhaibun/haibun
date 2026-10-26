@@ -13,7 +13,7 @@ import { getAuthority } from "@haibun/core/lib/domains/session-authority.js";
 import { WEBSERVER } from "@haibun/web-server-hono/domains/web-server.js";
 import type { IWebServer, Context } from "@haibun/web-server-hono/defs.js";
 import { CONTEXT_DOCUMENT, SHU_TYPE, SHU_TAG } from "./domains/elements.js";
-import { DOMAIN_SHU_APPS, ShuAppsSchema } from "./domains/schemas.js";
+import { DOMAIN_SHU_APPS, ShuAppsSchema } from "./domains/shu-apps.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { DOMAIN_ROUTE } from "@haibun/core/lib/domains/domains.js";
 import { OntologyReadSchema } from "@haibun/core/lib/records/domains/ontology-read.js";
@@ -153,7 +153,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				},
 				{ selectors: [SHU_TAG.MONITOR_COLUMN], schema: z.object({}), description: "Actuality's monitor and event log", ui: { component: SHU_TAG.MONITOR_COLUMN } },
 				{ selectors: [SHU_TAG.DOCUMENT_COLUMN], schema: z.object({}), description: "Document/artifact viewer", ui: { component: SHU_TAG.DOCUMENT_COLUMN } },
-				{ selectors: [DOMAIN_SHU_APPS], schema: ShuAppsSchema, description: "Where an instance serves shu" },
+				{ selectors: [DOMAIN_SHU_APPS], schema: ShuAppsSchema, list: listOf(ShuAppsSchema, "apps"), description: "Where an instance serves shu" },
 				{ selectors: [DOMAIN_GRAPH_LAYOUT], schema: GraphLayoutSchema, description: "Where a graph view placed each node" },
 				{
 					selectors: [DOMAIN_SHU_VIEW_COLLECTION],
@@ -212,7 +212,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			gwta: "show shu apps",
 			description: "Where this instance serves shu: the path of each app it mounted, which a reader opens under the instance's address.",
 			productsDomain: DOMAIN_SHU_APPS,
-			action: () => actionOKWithProducts({ apps: [...this.appPaths] }),
+			action: () => actionOKWithProducts({ apps: [...this.appPaths].map((path) => ({ path })), ...counted(this.appPaths.size) }),
 		},
 		showOntology: {
 			read: true,
