@@ -11,7 +11,7 @@
  * stores for its status (RECORDED_STATUS). This file declares the schema, the domain
  * selectors and the domain definition that steppers register.
  */
-import { ActionSchema } from "../../domains/actions.js";
+import { ActionSchema, heldActions } from "../../domains/actions.js";
 import { itemAt } from "../../domains/item-at.js";
 import { z } from "zod";
 import { ACTUALITY_LEVELS, HAIBUN_LOG_LEVELS, RECORDED_STATUS, VERDICT, type TActualityLevel } from "../../domains/protocol.js";
@@ -293,7 +293,7 @@ export const SeqPathSchema = PersistedVertexSchema.extend({
 	[SEQ_PATH_FIELD.error]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.showed]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.capabilityAction]: OPTIONAL_ACTION,
-	// The actions the caller held, as the comma-separated list that states them.
+	// The actions the caller held, as the comma-separated list that states them, which a step's line reads as actions.
 	[SEQ_PATH_FIELD.allowedAction]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.generatedAtTime]: z.string(),
 	[SEQ_PATH_FIELD.endedAtTime]: OPTIONAL_TEXT,
@@ -330,7 +330,7 @@ export const StepLineSchema = z.object({
 	ended: OPTIONAL_TEXT,
 	tookMs: z.number().optional(),
 	dispatch: z.object({ via: z.enum(RAN_VIA), on: OPTIONAL_TEXT }).optional(),
-	action: z.object({ required: ActionSchema, allowed: OPTIONAL_TEXT, holder: OPTIONAL_TEXT }).optional(),
+	action: z.object({ required: ActionSchema, allowed: z.array(ActionSchema).optional(), holder: OPTIONAL_TEXT }).optional(),
 });
 export type TStepLine = z.infer<typeof StepLineSchema>;
 
@@ -355,7 +355,9 @@ export function stepLine(record: Record<string, unknown>): TStepLine {
 		...(error === undefined ? {} : { error }),
 		...(ended === undefined ? {} : { ended, tookMs: Date.parse(ended) - Date.parse(began) }),
 		...(via === undefined ? {} : { dispatch: on === undefined ? { via } : { via, on } }),
-		...(required === undefined ? {} : { action: { required, ...(allowed === undefined ? {} : { allowed }), ...(performedBy === undefined ? {} : { holder: performedBy }) } }),
+		...(required === undefined
+			? {}
+			: { action: { required, ...(allowed === undefined ? {} : { allowed: heldActions(allowed) }), ...(performedBy === undefined ? {} : { holder: performedBy }) } }),
 	};
 }
 

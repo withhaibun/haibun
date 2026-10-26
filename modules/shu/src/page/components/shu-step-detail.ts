@@ -160,7 +160,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 			<div class="field"><span class="label">Action:</span> <span class="value">${STATUS_MARKS.get(line.status)?.icon} ${line.called === undefined ? "" : calledRef(line.called)}</span></div>
 			${line.error === undefined ? "" : html`<div class="field"><span class="label">Error:</span> <span class="value" style="color:var(--shu-error)">${line.error}</span></div>`}
 			<div class="section"><span class="label">Ran:</span> <span class="value">${dispatch === undefined ? "" : dispatch.via}${dispatch?.on === undefined ? "" : html` ${originLink(dispatch.on)}`}${line.tookMs === undefined ? "" : ` ${line.tookMs}ms`}</span></div>
-			${action === undefined ? "" : html`<div class="field"><span class="label">Capability:</span> <span class="value">${actionRef(action.required)}${action.allowed && ` allowed by ${action.allowed}`}</span></div>`}`;
+			${action === undefined ? "" : html`<div class="field"><span class="label">Capability:</span> <span class="value">${actionRef(action.required)}${action.allowed === undefined ? "" : html` allowed by${action.allowed.map((held) => html` ${actionRef(held)}`)}`}</span></div>`}`;
 	}
 
 	private renderContent(key: string, data: TStepData): TemplateResult {

@@ -62,9 +62,6 @@ export const isSystemSchemaType = (label: string): boolean => Catalog.isSystemSc
 /** Returns the property or edge that titles a type, where it declares one. */
 export const getTitledBy = (label: string): TTitledBy | undefined => catalog(`the title of ${label}`).titledBy[label];
 
-/** Whether a type records actuality itself. */
-export const isInstrumentationType = (label: string): boolean => catalog(`whether ${label} records actuality itself`).instrumentationTypes.has(label);
-
 /** The types whose declaration states they record actuality itself, which a graph hides until a reader shows them. */
 export const instrumentationTypes = (): ReadonlySet<string> => catalog("the instrumentation types").instrumentationTypes;
 
@@ -113,23 +110,14 @@ export function getSummaryFields(label: string): Set<string> {
 /** Returns a type's fields in the order a view shows them. */
 export const getPropertyOrder = (label: string): string[] => Catalog.propertyOrder(catalog(`the field order of ${label}`), label);
 
-/** Returns the UI extension a type's domain declares, where it declares one. */
-export const getUiByType = (label: string): Record<string, unknown> | undefined => catalog(`the UI of ${label}`).ui[label];
-
 /** Returns the views the catalog declares. */
 export const declaredViews = (): string[] => Catalog.declaredViews(catalog("the declared views"));
 
 /** Returns the element that shows a view. */
 export const componentOfView = (view: string): string => Catalog.componentOfView(catalog(`the component of ${view}`), view);
 
-/** Returns the component a record of `label` opens as, or undefined for the generic view. */
-export const getRecordComponent = (label: string): string | undefined => Catalog.recordComponent(catalog(`the record component of ${label}`), label);
-
 /** Returns the type whose records open in `component`. */
 export const typeShownIn = (component: string): string => Catalog.typeShownIn(catalog(`the type shown in <${component}>`), component);
-
-/** Returns the declaration of the component `component` names. */
-export const getUiByComponent = (component: string): Record<string, unknown> | undefined => Catalog.uiOfComponent(catalog(`the UI of ${component}`), component);
 
 /** Returns the concern that presents `kind`. */
 export const getUiPresenting = (kind: string): { type: string; ui: Record<string, unknown> } | undefined => Catalog.uiPresenting(catalog(`the presenter of ${kind}`), kind);
@@ -170,9 +158,6 @@ export const actorTypesFor = (sourceTypes: Iterable<string>): string[] => Catalo
 
 /** Returns the display phrase a concern declares for an edge, where it declares one. */
 export const getDeclaredEdgeLabel = (edgeName: string): string | undefined => catalog("the edges' phrases").declaredEdgeLabels.get(edgeName);
-
-/** Returns the fields a type offers as dropdowns. */
-export const getSelectFields = (label: string): string[] => Catalog.selectFields(catalog(`the dropdowns of ${label}`), label);
 
 /** Holds the dropdown values a type's fields offer, as the site returned them. */
 export const setSelectValues = (label: string, values: Record<string, string[]>): void => selectValues.set({ ...selectValues.get(), [label]: values });

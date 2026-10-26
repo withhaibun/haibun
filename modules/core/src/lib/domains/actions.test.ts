@@ -10,6 +10,7 @@ import {
 	ActionSchema,
 	capabilityAllows,
 	delegatedActions,
+	heldActions,
 	lackedAction,
 	mayCall,
 	narrowing,
@@ -189,5 +190,12 @@ describe("what a read returns", () => {
 	it("refuses a record whose level isn't one of the levels, and a record that doesn't state one", () => {
 		expect(() => withinAccess("Private", Access.public)).toThrow(`a record states the access level "Private", which isn't one of private, opened, public`);
 		expect(() => withinAccess(undefined, Access.public), "and a record that doesn't state a level").toThrow("a read refuses a record that doesn't state its access level");
+	});
+});
+
+describe("the actions a caller held", () => {
+	it("are read from a comma-separated list, each in an action's grammar", () => {
+		expect(heldActions("GraphStepper:createEdge, comment.grant, Read:private")).toEqual(["GraphStepper:createEdge", "comment.grant", "Read:private"]);
+		expect(() => heldActions("Read:private, read the store"), "a phrase isn't an action").toThrow();
 	});
 });

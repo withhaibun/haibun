@@ -181,7 +181,7 @@ describe("a step's line", () => {
 			ended: "2026-01-01T00:00:00.250Z",
 			tookMs: 250,
 			dispatch: { via: "remote", on: "https://gate.example" },
-			action: { required: "Check:ticket", allowed: "Check:ticket", holder: "did:example:gate" },
+			action: { required: "Check:ticket", allowed: ["Check:ticket"], holder: "did:example:gate" },
 		});
 	});
 

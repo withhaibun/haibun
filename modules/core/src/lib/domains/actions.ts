@@ -28,6 +28,8 @@ const ACTION_GRAMMAR = /^(\*|[A-Za-z][\w.-]*(:[\w.-]*)?\*?)$/;
  *  grammar, and a refusal states the grammar's pattern; one this module builds is stated in that grammar. */
 export const ActionSchema = z.string().regex(ACTION_GRAMMAR).brand<"Action">();
 export type TAction = z.infer<typeof ActionSchema>;
+/** The actions a caller held for a step, read from the comma-separated list a record states them in, each in an action's grammar. */
+export const heldActions = (held: string): TAction[] => actionList(held).map((action) => ActionSchema.parse(action));
 
 /** The action a read at `level` requires. */
 export const readAction = (level: AccessLevel): TAction => `${READ_PREFIX}${level}` as TAction;

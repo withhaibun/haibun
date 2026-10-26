@@ -3,13 +3,9 @@ import { installHydration, pageHydration, pageHydrationElement, pageOffline } fr
 import { readHydration } from "../pipelines/hydrate.js";
 import { HYDRATION_ID } from "../../domains/elements.js";
 import type { TCachePayload, TCarriedLabelFont } from "../../domains/hydration.js";
-import type { TActualityId } from "@haibun/core/lib/rpc-wire.js";
 
 /** Reads the page's hydration element, before any call, and holds what it parses. */
 export const hydrateFromDom = (): void => void installHydration(readHydration(pageHydrationElement(HYDRATION_ID)));
-
-/** Returns the actuality whose records the page reads. */
-export const hydratedActualityId = (): TActualityId => pageHydration().actualityId();
 
 /** Whether the page carries a record of actuality, which a site doesn't serve. */
 export const isOffline = pageOffline;
