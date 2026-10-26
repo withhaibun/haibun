@@ -1,6 +1,7 @@
 import { it, expect, describe, vi } from "vitest";
 
 import { DEF_PROTO_OPTIONS, getTestWorldWithOptions, testWithWorld } from "../lib/test/lib.js";
+import { LogicStepper } from "../lib/test/logic-stepper.js";
 import DebuggerStepper, { TDebuggingType } from "./debugger-stepper.js";
 import Haibun from "./haibun-stepper.js";
 import type { IPrompter, TPrompt, TPromptResponse } from "../lib/prompts/ports.js";
@@ -33,7 +34,7 @@ describe("DebuggerStepper", () => {
 		const testPrompter = new TestPrompter();
 		vi.spyOn(testPrompter, "prompt");
 		world.prompter.subscribe(testPrompter);
-		const res = await testWithWorld(world, [feature], [DebuggerStepper, Haibun]);
+		const res = await testWithWorld(world, [feature], [DebuggerStepper, Haibun, LogicStepper]);
 		expect(res.ok).toBe(true);
 		expect(testPrompter.prompt).toHaveBeenCalledTimes(1);
 	});
@@ -46,7 +47,7 @@ describe("DebuggerStepper", () => {
 		const spy = vi.spyOn(testPrompter, "prompt");
 		world.prompter.subscribe(testPrompter);
 
-		await testWithWorld(world, [feature], [DebuggerStepper, Haibun]);
+		await testWithWorld(world, [feature], [DebuggerStepper, Haibun, LogicStepper]);
 
 		expect(spy).toHaveBeenCalledTimes(1);
 		const promptCall = itemAt(spy.mock.calls, 0)[0];
@@ -66,7 +67,7 @@ describe("DebuggerStepper", () => {
 		const testPrompter = new TestPrompter();
 		vi.spyOn(testPrompter, "prompt");
 		world.prompter.subscribe(testPrompter);
-		const res = await testWithWorld(world, [feature], [ContinueDebuggerStepper, Haibun]);
+		const res = await testWithWorld(world, [feature], [ContinueDebuggerStepper, Haibun, LogicStepper]);
 		expect(res.ok).toBe(true);
 		expect(testPrompter.prompt).toHaveBeenCalledTimes(1);
 	});
@@ -93,7 +94,7 @@ describe("DebuggerStepper sequence integration", () => {
 		const testPrompter = new SequenceTestPrompter();
 		world.prompter.subscribe(testPrompter);
 		const feature = { path: "/features/test.feature", content: "debug step by step\nThis should be prompted.\nAnother step." };
-		const res = await testWithWorld(world, [feature], [DebuggerStepper, Haibun]);
+		const res = await testWithWorld(world, [feature], [DebuggerStepper, Haibun, LogicStepper]);
 		expect(res.ok).toBe(true);
 		// seqPath format: [hostId, featureNum, scenarioNum, stepSeq, ...]
 		// [0,1,0,1] debug step by step, [0,1,0,2,1] comment 1, [0,1,0,2,2] comment 2, [0,1,0,2,3] step (exits loop), [0,1,0,2] step 2, [0,1,0,3,1] step (exits loop), [0,1,0,3] step 3
@@ -128,7 +129,7 @@ describe("DebuggerStepper sequence integration", () => {
 		world.prompter.subscribe(testPrompter);
 		// Use TestSteps' fails action
 		const feature = { path: "/features/test.feature", content: "fails" };
-		const res = await testWithWorld(world, [feature], [DebuggerStepper, TestSteps, Haibun]);
+		const res = await testWithWorld(world, [feature], [DebuggerStepper, TestSteps, Haibun, LogicStepper]);
 		expect(res.ok).toBe(true); // 'next' allows continuation
 		// [0,1,0,1] failed step, [0,1,0,1,1] comment 1, [0,1,0,1,2] comment 2, [0,1,0,1,3] next (exits loop)
 		const seqs = itemAt(res.featureResults, 0).stepResults.map((r) => r.seqPath);
@@ -169,7 +170,7 @@ describe("DebuggerStepper sequence integration", () => {
 
 		// 'not fails' holds: the nested 'fails' is refuted.
 		const feature = { path: "/features/test.feature", content: "debug step by step\nnot fails" };
-		const res = await testWithWorld(world, [feature], [DebuggerStepper, TestSteps, Haibun]);
+		const res = await testWithWorld(world, [feature], [DebuggerStepper, TestSteps, Haibun, LogicStepper]);
 
 		// One prompt, for 'not fails'. 'debug step by step' sets the mode without a prompt.
 		expect(res.ok).toBe(true);

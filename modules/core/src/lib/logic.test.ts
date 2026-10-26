@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { passWithDefaults } from "./test/lib.js";
+import { LogicStepper } from "./test/logic-stepper.js";
 import Haibun from "../steps/haibun-stepper.js";
 import VariablesSteppers from "../steps/variables-stepper.js";
 import ActivitiesStepper from "../steps/activities-stepper.js";
@@ -36,7 +37,7 @@ variable loginType is "user"
 `,
 		};
 
-		const result = await passWithDefaults([mainFeature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [multipleOutcomes]);
+		const result = await passWithDefaults([mainFeature], [ActivitiesStepper, Haibun, VariablesSteppers, LogicStepper], DEF_PROTO_OPTIONS, [multipleOutcomes]);
 
 		expect(result.ok).toBe(true);
 	});
@@ -85,7 +86,11 @@ variable widgetDeleted is "true"
 `,
 		};
 
-		const result = await passWithDefaults([mainFeature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [loginRecipe, createWidgetRecipe, deleteWidgetRecipe]);
+		const result = await passWithDefaults([mainFeature], [ActivitiesStepper, Haibun, VariablesSteppers, LogicStepper], DEF_PROTO_OPTIONS, [
+			loginRecipe,
+			createWidgetRecipe,
+			deleteWidgetRecipe,
+		]);
 
 		expect(result.ok).toBe(true);
 	});
@@ -110,7 +115,7 @@ variable lastUser is "Bob"
 `,
 		};
 
-		const result = await passWithDefaults([mainFeature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [loginRecipe]);
+		const result = await passWithDefaults([mainFeature], [ActivitiesStepper, Haibun, VariablesSteppers, LogicStepper], DEF_PROTO_OPTIONS, [loginRecipe]);
 
 		expect(result.ok).toBe(true);
 	});
@@ -129,7 +134,7 @@ waypoint Shared outcome with variable shared is "value"`,
 
 		const feature2 = { path: "/features/feature2.feature", content: 'ensure Shared outcome\nvariable shared is "value"' };
 
-		const result = await passWithDefaults([feature1, feature2], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		const result = await passWithDefaults([feature1, feature2], [ActivitiesStepper, Haibun, VariablesSteppers, LogicStepper], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 	});
 });
@@ -157,7 +162,7 @@ set afterstep to "done"`,
 			not variable second exists`,
 		};
 
-		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers, LogicStepper], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 	});
 
@@ -172,7 +177,7 @@ set afterstep to "done"`,
 			not variable afterstep exists`,
 		};
 
-		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers, LogicStepper], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 	});
 });

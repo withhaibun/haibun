@@ -11,7 +11,7 @@ import { nextSeqPath, proveStep, type DispatchContext } from "@haibun/core/lib/a
 import { validatedFeatureStep } from "@haibun/core/lib/steps/pipelines/call-step.js";
 import { literalTerm, renderStepLine } from "@haibun/core/lib/steps/derivations/named-vars.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
-import { LOGIC_STEPPER_NAME, VERDICT, type TActionResult, type TStepResult } from "@haibun/core/lib/domains/protocol.js";
+import { VERDICT, type TActionResult, type TStepResult } from "@haibun/core/lib/domains/protocol.js";
 import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
 import { itemAt, valueAt } from "@haibun/core/lib/domains/item-at.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
@@ -49,8 +49,8 @@ import { proved } from "./prove.js";
 import { readerOf, writeFacts, type TReader } from "./reads.js";
 
 /** What a goal's proof reads: the context whose steps and domains state the rules and whose store holds the facts, the engine,
- *  and what the caller holds. */
-export type TGoalScope = { ctx: DispatchContext; engine: TLogicEngine; held: string | string[] | undefined };
+ *  what the caller holds, and the name of the logic engine's stepper, whose steps a proof calls. */
+export type TGoalScope = { ctx: DispatchContext; engine: TLogicEngine; held: string | string[] | undefined; stepper: string };
 
 const storeOf = ({ ctx }: TGoalScope): IQuadStore => ctx.world.shared.getStore();
 
@@ -106,7 +106,7 @@ export async function resolved(scope: TGoalScope, parent: TFeatureStep, goal: st
 	const resolution = await resolutionOf(scope, goal);
 	if (resolution.verdict === VERDICT.refuted) {
 		const unmet = resolution.unmetChain?.at(-1);
-		if (unmet !== undefined && unmet !== goal) await proveUnder(scope.ctx, parent, stepMethodName(LOGIC_STEPPER_NAME, "resolve"), { goal: unmet });
+		if (unmet !== undefined && unmet !== goal) await proveUnder(scope.ctx, parent, stepMethodName(scope.stepper, "resolve"), { goal: unmet });
 		return actionNotOK(`\`${parent.in}\` doesn't hold: ${unmetOf(resolution)}`);
 	}
 	const [fact] = resolution.factIds;

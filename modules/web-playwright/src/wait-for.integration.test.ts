@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { failWithDefaults } from "@haibun/core/lib/test/lib.js";
+import LogicStepper from "@haibun/logic/logic-stepper.js";
 import { DEFAULT_DEST } from "@haibun/core/lib/domains/protocol.js";
 import { getStepperOptionName } from "@haibun/core/lib/domains/util.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
@@ -26,7 +27,7 @@ const moduleOptions = {
 describe("wait for", () => {
 	it("waits for a test id as long as actuality's timeout states, and names that bound when the element doesn't appear", { timeout: 20_000 }, async () => {
 		const features = [{ path: "/features/wait.feature", content: `set absent as page-test-id to "absent"\nwait for absent\n` }];
-		const res = await failWithDefaults(features, [WebPlaywright, VariablesStepper, StorageMem], { options: { DEST: DEFAULT_DEST }, moduleOptions });
+		const res = await failWithDefaults(features, [WebPlaywright, VariablesStepper, StorageMem, LogicStepper], { options: { DEST: DEFAULT_DEST }, moduleOptions });
 		const failed = res.featureResults?.[0]?.stepResults.find((step) => !step.ok);
 		expect(failed?.in, "the wait is the step that failed").toBe("wait for absent");
 		expect(JSON.stringify(failed), "and it failed at the stated bound").toContain(`Timeout ${TIMEOUT_MS}ms exceeded`);
@@ -40,7 +41,7 @@ describe("wait for", () => {
 		const inPage = "wait for framed";
 		const content = [`go to the "http://127.0.0.1:${port}/" webpage`, `set framed as page-test-id to "framed"`, inFrame, inPage].join("\n");
 		try {
-			const res = await failWithDefaults([{ path: "/features/frame.feature", content }], [WebPlaywright, VariablesStepper, StorageMem], {
+			const res = await failWithDefaults([{ path: "/features/frame.feature", content }], [WebPlaywright, VariablesStepper, StorageMem, LogicStepper], {
 				options: { DEST: DEFAULT_DEST },
 				moduleOptions,
 			});
@@ -69,7 +70,7 @@ chip.addEventListener("mouseenter", () => preview.hidden = false); chip.addEvent
 			gone,
 		].join("\n");
 		try {
-			const res = await failWithDefaults([{ path: "/features/hover.feature", content }], [WebPlaywright, VariablesStepper, StorageMem], {
+			const res = await failWithDefaults([{ path: "/features/hover.feature", content }], [WebPlaywright, VariablesStepper, StorageMem, LogicStepper], {
 				options: { DEST: DEFAULT_DEST },
 				moduleOptions,
 			});
@@ -96,7 +97,7 @@ chip.addEventListener("mouseenter", () => preview.hidden = false); chip.addEvent
 			gone,
 		].join("\n");
 		try {
-			const res = await failWithDefaults([{ path: "/features/gone.feature", content }], [WebPlaywright, VariablesStepper, StorageMem], {
+			const res = await failWithDefaults([{ path: "/features/gone.feature", content }], [WebPlaywright, VariablesStepper, StorageMem, LogicStepper], {
 				options: { DEST: DEFAULT_DEST },
 				moduleOptions,
 			});

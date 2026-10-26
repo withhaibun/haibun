@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { getDefaultWorld, passWithDefaults } from "../lib/test/lib.js";
+import { LogicStepper } from "../lib/test/logic-stepper.js";
 import { AStepper } from "../lib/steps/domains/stepper.js";
 import { OK } from "../lib/domains/protocol.js";
 import { actionNotOK } from "../lib/domains/util.js";
@@ -50,7 +51,8 @@ const HELD_ON = "urn:uuid:held-on";
 /** A variable that actuality sets. A narrowed statement names this variable. */
 const [KEPT_NAME, KEPT] = ["kept", "actuality's"];
 
-const holds = async (content: string) => (await passWithDefaults([{ path: "/features/holding.feature", content }], [AuthorityStepper, VariablesStepper, PingStepper])).ok;
+const holds = async (content: string) =>
+	(await passWithDefaults([{ path: "/features/holding.feature", content }], [AuthorityStepper, VariablesStepper, PingStepper, LogicStepper])).ok;
 
 describe("holding only", () => {
 	it("runs a statement with a listed action its caller holds", async () => {
@@ -83,7 +85,7 @@ describe("what a narrowed statement reads", () => {
 
 describe("the calls held open", () => {
 	it("are listed by the capability each rests on", async () => {
-		const result = await passWithDefaults([{ path: "/features/held.feature", content: "holds a call\nshow held calls\n" }], [AuthorityStepper, PingStepper]);
+		const result = await passWithDefaults([{ path: "/features/held.feature", content: "holds a call\nshow held calls\n" }], [AuthorityStepper, PingStepper, LogicStepper]);
 		expect(result.featureResults?.[0]?.stepResults.at(-1)?.products).toMatchObject({ capabilities: [{ capability: HELD_ON, calls: 1 }] });
 	});
 });

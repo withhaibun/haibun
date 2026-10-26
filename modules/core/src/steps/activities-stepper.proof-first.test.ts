@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 
 import { ActivitiesStepper } from "./activities-stepper.js";
 import { passWithDefaults } from "../lib/test/lib.js";
+import { LogicStepper } from "../lib/test/logic-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun-stepper.js";
 
@@ -24,7 +25,7 @@ The activity body set the variable.
     variable myVariable is "fromActivity"
 `;
 
-		const result = await passWithDefaults(feature, [ActivitiesStepper, VariablesStepper, Haibun]);
+		const result = await passWithDefaults(feature, [ActivitiesStepper, VariablesStepper, Haibun, LogicStepper]);
 
 		expect(result.ok).toBe(true);
 	});
@@ -49,7 +50,7 @@ Running the activity body would set myVariable to "fromActivity" and fail the la
     variable myVariable is "initialValue"
 `;
 
-		const result = await passWithDefaults(feature, [ActivitiesStepper, VariablesStepper, Haibun]);
+		const result = await passWithDefaults(feature, [ActivitiesStepper, VariablesStepper, Haibun, LogicStepper]);
 
 		expect(result.ok).toBe(true);
 	});
@@ -70,7 +71,7 @@ ActivitiesStepper registers the outcome when the waypoint line resolves.
     variable counter is "1"
 `;
 
-		const result = await passWithDefaults(feature, [ActivitiesStepper, VariablesStepper, Haibun]);
+		const result = await passWithDefaults(feature, [ActivitiesStepper, VariablesStepper, Haibun, LogicStepper]);
 
 		expect(result.ok).toBe(true);
 	});

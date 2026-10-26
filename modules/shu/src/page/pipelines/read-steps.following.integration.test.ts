@@ -9,6 +9,7 @@ import { describe, it } from "vitest";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { actionOK, getStepperOptionName } from "@haibun/core/lib/domains/util.js";
 import { DEF_PROTO_OPTIONS, freePort, getTestWorldWithOptions, testWithWorld } from "@haibun/core/lib/test/lib.js";
+import LogicStepper from "@haibun/logic/logic-stepper.js";
 import { hostScopedMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
@@ -99,7 +100,7 @@ describe("a page open on a run", () => {
 			path: "/features/rpc-registry-following.feature",
 			content: `webserver is listening for "a page following actuality's steps"\npage at "${base}" reads actuality's steps\nrun adds another host's step\npage holds the added step\n`,
 		};
-		const result = await testWithWorld(world, [feature], [WebServerStepper, ShuStepper, MonitorStepper, StorageFS, Haibun, StepsPage]);
+		const result = await testWithWorld(world, [feature], [WebServerStepper, ShuStepper, MonitorStepper, StorageFS, Haibun, StepsPage, LogicStepper]);
 		if (!result.ok)
 			throw new Error(JSON.stringify({ failure: result.failure, steps: result.featureResults?.map((f) => f.stepResults.filter((s) => !s.ok).map((s) => [s.in, s.errorMessage])) }));
 	});

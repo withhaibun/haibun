@@ -18,6 +18,7 @@ import { STORE_METHOD_PREFIX, STORE_READ } from "@haibun/core/lib/domains/store-
 import { GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
 import { z } from "zod";
 import { passWithDefaults, DEF_PROTO_OPTIONS, freePort } from "@haibun/core/lib/test/lib.js";
+import LogicStepper from "@haibun/logic/logic-stepper.js";
 import { TEST_DOMAIN, declaresTestDomains } from "@haibun/core/lib/test/test-domains.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { LogEvent, OK, type TStepArgs } from "@haibun/core/lib/domains/protocol.js";
@@ -530,7 +531,7 @@ class NoticeStepper extends AStepper {
 	};
 }
 
-const steppers = [WebServerStepper, PingStepper, RpcVerifyStepper, ReadStepper, Haibun];
+const steppers = [WebServerStepper, PingStepper, RpcVerifyStepper, ReadStepper, Haibun, LogicStepper];
 /** The steppers with a stand-in authority, for a case whose caller signs what it calls. */
 const signedSteppers = [AuthorityStepper, FakeAuthorityStepper, ...steppers];
 
@@ -844,7 +845,7 @@ webserver is listening for "rpc-begin-action"
 begin action twice at "http://localhost:${port}/rpc/${ACTION_BEGIN}"
 `,
 		};
-		const r = await passWithDefaults([feature], [WebServerStepper, PingStepper, BeginActionStepper], makeOptions(port));
+		const r = await passWithDefaults([feature], [WebServerStepper, PingStepper, BeginActionStepper, LogicStepper], makeOptions(port));
 		expect(r.ok).toBe(true);
 		if (!first || !second) throw new Error("begin action did not return seqPaths");
 		expect(first.length).toBeGreaterThan(0);
@@ -880,7 +881,7 @@ webserver is listening for "rpc-missing-seqpath"
 rpc call to "http://localhost:${port}/rpc/PingStepper-ping" without seqPath succeeds
 `,
 		};
-		const r = await passWithDefaults([feature], [WebServerStepper, PingStepper, MissingSeqPathStepper], makeOptions(port, "PingStepper:ping"));
+		const r = await passWithDefaults([feature], [WebServerStepper, PingStepper, MissingSeqPathStepper, LogicStepper], makeOptions(port, "PingStepper:ping"));
 		expect(r.ok).toBe(true);
 		// External callers without a feature-step context get a server-synthesised seqPath; the call succeeds.
 		expect(rpcResponse?.error).toBeUndefined();
@@ -994,7 +995,7 @@ webserver is listening for "stream-rpc"
 stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-stream3" method "StreamingStepper-stream3" emits chunks
 `,
 		};
-		const result = await passWithDefaults([feature], [WebServerStepper, StreamingStepper, StreamingRpcVerifyStepper], makeOptions(port, "StreamingStepper:stream3"));
+		const result = await passWithDefaults([feature], [WebServerStepper, StreamingStepper, StreamingRpcVerifyStepper, LogicStepper], makeOptions(port, "StreamingStepper:stream3"));
 		expect(result.ok).toBe(true);
 		// All three streamed chunks arrived via streamContext.emit; the stream doesn't hold a terminal "products" record because dispatch was OK.
 		expect(collectedChunks).toEqual([{ status: "starting" }, { text: "alpha" }, { text: "beta" }]);
@@ -1059,7 +1060,7 @@ stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-fail" method "
 		};
 		const result = await passWithDefaults(
 			[feature],
-			[WebServerStepper, StreamingStepper, StreamingErrorVerifyStepper],
+			[WebServerStepper, StreamingStepper, StreamingErrorVerifyStepper, LogicStepper],
 			makeOptions(port, "StreamingStepper:refuse,StreamingStepper:fail"),
 		);
 		expect(result.ok).toBe(true);

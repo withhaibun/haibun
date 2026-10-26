@@ -8,6 +8,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { getDefaultWorld, testWithWorld } from "../lib/test/lib.js";
+import { LogicStepper } from "../lib/test/logic-stepper.js";
 import { resolveSitePrincipal } from "../lib/domains/host-id.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { Access, COMMENT_LABEL, LinkRelations, type TDomainDefinition } from "../lib/domains/resources.js";
@@ -69,7 +70,7 @@ const CAP_JSON = JSON.stringify({
 	proof: { type: "DataIntegrityProof", verificationMethod: `${SUBKEY_DID}#key-1`, proofValue: "z-stub-signature" },
 });
 
-const STEPPERS = [AuthorityStepper, StubVerifierStepper, ResourcesStepper, TestNodeStepper, VariablesStepper];
+const STEPPERS = [AuthorityStepper, StubVerifierStepper, ResourcesStepper, TestNodeStepper, VariablesStepper, LogicStepper];
 
 describe("AuthorityStepper signed-capability path", () => {
 	it("attributes authored writes inside `holding capability` to the verified capability's controller", async () => {

@@ -1,7 +1,7 @@
 import type { TWorld, TProtoOptions } from "../actuality/domains/world.js";
 import { newActualityId } from "../transport/domains/rpc-wire.js";
 import { CStepper } from "../steps/domains/stepper.js";
-import { DEFAULT_DEST, LOGIC_STEPPER, LOGIC_STEPPER_NAME, TExecutorResult } from "../domains/protocol.js";
+import { DEFAULT_DEST, LOGIC_STEPPER, TExecutorResult } from "../domains/protocol.js";
 import { getRunTag } from "../domains/ttag.js";
 import { DEFAULT_HOST_ID } from "../domains/host-id.js";
 import { resolveSitePrincipal } from "../domains/host-id.js";
@@ -82,7 +82,7 @@ export async function testWithWorld(
 	const features = asFeatures(inFeatures.map(withBases));
 	const backgrounds = asFeatures(backgroundsIn.map(withBases));
 
-	const ran = await new Runner(world).runFeaturesAndBackgrounds(await withLogic(useSteppers), { features, backgrounds });
+	const ran = await new Runner(world).runFeaturesAndBackgrounds(useSteppers, { features, backgrounds });
 	return { ...ran, world };
 }
 
@@ -105,13 +105,6 @@ function testProver(): TProver {
 		prove: async (ctx, featureStep) => (await prover()).prove(ctx, featureStep),
 		proveStatements: async (ctx, parent, statements, targetHostId) => (await prover()).proveStatements(ctx, parent, statements, targetHostId),
 	};
-}
-
-/** A test's steppers with the logic engine's stepper, which every configuration lists, as config.base.json does. A test that
- *  passes the stepper's class uses it, so a test whose environment doesn't load a module by its path, such as jsdom's, runs. */
-export async function withLogic(useSteppers: CStepper[]): Promise<CStepper[]> {
-	if (useSteppers.some((stepper) => stepper.name === LOGIC_STEPPER_NAME)) return useSteppers;
-	return [...useSteppers, ...(await getSteppers([LOGIC_STEPPER]))];
 }
 
 export function getTestWorldWithOptions(protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, env = { HAIBUN_LOG_LEVEL: "none" }) {

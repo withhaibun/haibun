@@ -8,6 +8,7 @@ import Haibun from "./haibun-stepper.js";
 import { AStepper } from "../lib/steps/domains/stepper.js";
 import { OK } from "../lib/domains/protocol.js";
 import { eventHubOfTest, failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
+import { LogicStepper } from "../lib/test/logic-stepper.js";
 import type { TWorld } from "../lib/actuality/domains/world.js";
 import { runInStep } from "../lib/domains/capability-context.js";
 import { itemAt } from "../lib/domains/item-at.js";
@@ -144,7 +145,7 @@ class Emitter extends AStepper {
 	};
 }
 
-const STEPPERS = [Haibun, BlipsStepper, VariablesStepper, Emitter];
+const STEPPERS = [Haibun, BlipsStepper, VariablesStepper, Emitter, LogicStepper];
 
 describe("the feature steps: watch blips, record occurrences, and read the watch", () => {
 	beforeEach(() => {

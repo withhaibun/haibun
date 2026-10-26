@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 import { passWithDefaults, DEF_PROTO_OPTIONS, freePort } from "@haibun/core/lib/test/lib.js";
+import LogicStepper from "@haibun/logic/logic-stepper.js";
 import { TEST_DOMAIN, declaresTestDomains } from "@haibun/core/lib/test/test-domains.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { actionOKWithProducts, getStepperOptionName } from "@haibun/core/lib/domains/util.js";
@@ -144,7 +145,7 @@ const mcpOptions = (port: number) => ({
 	moduleOptions: { [getStepperOptionName(WebServerStepper, "PORT")]: String(port), [getStepperOptionName(McpStepper, "PORT")]: String(port) },
 });
 
-const signedSteppers = [WebServerStepper, McpStepper, AuthorityStepper, FakeAuthorityStepper, ProtectedStepper];
+const signedSteppers = [WebServerStepper, McpStepper, AuthorityStepper, FakeAuthorityStepper, ProtectedStepper, LogicStepper];
 
 describe("McpStepper capability enforcement", () => {
 	it("denies a protected tool to a caller that doesn't present authority", async () => {
@@ -157,7 +158,7 @@ webserver is listening for "mcp capability denied"
 verify protected mcp tool on port ${port} is denied
 `,
 		};
-		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, ProtectedStepper], mcpOptions(port));
+		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, ProtectedStepper, LogicStepper], mcpOptions(port));
 		if (!result.ok) throw new Error(JSON.stringify(result.featureResults, null, 2));
 		expect(result.ok).toBe(true);
 	});
@@ -174,7 +175,7 @@ verify protected mcp tool signed by "agent" on port ${port} succeeds
 verify protected mcp tool signed by "agent" on port ${port} is refused when its body is not the one signed
 `,
 		};
-		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, AuthorityStepper, FakeAuthorityStepper, ProtectedStepper], mcpOptions(port));
+		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, AuthorityStepper, FakeAuthorityStepper, ProtectedStepper, LogicStepper], mcpOptions(port));
 		if (!result.ok) throw new Error(JSON.stringify(result.featureResults, null, 2));
 		expect(result.ok).toBe(true);
 	});
@@ -224,7 +225,7 @@ webserver is listening for "mcp actuality"
 verify an mcp call on port ${port} stating another actuality is refused, and one stating this one is served
 `,
 		};
-		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, ProtectedStepper], mcpOptions(port));
+		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, ProtectedStepper, LogicStepper], mcpOptions(port));
 		if (!result.ok) throw new Error(JSON.stringify(result.featureResults, null, 2));
 		expect(result.ok).toBe(true);
 	});
@@ -241,7 +242,7 @@ verify protected mcp tool signed by "agent" on port ${port} succeeds
 verify admin mcp tool signed by "agent" for "ProtectedStepper:invoke" on port ${port} is denied
 `,
 		};
-		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, AuthorityStepper, FakeAuthorityStepper, ProtectedStepper], mcpOptions(port));
+		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, AuthorityStepper, FakeAuthorityStepper, ProtectedStepper, LogicStepper], mcpOptions(port));
 		if (!result.ok) throw new Error(JSON.stringify(result.featureResults, null, 2));
 		expect(result.ok).toBe(true);
 	});

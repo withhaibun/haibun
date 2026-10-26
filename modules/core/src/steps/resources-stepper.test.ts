@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import ResourcesStepper from "./resources-stepper.js";
 import Haibun from "./haibun-stepper.js";
 import { getDefaultWorld, getTestWorldWithOptions, testWithWorld } from "../lib/test/lib.js";
+import { LogicStepper } from "../lib/test/logic-stepper.js";
 import { Access, BODY_LABEL, LinkRelations, READING_LABEL, SEQ_PATH_LABEL, SPECIFIC_RESOURCE_LABEL } from "../lib/domains/resources.js";
 import { MEDIA_TYPE } from "../lib/domains/media-types.js";
 import { setPrincipal } from "../lib/pipelines/principal.js";
@@ -68,7 +69,7 @@ describe("ResourcesStepper typed links in a feature's prose", () => {
 	it("states a prose link as a fact about its step, checks that the quoted passage resolves, and reads the statement with its reading", async () => {
 		const world = await worldHoldingPassage();
 		const feature = ["This scenario demonstrates [a passage:citesAsEvidence](#Body:practice:~:text=Boatbuilding).", "check citations resolve", 'statements with "citesAsEvidence"'];
-		const ran = await testWithWorld(world, feature.join("\n"), [Haibun, ResourcesStepper]);
+		const ran = await testWithWorld(world, feature.join("\n"), [Haibun, ResourcesStepper, LogicStepper]);
 		expect(ran.ok, JSON.stringify(ran.failure)).toBe(true);
 		const read = itemAt(ran.featureResults, 0).stepResults.at(-1)?.products;
 		expect(read).toMatchObject({
@@ -82,6 +83,7 @@ describe("ResourcesStepper typed links in a feature's prose", () => {
 		const ran = await testWithWorld(world, "This scenario demonstrates [a passage:citesAsEvidence](#Body:practice:~:text=Shipwrighting).\ncheck citations resolve", [
 			Haibun,
 			ResourcesStepper,
+			LogicStepper,
 		]);
 		expect(ran.failure?.error.message).toMatch(/1 of 1 citations no longer resolve:\nBody "practice" no longer states/);
 	});
@@ -95,7 +97,7 @@ describe("ResourcesStepper typed links in a feature's prose", () => {
 			`annotate note ${note}`,
 			`get annotations for ${BODY_LABEL} "practice"`,
 		];
-		const ran = await testWithWorld(world, feature.join("\n"), [Haibun, ResourcesStepper]);
+		const ran = await testWithWorld(world, feature.join("\n"), [Haibun, ResourcesStepper, LogicStepper]);
 		expect(ran.ok, JSON.stringify(ran.failure)).toBe(true);
 		const read = itemAt(ran.featureResults, 0).stepResults.at(-1)?.products as { annotations: { body?: string; links?: unknown[] }[] };
 		expect(read.annotations.map(({ body }) => body).sort()).toEqual(["A craft.", "Dated.", "The same passage."]);

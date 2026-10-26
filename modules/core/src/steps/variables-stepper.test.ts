@@ -1,6 +1,7 @@
 import { it, expect, describe } from "vitest";
 
 import { DEF_PROTO_OPTIONS, failWithDefaults, getTestWorldWithOptions, passWithDefaults } from "../lib/test/lib.js";
+import { LogicStepper } from "../lib/test/logic-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
 import { DEFAULT_DEST, Origin } from "../lib/domains/protocol.js";
 import Haibun from "./haibun-stepper.js";
@@ -17,7 +18,7 @@ import { StepRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { addStepperConcerns } from "../lib/actuality/pipelines/executor.js";
 import { typeCollectionRemedy } from "../lib/domains/typed-links.js";
 
-const steppers = [VariablesStepper, Haibun];
+const steppers = [VariablesStepper, Haibun, LogicStepper];
 
 describe("vars", () => {
 	it("assigns", async () => {
@@ -75,7 +76,7 @@ describe("vars", () => {
 describe("random vars", () => {
 	it("cannot overwrite read-only variable", async () => {
 		const content = 'set x as read-only string to "1"\nset x to "2"';
-		const result = await failWithDefaults(content, [VariablesStepper]);
+		const result = await failWithDefaults(content, [VariablesStepper, LogicStepper]);
 		expect(result.ok).toBe(false);
 		expect(result.failure?.error?.message).toContain('the variable x isn\'t set: the variable "x" is read-only; set a variable of another name');
 	});
@@ -236,7 +237,7 @@ variable feature variable is "something else"
 describe("a value a dot path reads from JSON", () => {
 	const HELD = `set read as json to ${JSON.stringify({ total: 3, names: ["alpha", "beta"] })}`;
 	const run = (lines: string[]) => ({ path: "/features/test.feature", content: [HELD, ...lines].join("\n") });
-	const steppers = [Haibun, VariablesStepper];
+	const steppers = [Haibun, VariablesStepper, LogicStepper];
 
 	it("compares a number as a number", async () => {
 		expect((await passWithDefaults([run(["variable read.total is 3", "variable read.total is more than 2"])], steppers)).ok).toBe(true);

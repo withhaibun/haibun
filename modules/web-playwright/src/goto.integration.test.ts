@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { failWithDefaults } from "@haibun/core/lib/test/lib.js";
+import LogicStepper from "@haibun/logic/logic-stepper.js";
 import { DEFAULT_DEST } from "@haibun/core/lib/domains/protocol.js";
 import { getStepperOptionName } from "@haibun/core/lib/domains/util.js";
 import StorageMem from "@haibun/storage-mem/storage-mem-stepper.js";
@@ -23,7 +24,7 @@ describe("the step that opens a webpage", () => {
 		const { port } = server.address() as AddressInfo;
 		const [first, relative, seen] = [`go to the "http://127.0.0.1:${port}/" webpage`, `go to the "${NEXT}" webpage`, `see "the next page"`];
 		const run = (content: string) =>
-			failWithDefaults([{ path: "/features/goto.feature", content }], [WebPlaywright, StorageMem], { options: { DEST: DEFAULT_DEST }, moduleOptions });
+			failWithDefaults([{ path: "/features/goto.feature", content }], [WebPlaywright, StorageMem, LogicStepper], { options: { DEST: DEFAULT_DEST }, moduleOptions });
 		try {
 			const blank = (await run(relative)).featureResults?.[0]?.stepResults.find((step) => step.in === relative);
 			expect(blank?.ok, "a relative link from a blank page doesn't resolve").toBe(false);

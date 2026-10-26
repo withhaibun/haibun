@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getDefaultWorld, testWithWorld } from "../lib/test/lib.js";
+import { LogicStepper } from "../lib/test/logic-stepper.js";
 import { PRINCIPAL_LABEL } from "../lib/domains/resources.js";
 import { recordOf } from "../lib/records/pipelines/record-reads.js";
 import AuthorityStepper from "./authority-stepper.js";
@@ -16,7 +17,7 @@ name a connecting site
 `,
 		};
 
-		const result = await testWithWorld(world, [feature], [AuthorityStepper, ResourcesStepper]);
+		const result = await testWithWorld(world, [feature], [AuthorityStepper, ResourcesStepper, LogicStepper]);
 		if (!result.ok) throw new Error(JSON.stringify(result.featureResults, null, 2));
 
 		const store = world.shared.getStore();

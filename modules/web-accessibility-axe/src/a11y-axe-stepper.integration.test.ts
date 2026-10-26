@@ -1,6 +1,7 @@
 import { describe, it, expect, afterAll } from "vitest";
 
 import { failWithDefaults, passWithDefaults } from "@haibun/core/lib/test/lib.js";
+import LogicStepper from "@haibun/logic/logic-stepper.js";
 import A11yAxe from "./a11y-axe-stepper.js";
 import { DEFAULT_DEST } from "@haibun/core/lib/domains/protocol.js";
 import { getStepperOptionName } from "@haibun/core/lib/domains/util.js";
@@ -43,7 +44,7 @@ page is accessible accepting serious "99" and moderate "90"
 			},
 		];
 
-		const res = await passWithDefaults(features, [A11yAxe, WebPlaywright, StorageMem], { options, moduleOptions });
+		const res = await passWithDefaults(features, [A11yAxe, WebPlaywright, StorageMem, LogicStepper], { options, moduleOptions });
 		expect(res.ok).toBe(true);
 		expect(res.featureResults?.[0]?.stepResults?.[1]?.artifact).toMatchObject({ artifactType: "html" });
 	});
@@ -58,7 +59,7 @@ page is accessible accepting serious "0" and moderate "0"
 			},
 		];
 
-		const res = await failWithDefaults(features, [A11yAxe, WebPlaywright, StorageMem], { options, moduleOptions });
+		const res = await failWithDefaults(features, [A11yAxe, WebPlaywright, StorageMem, LogicStepper], { options, moduleOptions });
 		expect(res.ok).toBe(false);
 		expect(res.featureResults?.[0]?.stepResults?.[1]?.artifact).toMatchObject({ artifactType: "html" });
 		// Each rule axe applied is an assertion the checking step made, and a violation is a failed result.

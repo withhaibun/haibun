@@ -176,27 +176,27 @@
 			"actuality": {
 				"text": "e2e-tests/shu-self-test, node_modules/@haibun/web-playwright/waypoints",
 				"status": "passed",
-				"tookMs": 141500,
+				"tookMs": 147100,
 				"digest": {
 					"e2e-tests/shu-self-test": "09417712b9ea6be6fbe3f57c88d306a4563983f4dd031905709ea565b07dd1e1",
-					"modules/core/src": "6763e2370d65b0cb891d7f214090a4b0700ed47c8db0397992147486a89eba91",
+					"modules/core/src": "1e5ea94e17c4fd940b4fd75b145d0ace34acc640267f2a11003957a31aa2f49d",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
-					"modules/logic/src": "cccd368317a5aea6bebebe5ad0a5be863ce23fbbe3124c822a450caeee5ca362",
+					"modules/logic/src": "dff4d32b4be1a732615381d0e956cf4c8ae6f5201907f59f73551707a4ba4ed7",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/shu/src": "f1d758000c5c3392695f21f44ec0f6e349cdbb483385c27e4a22c9cd52d8654e",
+					"modules/shu/src": "a14f7d965f407ebb5abcd2349ea0d55a74bd9cb482767da316b88288e7c7e7f7",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
-					"modules/web-playwright/src": "3084c88fbbb85e4d264bb67ed6d080de37bbdca008bafa0a3fd2581fff218c2a",
+					"modules/web-playwright/src": "49851a0e5a5b5769c55f785122b0b5f3d78e5997a872ac5d57ef8119ae3c38a4",
 					"modules/web-playwright/waypoints": "383e3b858b728ae0354b196cb44f66a61e33747a5d3fe420fae9c78ee6dfaf10",
-					"modules/web-server-hono/src": "334a21921dcfe06774443de2bfd77b09c58931fc7b738352cd5f9b02c9c51053"
+					"modules/web-server-hono/src": "f1b3e793a9f02073b4b7fe1424dee793b6347fbe39ef67e156f83e7bacd44f30"
 				}
 			},
 			"features": {
 				"/features/shu-self-test.feature.ts": {
 					"text": "Shu SPA Self-Test",
 					"status": "passed",
-					"tookMs": 138400,
-					"steps": 737
+					"tookMs": 144400,
+					"steps": 739
 				},
 				"/features/z-post.feature.ts": {
 					"text": "Verify Shu Standalone Output Doesn't Hold Secrets",

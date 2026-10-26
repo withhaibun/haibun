@@ -5,6 +5,7 @@ import { foldStep } from "../derivations/step-results.js";
 import { STAY_ALWAYS, STAY_FAILURE, type TFeatureResult, type TFeatureSteps, type TStepResult } from "../../domains/protocol.js";
 import { calculateShouldClose, actualityFailure, staysAfterActuality } from "../derivations/actuality-end.js";
 import { passWithDefaults, failWithDefaults } from "../../test/lib.js";
+import { LogicStepper } from "../../test/logic-stepper.js";
 import { scenarioEventId } from "../derivations/lifecycle-events.js";
 import { equalTo, readEvery } from "../../records/pipelines/record-reads.js";
 import { SEQ_PATH_LABEL } from "../../domains/resources.js";
@@ -187,7 +188,7 @@ describe("the actuality the Executor moves", () => {
 				{ path: "/features/a.feature", content: a },
 				{ path: "/features/b.feature", content: 'note "one"\nrefuse here' },
 			],
-			[SceneStepper],
+			[SceneStepper, LogicStepper],
 		);
 		const { actuality } = result;
 		expect(actuality.status).toBe("failed");
@@ -246,7 +247,7 @@ describe("a pending scenario", () => {
 
 	it("doesn't resolve or run its lines, and the feature's result names it as pending", async () => {
 		const content = "Scenario: Now\npasses\nPending scenario: Later\na line that names no step\nScenario: After\npasses";
-		const result = await passWithDefaults([{ path: "/features/pending.feature", content }], [Haibun, CountingStepper]);
+		const result = await passWithDefaults([{ path: "/features/pending.feature", content }], [Haibun, CountingStepper, LogicStepper]);
 		const feature = itemAt(result.featureResults, 0);
 		expect(feature.pending).toEqual(["Later"]);
 		expect(feature.stepResults.map((step) => step.in)).not.toContain("a line that names no step");

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { testWithWorld, getDefaultWorld } from "../lib/test/lib.js";
+import { LogicStepper } from "../lib/test/logic-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun-stepper.js";
 
@@ -11,7 +12,7 @@ describe("onEvent hook infrastructure", () => {
 		// Executor.executeFeatures overwrites this callback to route to steppers, but events
 		// are still emitted to console.log; JSON in stdout confirms EventLogger.emit() runs.
 
-		const res = await testWithWorld(world, [feature], [VariablesStepper, Haibun], []);
+		const res = await testWithWorld(world, [feature], [VariablesStepper, Haibun, LogicStepper], []);
 		expect(res.ok).toBe(true);
 
 		// JSON in stdout confirms EventLogger.emit() fires for lifecycle events with

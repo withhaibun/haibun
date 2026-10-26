@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { freePort, getTestWorldWithOptions, testWithWorld, DEF_PROTO_OPTIONS } from "@haibun/core/lib/test/lib.js";
+import LogicStepper from "@haibun/logic/logic-stepper.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { findStepper, getStepperOptionName } from "@haibun/core/lib/domains/util.js";
@@ -73,6 +74,7 @@ describe("the monitor serves the shu views of actuality on its own port", () => 
 			GraphSourceStepper,
 			StorageFS,
 			ReadsTheMonitorStepper,
+			LogicStepper,
 		]);
 		expect(result.ok, JSON.stringify(result.failure)).toBe(true);
 

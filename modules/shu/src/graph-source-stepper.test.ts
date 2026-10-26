@@ -2,6 +2,7 @@
 // edges its quads name, and what a graph view shows as TPTP formulas.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDefaultWorld, getTestWorldWithOptions, testWithWorld } from "@haibun/core/lib/test/lib.js";
+import LogicStepper from "@haibun/logic/logic-stepper.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import ResourcesStepper from "@haibun/core/steps/resources-stepper.js";
 import type { TStepResult } from "@haibun/core/lib/domains/protocol.js";
@@ -305,7 +306,7 @@ describe("the counts a shape reads, and the rows of a graph query a time bounds"
 		await store.upsertIndividual("Comment", comment("late", "2026-03-01T00:00:00.000Z"));
 		const query = JSON.stringify({ label: "Comment" });
 		const lines = [`since "2026-02-01", graph query ${query}`, `before "2026-02-01", graph query ${query}`];
-		const ran = await testWithWorld(world, lines.join("\n"), [Haibun, ResourcesStepper, GraphSourceStepper]);
+		const ran = await testWithWorld(world, lines.join("\n"), [Haibun, ResourcesStepper, GraphSourceStepper, LogicStepper]);
 		expect(ran.ok, JSON.stringify(ran.failure)).toBe(true);
 		const ids = (line: string) => {
 			const products = (ran.world.runtime.stepResults as TStepResult[]).find((step) => step.in === line)?.products as { vertices: { id: string }[] } | undefined;
@@ -337,7 +338,7 @@ describe("the counts a shape reads, and the rows of a graph query a time bounds"
 		])
 			await store.upsertIndividual("Comment", { id, author: "did:site:0", generatedAtTime, accessLevel: Access.public });
 		const line = `limited to 1, ordered by "generatedAtTime", graph query ${JSON.stringify({ label: "Comment" })}`;
-		const ran = await testWithWorld(world, line, [Haibun, ResourcesStepper, GraphSourceStepper]);
+		const ran = await testWithWorld(world, line, [Haibun, ResourcesStepper, GraphSourceStepper, LogicStepper]);
 		expect(ran.ok, JSON.stringify(ran.failure)).toBe(true);
 		const rows = (products: unknown) => z.object({ vertices: z.array(z.object({ id: z.string() })), total: z.number() }).parse(products);
 		const lined = rows((ran.world.runtime.stepResults as TStepResult[]).find((step) => step.in === line)?.products);

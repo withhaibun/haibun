@@ -1,10 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { passWithDefaults } from "../test/lib.js";
+import { LogicStepper } from "../test/logic-stepper.js";
 import VariablesStepper from "../../steps/variables-stepper.js";
 import Haibun from "../../steps/haibun-stepper.js";
 import { Origin } from "../domains/protocol.js";
 
-const steppers = [VariablesStepper, Haibun];
+const steppers = [VariablesStepper, Haibun, LogicStepper];
 
 describe("variables integration", () => {
 	it("resolves variables from world", async () => {

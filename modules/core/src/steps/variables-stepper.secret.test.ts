@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { DEF_PROTO_OPTIONS, getTestWorldWithOptions, testWithWorld } from "../lib/test/lib.js";
+import { LogicStepper } from "../lib/test/logic-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun-stepper.js";
 import { OBSCURED_VALUE } from "../lib/steps/domains/secrets.js";
@@ -30,7 +31,7 @@ async function runWithSecrets(lines: string[]) {
 	const world = getTestWorldWithOptions({ ...DEF_PROTO_OPTIONS, options: { ...DEF_PROTO_OPTIONS.options, envVariables: { [SECRET_ENV]: SECRET } } });
 	const events: THaibunEvent[] = [];
 	world.eventLogger.subscribe((event) => events.push(event));
-	const ran = await testWithWorld(world, lines.join("\n"), [VariablesStepper, Haibun]);
+	const ran = await testWithWorld(world, lines.join("\n"), [VariablesStepper, Haibun, LogicStepper]);
 	const store = ran.world.shared.getStore();
 	const stepRecords = await store.query({ namedGraph: SEQ_PATH_LABEL });
 	return { ran, store, events, stepRecords };

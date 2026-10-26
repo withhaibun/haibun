@@ -9,6 +9,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createServer, type Server } from "node:http";
 import { failWithDefaults, freePort, passWithDefaults } from "@haibun/core/lib/test/lib.js";
+import LogicStepper from "@haibun/logic/logic-stepper.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { actionNotOK, errorDetail, getStepperOptionName } from "@haibun/core/lib/domains/util.js";
 import { DEFAULT_DEST, OK, type TStepArgs } from "@haibun/core/lib/domains/protocol.js";
@@ -88,7 +89,7 @@ class PersonsExtension extends AStepper {
 	};
 }
 
-const steppers = [WebServerStepper, WebPlaywright, VariablesStepper, StorageMem, AuthorityStepper, FakeAuthorityStepper, PersonsExtension];
+const steppers = [WebServerStepper, WebPlaywright, VariablesStepper, StorageMem, AuthorityStepper, FakeAuthorityStepper, PersonsExtension, LogicStepper];
 const options = (port: number) => ({
 	options: { DEST: DEFAULT_DEST },
 	moduleOptions: {

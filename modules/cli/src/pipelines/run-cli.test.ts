@@ -7,6 +7,7 @@ import { CONTINUE_AFTER_ERROR, DEFAULT_DEST, MODULE_OPTION_PREFIX, STAY, STAY_AL
 
 const OTHER_OPTION = `${MODULE_OPTION_PREFIX}TESTSTEPSWITHOPTIONS_OTHER`;
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, passWithDefaults } from "@haibun/core/lib/test/lib.js";
+import LogicStepper from "@haibun/logic/logic-stepper.js";
 import TestStepsWithOptions from "@haibun/core/lib/test/TestStepsWithOptions.js";
 import { getDefaultOptions } from "@haibun/core/lib/domains/util.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
@@ -45,7 +46,7 @@ describe("options", () => {
 	it("stepper options", async () => {
 		const feature = { path: "/features/test.feature", content: `When I have a stepper option` };
 		const protoConfig = { moduleOptions: { [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: "true" }, options: { DEST: DEFAULT_DEST } };
-		const result = await passWithDefaults([feature], [TestStepsWithOptions], protoConfig);
+		const result = await passWithDefaults([feature], [TestStepsWithOptions, LogicStepper], protoConfig);
 		expect(result.ok).toBe(true);
 		expect(result.featureResults?.length).toBe(1);
 		expect(itemAt(itemAt(result.featureResults ?? [], 0).stepResults, 0).products?.summary).toEqual("options");

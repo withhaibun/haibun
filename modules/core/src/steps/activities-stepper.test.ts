@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 
 import { ActivitiesStepper } from "./activities-stepper.js";
 import { getDefaultWorld, passWithDefaults } from "../lib/test/lib.js";
+import { LogicStepper } from "../lib/test/logic-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun-stepper.js";
 import { DOMAIN_WAYPOINT_ARGUMENT } from "../lib/domains/domains.js";
@@ -40,7 +41,7 @@ describe("ActivitiesStepper", () => {
 
 		it("applies in the feature that states it, so two features state the same head", async () => {
 			const feature = (path: string) => ({ path, content: ["Activity: Set it", 'set it to "yes"', 'waypoint It is set with variable it is "yes"', "ensure It is set"].join("\n") });
-			const result = await passWithDefaults([feature("/features/a.feature"), feature("/features/b.feature")], [VariablesStepper, ActivitiesStepper]);
+			const result = await passWithDefaults([feature("/features/a.feature"), feature("/features/b.feature")], [VariablesStepper, ActivitiesStepper, LogicStepper]);
 			expect(result.ok, result.failure?.error?.message).toBe(true);
 		});
 
@@ -52,7 +53,7 @@ describe("ActivitiesStepper", () => {
 	});
 
 	describe("ensure step", () => {
-		const steppers = [VariablesStepper, ActivitiesStepper];
+		const steppers = [VariablesStepper, ActivitiesStepper, LogicStepper];
 
 		it("should execute outcome on first ensure", async () => {
 			const background = {
@@ -73,7 +74,7 @@ variable result is "done"`,
 		});
 
 		it("should support ensure flows with slash-named variables", async () => {
-			const steppersWithHaibun = [VariablesStepper, ActivitiesStepper, Haibun];
+			const steppersWithHaibun = [VariablesStepper, ActivitiesStepper, Haibun, LogicStepper];
 			const feature = {
 				path: "/features/test.feature",
 				content: `ordered set of client status is ["negotiating" "agreed"]
@@ -114,7 +115,7 @@ set guest to "Ada"
 ensure Greeted {guest}
 variable Ada greeted is "yes"`,
 			};
-			const result = await passWithDefaults([feature], [VariablesStepper, ActivitiesStepper, Haibun]);
+			const result = await passWithDefaults([feature], [VariablesStepper, ActivitiesStepper, Haibun, LogicStepper]);
 			expect(result.ok, result.failure?.error?.message).toBe(true);
 		});
 
@@ -132,7 +133,7 @@ ensure Noted "Ada"
 variable noted is "Ada"
 variable held is "another value"`,
 			};
-			const result = await passWithDefaults([feature], [VariablesStepper, ActivitiesStepper, Haibun]);
+			const result = await passWithDefaults([feature], [VariablesStepper, ActivitiesStepper, Haibun, LogicStepper]);
 			expect(result.ok, result.failure?.error?.message).toBe(true);
 		});
 	});

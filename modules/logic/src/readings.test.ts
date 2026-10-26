@@ -3,7 +3,8 @@
  * passes, and the path of each record a proof writes.
  */
 import { describe, expect, it } from "vitest";
-import { failWithDefaults, getDefaultWorld, passWithDefaults, testWithWorld, withLogic } from "@haibun/core/lib/test/lib.js";
+import { failWithDefaults, getDefaultWorld, passWithDefaults, testWithWorld } from "@haibun/core/lib/test/lib.js";
+import LogicStepper from "@haibun/logic/logic-stepper.js";
 import { UNTIL_RETRY_MS } from "./domains/readings.js";
 import TestSteps from "@haibun/core/lib/test/TestSteps.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
@@ -16,7 +17,7 @@ import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { AStepper, READING, untilWithoutDuration, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 import { DOMAIN_STATEMENT } from "@haibun/core/lib/domains/domains.js";
 
-const STEPPERS = [Haibun, TestSteps, VariablesStepper, ActivitiesStepper];
+const STEPPERS = [Haibun, TestSteps, VariablesStepper, ActivitiesStepper, LogicStepper];
 
 /** A stepper that declares a step that reads as until without stating how long it proves its statements again. */
 class UntilWithoutDuration extends AStepper {
@@ -151,7 +152,7 @@ describe("the readings of the logic engine", () => {
 		let now = 0;
 		world.clock = { ...world.clock, now: () => now, wait: (ms) => Promise.resolve(void (now += ms)) };
 		const withinMs = 1500 * UNTIL_RETRY_MS;
-		const result = await testWithWorld(world, `until variable ready is "never" within ${withinMs}ms`, await withLogic(STEPPERS));
+		const result = await testWithWorld(world, `until variable ready is "never" within ${withinMs}ms`, STEPPERS);
 		expect(result.failure?.error.message).toContain(`didn't hold within ${withinMs}ms`);
 	});
 

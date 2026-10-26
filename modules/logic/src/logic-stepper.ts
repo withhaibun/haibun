@@ -92,7 +92,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 
 	/** What a goal's proof reads, under the caller's authority. */
 	private async goalScope(): Promise<TGoalScope> {
-		return { ctx: stepperContext(this.getWorld(), this.steppers), engine: await logicEngine(), held: callerHolds() };
+		return { ctx: stepperContext(this.getWorld(), this.steppers), engine: await logicEngine(), held: callerHolds(), stepper: this.constructor.name };
 	}
 
 	steps = {

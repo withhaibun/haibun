@@ -4,6 +4,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
+import { LogicStepper } from "../lib/test/logic-stepper.js";
 import { AStepper, type TFeatureStep } from "../lib/steps/domains/stepper.js";
 import { actionOK } from "../lib/domains/util.js";
 import { findFeatureStepsFromStatement } from "../lib/actuality/pipelines/resolver.js";
@@ -45,7 +46,7 @@ class SavedWaypointProbe extends AStepper {
 		},
 	};
 }
-const STEPPERS = [ActivitiesStepper, VariablesStepper, AuthorityStepper, SavedWaypointProbe];
+const STEPPERS = [ActivitiesStepper, VariablesStepper, AuthorityStepper, SavedWaypointProbe, LogicStepper];
 
 describe("a waypoint a step saves", () => {
 	it("states its rule at once, so a line resolved after it applies the waypoint and runs its saved lines", async () => {

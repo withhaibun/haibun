@@ -3,6 +3,7 @@ import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } fr
 import { domainParts } from "@haibun/core/lib/domains/domains.js";
 import { OK, type TStepValue } from "@haibun/core/lib/domains/protocol.js";
 import { failWithDefaults, passWithDefaults } from "@haibun/core/lib/test/lib.js";
+import LogicStepper from "@haibun/logic/logic-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import { locatorDomainOf, pickLocatorDomain } from "./locators.js";
 import { DOMAIN_PAGE_LOCATOR, DOMAIN_PAGE_TARGET, DOMAIN_PAGE_TEST_ID, DOMAIN_PAGE_TEXT, WebPlaywrightDomains } from "../domains/web-playwright.js";
@@ -35,14 +36,14 @@ describe("how a place on a page is found", () => {
 		aimed.length = 0;
 		const found = await passWithDefaults(
 			[{ path: "/features/f.feature", content: 'set save as page-test-id to "save-button"\naim at save\naim at "Save"' }],
-			[Targets, VariablesStepper],
+			[Targets, VariablesStepper, LogicStepper],
 		);
 		expect(found.ok).toBe(true);
 		expect(aimed.map((target) => ({ value: (target as TStepValue).value, locatorDomain: locatorDomainOf(target as TStepValue) }))).toEqual([
 			{ value: "save-button", locatorDomain: DOMAIN_PAGE_TEST_ID },
 			{ value: "Save", locatorDomain: DOMAIN_PAGE_TEXT },
 		]);
-		const refused = await failWithDefaults([{ path: "/features/f.feature", content: "set count as number to 3\naim at count" }], [Targets, VariablesStepper]);
+		const refused = await failWithDefaults([{ path: "/features/f.feature", content: "set count as number to 3\naim at count" }], [Targets, VariablesStepper, LogicStepper]);
 		expect(refused.failure?.error.message).toMatch(/refuses count/);
 	});
 });

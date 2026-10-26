@@ -4,6 +4,7 @@ import { toBdd } from "../lib/actuality/adapters/feature-files.js";
 import { ActivitiesStepper } from "../steps/activities-stepper.js";
 import VariablesStepper from "../steps/variables-stepper.js";
 import { failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
+import { LogicStepper } from "../lib/test/logic-stepper.js";
 import Haibun from "../steps/haibun-stepper.js";
 
 describe("kireji activities", () => {
@@ -48,7 +49,7 @@ waypoint Has setup with variable xy is "12"`,
 variable xy is "12"`,
 		};
 
-		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesStepper], undefined, [background]);
+		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesStepper, LogicStepper], undefined, [background]);
 
 		expect(result.ok).toBe(true);
 	});
@@ -56,7 +57,7 @@ variable xy is "12"`,
 	it("should fail at resolve time if outcome is not registered", async () => {
 		const feature = { path: "/features/test.feature", content: "ensure Nonexistent outcome" };
 
-		const result = await failWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesStepper]);
+		const result = await failWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesStepper, LogicStepper]);
 
 		expect(result.ok).toBe(false);
 		expect(result.failure?.stage).toBe("Resolve");
@@ -77,7 +78,7 @@ waypoint On homepage with variable fullUrl is "https://example.com/home"`,
 variable fullUrl is "https://example.com/home"`,
 		};
 
-		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesStepper], undefined, [background]);
+		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesStepper, LogicStepper], undefined, [background]);
 
 		expect(result.ok).toBe(true);
 	});

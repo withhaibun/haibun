@@ -3,11 +3,12 @@ import { describe, it, test, expect } from "vitest";
 import { DEFAULT_DEST, OK } from "./protocol.js";
 import * as steps from "./features.js";
 import { passWithDefaults, failWithDefaults } from "../test/lib.js";
+import { LogicStepper } from "../test/logic-stepper.js";
 import { asFeatures } from "../test/resolver-features.js";
 import { itemAt } from "./item-at.js";
 import VariablesStepper from "../../steps/variables-stepper.js";
 
-const varsStepper = [VariablesStepper];
+const varsStepper = [VariablesStepper, LogicStepper];
 
 describe("feature finding", () => {
 	const features = asFeatures([

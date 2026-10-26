@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { failWithDefaults, getDefaultWorld, passWithDefaults } from "../test/lib.js";
+import { LogicStepper } from "../test/logic-stepper.js";
 import VariablesStepper from "../../steps/variables-stepper.js";
 import Haibun from "../../steps/haibun-stepper.js";
 import { z } from "zod";
@@ -17,7 +18,7 @@ import {
 } from "./domains.js";
 import { Access, LinkRelations, PersistedVertexSchema, type THypermediaTopology, type TPropertyDef } from "./resources.js";
 
-const steppers = [VariablesStepper, Haibun];
+const steppers = [VariablesStepper, Haibun, LogicStepper];
 
 describe("domains", () => {
 	it("sets variable with explicit domain", async () => {

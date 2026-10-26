@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 import { passWithDefaults, DEF_PROTO_OPTIONS, freePort } from "@haibun/core/lib/test/lib.js";
+import LogicStepper from "@haibun/logic/logic-stepper.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { OK, type TStepArgs } from "@haibun/core/lib/domains/protocol.js";
 import { getStepperOptionName, actionNotOK, perProcessOptionNames } from "@haibun/core/lib/domains/util.js";
@@ -96,11 +97,13 @@ describe("WebServerStepper Integration", () => {
 			moduleOptions: { [getStepperOptionName(WebServerStepper, "ALLOW_WITHOUT_DELEGATION")]: "*", ...moduleOptions },
 		});
 		const INTERFACE = getStepperOptionName(WebServerStepper, "INTERFACE");
-		const open = await passWithDefaults("", [WebServerStepper], options({ [INTERFACE]: "0.0.0.0" }));
+		const open = await passWithDefaults("", [WebServerStepper, LogicStepper], options({ [INTERFACE]: "0.0.0.0" }));
 		expect(open.ok).toBe(false);
 		expect(JSON.stringify(open.failure)).toContain("ALLOW_WITHOUT_DELEGATION allows every action");
-		expect((await passWithDefaults("", [WebServerStepper], options({ [INTERFACE]: "127.0.0.1" }))).ok, "on this machine").toBe(true);
-		expect((await passWithDefaults("", [WebServerStepper], options({ [INTERFACE]: "0.0.0.0", [BASIC_AUTH_OPTION]: "reader:secret" }))).ok, "behind basic auth").toBe(true);
+		expect((await passWithDefaults("", [WebServerStepper, LogicStepper], options({ [INTERFACE]: "127.0.0.1" }))).ok, "on this machine").toBe(true);
+		expect((await passWithDefaults("", [WebServerStepper, LogicStepper], options({ [INTERFACE]: "0.0.0.0", [BASIC_AUTH_OPTION]: "reader:secret" }))).ok, "behind basic auth").toBe(
+			true,
+		);
 	});
 
 	it("refuses a served file to a caller that doesn't hold the read it requires, stating the cause and the remedy", async () => {
@@ -114,7 +117,7 @@ fetch from "http://localhost:${port}/pub/hello.txt" is refused with the read it 
 `,
 		};
 		const moduleOptions = { [getStepperOptionName(WebServerStepper, "PORT")]: String(port) };
-		const result = await passWithDefaults([feature], [WebServerStepper, VerifyStepper], { ...DEF_PROTO_OPTIONS, moduleOptions });
+		const result = await passWithDefaults([feature], [WebServerStepper, VerifyStepper, LogicStepper], { ...DEF_PROTO_OPTIONS, moduleOptions });
 		expect(result.ok, JSON.stringify(result.failure)).toBe(true);
 	});
 
@@ -131,10 +134,10 @@ fetch from "${hello}" carries the policy "${policy}"
 `,
 		});
 		const moduleOptions = { [getStepperOptionName(WebServerStepper, "PORT")]: String(port), ...SERVES_A_SITE };
-		const plain = await passWithDefaults([served("null")], [WebServerStepper, VerifyStepper], { ...DEF_PROTO_OPTIONS, moduleOptions });
+		const plain = await passWithDefaults([served("null")], [WebServerStepper, VerifyStepper, LogicStepper], { ...DEF_PROTO_OPTIONS, moduleOptions });
 		expect(plain.ok, JSON.stringify(plain.failure)).toBe(true);
 		const rpc = { ...moduleOptions, [getStepperOptionName(WebServerStepper, "RPC")]: "true" };
-		const sandboxed = await passWithDefaults([served(ARTIFACT_POLICY)], [WebServerStepper, VerifyStepper], { ...DEF_PROTO_OPTIONS, moduleOptions: rpc });
+		const sandboxed = await passWithDefaults([served(ARTIFACT_POLICY)], [WebServerStepper, VerifyStepper, LogicStepper], { ...DEF_PROTO_OPTIONS, moduleOptions: rpc });
 		expect(sandboxed.ok, JSON.stringify(sandboxed.failure)).toBe(true);
 	});
 
@@ -152,7 +155,7 @@ fetch from "http://localhost:${port}/pub/hello.txt" includes "Hello World"
 
 		const moduleOptions = { [getStepperOptionName(WebServerStepper, "PORT")]: String(port), ...SERVES_A_SITE };
 
-		const result = await passWithDefaults([feature], [WebServerStepper, VerifyStepper], { ...DEF_PROTO_OPTIONS, moduleOptions });
+		const result = await passWithDefaults([feature], [WebServerStepper, VerifyStepper, LogicStepper], { ...DEF_PROTO_OPTIONS, moduleOptions });
 		if (!result.ok) {
 			console.error(JSON.stringify(result.featureResults?.[0]?.stepResults, null, 2));
 		}
@@ -172,7 +175,7 @@ fetch from "http://localhost:${port}/" includes "hello.txt"
 
 		const moduleOptions = { [getStepperOptionName(WebServerStepper, "PORT")]: String(port), ...SERVES_A_SITE };
 
-		const result = await passWithDefaults([feature], [WebServerStepper, VerifyStepper], { ...DEF_PROTO_OPTIONS, moduleOptions });
+		const result = await passWithDefaults([feature], [WebServerStepper, VerifyStepper, LogicStepper], { ...DEF_PROTO_OPTIONS, moduleOptions });
 		if (!result.ok) {
 			console.error(JSON.stringify(result.featureResults?.[0]?.stepResults, null, 2));
 		}

@@ -8,6 +8,7 @@ import path from "node:path";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { failWithDefaults, passWithDefaults } from "@haibun/core/lib/test/lib.js";
+import LogicStepper from "@haibun/logic/logic-stepper.js";
 import { getStepperOptionName } from "@haibun/core/lib/domains/util.js";
 import { DEFAULT_DEST } from "@haibun/core/lib/domains/protocol.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
@@ -16,7 +17,7 @@ import WebPlaywright from "./web-playwright-stepper.js";
 import { BrowserFactory } from "./adapters/browser-factory.js";
 
 const EXTENSION = path.resolve(import.meta.dirname, "../test/browser-extension");
-const steppers = [WebPlaywright, VariablesStepper, StorageMem];
+const steppers = [WebPlaywright, VariablesStepper, StorageMem, LogicStepper];
 /** The profile the browser keeps, given here so the test removes it: a run not given one makes one, removed as it exits. */
 const profile = mkdtempSync(path.join(tmpdir(), "haibun-load-extension-"));
 const options = {

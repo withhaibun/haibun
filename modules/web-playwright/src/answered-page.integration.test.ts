@@ -5,6 +5,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK, getStepperOptionName } from "@haibun/core/lib/domains/util.js";
 import { failWithDefaults } from "@haibun/core/lib/test/lib.js";
+import LogicStepper from "@haibun/logic/logic-stepper.js";
 import { DEFAULT_DEST, type TStepResult } from "@haibun/core/lib/domains/protocol.js";
 import { validatedFeatureStep } from "@haibun/core/lib/call-step.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
@@ -61,7 +62,7 @@ describe("an action a model calls", () => {
 		const { port } = server.address() as AddressInfo;
 		const content = [`go to the "http://127.0.0.1:${port}/" webpage`, CALLS_THE_PAGE].join("\n");
 		try {
-			const res = await failWithDefaults([{ path: "/features/caller.feature", content }], [WebPlaywright, CallerProbe, StorageMem], {
+			const res = await failWithDefaults([{ path: "/features/caller.feature", content }], [WebPlaywright, CallerProbe, StorageMem, LogicStepper], {
 				options: { DEST: DEFAULT_DEST },
 				moduleOptions,
 			});

@@ -6,6 +6,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { DEF_PROTO_OPTIONS, failWithDefaults } from "@haibun/core/lib/test/lib.js";
+import LogicStepper from "@haibun/logic/logic-stepper.js";
 import TestSteps from "@haibun/core/lib/test/TestSteps.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
@@ -59,7 +60,7 @@ describe("a proof that stops on an exception", () => {
 			{ path: "/features/after", content: "passes" },
 		];
 		const options = { ...DEF_PROTO_OPTIONS, options: { ...DEF_PROTO_OPTIONS.options, [CONTINUE_AFTER_ERROR]: true } };
-		const result = await failWithDefaults(features, [Haibun, TestSteps, VariablesStepper, ActivitiesStepper, WaitingEngine], options);
+		const result = await failWithDefaults(features, [Haibun, TestSteps, VariablesStepper, ActivitiesStepper, WaitingEngine, LogicStepper], options);
 		expect(result.failure?.error.message).toContain(`The proof of \`${HEAD}\` tries again a step that doesn't read as until. ${DIFFERENT_BUILDS}`);
 		const ran = result.featureResults?.map(({ ok }) => ok);
 		expect(ran, "the features after it run").toEqual([false, true]);

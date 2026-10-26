@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getTestWorldWithOptions, testWithWorld, DEF_PROTO_OPTIONS } from "@haibun/core/lib/test/lib.js";
+import LogicStepper from "@haibun/logic/logic-stepper.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { getStepperOptionName } from "@haibun/core/lib/domains/util.js";
@@ -66,7 +67,18 @@ capture the federated clustered read
 		const result = await testWithWorld(
 			world,
 			[feature],
-			[WebServerStepper, ShuStepper, MonitorStepper, GraphSourceStepper, AuthorityStepper, FakeAuthorityStepper, ResourcesStepper, StorageFS, FederationVerifyStepper],
+			[
+				WebServerStepper,
+				ShuStepper,
+				MonitorStepper,
+				GraphSourceStepper,
+				AuthorityStepper,
+				FakeAuthorityStepper,
+				ResourcesStepper,
+				StorageFS,
+				FederationVerifyStepper,
+				LogicStepper,
+			],
 		);
 		if (!result.ok) throw new Error(JSON.stringify({ failure: result.failure, steps: result.featureResults?.map((f) => f.stepResults.map((s) => [s.in, s.ok])) }, null, 2));
 
@@ -113,6 +125,7 @@ capture the federated clustered read
 				StorageFS,
 				InstanceStepper,
 				FederationVerifyStepper,
+				LogicStepper,
 			],
 		);
 		if (!result.ok) throw new Error(JSON.stringify({ failure: result.failure, steps: result.featureResults?.map((f) => f.stepResults.map((s) => [s.in, s.ok])) }, null, 2));

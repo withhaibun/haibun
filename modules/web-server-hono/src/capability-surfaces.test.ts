@@ -4,6 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { passWithDefaults, DEF_PROTO_OPTIONS, freePort } from "@haibun/core/lib/test/lib.js";
+import LogicStepper from "@haibun/logic/logic-stepper.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import type { TWorld } from "@haibun/core/lib/actuality/domains/world.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
@@ -99,7 +100,11 @@ describe("capability on every call", () => {
 				[getStepperOptionName(McpStepper, "PORT")]: String(port),
 			},
 		};
-		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, Haibun, VariablesStepper, ActivitiesStepper, AuthorityStepper, SurfacesStepper], options);
+		const result = await passWithDefaults(
+			[feature],
+			[WebServerStepper, McpStepper, Haibun, VariablesStepper, ActivitiesStepper, AuthorityStepper, SurfacesStepper, LogicStepper],
+			options,
+		);
 		expect(result.ok).toBe(true);
 	});
 });

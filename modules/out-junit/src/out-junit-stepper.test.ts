@@ -4,12 +4,13 @@ import { convert } from "xmlbuilder2";
 
 import OutJUnit from "./out-junit-stepper.js";
 import { failWithDefaults, passWithDefaults } from "@haibun/core/lib/test/lib.js";
+import LogicStepper from "@haibun/logic/logic-stepper.js";
 import TestSteps from "@haibun/core/lib/test/TestSteps.js";
 
 describe("AsXML transforms", () => {
 	it("transforms single pass result to junit", async () => {
 		const features = [{ path: "/features/fails.feature", content: `When I have a test\nThen passes` }];
-		const result = await passWithDefaults(features, [TestSteps]);
+		const result = await passWithDefaults(features, [TestSteps, LogicStepper]);
 
 		expect(result.ok).toBe(true);
 		const asJUnit = new OutJUnit();
@@ -25,7 +26,7 @@ describe("AsXML transforms", () => {
 			{ path: "/features/passes.feature", content: `When I have a test\nThen passes` },
 			{ path: "/features/fails.feature", content: `When I have a test\nThen fails` },
 		];
-		const result = await failWithDefaults(features, [TestSteps]);
+		const result = await failWithDefaults(features, [TestSteps, LogicStepper]);
 
 		expect(result.ok).toBe(false);
 		const asJUnit = new OutJUnit();

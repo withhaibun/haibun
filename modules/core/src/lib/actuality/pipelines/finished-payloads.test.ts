@@ -7,6 +7,7 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import { passWithDefaults, failWithDefaults } from "../../test/lib.js";
+import { LogicStepper } from "../../test/logic-stepper.js";
 import { AStepper } from "../../steps/domains/stepper.js";
 import { actionNotOK, actionOKWithProducts } from "../../domains/util.js";
 import { RESULTS_READ_IN_FULL, foldStep } from "../derivations/step-results.js";
@@ -27,7 +28,7 @@ class ProducingStepper extends AStepper {
 
 describe("the finished step results actuality holds", () => {
 	it("keeps a passing step's products in the feature's result", async () => {
-		const result = await passWithDefaults([{ path: "/features/test.feature", content: "produce a large answer" }], [ProducingStepper]);
+		const result = await passWithDefaults([{ path: "/features/test.feature", content: "produce a large answer" }], [ProducingStepper, LogicStepper]);
 		const kept = itemAt(itemAt(result.featureResults, 0).stepResults, 0);
 		expect(kept.in).toBe("produce a large answer");
 		expect((kept.products as { big?: string } | undefined)?.big?.length, "the feature's result holds its steps' products").toBe(10000);
@@ -37,7 +38,7 @@ describe("the finished step results actuality holds", () => {
 		const ran = RESULTS_READ_IN_FULL + 20;
 		const result = await passWithDefaults(
 			[{ path: "/features/test.feature", content: Array.from({ length: ran }, () => "produce a large answer").join("\n") }],
-			[ProducingStepper],
+			[ProducingStepper, LogicStepper],
 		);
 		const feature = result.featureResults?.[0];
 		expect(feature?.steps.count, "the step totals count every step without holding the steps").toBe(ran);
@@ -65,7 +66,7 @@ describe("the finished step results actuality holds", () => {
 	});
 
 	it("keeps a failed step's message for the verdict", async () => {
-		const result = await failWithDefaults([{ path: "/features/test.feature", content: "refuse with a large answer" }], [ProducingStepper]);
+		const result = await failWithDefaults([{ path: "/features/test.feature", content: "refuse with a large answer" }], [ProducingStepper, LogicStepper]);
 		const failed = itemAt(result.featureResults, 0).stepResults.find((s) => !s.ok);
 		if (failed?.ok !== false) throw new Error("a step didn't fail");
 		expect(failed.errorMessage, "the failed step's errorMessage holds the message the step returned").toContain("it refused");

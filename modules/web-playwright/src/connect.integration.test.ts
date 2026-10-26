@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { chromium, type BrowserContext, type Page } from "playwright";
 
 import { failWithDefaults, freePort, getDefaultWorld, passWithDefaults } from "@haibun/core/lib/test/lib.js";
+import LogicStepper from "@haibun/logic/logic-stepper.js";
 import { DEFAULT_DEST } from "@haibun/core/lib/domains/protocol.js";
 import { getStepperOptionName } from "@haibun/core/lib/domains/util.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
@@ -19,7 +20,7 @@ import { VISITED_PAGE_LABEL } from "./domains/web-playwright.js";
 
 const PAGE = `<title>owned</title><button onclick="this.textContent='pressed'">press me</button>`;
 const moduleOptions = { [getStepperOptionName(WebPlaywright, "STORAGE")]: "StorageMem", [getStepperOptionName(WebPlaywright, "HEADLESS")]: "true" };
-const steppers = [WebPlaywright, VariablesStepper, StorageMem];
+const steppers = [WebPlaywright, VariablesStepper, StorageMem, LogicStepper];
 
 /** The browser a person runs: its own profile and its one page, reachable at a debugging endpoint. */
 let owners: BrowserContext;

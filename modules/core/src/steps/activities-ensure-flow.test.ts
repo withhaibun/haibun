@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
+import { LogicStepper } from "../lib/test/logic-stepper.js";
 import Haibun from "./haibun-stepper.js";
 import VariablesSteppers from "./variables-stepper.js";
 import ActivitiesStepper from "./activities-stepper.js";
@@ -45,7 +46,7 @@ variable haibunUrl is "https://en.wikipedia.org/wiki/Haibun"
 `,
 		};
 
-		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers, LogicStepper], DEF_PROTO_OPTIONS, [background]);
 
 		expect(result.ok).toBe(true);
 	});
@@ -71,7 +72,7 @@ ensure Knows about Wikipedia
 `,
 		};
 
-		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers, LogicStepper], DEF_PROTO_OPTIONS, [background]);
 
 		expect(result.ok).toBe(true);
 	});
@@ -95,7 +96,7 @@ ensure Needs correct variable
 `,
 		};
 
-		const result = await failWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		const result = await failWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers, LogicStepper], DEF_PROTO_OPTIONS, [background]);
 
 		expect(result.ok).toBe(false);
 	});
@@ -121,7 +122,7 @@ ensure Knows about Wikipedia
 `,
 		};
 
-		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers, LogicStepper], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 		expect(result.world.runtime.exhaustionError).toBeUndefined();
 	});

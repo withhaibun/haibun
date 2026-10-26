@@ -1,6 +1,7 @@
 import { PRESENTED_REQUEST_HEADERS } from "./domains/web-server.js";
 import { describe, it, expect } from "vitest";
 import { passWithDefaults, DEF_PROTO_OPTIONS, freePort } from "@haibun/core/lib/test/lib.js";
+import LogicStepper from "@haibun/logic/logic-stepper.js";
 import McpStepper from "./mcp-stepper.js";
 import WebServerStepper from "./web-server-stepper.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
@@ -96,7 +97,7 @@ verify mcp protocol on port ${port}
 
 		const moduleOptions = { [getStepperOptionName(WebServerStepper, "PORT")]: String(port) };
 
-		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, TestStepper], { ...DEF_PROTO_OPTIONS, moduleOptions });
+		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, TestStepper, LogicStepper], { ...DEF_PROTO_OPTIONS, moduleOptions });
 		if (!result.ok) {
 			let errors = "";
 			for (const fr of result.featureResults || []) {

@@ -13,6 +13,7 @@ import { AStepper, type IStepperCycles, type TStepperSteps } from "../lib/steps/
 import { actionOK } from "../lib/domains/util.js";
 import { fromJsonText } from "../lib/domains/json-text.js";
 import { passWithDefaults } from "../lib/test/lib.js";
+import { LogicStepper } from "../lib/test/logic-stepper.js";
 
 const PersonSchema = z.object({ did: z.url(), name: z.string() }).strict();
 
@@ -47,7 +48,7 @@ Scenario: Register a person via the parameterized activity (bare slot value)
 Person registered "Alice"`,
 		};
 		lastReceived = undefined;
-		const result = await passWithDefaults([feature], [VariablesStepper, ActivitiesStepper, Haibun, PersonStepper]);
+		const result = await passWithDefaults([feature], [VariablesStepper, ActivitiesStepper, Haibun, PersonStepper, LogicStepper]);
 		if (!result.ok) {
 			throw result.failure?.error ?? new Error(`activity failed: ${JSON.stringify(result)}`);
 		}

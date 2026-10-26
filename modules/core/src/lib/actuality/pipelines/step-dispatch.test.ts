@@ -14,6 +14,7 @@ import { OK, RECORDED_STATUS } from "../../domains/protocol.js";
 import { itemAt } from "../../domains/item-at.js";
 import { actionOKWithProducts, actionNotOK } from "../../domains/util.js";
 import { getDefaultWorld, testWithWorld } from "../../test/lib.js";
+import { LogicStepper } from "../../test/logic-stepper.js";
 import { TEST_DOMAIN, declaresTestDomains, testDomainDefinitions } from "../../test/test-domains.js";
 import { DOMAIN_DOMAIN_KEY, DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_RECORD_ID, DOMAIN_STATEMENT, DOMAIN_STRING, individualRefDomain, registerDomains } from "../../domains/domains.js";
 import type { TWorld } from "../domains/world.js";
@@ -490,7 +491,7 @@ describe("step-dispatch", () => {
 
 		it("refuses products whose domain a step doesn't name, and checks what a step passes on against its statement's domain", async () => {
 			const said = async (line: string) => {
-				const res = await testWithWorld(getDefaultWorld(), line, [PassesOn]);
+				const res = await testWithWorld(getDefaultWorld(), line, [PassesOn, LogicStepper]);
 				return { ok: res.ok, error: res.failure?.error.message, products: res.featureResults?.[0]?.stepResults.find((r) => r.in === line)?.products };
 			};
 			expect((await said(COUNT_UNNAMED)).error, "a step returning products without a domain").toMatch(/returned products and doesn't name a domain/);

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { AStepper, TFeatureStep } from "../../steps/domains/stepper.js";
 import { OK, TStepArgs } from "../../domains/protocol.js";
 import { passWithDefaults, DEF_PROTO_OPTIONS, failWithDefaults } from "../../test/lib.js";
+import { LogicStepper } from "../../test/logic-stepper.js";
 import { actionNotOK } from "../../domains/util.js";
 import { proveStatements, stepperContext } from "./step-dispatch.js";
 import { DOMAIN_STATEMENT } from "../../domains/domains.js";
@@ -36,23 +37,23 @@ class StatementTestStepper extends AStepper {
 describe("statement type", () => {
 	it("executes a statement that resolves to a step", async () => {
 		const feature = { path: "/features/test.feature", content: "do alpha" };
-		const result = await passWithDefaults([feature], [StatementTestStepper], DEF_PROTO_OPTIONS, []);
+		const result = await passWithDefaults([feature], [StatementTestStepper, LogicStepper], DEF_PROTO_OPTIONS, []);
 		expect(result.ok).toBe(true);
 	});
 	it("fails a statement that doesn't resolve to a step", async () => {
 		const feature = { path: "/features/test.feature", content: "do gamma" };
-		const result = await failWithDefaults([feature], [StatementTestStepper], DEF_PROTO_OPTIONS, []);
+		const result = await failWithDefaults([feature], [StatementTestStepper, LogicStepper], DEF_PROTO_OPTIONS, []);
 		expect(result.ok).toBe(false);
 	});
 	it("executes a statement step followed by other steps", async () => {
 		// The feature has a statement step and then the steps alpha and beta.
 		const feature = { path: "/features/test.feature", content: "do alpha\nalpha\nbeta" };
-		const result = await passWithDefaults([feature], [StatementTestStepper], DEF_PROTO_OPTIONS, []);
+		const result = await passWithDefaults([feature], [StatementTestStepper, LogicStepper], DEF_PROTO_OPTIONS, []);
 		expect(result.ok).toBe(true);
 	});
 	it("extends the parent seqPath for a statement's substeps", async () => {
 		const feature = { path: "/features/test.feature", content: "do alpha" };
-		const result = await passWithDefaults([feature], [StatementTestStepper], DEF_PROTO_OPTIONS, []);
+		const result = await passWithDefaults([feature], [StatementTestStepper, LogicStepper], DEF_PROTO_OPTIONS, []);
 		expect(result.ok).toBe(true);
 		const firstFeature = result.featureResults?.[0];
 		if (!firstFeature) throw new Error("Missing feature result");
@@ -67,7 +68,7 @@ describe("statement type", () => {
 	});
 	it("seqPaths start at 1 per scenario and substeps extend with new elements", async () => {
 		const feature = { path: "/features/test.feature", content: "Scenario: first\ndo alpha\nalpha\nScenario: second\nbeta" };
-		const result = await passWithDefaults([feature], [StatementTestStepper, Haibun], DEF_PROTO_OPTIONS, []);
+		const result = await passWithDefaults([feature], [StatementTestStepper, Haibun, LogicStepper], DEF_PROTO_OPTIONS, []);
 		expect(result.ok).toBe(true);
 		const firstFeature = result.featureResults?.[0];
 		if (!firstFeature) throw new Error("Missing feature result");

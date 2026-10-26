@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { passWithDefaults, DEF_PROTO_OPTIONS } from "@haibun/core/lib/test/lib.js";
+import LogicStepper from "@haibun/logic/logic-stepper.js";
 import McpStepper from "./mcp-stepper.js";
 import WebServerStepper from "./web-server-stepper.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
@@ -80,7 +81,7 @@ verify mcp tools on port ${port}
 			[getStepperOptionName(WebServerStepper, "ALLOW_WITHOUT_DELEGATION")]: "*",
 		};
 
-		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, TestStepper, Haibun], { ...DEF_PROTO_OPTIONS, moduleOptions });
+		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, TestStepper, Haibun, LogicStepper], { ...DEF_PROTO_OPTIONS, moduleOptions });
 
 		if (!result.ok) {
 			throw new Error(JSON.stringify(result.featureResults, null, 2));

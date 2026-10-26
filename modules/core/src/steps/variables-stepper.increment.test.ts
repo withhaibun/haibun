@@ -1,10 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { passWithDefaults } from "../lib/test/lib.js";
+import { LogicStepper } from "../lib/test/logic-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun-stepper.js";
 import { failWithDefaults } from "../lib/test/lib.js";
 
-const steppers = [VariablesStepper, Haibun];
+const steppers = [VariablesStepper, Haibun, LogicStepper];
 
 describe("VariablesStepper.increment for ordered enums", () => {
 	it("initializes unset enum to first value and advances", async () => {

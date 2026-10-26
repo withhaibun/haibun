@@ -7,6 +7,7 @@ import type { AddressInfo } from "node:net";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { passWithDefaults } from "@haibun/core/lib/test/lib.js";
+import LogicStepper from "@haibun/logic/logic-stepper.js";
 import { DEFAULT_DEST } from "@haibun/core/lib/domains/protocol.js";
 import { getStepperOptionName } from "@haibun/core/lib/domains/util.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
@@ -42,7 +43,7 @@ describe("a request with a JSON payload", () => {
 			'variable HTTP response.json.body is "{\\"name\\":\\"Ada\\"}"',
 		];
 		try {
-			const result = await passWithDefaults([{ path: "/features/request.feature", content: lines.join("\n") }], [WebPlaywright, VariablesStepper, StorageMem], {
+			const result = await passWithDefaults([{ path: "/features/request.feature", content: lines.join("\n") }], [WebPlaywright, VariablesStepper, StorageMem, LogicStepper], {
 				options: { DEST: DEFAULT_DEST },
 				moduleOptions,
 			});

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getTestWorldWithOptions, testWithWorld, DEF_PROTO_OPTIONS } from "@haibun/core/lib/test/lib.js";
+import LogicStepper from "@haibun/logic/logic-stepper.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { getStepperOptionName } from "@haibun/core/lib/domains/util.js";
@@ -83,7 +84,19 @@ probe the delegated store surface
 		const result = await testWithWorld(
 			world,
 			[feature],
-			[Haibun, WebServerStepper, ShuStepper, MonitorStepper, AuthorityStepper, FakeAuthorityStepper, ResourcesStepper, StorageFS, InstanceStepper, StoreDelegationProbeStepper],
+			[
+				Haibun,
+				WebServerStepper,
+				ShuStepper,
+				MonitorStepper,
+				AuthorityStepper,
+				FakeAuthorityStepper,
+				ResourcesStepper,
+				StorageFS,
+				InstanceStepper,
+				StoreDelegationProbeStepper,
+				LogicStepper,
+			],
 		);
 		if (!result.ok) throw new Error(JSON.stringify({ failure: result.failure, steps: result.featureResults?.map((f) => f.stepResults.map((s) => [s.in, s.ok])) }, null, 2));
 
