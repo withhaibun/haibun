@@ -7,12 +7,16 @@ import type { TWorld, TRuntime } from "@haibun/core/lib/world.js";
 import { WEBSERVER } from "./domains/web-server.js";
 import type { IWebServer } from "./ports.js";
 import { ServerHono } from "./adapters/server-hono.js";
+import { currentVersion } from "@haibun/core/lib/adapters/current-version.js";
 import { unsignedRequest, whyNotSignedInOnly } from "./adapters/auth.js";
 import { stopProcessAfter } from "./adapters/process.js";
 import type { TBasicAuthUser } from "@haibun/core/lib/domains/basic-auth.js";
 
 /** The folder whose files a feature serves by a relative path: `files` in the process's starting directory. */
 const SERVED_FILES = "files";
+
+/** The version an endpoint serves: haibun's, at which its modules release together. */
+export const servedVersion = currentVersion;
 
 /** A server of this instance: it serves its files and its store, and admits whom the settings name. */
 export function newServer(world: TWorld, allowedWithoutDelegation: readonly string[], admitted: readonly TBasicAuthUser[]): IWebServer {

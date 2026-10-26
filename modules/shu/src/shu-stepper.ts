@@ -22,7 +22,7 @@ import { ontologyRead } from "@haibun/core/lib/records/pipelines/ontology-record
 import { labelFontResponse, servedBuild, servedPage } from "./pipelines/served-page.js";
 import { LABEL_FONT, LABEL_FONT_FALLBACK_ROUTES, LABEL_FONT_FALLBACKS, PAGE_ASSETS, PAGE_CHUNKS, POLYMORPHIC_VIEW_JS } from "./domains/serving.js";
 import { graphLayout } from "./pipelines/graph-source.js";
-import { servedBundles } from "./root.js";
+import { servedBundles, servedVersion } from "./root.js";
 import type { TServedAsset } from "./ports.js";
 import { BUNDLE_NAMES, bundleFileName } from "./domains/bundle-files.js";
 
@@ -104,7 +104,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 		const embedderOrigin = getStepperOption(this, "EMBEDDER_ORIGIN", world.moduleOptions);
 		const askToolLimit = timing("ASK_TOOL_LIMIT");
 		// A served page loads the page's bundle, so a stepper without a built bundle refuses to start.
-		servedBuild(servedBundles);
+		servedBuild(servedBundles, servedVersion);
 		this.settings = {
 			responseTimeoutMs: responseTimeoutMs === undefined ? RESPONSE_TIMEOUT_MS : responseTimeoutMs,
 			...(streamReconnectAfterMs === undefined ? {} : { streamReconnectAfterMs }),
@@ -275,7 +275,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			actualityId: this.getWorld().runtime.actualityId,
 			settings: {
 				...settings,
-				build: servedBuild(servedBundles),
+				build: servedBuild(servedBundles, servedVersion),
 				allowedWithoutDelegation: [...webserver.allowedWithoutDelegation],
 				verifiesDelegations: getAuthority(this.getWorld().runtime)?.hasVerifier() === true,
 			},

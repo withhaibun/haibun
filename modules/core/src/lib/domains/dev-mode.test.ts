@@ -1,15 +1,15 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { failFastOrLog, isDev } from "./dev-mode.js";
-
-const PRODUCTION = "production";
+import { failFastOrLog, isDev, PRODUCTION } from "./dev-mode.js";
 
 describe("dev-mode", () => {
 	afterEach(() => {
 		vi.unstubAllEnvs();
 	});
 
-	it("is dev unless NODE_ENV names production", () => {
+	it("is development unless NODE_ENV names production", () => {
 		vi.stubEnv("NODE_ENV", "development");
+		expect(isDev()).toBe(true);
+		vi.stubEnv("NODE_ENV", undefined);
 		expect(isDev()).toBe(true);
 		vi.stubEnv("NODE_ENV", PRODUCTION);
 		expect(isDev()).toBe(false);

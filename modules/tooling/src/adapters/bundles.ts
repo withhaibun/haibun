@@ -147,6 +147,10 @@ const decodeAlone: Plugin = {
 	},
 };
 
+/** Carries the build's NODE_ENV into a bundle, as Node reads it: its value where the build states one, and undefined where it doesn't,
+ *  so a bundle selects production or development as the process that builds it does, in place of esbuild's choice by minification. */
+export const nodeEnvDefine = (): Record<string, string> => ({ "process.env.NODE_ENV": process.env.NODE_ENV === undefined ? "undefined" : JSON.stringify(process.env.NODE_ENV) });
+
 /** The options that build a bundle of the repository at `root` for a browser. */
 export const bundleOptions = (root: string, bundle: TBundle): BuildOptions & { metafile: true; plugins: Plugin[] } => ({
 	absWorkingDir: root,
@@ -161,6 +165,7 @@ export const bundleOptions = (root: string, bundle: TBundle): BuildOptions & { m
 	target: "es2022",
 	minify: true,
 	conditions: [HAIBUN_SOURCE],
+	define: nodeEnvDefine(),
 	plugins: [onePackageCopy(root), zodEnglishLocale, d3EngineAlone, oneColourLibrary, extrasControlsAlone, gzipAlone, decodeAlone],
 	metafile: true,
 	logLevel: "warning",

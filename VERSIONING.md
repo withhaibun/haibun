@@ -34,15 +34,9 @@ Releases are automated by [semantic-release](https://semantic-release.gitbook.io
 
 ## One version for all modules
 
-Every module under `modules/tsconfig.json` ships at the same version. When the root bumps, `scripts/sync-versions.mjs` propagates the new version to every module's `package.json` and to `modules/core/src/lib/domains/current-version.ts`. Internal `@haibun/*` deps use `*`, so they always resolve to the matching workspace version.
+Every workspace that package.json's `workspaces` lists ships at the same version. semantic-release's `@semantic-release/exec` plugin runs npm's own workspace commands: `npm version` sets the release's version in the root and every workspace, and `npm publish --workspaces` publishes each workspace that isn't marked `"private": true` under the branch's dist-tag. Internal `@haibun/*` deps use `*`, so they always resolve to the matching workspace version.
 
-To add a new module to the release: add it to `modules/tsconfig.json` references. It's then built, versioned, and published automatically.
-
-Modules that should never publish (e.g. `recorder`, `e2e-tests`) are marked `"private": true` in their own `package.json` and left out of `modules/tsconfig.json`.
-
-## Local escape hatches
-
-The `version-*` and `publish-all*` npm scripts still exist for emergencies (CI down, hotfix, etc.). They do exactly what they say, read [scripts/sync-versions.mjs](scripts/sync-versions.mjs) and [scripts/publish-all.mjs](scripts/publish-all.mjs). Prefer the CI flow.
+To add a new module to the release, add it under `modules/`, which `workspaces` lists. A module that should never publish, such as `e2e-tests`, is marked `"private": true` in its own `package.json`.
 
 ## Checking the current version
 
@@ -52,7 +46,7 @@ npm pkg get version
 git describe --tags --abbrev=0                 # latest tag
 ```
 
-At runtime, `@haibun/core/currentVersion.js` exports `currentVersion`.
+At runtime, `@haibun/core/currentVersion.js` exports `currentVersion`, which it reads from core's `package.json`.
 
 ## Required one-time setup in GitHub
 

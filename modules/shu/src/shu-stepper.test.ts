@@ -1,4 +1,4 @@
-import { currentVersion } from "@haibun/core/lib/domains/current-version.js";
+import { currentVersion } from "@haibun/core/lib/adapters/current-version.js";
 import { PAGE_ACTUALITY, SERVED_SETTINGS, servedWith } from "./test/setup.js";
 import { CONTEXT_DOCUMENT, HYDRATION_ID, SHU_TAG } from "./domains/elements.js";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";

@@ -31,7 +31,7 @@
 		"./lib/rpc-client.js": { "haibun-source": "./src/lib/transport/adapters/rpc-client.js", "default": "./build/lib/transport/adapters/rpc-client.js" },
 		"./lib/sse-subscriber.js": { "haibun-source": "./src/lib/transport/adapters/sse-subscriber.js", "default": "./build/lib/transport/adapters/sse-subscriber.js" },
 		"./schema/protocol.js": { "haibun-source": "./src/lib/domains/protocol.js", "default": "./build/lib/domains/protocol.js" },
-		"./currentVersion.js": { "haibun-source": "./src/lib/domains/current-version.js", "default": "./build/lib/domains/current-version.js" },
+		"./currentVersion.js": { "haibun-source": "./src/lib/adapters/current-version.js", "default": "./build/lib/adapters/current-version.js" },
 		"./lib/machine.js": { "haibun-source": "./src/lib/machines/machine.js", "default": "./build/lib/machines/machine.js" },
 		"./lib/record-blip.js": { "haibun-source": "./src/lib/pipelines/record-blip.js", "default": "./build/lib/pipelines/record-blip.js" },
 		"./lib/principal.js": { "haibun-source": "./src/lib/pipelines/principal.js", "default": "./build/lib/pipelines/principal.js" },

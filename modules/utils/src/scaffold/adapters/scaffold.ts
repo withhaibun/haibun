@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
 
 import { getPackageLocation } from "@haibun/core/lib/adapters/workspace-lib.js";
-import { currentVersion } from "@haibun/core/lib/domains/current-version.js";
+import { currentVersion } from "@haibun/core/lib/adapters/current-version.js";
 
 type Tkv = { [name: string]: string };
 

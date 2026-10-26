@@ -18,7 +18,6 @@ import {
 import type { TWorld } from "@haibun/core/lib/world.js";
 import type { AStepper } from "@haibun/core/lib/astepper.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
-import { currentVersion as version } from "@haibun/core/lib/domains/current-version.js";
 import { answeredFor } from "@haibun/core/lib/call-step.js";
 import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { stepsInstructions, toolDefinition } from "@haibun/core/lib/step-discovery.js";
@@ -39,7 +38,7 @@ const ACCEPT_HEADER = "Accept";
 
 /** What serving MCP reads: actuality's world and steppers, the registry it lists, the server that mounts its routes, the
  *  verifier of each request's authority, and the path of its endpoint. */
-export type TMcpParts = { world: TWorld; steppers: AStepper[]; registry: () => StepRegistry; webserver: IWebServer; verifier: TCapabilityVerifier; path: string };
+export type TMcpParts = { world: TWorld; steppers: AStepper[]; registry: () => StepRegistry; webserver: IWebServer; verifier: TCapabilityVerifier; path: string; version: string };
 
 /** The steps the caller holds, as tools, a step another host injected among them. */
 const mcpTools = (registry: StepRegistry): Tool[] => registry.heldBy(shownTo()).map(toolDefinition);
@@ -79,7 +78,10 @@ function mcpServerOf(parts: TMcpParts): McpServer {
 	const info = `mcp://${parts.path}/info`;
 	// A host places a server's instructions in its model's context. They are set before a caller's steps are read, so they
 	// don't name a stepper: a caller finds the steps it holds in the tool list and by discovery.
-	const mcpServer = new McpServer({ name: SERVER_NAME, version }, { capabilities: { tools: { listChanged: true }, resources: {} }, instructions: stepsInstructions([]) });
+	const mcpServer = new McpServer(
+		{ name: SERVER_NAME, version: parts.version },
+		{ capabilities: { tools: { listChanged: true }, resources: {} }, instructions: stepsInstructions([]) },
+	);
 	// Each step the caller holds is a tool. Which of them a model receives at once is its host's choice, as the MCP client
 	// best practices place it; a host without a search of its own finds steps with the show steps step, which is a tool too.
 	mcpServer.server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: mcpTools(parts.registry()) }));
@@ -93,7 +95,7 @@ function mcpServerOf(parts: TMcpParts): McpServer {
 	}));
 	mcpServer.server.setRequestHandler(ReadResourceRequestSchema, (request) => {
 		if (request.params.uri !== info) throw new McpError(ErrorCode.InvalidRequest, `Resource not found: ${request.params.uri}`);
-		return { contents: [{ uri: request.params.uri, mimeType: "application/json", text: JSON.stringify({ version, name: SERVER_NAME, status: "running" }) }] };
+		return { contents: [{ uri: request.params.uri, mimeType: "application/json", text: JSON.stringify({ version: parts.version, name: SERVER_NAME, status: "running" }) }] };
 	});
 	return mcpServer;
 }

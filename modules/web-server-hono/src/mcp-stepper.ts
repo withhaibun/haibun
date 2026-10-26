@@ -8,7 +8,7 @@ import type { IStepTransport } from "./domains/transport.js";
 import { WEB_SERVER_PORT_OPTION } from "./domains/web-server.js";
 import { capabilityVerifier } from "./pipelines/capability-verifier.js";
 import { serveMcp, type TMcpParts } from "./pipelines/mcp.js";
-import { heldServer, listeningPorts } from "./root.js";
+import { heldServer, listeningPorts, servedVersion } from "./root.js";
 
 /** The port of the MCP endpoint where both its own PORT and the web server's are unset. */
 const MCP_PORT = 8128;
@@ -69,7 +69,15 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 	private parts(): TMcpParts {
 		const world = this.getWorld();
 		const webserver = heldServer(world.runtime, this.name);
-		return { world, steppers: this.steppers, registry: () => this.registry(), webserver, verifier: capabilityVerifier(world.runtime, webserver), path: this.path };
+		return {
+			world,
+			steppers: this.steppers,
+			registry: () => this.registry(),
+			webserver,
+			verifier: capabilityVerifier(world.runtime, webserver),
+			path: this.path,
+			version: servedVersion,
+		};
 	}
 
 	/** The port the endpoint listens on: its own PORT, else the web server's PORT, else MCP_PORT. */

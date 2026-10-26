@@ -3,7 +3,6 @@
  * runs only the scripts that nonce names and the modules they load.
  */
 import { randomBytes } from "node:crypto";
-import { currentVersion } from "@haibun/core/lib/domains/current-version.js";
 import type { TPageBuild, TServedHydration } from "../domains/hydration.js";
 import { buildSpaHtml } from "../derivations/page-html.js";
 import { pagePolicy } from "../derivations/content-security-policy.js";
@@ -16,7 +15,7 @@ const SCRIPT_NONCE_BYTES = 16;
 
 /** The build the served page's code is from: this module's version, and when its bundle was written. A deployment that
  *  serves a page older than its source recognizes it by this. */
-export const servedBuild = (bundles: TBundleFile): TPageBuild => ({ version: currentVersion, builtAt: bundles.pageBuiltAt(bundleFileName(BUNDLE_NAMES.page)) });
+export const servedBuild = (bundles: TBundleFile, version: string): TPageBuild => ({ version, builtAt: bundles.pageBuiltAt(bundleFileName(BUNDLE_NAMES.page)) });
 
 /** The served page at `basePath`, and the Content-Security-Policy its response carries. */
 export function servedPage(basePath: string, hydration: TServedHydration): { html: string; policy: string } {

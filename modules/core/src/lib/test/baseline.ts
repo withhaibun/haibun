@@ -29,7 +29,7 @@ type TBaselineCheck = {
 type TDifference = { file: string; finding: string; found: number; recorded: number };
 
 /** The command that writes a test's baseline with the findings that remain. */
-export const lowerCommand = (testFile: string): string => `npx vitest run -u ${testFile}`;
+export const lowerCommand = (testFile: string): string => `npx vitest run ${testFile} -u`;
 
 /** How a count differs from its record: it exceeds the record, or it is lower than the record. */
 type TDirection = "exceeds" | "lower";

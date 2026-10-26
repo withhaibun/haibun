@@ -1,30 +1,23 @@
 /**
- * dev-mode: the runtime switch between DEV and PROD, and the `failFastOrLog` helper that depends on it.
+ * dev-mode: the switch between development and production, as Node's convention states it, and the `failFastOrLog` helper that
+ * depends on it. `NODE_ENV=production` selects production, and every other value selects development, as an unset NODE_ENV does.
+ * A browser bundle reads the NODE_ENV of its build, which esbuild's `define` carries into it.
  *
- * Some code paths catch an error so that it doesn't interrupt unrelated work. For example, a listener that throws must
- * not stop the other listeners. In PROD the caught error is logged to the console. A person can miss an error in a
- * browser console, and the bug then stays unfixed.
- *
- * `failFastOrLog` re-throws the error in DEV, so the developer sees the failure immediately. In PROD it logs the error,
- * and the code after the catch runs. A caller wraps the protected code in a try/catch and calls this helper in the catch.
- *
- * Detection
- *   - Where `process.env.NODE_ENV` is set: DEV unless it is "production".
- *   - Elsewhere, such as a browser: DEV unless a bundler sets `globalThis.__HAIBUN_PROD__ = true` at build time.
+ * Some code paths catch an error so that it doesn't interrupt unrelated work. For example, a listener that throws must not stop
+ * the other listeners. `failFastOrLog` throws the error again in development, so the developer sees the failure at once. In
+ * production it logs the error, and the code after the catch runs, so the process keeps serving. A caller wraps the isolated code
+ * in a try/catch and calls this helper in the catch.
  */
 
-declare global {
-	var __HAIBUN_PROD__: boolean | undefined;
-}
+/** The value of NODE_ENV that selects production. */
+export const PRODUCTION = "production";
 
-export function isDev(): boolean {
-	if (typeof process !== "undefined" && process.env && typeof process.env.NODE_ENV === "string") return process.env.NODE_ENV !== "production";
-	return globalThis.__HAIBUN_PROD__ !== true;
-}
+/** Whether the process runs in development: every NODE_ENV but production. */
+export const isDev = (): boolean => process.env.NODE_ENV !== PRODUCTION;
 
 /**
- * Called inside a catch. Re-throws `err` in DEV, so the developer sees the failure. Logs `label` and `err` in PROD and
- * returns, so the caller continues. Pass the `err` of the surrounding catch, so the re-thrown error is the original failure.
+ * Called inside a catch. Throws `err` again in development, so the developer sees the failure. Logs `label` and `err` in
+ * production and returns, so the caller continues. Pass the `err` of the surrounding catch, so the error thrown is the original.
  */
 export function failFastOrLog(label: string, err: unknown): void {
 	if (isDev()) throw err;

@@ -4,13 +4,23 @@
  * errors and its failed requests, which a test states where the page doesn't reach a state the test awaits.
  */
 import { build } from "esbuild";
+import { HAIBUN_SOURCE, nodeEnvDefine } from "@haibun/tooling/bundles.js";
 import { createServer, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { chromium, type Browser, type Page } from "playwright";
 
 /** Builds the entry at `path` into one module, from the source of the modules it imports. */
 export async function builtEntry(path: string): Promise<string> {
-	const built = await build({ entryPoints: [path], bundle: true, write: false, format: "esm", platform: "browser", target: "es2022", conditions: ["haibun-source"] });
+	const built = await build({
+		entryPoints: [path],
+		bundle: true,
+		write: false,
+		format: "esm",
+		platform: "browser",
+		target: "es2022",
+		conditions: [HAIBUN_SOURCE],
+		define: nodeEnvDefine(),
+	});
 	const [file] = built.outputFiles;
 	if (file === undefined) throw new Error(`esbuild wrote an empty set of files for ${path}`);
 	return file.text;

@@ -126,28 +126,28 @@
 			"actuality": {
 				"text": "e2e-tests/requirements, node_modules/@haibun/cli/waypoints, node_modules/@haibun/logic/waypoints, node_modules/@haibun/core/waypoints",
 				"status": "passed",
-				"tookMs": 4000,
+				"tookMs": 3900,
 				"digest": {
 					"e2e-tests/requirements": "a2f4054115d555c636b3923efd7fb1efbe5431aee9bb46fad9442b516d35c055",
 					"e2e-tests/src": "58d60ee765cabcfce203a6cacd4f669fb0c891d1d0153c1134505572772c2c6a",
-					"modules/cli/src": "9d742d489938153c10a2e08f2373ad0878ba3c0660a70f1be9b7c7e37677e747",
+					"modules/cli/src": "99db1d49c51913331b6e3fe785633ef24380e9e58203114ba93156b78914851d",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "1e5ea94e17c4fd940b4fd75b145d0ace34acc640267f2a11003957a31aa2f49d",
+					"modules/core/src": "f169a3329cf968267dd818334136e4ec5c68daa2195ae29b95ce33f63217d496",
 					"modules/core/waypoints": "f573c51de6e8154e49adbb5d98a25b3fd1872742dfdab0f3d6ec8f6164759860",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
-					"modules/logic/src": "dff4d32b4be1a732615381d0e956cf4c8ae6f5201907f59f73551707a4ba4ed7",
+					"modules/logic/src": "8da7f49a993993ddb6c46c805bbe20e73bdf522506ea83e74321697285fc21ba",
 					"modules/logic/waypoints": "93e972f98438aa5cbe8f36d93e6aa45924af65df9fdb2846bf209209421a4671",
 					"modules/monitor-otel/src": "51ad9d33751b0654ac68a6a7280ef036d2c5e4b9b676bbacb9c6999d64c5d3d8",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/out-junit/src": "f51e8c712936726e900a442c3a35bd2ae45157be52af4eb76c581e6476fef8fa",
+					"modules/out-junit/src": "22d1ca5d4f4449cae6186ff8d84c1f0b182e7591e1ffda9520a38daa3e8681d2",
 					"modules/recorder/src": "4483bd44ae0de4ad4e504b6b398a05042484a83df837a6cfa085869c7e69332d",
-					"modules/shu/src": "a14f7d965f407ebb5abcd2349ea0d55a74bd9cb482767da316b88288e7c7e7f7",
+					"modules/shu/src": "07ac0dce08d8e5f3f44e035dc258887ed779d41a1c5a907c460790d5c2549914",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
-					"modules/utils/src": "6ef7e891161f6f076c1eccfe32e55990108f5495abfe34abf36c03b5b9a74b4d",
-					"modules/web-accessibility-axe/src": "d52f12b6018637a439af7acb9d28392b3cdc884b77df2b9bde59f4eaa68f1d67",
-					"modules/web-playwright/src": "49851a0e5a5b5769c55f785122b0b5f3d78e5997a872ac5d57ef8119ae3c38a4",
-					"modules/web-server-hono/src": "f1b3e793a9f02073b4b7fe1424dee793b6347fbe39ef67e156f83e7bacd44f30"
+					"modules/utils/src": "9799d114ca397313863bfc29604199b02bc9daf1a4bfa26675dbfe7cfc30e36c",
+					"modules/web-accessibility-axe/src": "e87670ddf1ad31bc5fe2ce13b34379ea1c138d635e22c02c22ad7ba81fc3c238",
+					"modules/web-playwright/src": "183837582c6745581f805bc27a237802cbe289e8d03346c3f4542012f75925be",
+					"modules/web-server-hono/src": "b2802ccd9b7553b8fa1ee6065b1efa329d43cc55183ae37533cea5414b65665e"
 				}
 			},
 			"features": {
@@ -172,7 +172,7 @@
 				"/features/04-combinators.feature.ts": {
 					"text": "Combinators and quantifiers",
 					"status": "passed",
-					"tookMs": 200,
+					"tookMs": 100,
 					"steps": 61
 				},
 				"/features/05-goals.feature.ts": {
@@ -202,13 +202,13 @@
 				"/features/09-surfaces.feature.ts": {
 					"text": "One path for every surface",
 					"status": "passed",
-					"tookMs": 400,
+					"tookMs": 300,
 					"steps": 95
 				},
 				"/features/10-cli.feature.ts": {
 					"text": "The command line",
 					"status": "passed",
-					"tookMs": 1100,
+					"tookMs": 900,
 					"steps": 11
 				},
 				"/features/11-performance.feature.ts": {
@@ -226,13 +226,13 @@
 				"/features/13-formulas.feature.ts": {
 					"text": "Formula notation",
 					"status": "passed",
-					"tookMs": 100,
+					"tookMs": 200,
 					"steps": 45
 				},
 				"/features/14-model-loop.feature.ts": {
 					"text": "A model proposes lines and the engine proves them",
 					"status": "passed",
-					"tookMs": 100,
+					"tookMs": 0,
 					"steps": 10
 				},
 				"/features/15-combined-statements.feature.ts": {
