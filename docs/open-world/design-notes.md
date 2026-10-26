@@ -1,6 +1,6 @@
 # Open-world reasoning in haibun
 
-Status: design, from a trial on 2026-10-26. Repos read at haibun `fe9096eae` and spopg `delegated-action`. The trial didn't change either repo. The trial's scripts and outputs are in `reasoner-trial/` beside this file.
+Status: design, from a trial on 2026-10-26. It read haibun at `fe9096eae` and an application built on it. The trial didn't change either repository. The trial's scripts and outputs are in `reasoner-trial/` beside this file.
 
 ## Conclusions
 
@@ -44,7 +44,7 @@ Classes:
 | 14 | `logic/src/pipelines/goals.ts:76` | a missing fact and plan is `refuted` | K | `unknown` |
 | 15 | `goals.ts:216`, `derivations/goals.ts:156` `forwardOf` | affordances over the facts read, the steps a caller may call | K over facts, O over steps | facts open; steps as ODRL containment |
 | 16 | `logic/src/pipelines/reads.ts:17-33` `readerOf` | `store.query` under the caller's authority is the whole graph | K | a read at a bound states the bound, so absence under a bound is `unknown`, as a refusal already is |
-| 17 | `spopg/src/graph/pipelines/quad-surface.ts:63-73` `queryFacts` | at most `QUAD_READ_CEILING` records per read, taken as complete | K | a truncated read states the truncation, which makes the result `unknown` |
+| 17 | an application's read of records under a ceiling | at most the ceiling's count of records per read, taken as complete | K | a truncated read states the truncation, which makes the result `unknown` |
 | 18 | `core/src/lib/records/pipelines/ontology-records.ts:86` | an absent `inData` is `true` | K (a default) | state it on every term at derivation |
 | 19 | `core/src/lib/domains/actions.ts:208` `delegatedActions` | an absent `allowedAction` is every action | O (ZCAP-LD's own rule) | `odrl:use`, the top action |
 | 20 | `core/src/lib/domains/actions.ts:111-121,225-233` `capabilityAllows`, `actionUnder` | what a capability doesn't allow is refused | O | ODRL containment as N3 rules (section 2.3) |
@@ -53,13 +53,13 @@ Classes:
 
 Counts are of lines in `*.feature` and `*.feature.ts`, by pattern, excluding prose.
 
-| Step | haibun | spopg | Class | Note |
+| Step | haibun | Application | Class | Note |
 |------|-------:|------:|-------|------|
 | `not …` | 27 | 10 | A 32, K 3, O 2 | K: `not ensure …` (requirements 03:52, 03:61, 04:47); O: `not holding capability …` (requirements 02:39, 02:46) |
 | `absent …` | 1 | 0 | K | requirements 04:46; the step is at `logic-stepper.ts:122-141` |
 | `every … observed in …` | 6 | 3 | A | the steps waypoint (`logic/waypoints/backgrounds/steps.feature.ts:10`), http-trace, visited pages, blips |
 | `some … observed in …` | 4 | 8 | A | |
-| `every x in D …` | 1 | 1 | K, or closed where D is declared closed | requirements 04:24, spopg recipe:132 |
+| `every x in D …` | 1 | 1 | K, or closed where D is declared closed | requirements 04:24, and one line of an application |
 | `some x in D …` | 7 | 0 | K, or closed as above | |
 | `where …, …` | 17 | 25 | A | |
 | `resolve`, `pursue`, `walk toward` | 13 | 13 | K | goal planning |
@@ -71,7 +71,7 @@ Totals: engine and pipeline sites 20: A 6, K 8, O 2, and 4 split (rows 4 to 6 ar
 
 ### 2.1 Knowledge (OWL 2)
 
-- The ontology comes from `ontologyToQuads` (`core/src/lib/records/derivations/ontology.ts:87`), exported as OWL. The trial's export over spopg's 21 steppers gave 244 domains, 902 quads, 52 classes, 112 properties and 361 Turtle lines.
+- The ontology comes from `ontologyToQuads` (`core/src/lib/records/derivations/ontology.ts:87`), exported as OWL. The trial's export over an application's 21 steppers gave 244 domains, 902 quads, 52 classes, 112 properties and 361 Turtle lines.
 - A class's declared `type` is the JSON-LD `@type` of its records. It exports as `rdfs:subClassOf` that IRI, not as the class itself: 41 types name an IRI, and several share one (`prov:Entity`).
 - A relation's `domain` and `range` edges list every declaring type, which is a union. Several `rdfs:domain` axioms would state an intersection, so they export as `owl:unionOf`. The current records would be wrong under OWL's semantics if exported naively.
 - A blank class expression is typed `owl:Class` (the OWL 2 RDF mapping). Without the typing, Konclude silently drops the expression.
@@ -100,7 +100,7 @@ Actuality's records of a run are one named graph. A check is scoped negation ove
   - the parent's controller is `odrl:assigner`
   - `expires` and caveats are `odrl:constraint`
 - **Scope.** Only permissions and constraints apply. Prohibitions and duties don't, because a capability only narrows authority.
-- **One query.** Attenuation (child ⊑ parent), the trust-registry clerk's grant, and boundary containment (candidate ⊑ boundary) are one containment query. A candidate is contained where every action, target and expiry is within its bound. The witness is the exceeding `("action" a)`, `("target" t)` or `("expires" e)`.
+- **One query.** Attenuation (child ⊑ parent), a delegate's grant over a list, and boundary containment (candidate ⊑ boundary) are one containment query. A candidate is contained where every action, target and expiry is within its bound. The witness is the exceeding `("action" a)`, `("target" t)` or `("expires" e)`.
 - **The action grammar as rules.**
   - `*` allows every action.
   - An entry allows the action itself.
@@ -121,13 +121,13 @@ Actuality's records of a run are one named graph. A check is scoped negation ove
 | chain lint | N3 scoped negation over the step-graph formula |
 | `every … observed`, `some … observed`, `not`, `where`, `whenever`, `until` | stay in `haibun.pl` as the proof of a line over actuality; already exported as N3 with scoped negation |
 | `every x in D`, `some x in D` | K: `unknown` unless D is closed (`owl:oneOf`) |
-| `holding capability`, delegation, trust-registry grant, `capabilityAllows`, `actionUnder`, `narrowing` | ODRL containment in N3 (section 2.3) |
+| `holding capability`, delegation, a delegate's grant, `capabilityAllows`, `actionUnder`, `narrowing` | ODRL containment in N3 (section 2.3) |
 | `rule {formula}` (TPTP) | removed; a rule is N3 |
 | `show graph {view} as tptp` | the DL view (stage 7) |
 
 ## 3. Reasoner choice
 
-Trial in Node 24 over the same records: the exported ontology, and a ZCAP chain with expiry (root → c1 → c2…c5) plus a trust-registry clerk's grant with two sub-clerk candidates.
+Trial in Node 24 over the same records: the exported ontology, and a ZCAP chain with expiry (root → c1 → c2…c5) plus a delegate's grant over a list with two candidate grants to a second delegate.
 
 | | Konclude (`rdf-reasoner-konclude` 0.8.0) | EYE 11.24.8 on haibun's swipl-wasm 8.2.3 |
 |---|---|---|
@@ -137,7 +137,7 @@ Trial in Node 24 over the same records: the exported ontology, and a ZCAP chain 
 | Cold load | 0.8–1.2 s | 0.22–0.38 s |
 | Memory (RSS) | 575 MB after load, 820 MB after the first reasoning, 960 MB peak | 120–130 MB after load, 141 MB after reasoning |
 | Ontology (1,279 triples) | consistency 0.57–0.63 s; classification 12 ms (46 inferred) | rules plus records in 182–185 ms |
-| Policy cases | correct only through satisfiability of C ⊓ ¬B, with expiry as epoch-second integers; `isEntailed` and `classify` missed Max5 ⊑ Max10, Before1115 ⊑ Before1201 and C2 ⊑ C1 | all 7 expected results derived: c2 ⊑ c1, c1 ⊑ root, subClerkEu ⊑ clerkGrant; c3 exceeds target, c4 action, c5 expiry, subClerkWithdraw action |
+| Policy cases | correct only through satisfiability of C ⊓ ¬B, with expiry as epoch-second integers; `isEntailed` and `classify` missed Max5 ⊑ Max10, Before1115 ⊑ Before1201 and C2 ⊑ C1 | all 7 expected results derived: c2 ⊑ c1, c1 ⊑ root, subGrantPart ⊑ listGrant; c3 exceeds target, c4 action, c5 expiry, subGrantRemove action |
 | dateTime constraint | `xsd:dateTime` facets not evaluated (C ⊓ ¬B reported satisfiable); `xsd:dateTimeStamp` stalled the kernel | evaluated by `math:greaterThan` |
 | Count constraint | integer facets evaluated by satisfiability; cardinality subsumption only by satisfiability | integer comparison built-ins; cardinality reasoning absent |
 | Witness | containment: a justification of C ⊓ ¬B's unsatisfiability, 32 raw RDF triples with blank nodes, in 43 s on 380 triples; on 1,600 triples `validate` didn't finish in 15 min. Exceeding: one authored satisfiability query per dimension (correct for c3, c4, c5 and withdraw) | the exceeding term itself, plus an `r:Proof` (540 lines) whose negation names its scope, `((sources) 1) log:notIncludes {…}` |
@@ -154,7 +154,7 @@ Trial in Node 24 over the same records: the exported ontology, and a ZCAP chain 
 - A threadless build isn't feasible. Konclude is an actor system whose KPSet classifier spin-waits for results from parallel tasks. The wrapper's author replaced the threads with cooperative single-thread dispatch. That build deadlocked in the KPSet subsumption phase on the Roberts family and GALEN ontologies, after six rounds of workarounds (`docs/solutions/architecture-patterns/wasm-pthread-concurrency-architecture-2026-05-08.md`). The trial didn't rebuild it: a Docker build takes 20–30 minutes, and the source shows the cause.
 - **What a PWA would need.** These are workarounds, and both are strictly necessary for Konclude:
   - `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` (or `credentialless`) on every document. Every cross-origin subresource then needs CORP or CORS.
-  - COOP `same-origin` severs `window.opener` with cross-origin pop-ups, which affects wallet and OID4VP redirects.
+  - COOP `same-origin` severs `window.opener` with cross-origin pop-ups, which affects redirects that return from a cross-origin page.
   - A static host without header control needs a service worker that adds the headers.
   - The browser extension declares `cross_origin_embedder_policy` and `cross_origin_opener_policy` in its MV3 manifest.
 - In the browser it runs only in a worker. A known browser deadlock existed in its v0.7.0.
@@ -201,14 +201,6 @@ Net source: about −1,300 / +880. `haibun.pl` falls from 341 to about 150 lines
 - EYE's OWL coverage beyond RL. The trial didn't find a haibun need for reasoning by case over unions, or from existentials or cardinalities. If one appears, Konclude in a worker, with cross-origin isolation stated as its reason.
 - Bytes: if a page ever evaluates containment locally, EYE adds swipl-wasm (about 2.0 MB gz) and `eye.qlf` (69 KB gz) to that page, and the bundle budget would need that much room. Stage 4 avoids this by sending the query to the instance.
 - Not checked: Konclude in a browser worker, and EYE in a browser worker or PWA. haibun already loads swipl-wasm the same way in both, but that wasn't run here. The Konclude documentation site, and a rebuild of its wasm, weren't attempted.
-
-## Addendum: trust registry recognition (operator question)
-The verifier's recognition decision moves to the same reasoner, not only the clerk's grant.
-- Trusted List: an issuer is recognized for credential type T at time t when an anchor on a recognized list accredits it for T (or a subclass of T) and the list's graph doesn't include the anchor's withdrawal at or before t. The withdrawal check is scoped negation over the list's own published graph: the list is authoritative and complete for its own entries, so local closure is correct there.
-- Accreditation root: an issuer is recognized when a chain of accreditation capabilities from a recognized root reaches it, each link contained in its parent (the same containment query), each unexpired at t, and each absent from the revocation graph its issuer publishes (scoped negation over that graph).
-- Open world elsewhere: an issuer that every source fails to recognize is `unknown`, and the gate refuses on unknown (fail closed). It doesn't assert "untrusted" as a fact.
-- The verdict carries the proof (which list or chain, and which anchor or links), so the verifier's refusal and the monitor show why.
-- TS 119 602 types, accreditedFor and the credential types become OWL classes, so accreditation for a superclass covers its subclasses by entailment.
 
 ## Addendum: class expressions in steps, and `never`
 - Rename haibun's `not` step to `didn't {statements}` (operator's choice, replacing `never`). Same meaning: holds when its statement doesn't succeed (closed world, actuality). Its products (`refusal`, seqPath) stay. Migrate every `not` line, the docs and the descriptions; the old name doesn't remain as an alias.

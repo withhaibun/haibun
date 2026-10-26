@@ -1,34 +1,27 @@
 /**
  * The engine's readings conform to N3: a proof exports as N3, each proved call as a fact and each node as the rules of its
- * reading, and EYE derives from the export exactly the nodes the engine proved. EYE (v11.24.8, MIT) is a fixture of this
- * test, compiled for the same swipl-wasm runtime, and the shipped runtime doesn't load it.
+ * reading, and EYE derives from the export exactly the nodes the engine proved, beside the facts the export states.
  */
-import { readFileSync } from "node:fs";
-import SWIPL from "swipl-wasm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { VERDICT } from "@haibun/core/lib/domains/protocol.js";
 import { EFFECT, PROOF_NAMESPACE, READ_PREDICATE, type TReadRequest } from "../domains/logic.js";
-import type { TLogicEngine } from "../ports.js";
+import { triplesOf } from "../derivations/n3.js";
+import type { TLogicEngine, TReasoner } from "../ports.js";
+import { eyeReasoner } from "./eye.js";
 import { startSwipl } from "./swipl.js";
 
-/** The libraries EYE reaches through autoload, which the runtime's library holds as .qlf files that autoload doesn't read. */
-const EYE_LIBRARIES = ["varnumbers", "when"];
-const EYE = new URL("../../fixtures/eye/eye.qlf", import.meta.url);
+/** The query that selects every triple that states a node or a call proved. */
+const PROVED_QUERY = `{ ?part <${PROOF_NAMESPACE}is> ?verdict } => { ?part <${PROOF_NAMESPACE}is> ?verdict } .`;
+/** A fact of an export: a line that isn't a rule. */
+const RULE_OPENING = "{";
 
-/** Runs EYE over N3 text in a runtime of its own, and returns the triples it derives. */
-async function eyeDerives(n3: string): Promise<string[]> {
-	const printed: string[] = [];
-	const runtime = await SWIPL({ arguments: ["-q"], print: (line: string) => printed.push(line), printErr: () => undefined });
-	for (const library of EYE_LIBRARIES) runtime.prolog.query(`use_module(library(${library}))`).once();
-	runtime.FS.writeFile("eye.qlf", readFileSync(EYE));
-	runtime.prolog.query("load_files('eye.qlf', [])").once();
-	runtime.FS.writeFile("export.n3", n3);
-	await runtime.prolog.forEach("user:main(['--nope', '--quiet', '--pass-only-new', 'export.n3'])");
-	return printed
-		.join("\n")
-		.split("\n")
-		.filter((line) => line.includes(`${PROOF_NAMESPACE}is>`));
-}
+/** Runs EYE over N3 text, and returns each triple its query selects, as one line. */
+const eyeDerives = (reasoner: TReasoner, n3: string): Promise<string[]> =>
+	reasoner.session(async (session) => {
+		const state = await session.start(n3, PROVED_QUERY);
+		if ("need" in state) throw new Error(`the export doesn't read the store, and EYE requested a read of ${state.subject}`);
+		return triplesOf(state.derived).map(({ subject, predicate, object }) => `${subject} ${predicate} ${object}.`);
+	});
 
 /** The N3 triple that states the node at a position proved, as the export names it. */
 const provedTriple = (path: number[]): string => `<${PROOF_NAMESPACE}p${["", ...path].join("_")}> <${PROOF_NAMESPACE}is> <${PROOF_NAMESPACE}proved>.`;
@@ -73,12 +66,15 @@ const PROOFS: [string, string, Record<string, string>][] = [
 
 describe("the engine's readings in N3", () => {
 	let engine: TLogicEngine;
+	let reasoner: TReasoner;
 	beforeAll(async () => {
 		engine = await startSwipl();
+		reasoner = eyeReasoner();
 	});
 
 	it.each(PROOFS)("EYE derives the nodes the engine proves: %s", { timeout: 30_000 }, async (_, term, calls) => {
 		const { n3, nodes } = proved(engine, "conformance", term, calls);
-		expect((await eyeDerives(n3)).sort()).toEqual(nodes.sort());
+		const facts = n3.split("\n").filter((line) => line !== "" && !line.startsWith(RULE_OPENING));
+		expect((await eyeDerives(reasoner, n3)).sort()).toEqual([...new Set([...facts, ...nodes])].sort());
 	});
 });

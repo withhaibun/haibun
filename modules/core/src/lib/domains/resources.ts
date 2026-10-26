@@ -369,8 +369,10 @@ export const LinkRelations = {
 	SUB_PROPERTY_OF: { rel: "subPropertyOf", uri: "rdfs:subPropertyOf", range: "iri" },
 	SUB_CLASS_OF: { rel: "subClassOf", uri: "rdfs:subClassOf", range: "iri" },
 	LABEL: { rel: "label", uri: "rdfs:label", range: "literal" },
-	DOMAIN: { rel: "domain", uri: "rdfs:domain", range: "iri" },
-	RANGE: { rel: "range", uri: "rdfs:range", range: "iri" },
+	// schema.org's domainIncludes and rangeIncludes list the classes a property connects as a union. Several rdfs:domain
+	// statements would state their intersection.
+	DOMAIN: { rel: "domain", uri: "schema:domainIncludes", range: "iri" },
+	RANGE: { rel: "range", uri: "schema:rangeIncludes", range: "iri" },
 	ICON: { rel: "icon", uri: "hbn:icon", range: "literal" },
 	PRESENTATION: { rel: "presentation", uri: "hbn:presentation", range: "literal" },
 	// W3C Security (sec:): controllers, delegation, key material and proofs (DID and zcap-LD vocabulary)
@@ -686,6 +688,12 @@ export type THypermediaTopology = {
 	 * its records. A view hides it until a reader shows it. Absent means a feature's data.
 	 */
 	instrumentation?: boolean;
+	/**
+	 * Whether the type's named graph is complete: its records are every record of the type, so the reasoner states them as
+	 * one formula and a rule's scoped negation (`log:notIncludes`) over it is a closed check. Absent means the graph is open,
+	 * where a claim the records don't prove is unknown.
+	 */
+	complete?: boolean;
 	/**
 	 * The fields a store counts an instrumentation type's records by, each day, as it removes the records older than its
 	 * retention: the fields the density reads group and filter by, so a rail still marks a day whose records are removed.

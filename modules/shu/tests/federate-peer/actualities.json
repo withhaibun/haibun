@@ -54,6 +54,33 @@
 				}
 			}
 		},
+		"4ca66a9d821d2073": {
+			"filter": "",
+			"actuality": {
+				"text": "modules/shu/tests/federate-peer",
+				"status": "passed",
+				"tookMs": 100,
+				"digest": {
+					"modules/core/src": "9625a59d39a11ac0d72def5e8f52f823b4a4066b86b4abe357d38aef6c57a056",
+					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
+					"modules/logic/src": "8cec863a6f9593755e61184d755bb8b8ee7e66ae32ac0676e182128ef4cac8ae",
+					"modules/shu/src": "07ac0dce08d8e5f3f44e035dc258887ed779d41a1c5a907c460790d5c2549914",
+					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
+					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
+					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
+					"modules/web-playwright/src": "183837582c6745581f805bc27a237802cbe289e8d03346c3f4542012f75925be",
+					"modules/web-server-hono/src": "b2802ccd9b7553b8fa1ee6065b1efa329d43cc55183ae37533cea5414b65665e"
+				}
+			},
+			"features": {
+				"/features/serve.feature": {
+					"text": "/features/serve",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 4
+				}
+			}
+		},
 		"52cebebee475ad4d": {
 			"filter": "",
 			"actuality": {
@@ -61,9 +88,9 @@
 				"status": "passed",
 				"tookMs": 100,
 				"digest": {
-					"modules/core/src": "20bbd1bb20adb671cfc9a89405381a8e7ff32c894d9366c58aa201d1f70020a3",
+					"modules/core/src": "9bee3c0badb295be935dd4e0551cb77e63418314174ecea430dd72105d8258e8",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
-					"modules/logic/src": "8da7f49a993993ddb6c46c805bbe20e73bdf522506ea83e74321697285fc21ba",
+					"modules/logic/src": "8cec863a6f9593755e61184d755bb8b8ee7e66ae32ac0676e182128ef4cac8ae",
 					"modules/shu/src": "07ac0dce08d8e5f3f44e035dc258887ed779d41a1c5a907c460790d5c2549914",
 					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
@@ -135,6 +162,33 @@
 				}
 			}
 		},
+		"910b0431f8f3f6d7": {
+			"filter": "",
+			"actuality": {
+				"text": "modules/shu/tests/federate-peer",
+				"status": "passed",
+				"tookMs": 100,
+				"digest": {
+					"modules/core/src": "9625a59d39a11ac0d72def5e8f52f823b4a4066b86b4abe357d38aef6c57a056",
+					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
+					"modules/logic/src": "8cec863a6f9593755e61184d755bb8b8ee7e66ae32ac0676e182128ef4cac8ae",
+					"modules/shu/src": "07ac0dce08d8e5f3f44e035dc258887ed779d41a1c5a907c460790d5c2549914",
+					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
+					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
+					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
+					"modules/web-playwright/src": "183837582c6745581f805bc27a237802cbe289e8d03346c3f4542012f75925be",
+					"modules/web-server-hono/src": "b2802ccd9b7553b8fa1ee6065b1efa329d43cc55183ae37533cea5414b65665e"
+				}
+			},
+			"features": {
+				"/features/serve.feature": {
+					"text": "/features/serve",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 4
+				}
+			}
+		},
 		"cbc3e64fa9c72768": {
 			"filter": "",
 			"actuality": {
@@ -142,9 +196,9 @@
 				"status": "passed",
 				"tookMs": 100,
 				"digest": {
-					"modules/core/src": "20bbd1bb20adb671cfc9a89405381a8e7ff32c894d9366c58aa201d1f70020a3",
+					"modules/core/src": "9bee3c0badb295be935dd4e0551cb77e63418314174ecea430dd72105d8258e8",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
-					"modules/logic/src": "8da7f49a993993ddb6c46c805bbe20e73bdf522506ea83e74321697285fc21ba",
+					"modules/logic/src": "8cec863a6f9593755e61184d755bb8b8ee7e66ae32ac0676e182128ef4cac8ae",
 					"modules/shu/src": "07ac0dce08d8e5f3f44e035dc258887ed779d41a1c5a907c460790d5c2549914",
 					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",

@@ -1,8 +1,8 @@
 /**
- * Three rules of the logic engine, read from a repository's files. A call reaches step dispatch or a step's action only
+ * Four rules, read from a repository's files. A call reaches step dispatch or a step's action only
  * through the logic engine's prover, so every surface has one path (one path). The logic engine reads the store only through
  * its read request's reader (one read). A file doesn't name a concept by a synonym the vocabulary table removes (one
- * vocabulary).
+ * vocabulary), or name an application built on the repository (downstream names).
  */
 import { readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
@@ -99,21 +99,43 @@ export function vocabularyOf(markdown: string): { term: string; removed: string[
 }
 
 const escaped = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/** A word or phrase as a whole word, in any case. */
+const wholeWord = (text: string): RegExp => new RegExp(`(?<![\\w-])${escaped(text)}(?![\\w-])`, "gi");
+type TWordFinding = { pattern: RegExp; finding: string };
+
+/** Each match of a word's pattern in the files under the roots but those `exclude` leaves out, each text as `read` returns it. */
+function wordFindings(
+	repository: string,
+	roots: readonly string[],
+	exclude: readonly RegExp[],
+	words: readonly TWordFinding[],
+	read: (file: string, text: string) => string,
+): TFound[] {
+	const files = roots.flatMap((root) => filesUnder(repository, join(repository, root))).map((file) => relative(repository, file).split(sep).join("/"));
+	return [...new Set(files)]
+		.filter((file) => !exclude.some((pattern) => pattern.test(file)))
+		.flatMap((file) =>
+			read(file, readFileSync(join(repository, file), "utf8"))
+				.split("\n")
+				.flatMap((line, at) => words.flatMap(({ pattern, finding }) => [...line.matchAll(pattern)].map(() => ({ file, finding, line: at + 1 })))),
+		);
+}
 
 /** Each use of a removed synonym as a whole word in the files under the roots, apart from the vocabulary table itself. */
 export function vocabularyFindings(repository: string, roots: readonly string[], tableFile: string, exclude: readonly RegExp[]): TFound[] {
 	const table = vocabularyOf(readFileSync(join(repository, tableFile), "utf8"));
-	const synonyms = table.flatMap(({ term, removed }) => removed.map((synonym) => ({ term, synonym, pattern: new RegExp(`(?<![\\w-])${escaped(synonym)}(?![\\w-])`, "gi") })));
-	const files = roots.flatMap((root) => filesUnder(repository, join(repository, root))).map((file) => relative(repository, file).split(sep).join("/"));
-	return [...new Set(files)]
-		.filter((file) => !exclude.some((pattern) => pattern.test(file)))
-		.flatMap((file) => {
-			const text = readFileSync(join(repository, file), "utf8");
-			const read = file === tableFile ? text.replace(tableSection(text), "") : text;
-			return read
-				.split("\n")
-				.flatMap((line, at) =>
-					synonyms.flatMap(({ term, synonym, pattern }) => [...line.matchAll(pattern)].map(() => ({ file, finding: `names ${term} as ${synonym}`, line: at + 1 }))),
-				);
-		});
+	const synonyms = table.flatMap(({ term, removed }) => removed.map((synonym) => ({ pattern: wholeWord(synonym), finding: `names ${term} as ${synonym}` })));
+	return wordFindings(repository, roots, exclude, synonyms, (file, text) => (file === tableFile ? text.replace(tableSection(text), "") : text));
+}
+
+/** Each use of a downstream application's name as a whole word in the files under the roots, apart from the file that states
+ *  the names. A library doesn't name what is built on it. */
+export function downstreamNameFindings(
+	repository: string,
+	roots: readonly string[],
+	{ names, statedIn }: { names: readonly string[]; statedIn: string },
+	exclude: readonly RegExp[],
+): TFound[] {
+	const words = names.map((name) => ({ pattern: wholeWord(name), finding: `names the downstream ${name}` }));
+	return wordFindings(repository, roots, [...exclude, new RegExp(`^${escaped(statedIn)}$`)], words, (_file, text) => text);
 }

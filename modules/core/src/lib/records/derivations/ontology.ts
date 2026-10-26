@@ -46,7 +46,7 @@ export function categoryOf(cls: string, supers: Map<string, string[]>): string {
 	return CATEGORY_PRECEDENCE.find((category) => reached.has(category)) ?? "artifact";
 }
 
-/** Returns the persisted types that declare a rel as an edge or a property, in registration order: the rel's rdfs:domain.
+/** Returns the persisted types that declare a rel as an edge or a property, in registration order: the union that is the rel's domain.
  *  An abstract super-property and a rel the types don't use return an empty list. */
 export function typesDeclaringRel(domains: Record<string, TRegisteredDomain>, rel: string): string[] {
 	const labels: string[] = [];
@@ -120,7 +120,7 @@ export function ontologyToQuads(domains: Record<string, TRegisteredDomain>): TCl
 		addProp(rel);
 		quads.push(quadOf(rel, ONTOLOGY_FIELD.uri, entry.uri, PROPERTY_LABEL));
 		if ((entry as { abstract?: boolean }).abstract) quads.push(quadOf(rel, ONTOLOGY_FIELD.abstract, true, PROPERTY_LABEL));
-		// rdfs:domain: an edge from the Property to each persisted type that declares it.
+		// The domain: an edge from the Property to each persisted type that declares it.
 		for (const domain of typesDeclaringRel(domains, rel)) quads.push(quadOf(rel, ONTOLOGY_FIELD.domain, domain, PROPERTY_LABEL, CLASS_LABEL));
 		const sp = (entry as { subPropertyOf?: string | string[] }).subPropertyOf;
 		const parents = sp === undefined ? [] : Array.isArray(sp) ? sp : [sp];
@@ -130,7 +130,7 @@ export function ontologyToQuads(domains: Record<string, TRegisteredDomain>): TCl
 		}
 	}
 
-	// rdfs:range: an edge from each edge's Property to each class in the edge's range.
+	// The range: an edge from each edge's Property to each class in the edge's range.
 	for (const d of Object.values(domains)) {
 		if (!isPersisted(d.topology)) continue;
 		for (const [edge, edgeDef] of d.topology.edges === undefined ? [] : Object.entries(d.topology.edges)) {

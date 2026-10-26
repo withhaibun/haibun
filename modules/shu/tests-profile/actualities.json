@@ -117,11 +117,11 @@
 			"actuality": {
 				"text": "modules/shu/tests-profile, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 17100,
+				"tookMs": 16500,
 				"digest": {
-					"modules/core/src": "20bbd1bb20adb671cfc9a89405381a8e7ff32c894d9366c58aa201d1f70020a3",
+					"modules/core/src": "9625a59d39a11ac0d72def5e8f52f823b4a4066b86b4abe357d38aef6c57a056",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
-					"modules/logic/src": "8da7f49a993993ddb6c46c805bbe20e73bdf522506ea83e74321697285fc21ba",
+					"modules/logic/src": "8cec863a6f9593755e61184d755bb8b8ee7e66ae32ac0676e182128ef4cac8ae",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/shu/src": "07ac0dce08d8e5f3f44e035dc258887ed779d41a1c5a907c460790d5c2549914",
 					"modules/shu/tests-profile": "3ecf7ed1e8270219a78f318e8a1110ecef483ab03cb06f68e4566b5af74e64fb",
@@ -136,7 +136,7 @@
 				"/features/b-reading-a-cached-actuality.feature.ts": {
 					"text": "Reading an actuality this device holds",
 					"status": "passed",
-					"tookMs": 3400,
+					"tookMs": 3500,
 					"steps": 219
 				},
 				"/features/c-reading-a-report.feature.ts": {
@@ -148,13 +148,13 @@
 				"/features/d-two-origins.feature.ts": {
 					"text": "What a reader holds is held per address",
 					"status": "passed",
-					"tookMs": 3200,
+					"tookMs": 3000,
 					"steps": 219
 				},
 				"/features/e-deleting-an-actuality.feature.ts": {
 					"text": "Deleting an actuality this device holds",
 					"status": "passed",
-					"tookMs": 6500,
+					"tookMs": 6000,
 					"steps": 210
 				}
 			}
@@ -383,9 +383,9 @@
 				"status": "passed",
 				"tookMs": 3000,
 				"digest": {
-					"modules/core/src": "20bbd1bb20adb671cfc9a89405381a8e7ff32c894d9366c58aa201d1f70020a3",
+					"modules/core/src": "9625a59d39a11ac0d72def5e8f52f823b4a4066b86b4abe357d38aef6c57a056",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
-					"modules/logic/src": "8da7f49a993993ddb6c46c805bbe20e73bdf522506ea83e74321697285fc21ba",
+					"modules/logic/src": "8cec863a6f9593755e61184d755bb8b8ee7e66ae32ac0676e182128ef4cac8ae",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/shu/src": "07ac0dce08d8e5f3f44e035dc258887ed779d41a1c5a907c460790d5c2549914",
 					"modules/shu/tests-profile": "3ecf7ed1e8270219a78f318e8a1110ecef483ab03cb06f68e4566b5af74e64fb",

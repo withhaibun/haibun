@@ -1,0 +1,126 @@
+{
+	"docs/architecture.md": {
+		"names the downstream credentials": 7,
+		"names the downstream spopg": 4
+	},
+	"docs/develop_haibun.md": {
+		"names the downstream spopg": 2
+	},
+	"docs/planning/fol-in-haibun.md": {
+		"names the downstream credential": 2,
+		"names the downstream credentials": 1
+	},
+	"e2e-tests/capability/features/identity-and-capability.feature.ts": {
+		"names the downstream credential": 1
+	},
+	"e2e-tests/requirements/features/02-authority.feature.ts": {
+		"names the downstream spopg": 2
+	},
+	"e2e-tests/requirements/features/09-surfaces.feature.ts": {
+		"names the downstream spopg": 3
+	},
+	"e2e-tests/requirements/features/12-conversations.feature.ts": {
+		"names the downstream spopg": 1
+	},
+	"e2e-tests/requirements/features/14-model-loop.feature.ts": {
+		"names the downstream spopg": 1
+	},
+	"e2e-tests/src/rest.ts": {
+		"names the downstream credentials": 1
+	},
+	"e2e-tests/tests/features/auth-form.feature": {
+		"names the downstream credentials": 3
+	},
+	"modules/cli/src/test-runner-stepper.test.ts": {
+		"names the downstream muskeg": 2
+	},
+	"modules/core/src/lib/actuality/domains/seq-path.ts": {
+		"names the downstream credential": 2
+	},
+	"modules/core/src/lib/derivations/quad-graph-model.test.ts": {
+		"names the downstream credential": 6
+	},
+	"modules/core/src/lib/pipelines/principal.ts": {
+		"names the downstream credential": 2
+	},
+	"modules/core/src/lib/steps/pipelines/quad-store.test.ts": {
+		"names the downstream trust-registry": 3
+	},
+	"modules/core/src/lib/test/prose-rules.test.ts": {
+		"names the downstream credential": 1
+	},
+	"modules/core/src/lib/test/prose-rules.ts": {
+		"names the downstream credential": 2
+	},
+	"modules/core/src/lib/transport/adapters/rpc-call.ts": {
+		"names the downstream credentials": 1
+	},
+	"modules/core/src/lib/transport/domains/rpc-wire.ts": {
+		"names the downstream credentials": 2
+	},
+	"modules/shu/src/derivations/ontology-projection.test.ts": {
+		"names the downstream credential": 2
+	},
+	"modules/shu/src/page/adapters/artifact-read.ts": {
+		"names the downstream credentials": 1
+	},
+	"modules/shu/src/page/components/shu-action-column.test.ts": {
+		"names the downstream credential": 1
+	},
+	"modules/shu/src/page/components/shu-affordances-panel.test.ts": {
+		"names the downstream credential": 14
+	},
+	"modules/shu/src/page/components/shu-entity-column.body-content.test.ts": {
+		"names the downstream credential": 2
+	},
+	"modules/shu/src/page/components/shu-step-caller.test.ts": {
+		"names the downstream credential": 6
+	},
+	"modules/shu/src/page/components/shu-step-definition.test.ts": {
+		"names the downstream credential": 9
+	},
+	"modules/shu/src/page/derivations/body-frame.test.ts": {
+		"names the downstream credentials": 2
+	},
+	"modules/shu/src/page/derivations/markdown.content-html.test.ts": {
+		"names the downstream credential": 1
+	},
+	"modules/shu/src/page/derivations/step-input.test.ts": {
+		"names the downstream credential": 4
+	},
+	"modules/shu/src/page/graph/derivations/group-grid.test.ts": {
+		"names the downstream credentials": 1
+	},
+	"modules/shu/src/page/graph/derivations/jsonld-context-scope.test.ts": {
+		"names the downstream credential": 1,
+		"names the downstream credentials": 1,
+		"names the downstream OID4VP": 1
+	},
+	"modules/shu/src/page/graph/derivations/jsonld-context-scope.ts": {
+		"names the downstream credential": 1
+	},
+	"modules/shu/src/page/graph/derivations/sequence-model.test.ts": {
+		"names the downstream credential": 2
+	},
+	"modules/shu/src/page/graph/derivations/sequence-model.ts": {
+		"names the downstream credential": 1
+	},
+	"modules/shu/src/page/pipelines/read-steps.test.ts": {
+		"names the downstream credential": 9
+	},
+	"modules/tooling/src/adapters/bundles.ts": {
+		"names the downstream spopg": 1
+	},
+	"modules/web-playwright/src/domains/web-playwright.ts": {
+		"names the downstream credentials": 3
+	},
+	"modules/web-playwright/src/pipelines/rest.ts": {
+		"names the downstream credentials": 7
+	},
+	"modules/web-playwright/src/web-playwright-stepper.ts": {
+		"names the downstream credentials": 4
+	},
+	"modules/web-server-hono/src/ports.ts": {
+		"names the downstream OID4VCI": 1
+	}
+}

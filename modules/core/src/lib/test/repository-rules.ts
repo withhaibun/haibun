@@ -28,7 +28,7 @@ import {
 	undeclaredLists,
 	unexercised,
 } from "./step-rules.js";
-import { oneReadFindings, onePathFindings, vocabularyFindings } from "./surface-rules.js";
+import { downstreamNameFindings, oneReadFindings, onePathFindings, vocabularyFindings } from "./surface-rules.js";
 
 /** What a repository's rules read, each path from its root. */
 export type TRepositoryRules = {
@@ -50,6 +50,9 @@ export type TRepositoryRules = {
 	inputSelections: Readonly<Record<string, string>>;
 	/** The roots of the prose the Writing rules read, and the paths they leave out, such as a person's documents in progress. */
 	prose: { roots: readonly string[]; exclude: readonly RegExp[] };
+	/** The names of the applications built on the repository, which its files don't name, where it is a library. The rules test
+	 *  that states them is the one file that names them. */
+	downstreamNames?: readonly string[];
 	/** The document whose vocabulary table names the terms of the concepts, where the repository holds one. */
 	vocabularyTable?: string;
 	/** Each group by its config, from the root, with the external environments it uses. */
@@ -107,6 +110,19 @@ export function describeRepositoryRules(rules: TRepositoryRules): void {
 					const found = vocabularyFindings(repository, rules.prose.roots, vocabularyTable, rules.prose.exclude);
 					const fix = `name the concept by the term the vocabulary table of ${vocabularyTable} states`;
 					await expectWithinBaseline({ baselineFile: baseline("vocabulary"), found, testFile, fix });
+				});
+
+			const { downstreamNames } = rules;
+			if (downstreamNames !== undefined)
+				it("doesn't name an application built on it, apart from what downstream-names.baseline.json records", async () => {
+					const found = downstreamNameFindings(
+						repository,
+						[...new Set([...rules.prose.roots, ...rules.codeRoots])],
+						{ names: downstreamNames, statedIn: testFile },
+						rules.prose.exclude,
+					);
+					const fix = "state the general concept, and move the application's example into the application's own repository";
+					await expectWithinBaseline({ baselineFile: baseline("downstream-names"), found, testFile, fix });
 				});
 		},
 		REPOSITORY_SCAN_MS,

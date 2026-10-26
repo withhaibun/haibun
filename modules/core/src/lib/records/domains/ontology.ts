@@ -19,9 +19,9 @@ export const ONTOLOGY_FIELD = {
 	classIri: "classIri",
 	subClassOf: "subClassOf",
 	subPropertyOf: "subPropertyOf",
-	/** rdfs:domain: the classes that declare a property. */
+	/** The classes that declare a property, whose union is its domain. */
 	domain: "domain",
-	/** rdfs:range: the classes in an edge's range. With `domain` it relates each property to the classes it connects. */
+	/** The classes an edge reaches, whose union is its range. With `domain` it relates each property to the classes it connects. */
 	range: "range",
 	/** Whether a type's data holds a property. A term of a standard vocabulary that a type doesn't model states false. */
 	inData: "inData",

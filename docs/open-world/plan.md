@@ -1,14 +1,13 @@
 # Open-world logic: staged plan
 
-Status is kept in the checklist at the end. Each stage ends with the suites green in both repos, a signed commit, a push (spopg also to the mirror), and the checklist updated in this file in the same commit. A restarted session resumes at the first unchecked stage. The detailed findings (closed-world inventory, trial measurements, licences) are in the design notes beside this file (design-notes.md). This plan states each finding that determines a stage.
+Status is kept in the checklist at the end. Each stage ends with haibun's suites green, a signed commit, a push, and the checklist updated in this file in the same commit. A restarted session resumes at the first unchecked stage. The detailed findings (closed-world inventory, trial measurements, licences) are in the design notes beside this file (design-notes.md). This plan states each finding that determines a stage.
 
 ## Process
-- Resume at the first unticked stage in the checklist. The repositories are haibun and spopg, both on branch `delegated-action`.
-- spopg `docs/ashaibun.md` governs code and prose in both repositories.
-- haibun suites: `npm run build`, `npm run lint`, `PLAYWRIGHT_BROWSERS_PATH=/tmp/claude-0/pw-browsers npx vitest run`, and `HAIBUN_O_WEBPLAYWRIGHT_HEADLESS=true npm run test:e2e` with the same browser path.
-- spopg suites: `npm run lint`, `npm run build`, `PLAYWRIGHT_BROWSERS_PATH=/tmp/claude-0/pw-browsers npx vitest run`, and `npm run test:e2e` with an empty environment.
-- Commits are signed (`git commit -S`) and use bullet-grouped messages without attribution lines. Hooks always run. Each commit includes the `actualities.json` changes its suites wrote.
-- Push haibun to origin `delegated-action` first. Then push spopg to origin `delegated-action` and to `claude/confident-knuth-vu3hl5`.
+- Resume at the first unticked stage in the checklist, on branch `delegated-action`.
+- AGENTS.md and docs/architecture.md govern code and prose. The repository's rules test (scripts/rules.test.ts) holds them, and its baselines only shrink.
+- Suites: `npm run build`, `npm run lint`, `PLAYWRIGHT_BROWSERS_PATH=/tmp/claude-0/pw-browsers npx vitest run`, and `HAIBUN_O_WEBPLAYWRIGHT_HEADLESS=true npm run test:e2e` with the same browser path.
+- Commits are signed (`git commit -S`) and use bullet-grouped messages without attribution lines. Hooks always run. Each commit includes the `actualities.json` changes its suites wrote. Push to origin `delegated-action`.
+- Applications built on haibun keep their own plans for their part of the change, in their own repositories, and run their suites against each stage before it is pushed.
 - Each stage ticks its checklist line in this file in the same commit. Beneath the line it records the net source lines, the steps removed and the feature lines whose meaning changed. A question that needs an operator decision is recorded there too.
 - The N3 rules from the trial that the stages reuse are in `trial/` beside this file.
 
@@ -28,7 +27,7 @@ haibun is a readable, declarative language over hypermedia and RDF, open world, 
    - `some {expression}`: existence.
    - Knowledge doesn't have a form for "none": the open world can't prove absence; "none" is a disjointness in the ontology.
 2. Actions do things. Code steps stay general primitives. Their results are typed individuals in actuality's graph (a refusal is a `Refusal` with `lacksAction`, etc.), named with `set {name} from …`, so claims refer to them.
-3. Waypoints compose claims and actions as N3 rules, in `@haibun/<module>/waypoints`. Domain sentences ("the Registry is recognized for resident credentials") are waypoints expanding to claims.
+3. Waypoints compose claims and actions as N3 rules, in `@haibun/<module>/waypoints`. Domain sentences ("the list is recognized for its entries") are waypoints expanding to claims.
 4. Combinators (matching, counting, limited to, ordered by, skipping, since, before, exactly, at least, whose, as of, for each) page, order and count lists for reading. They aren't logic.
 - haibun's `not` step is renamed `didn't {statements}` (same meaning: the statement didn't succeed; closed world over actuality's graph; products keep `refusal` and seqPath). The old name doesn't remain as an alias.
 - Expected errors become claims about typed refusals, replacing `set … from didn't …` plus `matches ….refusal with "…"` where the refusal is typed.
@@ -53,12 +52,6 @@ haibun is a readable, declarative language over hypermedia and RDF, open world, 
 - Pages send containment queries to the instance; they don't evaluate containment themselves (it would add about 2 MB gzipped).
 - Konclude (LGPL, needs threads, so cross-origin isolation) is reserved for full OWL 2 DL only if a need appears; that need would be its stated reason under the workaround rule.
 
-## Trust registry
-- Trusted List: an issuer is recognized for credential type T at time t when an anchor on a recognized list accredits it for T or a superclass of T, and the list's graph (complete) doesn't include the anchor's withdrawal at or before t.
-- Accreditation root: a chain of accreditation capabilities from a recognized root reaches the issuer, each link within its parent, each unexpired at t, and each absent from its issuer's revocation graph (complete).
-- Otherwise `unknown`, and the gate refuses. The verdict carries its proof (which list or chain, which anchor or links). Credential types and TS 119 602 types are OWL classes.
-- The clerk's grant to change a list is the same containment claim.
-
 ## DL view
 - Replaces TPTP: removes `show graph {view} as tptp`, logic `derivations/formula.ts` and `derivations/term-graph.ts`, the TPTP faces of `derivations/registry.ts` and `pipelines/registry-reads.ts`, `producerAxioms`, the projection schemas, the `rule` step, Shu's TPTP source format and the "source terms" view (about −840 source, −238 tests).
 - Adds DL notation (⊑, ∃, ⊓) for display, Manchester syntax as the text in the source pane, individuals as frames, restrictions and union domains drawn in the existing class browser and ontology read, failed checks as the subsumption that doesn't hold with its witness, rules in N3 (about +290).
@@ -69,22 +62,26 @@ haibun is a readable, declarative language over hypermedia and RDF, open world, 
 - `not` (renamed `didn't`) of an `unknown` is `unknown`.
 
 ## Stages
-Both engines run side by side on the same runtime until stage 7 removes the Prolog knowledge path. Each stage reports steps and special cases removed, net source lines, and the feature lines whose meaning changed.
+Both engines run side by side on the same runtime until stage 7 removes the Prolog knowledge path. Stage 5 is an application's, and its plan holds it. Each stage reports steps and special cases removed, net source lines, and the feature lines whose meaning changed.
 
-1. OWL export corrected (union domains, superclass IRIs); EYE runtime loaded on first use behind the existing effect protocol, with the proof queue; actuality's graph declared complete; Trusted List and revocation graphs declarable as complete.
+1. OWL export corrected (union domains, superclass IRIs); EYE runtime loaded on first use behind the existing effect protocol, with the proof queue; actuality's graph declared complete; any type's graph declarable as complete.
 2. DL view and DL query box; TPTP removed. Validates the export against a real view early.
 3. Claim forms and the class-expression domain with refusals, name and direction checks, completion and plain-English reading; rule test for positive safety checks.
 4. Typed refusals in the ontology; `not` renamed `didn't` everywhere (37 lines plus docs); expected errors moved to claims where the refusal is typed.
-5. Trust registry recognition and the clerk's grant as claims (Trusted List, accreditation roots, revocation), with proofs in the verdict. Lists the feature lines whose meaning shifts ("untrusted" → unknown, refused).
 6. Capabilities and delegation as ODRL claims (attenuation, boundary containment, `holding capability`, `capabilityAllows`), then the remaining knowledge lines (about 70) and knowledge sites (8) moved to claims. Graph reads' own filters replaced by class expressions.
-7. Waypoints as N3 rules, one library at a time (core, logic, shu, spopg); then the Prolog knowledge path removed (goals, waypoint rules, falsity, sameAs, chain lint), `haibun.pl` reduced to the closed proof of a line (about 341 → 150 lines), `fol-in-haibun.md` removed; docs and architecture.md updated.
+7. Waypoints as N3 rules, one library at a time (core, logic, shu); then the Prolog knowledge path removed (goals, waypoint rules, falsity, sameAs, chain lint), `haibun.pl` reduced to the closed proof of a line (about 341 → 150 lines), `fol-in-haibun.md` removed; docs and architecture.md updated.
 Estimated total: about −1,300 / +880 source lines.
 
 ## Checklist
-- [ ] 1 OWL export and EYE runtime
+- [x] 1 OWL export and EYE runtime
+  - Net source lines: +374 (core +79, logic +295). Tests: +129. Steps removed: 0. Special cases removed: 0. Feature lines whose meaning changed: none.
+  - `records/derivations/owl.ts` derives the ontology as OWL 2 in Turtle: the classes that declare a property are its domain as one `owl:unionOf`, and the same for its range; a class's declared `@type` IRI is its superclass; every CURIE expands through the served `@context`. The Property records relate classes through `schema:domainIncludes` and `schema:rangeIncludes`, which state a union.
+  - A topology declares its graph complete with `complete: true`, and the steps' graph (SeqPath) declares it. The `reason` pipeline states each complete graph its rules close over as one formula, `<class> h:complete { … }`, and refuses to close over a graph that isn't declared complete. An application declares its own complete graphs where its rules read them.
+  - EYE moved from a test fixture to `@haibun/logic/eye.qlf`, loaded on the first session. The `h:read` built-in yields the existing read effect. Sessions run one at a time in order. EYE's `main` leaves its facts, rules and tables in the runtime, so each session starts a runtime of its own (about 100 ms).
+  - Question 1: the served `@context` states each class node in `@graph` at the type's declared `@type` IRI, so the classes that declare one IRI (several declare `prov:Entity`) merge their `rdfs:subClassOf` axioms onto it. The correction names each class node `hbn:<label>` with its `@type` IRI as a superclass, and maps the type's term to `hbn:<label>`, which changes the expansion of a record's `@type`. The OWL export already states it this way; the served `@context` is unchanged until the operator decides.
+  - Question 2: a complete graph is read under the caller's access level. A caller that reads below the level of some of the graph's records reads part of the graph, and a closed check over that part can take an unread record as absent. The options are to refuse a closed check where the caller's level is below the type's level, or to read complete graphs at the type's level.
 - [ ] 2 DL view, TPTP removed
 - [ ] 3 Claim forms and expressions
 - [ ] 4 Typed refusals and `didn't`
-- [ ] 5 Trust registry
 - [ ] 6 Capabilities and knowledge lines
 - [ ] 7 Waypoints as rules, Prolog knowledge path removed

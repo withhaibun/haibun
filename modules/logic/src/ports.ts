@@ -1,10 +1,11 @@
 /**
  * The logic engine's port: the query that starts a proof of a line or of goals over producer rules, the query that resumes it
  * with the outcome of the effect it needed, the removal of what the engine holds for a proof, a line's proof as N3, and the
- * step graph's lint.
+ * step graph's lint; and the reasoner's sessions, which run one at a time.
  */
 import type { TLintFinding } from "@haibun/core/lib/domains/goal-resolution.js";
 import type { TProofState } from "./domains/logic.js";
+import type { TReasonerState } from "./domains/reasoning.js";
 
 export type TLogicEngine = {
 	/** Starts the proof of a line's term or of goals. Returns how it ended, or the effect it needs. */
@@ -18,3 +19,13 @@ export type TLogicEngine = {
 	/** The step graph's lint findings, from its declarations as the engine's term. */
 	lint: (graph: string) => TLintFinding[];
 };
+
+/** A session of the reasoner: it starts EYE over N3 sources and a query, and resumes it with the rows of the read it needed. */
+export type TReasonerSession = {
+	start: (sources: string, query: string) => Promise<TReasonerState>;
+	/** Resumes with the objects the read found, each an N3 term. */
+	resume: (rows: readonly string[]) => TReasonerState;
+};
+
+/** The reasoner: it runs each session once the sessions before it ended. */
+export type TReasoner = { session: <T>(run: (session: TReasonerSession) => Promise<T>) => Promise<T> };

@@ -1,5 +1,5 @@
-eye.qlf is EYE v11.24.8 (2026-09-07), https://github.com/eyereasoner/eye, compiled by swipl-wasm 8.2.3. It is a test
-fixture of @haibun/logic: the N3 conformance test runs it, and the shipped runtime doesn't load it.
+eye.qlf is EYE v11.24.8 (2026-09-07), https://github.com/eyereasoner/eye, compiled by swipl-wasm 8.2.3. It is the
+reasoner of @haibun/logic, which loads it on first use into a swipl-wasm runtime of its own.
 
 MIT License
 

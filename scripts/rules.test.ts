@@ -46,6 +46,7 @@ describeRepositoryRules({
 	},
 	prose: { roots: [...sources, ...features, "e2e-tests", "docs", "scripts"], exclude: [] },
 	vocabularyTable: "docs/architecture.md",
+	downstreamNames: ["spopg", "muskeg", "Triton", "trust registry", "trust-registry", "OID4VCI", "OID4VP", "credential", "credentials", "clerk"],
 	groups: () => foundGroups(REPOSITORY, groupPorts(REPOSITORY).files(), fileSystem),
 	groupSample: "modules/shu/tests",
 	firstRead: ["README.md", "AGENTS.md", "CLAUDE.md", "docs/architecture.md", "docs/develop_haibun.md"],

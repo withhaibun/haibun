@@ -374,6 +374,8 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 		// A record is titled by its heading or its step's text, so a graph of an actuality reads as its features, scenarios and steps.
 		displayLabel: SEQ_PATH_FIELD.stepText,
 		instrumentation: true,
+		// Actuality writes every step's record, so the steps' graph is complete.
+		complete: true,
 		countedBy: [SEQ_PATH_FIELD.actionStatus, SEQ_PATH_FIELD.level, ACTUALITY_FIELD],
 		properties: {
 			[SEQ_PATH_FIELD.id]: LinkRelations.IDENTIFIER.rel,

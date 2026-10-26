@@ -2,12 +2,13 @@
 	"name": "@haibun/logic",
 	"type": "module",
 	"version": "4.0.0-alpha.3",
-	"description": "The logic engine that proves every step: SWI-Prolog through swipl-wasm, with EYE as the N3 conformance check in tests",
+	"description": "The logic engine that proves every step: SWI-Prolog through swipl-wasm, and EYE as the N3 reasoner on the same runtime",
 	"main": "build/logic-stepper.js",
-	"files": ["build/**", "src/adapters/haibun.pl", "waypoints/**"],
+	"files": ["build/**", "src/adapters/haibun.pl", "eye/**", "waypoints/**"],
 	"exports": {
 		".": "./build/logic-stepper.js",
 		"./haibun.pl": "./src/adapters/haibun.pl",
+		"./eye.qlf": "./eye/eye.qlf",
 		"./waypoints": "./waypoints",
 		"./waypoints/*": "./waypoints/*",
 		"./*": {
