@@ -16,7 +16,8 @@ import { actingAs, askedIn, callerHolds, readScope, runInStep, runInvoking, runR
 import { capabilityAllows } from "../../domains/actions.js";
 import { SEQ_PATH_LABEL } from "../../domains/resources.js";
 import { SEQ_PATH_ACCESS, actualityFeatureOf, type TRecordName } from "../domains/seq-path.js";
-import { runRegistry, type StepRegistry } from "../../steps/pipelines/step-registry.js";
+import { listedStatement, runRegistry, type StepRegistry } from "../../steps/pipelines/step-registry.js";
+import type { TList } from "../../domains/lists.js";
 import { stepMethodName, hostScopedMethodName } from "../../steps/domains/step-method.js";
 import { authorizeToolCapability } from "../../steps/pipelines/gate.js";
 import { augmentViewHypermedia, isViewOnlyDomain, productsRetained } from "../../steps/derivations/step-hypermedia.js";
@@ -108,6 +109,18 @@ export const stepperContext = (world: TWorld, steppers: AStepper[]): DispatchCon
 /** Proves the statements a step states, in order, as one proof of the logic engine under the step's record. */
 export const proveStatements = (ctx: DispatchContext, parent: TFeatureStep, statements: TFeatureStep[], targetHostId?: number): Promise<TActionResult> =>
 	proverOf(ctx.world).proveStatements(ctx, parent, statements, targetHostId);
+
+/** Proves a statement that ends with a read of a list, and returns the list as its combinators make it, or the statement's
+ *  failure, which is a refusal where the statement doesn't end with a read of a list. */
+export async function provedList(ctx: DispatchContext, parent: TFeatureStep, statement: unknown): Promise<{ list: TList } | { failure: TActionResult }> {
+	let read: TList | undefined;
+	const listed = listedStatement(ctx.world, statement, [{ listing: (list) => ((read = list), list) }]);
+	if ("refused" in listed) return { failure: actionNotOK(listed.refused) };
+	const proved = await proveStatements(ctx, parent, listed);
+	if (!proved.ok) return { failure: proved };
+	if (read === undefined) return { failure: actionNotOK("the list's statement returned without its list; state a step that returns a list, such as show steps") };
+	return { list: read };
+}
 
 /**
  * The authority a call runs under. A capability the dispatch context states takes precedence over callerHolds(). A step

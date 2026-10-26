@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { DOMAIN_GRAPH_QUERY, GraphQuerySchema, DOMAIN_DENSITY_QUERY, DensityQuerySchema } from "../steps/domains/quad-types.js";
 import { fromJsonText, JsonObjectTextSchema } from "../domains/json-text.js";
+import { fieldComparisonSchema } from "../domains/lists.js";
 import { DOMAIN_FILE_DATA, DOMAIN_IMAGE_REFERENCE, FileDataSchema, ImageReferenceSchema, recordedFileData } from "../domains/media-object.js";
 import { extractSeqPathPrefix, parseSeqPath, seqPathDomainDefinition } from "../actuality/domains/seq-path.js";
 import { factDomainDefinition } from "../records/domains/facts.js";
@@ -31,6 +32,7 @@ import {
 	DOMAIN_BACKGROUND_NAMES,
 	DOMAIN_STEP_PATH,
 	DOMAIN_DURATION,
+	DOMAIN_FIELD_COMPARISON,
 	DOMAIN_STEP_METHOD,
 	DOMAIN_LINK_REL,
 	DOMAIN_VARIABLE_VALUE,
@@ -150,6 +152,13 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		description: "A step's place in actuality: its dot-joined sequence path, such as 0.1.5.3, or an id that begins with one, as an event's does.",
 	},
 	{ selectors: [DOMAIN_DURATION], schema: durationSchema, description: "A length of time, given as seconds or milliseconds, such as 2s or 30 ms, read as milliseconds." },
+	{
+		selectors: [DOMAIN_FIELD_COMPARISON],
+		schema: fieldComparisonSchema,
+		written: true,
+		filled: true,
+		description: "A comparison of a field's value with a value: matches, is, is more than or is less than, then the value, such as is more than 3.",
+	},
 	{
 		selectors: [DOMAIN_STEP_METHOD],
 		schema: z.string().regex(/^[A-Za-z0-9_]+-[A-Za-z0-9_]+$/, "doesn't name a step: a step is named by its stepper and step joined by a hyphen"),

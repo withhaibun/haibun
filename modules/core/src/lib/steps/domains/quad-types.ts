@@ -377,16 +377,18 @@ export function compareByOrder<T>(keys: readonly TOrderKey[], keyValue: (key: st
 }
 
 /**
- * A graph query that reads its rows in the order, from the offset and to the limit a list query states, so the store counts
- * every row the query matches. Undefined where the query states the part the list query would replace, where a named, term or
- * reference read orders its rows by its own keys, or where the limit is below a page's least.
+ * A graph query that reads the rows its list query's filters keep, in the order, from the offset and to the limit it states, so
+ * the store counts every row the query matches. Undefined where the query states the part the list query would replace, where
+ * it pages its rows before the filters would narrow them, where a named, term or reference read orders its rows by its own
+ * keys, or where the limit is below a page's least.
  */
-export function queriedList(query: TGraphQuery, { order, skip, limit }: TListQuery): { query: TGraphQuery } | undefined {
+export function queriedList(query: TGraphQuery, { filters, order, skip, limit }: TListQuery): { query: TGraphQuery } | undefined {
 	const ordersOwn = query.named !== undefined || query.textQuery !== undefined || query.references !== undefined || query.referencedBy !== undefined;
 	if (order !== undefined && (ordersOwn || query.sortBy !== undefined || query.sortOrder !== undefined)) return undefined;
-	const pages = skip !== undefined || limit !== undefined;
-	if (pages && (query.limit !== undefined || query.offset !== undefined || query.perType !== undefined)) return undefined;
+	const pagesOwn = query.limit !== undefined || query.offset !== undefined || query.perType !== undefined;
+	if ((filters !== undefined || skip !== undefined || limit !== undefined) && pagesOwn) return undefined;
 	if (limit !== undefined && limit < 1) return undefined;
 	const sorted = order === undefined ? {} : { sortBy: order.field, sortOrder: order.descending ? SortOrderSchema.enum.desc : SortOrderSchema.enum.asc };
-	return { query: { ...query, ...sorted, ...(skip === undefined ? {} : { offset: skip }), ...(limit === undefined ? {} : { limit }) } };
+	const filtered = filters === undefined ? {} : { filters: query.filters === undefined ? filters : [...query.filters, ...filters] };
+	return { query: { ...query, ...filtered, ...sorted, ...(skip === undefined ? {} : { offset: skip }), ...(limit === undefined ? {} : { limit }) } };
 }

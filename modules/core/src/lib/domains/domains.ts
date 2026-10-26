@@ -70,6 +70,8 @@ export const DOMAIN_ROUTE = "route";
 export const DOMAIN_STEP_PATH = "step-path";
 /** A length of time, given as seconds or milliseconds, such as `2s` or `30 ms`, read as milliseconds. */
 export const DOMAIN_DURATION = "duration";
+/** A comparison of a field's value with a value, which `whose` keeps an item by: matches, is, is more than or is less than, then the value. */
+export const DOMAIN_FIELD_COMPARISON = "field-comparison";
 /** A step as a call names it, its stepper and step joined by a hyphen, such as `Haibun-showSteps`. */
 export const DOMAIN_STEP_METHOD = "step-method";
 /** A link relation, by the name a predicate carries it under, such as `cites`. */

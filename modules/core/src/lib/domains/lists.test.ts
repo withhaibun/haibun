@@ -5,6 +5,9 @@ import {
 	itemBindings,
 	perFieldItems,
 	whoseItems,
+	whoseQuery,
+	fieldComparisonSchema,
+	type TFieldComparison,
 	beforeItems,
 	countingItems,
 	limitedItems,
@@ -68,12 +71,30 @@ describe("the list combinators", () => {
 });
 
 describe("the combinators that keep items by a field's value", () => {
+	const comparing = (written: string): TFieldComparison => fieldComparisonSchema.parse(written);
+
 	it("keep the items whose value of a field holds a text, without regard to case, count them, and refuse a field the items don't hold", () => {
-		expect(names(whoseItems("role", "DANC")(records))).toEqual(["Bea"]);
-		expect(names(whoseItems("name", "a")(records)), "a value is read as text").toEqual(["Ada", "Bea"]);
-		const kept = whoseItems("role", "dancer")(records);
+		expect(names(whoseItems("role", comparing("matches DANC"))(records))).toEqual(["Bea"]);
+		expect(names(whoseItems("name", comparing('matches "a"'))(records)), "a value is read as text").toEqual(["Ada", "Bea"]);
+		const kept = whoseItems("role", comparing("matches dancer"))(records);
 		expect("refused" in kept ? kept : kept.total).toBe(1);
-		expect(names(whoseItems("colour", "red")(records))).toContain("the list's items don't hold colour; match a field they hold");
+		expect(names(whoseItems("colour", comparing("matches red"))(records))).toContain("the list's items don't hold colour; compare a field they hold");
+	});
+
+	it("keep the items whose value of a field equals a value, or is more or less than it, numbers by size and other values by their text", () => {
+		expect(names(whoseItems("name", comparing('is "Bea"'))(records))).toEqual(["Bea"]);
+		expect(names(whoseItems("name", comparing("is bea"))(records)), "equality regards case").toEqual([]);
+		expect(names(whoseItems("count", comparing("is more than 3"))(records)), "10 is more than 3 by size, not by text").toEqual(["Bea"]);
+		expect(names(whoseItems("count", comparing("is less than 10"))(records)), "an item without the field isn't kept").toEqual(["Ada"]);
+		expect(names(whoseItems("generatedAtTime", comparing('is less than "2026-02-01"'))(records)), "a time compares by its text").toEqual(["Bea"]);
+	});
+
+	it("read a comparison as a line states it, and refuse one that doesn't start with a comparison", () => {
+		expect(comparing("is more than 3")).toEqual({ operator: "gt", value: "3" });
+		expect(comparing('is "is less than"'), "is begins the longer comparisons, which a value may hold").toEqual({ operator: "eq", value: "is less than" });
+		expect(fieldComparisonSchema.safeParse("holds 3").error?.issues[0]?.message).toBe(
+			'"holds 3" isn\'t a comparison: state matches, is more than, is less than, is, then the value',
+		);
 	});
 
 	it("keep the first items of each value of a field, with the count of the whole list", () => {
@@ -131,6 +152,15 @@ describe("the query a read takes in place of a statement's listings", () => {
 	it("stops at a stage without a query and at an order that follows another part", () => {
 		expect(listQueries([stage(), stage({ limit: 5 })])).toEqual([]);
 		expect(listQueries([stage({ limit: 5 }), stage({ order })])).toEqual([{ query: { limit: 5 }, stated: 1 }]);
+	});
+
+	it("join the filters of whose before the list is paged, and leave a comparison it makes without regard to case to the listing", () => {
+		const inbox = { predicate: "folder", operator: "eq", value: "INBOX" } as const;
+		const big = { predicate: "size", operator: "gt", value: "1000" } as const;
+		expect(listQueries([stage({ filters: [inbox] }), stage({ filters: [big] }), stage({ limit: 5 })])[0]).toEqual({ query: { filters: [inbox, big], limit: 5 }, stated: 3 });
+		expect(listQueries([stage({ limit: 5 }), stage({ filters: [big] })]), "a filter after a page narrows the page").toEqual([{ query: { limit: 5 }, stated: 1 }]);
+		expect(whoseQuery("folder", { operator: "eq", value: "INBOX" })).toEqual({ filters: [inbox] });
+		expect(whoseQuery("subject", { operator: "contains", value: "Invoice" })).toEqual({});
 	});
 });
 

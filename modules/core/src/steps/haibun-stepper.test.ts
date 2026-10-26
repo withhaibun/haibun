@@ -204,11 +204,15 @@ describe("show steps", () => {
 		const methods = Object.keys(new TestSteps().steps)
 			.map((key) => `TestSteps-${key}`)
 			.sort();
+		/** The method in the middle of the order, which is less than the methods before it and more than those after it. */
+		const pivot = itemAt(methods, Math.floor(methods.length / 2));
 		const lines = [
 			'skipping 1, ordered by "method", matching "TestSteps-", show steps',
 			'limited to 1, ordered by "method" descending, matching "TestSteps-", show steps',
 			'whose "stepperName" matches "testst", show steps',
 			'limited to 1 per "stepperName", show steps',
+			`whose "stepperName" is "TestSteps", whose "method" is less than "${pivot}", show steps`,
+			`whose "stepperName" is "TestSteps", whose "method" is more than "${pivot}", show steps`,
 		];
 		const result = await passWithDefaults([{ path: "/features/test.feature", content: lines.join("\n") }], [Haibun, TestSteps]);
 		expect(result.ok, JSON.stringify(result.failure)).toBe(true);
@@ -218,6 +222,8 @@ describe("show steps", () => {
 		expect(listed(itemAt(lines, 2)).sort()).toEqual(methods);
 		const perStepper = listed(itemAt(lines, 3));
 		expect(new Set(perStepper.map((method) => method.split("-")[0])).size, "one step of each stepper").toBe(perStepper.length);
+		expect(listed(itemAt(lines, 4)).sort(), "is less than orders by text").toEqual(methods.filter((method) => method < pivot));
+		expect(listed(itemAt(lines, 5)).sort(), "is more than keeps those after it").toEqual(methods.filter((method) => method > pivot));
 	});
 
 	it("passes where a statement's list holds exactly or at least a count, waits for it under until, and is refused with the count it holds", async () => {

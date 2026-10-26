@@ -410,9 +410,9 @@ its listing from its line's values, and dispatch passes the listing on to the la
 any combinator that encloses it. The step whose products domain declares the list returns its list as the listings make it,
 innermost first, and narrows each companion to the items kept, so `matching "<method>", show step definitions` returns only
 the steppers, domains, concerns and predicates that step names. A statement whose last step doesn't return a declared list is
-refused. A read that takes a list query (`takesListQuery`) reads its list in the order, from the offset and to the limit the
-first listings state (`listQuery`), at its source, so its count stays its source's count; a graph query takes one where it
-doesn't state its own page or order. A list's products aren't kept on the step's event or as its fact, since the list is the
+refused. A read that takes a list query (`takesListQuery`) reads its list by the filters, in the order, from the offset and to
+the limit the first listings state (`listQuery`), at its source, so its count stays its source's count; a graph query takes one
+where it doesn't state its own page or order, and a filter only before the listings page the list. A list's products aren't kept on the step's event or as its fact, since the list is the
 response. A caller over a transport states a combinator's statement as a call, `{ method, params }`, which reads as that
 step's line.
 
@@ -424,8 +424,11 @@ step's line.
   it, and refuse a list whose domain doesn't state its items' time
 - `ordered by {field} descending, {statement}` orders the items the other way, and `skipping {count}, {statement}` keeps the
   items after the first, with the count of the whole list
-- `whose {field} matches {text}, {statement}` keeps the items whose value of a field holds the text, and
-  `limited to {count} per {field}, {statement}` keeps the first items of each value of a field
+- `whose {field} {comparison}, {statement}` keeps the items whose value of a field compares with a value: `matches` holds the
+  text without regard to case, `is` equals it, and `is more than` and `is less than` order by it, numbers by size and any other
+  value by its text, as `variable … is less than` does; a read that takes a list query compares each but `matches` at its source,
+  such as `whose "folder" is "INBOX", list Email`. `limited to {count} per {field}, {statement}` keeps the first items of each
+  value of a field
 - `exactly {count}, {statement}` and `at least {count}, {statement}` return the list where it holds that many items, and are
   refused with the count it holds otherwise, so `until` waits for a count
 

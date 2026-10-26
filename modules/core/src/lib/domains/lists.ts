@@ -7,7 +7,7 @@
  */
 import { z } from "zod";
 import { CountedSchema } from "./hypermedia.js";
-import { compareByOrder, satisfies } from "../steps/domains/quad-types.js";
+import { compareByOrder, satisfies, type TSearchCondition } from "../steps/domains/quad-types.js";
 
 /** An item of a list. */
 export type TListItem = Record<string, unknown>;
@@ -33,9 +33,9 @@ export type TList = { items: TListItem[]; total: number; saturated: boolean; tim
 /** What a combinator makes of a list: another list, or why it can't. */
 export type TListing = (list: TList) => TList | { refused: string };
 
-/** The order, offset and limit of a list that a read which takes them applies at its source, in place of the listings that
- *  state them, so the count of the whole list stays the source's count. */
-export type TListQuery = { order?: { field: string; descending: boolean }; skip?: number; limit?: number };
+/** The filters, order, offset and limit of a list that a read which takes them applies at its source, in place of the listings
+ *  that state them, so the count of the whole list stays the source's count. */
+export type TListQuery = { filters?: TSearchCondition[]; order?: { field: string; descending: boolean }; skip?: number; limit?: number };
 
 /** One combinator's part of a statement's list: its listing, and the query a read applies in its place where it takes one. */
 export type TListStage = { listing: TListing; query?: TListQuery };
@@ -122,13 +122,40 @@ const unheldField = (list: TList, field: string, combinator: string): { refused:
 		? { refused: `the list's items don't hold ${field}; ${combinator} a field they hold: ${[...new Set(list.items.flatMap(Object.keys))].sort().join(", ")}` }
 		: undefined;
 
-/** The items whose value of a field holds the text, compared without regard to case, and counted. */
+/** The comparisons `whose` keeps an item by, as a line states them, each with the store's operator it compares by: matches holds
+ *  the text without regard to case, is equals it, and is more than and is less than order by it, numbers by size and any other
+ *  value by its text. The longer comparisons come before is, which begins them. */
+export const FIELD_COMPARISONS = { matches: "contains", "is more than": "gt", "is less than": "lt", is: "eq" } as const;
+const COMPARED_BY = new RegExp(`^(${Object.keys(FIELD_COMPARISONS).join("|")}) (.+)$`);
+const QUOTED = /^"(.*)"$/;
+/** A field's comparison with a value: the store's operator and the value. */
+export const FieldComparisonSchema = z.object({ operator: z.enum(Object.values(FIELD_COMPARISONS)), value: z.string() });
+export type TFieldComparison = z.infer<typeof FieldComparisonSchema>;
+/** Reads a comparison as a line states it, such as `is more than 3` or `matches "Ada"`, into its operator and value. */
+export const fieldComparisonSchema = z.preprocess((written, ctx) => {
+	if (typeof written !== "string") return written;
+	const compared = COMPARED_BY.exec(written.trim());
+	const [, comparison, value] = compared === null ? [] : compared;
+	if (comparison === undefined || value === undefined) {
+		ctx.addIssue({ code: "custom", message: `${JSON.stringify(written)} isn't a comparison: state ${Object.keys(FIELD_COMPARISONS).join(", ")}, then the value` });
+		return written;
+	}
+	return { operator: FIELD_COMPARISONS[comparison as keyof typeof FIELD_COMPARISONS], value: QUOTED.exec(value)?.[1] ?? value };
+}, FieldComparisonSchema);
+
+/** The query of a comparison a store's read compares as `whose` does: each but matches, which `whose` compares without regard to case. */
+export const whoseQuery = (field: string, { operator, value }: TFieldComparison): TListQuery =>
+	operator === FIELD_COMPARISONS.matches ? {} : { filters: [{ predicate: field, operator, value }] };
+
+/** The items whose value of a field compares with the value as the comparison states, counted. */
 export const whoseItems =
-	(field: string, text: string): TListing =>
+	(field: string, { operator, value }: TFieldComparison): TListing =>
 	(list) => {
-		const unheld = unheldField(list, field, "match");
+		const unheld = unheldField(list, field, "compare");
 		if (unheld !== undefined) return unheld;
-		const items = list.items.filter((item) => item[field] !== undefined && item[field] !== null && containsText([String(item[field])], text));
+		const kept = (held: unknown) =>
+			operator === FIELD_COMPARISONS.matches ? held !== undefined && held !== null && containsText([String(held)], value) : satisfies(held, { predicate: field, operator, value });
+		const items = list.items.filter((item) => kept(item[field]));
 		return { ...list, items, total: items.length };
 	};
 
@@ -169,6 +196,11 @@ export const atLeastItems =
  *  where it orders a list whose order, offset or limit `query` already states. */
 function joinedQuery(query: TListQuery, { query: next }: TListStage): TListQuery | undefined {
 	if (next === undefined) return undefined;
+	// A filter narrows the whole list, so it joins a query that doesn't yet page it.
+	if (next.filters !== undefined)
+		return query.skip === undefined && query.limit === undefined
+			? { ...query, filters: query.filters === undefined ? next.filters : [...query.filters, ...next.filters] }
+			: undefined;
 	if (next.order !== undefined) return Object.keys(query).length === 0 ? { order: next.order } : undefined;
 	if (next.skip !== undefined)
 		return { ...query, skip: query.skip === undefined ? next.skip : query.skip + next.skip, ...(query.limit === undefined ? {} : { limit: Math.max(query.limit - next.skip, 0) }) };

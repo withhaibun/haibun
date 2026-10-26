@@ -49,9 +49,9 @@ function groupOf(origin: TOrigin, matchIndex: number, nextChar: string): string 
 	// internal ` ` or `"` as a split point. A placeholder before a comma or a colon ends at that character.
 	const ends = nextChar === "," || nextChar === ":";
 	const bare = ends ? `(?:[^"]|"[^"]*")+?(?=${nextChar.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})` : `(?:[^"]|"[^"]*")+?`;
-	// A quoted term before a comma or a colon ends at the first quote that the character follows, so a statement after the
-	// comma that quotes terms of its own, as a combinator's does, isn't read into the term.
-	const quoted = ends ? ".*?" : ".*";
+	// A quoted term ends at the first quote that what follows the placeholder follows, so a statement after it that quotes terms
+	// of its own, as a combinator's does, isn't read into the term, and a quote within the term is escaped.
+	const quoted = ".*?";
 	// A plain placeholder accepts several syntaxes, each captured into a distinct named group, so a match states whether the
 	// value was quoted, backticked or a bare literal.
 	return `(?:"(?<${TYPE_QUOTED}${matchIndex}>${quoted})"|\`(?<${TYPE_VAR}${matchIndex}>.+)\`|(?<${TYPE_ENV_OR_VAR_OR_LITERAL}${matchIndex}>${bare}))`;

@@ -27,19 +27,20 @@ import {
 	DOMAIN_STATEMENT,
 	DOMAIN_STEP_PATH,
 	DOMAIN_TEXT,
+	DOMAIN_FIELD_COMPARISON,
 	DOMAIN_TITLE,
 	DOMAIN_VARIABLE_NAME,
 	backgroundNamesSchema,
 	createEnumDomainDefinition,
 } from "../lib/domains/domains.js";
 import { findFeatures } from "../lib/domains/features.js";
-import { proveStatements, stepperContext } from "../lib/actuality/pipelines/step-dispatch.js";
+import { provedList, proveStatements, stepperContext } from "../lib/actuality/pipelines/step-dispatch.js";
 import { QuadStore } from "../lib/steps/pipelines/quad-store.js";
 import { remoteQuadStore } from "./root.js";
 import { requestSigner } from "../lib/domains/session-authority.js";
 import { DOMAIN_STEPPERS, SHOW_STEPPERS_LINE, SteppersSchema } from "../lib/steps/domains/steppers.js";
 import { STEP_DEFINITIONS_LIST, STEP_SUMMARIES_LIST, listedSteppers, stepDefinitions, stepSummaries } from "../lib/steps/pipelines/discover-steps.js";
-import { listedStatement, runRegistry } from "../lib/steps/pipelines/step-registry.js";
+import { runRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { stepMethodName } from "../lib/steps/domains/step-method.js";
 import {
 	DOMAIN_STEP_DEFINITIONS,
@@ -65,7 +66,8 @@ import {
 	sinceItems,
 	skippedItems,
 	whoseItems,
-	type TListItem,
+	whoseQuery,
+	type TFieldComparison,
 } from "../lib/domains/lists.js";
 import { runAsOf, shownTo } from "../lib/domains/capability-context.js";
 import { validateStep } from "../lib/pipelines/step-validation.js";
@@ -229,9 +231,12 @@ class Haibun extends AStepper implements IHasCycles {
 			{ transformsList: ({ count, field }: { count: number; field: string }) => perFieldItems(count, field), precludes: ["Haibun.limitedTo"] },
 		),
 		whose: this.listCombinator(
-			`whose {field: ${DOMAIN_TEXT}} matches {text: ${DOMAIN_TEXT}}, {statement: ${DOMAIN_STATEMENT}}`,
-			"Keeps the items of the statement's list whose value of a field holds the text, compared without regard to case, and counts them.",
-			{ transformsList: ({ field, text }: { field: string; text: string }) => whoseItems(field, text) },
+			`whose {field: ${DOMAIN_TEXT}} {comparison: ${DOMAIN_FIELD_COMPARISON}}, {statement: ${DOMAIN_STATEMENT}}`,
+			"Keeps the items of the statement's list whose value of a field compares with a value, and counts them: matches holds the text without regard to case, is equals it, and is more than and is less than order by it, numbers by size and any other value by its text.",
+			{
+				transformsList: ({ field, comparison }: { field: string; comparison: TFieldComparison }) => whoseItems(field, comparison),
+				listQuery: ({ field, comparison }: { field: string; comparison: TFieldComparison }) => whoseQuery(field, comparison),
+			},
 		),
 		exactly: this.listCombinator(
 			`exactly {count: ${DOMAIN_NUMBER}}, {statement: ${DOMAIN_STATEMENT}}`,
@@ -269,13 +274,9 @@ class Haibun extends AStepper implements IHasCycles {
 				"Proves the statement after the colon for each item of the list's statement, as its combinators make the list, with the item bound to the variable: its id, and each of its values as variable/field. Holds where the statement holds for every item, and is refused with the first item's refusal otherwise.",
 			action: async ({ what, list, statement }: { what: string; list: TFeatureStep[]; statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				const ctx = stepperContext(this.getWorld(), this.steppers);
-				let items: TListItem[] | undefined;
-				const listed = listedStatement(this.getWorld(), list, [{ listing: (read) => ((items = read.items), read) }]);
-				if ("refused" in listed) return actionNotOK(listed.refused);
-				const read = await proveStatements(ctx, featureStep, listed);
-				if (!read.ok) return read;
-				if (items === undefined) return actionNotOK("the list's statement returned without its list; state a step that returns a list, such as show steps");
-				for (const item of items) {
+				const read = await provedList(ctx, featureStep, list);
+				if ("failure" in read) return read.failure;
+				for (const item of read.list.items) {
 					const proved = await proveStatements(ctx, { ...featureStep, runtimeArgs: { ...featureStep.runtimeArgs, ...itemBindings(what, item) } }, statement);
 					if (!proved.ok) return proved;
 				}
