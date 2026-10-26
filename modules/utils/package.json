@@ -4,11 +4,11 @@
 	"version": "4.0.0-alpha.3",
 	"description": "",
 	"main": "index.js",
-	"files": ["ref.package.json", "build/**", "scaffold/**", "vcapture/**"],
+	"files": ["ref.package.json", "bin/**", "build/**", "scaffold/**", "vcapture/**"],
 	"bin": {
-		"scaffold": "build/scaffold/index.js",
-		"link": "build/npm-link-haibuns.js",
-		"run-vcapture": "build/vcapture/index.js"
+		"scaffold": "bin/scaffold.js",
+		"link": "bin/link.js",
+		"run-vcapture": "bin/run-vcapture.js"
 	},
 	"scripts": {
 		"test": "vitest run",

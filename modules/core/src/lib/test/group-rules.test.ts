@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -30,6 +30,27 @@ describe("the parent paths and tracking files of a repository's groups", () => {
 		expect(linksAndParentPaths(repository)).toEqual([
 			{ file: "service/backgrounds/gate.ts", finding: "imports ../../src/domains/listed.ts, a package's code, by a parent path" },
 			{ file: "service/features/serve.feature.ts", finding: "imports ../../build/graph/graph-stepper.js, a package's code, by a parent path" },
+		]);
+	});
+
+	it("find a relative path of code or of a config that names a place outside the repository, a package it ignores, or a folder through a link, and not its own build", () => {
+		committed({
+			".gitignore": "/other\n/linked\nbuild\nnode_modules\n",
+			"other/package.json": "{}",
+			"vitest.config.ts": 'import { preset } from "./other/preset.js";\nimport { own } from "./src/own.js";\n',
+			"bin/run.js": 'import "../build/run.js";\nimport "../node_modules/tool/run.js";\n',
+			"node_modules/tool/package.json": "{}",
+			"biome.json": '{ "extends": ["../shared/biome.json"], "files": { "includes": ["**"] } }',
+			"tsconfig.json": '{\n\t// a comment, as a tsconfig allows\n\t"extends": "./tsconfig.base.json"\n}',
+			"src/own.ts": "export const own = 1;\n",
+		});
+		symlinkSync(tmpdir(), join(repository, "linked"));
+		committed({ "scripts/bundles.ts": 'import { run } from "../linked/bundles.ts";\n' });
+		expect(linksAndParentPaths(repository)).toEqual([
+			{ file: "scripts/bundles.ts", finding: "imports ../linked/bundles.ts, which the repository doesn't hold: name it by its package" },
+			{ file: "vitest.config.ts", finding: "imports ./other/preset.js, which the repository doesn't hold: name it by its package" },
+			{ file: "bin/run.js", finding: "imports ../node_modules/tool/run.js, which the repository doesn't hold: name it by its package" },
+			{ file: "biome.json", finding: "names ../shared/biome.json, which the repository doesn't hold: name it by its package" },
 		]);
 	});
 

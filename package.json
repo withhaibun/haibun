@@ -8,6 +8,7 @@
 		"npm": ">=11.0.0"
 	},
 	"devDependencies": {
+		"@haibun/tooling": "*",
 		"@biomejs/biome": "^2.5.15",
 		"@semantic-release/changelog": "^6.0.3",
 		"@semantic-release/exec": "^7.1.0",
@@ -33,8 +34,8 @@
 		"test:watch": "vitest --hideSkippedTests",
 		"clean": "rm -rf modules/*/build modules/*/tsconfig.tsbuildinfo",
 		"build:watch:tsc": "tsc -b modules/ --watch --preserveWatchOutput",
-		"build": "npm run build --workspaces --if-present && npm run postbuild",
-		"postbuild": "node scripts/chmod-shebangs.mjs && node scripts/prune-orphaned-build.mjs",
+		"build": "tsc -b modules && npm run build --workspaces --if-present && npm run postbuild",
+		"postbuild": "node scripts/prune-orphaned-build.mjs",
 		"prune:build": "node scripts/prune-orphaned-build.mjs",
 		"build:watch": "concurrently --restart-tries -1 --restart-after 1000 \"npm:build:watch:tsc\" \"npm:build:watch:shu-bundles\"",
 		"format": "biome format --write .",
@@ -60,7 +61,7 @@
 		"publish-all:rc": "node scripts/publish-all.mjs rc",
 		"build:watch:shu-bundles": "npm run bundle:watch -w @haibun/shu",
 		"verify": "node scripts/verify.mjs",
-		"prepare": "node scripts/install-hooks.mjs .githooks"
+		"prepare": "haibun-install-hooks"
 	},
 	"version": "4.0.0-alpha.3",
 	"overrides": {

@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { join } from "node:path";
 import { expectWithinBaseline } from "@haibun/core/lib/test/baseline.js";
-import { BUDGET_FIX, measureBundles } from "../../../bundle-preset.ts";
+import { BUDGET_FIX, measureBundles } from "@haibun/tooling/bundles.js";
 import { SHU_BUNDLES, SHU_ROOT } from "../scripts/bundles.ts";
 
 /** The time the hook takes to build every bundle of the page in memory, as its script builds it. A build isn't a unit check: it

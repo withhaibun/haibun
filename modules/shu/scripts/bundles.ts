@@ -5,7 +5,7 @@
  */
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runBundleScript, type TBundle } from "../../../bundle-preset.ts";
+import { runBundleScript, type TBundle } from "@haibun/tooling/bundles.js";
 import { BUNDLE_NAMES, PAGE_CHUNK_DIR } from "../src/domains/bundle-files.ts";
 import { BUNDLE_DIRS } from "../src/ports.ts";
 

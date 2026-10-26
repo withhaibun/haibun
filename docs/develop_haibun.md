@@ -25,11 +25,12 @@ fails: the build, lint, the unit and integration tests, and the end-to-end featu
 `HAIBUN_ONCE`, so a group whose last pass holds against its present dependencies isn't run again. It prints each check's duration
 and the lines the working tree changes.
 
-`npm install` points git at `.githooks`, whose pre-commit hook runs lint and the unit tests, so a commit passes them.
+`npm install` points git at the hooks of `@haibun/tooling` (`modules/tooling/hooks`), whose pre-commit hook runs lint and the unit tests, so a commit passes them.
 
-## Developing a repository beside Haibun
+## Developing a repository on Haibun
 
-A repository that builds on Haibun's modules keeps a Haibun checkout beside it, links that checkout as its `haibun` folder, and lists
-`haibun/modules/*` as its npm workspaces. Spopg is one: `ln -s ../haibun haibun`, then `npm run setup` installs its packages, builds
-Haibun, fetches the browsers and models, and builds spopg. Its postinstall refuses a `haibun` that is missing, that isn't a link, or
-that is on another branch than the repository's, and states the next step.
+A repository that builds on Haibun's modules keeps a Haibun checkout in its git-ignored `haibun` folder and lists `haibun/modules/*`
+as its npm workspaces, so one `npm install` installs it with Haibun's modules. It names Haibun's tooling by package: its Vitest config
+spreads `@haibun/tooling/vitest-preset.js`, its Biome config extends `@haibun/tooling/biome`, its bundles build through
+`@haibun/tooling/bundles.js`, and its `prepare` script runs `haibun-install-hooks`. Spopg is one: it clones Haibun on its own branch
+into `haibun`, then `npm run setup` installs its packages, builds Haibun, fetches the browsers and models, and builds spopg.

@@ -1,0 +1,24 @@
+{
+	"name": "@haibun/tooling",
+	"type": "module",
+	"version": "4.0.0-alpha.3",
+	"description": "What every repository built on haibun shares to build and check itself: the Vitest preset, the browser bundles, the Biome settings and the git hooks",
+	"bin": {
+		"haibun-install-hooks": "bin/install-hooks.mjs"
+	},
+	"files": ["build/**", "bin/**", "hooks/**", "biome.base.json"],
+	"exports": {
+		"./vitest-preset.js": { "haibun-source": "./src/root.js", "default": "./build/root.js" },
+		"./bundles.js": { "haibun-source": "./src/adapters/bundles.js", "default": "./build/adapters/bundles.js" },
+		"./biome": "./biome.base.json"
+	},
+	"scripts": {
+		"build": "tsc -b ."
+	},
+	"peerDependencies": {
+		"esbuild": "^0.28.1",
+		"vite": "^8.3.4",
+		"vitest": "^5.0.4"
+	},
+	"license": "ISC"
+}

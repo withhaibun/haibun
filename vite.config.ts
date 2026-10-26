@@ -1,5 +1,5 @@
 import { defineConfig } from "vite";
-import { haibunPreset, type THaibunConfig } from "./vitest-preset.js";
+import { haibunPreset, type THaibunConfig } from "@haibun/tooling/vitest-preset.js";
 
 // `*.integration.test.ts` is the convention for a test that boots a real dependency: here each launches a browser and
 // serves a built bundle to it. Run beside 270 other files they contend for the machine and time out without a fault

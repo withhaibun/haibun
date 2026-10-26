@@ -7,30 +7,11 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { build, context, type BuildOptions, type Metafile, type Plugin } from "esbuild";
-import type { TFindings } from "./modules/core/src/lib/test/baseline.ts";
+import { BUDGET_FINDING, HAIBUN_SOURCE, type TBundle, type TBundleSizes } from "../domains/bundle.js";
 
-/** The condition haibun's packages export their TypeScript source under, and the bundles build under it. */
-export const HAIBUN_SOURCE = "haibun-source";
+export { BUDGET_FINDING, BUDGET_FIX, HAIBUN_SOURCE, type TBundle, type TBundleSizes } from "../domains/bundle.js";
 
-/** One build: its entries, each by the name of its output and the source it starts from, where it writes them, and how. */
-export type TBundle = {
-	entryPoints: { out: string; in: string }[];
-	outdir: string;
-	format: "esm" | "iife";
-	/** Where an esm build splits its code: the code of a dynamic import, and what two or more of its entries and imports
-	 *  share, each in a chunk in this folder below `outdir`, which an entry loads as it reaches the chunk. */
-	splitting: false | { chunkDir: string };
-	/** A source map beside each output, linked from the output's last line. */
-	sourcemap: boolean;
-	/** What the build writes beside its outputs in `outdir`, by file name, with its contents: a page or a manifest that loads them. */
-	files?: Readonly<Record<string, string>>;
-};
-
-/** The finding a bundle's budget records: the KiB, rounded up, that loading an entry fetches. */
-export const BUDGET_FINDING = "KiB";
 const KIB = 1024;
-/** What brings a bundle back within its budget. */
-export const BUDGET_FIX = "load the code of a rare path with a dynamic import, or import less of a package";
 /** The folder of an installed package within a resolved path, and its name. */
 const PACKAGE_DIR = /^(?<dir>.*[\\/]node_modules[\\/](?<name>@[^\\/]+[\\/][^\\/]+|[^\\/]+))[\\/]/;
 /** zod's index of its locales, which its namespace exports whole, so an import of `z` would carry all 53. */
@@ -44,8 +25,8 @@ const WATCH = "--watch";
 
 /** The installed package a path is in, or undefined for a path outside every `node_modules`. */
 const packageOf = (path: string): { dir: string; name: string } | undefined => {
-	const { dir, name } = PACKAGE_DIR.exec(path)?.groups ?? {};
-	return dir === undefined || name === undefined ? undefined : { dir, name };
+	const groups = PACKAGE_DIR.exec(path)?.groups;
+	return groups?.dir === undefined || groups.name === undefined ? undefined : { dir: groups.dir, name: groups.name };
 };
 const versionOf = (dir: string): string => (JSON.parse(readFileSync(join(dir, "package.json"), "utf-8")) as { version: string }).version;
 
@@ -205,7 +186,7 @@ export async function buildBundles(root: string, bundles: readonly TBundle[], wa
 					const at = metafilePath(root, bundle);
 					mkdirSync(dirname(at), { recursive: true });
 					writeFileSync(at, JSON.stringify(metafile));
-					for (const [name, contents] of Object.entries(bundle.files ?? {})) writeFileSync(join(root, bundle.outdir, name), contents);
+					if (bundle.files !== undefined) for (const [name, contents] of Object.entries(bundle.files)) writeFileSync(join(root, bundle.outdir, name), contents);
 				});
 			},
 		};
@@ -244,14 +225,14 @@ export async function buildInMemory(root: string, bundle: TBundle): Promise<{ me
 		const { metafile, outputFiles } = await build({ ...bundleOptions(root, bundle), write: false, logLevel: "silent" });
 		return { metafile, outputs: Object.fromEntries(outputFiles.map((file) => [relative(root, file.path), file.text])) };
 	} catch (err) {
-		const errors = (err as TBuildFailure).errors ?? [];
-		throw new Error(errors.length > 0 ? errors.map((e) => `${e.location?.file ?? root}: ${e.text}`).join("\n") : String(err), { cause: err });
+		const { errors } = err as TBuildFailure;
+		throw new Error(errors !== undefined && errors.length > 0 ? errors.map((e) => `${e.location?.file ?? root}: ${e.text}`).join("\n") : String(err), { cause: err });
 	}
 }
 
 /** Builds each bundle in memory, as its script builds it, and returns what each holds that the options exclude and the KiB that
  *  loading each entry fetches, as a bundle budget records it. */
-export async function measureBundles(root: string, bundles: readonly TBundle[]): Promise<{ excluded: string[]; sizes: TFindings }> {
+export async function measureBundles(root: string, bundles: readonly TBundle[]): Promise<{ excluded: string[]; sizes: TBundleSizes }> {
 	const measured = await Promise.all(bundles.map(async (bundle) => ({ bundle, metafile: (await buildInMemory(root, bundle)).metafile })));
 	return {
 		excluded: measured.flatMap(({ metafile }) => excludedInputs(metafile)),
@@ -270,7 +251,7 @@ function loadedBytes(metafile: Metafile, output: string, seen: Set<string>): num
 
 /** Each entry of `bundle` by its output's path from the root, with the KiB that loading it on a page by itself fetches, as a
  *  bundle budget records it: a chunk two entries share counts in each. */
-function entrySizes(bundle: TBundle, metafile: Metafile): TFindings {
+function entrySizes(bundle: TBundle, metafile: Metafile): TBundleSizes {
 	const outputs = Object.entries(metafile.outputs);
 	return Object.fromEntries(
 		bundle.entryPoints.map((entry) => {
@@ -288,7 +269,9 @@ function excludedInputs(metafile: Metafile): string[] {
 	// The English locale's index, which the plugin writes, is listed under the plugin's namespace.
 	for (const input of Object.keys(metafile.inputs).filter((path) => !path.startsWith(`${zodEnglishLocale.name}:`))) {
 		const found = packageOf(input);
-		if (found !== undefined) folders.set(found.name, (folders.get(found.name) ?? new Set()).add(found.dir));
+		const held = found === undefined ? undefined : folders.get(found.name);
+		if (held !== undefined && found !== undefined) held.add(found.dir);
+		else if (found !== undefined) folders.set(found.name, new Set([found.dir]));
 		const locale = ZOD_LOCALE_INPUT.exec(input)?.groups?.locale;
 		if (locale !== undefined && locale !== ENGLISH) locales.push(`zod's locale ${locale} (${input})`);
 	}

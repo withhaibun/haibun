@@ -5,8 +5,9 @@
  * tracked, so each commit holds the measurements of the code it holds.
  */
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join, normalize, resolve } from "node:path";
+import { existsSync, lstatSync, readFileSync } from "node:fs";
+import ts from "typescript";
+import { dirname, isAbsolute, join, normalize, relative, resolve, sep } from "node:path";
 import { z } from "zod";
 import { itemAt } from "../domains/item-at.js";
 import type { TFound } from "./baseline.js";
@@ -29,6 +30,15 @@ const LINK_MODE = "120000";
 const FEATURE_SOURCE = /\.feature\.ts$|\/(features|backgrounds)\/[^/]+\.ts$/;
 const PACKAGE_CODE = /(^|\/)(src|build)\//;
 const IMPORTED = /\bfrom\s+["']([^"']+)["']/g;
+/** A module a file of code imports: after `from`, as a bare import, or as a dynamic import. */
+const IMPORT_SPECIFIER = /(?:\bfrom\s+|\bimport\s*\(?\s*)["']([^"']+)["']/g;
+/** A file of code, whose imports are read, and a JSON file, whose relative paths are read. */
+const CODE_FILES = ["ts", "tsx", "mts", "js", "mjs", "cjs"].map((extension) => `:(glob)**/*.${extension}`);
+const JSON_FILE = ":(glob)**/*.json";
+/** A path from the file that names it: `./` or `../`, then the rest. */
+const RELATIVE_PATH = /^\.\.?\//;
+/** What a pattern of paths, such as a tsconfig's `paths`, matches from: the part before its first wildcard. */
+const WILDCARD = /\*.*$/;
 /** A config of a group, which lists the steppers it loads and the external environments its features use. */
 const GroupConfigSchema = z.object({ steppers: z.array(z.unknown()), environments: z.array(z.string()).optional() });
 /** The arguments of each `haibun-cli` call of a script, up to the shell operator that ends the call. */
@@ -81,7 +91,54 @@ export function linksAndParentPaths(repository: string): TFound[] {
 				.filter((specifier) => specifier.startsWith("../") && PACKAGE_CODE.test(normalize(join(dirname(file), specifier))))
 				.map((specifier) => ({ file, finding: `imports ${specifier}, a package's code, by a parent path` })),
 		);
-	return [...links, ...configs, ...scripts, ...imports];
+	return [...links, ...configs, ...scripts, ...imports, ...pathsOutOfRepository(repository)];
+}
+
+/** A tracked JSON file's value, read as TypeScript reads a tsconfig, which allows comments. Throws where it doesn't parse. */
+function jsonOf(repository: string, file: string): unknown {
+	const errors: ts.Diagnostic[] = [];
+	const value: unknown = ts.convertToObject(ts.parseJsonText(file, readFileSync(join(repository, file), "utf-8")), errors);
+	const [error] = errors;
+	if (error !== undefined) throw new Error(`${file} doesn't parse as JSON: ${ts.flattenDiagnosticMessageText(error.messageText, " ")}. Correct it.`);
+	return value;
+}
+
+/** Whether a path from the repository root passes through a symbolic link, which names a place outside the repository. */
+const throughLink = (repository: string, at: string): boolean =>
+	at.split(sep).some((_, i, parts) => {
+		const prefix = join(repository, ...parts.slice(0, i + 1));
+		return existsSync(prefix) && lstatSync(prefix).isSymbolicLink();
+	});
+
+/** Each string of a JSON value, however deeply it nests. */
+const stringsOf = (value: unknown): string[] => (typeof value === "string" ? [value] : typeof value === "object" && value !== null ? Object.values(value).flatMap(stringsOf) : []);
+
+/** The directories from a path up to the repository root, apart from the root, that hold a package.json: each package that holds the path. */
+const packagesHolding = (repository: string, at: string): string[] =>
+	at
+		.split(sep)
+		.map((_, i, parts) => parts.slice(0, i + 1).join(sep))
+		.filter((dir) => existsSync(join(repository, dir, "package.json")));
+
+/** Each relative path of a tracked file of code or JSON file, by its path from the repository root, that names a place the repository
+ *  doesn't hold: outside its root, through a link, or in a package its .gitignore ignores, such as another repository's checkout or an
+ *  installed package. A file of code names another package by the package's name, and a config names a base or a preset by its
+ *  package's export, so each resolves as Node resolves it wherever the repository is checked out. */
+function pathsOutOfRepository(repository: string): TFound[] {
+	const named = [
+		...CODE_FILES.flatMap((pattern) => trackedFiles(repository, pattern)).flatMap((file) =>
+			[...readFileSync(join(repository, file), "utf-8").matchAll(IMPORT_SPECIFIER)].map((m) => ({ file, path: itemAt(m, 1), verb: "imports" })),
+		),
+		...trackedFiles(repository, JSON_FILE).flatMap((file) => stringsOf(jsonOf(repository, file)).map((path) => ({ file, path, verb: "names" }))),
+	]
+		.filter(({ path }) => RELATIVE_PATH.test(path))
+		.map((found) => ({ ...found, at: relative(repository, resolve(repository, dirname(found.file), found.path.replace(WILDCARD, ""))) }));
+	const outside = named.filter(({ at }) => at.startsWith("..") || isAbsolute(at) || throughLink(repository, at));
+	const holding = new Map(named.filter((found) => !outside.includes(found)).map(({ at }) => [at, packagesHolding(repository, at)]));
+	const ignored = ignoredOf(repository, [...new Set([...holding.values()].flat())]);
+	return named
+		.filter((found) => outside.includes(found) || holding.get(found.at)?.some((dir) => ignored.has(dir)))
+		.map(({ file, path, verb }) => ({ file, finding: `${verb} ${path}, which the repository doesn't hold: name it by its package` }));
 }
 
 /** Each `haibun-cli` call of a script: the bases it names, its own base first and each waypoint library after it, and the config it

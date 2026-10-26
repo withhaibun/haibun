@@ -12,13 +12,6 @@
 		"lib": ["ESNext", "DOM", "DOM.Iterable"],
 		"jsx": "react-jsx"
 	},
-	"include": [
-		"modules/*/src/**/*.test.ts",
-		"modules/*/src/**/*.test.tsx",
-		"modules/*/src/**/*.test-fake.ts",
-		"modules/*/entries/**/*.ts",
-		"modules/*/scripts/**/*.ts",
-		"bundle-preset.ts"
-	],
+	"include": ["modules/*/src/**/*.test.ts", "modules/*/src/**/*.test.tsx", "modules/*/src/**/*.test-fake.ts", "modules/*/entries/**/*.ts", "modules/*/scripts/**/*.ts"],
 	"exclude": ["**/node_modules/**", "**/build/**"]
 }

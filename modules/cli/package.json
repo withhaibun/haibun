@@ -4,10 +4,10 @@
 	"version": "4.0.0-alpha.3",
 	"description": "the command line of @haibun",
 	"bin": {
-		"haibun-cli": "build/cli.js"
+		"haibun-cli": "bin/haibun-cli.js"
 	},
 	"main": "build/cli.js",
-	"files": ["build/**", "config.base.json", "waypoints/**"],
+	"files": ["bin/**", "build/**", "config.base.json", "waypoints/**"],
 	"exports": {
 		".": "./build/cli.js",
 		"./config.base.json": "./config.base.json",
