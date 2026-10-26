@@ -1,4 +1,6 @@
 {
+	"description": "The reader's first actuality, on a browser profile it starts empty, which the features of config-reopened.json read again as a second actuality on the same profile.",
+	"group": { "bases": [".", "@haibun/shu/waypoints"], "filter": ["a-an-actuality-to-come-back-to"], "clears": ["capture/reader-profile"] },
 	"extends": "@haibun/cli/config.base.json",
 	"steppers": [
 		"activities-stepper",
@@ -15,7 +17,7 @@
 		"HAIBUN_O_WEBSERVERSTEPPER_RPC": "true",
 		"HAIBUN_O_WEBSERVERSTEPPER_PORT": "8241",
 		"HAIBUN_O_WEBSERVERSTEPPER_ALLOW_WITHOUT_DELEGATION": "*",
-		"HAIBUN_O_WEBPLAYWRIGHT_PERSISTENT_DIRECTORY": "/tmp/haibun-shu-reader-profile",
+		"HAIBUN_O_WEBPLAYWRIGHT_PERSISTENT_DIRECTORY": "capture/reader-profile",
 		"HAIBUN_O_WEBPLAYWRIGHT_STORAGE": "StorageFS"
 	}
 }

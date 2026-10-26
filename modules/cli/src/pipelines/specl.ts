@@ -6,7 +6,6 @@ import path from "node:path";
 import { namesPackage, SpeclSchema, type TSpecl, type TStepperEntry } from "@haibun/core/lib/actuality.js";
 import type { TConfigFiles } from "../ports.js";
 import type { TBase } from "@haibun/core/lib/world.js";
-import { DEFAULT_DEST } from "@haibun/core/lib/domains/protocol.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import type { TFileSystem } from "@haibun/core/lib/adapters/workspace-lib.js";
 
@@ -26,11 +25,14 @@ export function configFileFrom(bases: TBase, fs: TFileSystem): string {
 }
 
 const sameEntry = (a: TStepperEntry, b: TStepperEntry): boolean => JSON.stringify(a) === JSON.stringify(b);
+/** The keys a config states for itself, which a config that extends it takes only where it states them too. */
+const OWN_KEYS: readonly string[] = ["extends", "group"];
+const withoutOwnKeys = (specl: TSpecl): TSpecl => Object.fromEntries(Object.entries(specl).filter(([key]) => !OWN_KEYS.includes(key))) as TSpecl;
 const withoutExtends = (specl: TSpecl): TSpecl => Object.fromEntries(Object.entries(specl).filter(([key]) => key !== "extends")) as TSpecl;
 
 /** Returns the configuration `own` states with the configuration `base` that it extends. The base's steppers come first, then the
- *  config's own. The other keys the config states replace the base's, apart from the options, module options and parameters, which
- *  add to the base's, and the `dependsOn` paths and environments, which join the base's. A base's `dependsOn` path is read from the
+ *  config's own. The other keys the config states replace the base's, apart from the options, module options, parameters and process
+ *  environment, which add to the base's, and the group, which a config that states one takes with what it states replacing the base's, and the `dependsOn` paths and environments, which join the base's. A base's `dependsOn` path is read from the
  *  config that extends it, and a dependency named by its package stays as it is named. Throws where the config lists a stepper that
  *  its base lists. */
 function extendedSpecl(base: TSpecl, own: TSpecl, ownFile: string, baseFile: string): TSpecl {
@@ -41,14 +43,15 @@ function extendedSpecl(base: TSpecl, own: TSpecl, ownFile: string, baseFile: str
 	const joined = <T>(held: T[] | undefined, added: T[] | undefined): T[] | undefined =>
 		held === undefined ? added : added === undefined ? held : [...new Set([...held, ...added])];
 	const merged = {
-		...base,
+		...withoutOwnKeys(base),
 		...withoutExtends(own),
 		steppers: [...base.steppers, ...own.steppers],
 		dependsOn: joined(base.dependsOn?.map(fromHere), own.dependsOn),
 		environments: joined(base.environments, own.environments),
 	};
-	for (const key of ["options", "moduleOptions", "appParameters"] as const)
+	for (const key of ["options", "moduleOptions", "appParameters", "env"] as const)
 		if (base[key] !== undefined || own[key] !== undefined) Object.assign(merged, { [key]: { ...base[key], ...own[key] } });
+	if (own.group !== undefined) Object.assign(merged, { group: { ...base.group, ...own.group } });
 	return merged;
 }
 
@@ -75,7 +78,5 @@ export function getConfigFromBase(bases: TBase, fs: TConfigFiles): TSpecl {
 	const found = bases?.filter((b) => (b.endsWith("json") && fs.existsSync(b)) || fs.existsSync(`${b}/config.json`));
 	if (found?.length > 1) throw new Error(`the bases name several configurations: ${found.join(", ")}. Name one of them with --config.`);
 	const f = configFileFrom(bases, fs);
-	const specl = readSpecl(f, fs, []);
-	if (!specl.options) specl.options = { DEST: DEFAULT_DEST };
-	return specl;
+	return readSpecl(f, fs, []);
 }

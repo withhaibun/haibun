@@ -87,12 +87,23 @@
 			"actuality": {
 				"text": "e2e-tests/once",
 				"status": "passed",
-				"tookMs": 0,
-				"digest": {
-					"e2e-tests/once": "2366cba89b9728bb36b9ea80bfe754e50f7397a9644e62f52cb8cc3d85133581",
-					"modules/core/src": "ed148f70fbc88295137db0750d1834a146a78e26648c84a12028190a8fc5d4f2",
-					"modules/logic/src": "cccd368317a5aea6bebebe5ad0a5be863ce23fbbe3124c822a450caeee5ca362"
+				"tookMs": 0
+			},
+			"features": {
+				"/features/once.feature": {
+					"text": "/features/once",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 1
 				}
+			}
+		},
+		"1c898c9ac690ca0d": {
+			"filter": "",
+			"actuality": {
+				"text": "e2e-tests/once",
+				"status": "passed",
+				"tookMs": 0
 			},
 			"features": {
 				"/features/once.feature": {

@@ -1,0 +1,10 @@
+{
+	"extends": "./config.json",
+	"description": "The reader's second actuality, on the profile the first left, which it doesn't clear.",
+	"group": {
+		"filter": ["b-reading-a-cached-actuality", "c-reading-a-report", "d-two-origins", "e-deleting-an-actuality"],
+		"after": ["config.json"],
+		"clears": []
+	},
+	"steppers": []
+}

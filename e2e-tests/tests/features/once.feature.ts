@@ -10,7 +10,7 @@ const { not } = withAction(new LogicStepper());
 const { feature, scenario } = withAction(new Haibun());
 const { setFromStatement, matches } = withAction(new VariablesStepper());
 
-const GROUP = '"once"';
+const GROUP = '"@haibun/e2e-tests/once"';
 const RUN_ALL = `run all the tests in ${GROUP}`;
 const PASS = testRuns.pass(GROUP, "120");
 

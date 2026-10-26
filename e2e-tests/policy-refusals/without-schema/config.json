@@ -1,0 +1,6 @@
+{
+	"extends": "@haibun/e2e-tests/policy-test/config-no-policy.json",
+	"description": "A run with a policy whose config doesn't name the policy's schema: it refuses to start its features.",
+	"steppers": [],
+	"options": { "RUN_POLICY": "local smoke:r" }
+}

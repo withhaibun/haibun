@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseDirFilters, parseRunPolicyArgs, parseRunPolicyEnv, accessLevelIncludes, getFeatureAccessPrefix, featureMatchesFilter } from "./run-policy.js";
+import { parseDirFilters, parseRunPolicyArgs, parseRunPolicyOption, accessLevelIncludes, getFeatureAccessPrefix, featureMatchesFilter } from "./run-policy.js";
 
 describe("parseDirFilters", () => {
 	it("parses single pair", () => {
@@ -34,14 +34,14 @@ describe("parseRunPolicyArgs", () => {
 	});
 });
 
-describe("parseRunPolicyEnv", () => {
+describe("parseRunPolicyOption", () => {
 	it("parses valid env string", () => {
-		const config = parseRunPolicyEnv("local smoke:r,api:w");
+		const config = parseRunPolicyOption("local smoke:r,api:w");
 		expect(config.place).toBe("local");
 		expect(config.dirFilters).toHaveLength(2);
 	});
 	it("throws on wrong number of parts", () => {
-		expect(() => parseRunPolicyEnv("local")).toThrow(/HAIBUN_RUN_POLICY doesn't have the form/);
+		expect(() => parseRunPolicyOption("local")).toThrow(/RUN_POLICY doesn't have the form/);
 	});
 });
 

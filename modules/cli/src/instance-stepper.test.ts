@@ -233,7 +233,7 @@ describe("restarting an instance", () => {
 			port: 8298,
 			hostId: 9,
 		});
-		await expect(starting).rejects.toThrow(/nonexistent-instance-dir doesn't hold a config\.json/);
+		await expect(starting).rejects.toThrow(/nonexistent-instance-dir\/config\.json isn't there/);
 	});
 });
 

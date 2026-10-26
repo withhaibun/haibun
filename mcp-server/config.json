@@ -1,9 +1,12 @@
 {
+	"description": "The steps of a deployment served over MCP. Its group runs the feature that responds to an MCP client; config-serving.json serves them and stays.",
+	"group": { "filter": ["mcp-client"] },
 	"steppers": [
 		"@haibun/web-server-hono/web-server-stepper",
 		"@haibun/web-playwright/web-playwright",
 		"@haibun/storage-fs/storage-fs",
 		"haibun-stepper",
+		"variables-stepper",
 		"@haibun/logic/logic-stepper",
 		"@haibun/web-server-hono/mcp-stepper"
 	],

@@ -1,0 +1,9 @@
+{
+	"extends": "./config.json",
+	"description": "The permissive policy's group, run reading every folder of features.",
+	"group": {},
+	"steppers": [],
+	"options": {
+		"RUN_POLICY": "local *:r"
+	}
+}

@@ -1,0 +1,8 @@
+{
+	"extends": "./config.json",
+	"description": "The MCP server as npm run start:mcp serves it: it stays after its feature ends.",
+	"steppers": [],
+	"options": {
+		"STAY": "always"
+	}
+}

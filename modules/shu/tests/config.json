@@ -1,4 +1,5 @@
 {
+	"group": { "bases": [".", "@haibun/shu/waypoints"] },
 	"extends": "@haibun/cli/config.base.json",
 	"steppers": [
 		"authority-stepper",
@@ -13,7 +14,7 @@
 		"@haibun/shu/monitor-stepper",
 		"@haibun/shu/graph-source-stepper",
 		"@haibun/shu/client-cache-stepper",
-		"./build/test/voice-ui-test-stepper",
+		"@haibun/shu/test/voice-ui-test-stepper",
 		"@haibun/monitor-tui"
 	],
 	"moduleOptions": {

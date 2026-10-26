@@ -1,7 +1,9 @@
 {
+	"group": {},
 	"$schema": "schemas/app-params.json",
 	"steppers": ["variables-stepper", "@haibun/logic/logic-stepper"],
-	"runPolicy": "policy-test/schemas/no-prod-writes.json",
+	"runPolicy": "@haibun/e2e-tests/policy-test/schemas/no-prod-writes.json",
+	"options": { "RUN_POLICY": "prod smoke:r,api:r" },
 	"appParameters": {
 		"prod": {
 			"BASE_URL": "https://production.com",

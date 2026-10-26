@@ -21,7 +21,6 @@
  * self-hosted model router or a hosted API. The steps, features and defaults here don't name a model.
  */
 import type { TInputSchema, TStepDescriptor } from "@haibun/core/lib/step-discovery.js";
-import path from "node:path";
 import { z } from "zod";
 import { fromJsonText, JsonObjectTextSchema } from "@haibun/core/lib/domains/json-text.js";
 import { AStepper, type IHasCycles, type IHasOptions, type IStepperCycles } from "@haibun/core/lib/astepper.js";
@@ -37,7 +36,7 @@ import { RUN_DOMAIN, SUPERVISOR_CAPABILITIES, runDomainDefinitions, runReadSchem
 import { bareMethodName, hostOfMethodName, hostScopedMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { isLevelEnd } from "@haibun/core/lib/actuality/machines/actuality.js";
-import { supervisorPorts } from "./root.js";
+import { locatedBase, supervisorPorts } from "./root.js";
 import { DOMAIN_FILE_PATH } from "@haibun/core/lib/domains/domains.js";
 
 /** The InstanceStepper steps this stepper's tools call. InstanceStepper starts, reads and stops each test run. This
@@ -541,7 +540,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 	 *  change that doesn't show in the features' dependencies, or notes one to require another test run regardless. An
 	 *  empty filter selects every feature of the base. */
 	noteApplied(filter: string, where: string): void {
-		supervisorPorts.actualities.forgetOutcomes(path.resolve(where), filter || undefined);
+		supervisorPorts.actualities.forgetOutcomes(locatedBase(where, process.cwd()), filter || undefined);
 	}
 
 	/** Clears the test run in flight, so the next one can start. */

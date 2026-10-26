@@ -187,6 +187,43 @@
 		}
 	},
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
+		"0b946c5232a3d794": {
+			"filter": "run-policy-refusals",
+			"actuality": {
+				"text": "e2e-tests/tests, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
+				"status": "passed",
+				"tookMs": 2100,
+				"digest": {
+					"e2e-tests/src": "58d60ee765cabcfce203a6cacd4f669fb0c891d1d0153c1134505572772c2c6a",
+					"e2e-tests/tests": "c7c6d3de4adfafb6f2d61c1d8402a86d928b9b7c1af03c71ec1159433795874f",
+					"modules/cli/src": "8cb457a609ee3d5cb8bf92f0ea24b7dcaec601a96be4cb4c32be3b039abefd8a",
+					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
+					"modules/core/src": "d7425d3a850b66814313caecc42e3c87c5bf10f71084ac8fa2fb85eb7ad2e442",
+					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
+					"modules/logic/src": "cccd368317a5aea6bebebe5ad0a5be863ce23fbbe3124c822a450caeee5ca362",
+					"modules/monitor-otel/src": "51ad9d33751b0654ac68a6a7280ef036d2c5e4b9b676bbacb9c6999d64c5d3d8",
+					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
+					"modules/out-junit/src": "2de459e6fad89f9b5702d9b4be5c08b70697c67f64ae244585a97923ee8652f1",
+					"modules/recorder/src": "4483bd44ae0de4ad4e504b6b398a05042484a83df837a6cfa085869c7e69332d",
+					"modules/shu/src": "89aea89852f7cb58c08931cb5a0524dc23df02458c40ee57b7282f8dc3a4a5e7",
+					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
+					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
+					"modules/utils/src": "128195b8e9b52a9197bfd78e93a19be17009af4fc3fa03d78930236c955079c4",
+					"modules/web-accessibility-axe/src": "ec44f655ec72d5b0e69567170037fbe21e0209aab8f10a9e0c8cab4a72dd251e",
+					"modules/web-playwright/src": "acca85ede6cf3c11b5cbf4ab3bac5a9f8fc58a538ad7bc4abbd0344eb69df8ae",
+					"modules/web-server-hono/src": "334a21921dcfe06774443de2bfd77b09c58931fc7b738352cd5f9b02c9c51053",
+					"modules/web-server-hono/waypoints": "fa5853749829db27d77867eb4c13e1860184beafed284ebff8f0672c617affe3"
+				}
+			},
+			"features": {
+				"/features/run-policy-refusals.feature.ts": {
+					"text": "A run refuses a run policy its config doesn't allow",
+					"status": "passed",
+					"tookMs": 2000,
+					"steps": 16
+				}
+			}
+		},
 		"23ab4b344343e0c8": {
 			"filter": "",
 			"actuality": {
@@ -536,6 +573,187 @@
 					"text": "/features/xss",
 					"status": "passed",
 					"tookMs": 700,
+					"steps": 13
+				}
+			}
+		},
+		"9d55f7d930fabe6b": {
+			"filter": "",
+			"actuality": {
+				"text": "e2e-tests/tests, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
+				"status": "passed",
+				"tookMs": 22500,
+				"digest": {
+					"e2e-tests/src": "58d60ee765cabcfce203a6cacd4f669fb0c891d1d0153c1134505572772c2c6a",
+					"e2e-tests/tests": "c7c6d3de4adfafb6f2d61c1d8402a86d928b9b7c1af03c71ec1159433795874f",
+					"modules/cli/src": "87ca48cf3d12eab42b677579c7524202736c70169dfcefef8d8a5acfe767f6cf",
+					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
+					"modules/core/src": "76ab9179708d0fd4dab28f2f8fe9f50c243ec83104100237494a1e8100ebb952",
+					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
+					"modules/logic/src": "cccd368317a5aea6bebebe5ad0a5be863ce23fbbe3124c822a450caeee5ca362",
+					"modules/monitor-otel/src": "51ad9d33751b0654ac68a6a7280ef036d2c5e4b9b676bbacb9c6999d64c5d3d8",
+					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
+					"modules/out-junit/src": "2de459e6fad89f9b5702d9b4be5c08b70697c67f64ae244585a97923ee8652f1",
+					"modules/recorder/src": "4483bd44ae0de4ad4e504b6b398a05042484a83df837a6cfa085869c7e69332d",
+					"modules/shu/src": "89aea89852f7cb58c08931cb5a0524dc23df02458c40ee57b7282f8dc3a4a5e7",
+					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
+					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
+					"modules/utils/src": "128195b8e9b52a9197bfd78e93a19be17009af4fc3fa03d78930236c955079c4",
+					"modules/web-accessibility-axe/src": "ec44f655ec72d5b0e69567170037fbe21e0209aab8f10a9e0c8cab4a72dd251e",
+					"modules/web-playwright/src": "acca85ede6cf3c11b5cbf4ab3bac5a9f8fc58a538ad7bc4abbd0344eb69df8ae",
+					"modules/web-server-hono/src": "334a21921dcfe06774443de2bfd77b09c58931fc7b738352cd5f9b02c9c51053",
+					"modules/web-server-hono/waypoints": "fa5853749829db27d77867eb4c13e1860184beafed284ebff8f0672c617affe3"
+				}
+			},
+			"features": {
+				"/features/a11y-fail.feature": {
+					"text": "/features/a11y-fail",
+					"status": "passed",
+					"tookMs": 800,
+					"steps": 13
+				},
+				"/features/a11y-pass.feature": {
+					"text": "/features/a11y-pass",
+					"status": "passed",
+					"tookMs": 700,
+					"steps": 13
+				},
+				"/features/after-every.feature": {
+					"text": "/features/after-every",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 8
+				},
+				"/features/auth-basic.feature": {
+					"text": "/features/auth-basic",
+					"status": "passed",
+					"tookMs": 900,
+					"steps": 55
+				},
+				"/features/auth-bearer.feature": {
+					"text": "/features/auth-bearer",
+					"status": "passed",
+					"tookMs": 700,
+					"steps": 78
+				},
+				"/features/auth-form.feature": {
+					"text": "/features/auth-form",
+					"status": "passed",
+					"tookMs": 1000,
+					"steps": 24
+				},
+				"/features/counter.feature": {
+					"text": "/features/counter",
+					"status": "passed",
+					"tookMs": 1900,
+					"steps": 20
+				},
+				"/features/counter.feature.ts": {
+					"text": "Counts feature",
+					"status": "passed",
+					"tookMs": 2000,
+					"steps": 20
+				},
+				"/features/counts.feature.ts": {
+					"text": "Counts feature",
+					"status": "passed",
+					"tookMs": 500,
+					"steps": 22
+				},
+				"/features/elements.feature": {
+					"text": "/features/elements",
+					"status": "passed",
+					"tookMs": 800,
+					"steps": 17
+				},
+				"/features/executor-rpc.feature.ts": {
+					"text": "Executor RPC dispatch",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 8
+				},
+				"/features/feature-variables.feature": {
+					"text": "/features/feature-variables",
+					"status": "passed",
+					"tookMs": 100,
+					"steps": 19
+				},
+				"/features/if-set.feature": {
+					"text": "/features/if-set",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 13
+				},
+				"/features/not.feature": {
+					"text": "/features/not",
+					"status": "passed",
+					"tookMs": 500,
+					"steps": 9
+				},
+				"/features/once.feature.ts": {
+					"text": "A group of features runs once per state of what it depends on",
+					"status": "passed",
+					"tookMs": 1900,
+					"steps": 20
+				},
+				"/features/page-visits.feature.ts": {
+					"text": "Visit pages",
+					"status": "passed",
+					"tookMs": 800,
+					"steps": 65
+				},
+				"/features/popup.feature": {
+					"text": "/features/popup",
+					"status": "passed",
+					"tookMs": 700,
+					"steps": 14
+				},
+				"/features/qrcode.feature": {
+					"text": "/features/qrcode",
+					"status": "passed",
+					"tookMs": 2700,
+					"steps": 19
+				},
+				"/features/recurse.feature": {
+					"text": "/features/recurse",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 3
+				},
+				"/features/run-policy-refusals.feature.ts": {
+					"text": "A run refuses a run policy its config doesn't allow",
+					"status": "passed",
+					"tookMs": 2000,
+					"steps": 16
+				},
+				"/features/trauma_center.feature": {
+					"text": "/features/trauma_center",
+					"status": "passed",
+					"tookMs": 200,
+					"steps": 93
+				},
+				"/features/upload-verify.feature": {
+					"text": "/features/upload-verify",
+					"status": "passed",
+					"tookMs": 600,
+					"steps": 20
+				},
+				"/features/visited-pages.feature": {
+					"text": "/features/visited-pages",
+					"status": "passed",
+					"tookMs": 700,
+					"steps": 31
+				},
+				"/features/workflow.feature.ts": {
+					"text": "workflow",
+					"status": "passed",
+					"tookMs": 200,
+					"steps": 64
+				},
+				"/features/xss.feature": {
+					"text": "/features/xss",
+					"status": "passed",
+					"tookMs": 600,
 					"steps": 13
 				}
 			}

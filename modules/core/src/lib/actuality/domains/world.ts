@@ -97,6 +97,8 @@ export const BaseOptionsSchema = z.strictObject({
 	/** Report actuality's events as NDJSON on stdout. */
 	[NDJSON]: z.boolean().optional(),
 	HOST_ID: z.number().optional(),
+	/** A policy of runs, as "place dir:access[,dir:access]". */
+	RUN_POLICY: z.string().optional(),
 	PWDEBUG: z.string().optional(),
 	envVariables: z.record(z.string(), z.string()).optional(),
 });

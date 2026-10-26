@@ -1,4 +1,4 @@
-import nodeFS, { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { vitest, describe, it, expect } from "vitest";
@@ -238,7 +238,7 @@ describe("resolveRunPolicy", () => {
 		const specl = { steppers: [], runPolicy: "test-policy.json", appParameters: { prod: { API_KEY: "secret-123", TIMEOUT: "5000" } } } as TSpecl;
 		const policyConfig = { place: "prod", dirFilters: [] } as TRunPolicyConfig;
 
-		lib.resolveRunPolicy(policyConfig, {}, protoOptions, specl, nodeFS);
+		lib.resolveRunPolicy(policyConfig, protoOptions, specl, fileSystem);
 
 		expect(protoOptions.options.envVariables?.API_KEY).toBe("secret-123");
 		expect(protoOptions.options.envVariables?.TIMEOUT).toBe("5000");
@@ -254,7 +254,7 @@ describe("runBases", () => {
 describe("getConfigFromBase with extends", () => {
 	const BASE = {
 		steppers: ["variables-stepper", "haibun-stepper"],
-		options: { DEST: "base" },
+		options: { LOG_LEVEL: "debug" },
 		moduleOptions: { [OTHER_OPTION]: "base" },
 		environments: ["model"],
 		dependsOn: ["shared"],
@@ -271,13 +271,23 @@ describe("getConfigFromBase with extends", () => {
 
 	it("adds the config's steppers after the base's, and lets the config's keys replace the base's", () => {
 		const specl = getConfigFromBase(
-			[group({ extends: "../base.json", steppers: ["logic-stepper"], options: { DEST: "own" }, moduleOptions: { [`${OTHER_OPTION}2`]: "own" } })],
+			[group({ extends: "../base.json", steppers: ["logic-stepper"], options: { LOG_LEVEL: "info" }, moduleOptions: { [`${OTHER_OPTION}2`]: "own" } })],
 			fileSystem,
 		);
 		expect(specl.steppers).toEqual(["variables-stepper", "haibun-stepper", "logic-stepper"]);
-		expect(specl.options).toEqual({ DEST: "own" });
+		expect(specl.options).toEqual({ LOG_LEVEL: "info" });
 		expect(specl.moduleOptions).toEqual({ [OTHER_OPTION]: "base", [`${OTHER_OPTION}2`]: "own" });
 		expect(specl).not.toHaveProperty("extends");
+	});
+
+	it("takes the base's group where the config states one, with what the config states replacing it, and leaves a config that doesn't state one outside the groups", () => {
+		const grouped = { ...BASE, group: { bases: [".", "@haibun/shu/waypoints"], filter: ["a-"] } };
+		const root = mkdtempSync(join(tmpdir(), "extends-group-"));
+		writeFileSync(join(root, "base.json"), JSON.stringify(grouped));
+		writeFileSync(join(root, "refined.json"), JSON.stringify({ extends: "./base.json", steppers: [], group: { filter: ["b-"] } }));
+		writeFileSync(join(root, "launched.json"), JSON.stringify({ extends: "./base.json", steppers: [] }));
+		expect(getConfigFromBase([join(root, "refined.json")], fileSystem).group).toEqual({ bases: [".", "@haibun/shu/waypoints"], filter: ["b-"] });
+		expect(getConfigFromBase([join(root, "launched.json")], fileSystem).group).toBeUndefined();
 	});
 
 	it("reads a base's dependsOn path from the config that extends it, and joins the environments", () => {

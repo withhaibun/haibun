@@ -7,7 +7,6 @@
 		"has at most one call site: InstanceStepper.restartInstance": 1,
 		"has at most one call site: InstanceStepper.showInstances": 1,
 		"has at most one call site: InstanceStepper.stopRun": 1,
-		"has at most one call site: InstanceStepper.waitRun": 1,
 		"returns a list of records or a count its domain doesn't declare as a list: InstanceStepper.readRun (run-read)": 1,
 		"returns a list of records or a count its domain doesn't declare as a list: InstanceStepper.waitRun (run-read)": 1
 	},

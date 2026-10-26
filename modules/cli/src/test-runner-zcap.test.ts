@@ -64,7 +64,7 @@ describe("what a caller must hold to run a test", () => {
 	it("allows a caller that holds only the action that starts a run, and the call fails on the missing base rather than on authority", async () => {
 		const called = await h.call("TestRunnerStepper-runTest", { where: NOWHERE, filter: "any" }, [SUPERVISOR_CAPABILITIES.run]);
 		expect(called.result.ok, "the base doesn't exist").toBe(false);
-		expect(called.result.errorMessage, "the call reached the supervisor, so it passed the gate").toMatch(/doesn't hold a config.json/);
+		expect(called.result.errorMessage, "the call reached the supervisor, so it passed the gate").toMatch(/isn't there. Name a config, or a directory that holds a config.json/);
 	});
 
 	it("gates each action separately: the read action doesn't allow starting a run", async () => {
@@ -100,6 +100,6 @@ describe("what a caller must hold to run a test", () => {
 		// An explicit capability authorizes the agent's tool, as it authorizes an RPC or MCP caller. The tool's inner call to
 		// the supervisor runs under the same authority.
 		const called = await h.call("TestRunnerStepper-runTest", { where: NOWHERE, filter: "any" }, undefined, SUPERVISOR_CAPABILITIES.run);
-		expect(called.result.errorMessage, "the outer call's authority authorized the inner call").toMatch(/doesn't hold a config.json/);
+		expect(called.result.errorMessage, "the outer call's authority authorized the inner call").toMatch(/isn't there. Name a config, or a directory that holds a config.json/);
 	});
 });

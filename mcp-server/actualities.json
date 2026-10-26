@@ -1,5 +1,57 @@
 {
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
+		"0f754fb43af7e7db": {
+			"filter": "mcp-client",
+			"actuality": {
+				"text": "mcp-server",
+				"status": "passed",
+				"tookMs": 300,
+				"digest": {
+					"mcp-server": "161580fd854b70501990c29c8a56d8429616b2e4522d8268b629e384cf63f532",
+					"modules/core/src": "76ab9179708d0fd4dab28f2f8fe9f50c243ec83104100237494a1e8100ebb952",
+					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
+					"modules/logic/src": "cccd368317a5aea6bebebe5ad0a5be863ce23fbbe3124c822a450caeee5ca362",
+					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
+					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
+					"modules/web-playwright/src": "acca85ede6cf3c11b5cbf4ab3bac5a9f8fc58a538ad7bc4abbd0344eb69df8ae",
+					"modules/web-server-hono/src": "334a21921dcfe06774443de2bfd77b09c58931fc7b738352cd5f9b02c9c51053"
+				}
+			},
+			"features": {
+				"/features/mcp-client.feature": {
+					"text": "/features/mcp-client",
+					"status": "passed",
+					"tookMs": 300,
+					"steps": 7
+				}
+			}
+		},
+		"5fe6f966a2914369": {
+			"filter": "answers-mcp",
+			"actuality": {
+				"text": "mcp-server",
+				"status": "passed",
+				"tookMs": 400,
+				"digest": {
+					"mcp-server": "450351479914f5f8c4411078c955b6c5619063dd5aba8b316773f3974dde99c0",
+					"modules/core/src": "211a860c7aad6cab4447114122ccc83acd8c6f0fa1c871db21ad25b8cdd3360a",
+					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
+					"modules/logic/src": "cccd368317a5aea6bebebe5ad0a5be863ce23fbbe3124c822a450caeee5ca362",
+					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
+					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
+					"modules/web-playwright/src": "acca85ede6cf3c11b5cbf4ab3bac5a9f8fc58a538ad7bc4abbd0344eb69df8ae",
+					"modules/web-server-hono/src": "334a21921dcfe06774443de2bfd77b09c58931fc7b738352cd5f9b02c9c51053"
+				}
+			},
+			"features": {
+				"/features/answers-mcp.feature": {
+					"text": "/features/answers-mcp",
+					"status": "passed",
+					"tookMs": 300,
+					"steps": 7
+				}
+			}
+		},
 		"9d55b9f1dbc0f7f2": {
 			"filter": "serve-mcp",
 			"actuality": {
@@ -49,6 +101,32 @@
 					"status": "passed",
 					"tookMs": 0,
 					"steps": 2
+				}
+			}
+		},
+		"d83522b96cb27af4": {
+			"filter": "answers-mcp",
+			"actuality": {
+				"text": "mcp-server",
+				"status": "passed",
+				"tookMs": 400,
+				"digest": {
+					"mcp-server": "450351479914f5f8c4411078c955b6c5619063dd5aba8b316773f3974dde99c0",
+					"modules/core/src": "d7425d3a850b66814313caecc42e3c87c5bf10f71084ac8fa2fb85eb7ad2e442",
+					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
+					"modules/logic/src": "cccd368317a5aea6bebebe5ad0a5be863ce23fbbe3124c822a450caeee5ca362",
+					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
+					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
+					"modules/web-playwright/src": "acca85ede6cf3c11b5cbf4ab3bac5a9f8fc58a538ad7bc4abbd0344eb69df8ae",
+					"modules/web-server-hono/src": "334a21921dcfe06774443de2bfd77b09c58931fc7b738352cd5f9b02c9c51053"
+				}
+			},
+			"features": {
+				"/features/answers-mcp.feature": {
+					"text": "/features/answers-mcp",
+					"status": "passed",
+					"tookMs": 300,
+					"steps": 7
 				}
 			}
 		}

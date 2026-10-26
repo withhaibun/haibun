@@ -22,14 +22,11 @@
 	"scripts": {
 		"build": "tsc -b . && npm run bundle",
 		"bundle": "node scripts/bundles.ts page",
-		"test:e2e": "haibun-cli -c ./tests/config.json ./tests,./waypoints && npm run test:e2e:profile && npm run test:e2e:basic-auth",
 		"test": "vitest run",
 		"lint": "biome check .",
 		"format": "biome format --write .",
 		"build:watch": "tsc -b . --watch --preserveWatchOutput & npm run bundle:watch & wait",
-		"bundle:watch": "node scripts/bundles.ts page --watch",
-		"test:e2e:profile": "rm -rf /tmp/haibun-shu-reader-profile && haibun-cli -c ./tests-profile/config.json ./tests-profile,./waypoints features/a- && haibun-cli -c ./tests-profile/config.json ./tests-profile,./waypoints features/[b-e]-",
-		"test:e2e:basic-auth": "haibun-cli -c ./tests-basic-auth/config.json ./tests-basic-auth"
+		"bundle:watch": "node scripts/bundles.ts page --watch"
 	},
 	"dependencies": {
 		"@digitalbazaar/data-integrity": "^2.5.0",

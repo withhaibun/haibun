@@ -3,7 +3,7 @@ import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import { testRuns } from "@haibun/cli/waypoints/backgrounds/test-runs.feature.ts";
 
 const { feature, scenario } = withAction(new Haibun());
-const GROUP = '"once"';
+const GROUP = '"@haibun/e2e-tests/once"';
 
 export const features: TKirejiExport = {
 	"The command line": [

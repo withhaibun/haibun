@@ -1,7 +1,9 @@
 {
+	"group": {},
 	"$schema": "schemas/app-params.json",
 	"steppers": ["variables-stepper", "resources-stepper", "@haibun/logic/logic-stepper"],
-	"runPolicy": "policy-test/schemas/permissive.json",
+	"runPolicy": "@haibun/e2e-tests/policy-test/schemas/permissive.json",
+	"options": { "RUN_POLICY": "local smoke:w,api:w" },
 	"appParameters": {
 		"local": {
 			"BASE_URL": "http://localhost:8123",

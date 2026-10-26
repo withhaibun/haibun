@@ -1,4 +1,5 @@
 {
+	"group": { "bases": [".", "@haibun/cli/waypoints", "@haibun/web-server-hono/waypoints"] },
 	"extends": "@haibun/cli/config.base.json",
 	"steppers": [
 		"@haibun/web-playwright/web-playwright",
@@ -12,7 +13,7 @@
 		"@haibun/core/lib/test/fake-authority",
 		"@haibun/cli/instance-stepper",
 		"@haibun/cli/test-runner-stepper",
-		"./build-local/test-server",
+		"@haibun/e2e-tests/build-local/test-server",
 		"@haibun/web-server-hono/mcp-stepper"
 	],
 	"unused": ["@haibun/monitor-tui/index", "console-monitor-stepper"],

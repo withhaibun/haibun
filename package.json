@@ -27,10 +27,9 @@
 	},
 	"scripts": {
 		"test": "vitest run",
-		"test:e2e": "npm test -w e2e-tests && npm run test:agents",
-		"test:agents": "HAIBUN_ENV=fromenv=envvalue haibun-cli -c e2e-tests/agents/config.json AGENTS.md",
+		"test:e2e": "haibun-cli --groups",
 		"test:integration": "vitest run --project integration",
-		"start:mcp": "HAIBUN_STAY=always haibun-cli --config mcp-server/config.json mcp-server serve-mcp",
+		"start:mcp": "haibun-cli --config mcp-server/config-serving.json mcp-server serve-mcp",
 		"test:watch": "vitest --hideSkippedTests",
 		"clean": "tsc -b --clean",
 		"build:watch:tsc": "tsc -b modules/ --watch --preserveWatchOutput",
@@ -56,7 +55,6 @@
 		"publish-all:beta": "node scripts/publish-all.mjs beta",
 		"publish-all:rc": "node scripts/publish-all.mjs rc",
 		"build:watch:shu-bundles": "npm run bundle:watch -w @haibun/shu",
-		"verify": "node scripts/verify.mjs",
 		"prepare": "haibun-install-hooks"
 	},
 	"version": "4.0.0-alpha.3",
@@ -65,31 +63,5 @@
 		"@types/react": "^19.0.0",
 		"three": "npm:super-three@0.173.5",
 		"three-bmfont-text": "3.0.1"
-	},
-	"verify": [
-		{
-			"check": "build",
-			"command": "npm run build"
-		},
-		{
-			"check": "lint",
-			"command": "npm run lint"
-		},
-		{
-			"check": "unit",
-			"command": "npx vitest run --project unit"
-		},
-		{
-			"check": "integration",
-			"command": "npx vitest run --project integration"
-		},
-		{
-			"check": "e2e",
-			"command": "npm run test:e2e"
-		},
-		{
-			"check": "shu e2e",
-			"command": "npm run test:e2e -w @haibun/shu"
-		}
-	]
+	}
 }

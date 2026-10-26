@@ -45,11 +45,5 @@ jobs:
       - name: Run tests
         run: npm test
 
-      - name: Run shu e2e tests
-        run: npm run test:e2e -w @haibun/shu
-
-      - name: Run the MCP server's and the language server's features
-        run: node scripts/service-features.mjs
-
-      - name: Run e2e tests
+      - name: Run the groups of features
         run: npm run test:e2e

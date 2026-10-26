@@ -11,6 +11,24 @@ const RemoteStepperSchema = zr.object({ remote: zr.string() });
 const StepperEntrySchema = zr.union([zr.string(), RemoteStepperSchema]);
 export type TStepperEntry = z.infer<typeof StepperEntrySchema>;
 
+/** What makes a config a group of features, which `haibun-cli --groups` finds, selects and runs. A config states it for itself: a
+ *  config that extends a group is a group where it states `group`, which takes the base's group with what it states replacing it. */
+const GroupSchema = zr.object({
+	/** The bases the group runs, the first holding its features, by path from the config's directory or by a package's export, such as
+	 *  `@haibun/shu/waypoints`. Without it, the group runs the config's directory alone. */
+	bases: zr.array(zr.string()).optional(),
+	/** The features the group runs, by the filters a command line gives. Without it, the group runs each feature of its bases. */
+	filter: zr.array(zr.string()).optional(),
+	/** The set of groups this group runs in, which `--set` names. Without it, the group runs in the set a call that doesn't name one runs. */
+	set: zr.string().optional(),
+	/** The configs, by path from this config's directory, whose groups run before this one. */
+	after: zr.array(zr.string()).optional(),
+	/** The paths, from the config's directory, that are removed before the group runs: a store or a browser's profile that its features
+	 *  fill and keep across their own processes, which an earlier run leaves. */
+	clears: zr.array(zr.string()).optional(),
+});
+export type TGroupDeclaration = z.infer<typeof GroupSchema>;
+
 export const SpeclSchema = zr.looseObject({
 	$schema: zr.string().optional(),
 	/** The config this config extends, by its path from this config or by a package's export, such as
@@ -20,7 +38,13 @@ export const SpeclSchema = zr.looseObject({
 	steppers: zr.array(StepperEntrySchema),
 	runPolicy: zr.string().optional(),
 	appParameters: zr.record(zr.string(), zr.record(zr.string(), zr.unknown())).optional(),
-	options: zr.record(zr.string(), zr.unknown()).optional(),
+	/** The base options a run of this config takes, by name without the `HAIBUN_` prefix, such as `CONTINUE_AFTER_ERROR`. The
+	 *  environment states an option over what the config states. */
+	options: zr.record(zr.string(), zr.string()).optional(),
+	/** The variables of the process environment a run sets where the environment doesn't set them: what a service reads from its
+	 *  deployment's environment, which a group's features state for the service they start. */
+	env: zr.record(zr.string(), zr.string()).optional(),
+	group: GroupSchema.optional(),
 	/** The steppers' options a base states for every run of it, by the name the environment gives them. The environment
 	 *  states an option over what the config states, so a deployment's `.env` or a caller changes it without an edit. */
 	moduleOptions: zr.record(zr.string().startsWith(MODULE_OPTION_PREFIX, `a module option is named ${MODULE_OPTION_PREFIX}{STEPPER}_{OPTION}`), zr.string()).optional(),

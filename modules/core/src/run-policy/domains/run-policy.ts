@@ -11,8 +11,8 @@ export const OPTION_RUN_POLICY = "--run-policy";
 /** CLI option that lists the features that a run policy and a feature filter select. The process then exits without executing them. */
 export const OPTION_DRY_RUN = "--dry-run";
 
-/** Environment variable that holds a run policy as "place dir:access[,dir:access]" */
-export const HAIBUN_RUN_POLICY = "HAIBUN_RUN_POLICY";
+/** The base option that holds a run policy as "place dir:access[,dir:access]", which a config's options or HAIBUN_RUN_POLICY states. */
+export const RUN_POLICY = "RUN_POLICY";
 
 /** Run access levels name the operations a feature may perform on the place that a run targets. They form a strict hierarchy: read ⊂ act ⊂ write.
  *  They are distinct from the storage access levels (`private`/`public`/`opened`). A storage access level determines who may read a record.
@@ -81,13 +81,11 @@ export function parseRunPolicyArgs(place: string, dirAccessStr: string): TRunPol
 	}
 }
 
-/** Parse HAIBUN_RUN_POLICY env var: "place dir:access[,dir:access]" */
-export function parseRunPolicyEnv(envVar: string): TRunPolicyConfig {
-	const parts = envVar.trim().split(/\s+/);
+/** Parses the RUN_POLICY option: "place dir:access[,dir:access]". */
+export function parseRunPolicyOption(stated: string): TRunPolicyConfig {
+	const parts = stated.trim().split(/\s+/);
 	if (parts.length !== 2) {
-		throw new Error(
-			`HAIBUN_RUN_POLICY doesn't have the form "place dir:access[,dir:access]". Write the place and the dir filters with a space between them, such as "prod smoke:r".`,
-		);
+		throw new Error(`${RUN_POLICY} doesn't have the form "place dir:access[,dir:access]". Write the place and the dir filters with a space between them, such as "prod smoke:r".`);
 	}
 	return parseRunPolicyArgs(itemAt(parts, 0), itemAt(parts, 1));
 }

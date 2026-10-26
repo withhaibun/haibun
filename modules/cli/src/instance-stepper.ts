@@ -32,7 +32,7 @@ import type { TWorld } from "@haibun/core/lib/world.js";
 import { actionNotOK, actionOKWithProducts, basesFrom, perProcessOptionNames } from "@haibun/core/lib/domains/util.js";
 import { namesPackage } from "@haibun/core/lib/actuality.js";
 import { localOrigin } from "@haibun/core/lib/domains/local-origin.js";
-import { instanceSignIns, supervisorPorts } from "./root.js";
+import { instanceSignIns, locatedBase, supervisorPorts } from "./root.js";
 import type { TBasicAuthUser } from "@haibun/core/lib/domains/basic-auth.js";
 import { readRemoteHost, remoteTools } from "@haibun/core/lib/transport/pipelines/remote-host.js";
 import { requestSigner } from "@haibun/core/lib/domains/session-authority.js";
@@ -53,6 +53,10 @@ import { listOf } from "@haibun/core/lib/domains/lists.js";
 import { CountedFields, counted } from "@haibun/core/lib/domains/hypermedia.js";
 
 const READY_POLL_MS = 300;
+/** The extension of a config's file, which a run names in place of the directory that holds its config.json. */
+const JSON_FILE = ".json";
+/** The cursor of a run's output at its start. */
+const OUTPUT_START = 0;
 const STDERR_TAIL_CHARS = 4_000;
 /** The HAIBUN_ENV variable a launched instance reads to address its launcher: `use store at $LAUNCHED_FROM$ …`. */
 const LAUNCHED_FROM = "LAUNCHED_FROM";
@@ -121,16 +125,17 @@ function stoppedBeforeServing(dir: string, child: ChildProcess, actuality: TActu
 const runStopped = (held: TRun): string | undefined =>
 	held.ended !== null ? `it exited with code ${held.ended}` : actualityEnded(held.outcome.actuality) ? "its features ended" : undefined;
 
-/** Returns the bases `where` names, comma-separated as a command line names them: the first a directory that holds the config.json
- *  the child reads, and each after it a waypoint library by its path or its package, which is found from that directory. Each is
- *  resolved, so the child reads the bases this process names. Throws with `doing` as the prefix when the directory doesn't hold a
- *  config.json. */
+/** Returns the bases `where` names, comma-separated as a command line names them: the first a config the child reads, or a directory
+ *  that holds the config.json it reads, by its path or its package's export, and each after it a waypoint library by its path or its
+ *  package, which is found from the config's directory. Each is resolved, so the child reads the bases this process names. Throws with
+ *  `doing` as the prefix when the config isn't there. */
 function configIn(doing: string, where: string): TBases {
 	const [first, ...libraries] = basesFrom(where);
-	const dir = path.resolve(String(first));
-	const config = path.join(dir, "config.json");
-	if (!supervisorPorts.fs.existsSync(config)) throw new Error(`${doing}: ${dir} doesn't hold a config.json`);
-	return { dir, config, bases: [dir, ...libraries.map((l) => (namesPackage(l) ? supervisorPorts.fs.packageLocation(l, dir) : path.resolve(l)))] };
+	const named = locatedBase(String(first), process.cwd());
+	const config = named.endsWith(JSON_FILE) ? named : path.join(named, "config.json");
+	const dir = path.dirname(config);
+	if (!supervisorPorts.fs.existsSync(config)) throw new Error(`${doing}: ${config} isn't there. Name a config, or a directory that holds a config.json`);
+	return { dir, config, bases: [dir, ...libraries.map((library) => locatedBase(library, namesPackage(library) ? dir : process.cwd()))] };
 }
 
 export default class InstanceStepper extends AStepper implements IHasCycles {
@@ -278,7 +283,8 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			description:
 				"Wait until a run exits or reports that its features finished, or until the timeout passes, then return. This process receives the child's exit event and its report that its features finished, so the step returns as soon as either arrives and the caller doesn't poll. The products have the same shape as readRun's. At the timeout the step returns the same products with a status of running. A timeout isn't a failure. The caller then waits again or stops it with `stop the haibun run`.",
 			productsDomain: RUN_DOMAIN.read,
-			action: ({ run, seconds, cursor }: { run: string; seconds: number; cursor: number }) => this.waitRun(run, seconds, cursor),
+			// A line doesn't state a cursor, so a wait it states returns the output of a run from its start.
+			action: ({ run, seconds, cursor }: { run: string; seconds: number; cursor?: number }) => this.waitRun(run, seconds, cursor === undefined ? OUTPUT_START : cursor),
 		},
 		stopRun: {
 			gwta: `stop the haibun run {run: ${RUN_DOMAIN.name}}`,
@@ -337,7 +343,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		// those conditions from the environment the child would receive, and looks up an outcome under them.
 		// A run's starting directory determines how its relative paths resolve, so the caller passes it. An empty `from`
 		// uses this process's directory.
-		const cwd = from ? path.resolve(from) : process.cwd();
+		const cwd = from ? locatedBase(from, process.cwd()) : process.cwd();
 		if (!supervisorPorts.fs.existsSync(cwd)) return actionNotOK(`start run: the starting directory ${cwd} doesn't exist. Pass an existing starting directory`);
 		const ran = verifiedRun(supervisorPorts, config, bases, filter, cwd, env);
 		if (ran)

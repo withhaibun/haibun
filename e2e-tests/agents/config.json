@@ -1,5 +1,0 @@
-{
-	"extends": "@haibun/cli/config.base.json",
-	"description": "The steppers of the examples in the repository's AGENTS.md, which its root runs as a feature: npm run test:agents.",
-	"steppers": ["activities-stepper", "@haibun/web-playwright/web-playwright", "@haibun/storage-fs/storage-fs", "console-monitor-stepper"]
-}

@@ -15,20 +15,21 @@ import { holdModuleOptions } from "@haibun/core/lib/held-module-options.js";
 import { listedSteppers } from "@haibun/core/lib/steps/pipelines/discover-steps.js";
 import { getPre, getDefaultOptions, basesFrom, verifyRequiredOptions, verifyExtraOptions, errorDetail, createSteppers } from "@haibun/core/lib/domains/util.js";
 import { BaseOptions, processBaseEnvToOptionsAndErrors } from "../domains/base-options.js";
-import type { TFileSystem } from "@haibun/core/lib/adapters/workspace-lib.js";
 import { getDefaultTag } from "@haibun/core/lib/domains/ttag.js";
 import { Runner } from "@haibun/core/lib/pipelines/runner.js";
 import { FeatureVariables, secretsOf } from "@haibun/core/lib/feature-variables.js";
 import { Prompter } from "@haibun/core/lib/prompts/pipelines/prompter.js";
 import { getCoreDomains } from "@haibun/core/lib/pipelines/core-domains.js";
 import { EventLogger } from "@haibun/core/lib/EventLogger.js";
-import { OPTION_RUN_POLICY, OPTION_DRY_RUN, HAIBUN_RUN_POLICY, parseRunPolicyArgs, parseRunPolicyEnv, type TRunPolicyConfig } from "@haibun/core/run-policy/domains/run-policy.js";
+import { OPTION_RUN_POLICY, OPTION_DRY_RUN, parseRunPolicyArgs, parseRunPolicyOption, type TRunPolicyConfig } from "@haibun/core/run-policy/domains/run-policy.js";
 import { loadAndValidateRunPolicy } from "@haibun/core/run-policy/pipelines/policy-file.js";
 import { PhaseRunner, PhaseBailError } from "@haibun/core/lib/PhaseRunner.js";
 import { withName } from "@haibun/core/lib/domains/features.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { configFileFrom, DOTENV, getConfigFromBase, readsDotenv } from "./specl.js";
 import type { TCliPorts, TConfigFiles } from "../ports.js";
+import { GROUP_OPTIONS } from "../domains/groups.js";
+import { runGroups } from "./groups.js";
 
 const OPTION_CONFIG = "--config";
 const OPTION_HELP = "--help";
@@ -43,11 +44,13 @@ const OPTION_STATEMENT = "--statement";
 const OPTION_ONCE = "--once";
 
 export async function runCli(args: string[], env: NodeJS.ProcessEnv, ports: TCliPorts) {
+	if (args.includes(GROUP_OPTIONS.groups)) process.exit(await runGroups(args, ports));
 	const parsed = processArgs(args);
 	const bases = runBases(parsed.params[0], ports.fs);
 	const configBases = parsed.configLoc ? [parsed.configLoc] : bases;
 	const specl = await getSpeclOrExit(configBases, ports);
 	if (readsDotenv(specl) && ports.fs.existsSync(DOTENV)) process.loadEnvFile(DOTENV);
+	if (specl.env !== undefined) for (const [name, value] of Object.entries(specl.env)) env[name] ??= value;
 
 	if (parsed.showHelp) return await usageThenExit(specl, ports.steppers);
 	if (parsed.showSteppers) return await showSteppersAndExit(specl, ports.steppers);
@@ -63,7 +66,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv, ports: TCli
 
 		world = getCliWorld(protoOptions, bases, ports);
 		pr.world = world;
-		const policyConfig = resolveRunPolicy(parsed.policyConfig, env, protoOptions, specl, ports.fs);
+		const policyConfig = resolveRunPolicy(parsed.policyConfig, protoOptions, specl, ports.fs);
 		const featureFilter = parsed.params[1] ? parsed.params[1].split(",") : undefined;
 
 		// Holds the record file, the conditions key and the present digest of each dependency of a run of features, which the
@@ -148,20 +151,16 @@ async function showSteppersAndExit(specl: TSpecl, steppers: TCliPorts["steppers"
 	process.exit(0);
 }
 
-export function resolveRunPolicy(
-	cliPolicyConfig: TRunPolicyConfig | undefined,
-	env: NodeJS.ProcessEnv,
-	protoOptions: TProtoOptions,
-	specl: TSpecl,
-	fs: Pick<TFileSystem, "readFileSync">,
-): TRunPolicyConfig | undefined {
+/** Returns the policy a run takes, from --run-policy or the RUN_POLICY option, and gives the features the parameters its config
+ *  states for the policy's place. The config's `runPolicy` names the policy's schema by its path or by a package's export. Throws where
+ *  a run has a policy and its config doesn't name a schema, or where the policy doesn't satisfy the schema. */
+export function resolveRunPolicy(cliPolicyConfig: TRunPolicyConfig | undefined, protoOptions: TProtoOptions, specl: TSpecl, fs: TConfigFiles): TRunPolicyConfig | undefined {
 	let policyConfig = cliPolicyConfig;
-	if (!policyConfig && env[HAIBUN_RUN_POLICY]) {
-		policyConfig = parseRunPolicyEnv(env[HAIBUN_RUN_POLICY]);
-	}
+	const stated = protoOptions.options.RUN_POLICY;
+	if (!policyConfig && stated !== undefined) policyConfig = parseRunPolicyOption(stated);
 	if (policyConfig) {
 		if (!specl.runPolicy) {
-			throw new Error(`${OPTION_RUN_POLICY} requires "runPolicy" in config.json`);
+			throw new Error(`a run policy requires "runPolicy" in the config, naming the policy's schema. Add it, or run without ${OPTION_RUN_POLICY} and RUN_POLICY`);
 		}
 		const appParameters = specl.appParameters?.[policyConfig.place];
 		if (appParameters) {
@@ -171,7 +170,7 @@ export function resolveRunPolicy(
 			};
 		}
 
-		loadAndValidateRunPolicy(policyConfig, specl.runPolicy, fs);
+		loadAndValidateRunPolicy(policyConfig, namesPackage(specl.runPolicy) ? fs.packageLocation(specl.runPolicy, process.cwd()) : specl.runPolicy, fs);
 	}
 	return policyConfig;
 }
@@ -284,11 +283,11 @@ export async function usage(specl: TSpecl, loaded: TCliPorts["steppers"], messag
 	const ret = [
 		"",
 		`usage: ${process.argv[1]} [${OPTION_CONFIG} path/to/specific/config.json] [--cwd working_directory] [${OPTION_HELP}] [${OPTION_SHOW_STEPPERS}] [${OPTION_WITH_STEPPERS} stepper[,stepper]] [${OPTION_RUN_POLICY} place dir:access[,dir:access]] [${OPTION_STATEMENT} "a haibun statement" (repeatable; runs after any filtered features, or alone)] [${OPTION_DRY_RUN}] [${OPTION_ONCE} (skip a group whose last run passed against unchanged dependencies)] <project base[,project base]> <[filter,filter]>`,
+		`   or: ${process.argv[1]} ${GROUP_OPTIONS.groups} [${GROUP_OPTIONS.set} set] [${GROUP_OPTIONS.environments} environment[,environment]] [${GROUP_OPTIONS.list}] [config or directory ...] (runs each group of features a config declares, with the other options)`,
 		message || "",
 		"The working directory's config.json is used when the project bases don't contain a config.json.\n",
 		"Set these environment variables to control options:\n",
 		...Object.entries(BaseOptions.options).map(([k, v]) => `${BASE_PREFIX}${String(k).padEnd(55)} ${v.desc}`),
-		`${HAIBUN_RUN_POLICY.padEnd(63)} run policy: "place dir:access[,dir:access]"`,
 	];
 	if (Object.keys(a).length) {
 		ret.push("\nThese variables set options of the steppers that config.json lists:\n", ...Object.entries(a).map(([k, v]) => `${k.padEnd(55)} ${v.desc}`));
@@ -351,7 +350,7 @@ export function runsRegardless(parsed: { dryRun: boolean; statements: readonly s
 }
 
 /** Returns whether the CLI reads the record of a group's last run before it runs the group. `--once` sets this for one
- *  run. `HAIBUN_ONCE` sets it for every run a script chains. */
+ *  run. `HAIBUN_ONCE` sets it for every run that inherits the environment. */
 export function runsOnce(parsed: { once: boolean }, options: TBaseOptions): boolean {
 	return parsed.once || options.ONCE === true;
 }

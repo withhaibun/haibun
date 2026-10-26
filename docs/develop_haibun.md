@@ -16,17 +16,20 @@ A module's own `build` and `test` scripts run the same tools for that module alo
 
 `npm run lint` runs biome and `tsc -b`.
 
-`npm run test:e2e` runs the end-to-end features of `e2e-tests`, then the examples of `AGENTS.md`, which `npm run test:agents`
-runs alone. Their browsers come from Playwright: `npx playwright install chromium`.
+`npm run test:e2e` is `haibun-cli --groups`, which runs each group of features: a config that declares `group`, such as those of
+`e2e-tests`, shu's `tests*`, `mcp-server` and `config.agents.json`, which runs the examples of `AGENTS.md`. Each runs from its
+config's directory with the bases and filter its group states, in the order its `after` states, and the group runner stops at the first that
+fails. A path after `--groups` narrows it to the configs it names or holds, another word is the feature filter each runs, `--set` and
+`--environments` select the groups of a set or that use those environments, `--list` prints the configs it would run, and every
+other option, such as `--once` or `--with-steppers=debugger-stepper`, reaches each run. Their browsers come from Playwright:
+`npx playwright install chromium`.
 
 `npm run depcruise` writes `dependency-graph.html`, a graph of the modules' imports, which needs Graphviz's `dot`.
 
 ## Verifying a change
 
-`npm run verify` runs each check that the root package.json lists under `verify`, one after another, and stops at the first that
-fails: the build, lint, the unit and integration tests, and the end-to-end features of `e2e-tests` and shu. It runs the features with
-`HAIBUN_ONCE`, so a group whose last pass holds against its present dependencies isn't run again. It prints each check's duration
-and the lines the working tree changes.
+`npm run build`, `npm run lint`, `npm test` and `npm run test:e2e` check a change, as CI runs them. `npm run test:e2e -- --once` skips
+a group whose last pass holds against its present dependencies.
 
 `npm install` points git at the hooks of `@haibun/tooling` (`modules/tooling/hooks`), whose pre-commit hook runs lint and the unit tests, so a commit passes them.
 

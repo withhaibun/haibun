@@ -1,4 +1,5 @@
 {
+	"group": {},
 	"extends": "@haibun/cli/config.base.json",
 	"steppers": [
 		"@haibun/web-server-hono/web-server-stepper",

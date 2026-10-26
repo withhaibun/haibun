@@ -1,4 +1,5 @@
 {
+	"group": { "bases": [".", "@haibun/cli/waypoints", "@haibun/logic/waypoints", "@haibun/core/waypoints"] },
 	"extends": "@haibun/cli/config.base.json",
 	"steppers": [
 		"activities-stepper",
@@ -8,8 +9,9 @@
 		"@haibun/web-server-hono/mcp-stepper",
 		"@haibun/cli/instance-stepper",
 		"@haibun/cli/test-runner-stepper",
-		"./build-local/test-server"
+		"@haibun/e2e-tests/build-local/test-server"
 	],
+	"options": { "CONTINUE_AFTER_ERROR": "true" },
 	"moduleOptions": {
 		"HAIBUN_O_WEBSERVERSTEPPER_RPC": "true",
 		"HAIBUN_O_WEBSERVERSTEPPER_ALLOW_WITHOUT_DELEGATION": "Read:public",

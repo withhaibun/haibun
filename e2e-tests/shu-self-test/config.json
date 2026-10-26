@@ -1,4 +1,5 @@
 {
+	"group": { "bases": [".", "@haibun/web-playwright/waypoints"] },
 	"extends": "@haibun/cli/config.base.json",
 	"steppers": [
 		"activities-stepper",
@@ -11,6 +12,7 @@
 		"@haibun/storage-fs/storage-fs",
 		"@haibun/monitor-tui"
 	],
+	"options": { "ENV": "shu_test_password=ISECRET_shu_test" },
 	"moduleOptions": {
 		"HAIBUN_O_WEBSERVERSTEPPER_RPC": "true",
 		"HAIBUN_O_WEBSERVERSTEPPER_ALLOW_WITHOUT_DELEGATION": "*",

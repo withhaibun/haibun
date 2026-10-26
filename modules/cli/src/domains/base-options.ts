@@ -1,6 +1,6 @@
 import { BaseOptionsSchema, type TEnvVariables, type TModuleOptions, type TProtoOptions } from "@haibun/core/lib/world.js";
 import type { TSpecl } from "@haibun/core/lib/actuality.js";
-import { HAIBUN_RUN_POLICY } from "@haibun/core/run-policy/domains/run-policy.js";
+import { parseRunPolicyOption, RUN_POLICY } from "@haibun/core/run-policy/domains/run-policy.js";
 import {
 	BASE_PREFIX,
 	CONTINUE_AFTER_ERROR,
@@ -13,14 +13,14 @@ import {
 	STEP_DELAY,
 } from "@haibun/core/lib/domains/protocol.js";
 import type { IHasOptions } from "@haibun/core/lib/astepper.js";
-import { boolOrError, intOrError, optionOrError, stringOrError } from "@haibun/core/lib/domains/util.js";
+import { boolOrError, errorDetail, intOrError, optionOrError, stringOrError } from "@haibun/core/lib/domains/util.js";
 
 export class BaseOptions implements IHasOptions {
 	static options = {
 		KEY: { desc: "actuality key (defaults to serialtime)", parse: (input: string) => stringOrError(input) },
 		STAY: { desc: `stay running after actuality's features end: ${STAY_ALWAYS}, ${STAY_FAILURE}`, parse: (result: string) => optionOrError(result, [STAY_ALWAYS, STAY_FAILURE]) },
 		[ONCE]: {
-			desc: "run a group only when one of its dependencies changed since it last passed, apart from a run that stays to serve. This option applies --once to every run that a script chains",
+			desc: "run a group only when one of its dependencies changed since it last passed, apart from a run that stays to serve. This option applies --once to every run that inherits it",
 			parse: (input: string) => boolOrError(input),
 		},
 		NDJSON: {
@@ -46,6 +46,17 @@ export class BaseOptions implements IHasOptions {
 			},
 		},
 		[STEP_DELAY]: { desc: "delay between steps", parse: (input: string) => intOrError(input) },
+		[RUN_POLICY]: {
+			desc: 'a run policy: "place dir:access[,dir:access]", which --run-policy states for one run',
+			parse: (input: string) => {
+				try {
+					parseRunPolicyOption(input);
+					return { result: input };
+				} catch (e) {
+					return { parseError: errorDetail(e) };
+				}
+			},
+		},
 		HOST_ID: { desc: "integer id of this haibun instance. It prefixes every seqPath, so two hosts' seqPaths don't collide", parse: (input: string) => intOrError(input) },
 		PWDEBUG: {
 			desc: "(web) enable Playwright debugging with true or 1",
@@ -61,9 +72,9 @@ export class BaseOptions implements IHasOptions {
 
 export type TEnv = { [name: string]: string | undefined };
 
-/** Returns a run's options. A base option takes its default unless the environment sets it. A module option takes the
- *  base config's value unless an environment variable sets it. Throws where an environment value doesn't parse or
- *  doesn't name an option. */
+/** Returns a run's options. A base option takes its default unless the config's options state it, and the environment states it over
+ *  either. A module option takes the base config's value unless an environment variable sets it. Throws where a value doesn't parse
+ *  or doesn't name an option. */
 export function processBaseEnvToOptionsAndErrors(env: TEnv, specl: TSpecl): TProtoOptions {
 	const options: Record<string, unknown> = { DEST: DEFAULT_DEST };
 	const moduleOptions: TModuleOptions = { ...specl.moduleOptions };
@@ -74,26 +85,27 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv, specl: TSpecl): TPro
 	const baseOptions = (BaseOptions as IHasOptions).options ?? {};
 	for (const [k, v] of Object.entries(baseOptions)) if (v.default !== undefined) options[k] = v.default;
 
+	const stated: Record<string, string> = { ...specl.options };
 	for (const [k, value] of Object.entries(env)) {
-		if (value === undefined || !k.startsWith(BASE_PREFIX) || k === HAIBUN_RUN_POLICY) continue;
-		const opt = k.replace(BASE_PREFIX, "");
+		if (value === undefined || !k.startsWith(BASE_PREFIX)) continue;
+		if (k.startsWith(MODULE_OPTION_PREFIX)) moduleOptions[k] = value;
+		else stated[k.replace(BASE_PREFIX, "")] = value;
+	}
+	for (const [opt, value] of Object.entries(stated)) {
 		const baseOption = baseOptions[opt];
-
-		if (baseOption) {
-			const res = baseOption.parse(value, nenv);
-			if (res.parseError) {
-				errors.push(res.parseError);
-			} else if (res.env) {
-				nenv = { ...nenv, ...res.env };
-			} else if (res.result === undefined) {
-				errors.push(`option ${opt} doesn't accept ${JSON.stringify(value)}`);
-			} else {
-				options[opt] = res.result;
-			}
-		} else if (k.startsWith(MODULE_OPTION_PREFIX)) {
-			moduleOptions[k] = value;
-		} else {
+		if (baseOption === undefined) {
 			errors.push(`${opt} isn't an option`);
+			continue;
+		}
+		const res = baseOption.parse(value, nenv);
+		if (res.parseError) {
+			errors.push(res.parseError);
+		} else if (res.env) {
+			nenv = { ...nenv, ...res.env };
+		} else if (res.result === undefined) {
+			errors.push(`option ${opt} doesn't accept ${JSON.stringify(value)}`);
+		} else {
+			options[opt] = res.result;
 		}
 	}
 	options.envVariables = nenv;

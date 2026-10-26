@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { haibunCliCalls, linksAndParentPaths, testGroupDirectories, untrackedRecords } from "./group-rules.js";
+import { linksAndParentPaths, optionAssignments, untrackedRecords } from "./group-rules.js";
 
 describe("the parent paths and tracking files of a repository's groups", () => {
 	let repository = "";
@@ -54,18 +54,9 @@ describe("the parent paths and tracking files of a repository's groups", () => {
 		]);
 	});
 
-	it("read the bases and config of each haibun-cli call of a script, from the script's package directory", () => {
-		expect(haibunCliCalls("rm -rf /tmp/p && haibun-cli -c ./profile/config.json ./profile,./waypoints a- && HAIBUN_KEY=k haibun-cli tests,@haibun/cli/waypoints")).toEqual([
-			{ bases: ["./profile", "./waypoints"], config: "profile/config.json" },
-			{ bases: ["tests", "@haibun/cli/waypoints"], config: "tests/config.json" },
-		]);
-		expect(() => haibunCliCalls("haibun-cli --config c.json"), "a call without a base").toThrow("doesn't name a base");
-	});
-
-	it("find each group a test script runs, an untracked or ignored actualities file of a group or an instance under it that doesn't need an environment, and an untracked baseline", () => {
+	it("find an untracked or ignored actualities file of a group or an instance under it that doesn't need an environment, and an untracked baseline", () => {
 		const group = { steppers: [] };
 		committed({
-			"e2e/package.json": JSON.stringify({ scripts: { test: "npm run policy", policy: "haibun-cli -c p/config.json p", record: "haibun-cli record", "test:t": "haibun-cli t" } }),
 			"e2e/p/config.json": JSON.stringify(group),
 			"e2e/p/actualities.json": "{}\n",
 			"e2e/t/config.json": JSON.stringify(group),
@@ -76,13 +67,25 @@ describe("the parent paths and tracking files of a repository's groups", () => {
 			"scripts/steps.baseline.json": "{}\n",
 		});
 		writeFileSync(join(repository, "scripts/prose.baseline.json"), "{}\n");
-		const groups = testGroupDirectories(repository, ["e2e/package.json"]);
-		expect(groups, "a script that a test script doesn't run isn't a group's").toEqual(["e2e/p", "e2e/t"]);
-		expect(untrackedRecords(repository, groups)).toEqual([
+		expect(untrackedRecords(repository, ["e2e/p", "e2e/t"])).toEqual([
 			{ file: "e2e/t/actualities.json", finding: "isn't tracked: run its group, or its rule test, and commit the file with the code it measures" },
 			{ file: "e2e/t/peer/actualities.json", finding: "isn't tracked: run its group, or its rule test, and commit the file with the code it measures" },
 			{ file: "e2e/t/peer/actualities.json", finding: "is ignored by a .gitignore entry: remove the entry, so a commit holds the file" },
 			{ file: "scripts/prose.baseline.json", finding: "isn't tracked: run its group, or its rule test, and commit the file with the code it measures" },
+		]);
+	});
+
+	it("find an option a script assigns, and a script that names a path in another package", () => {
+		committed({
+			"package.json": JSON.stringify({ scripts: { test: "HAIBUN_ENV=a=b haibun-cli --groups", start: "haibun-cli -c other/config.json other", own: "node scripts/run.ts" } }),
+			"scripts/run.ts": "",
+			"other/package.json": "{}",
+			"other/config.json": JSON.stringify({ steppers: [] }),
+		});
+		expect(optionAssignments(repository)).toEqual([{ file: "package.json", finding: "script test states HAIBUN_ENV" }]);
+		expect(linksAndParentPaths(repository)).toEqual([
+			{ file: "package.json", finding: "script start names other/config.json, a path in another package" },
+			{ file: "package.json", finding: "script start names other, a path in another package" },
 		]);
 	});
 });

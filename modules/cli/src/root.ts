@@ -13,7 +13,10 @@ import { consolePrompter } from "@haibun/core/lib/prompts/root.js";
 import { eventSink } from "@haibun/core/lib/steps/root.js";
 import * as actualities from "./adapters/actualities.js";
 import { fileSystem, processes } from "./adapters/processes.js";
+import { groupPorts } from "./adapters/groups.js";
 import type { TCliPorts, THosts, TSupervisorPorts } from "./ports.js";
+import path from "node:path";
+import { namesPackage } from "@haibun/core/lib/actuality.js";
 
 /** The timeout of one handshake attempt. A starting child doesn't respond before it listens. It responds quickly once it listens, so a short attempt suffices. */
 const BEGIN_TIMEOUT_MS = 1_500;
@@ -30,6 +33,7 @@ export const cliPorts = (): TCliPorts => ({
 	clock: actualityClock(),
 	prompter: consolePrompter(),
 	events: eventSink(),
+	groups: groupPorts(process.cwd()),
 });
 
 /** One handshake attempt with an instance, and the steps of a host. */
@@ -37,3 +41,6 @@ const hosts: THosts = { begin: (origin) => new RpcClient({ baseUrl: origin, time
 
 /** The ports that fork a supervisor's instances and runs, read their configurations and actualities, and call their hosts. */
 export const supervisorPorts: TSupervisorPorts = { fs: fileSystem, actualities, processes, hosts };
+
+/** The directory a base names, by its path from `from` or by a package's export, which is found from `from` as Node finds a package. */
+export const locatedBase = (named: string, from: string): string => (namesPackage(named) ? supervisorPorts.fs.packageLocation(named, from) : path.resolve(from, named));

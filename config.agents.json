@@ -1,0 +1,7 @@
+{
+	"extends": "@haibun/cli/config.base.json",
+	"description": "The steppers of the examples in the repository's AGENTS.md, which runs as a feature, and the variable its examples read from the environment.",
+	"group": { "bases": ["AGENTS.md"] },
+	"options": { "ENV": "fromenv=envvalue" },
+	"steppers": ["activities-stepper", "@haibun/web-playwright/web-playwright", "@haibun/storage-fs/storage-fs", "console-monitor-stepper"]
+}

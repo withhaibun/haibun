@@ -1,0 +1,6 @@
+{
+	"extends": "@haibun/e2e-tests/policy-test/config-no-prod-writes.json",
+	"description": "A run whose policy writes to prod, where the policy's schema allows prod only reads: it refuses to start its features.",
+	"steppers": [],
+	"options": { "RUN_POLICY": "prod smoke:w,api:w" }
+}

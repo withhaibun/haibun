@@ -51,7 +51,51 @@
       "propertyNames": {
         "type": "string"
       },
-      "additionalProperties": {}
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "env": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "group": {
+      "type": "object",
+      "properties": {
+        "bases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "filter": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "set": {
+          "type": "string"
+        },
+        "after": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "clears": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
     },
     "moduleOptions": {
       "type": "object",
