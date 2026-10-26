@@ -1,0 +1,24 @@
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix sec: <https://w3id.org/security#> .
+@prefix t: <urn:trial:> .
+
+# The delegation chain, in ZCAP-LD's terms as its JSON-LD expands them.
+t:root sec:controller t:alice ; sec:invocationTarget <https://muskeg.example/mail> ; sec:allowedAction "Graph:*" .
+t:c1 sec:parentCapability t:root ; sec:controller t:bob ; sec:invocationTarget <https://muskeg.example/mail/inbox> ; sec:allowedAction "Graph:query" ;
+  sec:expires "2026-12-01T00:00:00Z"^^xsd:dateTime .
+t:c2 sec:parentCapability t:c1 ; sec:controller t:carol ; sec:invocationTarget <https://muskeg.example/mail/inbox> ; sec:allowedAction "Graph:query" ;
+  sec:expires "2026-11-15T00:00:00Z"^^xsd:dateTime .
+t:c3 sec:parentCapability t:c1 ; sec:controller t:carol ; sec:invocationTarget <https://muskeg.example/mail> ; sec:allowedAction "Graph:query" ;
+  sec:expires "2026-11-15T00:00:00Z"^^xsd:dateTime .
+t:c4 sec:parentCapability t:c1 ; sec:controller t:carol ; sec:invocationTarget <https://muskeg.example/mail/inbox> ; sec:allowedAction "Graph:write" ;
+  sec:expires "2026-11-15T00:00:00Z"^^xsd:dateTime .
+t:c5 sec:parentCapability t:c1 ; sec:controller t:carol ; sec:invocationTarget <https://muskeg.example/mail/inbox> ; sec:allowedAction "Graph:query" ;
+  sec:expires "2027-01-01T00:00:00Z"^^xsd:dateTime .
+
+# The trust registry's grant to a clerk, and two grants the clerk proposes to a sub-clerk, each bounded by the clerk's.
+t:clerkGrant sec:controller t:clerk ; sec:invocationTarget <https://muskeg.example/trusted-lists> ; sec:allowedAction "TrustedList:registerAnchor" ;
+  sec:expires "2027-06-01T00:00:00Z"^^xsd:dateTime .
+t:subClerkEu t:boundedBy t:clerkGrant ; sec:controller t:subClerk ; sec:invocationTarget <https://muskeg.example/trusted-lists/eu> ;
+  sec:allowedAction "TrustedList:registerAnchor" ; sec:expires "2027-01-01T00:00:00Z"^^xsd:dateTime .
+t:subClerkWithdraw t:boundedBy t:clerkGrant ; sec:controller t:subClerk ; sec:invocationTarget <https://muskeg.example/trusted-lists/eu> ;
+  sec:allowedAction "TrustedList:withdrawAnchor" ; sec:expires "2027-01-01T00:00:00Z"^^xsd:dateTime .

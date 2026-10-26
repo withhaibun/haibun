@@ -1,0 +1,11 @@
+@prefix t: <urn:trial:> . @prefix log: <http://www.w3.org/2000/10/swap/log#> .
+# Actuality's records of one run, as one named graph (a quoted formula).
+t:run1 t:graph { t:s1 a t:Step ; t:seqPath "0.1" ; t:verdict t:passed . t:s2 a t:Step ; t:verdict t:failed . t:s3 a t:Step ; t:seqPath "0.3" ; t:note "x" . } .
+# sh:minCount 1 on seqPath and on verdict: a step the graph holds without one.
+{ t:run1 t:graph ?g . ?g log:includes { ?s a t:Step } . ?g log:notIncludes { ?s t:seqPath ?p } } => { ?s t:violates "seqPath minCount 1" } .
+{ t:run1 t:graph ?g . ?g log:includes { ?s a t:Step } . ?g log:notIncludes { ?s t:verdict ?v } } => { ?s t:violates "verdict minCount 1" } .
+# every step observed in the run has a verdict: log:forAllIn over the same graph.
+# log:forAllIn makes this EYE build exec a second EYE, which wasm can't, so ∀ is stated as the scoped negation of a counterexample.
+{ t:run1 t:graph ?g . ?SCOPE log:notIncludes { ?s t:violates "verdict minCount 1" } } => { t:run1 t:everyStepHasVerdict true } .
+# sh:closed: a step with a property outside its shape.
+{ t:run1 t:graph ?g . ?g log:includes { ?s a t:Step . ?s ?p ?o } . ?p log:notEqualTo <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> . ?p log:notEqualTo t:seqPath . ?p log:notEqualTo t:verdict } => { ?s t:violates ("closed" ?p) } .

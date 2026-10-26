@@ -1,0 +1,42 @@
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix log: <http://www.w3.org/2000/10/swap/log#> .
+@prefix math: <http://www.w3.org/2000/10/swap/math#> .
+@prefix string: <http://www.w3.org/2000/10/swap/string#> .
+@prefix list: <http://www.w3.org/2000/10/swap/list#> .
+@prefix odrl: <http://www.w3.org/ns/odrl/2/> .
+@prefix sec: <https://w3id.org/security#> .
+@prefix t: <urn:trial:> .
+
+# Alignment: a ZCAP's JSON-LD terms carry ODRL's meaning. One generic rule reads owl:equivalentProperty; no translation layer.
+sec:invocationTarget owl:equivalentProperty odrl:target .
+sec:allowedAction owl:equivalentProperty odrl:action .
+sec:controller owl:equivalentProperty odrl:assignee .
+sec:expires owl:equivalentProperty t:expires .
+{ ?p owl:equivalentProperty ?q . ?s ?p ?o } => { ?s ?q ?o } .
+# The parent's controller is the child's assigner.
+{ ?c sec:parentCapability ?p . ?p odrl:assignee ?a } => { ?c odrl:assigner ?a } .
+# A capability without an expiry of its own, a root, doesn't lapse; its permission has no dateTime constraint.
+
+# The action grammar: an entry allows an action where it is `*`, the action itself, or a prefix ending in `*` that begins it;
+# a read at a level allows each narrower level.
+t:ReadPrivate t:allowsLevel "Read:public" , "Read:private" .
+{ ?h odrl:action ?held . ?c odrl:action ?a . ?held log:equalTo ?a } => { ?held t:allows ?a } .
+{ ?h odrl:action "*" . ?c odrl:action ?a } => { "*" t:allows ?a } .
+{ ?h odrl:action ?held . ?held string:endsWith "*" . ?held string:length ?n . (?n 1) math:difference ?m . (?held 0 ?m) string:substring ?prefix .
+  ?c odrl:action ?a . ?a string:startsWith ?prefix } => { ?held t:allows ?a } .
+{ ?h odrl:action "Read:private" . ?c odrl:action ?a . t:ReadPrivate t:allowsLevel ?a } => { "Read:private" t:allows ?a } .
+
+# Target containment: the target itself or a path under it.
+{ ?h odrl:target ?over . ?c odrl:target ?t . ?over log:equalTo ?t } => { ?t t:within ?over } .
+{ ?h odrl:target ?over . ?c odrl:target ?t . ?over log:uri ?o . ?t log:uri ?u . (?o "/") string:concatenation ?base . ?u string:startsWith ?base } => { ?t t:within ?over } .
+
+# Containment of a candidate in a bound (a parent, or a registry's grant): the candidate's permission is a subset of the bound's.
+# The witness of exceeding is the action, target or expiry the bound doesn't allow. Only permissions and constraints apply.
+{ ?c t:boundedBy ?b . ?c odrl:action ?a . ?SCOPE log:notIncludes { ?b odrl:action ?h . ?h t:allows ?a } } => { ?c t:exceeds ( "action" ?a ) } .
+{ ?c t:boundedBy ?b . ?c odrl:target ?t . ?SCOPE log:notIncludes { ?b odrl:target ?o . ?t t:within ?o } } => { ?c t:exceeds ( "target" ?t ) } .
+{ ?c t:boundedBy ?b . ?c t:expires ?e . ?b t:expires ?f . ?e math:greaterThan ?f } => { ?c t:exceeds ( "expires" ?e ) } .
+{ ?c t:boundedBy ?b . ?b t:expires ?f . ?SCOPE log:notIncludes { ?c t:expires ?e } } => { ?c t:exceeds ( "expires" "never" ) } .
+{ ?c t:boundedBy ?b . ?SCOPE log:notIncludes { ?c t:exceeds ?w } } => { ?c t:containedIn ?b } .
+# Attenuation is containment in the parent.
+{ ?c sec:parentCapability ?p } => { ?c t:boundedBy ?p } .
