@@ -4,7 +4,7 @@
  */
 import { isAbsolute, resolve, relative, sep } from "path";
 import { z } from "zod";
-import { CAPTURE, DEFAULT_DEST, OK } from "@haibun/core/lib/domains/protocol.js";
+import { CAPTURE, OK } from "@haibun/core/lib/domains/protocol.js";
 import { captureLocator } from "@haibun/core/lib/domains/capture-locator.js";
 import type { TModuleOptions, TBaseOptions } from "@haibun/core/lib/world.js";
 import type { TTag } from "@haibun/core/lib/domains/ttag.js";
@@ -106,7 +106,7 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 
 	/** Returns the instance's artifact directory (capture/DEST), which holds the directory of each actuality's artifacts. */
 	getArtifactRoot(): string {
-		return `./${CAPTURE}/${this.getWorld().options.DEST || DEFAULT_DEST}`;
+		return `./${CAPTURE}/${this.getWorld().options.DEST}`;
 	}
 
 	/**
@@ -157,10 +157,10 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 		return { absolutePath, featureRelativePath, baseRelativePath };
 	}
 
-	async ensureCaptureLocation(loc: TLocationOptions, app?: string | undefined, fn = "") {
+	async ensureCaptureLocation(loc: TLocationOptions, app?: string | undefined) {
 		const dir = await this.getCaptureLocation(loc, app);
 		this.ensureDirExists(dir);
-		return fn ? `${dir}/${fn}` : dir;
+		return dir;
 	}
 	/** Synchronous, because `exists` and `mkdirp` are: a promise here made callers await work that was already done. */
 	ensureDirExists(dir: string): void {

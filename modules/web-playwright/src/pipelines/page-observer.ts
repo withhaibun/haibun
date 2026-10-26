@@ -51,7 +51,7 @@ export function pageObserver(world: TWorld, pageKey: string): TPageObserver {
 			if (!isRecorded(response)) return;
 			trace("response", response, { status: response.status, statusText: response.statusText, headers: response.headers });
 			const { url, status, durationMs, method } = response;
-			void trackHttpRequest(world, { url, status, durationMs, method }, routes).catch(failed(`the response from ${url}`));
+			void trackHttpRequest(world, { url, status, durationMs, method }, routes, "client").catch(failed(`the response from ${url}`));
 		},
 		navigated(url) {
 			// A page event's listener doesn't wait, so each record is written in the background.

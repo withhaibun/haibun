@@ -45,7 +45,7 @@ export default class OutJUnit extends AStepper implements IHasOptions, IHasCycle
 		},
 	};
 	options = {
-		OUTPUT_FILE: { desc: `output file (default junit.xml)`, parse: (port: string) => stringOrError(port) },
+		OUTPUT_FILE: { desc: `output file (default ${JUNIT_OUTPUT_FILE})`, parse: (port: string) => stringOrError(port) },
 		[StepperKinds.STORAGE]: { desc: "Storage for output (default stdout)", parse: (input: string) => stringOrError(input) },
 	};
 
@@ -57,7 +57,7 @@ export default class OutJUnit extends AStepper implements IHasOptions, IHasCycle
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
-		this.outputFile = getStepperOption(this, "OUTPUT_FILE", world.moduleOptions) || JUNIT_OUTPUT_FILE;
+		this.outputFile = getStepperOption(this, "OUTPUT_FILE", world.moduleOptions) ?? JUNIT_OUTPUT_FILE;
 		this.storage = findStepperFromOptionOrKind(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
 		await Promise.resolve();
 	}

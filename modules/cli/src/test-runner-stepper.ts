@@ -483,9 +483,9 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		return { ok: true, products: parsed.data as z.infer<S> };
 	}
 
-	/** Returns the option's value from the environment, or the fallback. This function throws on an invalid value, so a
-	 *  misconfigured limit doesn't leave the agent unbounded. */
-	private cap(option: "MAX_RUNS" | "MAX_STANDING" | "RUN_PORT" | "RUN_HOST_ID", fallback: number, { zeroMeans }: { zeroMeans?: string } = {}): number {
+	/** Returns the option's value from the environment, or its documented default. This function throws on an invalid value, so
+	 *  a misconfigured limit doesn't leave the agent unbounded. `zeroMeans` states what zero means where the option takes it. */
+	private cap(option: "MAX_RUNS" | "MAX_STANDING" | "RUN_PORT" | "RUN_HOST_ID", fallback: number, zeroMeans?: string): number {
 		const configured = getStepperOption(this, option, this.getWorld().moduleOptions);
 		if (configured === undefined) return fallback;
 		const parsed = Number(configured);
@@ -518,7 +518,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 	 *  so the record of the test run's actuality names who started it. */
 	private async startRun(where: string, filter: string): Promise<{ ok: true; started: z.infer<typeof runStartedSchema> } | { ok: false; why: string }> {
 		await this.ensureAgentPrincipal();
-		const port = this.cap("RUN_PORT", RUNNER_DEFAULTS.port, { zeroMeans: "the ports the test run's features declare" });
+		const port = this.cap("RUN_PORT", RUNNER_DEFAULTS.port, "the ports the test run's features declare");
 		const stands = this.runStands();
 		if (stands && port === 0) return { ok: false, why: "a standing test run requires a port: set RUN_PORT, or turn RUN_STANDS off" };
 		const id = runId(filter, new Date().toISOString());

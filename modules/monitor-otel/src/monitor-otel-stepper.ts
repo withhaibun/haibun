@@ -16,6 +16,10 @@ import { logs, SeverityNumber } from "@opentelemetry/api-logs";
 import type { TOtelProviders } from "./ports.js";
 import { otelProviders } from "./root.js";
 
+/** The OTLP endpoint and the service name the stepper reports to where its options don't state them, as the options document. */
+const OTLP_ENDPOINT = "http://localhost:4318";
+const SERVICE_NAME = "haibun";
+
 export default class MonitorOtelStepper extends AStepper implements IHasCycles, IHasOptions {
 	description = "Exports actuality's features, steps and artifacts as OpenTelemetry spans and its logs as log records.";
 	kind = StepperKinds.MONITOR;
@@ -31,16 +35,16 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 	private readonly actuality = actualityMachine();
 
 	options = {
-		OTEL_ENDPOINT: { desc: "OpenTelemetry OTLP endpoint (default: http://localhost:4318)", parse: stringOrError },
-		SERVICE_NAME: { desc: "Service name for traces and logs (default: haibun)", parse: stringOrError },
+		OTEL_ENDPOINT: { desc: `OpenTelemetry OTLP endpoint (default: ${OTLP_ENDPOINT})`, parse: stringOrError },
+		SERVICE_NAME: { desc: `Service name for traces and logs (default: ${SERVICE_NAME})`, parse: stringOrError },
 	};
 
 	private initializeIfNeeded() {
 		if (this.tracerProvider) return;
 
 		const world = this.getWorld();
-		const endpoint = getStepperOption(this, "OTEL_ENDPOINT", world.moduleOptions) || "http://localhost:4318";
-		const serviceName = getStepperOption(this, "SERVICE_NAME", world.moduleOptions) || "haibun";
+		const endpoint = getStepperOption(this, "OTEL_ENDPOINT", world.moduleOptions) ?? OTLP_ENDPOINT;
+		const serviceName = getStepperOption(this, "SERVICE_NAME", world.moduleOptions) ?? SERVICE_NAME;
 
 		this.initializeOtel(endpoint, serviceName);
 	}

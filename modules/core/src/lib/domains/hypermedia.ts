@@ -18,6 +18,7 @@ import {
 	getRelRange,
 	propertyIriOf,
 	isPersisted,
+	sortFieldOf,
 	type TPropertyDef,
 	type TRel,
 	type THypermediaTopology,
@@ -196,7 +197,7 @@ function subPropertyOfRel(rel: string): string | string[] | undefined {
 	}
 	return undefined;
 }
-import { AccessLevelSchema, DOMAIN_PERSISTED_TYPE, HAIBUN_NS, type TRegisteredDomain } from "./resources.js";
+import { AccessLevelSchema, DOMAIN_PERSISTED_TYPE, GeneratedAtTimeTextSchema, HAIBUN_NS, type TRegisteredDomain } from "./resources.js";
 import { DOMAIN_UNION, hypermediaDomainMap, refTargetOf } from "./domains.js";
 import { jsonSchemaFor } from "./json-schema-of.js";
 import { unwrap, unwrapToShape, zodTypeLabel } from "./zod-unwrap.js";
@@ -363,7 +364,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 			edges,
 			...(topology.displayLabel ? { displayLabel: topology.displayLabel } : {}),
 			queryable: queryableFields({ schema: domain.schema, topology }),
-			validTimeField: topology.defaultSort ?? LinkRelations.GENERATED_AT_TIME.rel,
+			validTimeField: sortFieldOf(topology),
 			declared: !!domain.ui?.declared,
 			instrumentation: topology.instrumentation === true,
 			...(domain.ui ? { ui: domain.ui } : {}),
@@ -563,7 +564,7 @@ export function hypermediaDomainFromContext(domainName: string, doc: THypermedia
 	if (!Object.values(properties).includes(LinkRelations.GENERATED_AT_TIME.rel)) {
 		properties.generatedAtTime = LinkRelations.GENERATED_AT_TIME.rel;
 		// A real ISO timestamp, not "": the quad/timeline path parses this field and rejects empty.
-		fields.generatedAtTime = z.string().default(() => new Date().toISOString());
+		fields.generatedAtTime = GeneratedAtTimeTextSchema;
 		sqlKinds.generatedAtTime = "TIMESTAMP";
 	}
 	const queryable = doc["@queryable"] ?? [];

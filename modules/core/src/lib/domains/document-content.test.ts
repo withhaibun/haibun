@@ -1,7 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { generateDocumentMarkdown, buildArtifactIndex, headingAnchor, artifactStepId, stepAncestors, isWebAddress } from "./document-content.js";
 import type { THaibunEvent } from "./protocol.js";
-import { LifecycleEvent } from "./protocol.js";
+import { LOG_LEVEL_INFO, LifecycleEvent } from "./protocol.js";
+import { itemAt } from "./item-at.js";
+
+/** The time of a run's first event, from which the markdown states each step's time. */
+const firstAt = (events: THaibunEvent[]): number => itemAt(events, 0).timestamp;
 
 function featureEvent(featurePath: string, featureName: string): THaibunEvent {
 	return {
@@ -52,7 +56,7 @@ describe("what a run logged is text", () => {
 		// A failure report quotes the elements it inspected. Placed as markup, those became a list item carrying a
 		// test id and three canvases the rendering library sized, which the next run found and pressed.
 		const events = [featureEvent("/f.feature", "F"), said(`saw <li data-testid="views-picker-row-x">…</li> and <canvas class="a-canvas"></canvas>`)];
-		const { md } = generateDocumentMarkdown(events, buildArtifactIndex(events).artifactsByStep);
+		const { md } = generateDocumentMarkdown(events, buildArtifactIndex(events).artifactsByStep, LOG_LEVEL_INFO, firstAt(events));
 		expect(md).not.toContain("<li data-testid");
 		expect(md).not.toContain("<canvas");
 		expect(md).toContain("&lt;li data-testid=&quot;views-picker-row-x&quot;&gt;");
@@ -60,7 +64,7 @@ describe("what a run logged is text", () => {
 
 	it("places a step's own text as text, since a step quotes markup to assert about it", () => {
 		const events = [featureEvent("/f.feature", "F"), ran('not text at "/tmp/out.html" contains "<script>alert(1)</script>"')];
-		const { md } = generateDocumentMarkdown(events, buildArtifactIndex(events).artifactsByStep);
+		const { md } = generateDocumentMarkdown(events, buildArtifactIndex(events).artifactsByStep, LOG_LEVEL_INFO, firstAt(events));
 		expect(md).not.toContain("<script>");
 		expect(md).toContain("&lt;script&gt;");
 	});
@@ -70,7 +74,7 @@ describe("generateDocumentMarkdown", () => {
 	it("renders Feature: with featureName", () => {
 		const events = [featureEvent("/path/to/test.feature", "Test Feature")];
 		const { artifactsByStep } = buildArtifactIndex(events);
-		const { md } = generateDocumentMarkdown(events, artifactsByStep);
+		const { md } = generateDocumentMarkdown(events, artifactsByStep, LOG_LEVEL_INFO, firstAt(events));
 		expect(md).toContain("# Feature: Test Feature");
 		expect(md).not.toContain("undefined");
 	});
@@ -90,7 +94,7 @@ describe("generateDocumentMarkdown", () => {
 			} as unknown as THaibunEvent,
 		];
 		const { artifactsByStep } = buildArtifactIndex(events);
-		const { md } = generateDocumentMarkdown(events, artifactsByStep);
+		const { md } = generateDocumentMarkdown(events, artifactsByStep, LOG_LEVEL_INFO, firstAt(events));
 		expect(md).toContain("# Feature: /path/to/test.feature");
 		expect(md).not.toContain("undefined");
 	});
@@ -109,7 +113,7 @@ describe("generateDocumentMarkdown", () => {
 	it("renders Scenario: with scenarioName", () => {
 		const events = [featureEvent("/test", "Test"), scenarioEvent("Create issuer identity")];
 		const { artifactsByStep } = buildArtifactIndex(events);
-		const { md } = generateDocumentMarkdown(events, artifactsByStep);
+		const { md } = generateDocumentMarkdown(events, artifactsByStep, LOG_LEVEL_INFO, firstAt(events));
 		expect(md).toContain("## Scenario: Create issuer identity");
 		expect(md).not.toContain("undefined");
 	});
@@ -145,7 +149,7 @@ describe("generateDocumentMarkdown", () => {
 			),
 		] as THaibunEvent[];
 		const { artifactsByStep } = buildArtifactIndex(raw);
-		const { md } = generateDocumentMarkdown(raw, artifactsByStep);
+		const { md } = generateDocumentMarkdown(raw, artifactsByStep, LOG_LEVEL_INFO, firstAt(raw));
 		expect(md).toContain("# Feature: My Feature");
 		expect(md).toContain("## Scenario: My Scenario");
 		expect(md).not.toContain("undefined");
@@ -186,7 +190,7 @@ describe("generateDocumentMarkdown", () => {
 		expect((serialized[1] as Record<string, unknown>).scenarioName).toBe("My Scenario");
 		const parsed = serialized;
 		const { artifactsByStep } = buildArtifactIndex(parsed);
-		const { md } = generateDocumentMarkdown(parsed, artifactsByStep);
+		const { md } = generateDocumentMarkdown(parsed, artifactsByStep, LOG_LEVEL_INFO, firstAt(parsed));
 		expect(md).toContain("# Feature: My Feature");
 		expect(md).toContain("## Scenario: My Scenario");
 		expect(md).not.toContain("undefined");
@@ -218,7 +222,7 @@ describe("generateDocumentMarkdown", () => {
 			} as unknown as THaibunEvent,
 		];
 		const { artifactsByStep } = buildArtifactIndex(events);
-		const { md } = generateDocumentMarkdown(events, artifactsByStep);
+		const { md } = generateDocumentMarkdown(events, artifactsByStep, LOG_LEVEL_INFO, firstAt(events));
 		expect(md).not.toContain("undefined");
 	});
 
@@ -243,7 +247,7 @@ describe("generateDocumentMarkdown", () => {
 			[step("start", 1000), image(1020), step("end", 1050)], // artifact between start and end
 		]) {
 			const { artifactsByStep } = buildArtifactIndex(events);
-			const { md } = generateDocumentMarkdown(events, artifactsByStep, "log");
+			const { md } = generateDocumentMarkdown(events, artifactsByStep, "log", firstAt(events));
 			const holders = md.match(/class="(feature-artifacts|standalone-artifact)"[^>]*(data-ids|data-id)="[^"]*0\.1\.2\.artifact\.0/g) ?? [];
 			expect(holders.length).toBe(1);
 		}
@@ -275,13 +279,13 @@ describe("generateDocumentMarkdown", () => {
 
 		it("attaches a step's own screenshot to the step's row, not to its scenario's", () => {
 			const events = [lifecycle(`${RUN}.0.3.12`, { type: "scenario", scenarioName: "S" }), lifecycle(`${RUN}.0.3.12.5`), screenshot(`${RUN}.0.3.12.5@0`)];
-			const { md } = generateDocumentMarkdown(events, buildArtifactIndex(events).artifactsByStep);
+			const { md } = generateDocumentMarkdown(events, buildArtifactIndex(events).artifactsByStep, LOG_LEVEL_INFO, firstAt(events));
 			expect(holderOf(md, `${RUN}.0.3.12.5@0`)).toBe(`${RUN}.0.3.12.5`);
 		});
 
 		it("attaches a hidden substep's screenshot to the row of the step that ran the substep", () => {
 			const events = [lifecycle(`${RUN}.0.3.12.5`), lifecycle(`${RUN}.0.3.12.5.-1`, { level: "trace" }), screenshot(`${RUN}.0.3.12.5.-1@0`)];
-			const { md } = generateDocumentMarkdown(events, buildArtifactIndex(events).artifactsByStep);
+			const { md } = generateDocumentMarkdown(events, buildArtifactIndex(events).artifactsByStep, LOG_LEVEL_INFO, firstAt(events));
 			expect(holderOf(md, `${RUN}.0.3.12.5.-1@0`)).toBe(`${RUN}.0.3.12.5`);
 		});
 	});

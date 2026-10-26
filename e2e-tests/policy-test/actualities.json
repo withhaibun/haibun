@@ -222,7 +222,7 @@
 				"tookMs": 200,
 				"digest": {
 					"e2e-tests/policy-test": "06495ce736817be3153244382897d76c9e8844a442e845481aa51b89466b4a73",
-					"modules/core/src": "327351f074171ad7b630fa47b8e99d2f83449e96d678ebd8148f31f507ead064",
+					"modules/core/src": "a7f2c77d14d6a79b96cdf8f36a5c72975f100ec177963f498cbc4945b7483463",
 					"modules/logic/src": "bc634173e41a3319dee255c61d205822e16cafbde90a7fdba748141a4ce5f73d"
 				}
 			},
@@ -273,7 +273,7 @@
 				"tookMs": 100,
 				"digest": {
 					"e2e-tests/policy-test": "06495ce736817be3153244382897d76c9e8844a442e845481aa51b89466b4a73",
-					"modules/core/src": "327351f074171ad7b630fa47b8e99d2f83449e96d678ebd8148f31f507ead064",
+					"modules/core/src": "a7f2c77d14d6a79b96cdf8f36a5c72975f100ec177963f498cbc4945b7483463",
 					"modules/logic/src": "bc634173e41a3319dee255c61d205822e16cafbde90a7fdba748141a4ce5f73d"
 				}
 			},
@@ -297,10 +297,10 @@
 			"actuality": {
 				"text": "e2e-tests/policy-test",
 				"status": "passed",
-				"tookMs": 200,
+				"tookMs": 100,
 				"digest": {
 					"e2e-tests/policy-test": "06495ce736817be3153244382897d76c9e8844a442e845481aa51b89466b4a73",
-					"modules/core/src": "327351f074171ad7b630fa47b8e99d2f83449e96d678ebd8148f31f507ead064",
+					"modules/core/src": "a7f2c77d14d6a79b96cdf8f36a5c72975f100ec177963f498cbc4945b7483463",
 					"modules/logic/src": "bc634173e41a3319dee255c61d205822e16cafbde90a7fdba748141a4ce5f73d"
 				}
 			},
@@ -314,7 +314,7 @@
 				"/features/smoke/r_health.feature": {
 					"text": "/features/smoke/r_health",
 					"status": "passed",
-					"tookMs": 100,
+					"tookMs": 0,
 					"steps": 12
 				}
 			}

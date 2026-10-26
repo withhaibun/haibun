@@ -10,13 +10,16 @@ import type { TActuality } from "../actuality/machines/actuality.js";
 export const HAIBUN_LOG_LEVELS = ["debug", "trace", "log", "info", "warn", "error"] as const;
 const HaibunLogLevel = z.enum(HAIBUN_LOG_LEVELS);
 export type THaibunLogLevel = z.infer<typeof HaibunLogLevel>;
+/** The level of an ordinary step and of an event that doesn't state one, and the least level a monitor shows where its
+ *  `LOG_LEVEL` option isn't set. */
+export const LOG_LEVEL_INFO = "info" satisfies THaibunLogLevel;
 /** The values of the `LOG_LEVEL` option. They are the event levels and `none`. A monitor set to `none` doesn't show an event. */
 export const SHOWN_LOG_LEVELS = [...HAIBUN_LOG_LEVELS, "none"] as const;
 /** The schema of actuality's `LOG_LEVEL` option. BaseOptionsSchema validates the option with it. */
 export const ShownLogLevelSchema = z.enum(SHOWN_LOG_LEVELS);
 export type TShownLogLevel = z.infer<typeof ShownLogLevelSchema>;
 /** Returns actuality's `LOG_LEVEL` option, or `info` where the option isn't set. A monitor shows each event at or above this level. */
-export const shownLogLevel = (options: { LOG_LEVEL?: TShownLogLevel }): TShownLogLevel => options.LOG_LEVEL ?? "info";
+export const shownLogLevel = (options: { LOG_LEVEL?: TShownLogLevel }): TShownLogLevel => options.LOG_LEVEL ?? LOG_LEVEL_INFO;
 
 /**
  * The marks form one related set. A mark varies in two visual properties, and each property carries one kind of information.
@@ -105,7 +108,7 @@ export type TDebugSignal = "fail" | "step" | "continue" | "retry" | "next";
  *  something a reader requested. */
 export const SUBSTEP_LEVEL: THaibunLogLevel = "trace";
 /** The level of an ordinary step's record and lifecycle events. */
-const STEP_LEVEL: THaibunLogLevel = "info";
+const STEP_LEVEL: THaibunLogLevel = LOG_LEVEL_INFO;
 
 /** Returns the level of a step's record and lifecycle events. The step's end event carries its products, so the products
  *  have the same level. */
@@ -242,12 +245,12 @@ export class EventFormatter {
 
 	static getDisplayLevel(event: THaibunEvent): string {
 		if (event.kind === "lifecycle") {
-			return "info";
+			return LOG_LEVEL_INFO;
 		}
 		if (event.kind === "log") {
 			return event.level;
 		}
-		return "info";
+		return LOG_LEVEL_INFO;
 	}
 
 	static getStatusIcon(event: THaibunEvent & { kind: "lifecycle" }): string {
@@ -477,7 +480,7 @@ const BaseEvent = z.object({
 	timestamp: z.number().int().describe("Absolute epoch timestamp in milliseconds"),
 	source: z.string().default("haibun").describe("Source of the event"),
 	emitter: z.string().optional().describe("Code location that emitted the event (e.g. Executor:238)"),
-	level: HaibunLogLevel.default("info").describe("Log level for filtering"),
+	level: HaibunLogLevel.default(LOG_LEVEL_INFO).describe("Log level for filtering"),
 	accessLevel: AccessLevelSchema.optional().describe(
 		"The access level of what the event may reveal. An event that doesn't state one takes the read level of the call that emitted it. Actuality sends the event only to a follower that may read at this level.",
 	),
@@ -548,7 +551,7 @@ const BaseArtifact = BaseEvent.extend({
 	kind: z.literal("artifact"),
 	/** The level of the artifact event. A view shows an artifact on the row of the step that produced it, whatever that
 	 *  step's level. This level doesn't determine whether a reader sees the artifact. */
-	level: HaibunLogLevel.default("info"),
+	level: HaibunLogLevel.default(LOG_LEVEL_INFO),
 	// Path relative to the feature dir (e.g. "./image/x.png"). That dir contains the serialized report's shu.html, so the
 	// report references artifacts by this relative path. `path` holds the base-relative form for the live /artifacts route.
 	featureRelativePath: z.string().optional(),

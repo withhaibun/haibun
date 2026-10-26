@@ -84,7 +84,7 @@ const quadOf = (subject: string, predicate: string, object: unknown, namedGraph:
  * relation, with its IRI, `abstract` where it is abstract, its `subPropertyOf` edges, and `domain` and `range` edges to
  * the classes it connects. The relations alone give the property hierarchy where `domains` is empty.
  */
-export function ontologyToQuads(domains: Record<string, TRegisteredDomain> = {}): TClusteredQuads {
+export function ontologyToQuads(domains: Record<string, TRegisteredDomain>): TClusteredQuads {
 	const quads: TQuad[] = [];
 	const classSubjects: string[] = [];
 	const propSubjects: string[] = [];

@@ -11,7 +11,7 @@ const edge = (quads: ReturnType<typeof ontologyToQuads>["quads"], predicate: str
 
 describe("ontologyToQuads: the schema rendered as a graph", () => {
 	it("emits the directional role hierarchy as subPropertyOf edges (performedBy → fromActor → inRoleOf)", () => {
-		const { quads, clusters } = ontologyToQuads();
+		const { quads, clusters } = ontologyToQuads({});
 		expect(edge(quads, ONTOLOGY_FIELD.subPropertyOf, "performedBy", "fromActor")).toBe(true);
 		expect(edge(quads, ONTOLOGY_FIELD.subPropertyOf, "fromActor", "inRoleOf")).toBe(true);
 		// toActor doesn't have a concrete CORE rel, consumers declare theirs against it; the upper pointer itself is projected
@@ -22,7 +22,7 @@ describe("ontologyToQuads: the schema rendered as a graph", () => {
 	});
 
 	it("flags the abstract super-properties so a view can distinguish them from concrete edge labels", () => {
-		const { quads } = ontologyToQuads();
+		const { quads } = ontologyToQuads({});
 		const abstractOf = (rel: string): boolean => quads.some((q) => q.subject === rel && q.predicate === ONTOLOGY_FIELD.abstract && q.object === true);
 		expect(abstractOf("inRoleOf")).toBe(true);
 		expect(abstractOf("fromActor")).toBe(true);
@@ -39,7 +39,7 @@ describe("ontologyToQuads: the schema rendered as a graph", () => {
 	});
 
 	it("renders the property hierarchy even without domains (LinkRelations alone)", () => {
-		const { clusters } = ontologyToQuads();
+		const { clusters } = ontologyToQuads({});
 		expect(clusters.find((c) => c.type === PROPERTY_LABEL)?.sampledCount).toBeGreaterThan(10);
 		expect(clusters.find((c) => c.type === CLASS_LABEL)?.sampledCount).toBe(0);
 	});

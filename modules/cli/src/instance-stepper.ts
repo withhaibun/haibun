@@ -47,7 +47,7 @@ import type { TLevelNaming, TStepRecord } from "@haibun/core/lib/actuality/deriv
 import { SEQ_PATH_EDGE, SEQ_PATH_FIELD, actualityFeatureOf, formatRecordName } from "@haibun/core/lib/seq-path.js";
 import { actingAs, askedIn } from "@haibun/core/lib/domains/capability-context.js";
 import { signInOf, verifiedRun } from "./pipelines/run-conditions.js";
-import { INSTANCE_PORT_ENV, KEY_ENV, RUN_DOMAIN, RunTail, SUPERVISOR_CAPABILITIES, runDomainDefinitions, runEnvironment } from "./domains/run.js";
+import { INSTANCE_PORT_ENV, KEY_ENV, RUN_DOMAIN, RUN_TAIL_CHARS, RunTail, SUPERVISOR_CAPABILITIES, runDomainDefinitions, runEnvironment } from "./domains/run.js";
 import { DOMAIN_FILE_PATH, DOMAIN_NUMBER } from "@haibun/core/lib/domains/domains.js";
 import { listOf } from "@haibun/core/lib/domains/lists.js";
 import { CountedFields, counted } from "@haibun/core/lib/domains/hypermedia.js";
@@ -354,7 +354,17 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			...(ask === undefined ? {} : { [SEQ_PATH_EDGE.askedIn]: ask }),
 			...(standing ? { [SEQ_PATH_FIELD.ranOn]: localOrigin(port) } : {}),
 		};
-		const held: TRun = { child, tail: new RunTail(), outcome: emptyOutcome(), ended: null, waiters: [], naming, stated, levels: new Map(), writing: Promise.resolve() };
+		const held: TRun = {
+			child,
+			tail: new RunTail(RUN_TAIL_CHARS),
+			outcome: emptyOutcome(),
+			ended: null,
+			waiters: [],
+			naming,
+			stated,
+			levels: new Map(),
+			writing: Promise.resolve(),
+		};
 		const take = (data: Buffer): void => this.take(held, data.toString());
 		child.stdout?.on("data", take);
 		child.stderr?.on("data", take);

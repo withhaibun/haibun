@@ -114,8 +114,8 @@ export function headingAnchor(title: string): string {
 export function generateDocumentMarkdown(
 	events: THaibunEvent[],
 	artifactsByStep: Map<string, TArtifactEvent[]>,
-	minLogLevel: THaibunLogLevel = "info",
-	baseTime = events[0]?.timestamp || 0,
+	minLogLevel: THaibunLogLevel,
+	baseTime: number,
 ): { md: string; visibleIds: Set<string> } {
 	let md = "";
 	let lastType: "none" | "prose" | "technical" = "none";
@@ -125,7 +125,7 @@ export function generateDocumentMarkdown(
 	const visibleIds = new Set<string>();
 	const minLevelIndex = HAIBUN_LOG_LEVELS.indexOf(minLogLevel);
 	const belowLevel = (e: THaibunEvent) => {
-		const levelIndex = HAIBUN_LOG_LEVELS.indexOf(e.level || "info");
+		const levelIndex = HAIBUN_LOG_LEVELS.indexOf(e.level);
 		return levelIndex !== -1 && minLevelIndex !== -1 && levelIndex < minLevelIndex;
 	};
 	// Each artifact attaches to the first id in its step's ancestor list that this page renders as a row.
@@ -136,7 +136,7 @@ export function generateDocumentMarkdown(
 	});
 	const claimable = new Map([...Map.groupBy(claims, ({ claimer }) => claimer)].map(([claimer, held]) => [claimer, held.map(({ artifact }) => artifact)]));
 
-	const claimArtifacts = (id: string, excludeTypes: string[] = []) => {
+	const claimArtifacts = (id: string, excludeTypes: string[]) => {
 		const nid = normalizeId(id);
 		const artifacts = claimable.get(nid) || [];
 		const unclaimed = artifacts.filter((a) => !claimedArtifactIds.has(a.id) && !excludeTypes.includes(a.artifactType));
@@ -220,7 +220,7 @@ export function generateDocumentMarkdown(
 
 					// A step's depth is the length of its path within its actuality feature. The actuality feature that leads the
 					// record name identifies the feature, so it doesn't count toward the depth.
-					const depth = parseRecordName(String(step.id ?? ""))?.path.length ?? 0;
+					const depth = parseRecordName(step.id)?.path.length ?? 0;
 					const isNested = depth > 3;
 					const time = ((step.timestamp - baseTime) / 1000).toFixed(3);
 					const rawTime = step.timestamp - baseTime;
@@ -234,7 +234,7 @@ export function generateDocumentMarkdown(
 					md += claimed.holder;
 					lastType = "technical";
 					previousRenderedDepth = depth;
-					previousRenderedId = le.id || "";
+					previousRenderedId = le.id;
 				} else {
 					if (lastType === "technical") md += '\n<div class="h-1"></div>\n';
 					const rawTime = step.timestamp - baseTime;

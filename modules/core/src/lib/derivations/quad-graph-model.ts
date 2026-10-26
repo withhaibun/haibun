@@ -55,7 +55,7 @@ export class QuadGraphModel {
 	constructor(
 		private readonly limit: number,
 		private readonly relsFor: RelsProvider,
-		private readonly titledByFor: TitledByProvider = () => undefined,
+		private readonly titledByFor: TitledByProvider,
 	) {}
 
 	get snapshot(): TClusteredQuads {
@@ -91,7 +91,7 @@ export class QuadGraphModel {
 	 * subject is admitted while its type is under the limit or when it is pinned. Otherwise the merge counts it as omitted
 	 * and drops its quad. The dedup index is updated per quad without a rescan. Returns the subjects touched.
 	 */
-	merge(quads: TQuad[], opts: MergeOptions = {}): Set<string> {
+	merge(quads: TQuad[], opts?: MergeOptions): Set<string> {
 		const touched = new Set<string>();
 		if (quads.length === 0) return touched;
 		const clusterByType = new Map<string, TCluster>();
@@ -144,15 +144,16 @@ export class QuadGraphModel {
 			touched.add(q.subject);
 		}
 		// The store's totals replace the counts this model computed.
-		if (opts.totalCounts)
+		const totals = opts?.totalCounts;
+		if (totals)
 			for (const c of this.clusters) {
-				const t = opts.totalCounts.get(c.type);
+				const t = totals.get(c.type);
 				if (t !== undefined) {
 					c.totalCount = t;
 					c.omittedCount = Math.max(0, t - c.sampledCount);
 				}
 			}
-		if (!opts.skipRelabel) this.relabel(touched, opts.bodyContentFor);
+		if (!opts?.skipRelabel) this.relabel(touched, opts?.bodyContentFor);
 		return touched;
 	}
 
@@ -192,7 +193,7 @@ export class QuadGraphModel {
 				subjectQuads,
 				bodyFor,
 				this.relsFor(type),
-				this.declaredLabelFor(type, subject, quadsBySubject, bodyFor),
+				this.declaredLabelFor(type, subject, quadsBySubject, bodyFor, new Set()),
 			);
 		}
 	}
@@ -209,7 +210,7 @@ export class QuadGraphModel {
 		subject: string,
 		quadsBySubject: Map<string, TQuad[]>,
 		bodyFor: BodyContentProvider,
-		met: ReadonlySet<string> = new Set(),
+		met: ReadonlySet<string>,
 	): TDeclaredTitle | undefined {
 		const titledBy = this.titledByFor(type);
 		if (!titledBy?.through) return titledBy;

@@ -14,10 +14,13 @@ describe("summarizeForContext, enriched view projections", () => {
 	it("thread-column: an ordered collection of items with internal keys stripped and the reply surfaced", () => {
 		const el = new ShuThreadColumn();
 		expect(el.summarizeForContext()).toBeNull(); // empty thread
-		el.openItems([
-			{ "@id": "c1", "@type": "Comment", body: "root" },
-			{ "@id": "c2", "@type": "Comment", body: "reply", _edges: [{ type: "inReplyTo", targetId: "c1" }] },
-		]);
+		el.openItems(
+			[
+				{ "@id": "c1", "@type": "Comment", body: "root" },
+				{ "@id": "c2", "@type": "Comment", body: "reply", _edges: [{ type: "inReplyTo", targetId: "c1" }] },
+			],
+			"Comment",
+		);
 		const s = el.summarizeForContext() as { "@type": string; totalItems: number; items: Array<Record<string, unknown>> };
 		expect(s["@type"]).toBe("as:OrderedCollection");
 		expect(s.totalItems).toBe(2);

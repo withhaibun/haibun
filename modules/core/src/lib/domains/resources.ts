@@ -86,6 +86,10 @@ export const AccessQuery = AccessQueryLevelSchema.enum;
 export const PersistedVertexSchema = z.object({
 	accessLevel: AccessLevelSchema.optional().describe("How widely the record is shared. A record that doesn't state a level is classified by its type at write time."),
 });
+/** The time a record was generated, which a record written without one takes as the time it is written: as a date, and as
+ *  the ISO text a type declared by its context holds. */
+export const GeneratedAtTimeSchema = z.coerce.date().default(() => new Date());
+export const GeneratedAtTimeTextSchema = z.string().default(() => new Date().toISOString());
 /** Ranks how much of the graph each level lets a reader see, so two levels can be compared. A reader at a level sees
  *  the records at that level and at each narrower level. A private reader sees every record, and a public reader sees
  *  the public records. */
@@ -749,6 +753,9 @@ type TRangesTopology = {
 export type TDomainTopology = THypermediaTopology | TRangesTopology;
 
 /** Returns true when a domain's topology states persistedAs. */
+/** The field a type's records are sorted by where a query doesn't state one: the field it declares, or the time each was generated. */
+export const sortFieldOf = (topology: { defaultSort?: string }): string => topology.defaultSort ?? LinkRelations.GENERATED_AT_TIME.rel;
+
 export function isPersisted(topology: TDomainTopology | undefined): topology is THypermediaTopology {
 	return !!topology && "persistedAs" in topology && typeof topology.persistedAs === "string";
 }

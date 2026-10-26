@@ -46,7 +46,7 @@ describe("trackHttpRequest: one connected network-interaction record per request
 
 	it("a received route request reads client → the registered Endpoint, which isPartOf the site's host", async () => {
 		const { world, store } = mockWorld();
-		await trackHttpRequest(world, { url: "http://localhost:8223/.well-known/did.json", status: 200, durationMs: 5, method: "GET" }, PATHS);
+		await trackHttpRequest(world, { url: "http://localhost:8223/.well-known/did.json", status: 200, durationMs: 5, method: "GET" }, PATHS, "client");
 		const req = await store.query({ namedGraph: HTTP_REQUEST_LABEL });
 		const id = "GET /.well-known/did.json";
 		expect(propOf(req, id, "method")?.object).toBe("GET");
@@ -63,7 +63,7 @@ describe("trackHttpRequest: one connected network-interaction record per request
 
 	it("a browser request to an external host reads client → host, the host its own node", async () => {
 		const { world, store } = mockWorld();
-		await trackHttpRequest(world, { url: "http://fonts.google.com/css2", status: 200, durationMs: 100, method: "GET" }, PATHS);
+		await trackHttpRequest(world, { url: "http://fonts.google.com/css2", status: 200, durationMs: 100, method: "GET" }, PATHS, "client");
 		const req = await store.query({ namedGraph: HTTP_REQUEST_LABEL });
 		const id = "GET /css2";
 		expect(propOf(req, id, "endpointClass")?.object).toBe(ENDPOINT_CLASS.external);
@@ -76,7 +76,7 @@ describe("trackHttpRequest: one connected network-interaction record per request
 
 	it("an RPC/service call reads client → its /rpc Endpoint, classed service", async () => {
 		const { world, store } = mockWorld();
-		await trackHttpRequest(world, { url: "http://localhost:8223/rpc/Haibun-showSteps", status: 200, durationMs: 30, method: "POST" }, PATHS);
+		await trackHttpRequest(world, { url: "http://localhost:8223/rpc/Haibun-showSteps", status: 200, durationMs: 30, method: "POST" }, PATHS, "client");
 		const req = await store.query({ namedGraph: HTTP_REQUEST_LABEL });
 		const id = "POST /rpc/Haibun-showSteps";
 		expect(propOf(req, id, "endpointClass")?.object).toBe(ENDPOINT_CLASS.service);
@@ -97,9 +97,9 @@ describe("trackHttpRequest: one connected network-interaction record per request
 
 	it("a host's requestCount rolls up from the requests that reached it: it doesn't track hosts separately", async () => {
 		const { world, store } = mockWorld();
-		await trackHttpRequest(world, { url: "http://fonts.google.com/a", status: 200, durationMs: 1, method: "GET" }, PATHS);
-		await trackHttpRequest(world, { url: "http://fonts.google.com/b", status: 200, durationMs: 1, method: "GET" }, PATHS);
-		await trackHttpRequest(world, { url: "http://localhost:8223/app", status: 200, durationMs: 1, method: "GET" }, PATHS);
+		await trackHttpRequest(world, { url: "http://fonts.google.com/a", status: 200, durationMs: 1, method: "GET" }, PATHS, "client");
+		await trackHttpRequest(world, { url: "http://fonts.google.com/b", status: 200, durationMs: 1, method: "GET" }, PATHS, "client");
+		await trackHttpRequest(world, { url: "http://localhost:8223/app", status: 200, durationMs: 1, method: "GET" }, PATHS, "client");
 		const hosts = await store.query({ namedGraph: HTTP_HOST_LABEL });
 		expect(propOf(hosts, "fonts.google.com", "requestCount")?.object).toBe(2);
 		expect(propOf(hosts, activeSitePrincipal(world), "requestCount")?.object).toBe(1); // the site's own host counts requests it served

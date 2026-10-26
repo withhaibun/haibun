@@ -10,7 +10,7 @@ import { shuBaseStyles } from "./styles.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { eventMarkerStyle, markFor } from "../derivations/event-marker.js";
 import type { TEventMarkerStyle } from "../derivations/status-mark.js";
-import { HAIBUN_LOG_LEVELS, ICON_DEFAULT, ICON_LOG_ERROR, ICON_LOG_INFO, ICON_LOG_WARN, RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
+import { HAIBUN_LOG_LEVELS, LOG_LEVEL_INFO, ICON_DEFAULT, ICON_LOG_ERROR, ICON_LOG_INFO, ICON_LOG_WARN, RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss } from "./shu-virtual-column.js";
 import { atLiveEdge, ActualityController, type ActualitySource } from "../client-cache/controllers/actuality-controller.js";
@@ -271,7 +271,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		if (cached) return cached;
 		const ts = (e.timestamp as number) || 0;
 		const first = this.#run.extent().first ?? ts;
-		const level = String(e.level || "info");
+		const level = String(e.level ?? LOG_LEVEL_INFO);
 		// The step's own words. What was logged during a step, or produced by one, doesn't have its own words: the path beside it indicates the
 		// step that contains it, and a raw id in its place isn't readable to a reader.
 		const step = String(e.in ?? "");

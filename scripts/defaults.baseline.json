@@ -5,24 +5,20 @@
 	"modules/cli/src/domains/base-options.ts": {
 		"fills an absent value with a constant through ??": 1
 	},
-	"modules/cli/src/domains/run.ts": {
-		"fills an absent value with a constant through ??": 1,
-		"states a parameter's default value": 2
-	},
 	"modules/cli/src/instance-stepper.ts": {
 		"fills a falsy value with a constant through ||": 1,
 		"fills an absent value with a constant through ??": 1
 	},
 	"modules/cli/src/pipelines/run-cli.ts": {
-		"fills a falsy value with a constant through ||": 3,
-		"fills an absent value with a constant through ??": 5
+		"fills a falsy value with a constant through ||": 2,
+		"fills an absent value with a constant through ??": 1
 	},
 	"modules/cli/src/pipelines/specl.ts": {
 		"fills a falsy value with a constant through ||": 1
 	},
 	"modules/cli/src/test-runner-stepper.ts": {
 		"fills an absent value with a constant through ??": 1,
-		"states a parameter's default value": 2
+		"states a parameter's default value": 1
 	},
 	"modules/core/src/lib/adapters/dependency-state.ts": {
 		"fills an absent value with a constant through ??": 2
@@ -30,12 +26,8 @@
 	"modules/core/src/lib/adapters/module-loader.ts": {
 		"fills a falsy value with a constant through ||": 1
 	},
-	"modules/core/src/lib/adapters/workspace-lib.ts": {
-		"states a parameter's default value": 1
-	},
 	"modules/core/src/lib/derivations/quad-graph-model.ts": {
-		"fills an absent value with a constant through ??": 4,
-		"states a parameter's default value": 3
+		"fills an absent value with a constant through ??": 4
 	},
 	"modules/core/src/lib/domains/actions.ts": {
 		"states a parameter's default value": 1
@@ -44,18 +36,14 @@
 		"fills an absent value with a constant through ??": 5
 	},
 	"modules/core/src/lib/domains/capture-locator.ts": {
-		"fills a falsy value with a constant through ||": 2
+		"fills a falsy value with a constant through ||": 1
 	},
 	"modules/core/src/lib/domains/document-content.ts": {
-		"fills a falsy value with a constant through ||": 7,
-		"fills an absent value with a constant through ??": 2,
-		"states a parameter's default value": 3
+		"fills a falsy value with a constant through ||": 4,
+		"fills an absent value with a constant through ??": 1
 	},
 	"modules/core/src/lib/domains/domains.ts": {
 		"fills an absent value with a constant through ??": 1
-	},
-	"modules/core/src/lib/domains/features.ts": {
-		"states a parameter's default value": 1
 	},
 	"modules/core/src/lib/domains/host-id.ts": {
 		"fills an absent value with a constant through ??": 2,
@@ -63,9 +51,9 @@
 	},
 	"modules/core/src/lib/domains/hypermedia.ts": {
 		"fills a falsy value with a constant through ||": 2,
-		"fills an absent value with a constant through ??": 14,
+		"fills an absent value with a constant through ??": 13,
 		"states a parameter's default value": 1,
-		"states a schema's default value through .default()": 6
+		"states a schema's default value through .default()": 5
 	},
 	"modules/core/src/lib/domains/media-fragments.ts": {
 		"fills an absent value with a constant through ??": 2
@@ -78,12 +66,12 @@
 		"fills an absent value with a constant through ??": 2,
 		"states a schema's default value through .default()": 12
 	},
-	"modules/core/src/lib/domains/urakata.ts": {
-		"states a schema's default value through .default()": 1
+	"modules/core/src/lib/domains/resources.ts": {
+		"fills an absent value with a constant through ??": 1,
+		"states a schema's default value through .default()": 2
 	},
 	"modules/core/src/lib/pipelines/http-observations.ts": {
 		"fills an absent value with a constant through ??": 1,
-		"states a parameter's default value": 1,
 		"states a schema's default value through .default()": 1
 	},
 	"modules/core/src/lib/pipelines/principal.ts": {
@@ -99,11 +87,10 @@
 		"fills an absent value with a constant through ??": 1
 	},
 	"modules/core/src/lib/records/derivations/ontology.ts": {
-		"fills an absent value with a constant through ??": 2,
-		"states a parameter's default value": 1
+		"fills an absent value with a constant through ??": 2
 	},
 	"modules/core/src/lib/records/derivations/read-records.ts": {
-		"fills an absent value with a constant through ??": 5
+		"fills an absent value with a constant through ??": 4
 	},
 	"modules/core/src/lib/records/pipelines/discourse-writes.ts": {
 		"fills an absent value with a constant through ??": 1
@@ -127,22 +114,18 @@
 	"modules/core/src/steps/variables-stepper.ts": {
 		"fills an absent value with a constant through ??": 5
 	},
-	"modules/domain-storage/src/domains/storage.ts": {
-		"fills a falsy value with a constant through ||": 1,
-		"states a parameter's default value": 1
-	},
 	"modules/monitor-otel/src/monitor-otel-stepper.ts": {
-		"fills a falsy value with a constant through ||": 7,
-		"fills an absent value with a constant through ??": 1
+		"fills a falsy value with a constant through ||": 5,
+		"fills an absent value with a constant through ??": 3
 	},
 	"modules/monitor-tui/src/monitor-tui-stepper.tsx": {
 		"fills a falsy value with a constant through ||": 1
 	},
 	"modules/out-junit/src/out-junit-stepper.ts": {
-		"fills a falsy value with a constant through ||": 1
+		"fills an absent value with a constant through ??": 1
 	},
 	"modules/recorder/src/recorder-stepper.ts": {
-		"fills a falsy value with a constant through ||": 1
+		"fills an absent value with a constant through ??": 1
 	},
 	"modules/shu/src/domains/schemas.ts": {
 		"fills a falsy value with a constant through ||": 3
@@ -228,8 +211,8 @@
 		"states a parameter's default value": 1
 	},
 	"modules/shu/src/page/components/shu-monitor-column.ts": {
-		"fills a falsy value with a constant through ||": 5,
-		"fills an absent value with a constant through ??": 4
+		"fills a falsy value with a constant through ||": 4,
+		"fills an absent value with a constant through ??": 5
 	},
 	"modules/shu/src/page/components/shu-page-strip.ts": {
 		"fills a falsy value with a constant through ||": 2,
@@ -249,8 +232,7 @@
 	},
 	"modules/shu/src/page/components/shu-thread-column.ts": {
 		"fills a falsy value with a constant through ||": 1,
-		"fills an absent value with a constant through ??": 11,
-		"states a parameter's default value": 1
+		"fills an absent value with a constant through ??": 11
 	},
 	"modules/shu/src/page/components/shu-virtual-column.ts": {
 		"states a parameter's default value": 1

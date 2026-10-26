@@ -5,7 +5,7 @@
 import { z } from "zod";
 import { NameSchema } from "./domains.js";
 import { RECORDED_STATUS, type TSeqPath } from "./protocol.js";
-import { PersistedVertexSchema, type TDomainDefinition } from "./resources.js";
+import { GeneratedAtTimeSchema, PersistedVertexSchema, type TDomainDefinition } from "./resources.js";
 import { ENDED_BY_FIELD, ACTUALITY_FIELD } from "../actuality/domains/seq-path.js";
 
 export const URAKATA = "urakata";
@@ -38,7 +38,7 @@ export const UrakataSchema = PersistedVertexSchema.extend({
 	/** The reason the task stopped after its starting authority lapsed. A caller's stop doesn't set it. */
 	stopReason: z.string().optional(),
 	/** The universal record-time field every persisted type carries. */
-	generatedAtTime: z.coerce.date().default(() => new Date()),
+	generatedAtTime: GeneratedAtTimeSchema,
 });
 export type TUrakata = z.infer<typeof UrakataSchema>;
 

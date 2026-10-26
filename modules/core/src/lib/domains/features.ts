@@ -74,18 +74,10 @@ function doIncludes(input: string, backgrounds: TFeatures) {
 	return ret;
 }
 
-export function findFeatures(name: string, backgrounds: TFeatures, type = "feature"): TFeatures {
-	const ftype = findFeaturesOfType(backgrounds, type);
-	// Match both .feature and .feature.ts extensions
-	return ftype.filter((f) => f.path.endsWith(`/${name}.${fileTypeToExt(type)}`) || f.path.endsWith(`/${name}.feature.ts`));
+/** The features or backgrounds of `backgrounds` named `name`, in a .feature or a .feature.ts file. */
+export function findFeatures(name: string, backgrounds: TFeatures): TFeatures {
+	return backgrounds.filter((f) => f.path.endsWith(`/${name}.feature`) || f.path.endsWith(`/${name}.feature.ts`));
 }
-
-function findFeaturesOfType(backgrounds: TFeatures, type: string): TFeatures {
-	// Match both .feature and .feature.ts files
-	return backgrounds.filter((f) => f.path.endsWith(`.${fileTypeToExt(type)}`) || f.path.endsWith(".feature.ts"));
-}
-
-const fileTypeToExt = (type: string) => (type === "feature" ? "feature" : `${type}.feature`);
 
 export const featureSplit = (content: string) => content.split("\n").map((a) => a.trim());
 

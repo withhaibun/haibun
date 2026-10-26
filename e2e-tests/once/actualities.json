@@ -153,7 +153,7 @@
 			"actuality": {
 				"text": "e2e-tests/once",
 				"status": "passed",
-				"tookMs": 100
+				"tookMs": 0
 			},
 			"features": {
 				"/features/once.feature": {
@@ -169,10 +169,10 @@
 			"actuality": {
 				"text": "e2e-tests/once",
 				"status": "passed",
-				"tookMs": 100,
+				"tookMs": 0,
 				"digest": {
 					"e2e-tests/once": "2366cba89b9728bb36b9ea80bfe754e50f7397a9644e62f52cb8cc3d85133581",
-					"modules/core/src": "327351f074171ad7b630fa47b8e99d2f83449e96d678ebd8148f31f507ead064",
+					"modules/core/src": "a7f2c77d14d6a79b96cdf8f36a5c72975f100ec177963f498cbc4945b7483463",
 					"modules/logic/src": "bc634173e41a3319dee255c61d205822e16cafbde90a7fdba748141a4ce5f73d"
 				}
 			},

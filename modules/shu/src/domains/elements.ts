@@ -187,6 +187,9 @@ export const SPINE_SLOT = "spine";
 /** The slot the breadcrumb's search entry holds, where the page strip puts the control that names the search. */
 export const SEARCH_SLOT = "search";
 
+/** The label of a step's products that don't state their type. */
+export const PRODUCTS_LABEL = "Result";
+
 export const SHU_ATTR = {
 	DATA_MINIMIZED: "data-minimized",
 	/** On a view opened at a moment of actuality's history: that moment, which the view shows (`TimelineViewController`). */

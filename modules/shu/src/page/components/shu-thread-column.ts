@@ -7,7 +7,7 @@ import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
+import { PRODUCTS_LABEL, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { openRef } from "./ref-navigation.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
@@ -133,7 +133,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 	}
 
 	/** Render items directly without RPC fetch. Items are JSON-LD nodes (`@id`/`@type`), optionally with `_edges`. */
-	openItems(items: ThreadVertex[], label = "Result"): void {
+	openItems(items: ThreadVertex[], label: string): void {
 		this.setState({ label, individualId: "" });
 		this.#thread.hold(items);
 	}
@@ -141,7 +141,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 	/** Render a collection product: its `items` become thread vertices (links merged into edges), without an RPC fetch. */
 	openProducts(products: Record<string, unknown>): void {
 		const items = Array.isArray(products.items) ? RecordsSchema.parse(products.items) : [];
-		this.openItems(items.map(normalizeItem), String(products._type || "Result"));
+		this.openItems(items.map(normalizeItem), String(products._type || PRODUCTS_LABEL));
 	}
 
 	async open(label: string, id: string, depth?: number): Promise<void> {

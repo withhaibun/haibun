@@ -2,6 +2,7 @@
  * The declarations of the runs and instances a supervisor starts: the environment a child starts with, the capabilities a
  * caller holds to supervise, the products of starting and reading a run, the kept output of a run, and the run domains.
  */
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { z } from "zod";
 import { BASE_PREFIX, MODULE_OPTION_PREFIX, NDJSON, ONCE, STAY, STAY_ALWAYS } from "@haibun/core/lib/domains/protocol.js";
 import { LEVEL_STATUS } from "@haibun/core/lib/actuality/domains/level-status.js";
@@ -29,7 +30,7 @@ export const INSTANCE_PORT_ENV = `${MODULE_OPTION_PREFIX}WEBSERVERSTEPPER_PORT`;
 
 /** The number of characters of a run's output that RunTail keeps. RunTail drops older output. A read from a cursor
  *  before the kept output returns the dropped count, so a gap doesn't read as complete output. */
-const RUN_TAIL_CHARS = 200_000;
+export const RUN_TAIL_CHARS = 200_000;
 
 /**
  * The capabilities a caller must hold to supervise a process, as ZCAP-LD `allowedAction` values.
@@ -85,7 +86,7 @@ export class RunTail {
 	private chunks: string[] = [];
 	private keptChars = 0;
 	private droppedChars = 0;
-	constructor(private readonly keep: number = RUN_TAIL_CHARS) {}
+	constructor(private readonly keep: number) {}
 
 	append(text: string): void {
 		if (text === "") return;
@@ -97,7 +98,9 @@ export class RunTail {
 		this.chunks.push(text);
 		this.keptChars += text.length;
 		while (this.keptChars > this.keep) {
-			const dropped = this.chunks.shift() ?? "";
+			// The kept characters are those of the chunks, so a chunk is held while they exceed the tail.
+			const dropped = itemAt(this.chunks, 0);
+			this.chunks.shift();
 			this.keptChars -= dropped.length;
 			this.droppedChars += dropped.length;
 		}
@@ -117,7 +120,7 @@ export class RunTail {
  * This function sets both rather than letting the child inherit them. An inherited port would put the child on the
  * supervisor's own port, and an inherited STAY would keep the child up indefinitely when the supervisor stays up.
  */
-export function runEnvironment(inherited: NodeJS.ProcessEnv, port: number, standing: boolean, hostId?: number, perProcess: string[] = []): NodeJS.ProcessEnv {
+export function runEnvironment(inherited: NodeJS.ProcessEnv, port: number, standing: boolean, hostId: number | undefined, perProcess: string[]): NodeJS.ProcessEnv {
 	const env = { ...inherited };
 	// A child doesn't inherit a per-process option. Each option declares that it is per-process.
 	for (const name of perProcess) delete env[name];

@@ -31,7 +31,7 @@ import {
 	type TSearchCondition,
 	type TStatedQuery,
 } from "../../steps/domains/quad-types.js";
-import { AccessQuery, LinkRelations, isPersisted, statedLevel, type THeldBy, type TRegisteredDomain } from "../../domains/resources.js";
+import { AccessQuery, LinkRelations, isPersisted, sortFieldOf, statedLevel, type THeldBy, type TRegisteredDomain } from "../../domains/resources.js";
 import { itemAt } from "../../domains/item-at.js";
 
 /** The name a refusal and a rejected bound state for the read function. */
@@ -67,9 +67,9 @@ export function readDeclarationsOf(domains: Record<string, TRegisteredDomain>): 
 	const declarationOf = (label: string): TReadDeclaration | undefined => {
 		const domain = persisted.find(({ topology }) => topology.persistedAs === label);
 		if (!domain) return undefined;
-		const { id, defaultSort, heldBy } = domain.topology;
+		const { id, heldBy } = domain.topology;
 		const title = titledByOf(domain.topology);
-		return { id, surface: querySurface(domain), defaultSort: defaultSort ?? LinkRelations.GENERATED_AT_TIME.rel, ...(heldBy ? { heldBy } : {}), ...(title ? { title } : {}) };
+		return { id, surface: querySurface(domain), defaultSort: sortFieldOf(domain.topology), ...(heldBy ? { heldBy } : {}), ...(title ? { title } : {}) };
 	};
 	const declarations: TReadDeclarations = {
 		types: unique(persisted.map(({ topology }) => topology.persistedAs)),

@@ -15,10 +15,11 @@ const qe = (subject: string, predicate: string, object: string, objectType: stri
 	timestamp,
 });
 const noRels = (): undefined => undefined;
+const noTitles = (): undefined => undefined;
 
 describe("QuadGraphModel", () => {
 	it("admits subjects under the per-type limit and clusters them", () => {
-		const m = new QuadGraphModel(2, noRels);
+		const m = new QuadGraphModel(2, noRels, noTitles);
 		m.merge([q("a", "name", "A", "Letter"), q("b", "name", "B", "Letter")]);
 		const c = m.clusters.find((c) => c.type === "Letter");
 		expect(c?.sampledCount).toBe(2);
@@ -28,7 +29,7 @@ describe("QuadGraphModel", () => {
 	});
 
 	it("omits a new subject once its type is at its limit, counts it and drops its quad", () => {
-		const m = new QuadGraphModel(1, noRels);
+		const m = new QuadGraphModel(1, noRels, noTitles);
 		m.merge([q("a", "name", "A", "Letter"), q("b", "name", "B", "Letter")]);
 		const c = m.clusters.find((c) => c.type === "Letter");
 		expect(c?.sampledCount).toBe(1);
@@ -38,7 +39,7 @@ describe("QuadGraphModel", () => {
 	});
 
 	it("keeps a pinned subject's quad as an extra even when its type is at its limit", () => {
-		const m = new QuadGraphModel(1, noRels);
+		const m = new QuadGraphModel(1, noRels, noTitles);
 		m.pin(["b"]);
 		m.merge([q("a", "name", "A", "Letter"), q("b", "name", "B", "Letter")]);
 		const c = m.clusters.find((c) => c.type === "Letter");
@@ -51,7 +52,7 @@ describe("QuadGraphModel", () => {
 	it("keeps the title a seeded snapshot gave a subject, and titles only what the seed left untitled", () => {
 		// The view refetches only the visible types when a reader hides a type. That merge doesn't carry the Body quads that
 		// store a record's text. A title computed from the remaining quads would replace a comment's text with its seqPath.
-		const m = new QuadGraphModel(10, noRels);
+		const m = new QuadGraphModel(10, noRels, noTitles);
 		m.seed({
 			quads: [q("cmt-1", "seqPath", "0.1.2", "Comment")],
 			clusters: [{ type: "Comment", totalCount: 1, sampledCount: 1, omittedCount: 0, sampledSubjects: ["cmt-1"], displayLabels: { "cmt-1": "what the comment states" } }],
@@ -64,7 +65,7 @@ describe("QuadGraphModel", () => {
 	});
 
 	it("dedups a scalar property by (namedGraph|subject|predicate) and replaces it in place", () => {
-		const m = new QuadGraphModel(10, noRels);
+		const m = new QuadGraphModel(10, noRels, noTitles);
 		m.merge([q("a", "name", "A", "Letter", 1)]);
 		m.merge([q("a", "name", "A2", "Letter", 2)]);
 		expect(m.quads).toHaveLength(1);
@@ -73,7 +74,7 @@ describe("QuadGraphModel", () => {
 
 	it("keeps every distinct edge object for one (subject,predicate) for multi-valued attribution (§7-2)", () => {
 		// A federated union attributes a shared record to three principals. The merge keeps all three edges.
-		const m = new QuadGraphModel(10, noRels);
+		const m = new QuadGraphModel(10, noRels, noTitles);
 		m.merge([
 			qe("rec", "wasAttributedTo", "did:alpha", "Principal", "FieldReport"),
 			qe("rec", "wasAttributedTo", "did:beta", "Principal", "FieldReport"),
@@ -84,14 +85,14 @@ describe("QuadGraphModel", () => {
 	});
 
 	it("dedups an edge that arrives again with the same object, as it dedups a property quad", () => {
-		const m = new QuadGraphModel(10, noRels);
+		const m = new QuadGraphModel(10, noRels, noTitles);
 		m.merge([qe("rec", "wasAttributedTo", "did:alpha", "Principal", "FieldReport", 1)]);
 		m.merge([qe("rec", "wasAttributedTo", "did:alpha", "Principal", "FieldReport", 2)]);
 		expect(m.quads.filter((x) => x.predicate === "wasAttributedTo")).toHaveLength(1);
 	});
 
 	it("replaces totalCount with the store's total", () => {
-		const m = new QuadGraphModel(10, noRels);
+		const m = new QuadGraphModel(10, noRels, noTitles);
 		m.merge([q("a", "name", "A", "Letter")], { totalCounts: new Map([["Letter", 500]]) });
 		const c = m.clusters.find((c) => c.type === "Letter");
 		expect(c?.totalCount).toBe(500);
@@ -100,7 +101,7 @@ describe("QuadGraphModel", () => {
 	});
 
 	it("sets a display label for each touched subject", () => {
-		const m = new QuadGraphModel(10, noRels);
+		const m = new QuadGraphModel(10, noRels, noTitles);
 		m.merge([q("a", "name", "A", "Letter")]);
 		const c = m.clusters.find((c) => c.type === "Letter");
 		expect(typeof c?.displayLabels["a"]).toBe("string");

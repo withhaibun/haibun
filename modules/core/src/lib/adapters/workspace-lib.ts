@@ -11,7 +11,7 @@ import type { RemoteStepperProxy } from "../transport/remote-proxy-stepper.js";
 /** The file-system calls feature collection and workspace discovery make, which a test gives in place of node's. */
 export type TFileSystem = Pick<typeof nodeFS, "existsSync" | "readdirSync" | "statSync" | "readFileSync">;
 /** The steppers the entries name, loaded and constructed, with any further stepper classes after them. */
-export async function getCreateSteppers(steppers: TStepperEntry[], addSteppers: CStepper[] = []) {
+export async function getCreateSteppers(steppers: TStepperEntry[], addSteppers: CStepper[]) {
 	return createSteppers((await getSteppers(steppers)).concat(addSteppers));
 }
 

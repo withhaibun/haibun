@@ -9,7 +9,7 @@ import { jsonDisclosure, literalWithJson, recordJson } from "./json-disclosure.j
 import { jsonCarried, RecordsSchema, isRecord } from "@haibun/core/lib/domains/json-text.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { SHU_EVENT, ANNOTATION_GLYPH, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/elements.js";
+import { SHU_EVENT, ANNOTATION_GLYPH, PRODUCTS_LABEL, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { copyText } from "../controllers/clipboard-controller.js";
 import { isReplyEdge, type TAnnotationView, type TPart, type TQuoteAnchor } from "@haibun/core/lib/domains/resources.js";
@@ -209,7 +209,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	 *  the view now, so a live change to the individual last opened here must not replace them. */
 	openProducts(products: Record<string, unknown>): void {
 		this.entity.release();
-		const label = String(products._type || "Result");
+		const label = String(products._type || PRODUCTS_LABEL);
 		const { _type, _summary, _component, _links, _undo, _seqPath, ...data } = products;
 		this.vertex = data;
 		this.edges = [];

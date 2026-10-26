@@ -13,7 +13,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { z } from "zod";
 import InstanceStepper, { type TRun } from "./instance-stepper.js";
-import { RunTail, featureFilterDomainDefinition, runEnvironment, runReadSchema } from "./domains/run.js";
+import { RUN_TAIL_CHARS, RunTail, featureFilterDomainDefinition, runEnvironment, runReadSchema } from "./domains/run.js";
 import { verifiedRun } from "./pipelines/run-conditions.js";
 import { supervisorPorts } from "./root.js";
 import { execFileSync } from "node:child_process";
@@ -69,7 +69,17 @@ class SupervisorWithHeldRun extends InstanceStepper {
 		// A held run replaces a forked run in these tests. Its EventEmitter child emits `exit` when the held run ends, as a
 		// child process does.
 		const child: ChildProcess = Object.assign(new EventEmitter(), { exitCode: null, kill: () => child.emit("exit", null) }) as unknown as ChildProcess;
-		const held: TRun = { child, tail: new RunTail(), outcome: emptyOutcome(), ended, waiters: [], naming: HELD_NAMING, stated: {}, levels: new Map(), writing: Promise.resolve() };
+		const held: TRun = {
+			child,
+			tail: new RunTail(RUN_TAIL_CHARS),
+			outcome: emptyOutcome(),
+			ended,
+			waiters: [],
+			naming: HELD_NAMING,
+			stated: {},
+			levels: new Map(),
+			writing: Promise.resolve(),
+		};
 		this.runs.set(run, held);
 		this.take(held, said);
 		return { say: (text: string) => this.take(held, text), end: (code: number) => this.endHeld(run, code) };
@@ -96,7 +106,7 @@ const stepper = () => {
 
 describe("a run's tail", () => {
 	it("returns only the output after the cursor, and returns the cursor where the next read starts", () => {
-		const tail = new RunTail();
+		const tail = new RunTail(RUN_TAIL_CHARS);
 		tail.append("first line\n");
 		const one = tail.since(0);
 		expect(one.output).toBe("first line\n");
@@ -243,7 +253,7 @@ describe("whether a run would repeat the outcome of an earlier run", () => {
 
 	it("starts features that haven't run against their present state, and refuses features that have, whether they passed or failed", () => {
 		const { dir, config } = aGroup();
-		const env = runEnvironment({}, 0, false);
+		const env = runEnvironment({}, 0, false, undefined, []);
 		expect(verifiedRun(supervisorPorts, config, [dir], "", dir, env)).toBeUndefined();
 		// v() computes the verification that the child would record from the same environment.
 		const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env, getConfigFromBase([dir], fileSystem));
@@ -259,7 +269,7 @@ describe("whether a run would repeat the outcome of an earlier run", () => {
 
 	it("reads the .env file in a run's starting directory where its config declares an environment, as the child does", () => {
 		const { dir, config } = aGroup();
-		const env = runEnvironment({}, 0, false);
+		const env = runEnvironment({}, 0, false, undefined, []);
 		const passed = () => {
 			const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env, getConfigFromBase([dir], fileSystem));
 			recordOutcome(
@@ -282,7 +292,7 @@ describe("whether a run would repeat the outcome of an earlier run", () => {
 
 describe("what a run is started with", () => {
 	it("requests the child's events as NDJSON, since the supervisor reads events and not a formatted log", () => {
-		expect(runEnvironment({}, 0, false).HAIBUN_NDJSON).toBe("true");
+		expect(runEnvironment({}, 0, false, undefined, []).HAIBUN_NDJSON).toBe("true");
 	});
 
 	it("determines the child's port, host id, stay and once options, and doesn't pass on the supervisor's", () => {
@@ -301,7 +311,7 @@ describe("what a run is started with", () => {
 			"a port the supervisor holds for its monitor isn't passed on or set to the run's port",
 		).toEqual({ ...reported, HAIBUN_O_WEBSERVERSTEPPER_PORT: "8331" });
 		expect(
-			runEnvironment({}, 8331, false).HAIBUN_O_WEBSERVERSTEPPER_PORT,
+			runEnvironment({}, 8331, false, undefined, []).HAIBUN_O_WEBSERVERSTEPPER_PORT,
 			"an instance serves on the port it was given, whether or not the launcher holds a web server of its own",
 		).toBe("8331");
 		expect(runEnvironment(supervisorEnv, 8331, true, 9, perProcess), "a standing run serves on its port, takes its own host id, and stays up").toEqual({

@@ -88,7 +88,7 @@ const NO_ROUTES: Set<string> = new Set();
  * `isPartOf` to the site's host node. The graph then connects the whole exchange: client → request → endpoint → site,
  * or client/site → request → host.
  */
-export async function trackHttpRequest(world: TWorld, observation: THttpRequestObservation, registeredPaths: Set<string>, origin: THttpOrigin = "client"): Promise<void> {
+export async function trackHttpRequest(world: TWorld, observation: THttpRequestObservation, registeredPaths: Set<string>, origin: THttpOrigin): Promise<void> {
 	const store = world.shared.getStore();
 	let cache = trackCache.get(store);
 	if (!cache) trackCache.set(store, (cache = { ensured: new Set(), counts: new Map() }));

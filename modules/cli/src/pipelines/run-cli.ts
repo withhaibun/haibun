@@ -26,6 +26,7 @@ import { OPTION_RUN_POLICY, OPTION_DRY_RUN, HAIBUN_RUN_POLICY, parseRunPolicyArg
 import { loadAndValidateRunPolicy } from "@haibun/core/run-policy/pipelines/policy-file.js";
 import { PhaseRunner, PhaseBailError } from "@haibun/core/lib/PhaseRunner.js";
 import { withName } from "@haibun/core/lib/domains/features.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { configFileFrom, DOTENV, getConfigFromBase, readsDotenv } from "./specl.js";
 import type { TCliPorts, TConfigFiles } from "../ports.js";
 
@@ -118,10 +119,9 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv, ports: TCli
 			// An actuality that stopped before its features isn't evidence about the dependency state.
 			if (verification) ports.actualities.forgetOutcome(verification);
 			if (!world || !protoOptions) {
+				console.error(`\n${CHECK_NO} ${error.message}`);
 				const failure = error.result.failure;
-				const stage = failure?.stage ?? "?";
-				console.error(`\n${CHECK_NO} ${stage} Error: ${failure?.error?.message ?? "unknown"}`);
-				if (failure?.error?.details) console.error("Additional details:", failure.error.details);
+				if (failure?.error.details) console.error("Additional details:", failure.error.details);
 				process.exit(1);
 			}
 			return await reportAndExit(error.result, world, protoOptions, ports);
@@ -207,13 +207,12 @@ async function reportAndExit(executorResult: TExecutorResult, world: TWorld, pro
 		}
 	} else {
 		console.error(`\n${counted}`);
-		const errorMessage = executorResult.failure?.error?.message || "Unknown error";
-		const stage = executorResult.failure?.stage;
+		const { failure } = executorResult;
+		// A failed feature states its failure in its result, so only a phase's failure is stated here.
+		if (failure !== undefined) console.error(`\n${CHECK_NO} ${failure.stage} Error: ${failure.error.message}`);
 
-		console.error(`\n${CHECK_NO} ${stage ? `${stage} Error: ` : ""}${errorMessage}`);
-
-		if (executorResult.failure?.error?.details) {
-			const { ...otherDetails } = executorResult.failure.error.details;
+		if (failure?.error.details) {
+			const { ...otherDetails } = failure.error.details;
 			if (Object.keys(otherDetails).length > 0) {
 				console.error("\nAdditional details:", otherDetails);
 			}
@@ -323,14 +322,14 @@ export async function collect(
 	policyConfig?: TRunPolicyConfig,
 ): Promise<TFeaturesBackgrounds> {
 	if (statements.length === 0) return await features.collect(bases, featureFilter, policyConfig);
-	const statementFeature = withName(bases[0] ?? ".", "statement.feature", statements.join("\n"));
+	const statementFeature = withName(itemAt(bases, 0), "statement.feature", statements.join("\n"));
 	if (featureFilter) {
 		const collected = await features.collect(bases, featureFilter, policyConfig);
 		return { features: [...collected.features, statementFeature], backgrounds: collected.backgrounds };
 	}
 	// A filter that doesn't match a feature collects the base's backgrounds alone. Statements still run against a base
 	// that doesn't exist or doesn't hold features or backgrounds. emptyIfNoFeatures rethrows any other collector error.
-	const holdsNothing = !fs.existsSync(bases[0] ?? ".");
+	const holdsNothing = !fs.existsSync(itemAt(bases, 0));
 	const backgrounds = holdsNothing ? [] : (await features.collect(bases, [NO_FEATURE_MATCHES], policyConfig).catch(emptyIfNoFeatures)).backgrounds;
 	return { features: [statementFeature], backgrounds };
 }
