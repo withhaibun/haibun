@@ -104,7 +104,7 @@ const escaped = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\
 export function vocabularyFindings(repository: string, roots: readonly string[], tableFile: string, exclude: readonly RegExp[]): TFound[] {
 	const table = vocabularyOf(readFileSync(join(repository, tableFile), "utf8"));
 	const synonyms = table.flatMap(({ term, removed }) => removed.map((synonym) => ({ term, synonym, pattern: new RegExp(`(?<![\\w-])${escaped(synonym)}(?![\\w-])`, "gi") })));
-	const files = roots.flatMap((root) => filesUnder(join(repository, root))).map((file) => relative(repository, file).split(sep).join("/"));
+	const files = roots.flatMap((root) => filesUnder(repository, join(repository, root))).map((file) => relative(repository, file).split(sep).join("/"));
 	return [...new Set(files)]
 		.filter((file) => !exclude.some((pattern) => pattern.test(file)))
 		.flatMap((file) => {

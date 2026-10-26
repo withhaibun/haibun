@@ -23,9 +23,14 @@ describe("the page's bundles", () => {
 		measured = await measureBundles(SHU_ROOT, SHU_BUNDLES);
 	}, BUNDLES_BUILD_TIMEOUT_MS);
 
-	it("build for a browser, each package once and zod's English locale alone, within their budgets", () => {
+	it("build for a browser, each package once and zod's English locale alone, within their budgets", async () => {
 		const { excluded, sizes } = measured;
 		expect(excluded).toEqual([]);
-		expectWithinBaseline({ baselineFile: join(SHU_ROOT, "scripts", "bundles.baseline.json"), findings: sizes, testFile: "modules/shu/src/page-bundles.test.ts", fix: BUDGET_FIX });
+		await expectWithinBaseline({
+			baselineFile: join(SHU_ROOT, "scripts", "bundles.baseline.json"),
+			findings: sizes,
+			testFile: "modules/shu/src/page-bundles.test.ts",
+			fix: BUDGET_FIX,
+		});
 	});
 });

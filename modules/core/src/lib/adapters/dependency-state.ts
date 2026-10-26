@@ -4,7 +4,7 @@
  * A group's dependencies are derived from its configuration and aren't declared a second time. The steppers a
  * configuration lists name the modules a run exercises. Each stepper resolves to a file. The file resolves to the module
  * that contains it. A module resolves to the source directory its tsconfig.json declares. A module also resolves to each
- * `@haibun/` module in the `dependencies` of its package.json. An application's configuration lists framework modules
+ * linked package in the `dependencies` of its package.json, a workspace or a `file:` dependency. An application's configuration lists framework modules
  * and its own modules, so its dependencies include both without a separate declaration. A group adds its own paths
  * through `dependsOn`, and lists the external environments it uses through `environments`, which the conditions of its
  * actuality hold as part of its configuration.
@@ -15,6 +15,7 @@
  */
 import { execFileSync } from "node:child_process";
 import nodeFS from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { namesPackage, type TSpecl } from "../actuality/domains/actuality.js";
 import { getModuleLocation, packageLocation } from "./workspace-lib.js";
@@ -25,6 +26,8 @@ import { sha256, type TDigest } from "../domains/digest.js";
  *  levels. The file is written beside the group's configuration. The state excludes every file with this name, because an
  *  actuality's record of itself isn't part of the state it read. */
 export const ACTUALITIES_FILE = "actualities.json";
+/** The directory that holds a package npm installs, rather than links. */
+const NODE_MODULES = "node_modules";
 
 /** Returns the directory of the module that contains a path. That directory is the nearest directory at or above the
  *  path that contains a package.json. Returns undefined for a path that isn't inside a module. */
@@ -51,27 +54,23 @@ function whereItIs(location: string): string {
 	return nodeFS.realpathSync(at);
 }
 
-/** Returns the real directory of each `@haibun/` module in the `dependencies` of a module's package.json. A change in
- *  one of those directories changes what the module runs. The search for each name starts at the node_modules of the
- *  module's directory and continues at the node_modules of each ancestor directory. Node.js searches in the same order,
- *  so each returned directory is the one Node.js loads for the module. Skips a name that isn't installed. */
+/** Returns the real directory of each package in the `dependencies` of a module's package.json that is linked rather than installed: a
+ *  workspace or a `file:` dependency, whose real directory is outside every node_modules. A change in one of those directories changes
+ *  what the module runs, and an installed package's content isn't part of a repository's state. Node's own lookup paths from the module
+ *  find each package. Throws where a dependency isn't installed at or above the module. */
 function dependedModules(moduleDir: string): string[] {
 	const pkgJson = path.join(moduleDir, "package.json");
 	if (!nodeFS.existsSync(pkgJson)) return [];
 	const pkg = JSON.parse(nodeFS.readFileSync(pkgJson, "utf-8")) as { dependencies?: Record<string, string> };
-	const found: string[] = [];
-	for (const name of pkg.dependencies === undefined ? [] : Object.keys(pkg.dependencies)) {
-		if (!name.startsWith("@haibun/")) continue;
-		for (let dir = moduleDir; ; dir = path.dirname(dir)) {
-			const candidate = path.join(dir, "node_modules", name);
-			if (nodeFS.existsSync(candidate)) {
-				found.push(whereItIs(candidate));
-				break;
-			}
-			if (path.dirname(dir) === dir) break;
-		}
-	}
-	return found;
+	const lookup = createRequire(pkgJson).resolve.paths;
+	return (pkg.dependencies === undefined ? [] : Object.keys(pkg.dependencies)).flatMap((name) => {
+		const found = lookup(name)
+			?.map((dir) => path.join(dir, name))
+			.find((candidate) => nodeFS.existsSync(candidate));
+		if (found === undefined) throw new Error(`${moduleDir} depends on ${name}, which isn't installed at or above it. Run npm install.`);
+		const real = nodeFS.realpathSync(found);
+		return real.split(path.sep).includes(NODE_MODULES) ? [] : [real];
+	});
 }
 
 /** Returns the real path of the `compilerOptions.rootDir` that a module's tsconfig.json declares. A stepper of the
@@ -97,7 +96,7 @@ function sourcesOf(moduleDir: string): string {
 
 /**
  * Returns the paths that contain a group's dependencies. They are the feature bases, the source directory of each
- * listed stepper's module, the source directory of each `@haibun/` module in those modules' `dependencies` transitively,
+ * listed stepper's module, the source directory of each linked package in those modules' `dependencies` transitively,
  * and each `dependsOn` path. Each path appears once as an absolute real path, in sorted order. A relative base and a
  * stepper named by a relative path resolve against `cwd`. A run started in `cwd` resolves a relative stepper path the
  * same way. A `dependsOn` path resolves against `configDir`, and a `dependsOn` export named by its package is found from

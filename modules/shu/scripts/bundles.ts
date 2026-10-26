@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * shu's browser bundles. The served page loads its bundle, and the graph view's as the reader opens it, with chunks: the code of
  * a rare path, and what the two share, so the graph view loads its scene alone. A report inlines each whole, as a script without

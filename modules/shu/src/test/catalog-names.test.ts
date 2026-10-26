@@ -59,7 +59,12 @@ describe("a view's types and fields", () => {
 			expect([...names.types]).toEqual(expect.arrayContaining(["Comment", "SeqPath", "Principal"]));
 			const files = sourceFiles(REPOSITORY, VIEW_SOURCES);
 			const found = catalogNameFindings(REPOSITORY, { files, packages: workspacePackages(REPOSITORY, "modules"), names });
-			expectWithinBaseline({ baselineFile: join(import.meta.dirname, "catalog-names.baseline.json"), found, testFile: "modules/shu/src/test/catalog-names.test.ts", fix: FIX });
+			await expectWithinBaseline({
+				baselineFile: join(import.meta.dirname, "catalog-names.baseline.json"),
+				found,
+				testFile: "modules/shu/src/test/catalog-names.test.ts",
+				fix: FIX,
+			});
 		},
 		REPOSITORY_SCAN_MS,
 	);

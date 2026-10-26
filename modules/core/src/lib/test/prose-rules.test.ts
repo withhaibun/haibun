@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -585,7 +586,7 @@ describe("proseViolations", () => {
 	const repository = (files: Record<string, string>): string => {
 		const root = mkdtempSync(join(tmpdir(), "prose-rules-"));
 		made.push(root);
-		mkdirSync(join(root, ".git"));
+		execFileSync("git", ["init", "-q"], { cwd: root });
 		for (const [path, text] of Object.entries(files)) {
 			mkdirSync(dirname(join(root, path)), { recursive: true });
 			writeFileSync(join(root, path), text);
@@ -593,8 +594,9 @@ describe("proseViolations", () => {
 		return root;
 	};
 
-	it("walks the prose files under a root and skips dependencies, build output, links and excluded paths", () => {
+	it("reads the prose files under a root that the repository's listing holds, apart from links and excluded paths", () => {
 		const root = repository({
+			".gitignore": "node_modules\nbuild\ncapture\n",
 			"docs/a.md": DASH_SAMPLE,
 			"src/b.ts": "//Nothing",
 			"src/c.txt": DASH_SAMPLE,

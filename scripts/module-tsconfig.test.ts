@@ -4,8 +4,8 @@ import { join } from "node:path";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 import { trackedFiles } from "@haibun/core/lib/test/group-rules.js";
-import { REPOSITORY } from "./roots.js";
 
+const REPOSITORY = join(import.meta.dirname, "..");
 const MODULES = "modules";
 /** The settings every module builds with, which exclude its tests and test fakes from its build. */
 const SETTINGS = "../tsconfig.settings.json";

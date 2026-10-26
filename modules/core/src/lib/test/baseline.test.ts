@@ -1,8 +1,8 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { expectWithinBaseline, LOWER_BASELINE, lowerCommand, type TFound } from "./baseline.js";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { countFindings, expectWithinBaseline, type TFound } from "./baseline.js";
 
 const TEST_FILE = "scripts/rule.test.ts";
 const FIX = "fix the finding";
@@ -18,65 +18,38 @@ const RECORDED = { "a.ts": { [UNPOSITIONED]: 1 }, "b.ts": { [IMPORTS]: 2 } };
 let dir = "";
 const baselineFile = () => join(dir, "rule.baseline.json");
 const check = (found: readonly TFound[]) => expectWithinBaseline({ baselineFile: baselineFile(), found, testFile: TEST_FILE, fix: FIX });
-const record = (findings: unknown) => writeFileSync(baselineFile(), JSON.stringify(findings));
-const lowering = () => vi.stubEnv(LOWER_BASELINE, "true");
+/** Writes a baseline as the snapshot writes it: sorted, tab-indented, ending in a newline. */
+const record = (findings: unknown) => writeFileSync(baselineFile(), `${JSON.stringify(findings, null, "\t")}\n`);
 
 beforeEach(() => {
 	dir = mkdtempSync(join(tmpdir(), "haibun-baseline-"));
 });
-afterEach(() => {
-	vi.unstubAllEnvs();
-	rmSync(dir, { recursive: true, force: true });
-});
+afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 describe("findings held to a baseline", () => {
-	it("fail where the baseline doesn't exist, naming the command that writes it", () => {
-		expect(() => check(FOUND)).toThrow(lowerCommand(TEST_FILE));
+	it("count each finding by its file and its name", () => {
+		expect(countFindings(FOUND)).toEqual(RECORDED);
 	});
 
-	it("are written by the command where the baseline doesn't exist, counted by file and finding", () => {
-		lowering();
-		check(FOUND);
-		expect(JSON.parse(readFileSync(baselineFile(), "utf-8"))).toEqual(RECORDED);
-	});
-
-	it("pass where each count equals its record", () => {
+	it("pass where each count equals its record", async () => {
 		record(RECORDED);
-		expect(() => check(FOUND)).not.toThrow();
+		await expect(check(FOUND)).resolves.toBeUndefined();
 	});
 
-	it("fail where a count exceeds its record, listing the line of each finding of its kind in its file", () => {
-		record({ ...RECORDED, "b.ts": { [IMPORTS]: 1 } });
-		expect(() => check(FOUND)).toThrow(/exceed what[\s\S]*b\.ts: imports a view 1 -> 2\n {4}b\.ts:7\n {4}b\.ts:9/);
+	it("fail where a count exceeds its record, listing the line of each finding of its kind in its file, and leave the record", async () => {
+		const exceeded = { ...RECORDED, "b.ts": { [IMPORTS]: 1 } };
+		record(exceeded);
+		await expect(check(FOUND)).rejects.toThrow(/exceed what[\s\S]*b\.ts: imports a view 1 -> 2\n {4}b\.ts:7\n {4}b\.ts:9/);
+		expect(JSON.parse(readFileSync(baselineFile(), "utf-8"))).toEqual(exceeded);
 	});
 
-	it("fail where a finding in a file the baseline doesn't name appears", () => {
+	it("fail where a finding in a file the baseline doesn't name appears", async () => {
 		record(RECORDED);
-		expect(() => check([...FOUND, { file: "c.ts", finding: UNPOSITIONED }])).toThrow(/c\.ts: unpositioned 0 -> 1/);
+		await expect(check([...FOUND, { file: "c.ts", finding: UNPOSITIONED }])).rejects.toThrow(/c\.ts: unpositioned 0 -> 1/);
 	});
 
-	it("fail where a count falls, naming the command that writes the lower count", () => {
-		record({ ...RECORDED, "a.ts": { [UNPOSITIONED]: 2 } });
-		expect(() => check(FOUND)).toThrow(new RegExp(`are lower than what[\\s\\S]*${lowerCommand(TEST_FILE)}[\\s\\S]*a\\.ts: unpositioned 2 -> 1`));
-	});
-
-	it("are lowered by the command where a count is lower than its record", () => {
-		record({ ...RECORDED, "c.ts": { [UNPOSITIONED]: 1 } });
-		lowering();
-		check(FOUND);
-		expect(JSON.parse(readFileSync(baselineFile(), "utf-8"))).toEqual(RECORDED);
-	});
-
-	it("aren't written by the command where a count exceeds its record", () => {
-		const exceeding = { "a.ts": { [UNPOSITIONED]: 1 } };
-		record(exceeding);
-		lowering();
-		expect(() => check(FOUND)).toThrow(/writes only lower counts[\s\S]*b\.ts: imports a view 0 -> 2/);
-		expect(JSON.parse(readFileSync(baselineFile(), "utf-8"))).toEqual(exceeding);
-	});
-
-	it("reject a baseline that doesn't hold positive whole counts by file", () => {
+	it("reject a baseline that doesn't hold positive whole counts by file", async () => {
 		record({ "a.ts": { [UNPOSITIONED]: 0 } });
-		expect(() => check(FOUND)).toThrow(/doesn't hold findings by file/);
+		await expect(check(FOUND)).rejects.toThrow(/doesn't hold findings by file/);
 	});
 });

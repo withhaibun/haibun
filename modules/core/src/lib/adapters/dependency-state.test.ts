@@ -129,6 +129,27 @@ describe("the dependency roots of a group", () => {
 		expect(roots, "in sorted order").toEqual([...roots].sort());
 	});
 
+	it("follows a linked dependency of a stepper's module to its sources, leaves an installed one out, and refuses one that isn't installed", () => {
+		const repo = aRepository({
+			"package.json": "{}",
+			"app/package.json": JSON.stringify({ dependencies: { linked: "*", installed: "1.0.0" } }),
+			"app/build/x-stepper.js": "",
+			"linked/package.json": "{}",
+			"linked/tsconfig.json": JSON.stringify({ compilerOptions: { rootDir: "src" } }),
+			"linked/src/index.ts": "",
+			"node_modules/installed/package.json": "{}",
+		});
+		nodeFS.symlinkSync(path.join(repo, "linked"), path.join(repo, "node_modules", "linked"));
+		const roots = dependencyRoots({ steppers: ["./app/build/x-stepper"] }, [], repo, repo);
+		expect(roots).toContain(nodeFS.realpathSync(path.join(repo, "linked", "src")));
+		expect(
+			roots.some((root) => root.includes("installed")),
+			"an installed package isn't a root",
+		).toBe(false);
+		nodeFS.writeFileSync(path.join(repo, "app/package.json"), JSON.stringify({ dependencies: { missing: "*" } }));
+		expect(() => dependencyRoots({ steppers: ["./app/build/x-stepper"] }, [], repo, repo)).toThrow("depends on missing, which isn't installed at or above it");
+	});
+
 	it("resolves a stepper named by a relative path against the working directory, and resolves a link to its real path", () => {
 		const repo = aRepository({ "package.json": "{}", "build/x-stepper.js": "", "tests/config.json": "{}" });
 		nodeFS.symlinkSync("build", path.join(repo, "linked"));

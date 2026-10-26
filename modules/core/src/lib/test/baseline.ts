@@ -1,16 +1,16 @@
 /**
  * Findings held to a baseline file that only shrinks. The file records how many of each finding each file holds. A count
- * above its record fails and names the finding to fix. A count below its record fails as well and names the command that
- * writes the lower counts, so the file holds each gain. The command doesn't write the file where a count exceeds its record.
+ * above its record fails and names the finding to fix. The file is a file snapshot of the counts, so a count below its record
+ * fails as a snapshot does, and `vitest run -u` writes the lower counts, so the file holds each gain. A count above its record
+ * fails before the snapshot is compared, so an update doesn't raise a record.
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { expect } from "vitest";
 
 /** Findings by the file that holds them, each finding with its count. */
 export type TFindings = Record<string, Record<string, number>>;
 /** One finding in a file, at the line it starts on where it has one. */
 export type TFound = { file: string; finding: string; line?: number };
-/** The environment variable that sets a baseline test to write its baseline with the findings that remain. */
-export const LOWER_BASELINE = "HAIBUN_LOWER_BASELINE";
 
 /** How long a rule test that reads every source of the repository may take: a read of thousands of files, longer under a
  *  parallel run than a unit test's default. */
@@ -21,7 +21,7 @@ export const REPOSITORY_SCAN_MS = 30_000;
 type TBaselineCheck = {
 	/** The JSON file that records the findings. */
 	baselineFile: string;
-	/** The test file by its path from the repository root, which the command runs. */
+	/** The test file by its path from the repository root, which an update runs. */
 	testFile: string;
 	/** What removes a finding the record doesn't hold. */
 	fix: string;
@@ -29,7 +29,7 @@ type TBaselineCheck = {
 type TDifference = { file: string; finding: string; found: number; recorded: number };
 
 /** The command that writes a test's baseline with the findings that remain. */
-export const lowerCommand = (testFile: string): string => `${LOWER_BASELINE}=true npm test -- ${testFile}`;
+export const lowerCommand = (testFile: string): string => `npx vitest run -u ${testFile}`;
 
 /** How a count differs from its record: it exceeds the record, or it is lower than the record. */
 type TDirection = "exceeds" | "lower";
@@ -81,31 +81,19 @@ export function readBaseline(baselineFile: string): TFindings {
 	return recorded;
 }
 
-/** Fails where the findings differ from the baseline file. With the environment variable set, writes the file instead, unless a count exceeds its record. */
-export function expectWithinBaseline(check: TBaselineCheck): void {
+/** Fails where a count exceeds its record in the baseline file, and otherwise holds the file as a file snapshot of the counts: a lower
+ *  count fails as a snapshot that differs does, until an update writes it, and an update writes a baseline that doesn't exist. */
+export async function expectWithinBaseline(check: TBaselineCheck): Promise<void> {
 	const { baselineFile, testFile, fix } = check;
 	const sites = "found" in check ? check.found : [];
 	const findings = "found" in check ? countFindings(check.found) : check.findings;
-	const command = lowerCommand(testFile);
-	const recorded = existsSync(baselineFile) ? readBaseline(baselineFile) : undefined;
-	const exceeding = recorded === undefined ? [] : differences(findings, recorded, "exceeds");
-	if (process.env[LOWER_BASELINE] === "true") {
-		if (exceeding.length > 0)
-			throw new Error(
-				[`${command} writes only lower counts, and these exceed their records. Fix each: ${fix}.`, ...exceeding.flatMap((over) => exceedingLines(over, sites))].join("\n"),
-			);
-		writeFileSync(baselineFile, `${JSON.stringify(sorted(findings), null, "\t")}\n`);
-		return;
-	}
-	if (recorded === undefined) throw new Error(`${baselineFile} doesn't exist. Write it with ${command}`);
-	const lower = differences(findings, recorded, "lower");
-	if (exceeding.length === 0 && lower.length === 0) return;
-	throw new Error(
-		[
-			...(exceeding.length > 0 ? [`These counts exceed what ${baselineFile} records. Fix each: ${fix}.`, ...exceeding.flatMap((over) => exceedingLines(over, sites))] : []),
-			...(lower.length > 0 ? [`These counts are lower than what ${baselineFile} records. Write the lower counts with ${command}`, ...lower.map(differenceLine)] : []),
-		].join("\n"),
-	);
+	const exceeding = existsSync(baselineFile) ? differences(findings, readBaseline(baselineFile), "exceeds") : [];
+	if (exceeding.length > 0)
+		throw new Error([`These counts exceed what ${baselineFile} records. Fix each: ${fix}.`, ...exceeding.flatMap((over) => exceedingLines(over, sites))].join("\n"));
+	await expect(
+		`${JSON.stringify(sorted(findings), null, "\t")}\n`,
+		`the counts are lower than ${baselineFile} records: write them with ${lowerCommand(testFile)}`,
+	).toMatchFileSnapshot(baselineFile);
 }
 
 /** Findings counted by file, from each finding's file and name. */

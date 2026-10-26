@@ -70,7 +70,10 @@
 		"./waypoints/*": "./waypoints/*",
 		"./*": { "haibun-source": "./src/*", "default": "./build/*" }
 	},
-	"files": ["build/**", "haibun-core-specl.schema.json", "waypoints/**"],
+	"bin": {
+		"haibun-commit-summary": "bin/commit-summary.js"
+	},
+	"files": ["bin/**", "build/**", "haibun-core-specl.schema.json", "waypoints/**"],
 	"scripts": {
 		"test": "vitest run",
 		"coverage": "vitest --coverage",

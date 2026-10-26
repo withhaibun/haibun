@@ -2,8 +2,9 @@
  * The Writing rules a pattern detects, and the violations they find in the prose of source files (prose-sources.ts). A word
  * in backticks, in an address or in an identifier isn't prose.
  */
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { existsSync, lstatSync, readFileSync, statSync } from "node:fs";
+import { basename, dirname, join, relative, resolve, sep } from "node:path";
+import { listedFiles } from "../adapters/listed-files.js";
 import { isProseFile, proseBlocks, type TProseBlock, type TProseKind } from "./prose-sources.js";
 
 export type { TProseKind } from "./prose-sources.js";
@@ -47,7 +48,6 @@ type TUnreadSpan = { pattern: RegExp; mask?: (found: string) => string };
 
 export const NO_ALLOWANCE: TAllowance = { entries: [], persons: [] };
 const GIT_DIRECTORY = ".git";
-const SKIPPED_DIRECTORIES = new Set(["node_modules", "build", "build-local", "build-firefox", "dist", "capture", "coverage", GIT_DIRECTORY]);
 
 /** What an unread character becomes: it isn't a word character or whitespace, so a phrase doesn't match across it. */
 const MASK = "\uFFFC";
@@ -973,13 +973,12 @@ function repositoryOf(dir: string): string {
 	}
 }
 
-/** The prose files under `dir`. A symbolic link isn't followed, since its target is another path's file. */
-export function filesUnder(dir: string): string[] {
-	return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-		const path = join(dir, entry.name);
-		if (entry.isDirectory()) return SKIPPED_DIRECTORIES.has(entry.name) ? [] : filesUnder(path);
-		return entry.isFile() && isProseFile(entry.name) ? [path] : [];
-	});
+/** The prose files under `dir` of the repository at `repository`, each by its absolute path, as the repository's listing holds them.
+ *  A symbolic link isn't read, since its target is another path's file. */
+export function filesUnder(repository: string, dir: string): string[] {
+	return listedFiles(repository, [relative(repository, dir)])
+		.map((file) => join(repository, file))
+		.filter((file) => isProseFile(basename(file)) && lstatSync(file).isFile());
 }
 
 /**
@@ -994,7 +993,7 @@ export function proseViolations(roots: readonly string[], options: { exclude?: r
 	for (const root of roots.map((given) => resolve(given))) {
 		const isDirectory = statSync(root).isDirectory();
 		const repository = repositoryOf(isDirectory ? root : dirname(root));
-		for (const file of isDirectory ? filesUnder(root) : [root]) {
+		for (const file of isDirectory ? filesUnder(repository, root) : [root]) {
 			const path = relative(repository, file).split(sep).join("/");
 			if (!exclude.some((pattern) => path.search(pattern) !== -1)) files.set(file, { repository, path });
 		}

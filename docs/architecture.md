@@ -359,7 +359,7 @@ marked `waypoint · <library>`, where the library is the package whose backgroun
 `saved`, and choosing one opens the sentence form of `ensure <head>`, which is recorded and gated as every step is. The language
 server completes a head with the same mark, and `show step definitions` lists each head as a predicate whose `waypoint` names its library.
 
-Each repository holds its steps to the rules of `modules/core/src/lib/test/step-rules.ts` in `scripts/steps.test.ts`, with a baseline in
+Each repository holds its steps to the rules of `modules/core/src/lib/test/step-rules.ts` in `scripts/rules.test.ts` through core's rule suite, with a baseline in
 `scripts/steps.baseline.json` that only shrinks: a step that starts or keeps something and doesn't return a product takes a
 parameter, a step has more than one call site, a step's pattern isn't another step's with a word more or less, and something runs
 each step. The count of declared steps is in the baseline too, so a change that adds a step removes one it replaces, or the operator raises
@@ -666,7 +666,7 @@ them from `getConcerns` and names their keys in its step patterns.
 ## One vocabulary
 
 One term names each concept, and the engine, the registry, the records and the prose don't use another. The last column
-names the synonyms each term replaces; `scripts/surface.test.ts` counts each synonym in backticks as a whole word, and its
+names the synonyms each term replaces; `scripts/rules.test.ts` counts each synonym in backticks as a whole word, and its
 baseline only shrinks. A status or finding word is written with its quotes, so the test counts the value and not the same
 word in prose. A synonym without backticks is checked elsewhere or names another concept in this repository as well: the
 prose rules check "the run", the graph view's presenter is a view component, and the ZCAP invoker is the signer.

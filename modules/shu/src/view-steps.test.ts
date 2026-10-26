@@ -48,9 +48,9 @@ const found = (files: readonly string[], finding: string, count: (file: string) 
 describe(
 	"shu's views driven through web-playwright's steps",
 	() => {
-		it("holds a page driver only in web-playwright, waits for a state the page exposes, and leaves inspect() to a view's code, apart from what view-steps.baseline.json records", () => {
+		it("holds a page driver only in web-playwright, waits for a state the page exposes, and leaves inspect() to a view's code, apart from what view-steps.baseline.json records", async () => {
 			const fix = "drive the view through web-playwright's steps and the waypoints of shu's views, and wait for a state the view exposes";
-			expectWithinBaseline({
+			await expectWithinBaseline({
 				baselineFile: BASELINE,
 				testFile: TEST_FILE,
 				fix,

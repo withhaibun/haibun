@@ -6,7 +6,8 @@ import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { REPOSITORY } from "./roots.js";
+
+const REPOSITORY = join(import.meta.dirname, "..");
 
 /** The base the extension launches, which holds the language server's config. */
 const LSP_SERVER = join(REPOSITORY, "vscode-extension", "lsp-server");

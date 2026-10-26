@@ -2,28 +2,16 @@
  * What `haibun-cli --groups` reads and starts in a repository: its files, as git lists them, and a group's run, the built cli started
  * from the config's directory with the output of this process.
  */
-import { execFileSync, spawn } from "node:child_process";
-import { existsSync, rmSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
-import { errorDetail } from "@haibun/core/lib/domains/util.js";
+import { listedFiles } from "@haibun/core/lib/adapters/listed-files.js";
 import type { TGroup } from "../domains/groups.js";
 import type { TGroups } from "../ports.js";
 
 /** The option that names the config a run reads. */
 const CONFIG_OPTION = "--config";
-
-/** The tracked files of a repository that its working tree holds, and those it doesn't ignore, by their paths from `root`. Throws where
- *  git doesn't list them, naming the remedy. */
-function repositoryFiles(root: string): string[] {
-	let listed: string[];
-	try {
-		listed = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard", "-z"], { cwd: root, encoding: "utf-8" }).split("\0");
-	} catch (e) {
-		throw new Error(`groups: git doesn't list the files of ${root}: ${errorDetail(e)}. Find the groups in a git checkout.`);
-	}
-	return listed.filter((file) => file !== "" && existsSync(path.join(root, file)));
-}
 
 /** Removes a path a group clears, which names a place in its config's directory. Throws for a path outside it. */
 function clear(dir: string, group: TGroup, cleared: string): void {
@@ -47,4 +35,4 @@ function runGroup(root: string, group: TGroup, args: string[]): Promise<number> 
 }
 
 /** The groups of features of the repository at `root`: its files, by their paths from `root`, and a group's run. */
-export const groupPorts = (root: string): TGroups => ({ files: () => repositoryFiles(root), run: (group, args) => runGroup(root, group, args) });
+export const groupPorts = (root: string): TGroups => ({ files: () => listedFiles(root, ["."]), run: (group, args) => runGroup(root, group, args) });

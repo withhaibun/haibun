@@ -15,6 +15,8 @@ export type TBundle = {
 	sourcemap: boolean;
 	/** What the build writes beside its outputs in `outdir`, by file name, with its contents: a page or a manifest that loads them. */
 	files?: Readonly<Record<string, string>>;
+	/** What the build copies beside its outputs in `outdir`, by file name, from its path from the root: a page the repository holds. */
+	copies?: Readonly<Record<string, string>>;
 };
 
 /** The finding a bundle's budget records: the KiB, rounded up, that loading an entry fetches. */

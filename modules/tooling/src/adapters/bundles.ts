@@ -174,6 +174,12 @@ const metafilePath = (root: string, bundle: TBundle): string => {
 	return join(root, METAFILES, bundle.outdir, `${first.out}.meta.json`);
 };
 
+/** What a bundle writes beside its outputs, by file name, with its contents: the files it declares, and those it copies from the root. */
+export function besideFiles(root: string, bundle: TBundle): Record<string, string> {
+	const copied = bundle.copies === undefined ? [] : Object.entries(bundle.copies).map(([name, from]) => [name, readFileSync(join(root, from), "utf8")]);
+	return { ...bundle.files, ...Object.fromEntries(copied) };
+}
+
 /** Builds each bundle and writes its files and its metafile, or, with `watch`, rebuilds each as its sources change. */
 export async function buildBundles(root: string, bundles: readonly TBundle[], watch: boolean): Promise<void> {
 	const optionsOf = (bundle: TBundle): BuildOptions => {
@@ -186,7 +192,7 @@ export async function buildBundles(root: string, bundles: readonly TBundle[], wa
 					const at = metafilePath(root, bundle);
 					mkdirSync(dirname(at), { recursive: true });
 					writeFileSync(at, JSON.stringify(metafile));
-					if (bundle.files !== undefined) for (const [name, contents] of Object.entries(bundle.files)) writeFileSync(join(root, bundle.outdir, name), contents);
+					for (const [name, contents] of Object.entries(besideFiles(root, bundle))) writeFileSync(join(root, bundle.outdir, name), contents);
 				});
 			},
 		};
