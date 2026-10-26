@@ -671,7 +671,8 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 		const title = titledByOf(topology);
 		if (title) titledBy.set(type, title);
 		if (topology.instrumentation) instrumentation.add(type);
-		countedBy.set(type, topology.countedBy === undefined ? [] : countedFields(type, domain.schema, topology, topology.countedBy));
+		const counted = topology.countedBy === undefined ? [] : countedFields(type, domain.schema, topology, topology.countedBy);
+		countedBy.set(type, counted);
 		const rels: Record<string, string> = {};
 		for (const [field, def] of topology.properties === undefined ? [] : Object.entries(topology.properties)) {
 			rels[field] = relOf(def);
@@ -681,6 +682,11 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 		// type doesn't declare a `label` field and doesn't already map another field to rdfs:label; inert until a vertex sets it.
 		if (rels.label === undefined && !Object.values(rels).includes(LinkRelations.LABEL.rel)) rels.label = LinkRelations.LABEL.rel;
 		relMaps.set(type, rels);
+		const status = fieldByRel(type, LinkRelations.ACTION_STATUS.rel);
+		if (topology.instrumentation && status !== undefined && !counted.includes(status))
+			throw new Error(
+				`${type} states its status in ${status} and isn't counted by it, so the count of a day the retention removes wouldn't state how its records ended; add ${status} to its countedBy`,
+			);
 		const ending = endingOf(type, topology, (rel) => fieldByRel(type, rel));
 		if (ending !== undefined) endings.set(type, ending);
 	}

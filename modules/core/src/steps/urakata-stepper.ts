@@ -34,6 +34,7 @@ export const urakataTaskDomainDefinition = {
 		accessLevel: Access.private,
 		id: "id",
 		instrumentation: true,
+		countedBy: ["actionStatus", ACTUALITY_FIELD],
 		properties: {
 			id: LinkRelations.IDENTIFIER.rel,
 			description: LinkRelations.NAME.rel,

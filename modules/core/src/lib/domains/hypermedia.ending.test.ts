@@ -54,6 +54,16 @@ describe("what a start-up writes in a record an interrupted actuality left witho
 		expect(rels.ending("Task")).toBeUndefined();
 	});
 
+	it("refuses an instrumentation type that states its status and isn't counted by it, since the retention's counts state how removed records ended", () => {
+		const uncounted = ended("Probe", true, {
+			actionStatus: LinkRelations.ACTION_STATUS.rel,
+			[ENDED_BY_FIELD]: LinkRelations.WAS_ENDED_BY.rel,
+			[ACTUALITY_FIELD]: LinkRelations.CONTEXT.rel,
+		});
+		expect(() => buildResourceRels(mapDefinitionsToDomains([uncounted]))).toThrow("Probe states its status in actionStatus and isn't counted by it");
+		expect(rels.countedBy(URAKATA_LABEL), "a background task is counted by how it ended").toContain("actionStatus");
+	});
+
 	it("refuses an instrumentation type that states an end without its status, its ender and its actuality, and names them", () => {
 		expect(() => buildResourceRels(mapDefinitionsToDomains([ended("Probe", true, { [ACTUALITY_FIELD]: LinkRelations.CONTEXT.rel })]))).toThrow(
 			`Probe states its end in endedAtTime, and doesn't map a property to each of ${LinkRelations.ACTION_STATUS.rel}, ${LinkRelations.WAS_ENDED_BY.rel} and ${ACTUALITY_FIELD}`,

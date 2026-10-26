@@ -372,13 +372,13 @@
 			"actuality": {
 				"text": "e2e-tests/requirements, node_modules/@haibun/cli/waypoints, node_modules/@haibun/logic/waypoints, node_modules/@haibun/core/waypoints",
 				"status": "passed",
-				"tookMs": 6100,
+				"tookMs": 5900,
 				"digest": {
 					"e2e-tests/requirements": "c638cdee44ee81af0896bd52598f4a4b7f35b7fda44f334a9dc0e9a3033d20db",
 					"e2e-tests/src": "425dc5ff34248b861f6f819a90ae7579fd9bf5a7d35d8cca3c5525423f42d689",
 					"modules/cli/src": "d72ef31d24fa6fe08b8b39e1313390ede6b7f9254047b51146152ded9d136054",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "c4bdfc278fde9f1a38cd3a2a34f7852dc963b751d9e6cd365287c8b5659c5934",
+					"modules/core/src": "327351f074171ad7b630fa47b8e99d2f83449e96d678ebd8148f31f507ead064",
 					"modules/core/waypoints": "f573c51de6e8154e49adbb5d98a25b3fd1872742dfdab0f3d6ec8f6164759860",
 					"modules/domain-storage/src": "3dcfc208ea1dd71ecc2f14c13926d46b10f0ee7ffc9598637e7a616c9f627541",
 					"modules/logic/src": "bc634173e41a3319dee255c61d205822e16cafbde90a7fdba748141a4ce5f73d",
@@ -400,13 +400,13 @@
 				"/features/01-prose-and-steps.feature.ts": {
 					"text": "Prose and steps",
 					"status": "passed",
-					"tookMs": 100,
+					"tookMs": 200,
 					"steps": 24
 				},
 				"/features/02-authority.feature.ts": {
 					"text": "Capabilities authorize every call",
 					"status": "passed",
-					"tookMs": 200,
+					"tookMs": 300,
 					"steps": 43
 				},
 				"/features/03-activities.feature.ts": {
@@ -418,7 +418,7 @@
 				"/features/04-combinators.feature.ts": {
 					"text": "Combinators and quantifiers",
 					"status": "passed",
-					"tookMs": 200,
+					"tookMs": 300,
 					"steps": 61
 				},
 				"/features/05-goals.feature.ts": {
@@ -430,13 +430,13 @@
 				"/features/06-world-and-products.feature.ts": {
 					"text": "The world's data and a step's products",
 					"status": "passed",
-					"tookMs": 200,
+					"tookMs": 100,
 					"steps": 17
 				},
 				"/features/07-records.feature.ts": {
 					"text": "Records, events and actualities",
 					"status": "passed",
-					"tookMs": 400,
+					"tookMs": 300,
 					"steps": 116
 				},
 				"/features/08-timing.feature.ts": {
@@ -448,13 +448,13 @@
 				"/features/09-surfaces.feature.ts": {
 					"text": "One path for every surface",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 500,
 					"steps": 95
 				},
 				"/features/10-cli.feature.ts": {
 					"text": "The command line",
 					"status": "passed",
-					"tookMs": 1600,
+					"tookMs": 1500,
 					"steps": 11
 				},
 				"/features/11-performance.feature.ts": {
@@ -472,7 +472,7 @@
 				"/features/13-formulas.feature.ts": {
 					"text": "Formula notation",
 					"status": "passed",
-					"tookMs": 300,
+					"tookMs": 200,
 					"steps": 45
 				},
 				"/features/14-model-loop.feature.ts": {
