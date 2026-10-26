@@ -88,7 +88,7 @@
 				"tookMs": 100,
 				"digest": {
 					"mcp-server": "e96e98275d904291cf637dee32300fa67328049b3f5f506e69d46533f9f574d2",
-					"modules/core/src": "a7f2c77d14d6a79b96cdf8f36a5c72975f100ec177963f498cbc4945b7483463",
+					"modules/core/src": "7df8cb6051b96b81ced16c1f9cf3fc6415c99079fc2ceca7b2a8a43c352ed3a2",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
 					"modules/logic/src": "bc634173e41a3319dee255c61d205822e16cafbde90a7fdba748141a4ce5f73d",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
