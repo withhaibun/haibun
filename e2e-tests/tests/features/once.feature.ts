@@ -2,11 +2,13 @@ import { withAction, type TKirejiExport } from "@haibun/core/kireji/derivations/
 import TestRunnerStepper from "@haibun/cli/test-runner-stepper.js";
 import LogicStepper from "@haibun/logic/logic-stepper.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
+import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import { testRuns } from "@haibun/cli/waypoints/backgrounds/test-runs.feature.ts";
 
 const { noteEverythingChanged } = withAction(new TestRunnerStepper());
 const { not } = withAction(new LogicStepper());
-const { feature, scenario, producing } = withAction(new Haibun());
+const { feature, scenario } = withAction(new Haibun());
+const { setFromStatement, matches } = withAction(new VariablesStepper());
 
 const GROUP = '"once"';
 const RUN_ALL = `run all the tests in ${GROUP}`;
@@ -25,7 +27,8 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "A second run against the same state is refused" }),
 		"The group's dependencies haven't changed since the group passed. A second run would repeat that outcome, so the step that starts a run fails without starting one.",
-		producing({ expected: { refusal: "*passed against its present dependencies*" }, statement: not({ statements: RUN_ALL }) }),
+		setFromStatement({ what: "secondRun", statement: not({ statements: RUN_ALL }) }),
+		matches({ value: "secondRun.refusal", pattern: '"*passed against its present dependencies*"' }),
 
 		scenario({ scenario: "Noting that the group changed lets it run again" }),
 		noteEverythingChanged({ where: GROUP }),

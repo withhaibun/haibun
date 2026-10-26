@@ -110,7 +110,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 		not: {
 			gwta: `not {statements:${DOMAIN_STATEMENT}}`,
 			description:
-				"Holds where the statement isn't proved, as negation as failure over the results of its line, and returns why it didn't hold: its failing step's error text and seqPath. Its record states whether the statement is refuted or unknown.",
+				"Holds where the statement isn't proved, as negation as failure over the results of its line. Its products hold the failure: its failing step's error text as refusal, and that step's seqPath, so a feature that expects a failure confirms it was the expected error with set … from not … and then matches ….refusal with the error's pattern. Its record states whether the statement is refuted or unknown.",
 			productsDomain: DOMAIN_REFUSAL,
 			reading: READING.not,
 		},

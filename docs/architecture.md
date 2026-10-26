@@ -189,6 +189,12 @@ Haibun includes logical constructs for expressing verification rules declarative
 not variable status is "Error"
 ```
 
+Its products hold the failure: the failing step's error text as `refusal`, and that step's `seqPath`. A feature that expects a failure confirms it was the expected error by setting a variable from the negation and matching its refusal:
+```
+set secondRun from not run all the tests in "once"
+matches secondRun.refusal with "*passed against its present dependencies*"
+```
+
 ### Conditionals
 
 `where condition, action` proves the action where the condition holds, and `where not condition, action` where it doesn't:

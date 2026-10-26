@@ -96,21 +96,6 @@ describe("seqPath ordering", () => {
 	});
 });
 
-describe("producing", () => {
-	it("holds where the statement's products hold the expected value, and is refused with the difference where they don't", async () => {
-		expect((await passWithDefaults('producing {"steppers": "*\\"stepper\\":\\"Haibun\\"*"}, show steppers', [Haibun])).ok, "a read's products").toBe(true);
-		const differs = await failWithDefaults('producing {"steppers": "*NoSuchStepper*"}, show steppers', [Haibun]);
-		expect(differs.failure?.error.message).toMatch(/`show steppers` didn't produce what producing expects: products.steppers is .*, which doesn't match "\*NoSuchStepper\*"/);
-		const missing = await failWithDefaults('producing {"total": "*", "refusal": "*"}, show steppers', [Haibun]);
-		expect(missing.failure?.error.message).toContain("], without refusal");
-	});
-
-	it("is refused where its statement doesn't hold", async () => {
-		const result = await failWithDefaults('producing {"verdict": "*"}, fails', [Haibun, TestSteps]);
-		expect(result.failure?.error.message).toContain("`fails` didn't hold, so it didn't produce what producing expects: test fail");
-	});
-});
-
 describe("line comment", () => {
 	const NOTE = ";;unsetVariable is the text of a note";
 	it("resolves a `;;` statement to the comment step instead of prose, and passes without resolving the variable that its text names", async () => {

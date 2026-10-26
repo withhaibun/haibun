@@ -113,18 +113,13 @@ const READINGS: [string, string, boolean][] = [
 ];
 
 describe("the readings of the logic engine", () => {
-	it("returns from not why its statement didn't hold, which producing compares, as a refused call's error text and seqPath", async () => {
+	it("returns from not why its statement didn't hold, as a refused call's error text and seqPath, which a feature that expects a failure matches", async () => {
 		const refusal = await passWithDefaults('set refusal from not fails\nvariable refusal.refusal is "test fail"\nmatches refusal.seqPath with "*.*"', STEPPERS);
 		expect(refusal.ok, "not's products").toBe(true);
-		expect((await passWithDefaults('producing {"refusal": "test*", "seqPath": "*"}, not fails', STEPPERS)).ok, "a refusal producing expects").toBe(true);
-		const differs = await failWithDefaults('producing {"refusal": "*isn\'t permitted*"}, not fails', STEPPERS);
-		expect(differs.failure?.error.message).toContain(
-			'`not fails` didn\'t produce what producing expects: products.refusal is "test fail", which doesn\'t match "*isn\'t permitted*"',
-		);
-		const thrown = await failWithDefaults('producing {"refusal": "*isn\'t permitted*"}, not throw an exception', STEPPERS);
-		expect(thrown.failure?.error.message, "a thrown error's message").toContain('products.refusal is "the step threw: <Thrown for test case>"');
-		const held = await failWithDefaults('producing {"refusal": "*"}, not passes', STEPPERS);
-		expect(held.failure?.error.message).toContain("`not passes` didn't hold, so it didn't produce what producing expects");
+		const thrown = await passWithDefaults('set thrown from not throw an exception\nmatches thrown.refusal with "the step threw: *"', STEPPERS);
+		expect(thrown.ok, "a thrown error's message").toBe(true);
+		const differs = await failWithDefaults('set refusal from not fails\nmatches refusal.refusal with "*isn\'t permitted*"', STEPPERS);
+		expect(differs.ok, "a refusal other than the expected error").toBe(false);
 	});
 
 	it.each(READINGS)("%s", async (_, content, passes) => {
