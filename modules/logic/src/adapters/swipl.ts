@@ -5,7 +5,7 @@
  * effect.
  */
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { createRequire } from "node:module";
 import SWIPL from "swipl-wasm";
 import { z } from "zod";
 import { LintFindingSchema } from "@haibun/core/lib/domains/goal-resolution.js";
@@ -14,6 +14,8 @@ import type { TLogicEngine } from "../ports.js";
 
 /** The program's file in the runtime's file system. */
 const PROGRAM = "haibun.pl";
+/** The program's source, which the package exports from its source folder, since the TypeScript build copies only TypeScript. */
+const PROGRAM_SOURCE = "@haibun/logic/haibun.pl";
 
 type TRuntime = Awaited<ReturnType<typeof SWIPL>>;
 
@@ -32,7 +34,7 @@ function once(runtime: TRuntime, goal: string, input?: Record<string, unknown>):
 export async function startSwipl(): Promise<TLogicEngine> {
 	const runtime = await SWIPL({ arguments: ["-q"] });
 	once(runtime, "set_prolog_flag(autoload, false)");
-	runtime.FS.writeFile(PROGRAM, readFileSync(join(import.meta.dirname, PROGRAM), "utf8"));
+	runtime.FS.writeFile(PROGRAM, readFileSync(createRequire(import.meta.url).resolve(PROGRAM_SOURCE), "utf8"));
 	once(runtime, `consult('${PROGRAM}')`);
 	return {
 		prove: (top, term) => ProofStateSchema.parse(once(runtime, "haibun:prove(Top, Term, Outcome)", { Top: top, Term: term }).Outcome),

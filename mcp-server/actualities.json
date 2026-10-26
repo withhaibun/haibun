@@ -31,12 +31,12 @@
 			"actuality": {
 				"text": "mcp-server",
 				"status": "passed",
-				"tookMs": 100,
+				"tookMs": 0,
 				"digest": {
 					"mcp-server": "e96e98275d904291cf637dee32300fa67328049b3f5f506e69d46533f9f574d2",
-					"modules/core/src": "ba8f0183962613ac321443051b37ab953a0bf808c0d7601a034223b26165d4d7",
+					"modules/core/src": "ed148f70fbc88295137db0750d1834a146a78e26648c84a12028190a8fc5d4f2",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
-					"modules/logic/src": "bc634173e41a3319dee255c61d205822e16cafbde90a7fdba748141a4ce5f73d",
+					"modules/logic/src": "cccd368317a5aea6bebebe5ad0a5be863ce23fbbe3124c822a450caeee5ca362",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/web-playwright/src": "acca85ede6cf3c11b5cbf4ab3bac5a9f8fc58a538ad7bc4abbd0344eb69df8ae",

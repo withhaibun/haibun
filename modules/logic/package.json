@@ -4,9 +4,10 @@
 	"version": "4.0.0-alpha.3",
 	"description": "The logic engine that proves every step: SWI-Prolog through swipl-wasm, with EYE as the N3 conformance check in tests",
 	"main": "build/logic-stepper.js",
-	"files": ["build/**", "waypoints/**"],
+	"files": ["build/**", "src/adapters/haibun.pl", "waypoints/**"],
 	"exports": {
 		".": "./build/logic-stepper.js",
+		"./haibun.pl": "./src/adapters/haibun.pl",
 		"./waypoints": "./waypoints",
 		"./waypoints/*": "./waypoints/*",
 		"./*": {
@@ -15,7 +16,7 @@
 		}
 	},
 	"scripts": {
-		"build": "tsc -b . && node scripts/copy-program.mjs",
+		"build": "tsc -b .",
 		"bench": "node scripts/q6-cost.mjs",
 		"build:watch": "tsc -b . --watch",
 		"prepublishOnly": "npm run build",

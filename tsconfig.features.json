@@ -4,11 +4,6 @@
 		"noEmit": true,
 		"allowImportingTsExtensions": true,
 		"rootDir": ".",
-		"composite": false,
-		"incremental": false,
-		"declaration": false,
-		"declarationMap": false,
-		"sourceMap": false,
 		"lib": ["es2022", "DOM"],
 		"paths": {}
 	},

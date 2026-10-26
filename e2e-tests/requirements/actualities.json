@@ -126,16 +126,16 @@
 			"actuality": {
 				"text": "e2e-tests/requirements, node_modules/@haibun/cli/waypoints, node_modules/@haibun/logic/waypoints, node_modules/@haibun/core/waypoints",
 				"status": "passed",
-				"tookMs": 4200,
+				"tookMs": 4100,
 				"digest": {
 					"e2e-tests/requirements": "491a5ff438131c2f60cb915a88e50f8a0d5f2c58786cd3bff656106cdf2a49c7",
-					"e2e-tests/src": "425dc5ff34248b861f6f819a90ae7579fd9bf5a7d35d8cca3c5525423f42d689",
+					"e2e-tests/src": "58d60ee765cabcfce203a6cacd4f669fb0c891d1d0153c1134505572772c2c6a",
 					"modules/cli/src": "0672b344a3e3cc4d0e20807811375a84fa4f64d32a93e7923ab74b25930eec13",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "ba8f0183962613ac321443051b37ab953a0bf808c0d7601a034223b26165d4d7",
+					"modules/core/src": "ed148f70fbc88295137db0750d1834a146a78e26648c84a12028190a8fc5d4f2",
 					"modules/core/waypoints": "f573c51de6e8154e49adbb5d98a25b3fd1872742dfdab0f3d6ec8f6164759860",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
-					"modules/logic/src": "bc634173e41a3319dee255c61d205822e16cafbde90a7fdba748141a4ce5f73d",
+					"modules/logic/src": "cccd368317a5aea6bebebe5ad0a5be863ce23fbbe3124c822a450caeee5ca362",
 					"modules/logic/waypoints": "93e972f98438aa5cbe8f36d93e6aa45924af65df9fdb2846bf209209421a4671",
 					"modules/monitor-otel/src": "51ad9d33751b0654ac68a6a7280ef036d2c5e4b9b676bbacb9c6999d64c5d3d8",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
@@ -172,7 +172,7 @@
 				"/features/04-combinators.feature.ts": {
 					"text": "Combinators and quantifiers",
 					"status": "passed",
-					"tookMs": 100,
+					"tookMs": 200,
 					"steps": 61
 				},
 				"/features/05-goals.feature.ts": {
@@ -190,7 +190,7 @@
 				"/features/07-records.feature.ts": {
 					"text": "Records, events and actualities",
 					"status": "passed",
-					"tookMs": 200,
+					"tookMs": 300,
 					"steps": 116
 				},
 				"/features/08-timing.feature.ts": {
@@ -202,13 +202,13 @@
 				"/features/09-surfaces.feature.ts": {
 					"text": "One path for every surface",
 					"status": "passed",
-					"tookMs": 400,
+					"tookMs": 300,
 					"steps": 95
 				},
 				"/features/10-cli.feature.ts": {
 					"text": "The command line",
 					"status": "passed",
-					"tookMs": 1100,
+					"tookMs": 1000,
 					"steps": 11
 				},
 				"/features/11-performance.feature.ts": {

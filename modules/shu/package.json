@@ -20,7 +20,8 @@
 		}
 	},
 	"scripts": {
-		"build": "tsc -b . && node scripts/bundles.ts page",
+		"build": "tsc -b . && npm run bundle",
+		"bundle": "node scripts/bundles.ts page",
 		"test:e2e": "haibun-cli -c ./tests/config.json ./tests,./waypoints && npm run test:e2e:profile && npm run test:e2e:basic-auth",
 		"test": "vitest run",
 		"lint": "biome check .",

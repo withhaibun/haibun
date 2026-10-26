@@ -10,7 +10,7 @@ type TRouteHandler = (c: Context) => Response | Promise<Response>;
  * REST route handlers for test server.
  * These don't include auth checks - auth is applied via middleware at route registration.
  */
-export const restRoutes = (testServer: TestServer): Record<string, TRouteHandler> => {
+export const restRoutes = (testServer: TestServer) => {
 	return {
 		createAuthToken(c: Context): Response {
 			testServer.authToken = newToken;
@@ -81,5 +81,5 @@ export const restRoutes = (testServer: TestServer): Record<string, TRouteHandler
 			}
 			return c.html("<h2>Invalid credentials</h2>", 401);
 		},
-	};
+	} satisfies Record<string, TRouteHandler>;
 };

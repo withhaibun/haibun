@@ -4,14 +4,9 @@
 		"noEmit": true,
 		"allowImportingTsExtensions": true,
 		"rootDir": ".",
-		"composite": false,
-		"incremental": false,
-		"declaration": false,
-		"declarationMap": false,
-		"sourceMap": false,
 		"lib": ["ESNext", "DOM", "DOM.Iterable"],
 		"jsx": "react-jsx"
 	},
-	"include": ["modules/*/src/**/*.test.ts", "modules/*/src/**/*.test.tsx", "modules/*/src/**/*.test-fake.ts", "modules/*/entries/**/*.ts", "modules/*/scripts/**/*.ts"],
+	"include": ["modules/*/src/**/*.ts", "modules/*/src/**/*.tsx", "modules/*/waypoints/**/*.ts", "modules/*/entries/**/*.ts", "modules/*/scripts/**/*.ts"],
 	"exclude": ["**/node_modules/**", "**/build/**"]
 }

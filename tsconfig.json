@@ -1,0 +1,4 @@
+{
+	"files": [],
+	"references": [{ "path": "./modules" }, { "path": "./e2e-tests" }, { "path": "./tsconfig.features.json" }, { "path": "./tsconfig.tests.json" }]
+}

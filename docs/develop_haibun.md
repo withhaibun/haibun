@@ -6,12 +6,15 @@ Clone this repository, then install its packages and build every module:
 
 `npm run build`
 
+The build is `tsc -b`, which builds each module after the modules its tsconfig references, the end-to-end tests' server and
+the type checks of the features and the tests, then each module's `bundle` script. `npm run clean` removes what it built.
+
 While modules change, `npm run build:watch` rebuilds them and shu's bundles.
 
 `npm test` runs every module's unit and integration tests from the root, and `npm run test:watch` runs them on each change.
 A module's own `build` and `test` scripts run the same tools for that module alone.
 
-`npm run lint` runs biome and type-checks the features and the tests.
+`npm run lint` runs biome and `tsc -b`.
 
 `npm run test:e2e` runs the end-to-end features of `e2e-tests`, then the examples of `AGENTS.md`, which `npm run test:agents`
 runs alone. Their browsers come from Playwright: `npx playwright install chromium`.
