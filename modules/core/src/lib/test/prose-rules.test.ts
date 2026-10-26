@@ -190,7 +190,7 @@ describe("allowed forms", () => {
 		]);
 	});
 
-	it("allows `they` after a person, a credential's holder and a named fixture person directly before the verb", () => {
+	it("allows `they` after a person, a capability's holder and a named fixture person directly before the verb", () => {
 		expect(violationsIn(MARKDOWN, "A reader names a field. They may not know the rest.")).toEqual([]);
 		expect(rulesOf(violationsIn(MARKDOWN, "Records hold it. They answer the query."))).toEqual([ANTHROPOMORPHIC]);
 		expect(rulesOf(violationsIn(MARKDOWN, "Those answer a reader, and they don't answer another."))).toEqual([ANTHROPOMORPHIC, ANTHROPOMORPHIC]);

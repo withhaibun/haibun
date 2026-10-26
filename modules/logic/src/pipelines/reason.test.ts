@@ -5,7 +5,8 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
-import { Access, LinkRelations } from "@haibun/core/lib/domains/resources.js";
+import { Access, LinkRelations, type AccessLevel } from "@haibun/core/lib/domains/resources.js";
+import { runReadingAt } from "@haibun/core/lib/domains/capability-context.js";
 import { DEF_PROTO_OPTIONS, getTestWorldWithOptions } from "@haibun/core/lib/test/lib.js";
 import { individualIri, iriIn } from "@haibun/core/lib/records/derivations/owl.js";
 import { getJsonLdContext } from "@haibun/core/lib/domains/hypermedia.js";
@@ -39,19 +40,22 @@ const QUERY = `{ ?s <${MISSING}> ?o } => { ?s <${MISSING}> ?o } .`;
 /** A step in the complete graph that doesn't state an outcome. */
 const WITHOUT_OUTCOME = `{ <${stepClass}> <${COMPLETE_GRAPH}> ?g . ?g <${LOG}includes> { ?s a <${stepClass}> } . ?g <${LOG}notIncludes> { ?s <${outcome}> ?o } } => { ?s <${MISSING}> "outcome" } .`;
 
-/** The facts the store holds: a step with an outcome, a step without one, and a note about the second step. */
-const FACTS: [string, string, string, string][] = [
-	["s1", "id", "s1", STEP],
-	["s1", "outcome", "passed", STEP],
-	["s2", "id", "s2", STEP],
-	["n1", "id", "n1", NOTE],
-	["n1", "content", "checked", NOTE],
-	["n1", "about", "s2", NOTE],
+/** The facts the store holds, each at its level: a step with an outcome, a step without one, a step whose outcome only a
+ *  private reader reads, and a note about the second step. */
+const FACTS: [string, string, string, string, AccessLevel][] = [
+	["s1", "id", "s1", STEP, Access.private],
+	["s1", "outcome", "passed", STEP, Access.private],
+	["s2", "id", "s2", STEP, Access.private],
+	["s3", "id", "s3", STEP, Access.public],
+	["s3", "outcome", "passed", STEP, Access.private],
+	["n1", "id", "n1", NOTE, Access.private],
+	["n1", "content", "checked", NOTE, Access.private],
+	["n1", "about", "s2", NOTE, Access.private],
 ];
 
 async function storeWith(): Promise<IQuadStore> {
 	const store = getTestWorldWithOptions(DEF_PROTO_OPTIONS).shared.getStore();
-	for (const [subject, predicate, object, namedGraph] of FACTS) await store.add({ subject, predicate, object, namedGraph, accessLevel: Access.private });
+	for (const [subject, predicate, object, namedGraph, accessLevel] of FACTS) await store.add({ subject, predicate, object, namedGraph, accessLevel });
 	return store;
 }
 
@@ -59,6 +63,13 @@ describe("reason", () => {
 	it("closes over a complete graph with scoped negation", { timeout: 30_000 }, async () => {
 		const derived = await reason(reasoner(), await storeWith(), domains, { rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] });
 		expect(derived).toEqual([{ subject: step("s2"), predicate: `<${MISSING}>`, object: '"outcome"' }]);
+	});
+
+	it("closes over a complete graph for a reader at its type's access level, and leaves it open for a reader below it", { timeout: 30_000 }, async () => {
+		const store = await storeWith();
+		const closed = (level: AccessLevel) => runReadingAt(level, () => reason(reasoner(), store, domains, { rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] }));
+		expect(await closed(Access.private)).toEqual([{ subject: step("s2"), predicate: `<${MISSING}>`, object: '"outcome"' }]);
+		expect(await closed(Access.public), "s3's outcome is private, so a public reader reads the graph as open and the rules don't derive a missing outcome").toEqual([]);
 	});
 
 	it("refuses to close over an open graph", async () => {

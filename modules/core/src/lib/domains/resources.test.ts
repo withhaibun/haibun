@@ -271,37 +271,38 @@ describe("getJsonLdContext top-level term fallback", () => {
 	});
 });
 
-describe("getJsonLdContext ontology @graph: rdfs:subClassOf as an RDF statement, not a @context keyword", () => {
-	it("states the type's subclass on its class node in @graph, and the @context term stays only an IRI mapping", () => {
-		const domains = {
-			p: {
-				topology: { persistedAs: "P", type: "sec:Controller", subClassOf: "prov:Agent", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } },
-				schema: { parse: (v: unknown) => v },
-			},
-		} as unknown as Parameters<typeof getJsonLdContext>[0];
-		const out = getJsonLdContext(domains) as { "@context": Record<string, Record<string, unknown>>; "@graph": Array<Record<string, unknown>> };
-		expect(out["@context"].P?.["@id"]).toBe("sec:Controller");
+describe("getJsonLdContext ontology @graph: each type's own class, with its declared @type IRI as a superclass", () => {
+	const domainsOf = (...topologies: Record<string, unknown>[]) =>
+		Object.fromEntries(
+			topologies.map((topology, at) => [`t${at}`, { topology: { id: "id", properties: { id: LinkRelations.IDENTIFIER.rel }, ...topology }, schema: { parse: (v: unknown) => v } }]),
+		) as unknown as Parameters<typeof getJsonLdContext>[0];
+	type TOut = { "@context": Record<string, Record<string, unknown>>; "@graph": Array<Record<string, unknown>> };
+
+	it("maps the type's term to its class, and states the declared IRI and each superclass on the class node", () => {
+		const out = getJsonLdContext(domainsOf({ persistedAs: "P", type: "sec:Controller", subClassOf: "prov:Agent" })) as TOut;
+		expect(out["@context"].P?.["@id"]).toBe("hbn:P");
 		expect(out["@context"].P).not.toHaveProperty("rdfs:subClassOf"); // an ontology keyword would make the term definition invalid
-		const classNode = out["@graph"].find((n) => n["@id"] === "sec:Controller");
+		const classNode = out["@graph"].find((n) => n["@id"] === "hbn:P");
 		expect(classNode?.["@type"]).toBe("rdfs:Class");
-		expect(classNode?.["rdfs:subClassOf"]).toEqual({ "@id": "prov:Agent" });
+		expect(classNode?.["rdfs:subClassOf"]).toEqual([{ "@id": "sec:Controller" }, { "@id": "prov:Agent" }]);
 	});
 
-	it("omits rdfs:subClassOf from the class node when a type doesn't declare a superclass", () => {
-		const domains = {
-			a: { topology: { persistedAs: "A", type: "ex:A", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } }, schema: { parse: (v: unknown) => v } },
-		} as unknown as Parameters<typeof getJsonLdContext>[0];
-		const out = getJsonLdContext(domains) as { "@graph": Array<Record<string, unknown>> };
-		const classNode = out["@graph"].find((n) => n["@id"] === "ex:A");
-		expect(classNode?.["@type"]).toBe("rdfs:Class");
-		expect(classNode).not.toHaveProperty("rdfs:subClassOf");
+	it("keeps the axioms of two types that declare one IRI on their own class nodes", () => {
+		const out = getJsonLdContext(domainsOf({ persistedAs: "A", type: "prov:Entity", subClassOf: "oa:Annotation" }, { persistedAs: "B", type: "prov:Entity" })) as TOut;
+		expect(out["@graph"].find((n) => n["@id"] === "hbn:A")?.["rdfs:subClassOf"]).toEqual([{ "@id": "prov:Entity" }, { "@id": "oa:Annotation" }]);
+		expect(out["@graph"].find((n) => n["@id"] === "hbn:B")?.["rdfs:subClassOf"]).toEqual([{ "@id": "prov:Entity" }]);
+		expect(out["@graph"].find((n) => n["@id"] === "prov:Entity")).toBeUndefined();
 	});
 
-	it("the Principal (sec:Controller) class node is declared a prov:Agent: the wasAttributedTo target is well-formed", () => {
-		const domains = mapDefinitionsToDomains([principalDomainDefinition]);
-		const out = getJsonLdContext(domains) as { "@context": Record<string, { "@id": string }>; "@graph": Array<Record<string, unknown>> };
-		expect(out["@context"][PRINCIPAL_LABEL]?.["@id"]).toBe("sec:Controller");
-		expect(out["@graph"].find((n) => n["@id"] === "sec:Controller")?.["rdfs:subClassOf"]).toEqual({ "@id": "prov:Agent" });
+	it("omits rdfs:subClassOf from the class node when a type doesn't declare a type or a superclass", () => {
+		const out = getJsonLdContext(domainsOf({ persistedAs: "A" })) as TOut;
+		expect(out["@graph"].find((n) => n["@id"] === "hbn:A")).not.toHaveProperty("rdfs:subClassOf");
+	});
+
+	it("declares the Principal's class a sec:Controller and a prov:Agent, so the wasAttributedTo target is well-formed", () => {
+		const out = getJsonLdContext(mapDefinitionsToDomains([principalDomainDefinition])) as TOut;
+		expect(out["@context"][PRINCIPAL_LABEL]?.["@id"]).toBe(`hbn:${PRINCIPAL_LABEL}`);
+		expect(out["@graph"].find((n) => n["@id"] === `hbn:${PRINCIPAL_LABEL}`)?.["rdfs:subClassOf"]).toEqual([{ "@id": "sec:Controller" }, { "@id": "prov:Agent" }]);
 	});
 });
 
@@ -481,7 +482,7 @@ describe("commentDomainDefinition", () => {
 		const domains = mapDefinitionsToDomains([commentDomainDefinition]);
 		const out = getJsonLdContext(domains) as { "@graph": Array<Record<string, unknown>> };
 		const classNode = out["@graph"].find((n) => n["rdfs:subClassOf"] !== undefined && JSON.stringify(n).includes("oa:Annotation"));
-		expect(classNode?.["rdfs:subClassOf"]).toEqual({ "@id": "oa:Annotation" });
+		expect(classNode?.["rdfs:subClassOf"]).toContainEqual({ "@id": "oa:Annotation" });
 	});
 });
 

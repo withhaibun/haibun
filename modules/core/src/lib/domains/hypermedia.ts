@@ -1098,18 +1098,20 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, hai
 			const declared = (edgeDef as { subPropertyOf?: string | string[] }).subPropertyOf ?? subPropertyAxiom(rel);
 			declareProp(uri, "item", declared);
 		}
-		// The bare type label maps to its vocabulary IRI PLUS the type-scoped @context above (so `@type: "Person"` resolves to
-		// e.g. `foaf:Person` and activates Person's term scope). A type conforming to published standard context(s) references
+		// The bare type label maps to its class PLUS the type-scoped @context above (so `@type: "Person"` resolves to
+		// `hbn:Person` and activates Person's term scope). A type conforming to published standard context(s) references
 		// them as a JSON-LD 1.1 array with the standard URLs LAST, so the official term mappings stay authoritative (a later
 		// context wins): this type's own ADDITIONAL field terms come first and survive only where the standard doesn't define the term,
 		// never overriding a term the standard's own context defines. Absent, the scoped object stands alone.
 		const typeContext = topology.standardContexts?.length ? [scoped, ...topology.standardContexts] : scoped;
-		const typeIri = topology.type ?? `hbn:${topology.persistedAs}`;
-		context[topology.persistedAs] = { "@id": typeIri, "@context": typeContext };
-		// The class node in @graph carries the rdfs:subClassOf axiom: a REAL ontology statement, not a context term keyword:
-		// so e.g. `sec:Controller rdfs:subClassOf prov:Agent` makes attribution (prov:wasAttributedTo, range prov:Agent) into it well-formed.
-		const classNode: Record<string, unknown> = { "@id": typeIri, "@type": "rdfs:Class" };
-		if (topology.subClassOf) classNode["rdfs:subClassOf"] = iriRef(topology.subClassOf);
+		// The bare type label names the type's own class in haibun's namespace. Several types declare one @type IRI, such as
+		// prov:Entity, so the declared IRI is a superclass of each, beside the classes it declares in `subClassOf`. A class
+		// node keeps its own axioms, and a record of the type is a member of each superclass of its class.
+		const classIri = `hbn:${topology.persistedAs}`;
+		context[topology.persistedAs] = { "@id": classIri, "@context": typeContext };
+		const superclasses = [...(topology.type === undefined ? [] : [topology.type]), ...(topology.subClassOf === undefined ? [] : [topology.subClassOf].flat())];
+		const classNode: Record<string, unknown> = { "@id": classIri, "@type": "rdfs:Class" };
+		if (superclasses.length > 0) classNode["rdfs:subClassOf"] = iriRef(superclasses);
 		classNodes.push(classNode);
 	}
 	for (const [key, { node, consistent }] of topTerm) {

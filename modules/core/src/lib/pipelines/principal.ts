@@ -1,7 +1,7 @@
 /**
  * The principal is the identity that performs the current action, such as a comment's author or an artifact's creator.
- * These functions read it from the active context, and callers don't pass it. The credential and delegation layer
- * establishes it by running a statement as a principal through `runActingAs`. Core doesn't implement credential signing
+ * These functions read it from the active context, and callers don't pass it. The ZCAP and delegation layer
+ * establishes it by running a statement as a principal through `runActingAs`. Core doesn't implement capability signing
  * or verification.
  */
 import type { TWorld } from "../actuality/domains/world.js";

@@ -50,8 +50,8 @@ export type TRepositoryRules = {
 	inputSelections: Readonly<Record<string, string>>;
 	/** The roots of the prose the Writing rules read, and the paths they leave out, such as a person's documents in progress. */
 	prose: { roots: readonly string[]; exclude: readonly RegExp[] };
-	/** The names of the applications built on the repository, which its files don't name, where it is a library. The rules test
-	 *  that states them is the one file that names them. */
+	/** The names of the applications and organizations that build on the repository, which its files don't name, where it is a
+	 *  library. The rules test that states them is the one file that names them. */
 	downstreamNames?: readonly string[];
 	/** The document whose vocabulary table names the terms of the concepts, where the repository holds one. */
 	vocabularyTable?: string;

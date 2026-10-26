@@ -219,7 +219,7 @@ const PERSON_PRONOUNS = ["i", "we", "you", "he", "she", "who", "whom"];
 const PERSON_WORDS = new Set([...PERSON_NOUN_WORDS, ...PERSON_PRONOUNS]);
 /** `they` is a person directly before the verb, where a person noun precedes it. */
 const THEY = "they";
-/** A credential's holder is a person directly before the verb, and elsewhere is a party the clause names. */
+/** A capability's holder is a person directly before the verb, and elsewhere is a party the clause names. */
 const DIRECT_PERSONS = new Set(["holder", "holders"]);
 /** `authors` after a noun is the verb: `a model authors it`. */
 const AUTHORS = "authors";
@@ -537,7 +537,7 @@ function personNounBefore(block: TReadBlock, at: number): boolean {
 	});
 }
 
-/** A subject that is a person only directly before the verb: a credential's holder, a named fixture person, or `they` after a person. */
+/** A subject that is a person only directly before the verb: a capability's holder, a named fixture person, or `they` after a person. */
 function directPerson(block: TReadBlock, at: number): boolean {
 	const subject = subjectBefore(block, at);
 	if (subject === undefined || subject.possessive) return false;

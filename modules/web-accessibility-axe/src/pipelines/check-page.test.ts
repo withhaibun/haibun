@@ -39,10 +39,12 @@ describe("EARL types", () => {
 			[EARL_ASSERTION_EDGE.wasGeneratedBy]: { targets: [SEQ_PATH_LABEL] },
 		});
 	});
-	it("serve each class and property as its EARL term", () => {
-		const context = getJsonLdContext(registered)["@context"] as Record<string, { "@id": string; "@context": Record<string, { "@id": string }> }>;
+	it("serve each class as a subclass of its EARL class, and each property as its EARL term", () => {
+		const served = getJsonLdContext(registered);
+		const context = served["@context"] as Record<string, { "@id": string; "@context": Record<string, { "@id": string }> }>;
+		const superclassOf = (label: string): unknown => served["@graph"].find((node) => node["@id"] === context[label]?.["@id"])?.["rdfs:subClassOf"];
 		const assertion = context[EARL_LABEL.assertion];
-		expect(assertion?.["@id"]).toBe("earl:Assertion");
+		expect(superclassOf(EARL_LABEL.assertion)).toContainEqual({ "@id": "earl:Assertion" });
 		expect(Object.fromEntries(Object.values(EARL_ASSERTION_EDGE).map((edge) => [edge, assertion?.["@context"][edge]?.["@id"]]))).toEqual({
 			assertedBy: "earl:assertedBy",
 			subject: "earl:subject",
@@ -51,17 +53,18 @@ describe("EARL types", () => {
 			wasGeneratedBy: "prov:wasGeneratedBy",
 		});
 		const result = context[EARL_LABEL.testResult];
-		expect(result?.["@id"]).toBe("earl:TestResult");
+		expect(superclassOf(EARL_LABEL.testResult)).toContainEqual({ "@id": "earl:TestResult" });
 		expect([result?.["@context"].outcome?.["@id"], result?.["@context"].pointers?.["@id"], result?.["@context"].info?.["@id"]]).toEqual([
 			"earl:outcome",
 			"earl:pointer",
 			"earl:info",
 		]);
-		expect([EARL_LABEL.assertor, EARL_LABEL.testSubject, EARL_LABEL.testCase].map((label) => context[label]?.["@id"])).toEqual([
-			"earl:Assertor",
-			"earl:TestSubject",
-			"earl:TestCase",
-		]);
+		for (const [label, earl] of [
+			[EARL_LABEL.assertor, "earl:Assertor"],
+			[EARL_LABEL.testSubject, "earl:TestSubject"],
+			[EARL_LABEL.testCase, "earl:TestCase"],
+		] as const)
+			expect(superclassOf(label)).toContainEqual({ "@id": earl });
 	});
 });
 

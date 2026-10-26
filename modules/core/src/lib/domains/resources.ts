@@ -644,6 +644,8 @@ type TDomainRanges = Record<string, string>;
  */
 export type THypermediaTopology = {
 	persistedAs: string;
+	/** The standard class the type's records are members of, such as `prov:Entity`. The served JSON-LD names the type's own class
+	 *  `hbn:<persistedAs>` and states this IRI as its superclass, since several types declare one IRI. */
 	type?: string;
 	/**
 	 * The @context prefix→IRI bindings this type's vocabulary needs beyond the standard prefixes and haibun's own that
