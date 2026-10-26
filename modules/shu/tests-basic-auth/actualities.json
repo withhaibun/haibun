@@ -77,16 +77,16 @@
 			"actuality": {
 				"text": "modules/shu/tests-basic-auth",
 				"status": "passed",
-				"tookMs": 2100,
+				"tookMs": 2200,
 				"digest": {
-					"modules/core/src": "76ab9179708d0fd4dab28f2f8fe9f50c243ec83104100237494a1e8100ebb952",
+					"modules/core/src": "284790d6e2b4d51e155664cb9e40f6406c173ac03ab182ca24f00f71a80d1a02",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
 					"modules/logic/src": "cccd368317a5aea6bebebe5ad0a5be863ce23fbbe3124c822a450caeee5ca362",
-					"modules/shu/src": "89aea89852f7cb58c08931cb5a0524dc23df02458c40ee57b7282f8dc3a4a5e7",
+					"modules/shu/src": "b88d53fd88e6db1c3811e1f6569ff733feb1d617b08968cab28cb61dcab1a47c",
 					"modules/shu/tests-basic-auth": "9cca75b8a1c2cb5e25f1d47bc884cf26c5940a3fcec9dde0934acb925e34ae32",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
-					"modules/web-playwright/src": "acca85ede6cf3c11b5cbf4ab3bac5a9f8fc58a538ad7bc4abbd0344eb69df8ae",
+					"modules/web-playwright/src": "3084c88fbbb85e4d264bb67ed6d080de37bbdca008bafa0a3fd2581fff218c2a",
 					"modules/web-server-hono/src": "334a21921dcfe06774443de2bfd77b09c58931fc7b738352cd5f9b02c9c51053"
 				}
 			},

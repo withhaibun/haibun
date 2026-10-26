@@ -71,7 +71,7 @@ export class TwinPage implements TTwin {
 		const fn = `twinned-${this.sequence}.html`;
 		const outHtmlFile = join(twinLoc, fn);
 
-		this.world.eventLogger.info(`Writing twin HTML to ${actualURI(outHtmlFile)}`);
+		this.world.eventLogger.info(`Writing twin HTML to ${actualURI(this.world.options, outHtmlFile)}`);
 		await this.storage.writeFile(outHtmlFile, content);
 		void this.twinPage.evaluate(() => (document.body.innerHTML = ""));
 	}

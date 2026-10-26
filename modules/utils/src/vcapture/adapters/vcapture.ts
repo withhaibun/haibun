@@ -5,7 +5,11 @@ import { tmpdir } from "os";
 
 import { getPackageLocation, workspaceRoot } from "@haibun/core/lib/adapters/workspace-lib.js";
 import { HOST_PROJECT_DIR } from "@haibun/core/lib/domains/actual-uri.js";
+import { BASE_PREFIX } from "@haibun/core/lib/domains/protocol.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
+
+/** The environment variable that passes a run in a recording's container the directory where the container mounts the project. */
+const PROJECT_DIR_ENV = `${BASE_PREFIX}${HOST_PROJECT_DIR}`;
 
 export type TCaptureOptions = {
 	recreate: boolean;
@@ -79,8 +83,8 @@ export function getContainerSetup(thisRunOptions: TCaptureOptions, includeDirs: 
 	const composeEnvironment = [
 		"DISPLAY=:99",
 		`RES=${thisRunOptions.res}`,
-		`${HOST_PROJECT_DIR}=${projectDir}`,
-		`COMMAND_TO_RECORD=${HOST_PROJECT_DIR}="${projectDir}" HAIBUN_LOG_LEVEL=log ${haibunCliEnvc} ${thisRunOptions.passEnv?.join(" ") || ""} npm run ${testToRun}${flags}`,
+		`${PROJECT_DIR_ENV}=${projectDir}`,
+		`COMMAND_TO_RECORD=${PROJECT_DIR_ENV}="${projectDir}" HAIBUN_LOG_LEVEL=log ${haibunCliEnvc} ${thisRunOptions.passEnv?.join(" ") || ""} npm run ${testToRun}${flags}`,
 	];
 	if (thisRunOptions.tts) {
 		composeEnvironment.push("HAIBUN_O_NARRATOR_TTS_CMD=/app/speak-to-wav.sh @WHAT@", "HAIBUN_O_NARRATOR_TTS_PLAY=aplay @WHAT@");

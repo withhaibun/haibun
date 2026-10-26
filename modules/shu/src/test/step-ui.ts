@@ -4,36 +4,18 @@ import type WebPlaywright from "@haibun/web-playwright";
 import { BASIC_AUTH_OPTION, basicAuthUsers } from "@haibun/core/lib/domains/basic-auth.js";
 import { requiredModuleOption } from "@haibun/core/lib/held-module-options.js";
 import { MODULE_OPTION_PREFIX } from "@haibun/core/lib/domains/protocol.js";
+import { localOrigin } from "@haibun/core/lib/domains/local-origin.js";
 import { SHU_TEST_IDS } from "../domains/test-ids.js";
 import { CHAT_MESSAGE_MATCH, SHU_TAG } from "../domains/elements.js";
 
 const { setAs } = withAction(new VariablesStepper());
 
-/**
- * The origin to which a browser-driving feature navigates.
- *
- * Default: the feature's own webserver at `http://localhost:<port>`: the port from
- * `HAIBUN_O_WEBSERVERSTEPPER_PORT`, else `defaultPort`. A self-contained feature serves its own app and seeds its
- * own store, so the browser must reach that loopback server. On a host that also fronts a deployed instance through
- * a reverse proxy, localhost stays off the proxy path, so any proxy authentication is not involved.
- *
- * Override: `HAIBUN_TEST_HOST`: point a run at a separate, already-running instance instead of the feature's own
- * server. Accepts a full origin (`https://demo.example.com`, `http://10.0.0.5:8728`) or a bare hostname, taken as
- * `https://<host>`. For a deliberate read-only run only: a feature that seeds its own store fails against a remote
- * instance that lacks that data, and a target behind basic auth also needs browser credentials (Playwright
- * `httpCredentials`), which this does not supply.
- */
-export function serviceHost(defaultPort: string): string {
-	const target = process.env.HAIBUN_TEST_HOST;
-	if (target) return target.includes("://") ? target : `https://${target}`;
-	return `http://localhost:${process.env.HAIBUN_O_WEBSERVERSTEPPER_PORT ?? defaultPort}`;
-}
-
 /** The web server's option that states its listening port. */
 const WEB_SERVER_PORT_OPTION = `${MODULE_OPTION_PREFIX}WEBSERVERSTEPPER_PORT`;
 
-/** The origin of the feature's own web server at the port its group's config states. Throws where the config doesn't state one. */
-export const configuredServiceHost = (): string => serviceHost(requiredModuleOption(WEB_SERVER_PORT_OPTION));
+/** The origin of the feature's own web server at the port its group's config states, on loopback, so a browser reaches the server the
+ *  feature serves and a proxy that fronts a deployment on the same host isn't involved. Throws where the config doesn't state one. */
+export const configuredServiceHost = (): string => localOrigin(Number(requiredModuleOption(WEB_SERVER_PORT_OPTION)));
 
 /** `address` as a person who signed in reaches it: the first person the group's basic auth admits, in the address's user
  *  part. A browser keeps that sign-in for the site's other requests. Throws where the group's config doesn't state basic auth. */

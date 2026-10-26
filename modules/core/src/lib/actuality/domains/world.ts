@@ -99,7 +99,8 @@ export const BaseOptionsSchema = z.strictObject({
 	HOST_ID: z.number().optional(),
 	/** A policy of runs, as "place dir:access[,dir:access]". */
 	RUN_POLICY: z.string().optional(),
-	PWDEBUG: z.string().optional(),
+	/** The directory where a recording's container mounts the project, from which a run writes the paths it reports. */
+	HOST_PROJECT_DIR: z.string().optional(),
 	envVariables: z.record(z.string(), z.string()).optional(),
 });
 export type TBaseOptions = z.infer<typeof BaseOptionsSchema>;

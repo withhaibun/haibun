@@ -58,14 +58,9 @@ export class BaseOptions implements IHasOptions {
 			},
 		},
 		HOST_ID: { desc: "integer id of this haibun instance. It prefixes every seqPath, so two hosts' seqPaths don't collide", parse: (input: string) => intOrError(input) },
-		PWDEBUG: {
-			desc: "(web) enable Playwright debugging with true or 1",
-			parse: (input: string) => {
-				if (["true", "1"].includes(input)) {
-					process.env["PWDEBUG"] = "true";
-				}
-				return { result: input };
-			},
+		HOST_PROJECT_DIR: {
+			desc: "the directory where a recording's container mounts the project, from which a run writes the paths it reports",
+			parse: (input: string) => stringOrError(input),
 		},
 	};
 }

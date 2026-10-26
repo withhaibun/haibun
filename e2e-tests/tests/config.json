@@ -18,6 +18,7 @@
 	],
 	"unused": ["@haibun/monitor-tui/index", "console-monitor-stepper"],
 	"moduleOptions": {
+		"HAIBUN_O_WEBSERVERSTEPPER_PORT": "8123",
 		"HAIBUN_O_WEBSERVERSTEPPER_ALLOW_WITHOUT_DELEGATION": "Read:public",
 		"HAIBUN_O_OUTJUNIT_STORAGE": "StorageFS",
 		"HAIBUN_O_WEBPLAYWRIGHT_STORAGE": "StorageFS",

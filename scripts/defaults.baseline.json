@@ -35,9 +35,6 @@
 	"modules/core/src/lib/domains/blips.ts": {
 		"fills an absent value with a constant through ??": 5
 	},
-	"modules/core/src/lib/domains/capture-locator.ts": {
-		"fills a falsy value with a constant through ||": 1
-	},
 	"modules/core/src/lib/domains/document-content.ts": {
 		"fills a falsy value with a constant through ||": 4,
 		"fills an absent value with a constant through ??": 1
