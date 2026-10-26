@@ -1,11 +1,11 @@
 /**
  * The browser bundles of both repositories, built from one definition each. A repository lists its bundles by group in a
  * `bundles.ts` that runs as the build script (`node <bundles.ts> <group>...`, `--watch` to rebuild on change) and that its
- * bundle test reads, so the test measures what the build writes. Every build writes its metafile beside its output, and resolves each package to one copy
+ * bundle test reads, so the test measures what the build writes. Every build writes its declared files beside its outputs and its metafile, and resolves each package to one copy
  * and zod's locales to English alone (PF25).
  */
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join, sep } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { build, context, type BuildOptions, type Metafile, type Plugin } from "esbuild";
 import type { TFindings } from "./modules/core/src/lib/test/baseline.ts";
 
@@ -22,6 +22,8 @@ export type TBundle = {
 	splitting: false | { chunkDir: string };
 	/** A source map beside each output, linked from the output's last line. */
 	sourcemap: boolean;
+	/** What the build writes beside its outputs in `outdir`, by file name, with its contents: a page or a manifest that loads them. */
+	files?: Readonly<Record<string, string>>;
 };
 
 /** The finding a bundle's budget records: the KiB, rounded up, that loading an entry fetches. */
@@ -183,29 +185,32 @@ export const bundleOptions = (root: string, bundle: TBundle): BuildOptions & { m
 	logLevel: "warning",
 });
 
-/** Where a build writes its metafile: in the repository's ignored `build/metafiles/`, apart from an output a repository checks
- *  in, named for the build's first entry. */
+/** Where a build writes its metafile: in the repository's ignored `build/metafiles/`, apart from its outputs, in the folder of
+ *  its `outdir` and named for its first entry, so two builds of the same entries keep one each. */
 const metafilePath = (root: string, bundle: TBundle): string => {
 	const [first] = bundle.entryPoints;
 	if (first === undefined) throw new Error(`a bundle in ${root} that writes to ${bundle.outdir} lacks an entry. Give it one in its bundles.ts.`);
-	return join(root, METAFILES, `${first.out}.meta.json`);
+	return join(root, METAFILES, bundle.outdir, `${first.out}.meta.json`);
 };
 
-/** Builds each bundle and writes its metafile, or, with `watch`, rebuilds each as its sources change. */
+/** Builds each bundle and writes its files and its metafile, or, with `watch`, rebuilds each as its sources change. */
 export async function buildBundles(root: string, bundles: readonly TBundle[], watch: boolean): Promise<void> {
 	const optionsOf = (bundle: TBundle): BuildOptions => {
 		const options = bundleOptions(root, bundle);
-		const writesMetafile: Plugin = {
-			name: "write-metafile",
+		const writesBeside: Plugin = {
+			name: "write-files-and-metafile",
 			setup(builder) {
 				builder.onEnd(({ metafile }) => {
-					if (metafile !== undefined) writeFileSync(metafilePath(root, bundle), JSON.stringify(metafile));
+					if (metafile === undefined) return;
+					const at = metafilePath(root, bundle);
+					mkdirSync(dirname(at), { recursive: true });
+					writeFileSync(at, JSON.stringify(metafile));
+					for (const [name, contents] of Object.entries(bundle.files ?? {})) writeFileSync(join(root, bundle.outdir, name), contents);
 				});
 			},
 		};
-		return { ...options, plugins: [...options.plugins, writesMetafile] };
+		return { ...options, plugins: [...options.plugins, writesBeside] };
 	};
-	mkdirSync(join(root, METAFILES), { recursive: true });
 	if (!watch) {
 		// A build names its chunks by their content, and a page loads only the present build's chunks, so an earlier build's are emptied first.
 		for (const { outdir, splitting } of bundles) if (splitting !== false) rmSync(join(root, outdir, splitting.chunkDir), { recursive: true, force: true });
@@ -232,11 +237,12 @@ export async function runBundleScript(root: string, groups: Readonly<Record<stri
 /** An esbuild failure, with each error and the file that holds it. */
 type TBuildFailure = { errors?: Array<{ text: string; location?: { file: string } | null }> };
 
-/** Builds a bundle in memory and returns its metafile, or throws each error of the build with the file that holds it. */
-async function bundleMetafile(root: string, bundle: TBundle): Promise<Metafile> {
+/** Builds a bundle in memory, as its script builds it, and returns its metafile and the text of each output by its path from the
+ *  root, or throws each error of the build with the file that holds it. */
+export async function buildInMemory(root: string, bundle: TBundle): Promise<{ metafile: Metafile; outputs: Record<string, string> }> {
 	try {
-		const { metafile } = await build({ ...bundleOptions(root, bundle), write: false, logLevel: "silent" });
-		return metafile;
+		const { metafile, outputFiles } = await build({ ...bundleOptions(root, bundle), write: false, logLevel: "silent" });
+		return { metafile, outputs: Object.fromEntries(outputFiles.map((file) => [relative(root, file.path), file.text])) };
 	} catch (err) {
 		const errors = (err as TBuildFailure).errors ?? [];
 		throw new Error(errors.length > 0 ? errors.map((e) => `${e.location?.file ?? root}: ${e.text}`).join("\n") : String(err), { cause: err });
@@ -246,7 +252,7 @@ async function bundleMetafile(root: string, bundle: TBundle): Promise<Metafile> 
 /** Builds each bundle in memory, as its script builds it, and returns what each holds that the options exclude and the KiB that
  *  loading each entry fetches, as a bundle budget records it. */
 export async function measureBundles(root: string, bundles: readonly TBundle[]): Promise<{ excluded: string[]; sizes: TFindings }> {
-	const measured = await Promise.all(bundles.map(async (bundle) => ({ bundle, metafile: await bundleMetafile(root, bundle) })));
+	const measured = await Promise.all(bundles.map(async (bundle) => ({ bundle, metafile: (await buildInMemory(root, bundle)).metafile })));
 	return {
 		excluded: measured.flatMap(({ metafile }) => excludedInputs(metafile)),
 		sizes: Object.fromEntries(measured.flatMap(({ bundle, metafile }) => Object.entries(entrySizes(bundle, metafile)))),
