@@ -336,7 +336,9 @@ imports them to state a head, so the head's text is written once. The libraries 
 declarations, such as `show shows`), `@haibun/logic/waypoints` (what the records of a feature's steps state), `@haibun/cli/waypoints`
 (test runs), `@haibun/web-playwright/waypoints` (web pages), `@haibun/web-server-hono/waypoints` (served files),
 `@haibun/shu/waypoints` (views, and the ontology) and, in spopg, `@haibun/spopg/waypoints` (mail). spopg's service names
-`@haibun/core/waypoints` and `@haibun/shu/waypoints` beside its own, so their heads are offered where its pages are.
+`@haibun/core/waypoints` and `@haibun/shu/waypoints` beside its own, so their heads are offered where its pages are. It names
+them once, in the `haibun-cli` call of its `serve` script, and its other launches run that script or read its bases through
+`haibunCliCalls`.
 
 A group names a library by its package beside its own base, such as `haibun-cli -c tests/config.json tests,@haibun/shu/waypoints`,
 and an instance's launch names it after the instance's directory in the same way, such as `start a haibun instance from

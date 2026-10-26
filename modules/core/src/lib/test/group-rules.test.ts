@@ -33,10 +33,10 @@ describe("the parent paths and tracking files of a repository's groups", () => {
 		]);
 	});
 
-	it("read the base and config of each haibun-cli call of a script, from the script's package directory", () => {
+	it("read the bases and config of each haibun-cli call of a script, from the script's package directory", () => {
 		expect(haibunCliCalls("rm -rf /tmp/p && haibun-cli -c ./profile/config.json ./profile,./waypoints a- && HAIBUN_KEY=k haibun-cli tests,@haibun/cli/waypoints")).toEqual([
-			{ base: "./profile", config: "profile/config.json" },
-			{ base: "tests", config: "tests/config.json" },
+			{ bases: ["./profile", "./waypoints"], config: "profile/config.json" },
+			{ bases: ["tests", "@haibun/cli/waypoints"], config: "tests/config.json" },
 		]);
 		expect(() => haibunCliCalls("haibun-cli --config c.json"), "a call without a base").toThrow("doesn't name a base");
 	});

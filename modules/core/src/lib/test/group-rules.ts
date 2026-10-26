@@ -84,15 +84,16 @@ export function linksAndParentPaths(repository: string): TFound[] {
 	return [...links, ...configs, ...scripts, ...imports];
 }
 
-/** Each `haibun-cli` call of a script: the first base it names and the config it reads, the one `-c` or `--config` names or the first
- *  base's config.json, each by its path from the script's package directory. Throws for a call that doesn't name a base. */
-export function haibunCliCalls(script: string): { base: string; config: string }[] {
+/** Each `haibun-cli` call of a script: the bases it names, its own base first and each waypoint library after it, and the config it
+ *  reads, the one `-c` or `--config` names or the first base's config.json, each by its path from the script's package directory.
+ *  Throws for a call that doesn't name a base. */
+export function haibunCliCalls(script: string): { bases: string[]; config: string }[] {
 	return [...script.matchAll(HAIBUN_CLI_CALL)].map((call) => {
 		const words = itemAt(call, 1).split(/\s+/).filter(Boolean);
 		const flag = words.findIndex((word) => CONFIG_FLAGS.includes(word));
-		const base = words.find((word, i) => !word.startsWith("-") && (flag === -1 || i !== flag + 1))?.split(",")[0];
-		if (base === undefined) throw new Error(`a haibun-cli call doesn't name a base: ${script}. Name the group's base after its options.`);
-		return { base, config: normalize(flag === -1 ? join(base, "config.json") : itemAt(words, flag + 1)) };
+		const bases = words.find((word, i) => !word.startsWith("-") && (flag === -1 || i !== flag + 1))?.split(",");
+		if (bases === undefined) throw new Error(`a haibun-cli call doesn't name a base: ${script}. Name the group's base after its options.`);
+		return { bases, config: normalize(flag === -1 ? join(itemAt(bases, 0), "config.json") : itemAt(words, flag + 1)) };
 	});
 }
 
