@@ -42,12 +42,14 @@ export const DOMAIN_ENTAILED_MEMBERS = "entailed-members";
 /** The members a class expression entails, each by its address, and how many there are. A member the records don't entail may exist. */
 export const EntailedMembersSchema = z.object({ members: z.array(IndividualAddressSchema), ...CountedFields });
 
+/** A class expression's domain without the refusal its stepper adds, which reads the expression against the ontology. */
+export const classExpressionDomainDefinition: TDomainDefinition = {
+	selectors: [DOMAIN_CLASS_EXPRESSION],
+	schema: z.string().min(1),
+	written: true,
+	description: "A class expression in Manchester syntax: a named class, and, or, {property} some {class}, {property} value {Type:id}, and inverse {property}",
+};
 export const reasoningDomainDefinitions: TDomainDefinition[] = [
-	{
-		selectors: [DOMAIN_CLASS_EXPRESSION],
-		schema: z.string().min(1),
-		description: "A class expression in Manchester syntax: a named class, and, or, {property} some {class} and {property} value {Type:id}",
-	},
 	{
 		selectors: [DOMAIN_ENTAILED_MEMBERS],
 		schema: EntailedMembersSchema,

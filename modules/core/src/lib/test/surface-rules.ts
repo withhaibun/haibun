@@ -1,8 +1,9 @@
 /**
- * Four rules, read from a repository's files. A call reaches step dispatch or a step's action only
+ * Five rules, read from a repository's files. A call reaches step dispatch or a step's action only
  * through the logic engine's prover, so every surface has one path (one path). The logic engine reads the store only through
  * its read request's reader (one read). A file doesn't name a concept by a synonym the vocabulary table removes (one
- * vocabulary), or name an application built on the repository (downstream names).
+ * vocabulary), name an application built on the repository (downstream names), or state a safety check over a class
+ * expression as an absence (positive checks).
  */
 import { readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
@@ -138,4 +139,16 @@ export function downstreamNameFindings(
 ): TFound[] {
 	const words = names.map((name) => ({ pattern: wholeWord(name), finding: `names the downstream ${name}` }));
 	return wordFindings(repository, roots, [...exclude, new RegExp(`^${escaped(statedIn)}$`)], words, (_file, text) => text);
+}
+
+/** A safety check stated as an absence over a class expression: a count of its members held to zero, or a membership negated.
+ *  The open world doesn't prove absence, so such a check passes where a fact is missing. */
+const ABSENCE_CHECKS: readonly TWordFinding[] = [
+	{ pattern: /\b(?:exactly|at most) 0,?\s+individuals of\b/gi, finding: "states a safety check as an absence of a class expression's members" },
+	{ pattern: /\bnot individual \S+ is a\b/gi, finding: "states a safety check as a negated membership" },
+];
+
+/** Each safety check over a class expression stated as an absence, in the files under the roots. A check proves containment instead. */
+export function absenceCheckFindings(repository: string, roots: readonly string[], exclude: readonly RegExp[]): TFound[] {
+	return wordFindings(repository, roots, exclude, ABSENCE_CHECKS, (_file, text) => text);
 }

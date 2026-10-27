@@ -813,6 +813,9 @@ export type TDomainDefinition = {
 	/** Returns why a term a line writes isn't a value of this domain, with what to write in its place, or undefined where it is
 	 *  one. The resolver calls it as a line resolves, so a line that writes a refused term doesn't resolve. */
 	refuses?: (term: string, steppers: readonly import("../steps/domains/stepper.js").AStepper[]) => string | undefined;
+	/** Returns a term a line writes in the notations a reader checks it by, such as a formal notation and a plain-English
+	 *  reading. Validating a line returns each reading, which the step input shows beside the line. */
+	reading?: (term: string) => string;
 	/** Returns what a step's record states in place of a value of this domain. It applies to a value too large to repeat
 	 *  in a step's line, events and record, such as a file's bytes. */
 	recordedAs?: (value: unknown) => string;

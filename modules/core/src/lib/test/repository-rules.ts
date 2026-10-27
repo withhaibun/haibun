@@ -28,7 +28,7 @@ import {
 	undeclaredLists,
 	unexercised,
 } from "./step-rules.js";
-import { downstreamNameFindings, oneReadFindings, onePathFindings, vocabularyFindings } from "./surface-rules.js";
+import { absenceCheckFindings, downstreamNameFindings, oneReadFindings, onePathFindings, vocabularyFindings } from "./surface-rules.js";
 
 /** What a repository's rules read, each path from its root. */
 export type TRepositoryRules = {
@@ -111,6 +111,12 @@ export function describeRepositoryRules(rules: TRepositoryRules): void {
 					const fix = `name the concept by the term the vocabulary table of ${vocabularyTable} states`;
 					await expectWithinBaseline({ baselineFile: baseline("vocabulary"), found, testFile, fix });
 				});
+
+			it("states each safety check over a class expression positively, apart from what positive-checks.baseline.json records", async () => {
+				const found = absenceCheckFindings(repository, rules.prose.roots, rules.prose.exclude);
+				const fix = "prove containment, such as `every {class} is a {class}`, which fails closed with its witness; the open world doesn't prove an absence";
+				await expectWithinBaseline({ baselineFile: baseline("positive-checks"), found, testFile, fix });
+			});
 
 			const { downstreamNames } = rules;
 			if (downstreamNames !== undefined)

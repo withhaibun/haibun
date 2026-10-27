@@ -196,22 +196,31 @@ export class Resolver {
 		return this.refusingWritten(line, statingDuration(line, this.parsedStepAction(line)));
 	}
 
-	/** Returns the one step a line parses to, as findSingleStepAction does, without holding the terms it writes to their domains. */
+	/** Returns the one step a line parses to, as findSingleStepAction does, without holding the terms it writes to their domains.
+	 *  Where a line matches several steps, a step whose domain refuses a term the line writes doesn't take the line. */
 	parsedStepAction(line: string): TStepAction {
 		const sentence = SENTENCE.test(line);
 		const found = this.findActionableSteps(line).filter((a) => !sentence || writtenCapitalized(a.step));
 		if (found.length === 0 && (sentence || STARTS_WITH_NON_LETTER.test(line))) return this.selectStep(line, this.proseSteps());
-		return this.withStatementsAsWritten(this.selectStep(line, found));
+		const admitted = found.length > 1 ? found.filter((action) => this.refusalOf(action) === undefined) : found;
+		return this.withStatementsAsWritten(this.selectStep(line, admitted.length === 0 ? found : admitted));
+	}
+
+	/** The first term of an action that its placeholder's domain refuses, by the placeholder's name, with the refusal. */
+	private refusalOf(action: TStepAction): { name: string; refusal: string } | undefined {
+		const refusing = this.refusingDomains(this.steppers);
+		for (const [name, value] of Object.entries(action.stepValuesMap === undefined ? {} : action.stepValuesMap)) {
+			const refusal = refusing.get(value.domain)?.(value.term, this.steppers);
+			if (refusal !== undefined) return { name, refusal };
+		}
+		return undefined;
 	}
 
 	/** Returns the action where each term its line writes is a value of its placeholder's domain. Throws the refusal of the
 	 *  first term a domain refuses, so the line doesn't resolve. */
 	private refusingWritten(line: string, action: TStepAction): TStepAction {
-		const refusing = this.refusingDomains(this.steppers);
-		for (const [name, value] of Object.entries(action.stepValuesMap === undefined ? {} : action.stepValuesMap)) {
-			const refusal = refusing.get(value.domain)?.(value.term, this.steppers);
-			if (refusal !== undefined) throw Error(`"${line}" doesn't resolve: {${name}} ${refusal}`);
-		}
+		const refused = this.refusalOf(action);
+		if (refused !== undefined) throw Error(`"${line}" doesn't resolve: {${refused.name}} ${refused.refusal}`);
 		return action;
 	}
 

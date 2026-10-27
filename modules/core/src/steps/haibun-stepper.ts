@@ -75,7 +75,7 @@ import { Access } from "../lib/domains/resources.js";
 
 /** Whether a line resolves to one step, as `TStepValidation` states it. The page reads that type only, so the schema stays here. */
 const StepValidationSchema = z.discriminatedUnion("valid", [
-	z.object({ valid: z.literal(true), method: z.string(), values: z.record(z.string(), z.string()) }),
+	z.object({ valid: z.literal(true), method: z.string(), values: z.record(z.string(), z.string()), readings: z.record(z.string(), z.string()) }),
 	z.object({ valid: z.literal(false), error: z.string() }),
 ]) satisfies z.ZodType<TStepValidation>;
 
@@ -295,8 +295,16 @@ class Haibun extends AStepper implements IHasCycles {
 				const validation = validateStep(text, this.steppers, shownTo());
 				if ("error" in validation) return actionOKWithProducts({ valid: false, error: validation.error });
 				const { stepperName, actionName, stepValuesMap } = validation.action;
-				const values = stepValuesMap === undefined ? {} : Object.fromEntries(Object.entries(stepValuesMap).map(([name, value]) => [name, value.term]));
-				return actionOKWithProducts({ valid: true, method: stepMethodName(stepperName, actionName), values });
+				const stated = stepValuesMap === undefined ? [] : Object.entries(stepValuesMap);
+				const values = Object.fromEntries(stated.map(([name, value]) => [name, value.term]));
+				const domains = this.getWorld().domains;
+				const readings = Object.fromEntries(
+					stated.flatMap(([name, { domain, term }]) => {
+						const read = domains[domain]?.reading;
+						return read === undefined ? [] : [[name, read(term)]];
+					}),
+				);
+				return actionOKWithProducts({ valid: true, method: stepMethodName(stepperName, actionName), values, readings });
 			},
 		},
 

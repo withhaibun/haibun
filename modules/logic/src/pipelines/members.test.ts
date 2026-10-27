@@ -54,7 +54,7 @@ describe("entailedMembers", () => {
 		expect(await members(`${LinkRelations.PART_OF.rel} value Step:s1`)).toEqual([]);
 	});
 
-	it("refuses a property the ontology doesn't hold", async () => {
-		await expect(members("burnt some Step")).rejects.toThrow(/names the property burnt, which the ontology doesn't hold/);
+	it("refuses a property the ontology doesn't hold, with the nearest", async () => {
+		await expect(members("burnt some Step")).rejects.toThrow(/doesn't hold the property burnt. Did you mean/);
 	});
 });

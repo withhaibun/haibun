@@ -103,12 +103,7 @@
 			"actuality": {
 				"text": "e2e-tests/once",
 				"status": "passed",
-				"tookMs": 0,
-				"digest": {
-					"e2e-tests/once": "2366cba89b9728bb36b9ea80bfe754e50f7397a9644e62f52cb8cc3d85133581",
-					"modules/core/src": "b73476e1bf15dbfdcff55a1d2ef47ab1a4b3195fef03e3ae9fbc3d08e06ad219",
-					"modules/logic/src": "bb95492881f7522a8a04014247112d7568762c3bde60cf96640bf82570ff0ced"
-				}
+				"tookMs": 0
 			},
 			"features": {
 				"/features/once.feature": {

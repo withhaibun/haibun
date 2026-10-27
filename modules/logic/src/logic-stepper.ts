@@ -22,10 +22,10 @@ import {
 } from "@haibun/core/lib/domains/domains.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { counted } from "@haibun/core/lib/domains/hypermedia.js";
-import { actionNotOK, actionOK, actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
+import { actionNotOK, actionOK, actionOKWithProducts, errorDetail } from "@haibun/core/lib/domains/util.js";
 import { argumentsOf } from "@haibun/core/lib/steps/pipelines/populate-action-args.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
-import { Access, SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
+import { Access, SEQ_PATH_LABEL, type TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_FIELD, calledParts, actualityFeatureOf, stepRecordOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { callerHolds, readingAsOf } from "@haibun/core/lib/domains/capability-context.js";
 import {
@@ -42,8 +42,8 @@ import { proverOf } from "./pipelines/prove.js";
 import { canonicalOf, readerOf, recordsWhere, writeFacts } from "./pipelines/reads.js";
 import { callTerm, derivationUnder, lineTerm, refuseDeclarations } from "./pipelines/registry-reads.js";
 import { logicEngine, reasoner } from "./root.js";
-import { entailedMembers } from "./pipelines/members.js";
-import { DOMAIN_CLASS_EXPRESSION, DOMAIN_ENTAILED_MEMBERS, reasoningDomainDefinitions } from "./domains/reasoning.js";
+import { checkedExpression, entailedMembers, expressionReading, queryBasis } from "./pipelines/members.js";
+import { DOMAIN_CLASS_EXPRESSION, DOMAIN_ENTAILED_MEMBERS, classExpressionDomainDefinition, reasoningDomainDefinitions } from "./domains/reasoning.js";
 import { DOMAIN_DERIVATION, DOMAIN_LINE_TERM, READ_GRAPH, READ_PREDICATE, RESOLVE_STATEMENT, logicDomainDefinitions } from "./domains/logic.js";
 import { DOMAIN_ALTERNATIVES, DOMAIN_OBSERVATION_SOURCE, DOMAIN_REFUSAL, DOMAIN_STATUS, readingDomainDefinitions } from "./domains/readings.js";
 
@@ -76,8 +76,30 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 	}
 
 	cycles: IStepperCycles = {
-		getConcerns: () => ({ sources: [steps], domains: [...logicDomainDefinitions, ...readingDomainDefinitions, ...goalDomainDefinitions, ...reasoningDomainDefinitions] }),
+		getConcerns: () => ({
+			sources: [steps],
+			domains: [...logicDomainDefinitions, ...readingDomainDefinitions, ...goalDomainDefinitions, ...reasoningDomainDefinitions, this.classExpressionDomain],
+		}),
 	};
+
+	/** The class expression domain, whose refusal holds an expression to the fragment a query evaluates and to the ontology's names. */
+	private readonly classExpressionDomain: TDomainDefinition = {
+		...classExpressionDomainDefinition,
+		reading: (text) => expressionReading(text, this.getWorld().domains),
+		refuses: (text) => {
+			try {
+				checkedExpression(text, queryBasis(this.getWorld().domains));
+				return undefined;
+			} catch (caught) {
+				return errorDetail(caught);
+			}
+		},
+	};
+
+	/** The members a class expression entails over the world's store, under the caller's authority. */
+	private members(expression: string) {
+		return entailedMembers(reasoner(), this.getWorld().shared.getStore(), this.getWorld().domains, expression);
+	}
 
 	/** What a goal's proof reads, under the caller's authority. */
 	private async goalScope(): Promise<TGoalScope> {
@@ -224,7 +246,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 				"Returns the records a class expression entails as its members, through the reasoner over the ontology and the records an expression's names reach, under the caller's authority. A member the records don't entail may exist.",
 			productsDomain: DOMAIN_ENTAILED_MEMBERS,
 			action: async ({ expression }: { expression: string }) => {
-				const members = await entailedMembers(reasoner(), this.getWorld().shared.getStore(), this.getWorld().domains, expression);
+				const members = await this.members(expression);
 				return actionOKWithProducts({ members, ...counted(members.length) });
 			},
 		},
