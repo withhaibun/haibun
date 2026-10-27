@@ -25,7 +25,7 @@
 		"test": "vitest run",
 		"lint": "biome check .",
 		"format": "biome format --write .",
-		"build:watch": "node scripts/bundles.ts page --watch"
+		"build:watch": "concurrently \"tsc -b . --watch --preserveWatchOutput\" \"npm run bundle -- --watch\""
 	},
 	"dependencies": {
 		"@digitalbazaar/data-integrity": "^2.5.0",

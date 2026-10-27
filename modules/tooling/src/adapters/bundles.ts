@@ -4,9 +4,7 @@
  * bundle test reads, so the test measures what the build writes. Every build writes its declared files beside its outputs and its metafile, and resolves each package to one copy
  * and zod's locales to English alone (PF25).
  */
-import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { build, context, type BuildOptions, type Metafile, type Plugin } from "esbuild";
 import { BUDGET_FINDING, HAIBUN_SOURCE, type TBundle, type TBundleSizes } from "../domains/bundle.ts";
@@ -215,11 +213,6 @@ export async function buildBundles(root: string, bundles: readonly TBundle[], wa
 	}
 	const contexts = await Promise.all(bundles.map((bundle) => context(optionsOf(bundle))));
 	await Promise.all(contexts.map((ctx) => ctx.watch()));
-	const cwd = process.env.INIT_CWD === undefined ? root : process.env.INIT_CWD;
-	const projects = existsSync(join(cwd, "haibun/modules/tsconfig.json")) ? ["haibun/modules", "."] : ["."];
-	const tscBin = createRequire(import.meta.url).resolve("typescript/bin/tsc");
-	const tsc = spawn(process.execPath, [tscBin, "-b", ...projects, "--watch", "--preserveWatchOutput"], { cwd, stdio: "inherit" });
-	for (const signal of ["SIGINT", "SIGTERM"] as const) process.on(signal, () => tsc.kill(signal));
 }
 
 /** Runs a repository's `bundles.ts` as its build script: it builds the groups its arguments name, and `--watch` rebuilds them
