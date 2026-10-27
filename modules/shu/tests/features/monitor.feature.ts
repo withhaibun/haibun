@@ -7,7 +7,7 @@ import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
 import { createStepUI, flattenTestIds } from "@haibun/shu/test/step-ui.js";
 import { SHU_TAG } from "@haibun/shu/domains/elements.js";
-import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
+import { PRINCIPAL_LABEL, SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { views } from "@haibun/shu/waypoints/backgrounds/views.feature.ts";
 import { ontology } from "@haibun/shu/waypoints/backgrounds/ontology.feature.ts";
 
@@ -74,6 +74,10 @@ export const features: TKirejiExport = {
 		"A class expression returns the records it entails as its members, through the reasoner over the ontology and the records its names reach. Others may exist that the records don't entail.",
 		`set entailed from individuals of "${SEQ_PATH_LABEL}"`,
 		`variable entailed.members.0.persistedAs is "${SEQ_PATH_LABEL}"`,
+		"A claim states what holds, which the reasoner proves: a membership, an existence, and a subsumption the ontology entails through a class's declared IRI.",
+		`individual entailed.members.0 is a ${SEQ_PATH_LABEL}`,
+		`some ${SEQ_PATH_LABEL}`,
+		`every ${PRINCIPAL_LABEL} is a prov:Agent`,
 		"A graph view's axioms state a frame in Manchester syntax for each type, link relation and record it shows.",
 		`set axioms from show axioms of ${JSON.stringify({ perTypeLimit: 5, accessLevel: "private", overrides: { [SEQ_PATH_LABEL]: true }, hiddenPredicates: [], prune: false })}`,
 		`variable axioms.frames.0.name is "Class ${SEQ_PATH_LABEL}"`,

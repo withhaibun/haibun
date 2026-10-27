@@ -37,7 +37,9 @@ export const VALIDATE_STEP_METHOD = "Haibun-validateStep" as TStepMethod;
 
 /** Whether a line resolves to one step: the method of that step and each of its parameters' terms as the line states them,
  *  or why the line doesn't resolve to exactly one. */
-export type TStepValidation = { valid: true; method: string; values: Record<string, string>; readings: Record<string, string> } | { valid: false; error: string };
+export type TStepValidation =
+	| { valid: true; method: string; values: Record<string, string>; readings: Record<string, string> }
+	| { valid: false; error: string; completions: string[] };
 
 /** The product domains of the reads of actuality's declarations. Each holds a list, which the list combinators read. */
 export const DOMAIN_STEP_SUMMARIES = "step-summaries";

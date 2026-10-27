@@ -3,7 +3,7 @@
  * mix of `and` and `or` without parentheses, and one class per part in the rules that derive its members.
  */
 import { describe, expect, it } from "vitest";
-import { dlOf, expressionRules, nameRefusal, namesOf, parseClassExpression, readingOf, type TVocabulary } from "./class-expression.js";
+import { dlOf, expressionRules, frozenMembers, nameRefusal, namesOf, parseClassExpression, readingOf, type TVocabulary } from "./class-expression.js";
 
 describe("parseClassExpression", () => {
 	it("reads a named class, a conjunction, a disjunction, an existential and a value", () => {
@@ -73,5 +73,13 @@ describe("an expression's notations and its member", () => {
 		expect(dlOf(expression)).toBe("Note ⊓ (∃isPartOf.Step ⊔ ∃isPartOf.{Step:s2})");
 		expect(readingOf(expression)).toBe("a Note and either something that isPartOf a Step or something whose isPartOf is Step:s2");
 		expect(dlOf(parseClassExpression("inverse isPartOf some Note"))).toBe("∃isPartOf⁻.Note");
+	});
+	it("states a member that stands for any member of each alternative, with a fresh individual for each value an existential reaches", () => {
+		const iris = { classIri: (name: string) => `urn:c:${name}`, propertyIri: (name: string) => `urn:p:${name}`, individualIri: (address: string) => `urn:i:${address}` };
+		const type = "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>";
+		expect(frozenMembers(expression, "<urn:m>", "urn:q#", iris)).toEqual([
+			[`<urn:m> ${type} <urn:c:Note>`, "<urn:m> <urn:p:isPartOf> <urn:q#v1>", `<urn:q#v1> ${type} <urn:c:Step>`],
+			[`<urn:m> ${type} <urn:c:Note>`, "<urn:m> <urn:p:isPartOf> <urn:i:Step:s2>"],
+		]);
 	});
 });

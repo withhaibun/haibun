@@ -42,7 +42,8 @@ import { proverOf } from "./pipelines/prove.js";
 import { canonicalOf, readerOf, recordsWhere, writeFacts } from "./pipelines/reads.js";
 import { callTerm, derivationUnder, lineTerm, refuseDeclarations } from "./pipelines/registry-reads.js";
 import { logicEngine, reasoner } from "./root.js";
-import { checkedExpression, entailedMembers, expressionReading, queryBasis } from "./pipelines/members.js";
+import { checkedExpression, entailedMembers, expressionCompletions, expressionReading, queryBasis, subsumptionRefusal } from "./pipelines/members.js";
+import { DOMAIN_INDIVIDUAL_ADDRESS, type TIndividualAddress } from "@haibun/core/lib/domains/typed-links.js";
 import { DOMAIN_CLASS_EXPRESSION, DOMAIN_ENTAILED_MEMBERS, classExpressionDomainDefinition, reasoningDomainDefinitions } from "./domains/reasoning.js";
 import { DOMAIN_DERIVATION, DOMAIN_LINE_TERM, READ_GRAPH, READ_PREDICATE, RESOLVE_STATEMENT, logicDomainDefinitions } from "./domains/logic.js";
 import { DOMAIN_ALTERNATIVES, DOMAIN_OBSERVATION_SOURCE, DOMAIN_REFUSAL, DOMAIN_STATUS, readingDomainDefinitions } from "./domains/readings.js";
@@ -86,6 +87,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 	private readonly classExpressionDomain: TDomainDefinition = {
 		...classExpressionDomainDefinition,
 		reading: (text) => expressionReading(text, this.getWorld().domains),
+		completions: (text) => expressionCompletions(text, this.getWorld().domains),
 		refuses: (text) => {
 			try {
 				checkedExpression(text, queryBasis(this.getWorld().domains));
@@ -248,6 +250,44 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			action: async ({ expression }: { expression: string }) => {
 				const members = await this.members(expression);
 				return actionOKWithProducts({ members, ...counted(members.length) });
+			},
+		},
+		individualIsA: {
+			read: true,
+			readsAt: Access.public,
+			gwta: `individual {address: ${DOMAIN_INDIVIDUAL_ADDRESS}} is a {expression: ${DOMAIN_CLASS_EXPRESSION}}`,
+			description:
+				"Holds where the reasoner entails the record at an address as a member of a class expression. A membership the records don't entail is unknown, which isn't false in the open world, so the claim fails closed.",
+			action: async ({ address, expression }: { address: TIndividualAddress; expression: string }) => {
+				const members = await this.members(expression);
+				if (members.some(({ persistedAs, id }) => persistedAs === address.persistedAs && id === address.id)) return actionOK();
+				return actionNotOK(
+					`${address.persistedAs}:${address.id} ∈ ${expression} is unknown: the records don't entail it, and unknown isn't false in the open world. Add the fact, or read a complete graph.`,
+				);
+			},
+		},
+		everyIsA: {
+			read: true,
+			readsAt: Access.public,
+			gwta: `every {sub: ${DOMAIN_CLASS_EXPRESSION}} is a {sup: ${DOMAIN_CLASS_EXPRESSION}}`,
+			description:
+				"Holds where the ontology entails that every member of the first class expression is a member of the second. Fails closed otherwise, with the entailed members of the first that the second doesn't hold as the witness.",
+			action: async ({ sub, sup }: { sub: string; sup: string }) => {
+				const world = this.getWorld();
+				const refusal = await subsumptionRefusal(reasoner(), world.shared.getStore(), world.domains, sub, sup);
+				return refusal === undefined ? actionOK() : actionNotOK(refusal);
+			},
+		},
+		someOf: {
+			read: true,
+			readsAt: Access.public,
+			gwta: `some {expression: ${DOMAIN_CLASS_EXPRESSION}}`,
+			description: "Holds where the reasoner entails a member of a class expression. Without one the claim is unknown, which isn't false in the open world, so it fails closed.",
+			productsDomain: DOMAIN_ENTAILED_MEMBERS,
+			action: async ({ expression }: { expression: string }) => {
+				const members = await this.members(expression);
+				if (members.length > 0) return actionOKWithProducts({ members, ...counted(members.length) });
+				return actionNotOK(`some ${expression} is unknown: the records don't entail a member, and unknown isn't false in the open world. Add the fact, or read a complete graph.`);
 			},
 		},
 		lineRendersAsWritten: {

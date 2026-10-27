@@ -26,6 +26,19 @@ const writtenCapitalized = (step: TStepperStep): boolean => {
 /** The base of a statement a caller sent without a source file, such as over RPC or MCP: an empty path. */
 const WITHOUT_SOURCE = "";
 
+/** A term a line writes that its placeholder's domain refuses: the placeholder's name, the domain, the term and the refusal. */
+export type TRefusedTerm = { name: string; domain: string; term: string; refusal: string };
+
+/** The error of a line that doesn't resolve because a domain refuses a term it writes, which names the term's domain. */
+export class TermRefused extends Error {
+	constructor(
+		line: string,
+		readonly refused: TRefusedTerm,
+	) {
+		super(`"${line}" doesn't resolve: {${refused.name}} ${refused.refusal}`);
+	}
+}
+
 export class Resolver {
 	public backgroundWarnings: { path: string; line: string; error: string }[] = [];
 
@@ -206,12 +219,12 @@ export class Resolver {
 		return this.withStatementsAsWritten(this.selectStep(line, admitted.length === 0 ? found : admitted));
 	}
 
-	/** The first term of an action that its placeholder's domain refuses, by the placeholder's name, with the refusal. */
-	private refusalOf(action: TStepAction): { name: string; refusal: string } | undefined {
+	/** The first term of an action that its placeholder's domain refuses, by the placeholder's name, with its domain and the refusal. */
+	private refusalOf(action: TStepAction): TRefusedTerm | undefined {
 		const refusing = this.refusingDomains(this.steppers);
 		for (const [name, value] of Object.entries(action.stepValuesMap === undefined ? {} : action.stepValuesMap)) {
 			const refusal = refusing.get(value.domain)?.(value.term, this.steppers);
-			if (refusal !== undefined) return { name, refusal };
+			if (refusal !== undefined) return { name, domain: value.domain, term: value.term, refusal };
 		}
 		return undefined;
 	}
@@ -220,7 +233,7 @@ export class Resolver {
 	 *  first term a domain refuses, so the line doesn't resolve. */
 	private refusingWritten(line: string, action: TStepAction): TStepAction {
 		const refused = this.refusalOf(action);
-		if (refused !== undefined) throw Error(`"${line}" doesn't resolve: {${refused.name}} ${refused.refusal}`);
+		if (refused !== undefined) throw new TermRefused(line, refused);
 		return action;
 	}
 

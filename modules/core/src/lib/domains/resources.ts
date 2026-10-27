@@ -816,6 +816,9 @@ export type TDomainDefinition = {
 	/** Returns a term a line writes in the notations a reader checks it by, such as a formal notation and a plain-English
 	 *  reading. Validating a line returns each reading, which the step input shows beside the line. */
 	reading?: (term: string) => string;
+	/** Returns the terms that complete a term a line writes, such as the names that begin with its last word. Validating a
+	 *  line whose term this domain refuses returns them, which the step input offers in place of the term. */
+	completions?: (term: string) => string[];
 	/** Returns what a step's record states in place of a value of this domain. It applies to a value too large to repeat
 	 *  in a step's line, events and record, such as a file's bytes. */
 	recordedAs?: (value: unknown) => string;

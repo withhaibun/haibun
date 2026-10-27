@@ -9,7 +9,7 @@ import { Access, LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { DEF_PROTO_OPTIONS, getTestWorldWithOptions } from "@haibun/core/lib/test/lib.js";
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { reasoner } from "../root.js";
-import { entailedMembers } from "./members.js";
+import { entailedMembers, expressionCompletions, subsumes } from "./members.js";
 
 const [STEP, NOTE] = ["Step", "Note"];
 const typeOf = (persistedAs: string, type: string) => ({
@@ -56,5 +56,26 @@ describe("entailedMembers", () => {
 
 	it("refuses a property the ontology doesn't hold, with the nearest", async () => {
 		await expect(members("burnt some Step")).rejects.toThrow(/doesn't hold the property burnt. Did you mean/);
+	});
+});
+
+describe("subsumes", () => {
+	const subsumed = async (sub: string, sup: string) => subsumes(reasoner(), await storeWith(), domains, sub, sup);
+	it("holds where a member that stands for any member of the first is a member of the second", { timeout: 30_000 }, async () => {
+		expect(await subsumed("Step", "prov:Activity")).toBe(true);
+		expect(await subsumed(`Note and ${LinkRelations.PART_OF.rel} some Step`, "prov:Entity")).toBe(true);
+		expect(await subsumed("Note or Step", "Note or Step")).toBe(true);
+	});
+	it("doesn't hold where the ontology doesn't entail it", { timeout: 30_000 }, async () => {
+		expect(await subsumed("Note", "prov:Activity")).toBe(false);
+		expect(await subsumed("Note or Step", "Note")).toBe(false);
+	});
+});
+
+describe("expressionCompletions", () => {
+	it("offers each class or property name that begins with the expression's last word, in its place", () => {
+		expect(expressionCompletions("Not", domains)).toEqual(["Note"]);
+		expect(expressionCompletions("Note and St", domains)).toEqual(["Note and Step"]);
+		expect(expressionCompletions("Note and ", domains), "a word isn't begun").toEqual([]);
 	});
 });

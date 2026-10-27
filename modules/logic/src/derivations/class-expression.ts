@@ -184,6 +184,23 @@ export function expressionRules(expression: TClassExpression, namespace: string,
 	return { rules: rules.join("\n"), query: `{ ${member("?x", queried)} } => { ${member("?x", queried)} } .` };
 }
 
+/** Returns, for each alternative of an expression, the facts of a member that stands for any member of that alternative: the
+ *  individual `subject`, with a fresh individual in `namespace` for each value an existential reaches. An expression subsumes
+ *  another where each alternative's member is a member of the other. */
+export function frozenMembers(expression: TClassExpression, subject: string, namespace: string, iris: TExpressionIris): string[][] {
+	let count = 0;
+	const factsOf = (part: TClassExpression, of: string): string[][] => {
+		if ("named" in part) return [[member(of, iris.classIri(part.named))]];
+		if ("or" in part) return part.or.flatMap((alternative) => factsOf(alternative, of));
+		if ("and" in part) return part.and.reduce<string[][]>((joined, each) => joined.flatMap((facts) => factsOf(each, of).map((more) => [...facts, ...more])), [[]]);
+		if ("value" in part) return [[restricted(part, iris, of, `<${iris.individualIri(part.value)}>`)]];
+		count += 1;
+		const reached = `<${namespace}v${count}>`;
+		return factsOf(part.some, reached).map((facts) => [restricted(part, iris, of, reached), ...facts]);
+	};
+	return factsOf(expression, subject);
+}
+
 /** Returns an expression in DL notation. */
 export function dlOf(expression: TClassExpression): string {
 	const nested = (part: TClassExpression): string => ("and" in part || "or" in part ? `(${dlOf(part)})` : dlOf(part));
