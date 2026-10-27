@@ -10,14 +10,14 @@ import type { TFeatureStep } from "@haibun/core/lib/astepper.js";
 import type { TStepResult } from "@haibun/core/lib/domains/protocol.js";
 import type { TRestsOn } from "@haibun/core/lib/domains/authority-types.js";
 import type { TRpcRefusal } from "@haibun/core/lib/rpc-wire.js";
-import { proveAllocated, proveStep, type DispatchContext } from "@haibun/core/lib/step-dispatch.js";
+import { callRunning, proveClaimed, type DispatchContext } from "@haibun/core/lib/step-dispatch.js";
 import { validatedFeatureStep } from "@haibun/core/lib/call-step.js";
 import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import type { StepRegistry, StepTool } from "@haibun/core/lib/step-registry.js";
 import { lackedByCall } from "@haibun/core/lib/domains/actions.js";
 import { allocateSyntheticSeqPath } from "@haibun/core/lib/domains/host-id.js";
 import { runActingAs } from "@haibun/core/lib/domains/capability-context.js";
-import { notARead } from "../domains/web-server.js";
+import { callAtRunningPath, notARead } from "../domains/web-server.js";
 
 /** Who makes a call and under what: the actions the request invoked and those its caller holds, who proved themselves,
  *  what their proof rests on, and the delegate a refusal names as able to grant the lacked action. */
@@ -26,16 +26,17 @@ export type TCaller = { granted: string[]; held: string[]; principal: string | u
 /** A call as its transport states it: the method, its arguments, whether it requests a read, and the caller's seqPath. */
 export type TStepCall = { method: string; params: Record<string, unknown>; asks: "read" | "act" | undefined; seqPath: number[] | undefined };
 
-/** The step a call runs, built at its seqPath, whether this host allocated the seqPath, or the refusal of the call. */
-export type TCalledStep = { tool: StepTool; featureStep: TFeatureStep; allocated: boolean } | { refused: TRpcRefusal };
+/** The step a call runs, built at its seqPath, or the refusal of the call. */
+export type TCalledStep = { tool: StepTool; featureStep: TFeatureStep } | { refused: TRpcRefusal };
 
 /** Where actuality dispatches a call: its registry, its world and its steppers. */
 export type TDispatchWithin = { registry: StepRegistry; world: TWorld; steppers: AStepper[] };
 
 /**
  * The step a call runs, or its refusal: a call is refused where its step isn't registered or its caller lacks what the
- * step requires, and where it requests a read of a step that doesn't declare itself one. A caller without a seqPath, such
- * as an external caller or MCP, runs at a seqPath this host allocates. Throws where the input doesn't validate.
+ * step requires, where it requests a read of a step that doesn't declare itself one, and where a call at the seqPath it
+ * states is running, since the two would allocate the same paths under it. A caller without a seqPath, such as an
+ * external caller or MCP, runs at a seqPath this host allocates. Throws where the input doesn't validate.
  */
 export function calledStep({ registry, world, steppers }: TDispatchWithin, call: TStepCall, caller: TCaller): TCalledStep {
 	const { method, params, asks, seqPath } = call;
@@ -43,24 +44,17 @@ export function calledStep({ registry, world, steppers }: TDispatchWithin, call:
 	const lacked = tool && lackedByCall({ invoked: caller.granted, held: caller.held }, tool.descriptor);
 	if (!tool || lacked) return { refused: refusal(method, lacked, caller.delegate) };
 	if (asks === "read" && !tool.descriptor.read) return { refused: { error: notARead(method) } };
-	const allocated = seqPath === undefined || seqPath.length === 0;
-	const at = allocated ? allocateSyntheticSeqPath(world) : seqPath;
-	return { tool, featureStep: validatedFeatureStep(tool, params, at, world, steppers), allocated };
+	const stated = seqPath !== undefined && seqPath.length > 0;
+	if (stated && callRunning(world, seqPath)) return { refused: { error: callAtRunningPath(method, seqPath) } };
+	return { tool, featureStep: validatedFeatureStep(tool, params, stated ? seqPath : allocateSyntheticSeqPath(world), world, steppers) };
 }
 
 /** The dispatch of a call's step as its caller, holding only what the request presented: the server was started inside a
  *  step of actuality, and a caller doesn't hold what that step held. */
 export const dispatchedAs = (within: TDispatchWithin, caller: TCaller): DispatchContext => ({ ...within, grantedCapability: caller.granted, held: caller.held });
 
-/** The step a call runs, at its seqPath, and whether this host allocated the seqPath. */
-type TCallAt = { featureStep: TFeatureStep; allocated: boolean };
-
-/** Proves a call's step. A step at a seqPath this host allocated releases the counts under it once it ends. */
-export const provedCall = (dispatched: DispatchContext, { featureStep, allocated }: TCallAt): Promise<TStepResult> =>
-	allocated ? proveAllocated(dispatched, featureStep) : proveStep(dispatched, featureStep);
-
 /** Runs a call's step as whoever proved themselves at the boundary, so what the step records names the reader who called
  *  it rather than the process that carried it out. */
-export function dispatchCall(within: TDispatchWithin, caller: TCaller, called: TCallAt): Promise<TStepResult> {
-	return runActingAs(caller.principal, () => provedCall(dispatchedAs(within, caller), called), caller.restsOn);
+export function dispatchCall(within: TDispatchWithin, caller: TCaller, featureStep: TFeatureStep): Promise<TStepResult> {
+	return runActingAs(caller.principal, () => proveClaimed(dispatchedAs(within, caller), featureStep), caller.restsOn);
 }

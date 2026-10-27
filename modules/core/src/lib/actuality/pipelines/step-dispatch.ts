@@ -85,17 +85,25 @@ export function nextSeqPath(world: TWorld, parent: TSeqPath): TSeqPath {
 }
 
 /**
- * Releases the counts of the paths under `root`, a seqPath this host allocated for a call that ended. A call doesn't
- * allocate a path under its seqPath after it ends, and the counts otherwise hold one entry for each parent of every call
- * for as long as actuality runs, so the counts hold the parents of the calls in progress and of the features' own steps.
+ * Releases the counts of the paths under `root`, the seqPath of a call that ended. A call doesn't allocate a path under
+ * its seqPath after it ends, and the counts otherwise hold one entry for each parent of every call for as long as
+ * actuality runs, so the counts hold the parents of the calls in progress and of the features' own steps.
  */
 export function releaseSeqPaths(world: TWorld, root: TSeqPath): void {
 	const key = root.join(".");
 	for (const held of world.runtime.seqPaths.keys()) if (held === key || held.startsWith(`${key}.`)) world.runtime.seqPaths.delete(held);
 }
 
-/** Proves `featureStep` at the seqPath this host allocated for its call, and releases the counts under it once it ends. */
-export async function proveAllocated(ctx: DispatchContext, featureStep: TFeatureStep): Promise<TStepResult> {
+/** Whether a call at `seqPath` is running: a call claims the count under its seqPath from its start to its end. */
+export const callRunning = (world: TWorld, seqPath: TSeqPath): boolean => world.runtime.seqPaths.has(seqPath.join("."));
+
+/**
+ * Proves a call's step at the seqPath it claims, whether this host allocated it or the caller stated it. The count under
+ * the seqPath starts when the call starts, so `callRunning` reads it while the call runs, and the counts under the seqPath
+ * are released once the call ends.
+ */
+export async function proveClaimed(ctx: DispatchContext, featureStep: TFeatureStep): Promise<TStepResult> {
+	ctx.world.runtime.seqPaths.set(featureStep.seqPath.join("."), 0);
 	try {
 		return await proveStep(ctx, featureStep);
 	} finally {

@@ -41,6 +41,10 @@ export const WEB_SERVER_CAPABILITIES = { stop: "WebServer:stop" } as const;
 export const notARead = (method: string): string =>
 	`${method} was called as a read, and does not declare itself one: a read doesn't leave a record, so declare read: true on a step a page reads`;
 
+/** The refusal of a call at a seqPath where a call is running: the two would allocate the same paths under it. */
+export const callAtRunningPath = (method: string, seqPath: number[]): string =>
+	`${method} was called at seqPath ${seqPath.join(".")}, where a call is running: a call states a seqPath of its own, or omits it so this host allocates one`;
+
 /** The runtime key that holds the web server of the feature in progress. */
 export const WEBSERVER = "webserver";
 

@@ -20,13 +20,14 @@ import { z } from "zod";
 import { passWithDefaults, DEF_PROTO_OPTIONS, freePort } from "@haibun/core/lib/test/lib.js";
 import LogicStepper from "@haibun/logic/logic-stepper.js";
 import { TEST_DOMAIN, declaresTestDomains } from "@haibun/core/lib/test/test-domains.js";
-import { AStepper } from "@haibun/core/lib/astepper.js";
+import { AStepper, type TFeatureStep } from "@haibun/core/lib/astepper.js";
+import { nextSeqPath } from "@haibun/core/lib/step-dispatch.js";
 import { LogEvent, OK, type TStepArgs } from "@haibun/core/lib/domains/protocol.js";
 import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOptionName } from "@haibun/core/lib/domains/util.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import FakeAuthorityStepper, { DOMAIN_FAKE_HOLDER, FakeInvoker, fakeGrant } from "@haibun/core/lib/test/fake-authority.js";
 import WebServerStepper from "./web-server-stepper.js";
-import { WEBSERVER } from "./domains/web-server.js";
+import { WEBSERVER, callAtRunningPath } from "./domains/web-server.js";
 import type { IWebServer } from "./ports.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import { SHOW_STEP_DEFINITIONS_METHOD, SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, readStepDefinitions, type TStepDefinition } from "@haibun/core/lib/step-discovery.js";
@@ -812,6 +813,68 @@ rpc call to "http://localhost:${port}/rpc/Injected-ping" with method "Injected-p
 		};
 		const result = await passWithDefaults([feature], [...steppers, Injects], makeOptions(port, "PingStepper:ping,Read:public"));
 		expect(result.ok).toBe(true);
+	});
+
+	it("releases the counts under a page's seqPath once its call ends, and refuses another call at that seqPath while one runs", async () => {
+		const port = await freePort();
+		const PAGE_PATH = [0, -1, 7, 1];
+		const [NESTS, WAITS] = ["CallPathsStepper-nestsSteps", "CallPathsStepper-waitsForRelease"];
+		const observed: { afterNesting?: string[]; refusal?: unknown; afterWaiting?: string[] } = {};
+		let started: (() => void) | undefined;
+		let release: (() => void) | undefined;
+
+		class CallPathsStepper extends AStepper {
+			description = "Calls at a page's seqPath over RPC: a step that allocates paths under it, and a step that runs until it is released.";
+			steps = {
+				nestsSteps: {
+					exact: "nests two steps",
+					action: (_: TStepArgs, featureStep: TFeatureStep) => {
+						nextSeqPath(this.getWorld(), nextSeqPath(this.getWorld(), featureStep.seqPath));
+						return OK;
+					},
+				},
+				waitsForRelease: {
+					exact: "waits for release",
+					action: async () => {
+						await new Promise<void>((resolve) => {
+							release = resolve;
+							started?.();
+						});
+						return OK;
+					},
+				},
+				callsAtPagePath: {
+					gwta: `calls at a page's seqPath at {base: ${DOMAIN_LINK}}`,
+					action: async ({ base }: TStepArgs) => {
+						const call = async (method: string): Promise<Record<string, unknown>> => {
+							const url = `${base}/rpc/${method}`;
+							const body = await rpcBody(url, { method, seqPath: PAGE_PATH });
+							return (await (await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body })).json()) as Record<string, unknown>;
+						};
+						const underPage = () => [...this.getWorld().runtime.seqPaths.keys()].filter((key) => key.startsWith(PAGE_PATH.join(".")));
+						await call(NESTS);
+						observed.afterNesting = underPage();
+						const running = new Promise<void>((resolve) => {
+							started = resolve;
+						});
+						const waited = call(WAITS);
+						await running;
+						observed.refusal = (await call(NESTS)).error;
+						release?.();
+						await waited;
+						observed.afterWaiting = underPage();
+						return OK;
+					},
+				},
+			};
+		}
+
+		const feature = { path: "/features/call-paths.feature", content: `webserver is listening for "rpc-call-paths"\ncalls at a page's seqPath at "http://localhost:${port}"\n` };
+		const result = await passWithDefaults([feature], [WebServerStepper, CallPathsStepper, LogicStepper], makeOptions(port, "CallPathsStepper:*"));
+		expect(result.ok, JSON.stringify(result.failure)).toBe(true);
+		expect(observed.afterNesting, "the counts of the steps the call nested go when it ends").toEqual([]);
+		expect(observed.refusal, "a call at a running call's seqPath would allocate the same paths").toBe(callAtRunningPath(NESTS, PAGE_PATH));
+		expect(observed.afterWaiting).toEqual([]);
 	});
 
 	it("action.begin allocates a unique seqPath root per call", async () => {
