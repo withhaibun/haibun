@@ -4,7 +4,7 @@ import { passWithDefaults, DEF_PROTO_OPTIONS, freePort } from "@haibun/core/lib/
 import LogicStepper from "@haibun/logic/logic-stepper.js";
 import { TEST_DOMAIN, declaresTestDomains } from "@haibun/core/lib/test/test-domains.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
-import { actionOKWithProducts, getStepperOptionName } from "@haibun/core/lib/domains/util.js";
+import { actionNotOK, actionOKWithProducts, getStepperOptionName } from "@haibun/core/lib/domains/util.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { actingAs, readingAt } from "@haibun/core/lib/domains/capability-context.js";
 import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
@@ -191,6 +191,47 @@ verify protected mcp tool on port ${port} is denied
 		});
 		expect(result.ok, JSON.stringify(result.failure)).toBe(true);
 		expect(allowed).toEqual({ [NAMED]: NAMED, [LOOPBACK]: LOOPBACK, [OTHER]: null });
+	});
+
+	it("ends a stream held open once a capability the authority it was opened under rests on is revoked", async () => {
+		const port = await freePort();
+		class HeldStreamStepper extends AStepper {
+			description = "Holds an MCP stream open under a grant, and reads it to its end.";
+			private reader?: ReadableStreamDefaultReader<Uint8Array>;
+			steps = {
+				holdsStream: {
+					gwta: `mcp stream on port {port: ${DOMAIN_NUMBER}} signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}} is held open`,
+					action: async ({ port, holder, action }: { port: string; holder: string; action: string }) => {
+						const url = `http://localhost:${port}/mcp`;
+						const response = await fetch(url, { headers: await new FakeInvoker(holder).sign({ method: "GET", url, headers: { accept: "text/event-stream" } }, action) });
+						if (response.status !== 200 || !response.body) return actionNotOK(`the stream responded ${response.status}`);
+						this.reader = response.body.getReader();
+						return OK;
+					},
+				},
+				streamEnds: {
+					exact: "held mcp stream ends",
+					action: async () => {
+						if (!this.reader) return actionNotOK("an mcp stream isn't held");
+						while (!(await this.reader.read()).done);
+						return OK;
+					},
+				},
+			};
+		}
+		const feature = {
+			path: "/features/mcp-stream-lapses.feature",
+			content: `
+serve mcp tools at "/mcp"
+webserver is listening for "mcp stream lapses"
+accept authority from "agent" for "ProtectedStepper:invoke"
+mcp stream on port ${port} signed by "agent" for "ProtectedStepper:invoke" is held open
+withdraw authority from "agent"
+held mcp stream ends
+`,
+		};
+		const result = await passWithDefaults([feature], [...signedSteppers, HeldStreamStepper], mcpOptions(port));
+		expect(result.ok, JSON.stringify(result.featureResults?.[0]?.stepResults?.filter((step) => !step.ok))).toBe(true);
 	});
 
 	it("runs a signed call under what its request presented, verified over the whole request, body included", async () => {

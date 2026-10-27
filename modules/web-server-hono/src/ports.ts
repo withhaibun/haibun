@@ -82,9 +82,9 @@ export type TCapabilityVerifier = {
 	allowing(c: Context, action: string): Promise<TRequestAuthority | Response>;
 	/** Who a refusal names the lacked action to: a caller whose proof holds a delegation, which can request what it lacks. */
 	delegateOf(authority: Pick<TRequestAuthority, "held" | "principal">): string | undefined;
-	/** Ends a call held open, through `end`, once a capability its proof rests on is revoked or expires; watching stops when
-	 *  `signal` aborts. */
-	endWhenLapsed(authority: TRequestAuthority, signal: AbortSignal, end: (reason: string) => void): void;
+	/** Ends a call held open, through `end`, once a capability what it rests on names is revoked or expires; watching stops
+	 *  when `signal` aborts. */
+	endWhenLapsed(restsOn: TRestsOn | undefined, signal: AbortSignal, end: (reason: string) => void): void;
 };
 
 /** Reads the response an address gives a request without a sign-in. */

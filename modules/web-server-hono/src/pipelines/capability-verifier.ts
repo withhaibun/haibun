@@ -10,7 +10,7 @@ import type { TRuntime } from "@haibun/core/lib/world.js";
 import { capabilityAllows } from "@haibun/core/lib/domains/actions.js";
 import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import { getAuthority, heldAuthority } from "@haibun/core/lib/domains/session-authority.js";
-import { DELEGATIONS_READ_ACTION } from "@haibun/core/lib/domains/authority-types.js";
+import { DELEGATIONS_READ_ACTION, type TRestsOn } from "@haibun/core/lib/domains/authority-types.js";
 import { PRESENTED_AUTHORITY_HEADER } from "../domains/web-server.js";
 import type { Context, TAuthorizedRequest, TCapabilityVerifier, TRequestAuthority, TRequestHeaders, TServed } from "../ports.js";
 
@@ -97,7 +97,7 @@ export const requiring = (action: string, runtime: TRuntime, served: TServed): M
  * proof rests on is revoked or expires, and watching stops when `signal` aborts. A call allowed without a proof doesn't
  * rest on a capability that lapses.
  */
-export function endWhenLapsed(runtime: TRuntime, { restsOn }: TRequestAuthority, signal: AbortSignal, end: (reason: string) => void): void {
+export function endWhenLapsed(runtime: TRuntime, restsOn: TRestsOn | undefined, signal: AbortSignal, end: (reason: string) => void): void {
 	if (!restsOn) return;
 	const held = heldAuthority(runtime, "watching the authority a call rests on").holdWhile(restsOn);
 	signal.addEventListener("abort", held.release, { once: true });
@@ -111,7 +111,7 @@ export function capabilityVerifier(runtime: TRuntime, served: TServed): TCapabil
 		authorityOf: (request) => grantedCapabilityForRequest(request, runtime, served),
 		allowing: (c, action) => authorityAllowing(c, action, runtime, served),
 		delegateOf: (authority) => delegateOf(authority, served),
-		endWhenLapsed: (authority, signal, end) => endWhenLapsed(runtime, authority, signal, end),
+		endWhenLapsed: (restsOn, signal, end) => endWhenLapsed(runtime, restsOn, signal, end),
 	};
 }
 

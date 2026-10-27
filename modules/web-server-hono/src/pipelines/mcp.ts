@@ -155,11 +155,15 @@ async function servedRequest(parts: TMcpParts, c: Context): Promise<Response> {
 	const transport = new StreamableHTTPTransport({ enableJsonResponse: true });
 	await mcpServer.connect(transport);
 	if (c.req.method === "GET") {
-		// A stream its caller holds open receives a notice each time the steps change, until the caller closes it.
+		// A stream its caller holds open receives a notice each time the steps change, until the caller closes it or the
+		// authority it was opened under lapses, as a follower of the event stream is.
 		const stopListening = parts.registry().onChange(() => {
 			void mcpServer.server.sendToolListChanged().catch((err: unknown) => parts.world.eventLogger.warn(`[MCP] the tool list change was not sent: ${errorDetail(err)}`));
 		});
-		c.req.raw.signal.addEventListener("abort", () => (stopListening(), void mcpServer.close()), { once: true });
+		const held = new AbortController();
+		held.signal.addEventListener("abort", () => (stopListening(), void mcpServer.close()), { once: true });
+		c.req.raw.signal.addEventListener("abort", () => held.abort("the client left"), { once: true });
+		parts.verifier.endWhenLapsed(restingOn(), held.signal, (reason) => held.abort(reason));
 		const opened = await transport.handleRequest(context);
 		if (!opened) throw new Error("[MCP] the transport didn't open the stream; the request's Accept header must include text/event-stream");
 		return opened;

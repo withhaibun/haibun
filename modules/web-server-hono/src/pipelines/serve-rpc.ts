@@ -68,7 +68,7 @@ export function serveRpc({ world, steppers, webserver, transport, verifier, sess
 		if (refused) return authorityRefusal(`${method}: ${refused}`);
 		// A streamed call is held open only while the authority it was allowed under holds.
 		const stream = streamContext.getStore();
-		if (stream) verifier.endWhenLapsed(authority, stream.signal, stream.end);
+		if (stream) verifier.endWhenLapsed(restsOn, stream.signal, stream.end);
 		const caller: TCaller = { granted, held, principal, restsOn, delegate: verifier.delegateOf(authority) };
 
 		// A method of a served family is gated by the action it declares, verified as a step's capability is, without an

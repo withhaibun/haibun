@@ -89,7 +89,7 @@ export class SSETransport implements ITransport, IStepTransport {
 				};
 				this.hub.on("event", handler);
 				sseStream.onAbort(() => followed.abort("the follower left"));
-				verifier.endWhenLapsed(authority, followed.signal, (reason) => followed.abort(reason));
+				verifier.endWhenLapsed(authority.restsOn, followed.signal, (reason) => followed.abort(reason));
 				await new Promise((resolve) => followed.signal.addEventListener("abort", resolve, { once: true }));
 				this.hub.off("event", handler);
 				eventLogger.debug(`SSE follower ended: ${String(followed.signal.reason)}`);
