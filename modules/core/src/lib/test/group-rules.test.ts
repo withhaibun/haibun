@@ -62,7 +62,7 @@ describe("the parent paths and tracking files of a repository's groups", () => {
 			"e2e/t/config.json": JSON.stringify(group),
 			"e2e/t/peer/config.json": JSON.stringify(group),
 			"e2e/t/peer/actualities.json": "{}\n",
-			"e2e/t/mail/config.json": JSON.stringify({ ...group, environments: ["imap"] }),
+			"e2e/t/staging/config.json": JSON.stringify({ ...group, environments: ["staging"] }),
 			".gitignore": "e2e/t/peer/actualities.json\n",
 			"scripts/steps.baseline.json": "{}\n",
 		});

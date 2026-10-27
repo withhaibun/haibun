@@ -26,14 +26,14 @@ Much of actuality is outside a feature's control, such as the requests a page ma
 ```gherkin
 Feature: Secure Login Verification
 
-Backgrounds: site-setup ;; this defines variables, such as portal and credentials.
+Backgrounds: site-setup ;; this defines variables, such as portal and token.
 set of Allowed domains is ["example.com", "cdn.example.com", "api.example.com"]
 
 Scenario: Login and verify domain compliance
 
     Activity: Log in
     go to the portal webpage
-    input credentials for username
+    input token for username
     input secret for password
     click "Sign In"
     wait for "Welcome"
@@ -307,7 +307,7 @@ Activities implement idempotent, goal-oriented testing. A waypoint's proof is an
 ```gherkin
 Activity: User is logged in
 go to the login webpage
-input credentials for username
+input token for username
 click "Sign In"
 set Logged in to true
 waypoint User authenticated with variable Logged in is true
@@ -332,14 +332,14 @@ functions, such as `testRuns.pass(where, seconds)` in `@haibun/cli/waypoints/bac
 imports them to state a head, so the head's text is written once. The libraries are `@haibun/core/waypoints` (actuality's
 declarations, such as `show shows`), `@haibun/logic/waypoints` (what the records of a feature's steps state), `@haibun/cli/waypoints`
 (test runs), `@haibun/web-playwright/waypoints` (web pages), `@haibun/web-server-hono/waypoints` (served files),
-`@haibun/shu/waypoints` (views, and the ontology) and, in spopg, `@haibun/spopg/waypoints` (mail). spopg's service names
+and `@haibun/shu/waypoints` (views, and the ontology). An application's service names
 `@haibun/core/waypoints` and `@haibun/shu/waypoints` beside its own, so their heads are offered where its pages are. It names
 them once, in the `haibun-cli` call of its `serve` script, and its other launches run that script or read its bases through
 `haibunCliCalls`.
 
 A group names a library by its package beside its own base, such as `haibun-cli -c tests/config.json tests,@haibun/shu/waypoints`,
 and an instance's launch names it after the instance's directory in the same way, such as `start a haibun instance from
-"service,@haibun/spopg/waypoints" on port 8737 as host 3`. A group's config names a stepper, the config it extends and a
+"service,@example/waypoints" on port 8737 as host 3`. A group's config names a stepper, the config it extends and a
 `dependsOn` path by its package in the same way, such as `@haibun/cli/config.base.json`, and the cli finds the package from the
 group's directory as Node does, so a group doesn't name a parent path.
 
@@ -575,16 +575,16 @@ const { activity, ensure } = withAction(new ActivitiesStepper());
 
 export const backgrounds: TKirejiExport = {
     'Login setup': [
-        activity({ activity: 'Setup credentials' }),
+        activity({ activity: 'Setup authentication' }),
         set({ what: 'baseUrl', value: 'https://example.com' }),
         compose({ what: 'loginUrl', template: '{baseUrl}/login' }),
-        'waypoint Credentials ready with variable baseUrl exists',
+        'waypoint Authentication ready with variable baseUrl exists',
     ]
 };
 
 export const features: TKirejiExport = {
     'Login verification': [
-        ensure({ outcome: 'Credentials ready' }),
+        ensure({ outcome: 'Authentication ready' }),
         'go to the {loginUrl} webpage',  // Raw strings passed through
         'click "Sign In"',
     ]

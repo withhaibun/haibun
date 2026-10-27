@@ -94,14 +94,12 @@ describe("shu-entity-column type and fields", () => {
 		const el = document.createElement("shu-entity-column") as ShuEntityColumn;
 		document.body.appendChild(el);
 		el.openProducts({
-			_type: "VerifiableCredential",
-			id: "vc1",
-			type: ["VerifiableCredential", "AquaticAnimalImportPermit"],
+			_type: "Document",
+			id: "doc1",
+			type: ["Document", "CommercialPermit"],
 			statusListIndex: "0",
 			accessLevel: "private",
-			"@context": {
-				VerifiableCredential: { "@context": { type: { "@id": "@type" }, statusListIndex: { "@id": "vcstatus:statusListIndex" }, accessLevel: { "@id": "hbn:accessLevel" } } },
-			},
+			"@context": { Document: { "@context": { type: { "@id": "@type" }, statusListIndex: { "@id": "vcstatus:statusListIndex" }, accessLevel: { "@id": "hbn:accessLevel" } } } },
 		});
 		await el.updateComplete;
 		const html = el.shadowRoot?.innerHTML ?? "";
@@ -111,7 +109,7 @@ describe("shu-entity-column type and fields", () => {
 		expect(html).toContain("vocab-haibun");
 		// rdf:type renders as the standard @type keyword, each class an explorable link.
 		expect(html).toContain(">@type</td>");
-		expect(html).toContain(typeHref("AquaticAnimalImportPermit"));
+		expect(html).toContain(typeHref("CommercialPermit"));
 		// Who may see the record is shown as its field, without a heading of its own.
 		expect(html).toContain('data-testid="entity-governance"');
 		expect(html).not.toContain(">Governance<");

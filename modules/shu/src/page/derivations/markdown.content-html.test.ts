@@ -28,7 +28,7 @@ describe("renderContentHtml", () => {
 		expect(out).toContain("<pre");
 	});
 
-	it("pretty-prints application/ld+json (credential claims) with indentation", () => {
+	it("pretty-prints application/ld+json (JSON-LD claims) with indentation", () => {
 		const out = renderContentHtml('{"sector":"unlicensed","commune":"Sledge"}', "application/ld+json", REFS);
 		expect(out).toMatch(/\{\n {2}/); // opening brace then a newline + 2-space indent, not the compact single line
 		expect(out).toContain("sector");

@@ -1,6 +1,6 @@
 /**
  * Narrow a served JSON-LD context to one type: the prefixes a context node references, so the context view for a
- * type carries only its own vocabulary, not the whole store's (a credential does not use sosa/foaf/otel/wallet/…).
+ * type carries only its own vocabulary, not the whole store's (a resource does not use sosa/foaf/otel/wallet/…).
  */
 
 /** The CURIE prefixes a JSON-LD context node references, in its term @ids (and any CURIE-valued key it carries),

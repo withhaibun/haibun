@@ -1,15 +1,17 @@
 /**
- * The browser bundles of both repositories, built from one definition each. A repository lists its bundles by group in a
+ * The browser bundles of repositories, built from one definition each. A repository lists its bundles by group in a
  * `bundles.ts` that runs as the build script (`node <bundles.ts> <group>...`, `--watch` to rebuild on change) and that its
  * bundle test reads, so the test measures what the build writes. Every build writes its declared files beside its outputs and its metafile, and resolves each package to one copy
  * and zod's locales to English alone (PF25).
  */
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, join, relative, sep } from "node:path";
 import { build, context, type BuildOptions, type Metafile, type Plugin } from "esbuild";
-import { BUDGET_FINDING, HAIBUN_SOURCE, type TBundle, type TBundleSizes } from "../domains/bundle.js";
+import { BUDGET_FINDING, HAIBUN_SOURCE, type TBundle, type TBundleSizes } from "../domains/bundle.ts";
 
-export { BUDGET_FINDING, BUDGET_FIX, HAIBUN_SOURCE, type TBundle, type TBundleSizes } from "../domains/bundle.js";
+export { BUDGET_FINDING, BUDGET_FIX, HAIBUN_SOURCE, type TBundle, type TBundleSizes } from "../domains/bundle.ts";
 
 const KIB = 1024;
 /** The folder of an installed package within a resolved path, and its name. */
@@ -31,7 +33,7 @@ const packageOf = (path: string): { dir: string; name: string } | undefined => {
 const versionOf = (dir: string): string => (JSON.parse(readFileSync(join(dir, "package.json"), "utf-8")) as { version: string }).version;
 
 /**
- * Resolves a package that a source file outside the root imports (a linked repository's source, such as haibun's beside spopg)
+ * Resolves a package that a source file outside the root imports (a linked repository's source, such as haibun's beside an application)
  * from the root, where the root installs it too, so a bundle holds one copy of zod and lit instead of one from each repository.
  * A package that only the linked repository installs resolves where it is. Two installed versions fail the build, since one copy
  * of either would serve code written against the other.
@@ -147,9 +149,11 @@ const decodeAlone: Plugin = {
 	},
 };
 
-/** Carries the build's NODE_ENV into a bundle, as Node reads it: its value where the build states one, and undefined where it doesn't,
+const DEVELOPMENT = "development";
+
+/** Carries the build's NODE_ENV into a bundle: its value where the build states one, and development where it doesn't,
  *  so a bundle selects production or development as the process that builds it does, in place of esbuild's choice by minification. */
-export const nodeEnvDefine = (): Record<string, string> => ({ "process.env.NODE_ENV": process.env.NODE_ENV === undefined ? "undefined" : JSON.stringify(process.env.NODE_ENV) });
+export const nodeEnvDefine = (): Record<string, string> => ({ "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV === undefined ? DEVELOPMENT : process.env.NODE_ENV) });
 
 /** The options that build a bundle of the repository at `root` for a browser. */
 export const bundleOptions = (root: string, bundle: TBundle): BuildOptions & { metafile: true; plugins: Plugin[] } => ({
@@ -211,6 +215,11 @@ export async function buildBundles(root: string, bundles: readonly TBundle[], wa
 	}
 	const contexts = await Promise.all(bundles.map((bundle) => context(optionsOf(bundle))));
 	await Promise.all(contexts.map((ctx) => ctx.watch()));
+	const cwd = process.env.INIT_CWD === undefined ? root : process.env.INIT_CWD;
+	const projects = existsSync(join(cwd, "haibun/modules/tsconfig.json")) ? ["haibun/modules", "."] : ["."];
+	const tscBin = createRequire(import.meta.url).resolve("typescript/bin/tsc");
+	const tsc = spawn(process.execPath, [tscBin, "-b", ...projects, "--watch", "--preserveWatchOutput"], { cwd, stdio: "inherit" });
+	for (const signal of ["SIGINT", "SIGTERM"] as const) process.on(signal, () => tsc.kill(signal));
 }
 
 /** Runs a repository's `bundles.ts` as its build script: it builds the groups its arguments name, and `--watch` rebuilds them

@@ -220,7 +220,7 @@ export const SEQ_PATH_FIELD = {
 	/** The capability a caller must hold to run this step. It is written only where the step declares one. */
 	capabilityAction: "capabilityAction",
 	/** The actions of the grant the caller held that allowed this step. The record holds the actions and never the token.
-	 *  A bearer token is the credential itself, so a record of the token would copy the credential. */
+	 *  A bearer token is the grant itself, so a record of the token would copy the secret. */
 	allowedAction: "allowedAction",
 	generatedAtTime: "generatedAtTime",
 	endedAtTime: "endedAtTime",

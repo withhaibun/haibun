@@ -20,13 +20,13 @@ import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { endPage } from "../adapters/page-held.js";
 
 const IDS = SHU_TEST_IDS.STEP_DEFINITION;
-const [CREDENTIAL, CREDENTIAL_TYPE, CHECK] = ["credential", "VerifiableCredential", "verification"];
+const [RECORD, RECORD_TYPE, CHECK] = ["record", "SubmittedOrder", "verification"];
 const VERIFY = {
-	method: "VerifierStepper-verify",
-	stepperName: "VerifierStepper",
+	method: "InspectorStepper-verify",
+	stepperName: "InspectorStepper",
 	stepName: "verify",
-	pattern: "verify {credential}",
-	paramDomains: { credential: CREDENTIAL },
+	pattern: "verify {record}",
+	paramDomains: { record: RECORD },
 	productsDomain: CHECK,
 };
 const STATEMENT_PARAM = "what";
@@ -40,14 +40,14 @@ const READ = {
 	recordIds: { id: TYPE_PARAM },
 };
 const SUSPEND = {
-	method: "CredentialsStepper-suspendCredential",
-	stepperName: "CredentialsStepper",
-	stepName: "suspendCredential",
-	pattern: "suspend credential {id}",
-	description: "Suspends a credential",
+	method: "AccountStepper-suspendAccount",
+	stepperName: "AccountStepper",
+	stepName: "suspendAccount",
+	pattern: "suspend account {id}",
+	description: "Suspends an account",
 	callable: false,
 };
-const SUSPENDING = ActionSchema.parse("CredentialsStepper:suspendCredential");
+const SUSPENDING = ActionSchema.parse("AccountStepper:suspendAccount");
 const HOLDING = {
 	method: "AuthorityStepper-holdingOnly",
 	stepperName: "AuthorityStepper",
@@ -64,7 +64,7 @@ describe("a step's view", () => {
 		installMemoryDeviceStore();
 		handle = setupShuTest({
 			dispatch: (method) => {
-				if (method === SHOW_STEP_DEFINITIONS_METHOD) return stepsShown([VERIFY, HOLDING, READ, SUSPEND], { [CREDENTIAL]: { persistedAs: CREDENTIAL_TYPE }, [CHECK]: {} });
+				if (method === SHOW_STEP_DEFINITIONS_METHOD) return stepsShown([VERIFY, HOLDING, READ, SUSPEND], { [RECORD]: { persistedAs: RECORD_TYPE }, [CHECK]: {} });
 				throw new Error(`unexpected ${method}`);
 			},
 		});
@@ -90,7 +90,7 @@ describe("a step's view", () => {
 	it("states its line and links each domain it takes and returns to the domain's view", async () => {
 		const view = await opened(VERIFY.method);
 		expect(view.shadowRoot?.querySelector(`[data-testid="${IDS.PATTERN}"]`)?.textContent).toBe(VERIFY.pattern);
-		expect(refsAt(view, IDS.PARAM)).toEqual([{ kind: REF_DENOTES.type, target: { domain: CREDENTIAL_TYPE }, text: CREDENTIAL }]);
+		expect(refsAt(view, IDS.PARAM)).toEqual([{ kind: REF_DENOTES.type, target: { domain: RECORD_TYPE }, text: RECORD }]);
 		expect(refsAt(view, IDS.PRODUCTS)).toEqual([{ kind: REF_DENOTES.type, target: { domain: CHECK }, text: CHECK }]);
 	});
 

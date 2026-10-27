@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Body sub-resources MUST always render when present. Selecting an email, file, comment, credential, etc. shows its
+// Body sub-resources MUST always render when present. Selecting a file, comment, document, etc. shows its
 // content (one iframe per active type, a switcher when several types exist), even when the entity has few scalar
 // fields, which previously misclassified it as a "stub" and dropped the content. Regression guard for that.
 import { newPage } from "../../test/setup.js";
@@ -75,8 +75,8 @@ describe("entity body content renders for every type and view that should show i
 		expect(html).toContain('data-testid="email-body-iframe"');
 	});
 
-	it("credential with a json body shows its content", async () => {
-		const html = await render("VerifiableCredential", { id: "vc1", issuer: "did:web:i", subject: "did:web:s" }, [
+	it("document with a json body shows its content", async () => {
+		const html = await render("Document", { id: "doc1", issuer: "did:web:i", subject: "did:web:s" }, [
 			{ id: "vb", content: '{"age_over_18":true}', mediaType: "application/json" },
 		]);
 		expect(html).toContain('data-testid="email-body-iframe"');

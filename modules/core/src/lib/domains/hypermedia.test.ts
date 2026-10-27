@@ -93,9 +93,9 @@ describe("composeDisplayLabel priority: headline → body → weak → id", () =
 	});
 
 	it("titles by a list property's members, and by the title of an edge's target record", () => {
-		const kinds = ["EmployeeCredential", "BadgeCredential"];
+		const kinds = ["EmployeeRecord", "BadgeRecord"];
 		expect(composeDisplayLabel({ rels: {}, getProperty: props({ type: kinds }), displayLabel: { key: "type", through: false }, id: "x" })).toBe(kinds.join(", "));
-		expect(composeDisplayLabel({ rels: {}, getProperty: props({}), displayLabel: { key: "checkedCredential", through: true, linkedLabel: kinds[0] }, id: "x" })).toBe(kinds[0]);
+		expect(composeDisplayLabel({ rels: {}, getProperty: props({}), displayLabel: { key: "checkedRecord", through: true, linkedLabel: kinds[0] }, id: "x" })).toBe(kinds[0]);
 	});
 
 	it("core types declare a labeling property only where the shared headline can't title them", () => {

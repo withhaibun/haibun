@@ -26,14 +26,8 @@ const [PUBLIC_READ, PRIVATE_READ, DELEGATES, REVOKES] = [
 	{ method: "DelegationStepper-revoke", stepperName: "DelegationStepper", stepName: "revoke", pattern: "revoke {capability}", capability: "Authority:revoke" },
 ];
 
-const SUSPENDS = ActionSchema.parse("CredentialsStepper:suspendCredential");
-const SUSPEND = {
-	method: "CredentialsStepper-suspendCredential",
-	stepperName: "CredentialsStepper",
-	stepName: "suspendCredential",
-	pattern: "suspend credential {id}",
-	callable: false,
-};
+const SUSPENDS = ActionSchema.parse("AccountStepper:suspendAccount");
+const SUSPEND = { method: "AccountStepper-suspendAccount", stepperName: "AccountStepper", stepName: "suspendAccount", pattern: "suspend account {id}", callable: false };
 const DELEGATION = { id: "urn:uuid:delegation-1", persistedAs: "Delegation" };
 
 describe("an action's view", () => {

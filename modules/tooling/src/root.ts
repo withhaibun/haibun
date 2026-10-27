@@ -5,8 +5,8 @@
  */
 import { defaultClientConditions, type UserConfig } from "vite";
 import type { TestUserConfig } from "vitest/config";
-import { standardDecorators } from "./adapters/standard-decorators.js";
-import { HAIBUN_SOURCE } from "./domains/bundle.js";
+import { standardDecorators } from "./adapters/standard-decorators.ts";
+import { HAIBUN_SOURCE } from "./domains/bundle.ts";
 
 /** A Vite config that holds Vitest's `test` key. */
 export type THaibunConfig = UserConfig & { test?: TestUserConfig };

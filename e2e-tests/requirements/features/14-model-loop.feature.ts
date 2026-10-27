@@ -6,7 +6,7 @@ const { feature, scenario } = withAction(new Haibun());
 export const features: TKirejiExport = {
 	"A model proposes lines and the engine proves them": [
 		feature({ feature: "A model proposes lines and the engine proves them" }),
-		"A turn sends a model its context as lines, the model proposes lines under the speaker's capability, and the engine proves, refutes or leaves each one unknown and returns the proof, the refusal or the first unmet goal as lines. Today's sources are spopg's tools-projection.ts, briefing.ts, context.ts and turn.ts:14.",
+		"A turn sends a model its context as lines, the model proposes lines under the speaker's capability, and the engine proves, refutes or leaves each one unknown and returns the proof, the refusal or the first unmet goal as lines. Sources are the model's projections, briefing, context and turn pipelines.",
 
 		scenario({ scenario: "A proposed action runs only under a capability that grants it" }),
 		"Essential, for a model's tool calls. A turn calls each line a model proposes under the speaker's capability, as holding only proves a statement under the actions it names. Source: turns.ts:357 and authority-stepper.ts, holdingOnly.",

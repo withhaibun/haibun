@@ -6,10 +6,10 @@
 	"bin": {
 		"haibun-install-hooks": "bin/install-hooks.mjs"
 	},
-	"files": ["build/**", "bin/**", "hooks/**", "biome.base.json"],
+	"files": ["src/**", "build/**", "bin/**", "hooks/**", "biome.base.json"],
 	"exports": {
-		"./vitest-preset.js": { "haibun-source": "./src/root.js", "default": "./build/root.js" },
-		"./bundles.js": { "haibun-source": "./src/adapters/bundles.js", "default": "./build/adapters/bundles.js" },
+		"./vitest-preset.js": { "types": "./build/root.d.ts", "default": "./src/root.ts" },
+		"./bundles.js": { "types": "./build/adapters/bundles.d.ts", "default": "./src/adapters/bundles.ts" },
 		"./biome": "./biome.base.json"
 	},
 	"scripts": {

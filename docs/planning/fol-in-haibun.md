@@ -16,7 +16,7 @@ An **individual** is a particular thing that facts and rules describe. A referen
 
 A **domain** (FOL: *sort*) is a named category. `set of meal is ["dinner", "lunch", "breakfast"]` declares one. A reference is read under a domain. The domain fixes which facets of the referent the rules use. A domain doesn't describe the referent in full. It declares the properties, relationships and states that the rules use.
 
-A **predicate** is a named relationship with typed parts. `signed_by(VerifiableCredential, Issuer)` has two parts. `Ready(Meal)` has one. Each part has a declared domain. The domain states the kind of individual the part accepts. A predicate name is itself a reference. In JSON-LD it is an IRI. In haibun it is a declared name that maps to an IRI. A predicate becomes a **fact** when its parts are specific individuals: `signed_by(credential-7, did:web:tethys.osf)`. A fact is a triple of references: subject, predicate and object. Each reference can be resolved.
+A **predicate** is a named relationship with typed parts. `signed_by(Document, Signer)` has two parts. `Ready(Meal)` has one. Each part has a declared domain. The domain states the kind of individual the part accepts. A predicate name is itself a reference. In JSON-LD it is an IRI. In haibun it is a declared name that maps to an IRI. A predicate becomes a **fact** when its parts are specific individuals: `signed_by(document-7, did:web:example.org)`. A fact is a triple of references: subject, predicate and object. Each reference can be resolved.
 
 A **variable** stands for any individual: `x`, `y`. In haibun a variable is a step placeholder `{x}`. A variable lets one statement apply to every individual without naming each one.
 
@@ -249,17 +249,17 @@ is(dinner, ready)
 │   └── is(dinner, plated)   asserted by activity body at seq 0.1.4.1
 ```
 
-## Worked example: credentials
+## Worked example: certificates
 
 ```
-predicate {c:VerifiableCredential} is signed by {i:Issuer}
-predicate {i:Issuer} controls {k:VerificationMethod}
-predicate {c:VerifiableCredential} is valid
+predicate {c:Certificate} is signed by {i:Authority}
+predicate {i:Authority} controls {k:VerificationMethod}
+predicate {c:Certificate} is valid
 
-Activity: Validate a credential
-waypoint {c:VerifiableCredential} is valid with {c} is signed by {i} and {i} controls {k} and the signature of {c} verifies under {k}
+Activity: Validate a certificate
+waypoint {c:Certificate} is valid with {c} is signed by {i} and {i} controls {k} and the signature of {c} verifies under {k}
 
-ensure credential is valid
+ensure certificate is valid
 ```
 
 The partial tree of a failed validation names the unmet conjunct. An example is "the signature did not verify under did:web:tethys.osf#key-1".

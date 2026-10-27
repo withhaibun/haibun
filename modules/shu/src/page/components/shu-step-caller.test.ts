@@ -215,19 +215,19 @@ describe("shu-step-caller", () => {
 	});
 
 	it("shows the site's refusal of a call, and stops showing that it calls", async () => {
-		const REFUSED = 'IssueStepper-issueCredential: "type" must include `VerifiableCredential`.';
-		restore = siteAnswering((method) => (method === "IssueStepper-issueCredential" ? rpcAnswer({ error: REFUSED }, 422) : rpcAnswer({}, 200)));
+		const REFUSED = 'OrderStepper-createOrder: "type" must include `PurchaseOrder`.';
+		restore = siteAnswering((method) => (method === "OrderStepper-createOrder" ? rpcAnswer({ error: REFUSED }, 422) : rpcAnswer({}, 200)));
 		const caller = await aCaller({
-			method: "IssueStepper-issueCredential",
-			stepperName: "IssueStepper",
-			stepName: "issueCredential",
-			pattern: "issue credential {credential}",
-			paramDomains: { credential: "string" },
-			inputSchema: { type: "object", properties: { credential: { type: "object" } }, required: ["credential"] },
+			method: "OrderStepper-createOrder",
+			stepperName: "OrderStepper",
+			stepName: "createOrder",
+			pattern: "create order {order}",
+			paramDomains: { order: "string" },
+			inputSchema: { type: "object", properties: { order: { type: "object" } }, required: ["order"] },
 		});
-		await called(caller, { credential: JSON.stringify({ type: ["bogus"] }) });
+		await called(caller, { order: JSON.stringify({ type: ["bogus"] }) });
 		expect(errorText(caller)).toContain('"type" must include');
-		expect(caller.dataset.testid).toBe("issue-credential-0-step-error");
+		expect(caller.dataset.testid).toBe("create-order-0-step-error");
 		expect(shown(caller)).not.toMatch(/class="loading"/);
 	});
 

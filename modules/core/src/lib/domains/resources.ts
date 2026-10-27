@@ -417,7 +417,7 @@ export const LinkRelations = {
 	PERFORMED_BY: { rel: "performedBy", uri: "prov:wasAssociatedWith", range: "iri", subPropertyOf: "fromActor", rolePriority: 40 },
 	AUTHOR: { rel: "author", uri: "schema:author", range: "iri", subPropertyOf: "fromActor", rolePriority: 30 },
 	// The general destination actor: the party or point that receives an activity, such as the endpoint a request calls.
-	// Consumers declare their own `toActor` rels (cred:credentialSubject, …). A sequence reads it as the lifeline that
+	// Consumers declare their own `toActor` rels (recipient, …). A sequence reads it as the lifeline that
 	// receives a message.
 	AS_TARGET: { rel: "target", uri: "as:target", range: "iri", subPropertyOf: "toActor", rolePriority: 40 },
 	// The direct object of an act, such as an edit's file. audience holds the act's addressee and target holds its

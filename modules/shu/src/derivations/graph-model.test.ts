@@ -170,15 +170,23 @@ describe("role placement honours the injected priority order", () => {
 describe("serving-site merge (SITE_KEY)", () => {
 	it("merges the response site onto every node, a federated per-subject stamp winning over it", () => {
 		const clusters: TCluster[] = [
-			{ type: "Email", totalCount: 2, sampledCount: 2, omittedCount: 0, sampledSubjects: ["e1", "r1"], displayLabels: { e1: "E1", r1: "R1" }, sites: { r1: "did:site:imap.1" } },
+			{
+				type: "Document",
+				totalCount: 2,
+				sampledCount: 2,
+				omittedCount: 0,
+				sampledSubjects: ["e1", "r1"],
+				displayLabels: { e1: "E1", r1: "R1" },
+				sites: { r1: "did:site:remote.1" },
+			},
 		];
-		const model = buildGraphModelFromQuads([q("e1", "name", "E1", "Email"), q("r1", "name", "R1", "Email")], { clusters, site: "did:site:main" });
+		const model = buildGraphModelFromQuads([q("e1", "name", "E1", "Document"), q("r1", "name", "R1", "Document")], { clusters, site: "did:site:main" });
 		expect(model.nodes.find((n) => n.id === "e1")?.properties?.[SITE_KEY]).toBe("did:site:main");
-		expect(model.nodes.find((n) => n.id === "r1")?.properties?.[SITE_KEY]).toBe("did:site:imap.1");
+		expect(model.nodes.find((n) => n.id === "r1")?.properties?.[SITE_KEY]).toBe("did:site:remote.1");
 	});
 
 	it("doesn't merge a site into a node when the response doesn't carry one (offline snapshots, plain quad tests)", () => {
-		const model = buildGraphModelFromQuads([q("e1", "name", "E1", "Email")]);
+		const model = buildGraphModelFromQuads([q("e1", "name", "E1", "Document")]);
 		expect(model.nodes.find((n) => n.id === "e1")?.properties?.[SITE_KEY]).toBeUndefined();
 	});
 });

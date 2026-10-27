@@ -118,33 +118,33 @@ describe("shu-affordances-panel", () => {
 			forward: [],
 			goals: [
 				{
-					domain: "vc",
-					description: "Verifiable credential",
+					domain: "report",
+					description: "Audit report",
 					resolution: {
 						verdict: "unknown",
-						goal: "vc",
+						goal: "report",
 						factIds: [],
 						plans: [
-							{ steps: [{ stepperName: "Issue", stepName: "issueCredential", gwta: "issue credential" }], bindings: [{ kind: "argument", domain: "issuer" }] },
-							{ steps: [{ stepperName: "Issue", stepName: "issueVc", gwta: "issue a credential" }], bindings: [] },
+							{ steps: [{ stepperName: "Issue", stepName: "issueReport", gwta: "issue report" }], bindings: [{ kind: "argument", domain: "issuer" }] },
+							{ steps: [{ stepperName: "Issue", stepName: "issueReport", gwta: "issue a report" }], bindings: [] },
 						],
 					},
 				},
 			],
 		};
 		await applied(panel);
-		(panel.shadowRoot?.querySelector('button[data-testid="goal-vc-toggle"]') as HTMLButtonElement | null)?.click();
+		(panel.shadowRoot?.querySelector('button[data-testid="goal-report-toggle"]') as HTMLButtonElement | null)?.click();
 		await applied(panel);
 		const heading = panel.shadowRoot?.querySelector(".path-heading")?.textContent ?? "";
 		expect(heading).toContain("2 ways to reach this");
 		const stepLabels = Array.from(panel.shadowRoot?.querySelectorAll(".plan-steps li") ?? []).map((li) => li.textContent ?? "");
-		expect(stepLabels.some((t) => t.includes("issue credential"))).toBe(true);
-		expect(stepLabels.some((t) => t.includes("issue a credential"))).toBe(true);
+		expect(stepLabels.some((t) => t.includes("issue report"))).toBe(true);
+		expect(stepLabels.some((t) => t.includes("issue a report"))).toBe(true);
 		expect(panel.shadowRoot?.querySelectorAll(".start-path").length).toBe(2);
 	});
 
 	it("links each plan step to the step as actuality declares it, which its pane opens", async () => {
-		const ISSUE = { method: "Issue-issueCredential", stepperName: "Issue", stepName: "issueCredential", pattern: "issue credential" };
+		const ISSUE = { method: "Issue-issueReport", stepperName: "Issue", stepName: "issueReport", pattern: "issue report" };
 		handle.teardown();
 		handle = setupShuTest({ dispatch: (method) => (method === SHOW_STEP_DEFINITIONS_METHOD ? stepsShown([ISSUE]) : undefined) });
 		const panel = document.body.appendChild(new ShuAffordancesPanel());
@@ -153,10 +153,10 @@ describe("shu-affordances-panel", () => {
 			actuality: ACTUALITY_FEATURE,
 			satisfiedDomains: [],
 			forward: [],
-			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { verdict: "unknown", goal: "vc", factIds: [], plans: [plan] } }],
+			goals: [{ domain: "report", description: "Audit report", resolution: { verdict: "unknown", goal: "report", factIds: [], plans: [plan] } }],
 		};
 		await applied(panel);
-		(panel.shadowRoot?.querySelector('button[data-testid="goal-vc-toggle"]') as HTMLButtonElement | null)?.click();
+		(panel.shadowRoot?.querySelector('button[data-testid="goal-report-toggle"]') as HTMLButtonElement | null)?.click();
 		await applied(panel);
 		const ref = panel.shadowRoot?.querySelector(".plan-steps li shu-ref");
 		const read = refOf(ref?.getAttribute("kind"), JSON.parse(ref?.getAttribute("linkTarget") ?? "{}"));
@@ -173,12 +173,12 @@ describe("shu-affordances-panel", () => {
 	it("clicking 'Start this path' opens the path's first step in the actions bar without auto-dispatch", async () => {
 		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
-		const path = { steps: [{ stepperName: "Issue", stepName: "issueCredential" }], bindings: [{ kind: "argument", domain: "issuer" }] };
+		const path = { steps: [{ stepperName: "Issue", stepName: "issueReport" }], bindings: [{ kind: "argument", domain: "issuer" }] };
 		panel.products = {
 			actuality: ACTUALITY_FEATURE,
 			satisfiedDomains: [],
 			forward: [],
-			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { verdict: "unknown", goal: "vc", factIds: [], plans: [path] } }],
+			goals: [{ domain: "report", description: "Audit report", resolution: { verdict: "unknown", goal: "report", factIds: [], plans: [path] } }],
 		};
 		await applied(panel);
 		type TStepChoose = { method?: string; args?: Record<string, unknown>; auto?: boolean };
@@ -186,12 +186,12 @@ describe("shu-affordances-panel", () => {
 		document.addEventListener("step-choose", ((e: CustomEvent) => {
 			received.push(e.detail as TStepChoose);
 		}) as EventListener);
-		(panel.shadowRoot?.querySelector('button[data-testid="goal-vc-toggle"]') as HTMLButtonElement | null)?.click();
+		(panel.shadowRoot?.querySelector('button[data-testid="goal-report-toggle"]') as HTMLButtonElement | null)?.click();
 		await applied(panel);
 		const startBtn = panel.shadowRoot?.querySelector(".start-path") as HTMLButtonElement;
 		startBtn.click();
 		const last = received[received.length - 1];
-		expect(last?.method).toBe("Issue-issueCredential");
+		expect(last?.method).toBe("Issue-issueReport");
 		expect(last?.auto).toBeFalsy();
 		expect(last?.args).toBeUndefined();
 	});
@@ -205,24 +205,24 @@ describe("shu-affordances-panel", () => {
 			forward: [],
 			goals: [
 				{
-					domain: "vc",
-					description: "Verifiable credential",
+					domain: "report",
+					description: "Audit report",
 					resolution: {
 						verdict: "unknown",
-						goal: "vc",
+						goal: "report",
 						factIds: [],
-						plans: [{ steps: [{ stepperName: "Issue", stepName: "issueVc", gwta: "issue" }], bindings: [{ kind: "argument", domain: "issuer" }] }],
+						plans: [{ steps: [{ stepperName: "Issue", stepName: "issueReport", gwta: "issue" }], bindings: [{ kind: "argument", domain: "issuer" }] }],
 					},
 				},
 			],
 		};
 		await applied(panel);
-		(panel.shadowRoot?.querySelector('button[data-testid="goal-vc-toggle"]') as HTMLButtonElement | null)?.click();
+		(panel.shadowRoot?.querySelector('button[data-testid="goal-report-toggle"]') as HTMLButtonElement | null)?.click();
 		await applied(panel);
-		const presenter = await mountedPresenter(panel, "goal-graph-vc");
-		expect(panel.shadowRoot?.querySelector('[data-testid="goal-graph-vc"] slot[name="goal-graph-vc"]'), "shown through the goal's slot").toBeTruthy();
+		const presenter = await mountedPresenter(panel, "goal-graph-report");
+		expect(panel.shadowRoot?.querySelector('[data-testid="goal-graph-report"] slot[name="goal-graph-report"]'), "shown through the goal's slot").toBeTruthy();
 		expect(presenter.dataset.persistScope).toBe("goal-graph");
-		const step = "step:Issue.issueVc";
+		const step = "step:Issue.issueReport";
 		expect(
 			presenter.quads.some((q) => q.subject === step && typeof q.objectType === "string"),
 			"the path's step and its edges",
@@ -241,11 +241,11 @@ describe("shu-affordances-panel", () => {
 		document.addEventListener("step-choose", onChoose);
 		presenter.openNode(step);
 		document.removeEventListener("step-choose", onChoose);
-		expect(chosen).toEqual(["Issue-issueVc"]);
+		expect(chosen).toEqual(["Issue-issueReport"]);
 
-		(panel.shadowRoot?.querySelector('button[data-testid="goal-vc-toggle"]') as HTMLButtonElement | null)?.click();
+		(panel.shadowRoot?.querySelector('button[data-testid="goal-report-toggle"]') as HTMLButtonElement | null)?.click();
 		await applied(panel);
-		expect(presenterIn(panel, "goal-graph-vc"), "a closed goal's graph goes with it").toBeUndefined();
+		expect(presenterIn(panel, "goal-graph-report"), "a closed goal's graph goes with it").toBeUndefined();
 	});
 
 	it("re-rendering after a new affordances snapshot preserves <details> open state", async () => {
@@ -281,11 +281,11 @@ describe("shu-affordances-panel", () => {
 		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
 		const compositePlan = {
-			steps: [{ stepperName: "Cred", stepName: "issue" }],
+			steps: [{ stepperName: "Report", stepName: "issue" }],
 			bindings: [
 				{
 					kind: "composite",
-					domain: "vc",
+					domain: "report",
 					fields: [
 						{ fieldName: "issuer", fieldDomain: "issuer-vertex", fieldType: "object", optional: false, kind: "fact", factId: "fact-1" },
 						{ fieldName: "subject", fieldDomain: "", fieldType: "string", optional: false, kind: "argument" },
@@ -297,12 +297,12 @@ describe("shu-affordances-panel", () => {
 			actuality: ACTUALITY_FEATURE,
 			satisfiedDomains: [],
 			forward: [],
-			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { verdict: "unknown", goal: "vc", factIds: [], plans: [compositePlan] } }],
+			goals: [{ domain: "report", description: "Audit report", resolution: { verdict: "unknown", goal: "report", factIds: [], plans: [compositePlan] } }],
 		};
 		await applied(panel);
-		(panel.shadowRoot?.querySelector('button[data-testid="goal-vc-toggle"]') as HTMLButtonElement | null)?.click();
+		(panel.shadowRoot?.querySelector('button[data-testid="goal-report-toggle"]') as HTMLButtonElement | null)?.click();
 		await applied(panel);
-		const composite = panel.shadowRoot?.querySelector<HTMLDetailsElement>('details[data-key="composite:vc"]');
+		const composite = panel.shadowRoot?.querySelector<HTMLDetailsElement>('details[data-key="composite:report"]');
 		expect(composite).toBeTruthy();
 		if (!composite) throw new Error("unreachable");
 		composite.open = true;
@@ -310,10 +310,10 @@ describe("shu-affordances-panel", () => {
 			actuality: ACTUALITY_FEATURE,
 			satisfiedDomains: [],
 			forward: [],
-			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { verdict: "unknown", goal: "vc", factIds: [], plans: [compositePlan] } }],
+			goals: [{ domain: "report", description: "Audit report", resolution: { verdict: "unknown", goal: "report", factIds: [], plans: [compositePlan] } }],
 		};
 		await applied(panel);
-		const after = panel.shadowRoot?.querySelector<HTMLDetailsElement>('details[data-key="composite:vc"]');
+		const after = panel.shadowRoot?.querySelector<HTMLDetailsElement>('details[data-key="composite:report"]');
 		expect(after?.open).toBe(true);
 	});
 
@@ -326,23 +326,23 @@ describe("shu-affordances-panel", () => {
 			forward: [],
 			goals: [
 				{
-					domain: "credential",
-					description: "Credential",
+					domain: "permit",
+					description: "Permit",
 					resolution: {
 						verdict: "proved",
-						goal: "credential",
+						goal: "permit",
 						factIds: ["fact-1"],
-						plans: [{ steps: [{ stepperName: "Issue", stepName: "issueVc", gwta: "issue" }], bindings: [{ kind: "argument", domain: "issuer" }] }],
+						plans: [{ steps: [{ stepperName: "Issue", stepName: "issuePermit", gwta: "issue" }], bindings: [{ kind: "argument", domain: "issuer" }] }],
 					},
 				},
 			],
 		};
 		await applied(panel);
-		expect(panel.shadowRoot?.querySelector('[data-testid="goal-credential-facts"]')?.textContent).toContain("fact-1");
-		(panel.shadowRoot?.querySelector('button[data-testid="goal-credential-toggle"]') as HTMLButtonElement | null)?.click();
+		expect(panel.shadowRoot?.querySelector('[data-testid="goal-permit-facts"]')?.textContent).toContain("fact-1");
+		(panel.shadowRoot?.querySelector('button[data-testid="goal-permit-toggle"]') as HTMLButtonElement | null)?.click();
 		await applied(panel);
 		// Once open: the inline fact summary keeps the existing fact id, and the heading on the run-again section uses the proved wording.
-		expect(panel.shadowRoot?.querySelector('[data-testid="goal-credential-facts"]')?.textContent).toContain("fact-1");
+		expect(panel.shadowRoot?.querySelector('[data-testid="goal-permit-facts"]')?.textContent).toContain("fact-1");
 		expect(panel.shadowRoot?.querySelector(".path-heading")?.textContent).toContain("Run again to produce another");
 		expect(panel.shadowRoot?.querySelectorAll(".start-path").length).toBe(1);
 	});

@@ -76,23 +76,16 @@ describe("ontologyToQuads: the schema rendered as a graph", () => {
 });
 
 describe("pruneOntologyToUse: the served schema is the part the data exercises", () => {
-	const schemaTerm: TQuad = { subject: "VerifiableCredential", predicate: ONTOLOGY_FIELD.name, object: "VerifiableCredential", namedGraph: CLASS_LABEL, timestamp: 0 };
-	const superTerm: TQuad = {
-		subject: "VerifiableCredential",
-		predicate: ONTOLOGY_FIELD.subClassOf,
-		object: "prov:Entity",
-		namedGraph: CLASS_LABEL,
-		objectType: CLASS_LABEL,
-		timestamp: 0,
-	};
+	const schemaTerm: TQuad = { subject: "Document", predicate: ONTOLOGY_FIELD.name, object: "Document", namedGraph: CLASS_LABEL, timestamp: 0 };
+	const superTerm: TQuad = { subject: "Document", predicate: ONTOLOGY_FIELD.subClassOf, object: "prov:Entity", namedGraph: CLASS_LABEL, objectType: CLASS_LABEL, timestamp: 0 };
 	const superName: TQuad = { subject: "prov:Entity", predicate: ONTOLOGY_FIELD.name, object: "prov:Entity", namedGraph: CLASS_LABEL, timestamp: 0 };
 	const unusedTerm: TQuad = { subject: "NeverInstantiated", predicate: ONTOLOGY_FIELD.name, object: "NeverInstantiated", namedGraph: CLASS_LABEL, timestamp: 0 };
 	const usedProp: TQuad = { subject: "issuer", predicate: ONTOLOGY_FIELD.name, object: "issuer", namedGraph: PROPERTY_LABEL, timestamp: 0 };
-	const instance: TQuad = { subject: "vc-1", predicate: "issuer", object: "did:x", namedGraph: "VerifiableCredential", timestamp: 0 };
+	const instance: TQuad = { subject: "doc-1", predicate: "issuer", object: "did:x", namedGraph: "Document", timestamp: 0 };
 	const ontology = {
 		quads: [schemaTerm, superTerm, superName, unusedTerm, usedProp],
 		clusters: [
-			{ type: CLASS_LABEL, totalCount: 3, sampledCount: 3, omittedCount: 0, sampledSubjects: ["VerifiableCredential", "prov:Entity", "NeverInstantiated"], displayLabels: {} },
+			{ type: CLASS_LABEL, totalCount: 3, sampledCount: 3, omittedCount: 0, sampledSubjects: ["Document", "prov:Entity", "NeverInstantiated"], displayLabels: {} },
 			{ type: PROPERTY_LABEL, totalCount: 1, sampledCount: 1, omittedCount: 0, sampledSubjects: ["issuer"], displayLabels: {} },
 		],
 	};
@@ -100,7 +93,7 @@ describe("pruneOntologyToUse: the served schema is the part the data exercises",
 	it("keeps a used Class (and its superclass) plus a used Property; drops a never-instantiated term: the evidence is the full data, so a types-narrowed request still receives the pruned schema", () => {
 		const pruned = pruneOntologyToUse(ontology, [instance]);
 		const subjects = pruned.quads.map((q) => q.subject);
-		expect(subjects).toContain("VerifiableCredential"); // its instance exercises it
+		expect(subjects).toContain("Document"); // its instance exercises it
 		expect(subjects).toContain("prov:Entity"); // a used leaf pulls in its ancestors
 		expect(subjects).toContain("issuer"); // the instance's predicate
 		expect(subjects).not.toContain("NeverInstantiated");
@@ -109,7 +102,7 @@ describe("pruneOntologyToUse: the served schema is the part the data exercises",
 	it("cluster counts match the pruned subjects so the chips read the exercised subset", () => {
 		const pruned = pruneOntologyToUse(ontology, [instance]);
 		const classes = pruned.clusters.find((c) => c.type === CLASS_LABEL);
-		expect(classes?.sampledSubjects.sort()).toEqual(["VerifiableCredential", "prov:Entity"]);
+		expect(classes?.sampledSubjects.sort()).toEqual(["Document", "prov:Entity"]);
 		expect(classes?.totalCount).toBe(2);
 		expect(pruned.clusters.find((c) => c.type === PROPERTY_LABEL)?.totalCount).toBe(1);
 	});
@@ -159,7 +152,7 @@ describe("scopeSchemaToType: one type's own vocabulary", () => {
 		q("did", ONTOLOGY_FIELD.name, "did", PROPERTY_LABEL),
 		q("Email", ONTOLOGY_FIELD.name, "Email", CLASS_LABEL),
 		q("hasBody", ONTOLOGY_FIELD.domain, "Email", PROPERTY_LABEL, CLASS_LABEL),
-		q("vc-1", "issuer", "did:x", "VerifiableCredential"),
+		q("doc-1", "issuer", "did:x", "Document"),
 	];
 
 	it("keeps the type, its superclass, and its properties (their domain edges point at it) with their labels", () => {
@@ -171,7 +164,7 @@ describe("scopeSchemaToType: one type's own vocabulary", () => {
 	it("drops unrelated schema terms but passes non-schema quads through untouched", () => {
 		const scoped = scopeSchemaToType(quads, "Issuer");
 		expect(scoped.some((x) => x.subject === "Email" || x.subject === "hasBody")).toBe(false);
-		expect(scoped.some((x) => x.subject === "vc-1")).toBe(true);
+		expect(scoped.some((x) => x.subject === "doc-1")).toBe(true);
 	});
 });
 
@@ -199,11 +192,11 @@ const catDomain = (persistedAs: string, subClassOf?: string): TRegisteredDomain 
 
 describe("category designation, read off the standard subClassOf axioms", () => {
 	it("stamps each class with its PROV/SOSA anchor category, defaulting to artifact, and the meta class carries its own", () => {
-		const { quads } = ontologyToQuads({ a: catDomain("Party", "prov:Agent"), b: catDomain("Verification", "prov:Activity"), c: catDomain("Credential") });
+		const { quads } = ontologyToQuads({ a: catDomain("Party", "prov:Agent"), b: catDomain("Verification", "prov:Activity"), c: catDomain("Record") });
 		const cat = (cls: string): unknown => quads.find((q) => q.subject === cls && q.predicate === ONTOLOGY_FIELD.category)?.object;
 		expect(cat("Party")).toBe("agent");
 		expect(cat("Verification")).toBe("activity");
-		expect(cat("Credential")).toBe("artifact");
+		expect(cat("Record")).toBe("artifact");
 		expect(cat("prov:Agent")).toBe("agent");
 		expect(cat("prov:Activity")).toBe("activity");
 	});

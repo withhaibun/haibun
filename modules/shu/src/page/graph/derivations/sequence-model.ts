@@ -54,8 +54,8 @@ export function seqLabelOf(participantId: string, party: TSeqParty | undefined, 
 	return role !== name ? `${role}, ${name}` : name;
 }
 
-/** The label for an artifact-mediated message: the mediating entity's @type (e.g. "VerifiablePresentation"), never a
- *  predicate and never its displayLabel (which for a credential is its raw claims): the artifact's TYPE is the message. */
+/** The label for an artifact-mediated message: the mediating entity's @type (e.g. "Presentation"), never a
+ *  predicate and never its displayLabel (which for a document may be its raw body): the artifact's TYPE is the message. */
 const artifactLabel = (n: SeqNode): string => n.type;
 
 const finiteTime = (t: number | undefined): number => (typeof t === "number" && Number.isFinite(t) ? t : Number.POSITIVE_INFINITY);

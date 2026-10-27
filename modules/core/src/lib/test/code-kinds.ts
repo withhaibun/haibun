@@ -57,7 +57,7 @@ const DISPATCHED: TCodeKind = "stepper";
 /** The kinds that import only the composition root of their own area or of an enclosing area. */
 const AREA_BOUND: readonly TCodeKind[] = ["stepper", "controller"];
 
-/** The packages only an adapter imports: the filesystem, the network, child processes, timers, database drivers, mail servers, model endpoints and browsers. */
+/** The packages only an adapter imports: the filesystem, the network, child processes, timers, database drivers, model endpoints and browsers. */
 const IO_PACKAGES = new Set([
 	"fs",
 	"net",
@@ -76,8 +76,6 @@ const IO_PACKAGES = new Set([
 	"undici",
 	"ws",
 	"@hono/node-server",
-	"imapflow",
-	"nodemailer",
 	"node-llama-cpp",
 	"playwright",
 	"@opentelemetry/exporter-trace-otlp-http",

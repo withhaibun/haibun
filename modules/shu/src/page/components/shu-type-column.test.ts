@@ -31,10 +31,10 @@ describe("getUiPresenting, discovering the site's presenter for a capability", (
 	});
 
 	it("flags a haibun-namespace type as a system schema, a standard-vocabulary type not", () => {
-		declareSpec({ ...META, types: [...META.types, "SeqPath", "VerifiableCredential"], classIris: { SeqPath: "hbn:SeqPath", VerifiableCredential: "cred:VerifiableCredential" } });
+		declareSpec({ ...META, types: [...META.types, "SeqPath", "Person"], classIris: { SeqPath: "hbn:SeqPath", Person: "schema:Person" } });
 		expect(isSystemSchemaType("SeqPath")).toBe(true); // hbn: is haibun's own vocabulary
-		expect(isSystemSchemaType("VerifiableCredential")).toBe(false); // cred: is a standard
-		expect(isSystemSchemaType("Issuer")).toBe(false); // it doesn't declare a class IRI
+		expect(isSystemSchemaType("Person")).toBe(false); // schema: is a standard
+		expect(isSystemSchemaType("Agent")).toBe(false); // it doesn't declare a class IRI
 		declareSpec(META);
 	});
 });

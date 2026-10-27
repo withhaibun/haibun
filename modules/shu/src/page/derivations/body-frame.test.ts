@@ -22,8 +22,8 @@ describe("buildBodyIframeDoc network policy", () => {
 	// document that renders them. The base re-roots them against the app's address and targets the top frame, and the
 	// CSP's base-uri admits exactly that origin, so the base is honoured while another base couldn't be injected.
 	it("with a page URL, links re-root against the app and open in the top frame", () => {
-		const doc = buildBodyIframeDoc("<p>hi</p>", "text/markdown", "http://localhost:8235/credentials?x=1");
-		expect(doc).toContain('<base href="http://localhost:8235/credentials?x=1" target="_top">');
+		const doc = buildBodyIframeDoc("<p>hi</p>", "text/markdown", "http://localhost:8235/records?x=1");
+		expect(doc).toContain('<base href="http://localhost:8235/records?x=1" target="_top">');
 		expect(doc).toContain("base-uri http://localhost:8235;");
 		expect(doc).not.toContain("base-uri 'none'");
 	});

@@ -1,0 +1,9 @@
+#!/bin/sh
+# Links any workspace and installs any dependency that a pull brings in.
+set -e
+root=$(git rev-parse --show-toplevel)
+parent=$(dirname "$root")
+if [ "$(basename "$root")" = "haibun" ] && [ -f "$parent/package.json" ]; then
+	cd "$parent"
+fi
+npm install --prefer-offline --no-audit --no-fund

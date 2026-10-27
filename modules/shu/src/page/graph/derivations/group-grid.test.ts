@@ -33,12 +33,12 @@ const overlapArea = (a: ReturnType<typeof boxesFor>[number], b: ReturnType<typeo
 };
 
 describe("grouped layout: enclosure boxes are mutually exclusive (they don't overlap)", () => {
-	// The credentials/role case: a few small party containers + one big "(unattributed)" catch-all, plus an over-long id.
+	// The role/group case: a few small party containers + one big "(unattributed)" catch-all, plus an over-long id.
 	const roleLike = new Map<string, ReturnType<typeof member>[]>([
-		["Issuer", [member("i1", "Coastal Fisheries Authority")]],
-		["Holder", [member("h1", "Tidewater Aquatics Co-op")]],
-		["Verifier", [member("v1", "Port Inspection Service")]],
-		["Registry", [member("r1", "Verifiable Data Registry")]],
+		["Publisher", [member("i1", "Harbor Dispatch Service")]],
+		["Recipient", [member("h1", "Tidewater Logistics")]],
+		["Auditor", [member("v1", "Port Inspection Service")]],
+		["Registry", [member("r1", "Public Data Registry")]],
 		["unattributed", Array.from({ length: 9 }, (_, k) => member(`a${k}`, k === 0 ? `did:key:${"z".repeat(120)}` : `Artifact ${k}`))],
 	]);
 
@@ -57,7 +57,7 @@ describe("grouped layout: enclosure boxes are mutually exclusive (they don't ove
 
 	// A type-grouped case: many small same-type containers (1-3 members), the manual "group by type" the user drives.
 	const typeLike = new Map<string, ReturnType<typeof member>[]>(
-		["VerifiableCredential", "Proof", "VerificationMethod", "BitstringStatusList", "VerifiablePresentation", "VerificationResult", "Issuer", "Holder", "Verifier"].map((t, i) => [
+		["Document", "Signature", "KeyMethod", "StatusList", "Presentation", "AuditResult", "Publisher", "Recipient", "Auditor"].map((t, i) => [
 			t,
 			Array.from({ length: (i % 3) + 1 }, (_, k) => member(`${t}-${k}`, `${t} ${k}`)),
 		]),

@@ -139,45 +139,45 @@ describe("federated clustered reads (reads-first federation)", () => {
 
 	it("merges a peer's clusters into getClusteredQuads with per-subject site stamps intact; local subjects stay unstamped", async () => {
 		const store = new QuadStore(newStoreChain());
-		await store.add({ subject: "local-1", predicate: "name", object: "local-1", namedGraph: "Letter" });
-		store.federate(peer("did:site:imap.1", "Letter", "remote-1"));
+		await store.add({ subject: "local-1", predicate: "name", object: "local-1", namedGraph: "Document" });
+		store.federate(peer("did:site:remote.1", "Document", "remote-1"));
 		const result = await store.getClusteredQuads({ perTypeLimit: 10, accessLevel: "private" });
-		const letter = result.clusters.find((c) => c.type === "Letter");
-		expect([...(letter?.sampledSubjects ?? [])].sort()).toEqual(["local-1", "remote-1"]);
-		expect(letter?.sites).toEqual({ "remote-1": "did:site:imap.1" });
+		const document = result.clusters.find((c) => c.type === "Document");
+		expect([...(document?.sampledSubjects ?? [])].sort()).toEqual(["local-1", "remote-1"]);
+		expect(document?.sites).toEqual({ "remote-1": "did:site:remote.1" });
 	});
 
 	it("touches only getClusteredQuads: a federated peer never appears in raw queries or all()", async () => {
 		const store = new QuadStore(newStoreChain());
-		store.federate(peer("did:site:imap.1", "Letter", "remote-1"));
-		expect(await store.query({ namedGraph: "Letter" })).toHaveLength(0);
+		store.federate(peer("did:site:remote.1", "Document", "remote-1"));
+		expect(await store.query({ namedGraph: "Document" })).toHaveLength(0);
 		expect(await store.all()).toHaveLength(0);
 	});
 
 	it('serves scope "own" without reading peers: the scope a federated read states, so a federation cycle cannot recurse', async () => {
 		const store = new QuadStore(newStoreChain());
-		await store.add({ subject: "local-1", predicate: "name", object: "local-1", namedGraph: "Letter" });
-		store.federate(peer("did:site:imap.1", "Letter", "remote-1"));
+		await store.add({ subject: "local-1", predicate: "name", object: "local-1", namedGraph: "Document" });
+		store.federate(peer("did:site:remote.1", "Document", "remote-1"));
 		const own = await store.getClusteredQuads({ perTypeLimit: 10, accessLevel: "private", scope: "own" });
-		expect(own.clusters.find((c) => c.type === "Letter")?.sampledSubjects).toEqual(["local-1"]);
+		expect(own.clusters.find((c) => c.type === "Document")?.sampledSubjects).toEqual(["local-1"]);
 	});
 
 	it("refuses a second source for the same site, site principals must be unique in a federation", () => {
 		const store = new QuadStore(newStoreChain());
-		store.federate(peer("did:site:imap.1", "Letter", "a"));
-		expect(() => store.federate(peer("did:site:imap.1", "Letter", "b"))).toThrow(/already federated/);
+		store.federate(peer("did:site:remote.1", "Document", "a"));
+		expect(() => store.federate(peer("did:site:remote.1", "Document", "b"))).toThrow(/already federated/);
 	});
 
 	it("carries federation along the store chain by reference, and unfederate removes it everywhere", async () => {
 		const store = new QuadStore(newStoreChain());
-		const source = peer("did:site:imap.1", "Letter", "remote-1");
+		const source = peer("did:site:remote.1", "Document", "remote-1");
 		store.federate(source);
 		const next = new QuadStore(store.storeChain());
 		const seen = await next.getClusteredQuads({ perTypeLimit: 10, accessLevel: "private" });
-		expect(seen.clusters.find((c) => c.type === "Letter")?.sampledSubjects).toEqual(["remote-1"]);
+		expect(seen.clusters.find((c) => c.type === "Document")?.sampledSubjects).toEqual(["remote-1"]);
 		store.unfederate(source);
 		const after = await next.getClusteredQuads({ perTypeLimit: 10, accessLevel: "private" });
-		expect(after.clusters.find((c) => c.type === "Letter")).toBeUndefined();
+		expect(after.clusters.find((c) => c.type === "Document")).toBeUndefined();
 	});
 });
 

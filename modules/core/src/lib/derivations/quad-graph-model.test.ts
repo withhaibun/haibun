@@ -135,24 +135,22 @@ describe("QuadGraphModel", () => {
 
 	// A declaration names an edge by its key, not its rel. Several of a type's edges can share a rel, and the quads carry the key.
 	it("titles through an edge named by its key, along a chain, and ends a cycle", () => {
-		const [CREDENTIAL, PRESENTATION, VERDICT] = ["Credential", "Presentation", "Verdict"];
+		const [DOCUMENT, PRESENTATION, VERDICT] = ["Document", "Presentation", "Verdict"];
 		const titledBy = (type: string) =>
-			({
-				[CREDENTIAL]: { key: "type", through: false },
-				[PRESENTATION]: { key: "verifiableCredential", through: true },
-				[VERDICT]: { key: "verifiedPresentation", through: true },
-			})[type];
+			({ [DOCUMENT]: { key: "type", through: false }, [PRESENTATION]: { key: "presentedDocument", through: true }, [VERDICT]: { key: "verifiedPresentation", through: true } })[
+				type
+			];
 		const m = new QuadGraphModel(10, () => ({}), titledBy);
 		m.merge([
-			q("vc", "type", "EmployeeCredential", CREDENTIAL),
-			qe("vp", "verifiableCredential", "vc", CREDENTIAL, PRESENTATION),
+			q("doc", "type", "EmployeeRecord", DOCUMENT),
+			qe("vp", "presentedDocument", "doc", DOCUMENT, PRESENTATION),
 			qe("pv", "verifiedPresentation", "vp", PRESENTATION, VERDICT),
 			qe("loop-a", "verifiedPresentation", "loop-b", VERDICT, VERDICT),
 			qe("loop-b", "verifiedPresentation", "loop-a", VERDICT, VERDICT),
 		]);
 		const labelOf = (type: string, id: string) => m.clusters.find((c) => c.type === type)?.displayLabels[id];
-		expect(labelOf(PRESENTATION, "vp")).toBe("EmployeeCredential");
-		expect(labelOf(VERDICT, "pv"), "through the presentation to its credential").toBe("EmployeeCredential");
+		expect(labelOf(PRESENTATION, "vp")).toBe("EmployeeRecord");
+		expect(labelOf(VERDICT, "pv"), "through the presentation to its document").toBe("EmployeeRecord");
 		expect(labelOf(VERDICT, "loop-a"), "a cycle ends at a record already visited").toBeTypeOf("string");
 	});
 });

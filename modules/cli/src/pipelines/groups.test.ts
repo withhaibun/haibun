@@ -9,7 +9,7 @@ import { foundGroups, groupArgs, runGroups, selectedGroups } from "./groups.js";
 const CONFIGS: Record<string, TSpecl> = {
 	"tests/config.json": { steppers: [], group: { bases: [".", "@haibun/shu/waypoints"] } },
 	"tests/instance/config.json": { steppers: [] },
-	"mail/config.json": { steppers: [], environments: ["imap"], group: { filter: ["inbox"] } },
+	"worker/config.json": { steppers: [], environments: ["staging"], group: { filter: ["queue"] } },
 	"scale/config.json": { steppers: [], group: { set: "scale" } },
 	"profile/config.json": { steppers: [], group: { filter: ["a-"], clears: ["capture/profile"] } },
 	"profile/config-reopened.json": { steppers: [], group: { filter: ["[b-e]-"], after: ["config.json"] } },
@@ -42,9 +42,9 @@ const exists = (at: string) => fs.existsSync(at);
 
 describe("haibun-cli --groups", () => {
 	it("finds each config that declares a group, with what it declares and its environments", () => {
-		expect(configs(found)).toEqual(["mail/config.json", "profile/config-reopened.json", "profile/config.json", "scale/config.json", "tests/config.json"]);
+		expect(configs(found)).toEqual(["profile/config-reopened.json", "profile/config.json", "scale/config.json", "tests/config.json", "worker/config.json"]);
 		expect(found.find(({ config }) => config === "tests/config.json")).toMatchObject({ bases: [".", "@haibun/shu/waypoints"], filter: [], environments: [] });
-		expect(found.find(({ config }) => config === "mail/config.json")).toMatchObject({ bases: ["."], filter: ["inbox"], environments: ["imap"] });
+		expect(found.find(({ config }) => config === "worker/config.json")).toMatchObject({ bases: ["."], filter: ["queue"], environments: ["staging"] });
 		expect(found.find(({ config }) => config === "profile/config-reopened.json")?.after).toEqual(["profile/config.json"]);
 	});
 
@@ -54,11 +54,11 @@ describe("haibun-cli --groups", () => {
 
 	it("selects the groups of a named set, and the groups whose environments a call names", () => {
 		expect(configs(selectedGroups(found, { ...NONE, set: "scale" }))).toEqual(["scale/config.json"]);
-		expect(configs(selectedGroups(found, { ...NONE, environments: ["imap"] }))).toEqual([
-			"mail/config.json",
+		expect(configs(selectedGroups(found, { ...NONE, environments: ["staging"] }))).toEqual([
 			"profile/config.json",
 			"profile/config-reopened.json",
 			"tests/config.json",
+			"worker/config.json",
 		]);
 	});
 
@@ -68,7 +68,7 @@ describe("haibun-cli --groups", () => {
 	});
 
 	it("runs a config a call names whatever its set and environments, and reads the configs it names without listing the files", async () => {
-		expect(configs(selectedGroups(found, { ...NONE, within: ["scale/config.json", "mail/config.json"] }))).toEqual(["mail/config.json", "scale/config.json"]);
+		expect(configs(selectedGroups(found, { ...NONE, within: ["scale/config.json", "worker/config.json"] }))).toEqual(["scale/config.json", "worker/config.json"]);
 		const ran: string[] = [];
 		const unlisted: TGroups = { ...groups(ran), files: () => expect.fail("a call that names configs doesn't list the files") };
 		expect(await runGroups(["--groups", "profile/config-reopened.json"], { fs, groups: unlisted })).toBe(0);
@@ -87,8 +87,8 @@ describe("haibun-cli --groups", () => {
 	});
 
 	it("reads the selection, a filter and the listing, passes every other option to each run, and refuses a selection without its value", () => {
-		expect(groupArgs(["--groups", "--set", "scale", "--environments", "llm,imap", "tests/", "agent-", "--once", "--with-steppers=debugger-stepper"], exists)).toEqual({
-			selection: { set: "scale", environments: ["llm", "imap"], within: ["tests"], filter: ["agent-"] },
+		expect(groupArgs(["--groups", "--set", "scale", "--environments", "llm,staging", "tests/", "agent-", "--once", "--with-steppers=debugger-stepper"], exists)).toEqual({
+			selection: { set: "scale", environments: ["llm", "staging"], within: ["tests"], filter: ["agent-"] },
 			list: false,
 			forwarded: ["--once", "--with-steppers=debugger-stepper"],
 		});

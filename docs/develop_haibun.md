@@ -38,5 +38,5 @@ a group whose last pass holds against its present dependencies.
 A repository that builds on Haibun's modules keeps a Haibun checkout in its git-ignored `haibun` folder and lists `haibun/modules/*`
 as its npm workspaces, so one `npm install` installs it with Haibun's modules. It names Haibun's tooling by package: its Vitest config
 spreads `@haibun/tooling/vitest-preset.js`, its Biome config extends `@haibun/tooling/biome`, its bundles build through
-`@haibun/tooling/bundles.js`, and its `prepare` script runs `haibun-install-hooks`. Spopg is one: it clones Haibun on its own branch
-into `haibun`, then `npm run setup` installs its packages, builds Haibun, fetches the browsers and models, and builds spopg.
+`@haibun/tooling/bundles.js`, and its `prepare` script runs `haibun-install-hooks`. An application repository clones Haibun on its own branch
+into `haibun`, then `npm run setup` installs its packages, builds Haibun, fetches the browsers and models, and builds the application.

@@ -1,26 +1,5 @@
 {
-	"docs/architecture.md": {
-		"names the downstream spopg": 4
-	},
-	"docs/develop_haibun.md": {
-		"names the downstream spopg": 2
-	},
-	"e2e-tests/requirements/features/02-authority.feature.ts": {
-		"names the downstream spopg": 2
-	},
-	"e2e-tests/requirements/features/09-surfaces.feature.ts": {
-		"names the downstream spopg": 3
-	},
-	"e2e-tests/requirements/features/12-conversations.feature.ts": {
-		"names the downstream spopg": 1
-	},
-	"e2e-tests/requirements/features/14-model-loop.feature.ts": {
-		"names the downstream spopg": 1
-	},
 	"modules/cli/src/test-runner-stepper.test.ts": {
 		"names the downstream muskeg": 2
-	},
-	"modules/tooling/src/adapters/bundles.ts": {
-		"names the downstream spopg": 1
 	}
 }

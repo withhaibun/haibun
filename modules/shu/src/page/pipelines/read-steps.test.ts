@@ -138,24 +138,23 @@ describe("the steps a domain joins", () => {
 	});
 
 	it("are the steps that return it and the steps that take it, named by its key or by the type it persists as, a union's parts included", async () => {
-		const [CREDENTIAL, CREDENTIAL_TYPE, CHECK] = ["credential", "VerifiableCredential", "verification"];
+		const [RECORD, RECORD_TYPE, CHECK] = ["record", "SubmittedOrder", "verification"];
 		const [issue, verify, either] = [
-			{ ...aStep("CredentialsStepper", "issue", false), productsDomain: CREDENTIAL },
-			{ ...aStep("VerifierStepper", "verify", false), paramDomains: { credential: CREDENTIAL }, productsDomain: CHECK },
-			{ ...aStep("VerifierStepper", "either", false), paramDomains: { what: asDomainKey([CREDENTIAL, CHECK]) } },
+			{ ...aStep("OrderStepper", "issue", false), productsDomain: RECORD },
+			{ ...aStep("InspectorStepper", "verify", false), paramDomains: { record: RECORD }, productsDomain: CHECK },
+			{ ...aStep("InspectorStepper", "either", false), paramDomains: { what: asDomainKey([RECORD, CHECK]) } },
 		];
 		setHydration({ actualityId: PAGE_ACTUALITY, settings: SERVED_SETTINGS });
 		handle = setupShuTest({
-			dispatch: (method) =>
-				method === SHOW_STEP_DEFINITIONS_METHOD ? stepsShown([issue, verify, either], { [CREDENTIAL]: { persistedAs: CREDENTIAL_TYPE }, [CHECK]: {} }) : undefined,
+			dispatch: (method) => (method === SHOW_STEP_DEFINITIONS_METHOD ? stepsShown([issue, verify, either], { [RECORD]: { persistedAs: RECORD_TYPE }, [CHECK]: {} }) : undefined),
 		});
 		await getAvailableSteps();
 		const joined = (name: string) => {
 			const { returning, taking } = stepsJoining(name);
 			return { returning: returning.map((step) => step.method), taking: taking.map((step) => step.method) };
 		};
-		expect(joined(CREDENTIAL)).toEqual({ returning: [issue.method], taking: [verify.method, either.method] });
-		expect(joined(CREDENTIAL_TYPE), "the same, by the type it persists as").toEqual(joined(CREDENTIAL));
+		expect(joined(RECORD)).toEqual({ returning: [issue.method], taking: [verify.method, either.method] });
+		expect(joined(RECORD_TYPE), "the same, by the type it persists as").toEqual(joined(RECORD));
 		expect(joined(CHECK)).toEqual({ returning: [verify.method], taking: [either.method] });
 	});
 });

@@ -28,11 +28,11 @@ describe("groupKeyOf", () => {
 	});
 
 	it("keys by the serving site (the federation stamp) without a code branch for it", () => {
-		expect(groupKeyOf({ type: "Email", properties: { [SITE_KEY]: "did:site:imap.1" } }, SITE_KEY)).toBe("did:site:imap.1");
+		expect(groupKeyOf({ type: "Document", properties: { [SITE_KEY]: "did:site:remote.1" } }, SITE_KEY)).toBe("did:site:remote.1");
 	});
 
 	it("buckets a node without a value at the chosen axis as unattributed", () => {
-		expect(groupKeyOf({ type: "Email", properties: {} }, SITE_KEY)).toBe(UNATTRIBUTED_ROLE);
+		expect(groupKeyOf({ type: "Document", properties: {} }, SITE_KEY)).toBe(UNATTRIBUTED_ROLE);
 	});
 });
 

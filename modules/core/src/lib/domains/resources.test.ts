@@ -317,7 +317,7 @@ describe("roleRels: the ontology-derived role-attribution predicate set", () => 
 	});
 
 	it("doesn't name a consumer vocabulary, because consumer actor edges classify through their declared upper-ontology rel", () => {
-		for (const rel of ["issuer", "holder", "credentialSubject", "verifier", "registeredIn", "presentedTo", "resolvedIssuer", "verifiableCredential"]) {
+		for (const rel of ["issuer", "holder", "targetSubject", "verifier", "registeredIn", "presentedTo", "resolvedIssuer", "referencedDocument"]) {
 			expect(getRelRange(rel)).toBeUndefined();
 		}
 	});

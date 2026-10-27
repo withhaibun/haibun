@@ -27,18 +27,18 @@ describe("validateStepInput", () => {
 	it("recurses into nested objects and reports the full dot-path of the failing field", () => {
 		const schema = {
 			type: "object",
-			properties: { credential: { type: "object", properties: { subject: { type: "string", format: "uri" } }, required: ["subject"] } },
-			required: ["credential"],
+			properties: { record: { type: "object", properties: { subject: { type: "string", format: "uri" } }, required: ["subject"] } },
+			required: ["record"],
 		};
-		const errors = validateStepInput({ credential: { subject: "subj1" } }, schema);
+		const errors = validateStepInput({ record: { subject: "subj1" } }, schema);
 		expect(errors).toHaveLength(1);
-		expect(itemAt(errors, 0).field).toBe("credential.subject");
+		expect(itemAt(errors, 0).field).toBe("record.subject");
 		expect(itemAt(errors, 0).message).toContain("must be a uri");
 	});
 
 	it("validates each array element against the `items` schema and tags errors with the index", () => {
 		const schema = { type: "object", properties: { type: { type: "array", items: { type: "string" } } } };
-		const errors = validateStepInput({ type: ["VerifiableCredential", 42] }, schema);
+		const errors = validateStepInput({ type: ["Document", 42] }, schema);
 		expect(errors.some((e) => e.field === "type[1]" && e.message.includes("must be a string"))).toBe(true);
 	});
 
