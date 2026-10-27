@@ -3,14 +3,14 @@
  * line, the summary of kinds, and the frames that state the records and edges a reader chose in the scene.
  */
 import { describe, expect, it } from "vitest";
-import { graphDescription } from "../../../derivations/graph-description.js";
+import { graphAxioms } from "../../../derivations/graph-axioms.js";
 import { edgeKey } from "./focus-policy.js";
 import { lineAfterKey, linesOfScene, provenanceOf, sceneOfLine, statusOf, summaryOf } from "./source-lines.js";
 
 /** Two emails, the second a reply to the first, whose id holds quotes. */
 const [QUOTED, PLAIN] = ['say "hi"', "m2"];
 const REPLY = "inReplyTo";
-const description = graphDescription(
+const axioms = graphAxioms(
 	{
 		nodes: [
 			{ id: QUOTED, type: "Email", properties: { subject: "Roadmap" } },
@@ -43,11 +43,11 @@ describe("lineAfterKey", () => {
 
 describe("what a line states to a reader", () => {
 	it("states a line's axioms in DL notation, the statement behind it, and the record that asserted it", () => {
-		const frame = description.frames.find(({ name }) => name === QUOTED_LINE);
+		const frame = axioms.frames.find(({ name }) => name === QUOTED_LINE);
 		expect(frame && provenanceOf(frame)).toBe(`Email(<say%20%22hi%22>) · subject(<say%20%22hi%22>, "Roadmap") · Email ${QUOTED} · asserted by Email ${QUOTED}`);
 	});
-	it("summarises the description's kinds with their counts", () => {
-		expect(summaryOf(description.summary)).toBe("classes 1 · properties 1 · individuals 2");
+	it("summarises the axioms' kinds with their counts", () => {
+		expect(summaryOf(axioms.summary)).toBe("classes 1 · properties 1 · individuals 2");
 	});
 	it("states what a reader's line lights in the scene, or how many lines state the scene's selection", () => {
 		expect(statusOf("e1", { nodes: ["a", "b"], edges: ["k"] }, new Set())).toBe("e1 lights 2 nodes and 1 edge");
@@ -58,11 +58,11 @@ describe("what a line states to a reader", () => {
 
 describe("the selection between the scene and the lines", () => {
 	it("lights the lines that state a record or an edge a reader chose", () => {
-		expect(linesOfScene(description, { nodes: [QUOTED], edges: [] })).toEqual([CLASS, QUOTED_LINE]);
-		expect(linesOfScene(description, { nodes: [], edges: RECORDS.edges }), "an edge lights the lines that state it").toEqual([PROPERTY, PLAIN_LINE]);
+		expect(linesOfScene(axioms, { nodes: [QUOTED], edges: [] })).toEqual([CLASS, QUOTED_LINE]);
+		expect(linesOfScene(axioms, { nodes: [], edges: RECORDS.edges }), "an edge lights the lines that state it").toEqual([PROPERTY, PLAIN_LINE]);
 	});
 	it("lights the records and the edges a line states, among those the scene draws", () => {
-		expect(sceneOfLine(description, PLAIN_LINE, RECORDS)).toEqual({ nodes: [PLAIN], edges: [edgeKey(PLAIN, REPLY, QUOTED)] });
-		expect(sceneOfLine(description, CLASS, RECORDS), "a class lights its records").toEqual({ nodes: [QUOTED, PLAIN], edges: [] });
+		expect(sceneOfLine(axioms, PLAIN_LINE, RECORDS)).toEqual({ nodes: [PLAIN], edges: [edgeKey(PLAIN, REPLY, QUOTED)] });
+		expect(sceneOfLine(axioms, CLASS, RECORDS), "a class lights its records").toEqual({ nodes: [QUOTED, PLAIN], edges: [] });
 	});
 });

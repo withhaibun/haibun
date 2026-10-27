@@ -2,9 +2,9 @@
  * The lines of a graph's source as the source pane reads them, and the selection that links them to the scene both ways: the
  * line a key moves to, the statement and record behind a line, the summary of the source's kinds, the lines that state the
  * nodes and edges a reader chose in the scene, and the nodes and edges the scene draws that a line states. A line is a frame
- * of the graph's description, which names the records and edges it states by the scene's ids.
+ * of the graph's axioms, which names the records and edges it states by the scene's ids.
  */
-import type { TDescription, TFrame } from "@haibun/core/lib/records/domains/description.js";
+import type { TGraphAxioms, TFrame } from "@haibun/core/lib/records/domains/axioms.js";
 import { edgeKey } from "./focus-policy.js";
 
 /** An edge the scene draws: its ends and its predicate, by the scene's ids. */
@@ -38,7 +38,7 @@ export const provenanceOf = ({ dl, statement, assertedBy }: TFrame): string =>
 	[dl, statement, ...(assertedBy === undefined ? [] : [`asserted by ${assertedBy.persistedAs} ${assertedBy.id}`])].join(" · ");
 
 /** The source's kinds, each with its count. */
-export const summaryOf = (summary: TDescription["summary"]): string =>
+export const summaryOf = (summary: TGraphAxioms["summary"]): string =>
 	Object.entries(summary)
 		.map(([kind, count]) => `${kind} ${count}`)
 		.join(" · ");
@@ -54,7 +54,7 @@ export function statusOf(line: string | null, lights: TSceneSelection | null, li
 }
 
 /** The lines that state the nodes and edges a reader chose in the scene. */
-export function linesOfScene({ frames }: TDescription, chosen: { nodes: readonly string[]; edges: readonly TDrawnEdge[] }): string[] {
+export function linesOfScene({ frames }: TGraphAxioms, chosen: { nodes: readonly string[]; edges: readonly TDrawnEdge[] }): string[] {
 	const [nodes, edges] = [new Set(chosen.nodes), new Set(chosen.edges.map(({ from, predicate, to }) => edgeKey(from, predicate, to)))];
 	return frames
 		.filter((frame) => frame.nodes.some((id) => nodes.has(id)) || frame.edges.some(({ from, label, to }) => edges.has(edgeKey(from, label, to))))
@@ -62,7 +62,7 @@ export function linesOfScene({ frames }: TDescription, chosen: { nodes: readonly
 }
 
 /** The nodes and edges the scene draws that a line states, by the scene's ids and its edges' keys. */
-export function sceneOfLine({ frames }: TDescription, line: string, drawn: TDrawn): TSceneSelection {
+export function sceneOfLine({ frames }: TGraphAxioms, line: string, drawn: TDrawn): TSceneSelection {
 	const frame = frames.find(({ name }) => name === line);
 	if (frame === undefined) throw new Error(`the source doesn't hold the line ${line}, which the reader is on`);
 	const [nodes, edges] = [new Set(frame.nodes), new Set(frame.edges.map(({ from, label, to }) => edgeKey(from, label, to)))];

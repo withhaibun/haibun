@@ -27,7 +27,7 @@ const POLYMORPHIC_IDS = SHU_TEST_IDS.POLYMORPHIC_VIEW;
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { VIEW, VIEW_TYPES } from "../domains/views.js";
 import type { TPolymorphicOptionChange } from "./shu-polymorphic-settings.js";
-import type { TDescription } from "@haibun/core/lib/records/domains/description.js";
+import type { TGraphAxioms } from "@haibun/core/lib/records/domains/axioms.js";
 import type { TGraphView } from "../../../pipelines/graph-source.js";
 import { LoadController } from "../../controllers/load-controller.js";
 import { callStep } from "../../controllers/read-controller.js";
@@ -147,11 +147,11 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	private sceneConfig!: GraphSceneConfig;
 	/** The page's clock, which holds the coalesced read of the source and cancels it as the view leaves the page. */
 	readonly #clock = new ClockController(this);
-	/** The graph's source, which the source pane shows: the description that the chosen format's step returns of what the graph
+	/** The graph's source, which the source pane shows: the axioms that the chosen format's step returns of what the graph
 	 *  shows. */
-	readonly #source = new LoadController<TDescription>(this, () => {
+	readonly #source = new LoadController<TGraphAxioms>(this, () => {
 		const format = sourceFormat(this.state.sourceFormat);
-		return callStep<TDescription>(format.step, { view: this.shownView() }, `the graph as ${format.label}`);
+		return callStep<TGraphAxioms>(format.step, { view: this.shownView() }, `the graph as ${format.label}`);
 	});
 	/** What the reader chose in the scene, by the scene's ids, and the lines that state it. */
 	#chosen: { nodes: string[]; edges: TDrawnEdge[] } = { nodes: [], edges: [] };
@@ -367,10 +367,10 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 
 	/** The source beside the scene: its lines once read, or the note of a read under way or refused. */
 	private renderSource(): TemplateResult | string {
-		const description = this.#source.page;
-		if (description === undefined) return this.sourceNote();
+		const axioms = this.#source.page;
+		if (axioms === undefined) return this.sourceNote();
 		return html`<shu-graph-source
-			.description=${description}
+			.axioms=${axioms}
 			.format=${sourceFormat(this.state.sourceFormat)}
 			.lit=${this.#lit}
 			.line=${this.#line}
@@ -605,12 +605,12 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	/** The lines that state the reader's choice in the scene, and what the reader's line lights there, read from the source and
 	 *  the scene as they are now. A line the source doesn't hold any longer is let go. */
 	private relight(): void {
-		const description = this.#source.page;
+		const axioms = this.#source.page;
 		const scene = this.scene;
-		if (this.#line !== null && !description?.frames.some(({ name }) => name === this.#line)) this.#line = null;
-		this.#lit = new Set(description === undefined ? [] : linesOfScene(description, this.#chosen));
+		if (this.#line !== null && !axioms?.frames.some(({ name }) => name === this.#line)) this.#line = null;
+		this.#lit = new Set(axioms === undefined ? [] : linesOfScene(axioms, this.#chosen));
 		const [line, lit] = [this.#line, this.#lights];
-		this.#lights = line === null || description === undefined || scene === null ? null : sceneOfLine(description, line, this.drawnBy(scene));
+		this.#lights = line === null || axioms === undefined || scene === null ? null : sceneOfLine(axioms, line, this.drawnBy(scene));
 		// The preview is the line's while the reader is on one; a type a reader hovers in the filter previews its own otherwise.
 		if (this.#lights !== null) scene?.setPreview({ subjects: new Set(this.#lights.nodes), edges: new Set(this.#lights.edges) });
 		else if (lit !== null) scene?.setPreview(null);

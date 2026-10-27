@@ -1,15 +1,15 @@
 /**
- * shu-graph-source: the source a graph view reads its graph as, beside the scene: each frame of its description in Manchester
+ * shu-graph-source: the source a graph view reads its graph as, beside the scene: each frame of its axioms in Manchester
  * syntax, with its axioms in DL notation, the statement and the record behind it on hover, the summary of the source's kinds, the format it reads, and a copy and a
  * download of its text. The lines and the scene select each other through the host: a reader's line lights the nodes and edges
  * it states, and the lines that state what a reader chose in the scene light here. A reader moves through the lines with the
  * arrow keys, Home and End, and lets the line go with Escape or a second press.
  *
- * It doesn't own state: the host reads the description, holds the reader's line and the lit lines, and hands them down. This
+ * It doesn't own state: the host reads the axioms, holds the reader's line and the lit lines, and hands them down. This
  * element renders what it is given and reports the reader's intent through `onLine` and `onFormat`.
  */
 import { css, html, nothing, type PropertyValues, type TemplateResult } from "lit";
-import type { TDescription } from "@haibun/core/lib/records/domains/description.js";
+import type { TGraphAxioms } from "@haibun/core/lib/records/domains/axioms.js";
 import { SHU_TAG } from "../../../domains/elements.js";
 import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
 import { defineElement } from "../../controllers/element-controller.js";
@@ -31,7 +31,7 @@ class ShuGraphSource extends ShuElement<typeof EmptyStateSchema> {
 	}
 
 	static properties = {
-		description: { attribute: false },
+		axioms: { attribute: false },
 		format: { attribute: false },
 		lit: { attribute: false },
 		line: { attribute: false },
@@ -41,8 +41,8 @@ class ShuGraphSource extends ShuElement<typeof EmptyStateSchema> {
 	};
 
 	// `declare`, never a class field: a field would shadow lit's reactive accessor (lit.dev/msg/class-field-shadowing).
-	/** The description the host read. */
-	declare description: TDescription;
+	/** The axioms the host read. */
+	declare axioms: TGraphAxioms;
 	/** The format the source reads as. */
 	declare format: TSourceFormat;
 	/** The lines that state what the reader chose in the scene. */
@@ -85,16 +85,16 @@ class ShuGraphSource extends ShuElement<typeof EmptyStateSchema> {
 	}
 
 	override render(): TemplateResult {
-		const { description, format, line } = this;
+		const { axioms, format, line } = this;
 		const file = `graph.${format.extension}`;
 		return html`<div class="head">
 				<select aria-label="source format" .value=${format.id} @change=${(e: Event) => this.onFormat((e.target as HTMLSelectElement).value)}>
 					${SOURCE_FORMATS.map(({ id, label }) => html`<option value=${id} ?selected=${id === format.id}>${label}</option>`)}
 				</select>
-				<span>${summaryOf(description.summary)}</span>
+				<span>${summaryOf(axioms.summary)}</span>
 				<span role="status">${statusOf(line, this.lights, this.lit)}</span>
-				<shu-copy-button label="⧉" title=${`copy the ${format.label} text to the clipboard`} .source=${description.text}></shu-copy-button>
-				<button type="button" title=${`download the ${format.label} text as ${file}`} @click=${() => saveFile(description.text, file)}>⤓</button>
+				<shu-copy-button label="⧉" title=${`copy the ${format.label} text to the clipboard`} .source=${axioms.text}></shu-copy-button>
+				<button type="button" title=${`download the ${format.label} text as ${file}`} @click=${() => saveFile(axioms.text, file)}>⤓</button>
 			</div>
 			<ol
 				role="listbox"
@@ -105,7 +105,7 @@ class ShuGraphSource extends ShuElement<typeof EmptyStateSchema> {
 				@keydown=${this.onKey}
 				@click=${this.onPress}
 			>
-				${description.frames.map(
+				${axioms.frames.map(
 					(frame) =>
 						html`<li role="option" id=${lineId(frame.name)} data-name=${frame.name} aria-selected=${frame.name === line} class=${this.lit.has(frame.name) ? "lit" : ""} title=${provenanceOf(frame)}>${frame.manchester}</li>`,
 				)}
@@ -120,7 +120,7 @@ class ShuGraphSource extends ShuElement<typeof EmptyStateSchema> {
 
 	/** The arrow keys, Home and End move the reader through the lines, and Escape lets the line go. */
 	private onKey = (e: KeyboardEvent): void => {
-		const names = this.description.frames.map(({ name }) => name);
+		const names = this.axioms.frames.map(({ name }) => name);
 		const next = e.key === "Escape" ? null : lineAfterKey(names, this.line, e.key);
 		if (next === undefined) return;
 		e.preventDefault();

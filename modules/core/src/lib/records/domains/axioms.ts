@@ -1,5 +1,5 @@
 /**
- * A description of what a graph shows, in description logic: one frame for each class, each property and each individual. A
+ * The axioms of what a graph shows, in DL notation: one frame for each class, each property and each individual. A
  * frame states its Manchester syntax (W3C Note), which a source pane shows as text, and its axioms in DL notation, with the
  * statement behind it, the record that asserted it, and the nodes and edges of the graph it states.
  */
@@ -22,14 +22,14 @@ const FrameSchema = z
 	})
 	.strict();
 export type TFrame = z.infer<typeof FrameSchema>;
-/** A description: its Manchester text, the count of its frames of each kind, and its frames. */
-export const DescriptionSchema = z
+/** A graph's axioms: their Manchester text, the count of its frames of each kind, and its frames. */
+export const GraphAxiomsSchema = z
 	.object({
 		text: z.string(),
 		summary: z.object({ classes: z.number().int(), properties: z.number().int(), individuals: z.number().int() }).strict(),
 		frames: z.array(FrameSchema),
 	})
 	.strict();
-export type TDescription = z.infer<typeof DescriptionSchema>;
-/** The domain of a description, which a step that returns one declares. */
-export const DOMAIN_DESCRIPTION = "description";
+export type TGraphAxioms = z.infer<typeof GraphAxiomsSchema>;
+/** The domain of a graph's axioms, which the step that returns them declares. */
+export const DOMAIN_GRAPH_AXIOMS = "graph-axioms";

@@ -1,5 +1,5 @@
 // The graph a page reads, over the store this instance holds: the values a filter offers for a type, one individual with the
-// edges its quads name, and what a graph view shows, described in description logic.
+// edges its quads name, and the axioms of what a graph view shows.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDefaultWorld, getTestWorldWithOptions, testWithWorld } from "@haibun/core/lib/test/lib.js";
 import LogicStepper from "@haibun/logic/logic-stepper.js";
@@ -20,7 +20,7 @@ import { z } from "zod";
 import { callStatedStepFrom } from "@haibun/core/lib/call-step.js";
 import GraphSourceStepper from "./graph-source-stepper.js";
 import type { TGraphView } from "./pipelines/graph-source.js";
-import { DescriptionSchema, type TDescription } from "@haibun/core/lib/records/domains/description.js";
+import { GraphAxiomsSchema, type TGraphAxioms } from "@haibun/core/lib/records/domains/axioms.js";
 
 function mockQuadStore(overrides: Partial<IQuadStore> = {}): IQuadStore {
 	return {
@@ -149,7 +149,7 @@ describe("the clustered sample a graph view reads", () => {
 	});
 });
 
-describe("what a graph view shows, described in description logic", () => {
+describe("the axioms of what a graph view shows", () => {
 	const [EMAIL, A, B, C] = ["Email", "a@test.com", "b@test.com", "c@test.com"];
 	const quad = (subject: string, namedGraph: string, predicate: string, object: string, objectType?: string): TQuad => ({
 		subject,
@@ -190,7 +190,7 @@ describe("what a graph view shows, described in description logic", () => {
 		},
 	};
 
-	const describedFor = async (view: Pick<TGraphView, "overrides"> & Partial<TGraphView>): Promise<TDescription> => {
+	const axiomsFor = async (view: Pick<TGraphView, "overrides"> & Partial<TGraphView>): Promise<TGraphAxioms> => {
 		const stepper = new GraphSourceStepper();
 		const world = getDefaultWorld();
 		world.domains = { ...world.domains, ...mapDefinitionsToDomains([EMAIL_TYPE]) };
@@ -198,15 +198,15 @@ describe("what a graph view shows, described in description logic", () => {
 		await stepper.setWorld(world, world.runtime.steppers);
 		world.shared.getStore = vi.fn(() => mockQuadStore({ getClusteredQuads: vi.fn(async () => ({ quads: QUADS, clusters: CLUSTERS })) }));
 		const result = await runAuthorizedWith(RUN_AUTHORITY, async () =>
-			stepper.steps.showGraphDescription.action({ view: { perTypeLimit: 10, accessLevel: Access.private, hiddenPredicates: [], prune: false, ...view } }),
+			stepper.steps.showAxioms.action({ view: { perTypeLimit: 10, accessLevel: Access.private, hiddenPredicates: [], prune: false, ...view } }),
 		);
 		if (!result.ok) throw new Error(result.errorMessage);
-		return DescriptionSchema.parse(result.products);
+		return GraphAxiomsSchema.parse(result.products);
 	};
-	const named = async (view: Pick<TGraphView, "overrides"> & Partial<TGraphView>): Promise<string[]> => (await describedFor(view)).frames.map(({ name }) => name);
+	const named = async (view: Pick<TGraphView, "overrides"> & Partial<TGraphView>): Promise<string[]> => (await axiomsFor(view)).frames.map(({ name }) => name);
 
 	it("describes each record as an individual of its type's class with its facts, each type as a class and each link relation of an edge as a property", async () => {
-		const { frames, summary, text } = await describedFor({ overrides: { [FACT_LABEL]: true, [SEQ_PATH_LABEL]: true } });
+		const { frames, summary, text } = await axiomsFor({ overrides: { [FACT_LABEL]: true, [SEQ_PATH_LABEL]: true } });
 		const frame = (name: string) => frames.find((one) => one.name === name);
 		expect(frame(`Individual ${B}`)).toMatchObject({
 			manchester: `Individual: <${B}>\n    Types: Email\n    Facts: subject "Re: Roadmap", inReplyTo <${A}>`,

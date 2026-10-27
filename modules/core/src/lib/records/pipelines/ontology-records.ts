@@ -11,7 +11,7 @@ import { concernCatalogOf } from "../../steps/pipelines/discover-steps.js";
 import { ONTOLOGY_FIELD } from "../domains/ontology.js";
 import { ONTOLOGY_TERM, type TOntologyRead } from "../domains/ontology-read.js";
 import { readDeclarationsOf, readFromRecords, recordsOfQuads, type THeldRecord } from "../derivations/read-records.js";
-import { classAxioms, propertyAxioms } from "../derivations/description.js";
+import { classAxioms, propertyAxioms } from "../derivations/axioms.js";
 import { enumerateStandardVocab, type TVocabularyWarning } from "./standard-vocabulary.js";
 import type { TRecordReader } from "./record-reads.js";
 

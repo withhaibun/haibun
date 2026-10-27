@@ -1,5 +1,5 @@
 /**
- * What a graph model shows, described in description logic: an individual frame for each record, with its type as its class and
+ * The axioms of what a graph model shows, in DL notation: an individual frame for each record, with its type as its class and
  * each literal property and each edge to another record as a fact; a class frame for each type it shows, with its superclasses;
  * and a property frame for each property it shows, with the union of its domain and of its range. A frame names the record that
  * asserted it and states the record's line where the record is a step's. A node that stands for the records a sample leaves out
@@ -7,8 +7,8 @@
  */
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { ONTOLOGY_FIELD } from "@haibun/core/lib/records/domains/ontology.js";
-import { FRAME_KIND, type TDescription, type TFrame } from "@haibun/core/lib/records/domains/description.js";
-import { classAxioms, individualAxioms, propertyAxioms, type TIndividualFact } from "@haibun/core/lib/records/derivations/description.js";
+import { FRAME_KIND, type TGraphAxioms, type TFrame } from "@haibun/core/lib/records/domains/axioms.js";
+import { classAxioms, individualAxioms, propertyAxioms, type TIndividualFact } from "@haibun/core/lib/records/derivations/axioms.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import type { GraphEdge, GraphModel, GraphNode } from "../domains/graph-model.js";
 
@@ -26,9 +26,9 @@ function literalValue(node: GraphNode, property: string, value: unknown): string
 	throw new Error(`the property ${property} of ${node.id} holds a ${typeof value}, and a graph model holds text, a number or a boolean for a property`);
 }
 
-/** Returns the description of a graph model, with the classes and properties the ontology's quads state for what it shows. An
+/** Returns the axioms of a graph model, with the classes and properties the ontology's quads state for what it shows. An
  *  edge's property is the link relation its type declares for it, as `relOf` returns it. */
-export function graphDescription({ nodes, edges }: GraphModel, ontology: readonly TQuad[], relOf: (type: string, edge: string) => string): TDescription {
+export function graphAxioms({ nodes, edges }: GraphModel, ontology: readonly TQuad[], relOf: (type: string, edge: string) => string): TGraphAxioms {
 	const records = new Map(nodes.filter((node) => node.isCluster !== true).map((node) => [node.id, node]));
 	const shownEdges = edges.filter((edge) => records.has(edge.from) && records.has(edge.to));
 	const objectsOf = (subject: string, field: string): string[] => ontology.filter((q) => q.subject === subject && q.predicate === field).map((q) => String(q.object));

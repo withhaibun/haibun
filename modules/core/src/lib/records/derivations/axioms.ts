@@ -3,7 +3,7 @@
  * `or` and ⊔, an intersection of superclasses is `,` and ⊓, a domain is ∃p.⊤ ⊑ D and a range is ⊤ ⊑ ∀p.R. A name that
  * Manchester syntax doesn't read as written, such as one with a space, is an IRI in angle brackets.
  */
-import { FRAME_KIND } from "../domains/description.js";
+import { FRAME_KIND } from "../domains/axioms.js";
 
 /** A frame's axioms: its Manchester syntax and its DL notation. */
 export type TAxioms = { manchester: string; dl: string };

@@ -260,13 +260,13 @@ is unknown.
 `modules/core/src/lib/records/derivations/owl.ts` derives the ontology as OWL 2: each type's class `hbn:<label>` with its
 declared `@type` IRI and its superclasses as superclasses, and each link relation with the union of the classes that declare it
 as its domain and the union of the classes it reaches as its range. `show ontology` states each term's axioms in DL notation
-(`modules/core/src/lib/records/derivations/description.ts`). `individuals of {expression}` returns the records a class
+(`modules/core/src/lib/records/derivations/axioms.ts`). `individuals of {expression}` returns the records a class
 expression in Manchester syntax entails as its members (`modules/logic/src/pipelines/members.ts`); others may exist.
 
-GraphSourceStepper's `show graph {view} in description logic` describes what a graph view shows under its filters, its limits
+GraphSourceStepper's `show axioms of {view}` returns the axioms of what a graph view shows under its filters, its limits
 and its time cursor: an individual frame for each record with its class and facts, a class frame for each type, and a property
-frame for each link relation of its edges, each in Manchester syntax and DL notation. The graph view reads that description as
-a source format, which `modules/shu/src/page/graph/domains/sources.ts` declares as data: a step that returns the description,
+frame for each link relation of its edges, each in Manchester syntax and DL notation. The graph view reads those axioms as
+a source format, which `modules/shu/src/page/graph/domains/sources.ts` declares as data: a step that returns the axioms,
 its label and its file's extension. Its source pane (`modules/shu/src/page/graph/components/shu-graph-source.ts`) shows the
 frames beside the scene, each with its DL notation, the statement and the record behind it on hover, the summary of its kinds,
 a copy and a download of its text, and the arrow keys, Home and End to move through the lines. A line and the scene select each
