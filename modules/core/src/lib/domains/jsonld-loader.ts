@@ -5,9 +5,12 @@
  * controllers. Fetching an address that document names would let the caller supply the documents that verify its own proof.
  * documentLoader rejects an unregistered URL.
  *
- * The module holds two registries. `contexts` holds long-lived vocabulary @context documents. `keyDocuments` holds
- * per-operation DID and key documents, and clearKeyDocuments clears them between operations. documentLoader reads
- * keyDocuments first, then contexts.
+ * The module holds two registries. `contexts` holds long-lived vocabulary @context documents. `keyDocuments` holds the
+ * DID and key documents of the keys this process holds, which stay bounded by its keyring, and clearKeyDocuments clears
+ * them when a feature ends. documentLoader reads keyDocuments first, then contexts. A document that one operation
+ * resolves, such as a delegation chain it verifies or a key a party publishes, isn't registered here: the operation
+ * holds it in a loader of its own that falls back to documentLoader, so the document is dropped when the operation ends
+ * and a concurrent operation doesn't resolve it.
  */
 // @ts-expect-error, jsonld ships partial type declarations
 import jsonld from "jsonld";
@@ -26,12 +29,12 @@ export function registerContext(url: string, document: unknown): void {
 	contexts.set(url, document);
 }
 
-/** Registers a per-operation DID document or verification key. documentLoader resolves it by URL from memory. */
+/** Registers the DID document or verification key of a key this process holds. documentLoader resolves it by URL from memory. */
 export function registerKeyDocument(url: string, document: unknown): void {
 	keyDocuments.set(url, document);
 }
 
-/** Clears the per-operation key documents. The long-lived contexts stay registered. */
+/** Clears the registered key documents. The long-lived contexts stay registered. */
 export function clearKeyDocuments(): void {
 	keyDocuments.clear();
 }
