@@ -47,6 +47,8 @@ export interface IWebServer extends IRouteRegistry {
 	clearMounted(): void;
 	/** The actions every caller may take without a delegation, beside what it proves: an empty list, unless the deployment states one. */
 	readonly allowedWithoutDelegation: readonly string[];
+	/** The origins the server is reached at, each with its scheme: the hosts it serves beside loopback names in development. */
+	readonly origins: readonly string[];
 	use(middleware: MiddlewareHandler): void;
 	readonly app: Hono;
 	readonly port: number | undefined;
@@ -59,8 +61,8 @@ export type TRequestHeaders = Record<string, string | undefined>;
  *  and the body as its digest. */
 export type TAuthorizedRequest = { method?: string; url?: string; headers?: TRequestHeaders; body?: string };
 
-/** What a server states about its callers: what each may do without a delegation. */
-export type TServed = Pick<IWebServer, "allowedWithoutDelegation">;
+/** What a server states about its callers: what each may do without a delegation, and the origins of its own pages. */
+export type TServed = Pick<IWebServer, "allowedWithoutDelegation" | "origins">;
 
 /** What a request is authorized for, `granted`, and what its caller holds, `held`, which bounds what it reads and is shown.
  *  A proof states who made it, `principal`, and what it rests on, `restsOn`. A presented proof that fails, or that the

@@ -436,6 +436,33 @@
 				}
 			}
 		},
+		"4ca66a9d821d2073": {
+			"filter": "",
+			"actuality": {
+				"text": "modules/shu/tests/federate-peer",
+				"status": "passed",
+				"tookMs": 100,
+				"digest": {
+					"modules/core/src": "9af213f19f0f559d63df430b8ab5fcb4ed1e6ba6e7ef386b4507f6abe9e69a17",
+					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
+					"modules/logic/src": "cd60ed3e853d528a4d8dd1819bef9251ff6b8bf000c34970e57b9b8bbf6b9b6d",
+					"modules/shu/src": "81b3b4b2a4ce5d4f56ce649fb8aa0bb033f99363d19b407e2c8002cc8ec8d541",
+					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
+					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
+					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
+					"modules/web-playwright/src": "183837582c6745581f805bc27a237802cbe289e8d03346c3f4542012f75925be",
+					"modules/web-server-hono/src": "ca4df926ae39dcc7af26910421569a6783c20fad47e6cf317fcaf2d7884a065f"
+				}
+			},
+			"features": {
+				"/features/serve.feature": {
+					"text": "/features/serve",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 4
+				}
+			}
+		},
 		"5b30c0bb4fdb2904": {
 			"filter": "",
 			"actuality": {
@@ -479,6 +506,33 @@
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/web-playwright/src": "acca85ede6cf3c11b5cbf4ab3bac5a9f8fc58a538ad7bc4abbd0344eb69df8ae",
 					"modules/web-server-hono/src": "334a21921dcfe06774443de2bfd77b09c58931fc7b738352cd5f9b02c9c51053"
+				}
+			},
+			"features": {
+				"/features/serve.feature": {
+					"text": "/features/serve",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 4
+				}
+			}
+		},
+		"910b0431f8f3f6d7": {
+			"filter": "",
+			"actuality": {
+				"text": "modules/shu/tests/federate-peer",
+				"status": "passed",
+				"tookMs": 100,
+				"digest": {
+					"modules/core/src": "9af213f19f0f559d63df430b8ab5fcb4ed1e6ba6e7ef386b4507f6abe9e69a17",
+					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
+					"modules/logic/src": "cd60ed3e853d528a4d8dd1819bef9251ff6b8bf000c34970e57b9b8bbf6b9b6d",
+					"modules/shu/src": "81b3b4b2a4ce5d4f56ce649fb8aa0bb033f99363d19b407e2c8002cc8ec8d541",
+					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
+					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
+					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
+					"modules/web-playwright/src": "183837582c6745581f805bc27a237802cbe289e8d03346c3f4542012f75925be",
+					"modules/web-server-hono/src": "ca4df926ae39dcc7af26910421569a6783c20fad47e6cf317fcaf2d7884a065f"
 				}
 			},
 			"features": {

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -14,6 +14,8 @@ import { READS_A_SERVED_FOLDER } from "@haibun/core/lib/domains/actions.js";
 import { ARTIFACT_POLICY } from "@haibun/core/lib/domains/run-artifact.js";
 import { REFUSED_INVOCATION } from "@haibun/core/lib/rpc-wire.js";
 import { servedFileRefusal } from "./pipelines/served-folder.js";
+import { ORIGINS_REQUIRED, originList } from "./domains/web-server.js";
+import { PRODUCTION } from "@haibun/core/lib/domains/dev-mode.js";
 
 // WebServerStepper expects a 'files' directory in cwd
 const FILES_DIR = path.join(process.cwd(), "files");
@@ -104,6 +106,21 @@ describe("WebServerStepper Integration", () => {
 		expect((await passWithDefaults("", [WebServerStepper, LogicStepper], options({ [INTERFACE]: "0.0.0.0", [BASIC_AUTH_OPTION]: "reader:secret" }))).ok, "behind basic auth").toBe(
 			true,
 		);
+	});
+
+	it("refuses to start in production without the origins it is reached at, stating the cause and the remedy, and starts where it names them", async () => {
+		const ORIGINS = getStepperOptionName(WebServerStepper, "ORIGINS");
+		vi.stubEnv("NODE_ENV", PRODUCTION);
+		try {
+			const unnamed = await passWithDefaults("", [WebServerStepper, LogicStepper], DEF_PROTO_OPTIONS);
+			expect(unnamed.ok).toBe(false);
+			expect(JSON.stringify(unnamed.failure)).toContain(JSON.stringify(ORIGINS_REQUIRED).slice(1, -1));
+			const named = await passWithDefaults("", [WebServerStepper, LogicStepper], { ...DEF_PROTO_OPTIONS, moduleOptions: { [ORIGINS]: "https://example.org" } });
+			expect(named.ok, JSON.stringify(named.failure)).toBe(true);
+		} finally {
+			vi.unstubAllEnvs();
+		}
+		expect(() => originList("https://example.org/a-path")).toThrow(`"https://example.org/a-path" isn't an origin`);
 	});
 
 	it("refuses a served file to a caller that doesn't hold the read it requires, stating the cause and the remedy", async () => {

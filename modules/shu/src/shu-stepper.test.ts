@@ -32,6 +32,7 @@ const fakeServer = (addRoute: TAddRoute, allowedWithoutDelegation: string[]) => 
 	},
 	mounted: { get: {} },
 	allowedWithoutDelegation,
+	origins: [],
 });
 
 describe("the app a deployment serves", () => {

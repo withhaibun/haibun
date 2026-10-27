@@ -163,6 +163,36 @@ verify protected mcp tool on port ${port} is denied
 		expect(result.ok).toBe(true);
 	});
 
+	it("allows a cross-origin call only from a page at a named origin, or in development at a loopback address", async () => {
+		const port = await freePort();
+		const [NAMED, LOOPBACK, OTHER] = ["https://example.org", "http://localhost:6274", "https://elsewhere.example"];
+		const allowed: Record<string, string | null> = {};
+		class PreflightStepper extends AStepper {
+			description = "Sends the MCP endpoint a preflight from a page at each of several origins.";
+			steps = {
+				preflights: {
+					gwta: `preflights to the mcp endpoint on port {port: ${DOMAIN_NUMBER}}`,
+					action: async ({ port }: { port: string }) => {
+						for (const origin of [NAMED, LOOPBACK, OTHER])
+							allowed[origin] = (await fetch(`http://localhost:${port}/mcp`, { method: "OPTIONS", headers: { origin } })).headers.get("access-control-allow-origin");
+						return OK;
+					},
+				},
+			};
+		}
+		const feature = {
+			path: "/features/mcp-cors.feature",
+			content: `serve mcp tools at "/mcp"\nwebserver is listening for "mcp cors"\npreflights to the mcp endpoint on port ${port}\n`,
+		};
+		const options = mcpOptions(port);
+		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, PreflightStepper, LogicStepper], {
+			...options,
+			moduleOptions: { ...options.moduleOptions, [getStepperOptionName(WebServerStepper, "ORIGINS")]: NAMED },
+		});
+		expect(result.ok, JSON.stringify(result.failure)).toBe(true);
+		expect(allowed).toEqual({ [NAMED]: NAMED, [LOOPBACK]: LOOPBACK, [OTHER]: null });
+	});
+
 	it("runs a signed call under what its request presented, verified over the whole request, body included", async () => {
 		const port = 8139;
 		const feature = {

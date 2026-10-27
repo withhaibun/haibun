@@ -98,7 +98,7 @@ export function serveRpc({ world, steppers, webserver, transport, verifier, sess
 			featureStep.isSubStep = true;
 			// What a step reads is bounded by the read its caller holds, in dispatch, and by the level the call requested,
 			// which can only be narrower.
-			const baseIri = requestBaseIri(request?.headers);
+			const baseIri = requestBaseIri(request?.headers, webserver.origins);
 			const hr = await runWithRequestContext({ baseIri }, () => runReadingAt(msg.readingAt, () => dispatchCall(within, caller, featureStep)));
 			if (!hr.ok) return callFailed(method, hr.errorMessage, hr.remedy);
 			return hr.products === undefined ? ANSWERED_WITHOUT_PRODUCTS : hr.products;

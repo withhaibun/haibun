@@ -58,7 +58,7 @@ describe("the event stream's followers", () => {
 	beforeEach(() => {
 		world = getDefaultWorld();
 		const store = storeDeclaring({ [EndpointLabels.Endpoint]: {} });
-		server = new ServerHono(eventHubOfTest(), "/tmp", () => store, [], []);
+		server = new ServerHono(eventHubOfTest(), "/tmp", () => store, { origins: [], allowedWithoutDelegation: [], admitted: [] });
 		transport = new SSETransport({ webserver: server, eventLogger: eventHubOfTest(), runtime: world.runtime, verifier: following, writesInFlight: WRITES_IN_FLIGHT });
 	});
 	afterEach(() => server.close());

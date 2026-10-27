@@ -23,7 +23,7 @@ import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { stepsInstructions, toolDefinition } from "@haibun/core/lib/step-discovery.js";
 import { actingAs, authorizedWith, callerHolds, restingOn, runActingAs, runInvoking, shownTo } from "@haibun/core/lib/domains/capability-context.js";
 import { ACTUALITY_HEADER, actualityRefusal, refusalSaid } from "@haibun/core/lib/rpc-wire.js";
-import { PRESENTED_REQUEST_HEADERS } from "../domains/web-server.js";
+import { admitsOrigin, PRESENTED_REQUEST_HEADERS } from "../domains/web-server.js";
 import type { Context, IWebServer, TCapabilityVerifier } from "../ports.js";
 import { actionsOf } from "../derivations/actions.js";
 import { calledStep, dispatchedAs, type TCaller, type TDispatchWithin } from "./dispatch-call.js";
@@ -112,10 +112,13 @@ export function serveMcp(parts: TMcpParts): void {
 	}
 }
 
-/** The endpoint's middleware: CORS for a browser host, and each request's authority verified over the whole request. */
-function verifiedRequests({ world, verifier }: TMcpParts) {
+/** The endpoint's middleware: CORS for a page at an origin the server admits, and each request's authority verified over
+ *  the whole request. */
+function verifiedRequests({ world, verifier, webserver }: TMcpParts) {
 	return async (c: Context, next: () => Promise<void>) => {
-		c.header("Access-Control-Allow-Origin", "*");
+		const origin = c.req.header("origin");
+		c.header("Vary", "Origin");
+		if (origin !== undefined && admitsOrigin(webserver.origins, origin)) c.header("Access-Control-Allow-Origin", origin);
 		c.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
 		c.header("Access-Control-Allow-Headers", ["content-type", "accept", ...PRESENTED_REQUEST_HEADERS].join(", "));
 		if (c.req.method === "OPTIONS") return c.body(null, 204);

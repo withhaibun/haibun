@@ -17,8 +17,8 @@ import type { IEventLogger, IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { describePortOccupant, PROBE_TIMEOUT_MS } from "@haibun/core/lib/adapters/port-occupant.js";
 import { ENDPOINT_CLASS } from "@haibun/core/lib/domains/resources.js";
 import type { TRpcMethod } from "@haibun/core/lib/transport/ports.js";
-import type { TBasicAuthUser } from "@haibun/core/lib/domains/basic-auth.js";
-import { type TRouteTypes, ROUTE_TYPES, EndpointLabels, isLoopback, REQUEST_BODY_LIMIT_BYTES } from "../domains/web-server.js";
+import { type TRouteTypes, ROUTE_TYPES, EndpointLabels, admitsHost, misdirected, REQUEST_BODY_LIMIT_BYTES } from "../domains/web-server.js";
+import type { TServing } from "../pipelines/server-settings.js";
 import type { Context, IWebServer, MiddlewareHandler, TRouteMap, TRoutePurpose, TRequestHandler } from "../ports.js";
 
 const EMPTY_MOUNTS = (): TRouteMap => ROUTE_TYPES.reduce((acc, type) => ({ ...acc, [type]: {} }), {} as TRouteMap);
@@ -34,8 +34,6 @@ const TOO_LARGE = 413;
 const MISDIRECTED = 421;
 /** The interface a server listens on where its listener doesn't state one: this machine's loopback. */
 const LOOPBACK_INTERFACE = "127.0.0.1";
-/** The host a request is addressed to, without its port, or undefined where its `Host` header is absent or doesn't parse. */
-const addressedHost = (host: string | undefined): string | undefined => (host && URL.canParse(`http://${host}`) ? new URL(`http://${host}`).hostname : undefined);
 
 export class ServerHono implements IWebServer {
 	static listeningPorts: Map<number, string> = new Map();
@@ -45,33 +43,30 @@ export class ServerHono implements IWebServer {
 	/** The `/rpc` method families served, by their prefix. */
 	private rpcFamilies = new Map<string, Record<string, TRpcMethod>>();
 	private _port?: number;
-	/** Whether the server listens only on this machine's loopback interface. */
-	private boundToLoopback = false;
+	readonly allowedWithoutDelegation: readonly string[];
+	readonly origins: readonly string[];
 
 	constructor(
 		private readonly eventLogger: IEventLogger,
 		private readonly base: string,
 		private readonly getStore: () => IQuadStore,
-		readonly allowedWithoutDelegation: readonly string[],
-		/** The people every route admits by HTTP basic auth, before anything else reads a request. Empty, the server admits every visitor. */
-		private readonly admitted: readonly TBasicAuthUser[],
+		/** The origins the server is reached at, what every caller may do without a delegation, and the people every route
+		 *  admits by HTTP basic auth before anything else reads a request: empty, the server admits every visitor. */
+		private readonly serving: TServing,
 	) {
+		this.allowedWithoutDelegation = serving.allowedWithoutDelegation;
+		this.origins = serving.origins;
 		this.createApp();
 	}
 
 	private createApp(): void {
 		this._app = new Hono({ router: new LinearRouter() });
-		// A server bound to this machine serves only requests addressed to it by a loopback name. A page another site serves
-		// can rebind its own name to 127.0.0.1, and its requests then reach this server as same-origin requests addressed to
-		// that name, so the name a request is addressed to shows whether it was sent for this machine.
+		// On every interface, the server serves only requests addressed to a host it serves (admitsHost), so a page whose
+		// name rebinds to this machine doesn't reach it as a page of its own. The request's address holds the host its Host
+		// header names, since the Node server builds the address from that header.
 		this._app.use("*", async (c, next) => {
-			const host = c.req.header("host");
-			const addressed = addressedHost(host);
-			if (this.boundToLoopback && (addressed === undefined || !isLoopback(addressed)))
-				return c.text(
-					`This server serves requests addressed to localhost, 127.0.0.1 or [::1], and this one is addressed to ${host === undefined ? "an unnamed host" : host}. Open it at http://localhost:${this._port}.`,
-					MISDIRECTED,
-				);
+			const host = new URL(c.req.url).host;
+			if (!admitsHost(this.origins, host)) return c.text(misdirected(this.origins, host), MISDIRECTED);
 			await next();
 		});
 		// A body is refused past its limit as it arrives, before a gate reads it whole to check what it proves.
@@ -82,7 +77,7 @@ export class ServerHono implements IWebServer {
 				onError: (c) => c.text(`A request's body holds at most ${REQUEST_BODY_LIMIT_BYTES} bytes, and this one holds more.`, TOO_LARGE),
 			}),
 		);
-		const [first, ...others] = this.admitted;
+		const [first, ...others] = this.serving.admitted;
 		if (first) this._app.use("*", basicAuth(first, ...others));
 	}
 
@@ -105,7 +100,6 @@ export class ServerHono implements IWebServer {
 			throw new Error(`ServerHono.listen takes a port above 0, and was given "${port}"; state the port as a whole number above 0`);
 		}
 		const host = hostname === undefined ? LOOPBACK_INTERFACE : hostname;
-		this.boundToLoopback = isLoopback(host);
 		if (ServerHono.listeningPorts.has(port)) {
 			return Promise.reject(`ServerHono.listen for ${why}: port ${port} (${host}) already in use for ${ServerHono.listeningPorts.get(port)}`);
 		}

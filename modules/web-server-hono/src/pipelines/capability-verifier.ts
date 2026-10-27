@@ -24,12 +24,12 @@ import type { Context, TAuthorizedRequest, TCapabilityVerifier, TRequestAuthorit
  * name them rather than the process that carried it out.
  */
 export async function grantedCapabilityForRequest(request: TAuthorizedRequest | undefined, runtime: TRuntime, served: TServed): Promise<TRequestAuthority> {
-	const { allowedWithoutDelegation } = served;
+	const { allowedWithoutDelegation, origins } = served;
 	// What is allowed without a delegation is allowed to a caller. A page of another site sending a request through a
 	// reader's browser isn't that caller, and it can't present a proof, so it is allowed only what a step doesn't require.
 	const headers = request?.headers;
 	if (headers === undefined || headerOf(headers, PRESENTED_AUTHORITY_HEADER) === undefined) {
-		const allowed = sentByAnotherSite(headers) ? [] : [...allowedWithoutDelegation];
+		const allowed = sentByAnotherSite(headers, origins) ? [] : [...allowedWithoutDelegation];
 		return { granted: allowed, held: allowed };
 	}
 	const authority = getAuthority(runtime);

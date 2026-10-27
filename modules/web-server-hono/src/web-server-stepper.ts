@@ -18,16 +18,16 @@ import { STORE_METHOD_PREFIX, storeMethods } from "@haibun/core/lib/domains/stor
 import { resolveHostId, syntheticSeqPath } from "@haibun/core/lib/domains/host-id.js";
 import { Access, ENDPOINT_LABEL, HTTP_HOST_LABEL, LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { fromJsonText } from "@haibun/core/lib/domains/json-text.js";
-import { basicAuthUsers, type TBasicAuthUser } from "@haibun/core/lib/domains/basic-auth.js";
+import { basicAuthUsers } from "@haibun/core/lib/domains/basic-auth.js";
 import type { IWebServer, MiddlewareHandler, TRoutePurpose } from "./ports.js";
 import { TRANSPORT, type ITransport } from "./domains/transport.js";
-import { DEFAULT_PORT, DOMAIN_ENDPOINT, EndpointSchema, WEB_SERVER_CAPABILITIES } from "./domains/web-server.js";
+import { DEFAULT_PORT, DOMAIN_ENDPOINT, EndpointSchema, originList, WEB_SERVER_CAPABILITIES } from "./domains/web-server.js";
 import { FOLLOWER_WRITES_IN_FLIGHT } from "./machines/follower.js";
 import { capabilityVerifier } from "./pipelines/capability-verifier.js";
 import { SSETransport } from "./pipelines/event-stream.js";
 import { serveRpc } from "./pipelines/serve-rpc.js";
 import { servedFolderGates } from "./pipelines/served-folder.js";
-import { serverSettings } from "./pipelines/server-settings.js";
+import { serverSettings, type TServing } from "./pipelines/server-settings.js";
 import { heldServer, holdServer, listeningPorts, newServer, stopProcess, whyNotSignedIn } from "./root.js";
 
 const cycles = (wss: WebServerStepper): IStepperCycles => ({
@@ -103,6 +103,17 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			parse: (port: string) => intOrError(port),
 		},
 		INTERFACE: { desc: "Change web server interface from default (127.0.0.1). e.g. 0.0.0.0", parse: (input: string) => ({ result: input }) },
+		ORIGINS: {
+			desc: "Each address of the server, with its scheme, comma-separated, such as https://example.org. The server serves a request addressed to the host of one of these, and in development also to a loopback name; a proxy's forwarded host is read only where it names one, and /mcp allows a cross-origin call from a page served at one. Required in production (NODE_ENV=production)",
+			parse: (input: string) => {
+				try {
+					originList(input);
+					return { result: input };
+				} catch (e) {
+					return { parseError: `ORIGINS: ${errorDetail(e)}` };
+				}
+			},
+		},
 		ALLOW_WITHOUT_DELEGATION: {
 			// An instance a run launches states what it allows in its own configuration, rather than holding its launcher's.
 			perProcess: true,
@@ -127,10 +138,8 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 	};
 	port: number = DEFAULT_PORT;
 	hostname?: string;
-	/** The actions every caller may take without a delegation. */
-	allowedWithoutDelegation: string[] = [];
-	/** The people every route admits by HTTP basic auth. */
-	admitted: TBasicAuthUser[] = [];
+	/** The origins each feature's server is reached at, what every caller may do without a delegation, and whom every route admits by HTTP basic auth. */
+	serving: TServing = { origins: [], allowedWithoutDelegation: [], admitted: [] };
 	/** Whether each feature's server serves RPC calls to actuality's steps. */
 	rpc = false;
 
@@ -150,8 +159,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		const settings = serverSettings(this, world.moduleOptions);
 		this.port = settings.port;
 		this.hostname = settings.hostname;
-		this.allowedWithoutDelegation = settings.allowedWithoutDelegation;
-		this.admitted = settings.admitted;
+		this.serving = settings.serving;
 		this.rpc = settings.rpc;
 	}
 
@@ -219,7 +227,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 
 	/** A server for this instance: its files, its store, and who it admits, as every server of this instance has them. */
 	newServer(): IWebServer {
-		return newServer(this.getWorld(), this.allowedWithoutDelegation, this.admitted);
+		return newServer(this.getWorld(), this.serving);
 	}
 
 	/** The event stream of `server`, and the `/rpc` calls it carries, each request verified through actuality's authority. */

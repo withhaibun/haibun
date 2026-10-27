@@ -47,7 +47,7 @@ class StubVerifier implements IAuthorityVerifier {
 
 /** What a deployment allows without a delegation when it doesn't state an action, and when anyone may read it. */
 const READ_PUBLIC = "Read:public";
-const serving = (allowedWithoutDelegation: string[]) => ({ allowedWithoutDelegation });
+const serving = (allowedWithoutDelegation: string[]) => ({ allowedWithoutDelegation, origins: [] });
 const NOBODY = serving([]);
 const PUBLIC_SITE = serving([READ_PUBLIC]);
 

@@ -29,24 +29,30 @@ const UNFORWARDED_SCHEME = "http";
 
 const firstOf = (value?: string): string | undefined => value?.split(",")[0]?.trim() || undefined;
 
-/** Returns the host that received a request. It reads the host a reverse proxy forwards, else the request's own Host header.
- *  A caller that reaches the server directly can write either header, so the value doesn't prove the request's origin. */
-const requestHost = (headers: TRequestHeaders): string | undefined => firstOf(headers["x-forwarded-host"]) ?? firstOf(headers.host);
+/** Returns the origin among `origins` whose host, with its port, is `host`, the host a request names. */
+export const namedOrigin = (origins: readonly string[], host: string | undefined): string | undefined =>
+	host === undefined ? undefined : origins.find((origin) => new URL(origin).host === host);
 
-/** Returns the absolute origin (scheme://host[:port]) a request arrived on, read from its host and forwarding headers.
- *  Returns undefined when a host header isn't present. */
-export function requestBaseIri(headers?: TRequestHeaders): string | undefined {
-	const host = headers && requestHost(headers);
-	if (!headers || !host) return undefined;
-	const forwarded = firstOf(headers["x-forwarded-proto"]);
-	return `${forwarded === undefined ? UNFORWARDED_SCHEME : forwarded}://${host}`;
+/**
+ * Returns the absolute origin (scheme://host[:port]) that received a request. A configured origin is that origin where the
+ * host a reverse proxy forwards names it, or else where the request's Host header names it, with the scheme the origin states. A
+ * forwarded host that doesn't name a configured origin is ignored, since a caller that reaches the server directly can write
+ * it. A request addressed to a host outside the configured origins, such as a loopback name in development, arrived over plain HTTP at
+ * that host. Returns undefined where the request doesn't state a Host.
+ */
+export function requestBaseIri(headers: TRequestHeaders | undefined, origins: readonly string[]): string | undefined {
+	const host = firstOf(headers?.host);
+	const reached = namedOrigin(origins, firstOf(headers?.["x-forwarded-host"])) ?? namedOrigin(origins, host);
+	if (reached !== undefined) return reached;
+	return host === undefined ? undefined : `${UNFORWARDED_SCHEME}://${host}`;
 }
 
 /** Returns whether a browser sent this request for a page of another site. Such a request states an `Origin` whose host
- *  isn't the host the request arrived on, or an `Origin` that doesn't parse. A request that doesn't state an `Origin`
- *  wasn't sent across sites by a browser. A browser doesn't let a page write the host or forwarding headers. */
-export function sentByAnotherSite(headers?: TRequestHeaders): boolean {
+ *  isn't the host of the origin the request arrived on, or an `Origin` that doesn't parse. A request that doesn't state an
+ *  `Origin` wasn't sent across sites by a browser. A browser doesn't let a page write the host or forwarding headers. */
+export function sentByAnotherSite(headers: TRequestHeaders | undefined, origins: readonly string[]): boolean {
 	const origin = headers?.origin;
-	if (!headers || origin === undefined) return false;
-	return !URL.canParse(origin) || new URL(origin).host !== requestHost(headers);
+	if (origin === undefined) return false;
+	const arrived = requestBaseIri(headers, origins);
+	return !URL.canParse(origin) || arrived === undefined || new URL(origin).host !== new URL(arrived).host;
 }

@@ -1,10 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { tmpdir } from "node:os";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ServerHono } from "./server-hono.js";
 import { QuadStore, newStoreChain } from "@haibun/core/lib/quad-store.js";
-import { EndpointLabels, REQUEST_BODY_LIMIT_BYTES } from "../domains/web-server.js";
+import { EndpointLabels, misdirected, REQUEST_BODY_LIMIT_BYTES } from "../domains/web-server.js";
+import type { TServing } from "../pipelines/server-settings.js";
+import { PRODUCTION } from "@haibun/core/lib/domains/dev-mode.js";
 import { whyNotSignedInOnly } from "./auth.js";
 import { basicAuthUsers } from "@haibun/core/lib/domains/basic-auth.js";
 import { eventHubOfTest, freePort } from "@haibun/core/lib/test/lib.js";
@@ -15,6 +17,10 @@ import { ActionSchema } from "@haibun/core/lib/domains/actions.js";
 const mockLogger = eventHubOfTest();
 
 const P = { description: "test route" };
+/** A server that names an empty list of origins and admits every visitor. */
+const OPEN: TServing = { origins: [], allowedWithoutDelegation: [], admitted: [] };
+/** The origin of a named server. */
+const NAMED = "https://example.org";
 
 describe("ServerHono", () => {
 	let server: ServerHono;
@@ -22,7 +28,7 @@ describe("ServerHono", () => {
 
 	beforeEach(() => {
 		store = storeDeclaring({ [EndpointLabels.Endpoint]: {} });
-		server = new ServerHono(mockLogger, "/tmp", () => store, [], []);
+		server = new ServerHono(mockLogger, "/tmp", () => store, OPEN);
 	});
 
 	afterEach(async () => {
@@ -167,14 +173,33 @@ describe("ServerHono", () => {
 			expect((await server.app.request("/takes", { method: "POST", body: "within" })).status).toBe(200);
 		});
 
-		it("bound to this machine, serves only a request addressed to it by a loopback name, which a page whose name rebinds to the machine doesn't state", async () => {
+		it("on any interface, serves a request addressed to a loopback name in development or to a named origin's host, and refuses a name that rebinds to the machine", async () => {
 			const port = await freePort();
-			server.addRoute("get", "/here", P, (c) => c.text("here"));
-			await server.listen("test", port);
-			const addressedTo = async (host: string) => (await server.app.request("/here", { headers: { host } })).status;
-			expect([await addressedTo(`localhost:${port}`), await addressedTo(`127.0.0.1:${port}`), await addressedTo(`[::1]:${port}`)]).toEqual([200, 200, 200]);
-			expect([await addressedTo(`rebound.example:${port}`), await addressedTo(`127.0.0.1.rebound.example:${port}`)]).toEqual([421, 421]);
-			await server.close();
+			const named = new ServerHono(mockLogger, "/tmp", () => store, { ...OPEN, origins: [NAMED] });
+			named.addRoute("get", "/here", P, (c) => c.text("here"));
+			await named.listen("test", port, "0.0.0.0");
+			const addressedTo = async (host: string) => (await named.app.request(`http://${host}/here`)).status;
+			expect([await addressedTo(`localhost:${port}`), await addressedTo(`127.0.0.1:${port}`), await addressedTo(`[::1]:${port}`), await addressedTo("example.org")]).toEqual([
+				200, 200, 200, 200,
+			]);
+			expect([await addressedTo(`rebound.example:${port}`), await addressedTo(`127.0.0.1.rebound.example:${port}`), await addressedTo("example.org:8443")]).toEqual([
+				421, 421, 421,
+			]);
+			const refused = await named.app.request("http://rebound.example/here");
+			expect(await refused.text(), "the refusal names the hosts served and the remedy").toBe(misdirected([NAMED], "rebound.example"));
+			await named.close();
+		});
+
+		it("in production, serves a request addressed to a named origin's host and not one addressed to a loopback name", async () => {
+			vi.stubEnv("NODE_ENV", PRODUCTION);
+			try {
+				const named = new ServerHono(mockLogger, "/tmp", () => store, { ...OPEN, origins: [NAMED] });
+				named.addRoute("get", "/here", P, (c) => c.text("here"));
+				const addressedTo = async (host: string) => (await named.app.request(`http://${host}/here`)).status;
+				expect([await addressedTo("example.org"), await addressedTo("localhost:8123")]).toEqual([200, 421]);
+			} finally {
+				vi.unstubAllEnvs();
+			}
 		});
 	});
 
@@ -200,7 +225,7 @@ describe("ServerHono", () => {
 			const base = mkdtempSync(join(tmpdir(), "served-"));
 			mkdirSync(join(base, "shown"));
 			writeFileSync(join(base, "shown", "<b>named.txt"), "");
-			const held = new ServerHono(mockLogger, base, () => store, [], []);
+			const held = new ServerHono(mockLogger, base, () => store, OPEN);
 			expect(() => held.checkAddStaticFolder("../..", "/out", P)).toThrow(`ServerHono: ../.. leads out of ${base}`);
 			expect(() => held.checkAddIndexFolder("..", "/out", P)).toThrow(`ServerHono: .. leads out of ${base}`);
 			held.checkAddIndexFolder("shown", "/listing", P);
@@ -213,7 +238,7 @@ describe("ServerHono", () => {
 		it("gates the files a folder at the root holds, and passes a request for a route beside it to that route", async () => {
 			const base = mkdtempSync(join(tmpdir(), "rooted-"));
 			writeFileSync(join(base, "page.html"), "a page");
-			const rooted = new ServerHono(mockLogger, base, () => store, [], []);
+			const rooted = new ServerHono(mockLogger, base, () => store, OPEN);
 			rooted.checkAddStaticFolder(".", "/", P, (c) => Promise.resolve(c.text("held back", 403)));
 			rooted.addRoute("get", "/beside", P, (c) => c.text("beside"));
 			expect((await rooted.app.request("/page.html")).status, "a file the folder holds").toBe(403);
@@ -233,9 +258,11 @@ describe("ServerHono", () => {
 
 describe("a server that admits people by basic auth", () => {
 	const ADMITTED = "reader:a-password-for-this-test";
+	/** The origin of these servers. */
+	const SITE = "https://site.test";
 	const signIn = (entry: string) => ({ authorization: `Basic ${Buffer.from(entry).toString("base64")}` });
 	const serving = () => {
-		const server = new ServerHono(mockLogger, "/tmp", () => new QuadStore(newStoreChain()), [], basicAuthUsers(ADMITTED));
+		const server = new ServerHono(mockLogger, "/tmp", () => new QuadStore(newStoreChain()), { ...OPEN, origins: [SITE], admitted: basicAuthUsers(ADMITTED) });
 		server.addRoute("get", "/held", { description: "a route every feature might add" }, (c) => c.text("held"));
 		return server.app;
 	};
@@ -251,7 +278,7 @@ describe("a server that admits people by basic auth", () => {
 	});
 
 	it("still requires a sign-in after a feature's routes are cleared, since the next feature's routes are as held", async () => {
-		const server = new ServerHono(mockLogger, "/tmp", () => new QuadStore(newStoreChain()), [], basicAuthUsers(ADMITTED));
+		const server = new ServerHono(mockLogger, "/tmp", () => new QuadStore(newStoreChain()), { ...OPEN, admitted: basicAuthUsers(ADMITTED) });
 		server.clearMounted();
 		expect((await server.app.request("/held")).status).toBe(401);
 	});
@@ -259,7 +286,7 @@ describe("a server that admits people by basic auth", () => {
 	it("passes the check that an address requires every visitor to sign in, which an open server fails with what to change", async () => {
 		const asking = serving();
 		expect(await whyNotSignedInOnly("https://site.test/held", (at) => Promise.resolve(asking.request(at)))).toBeUndefined();
-		const open = new ServerHono(mockLogger, "/tmp", () => new QuadStore(newStoreChain()), [], []);
+		const open = new ServerHono(mockLogger, "/tmp", () => new QuadStore(newStoreChain()), { ...OPEN, origins: [SITE] });
 		open.addRoute("get", "/held", { description: "a route anyone reaches" }, (c) => c.text("held"));
 		expect(await whyNotSignedInOnly("https://site.test/held", (at) => Promise.resolve(open.app.request(at)))).toBe(
 			"https://site.test/held returned 200 without a sign-in; it must return 401. Put basic auth on its proxy, or set the web server's BASIC_AUTH option.",

@@ -10,7 +10,7 @@ import { ServerHono } from "./adapters/server-hono.js";
 import { currentVersion } from "@haibun/core/lib/adapters/current-version.js";
 import { unsignedRequest, whyNotSignedInOnly } from "./adapters/auth.js";
 import { stopProcessAfter } from "./adapters/process.js";
-import type { TBasicAuthUser } from "@haibun/core/lib/domains/basic-auth.js";
+import type { TServing } from "./pipelines/server-settings.js";
 
 /** The folder whose files a feature serves by a relative path: `files` in the process's starting directory. */
 const SERVED_FILES = "files";
@@ -18,9 +18,9 @@ const SERVED_FILES = "files";
 /** The version an endpoint serves: haibun's, at which its modules release together. */
 export const servedVersion = currentVersion;
 
-/** A server of this instance: it serves its files and its store, and admits whom the settings name. */
-export function newServer(world: TWorld, allowedWithoutDelegation: readonly string[], admitted: readonly TBasicAuthUser[]): IWebServer {
-	return new ServerHono(world.eventLogger, path.join(process.cwd(), SERVED_FILES), () => world.shared.getStore(), allowedWithoutDelegation, admitted);
+/** A server of this instance: it serves its files and its store at the origins the settings name, and admits whom they name. */
+export function newServer(world: TWorld, serving: TServing): IWebServer {
+	return new ServerHono(world.eventLogger, path.join(process.cwd(), SERVED_FILES), () => world.shared.getStore(), serving);
 }
 
 /** Holds the feature's server in the runtime, where other steppers read it under WEBSERVER. */
