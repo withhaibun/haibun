@@ -12,7 +12,7 @@ import { eventMarkerStyle } from "../../derivations/event-marker.js";
 import { assertNodeMark, type NodeMark } from "../domains/graph-scene.js";
 
 /** The slice of a node a presenter reads, identity + display name + @type. */
-export type SceneNode = { id: string; name: string; type: string; isCluster?: boolean; hollow?: boolean; properties?: Record<string, unknown> };
+export type SceneNode = { id: string; name: string; type: string; isCluster?: boolean; properties?: Record<string, unknown> };
 /** Capabilities the layout has detected for this node (from its declared rels), passed as context to the presenter.
  *  `time` = a placed calendar task (epoch-ms span + the bar's world length); absent when not time-laid-out. */
 export type PresentContext = { time?: { start: number; end: number; zExtent: number } };
@@ -33,8 +33,7 @@ const colourOf = (n: SceneNode): string => {
 };
 
 /** The fallback presenter for any unregistered @type: capability-driven. A node placed as a calendar task renders as a
- *  duration box on its time span; otherwise a label chip in the free (force) layout, coloured by its outcome or type, and
- *  hollow where its projection requests. */
+ *  duration box on its time span; otherwise a label chip in the free (force) layout, coloured by its outcome or type. */
 export const CAPABILITY_PRESENTER: NodePresenter = {
 	present(n, ctx) {
 		const color = colourOf(n);
@@ -48,10 +47,9 @@ export const CAPABILITY_PRESENTER: NodePresenter = {
 				isCluster: n.isCluster,
 				zExtent: ctx.time.zExtent,
 				role: { kind: "time", start: ctx.time.start, end: ctx.time.end },
-				hollow: n.hollow,
 			});
 		}
-		return assertNodeMark({ id: n.id, type: n.type, kind: "chip", label: n.name, color, isCluster: n.isCluster, role: { kind: "free" }, hollow: n.hollow });
+		return assertNodeMark({ id: n.id, type: n.type, kind: "chip", label: n.name, color, isCluster: n.isCluster, role: { kind: "free" } });
 	},
 };
 

@@ -19,7 +19,7 @@ import { z } from "zod";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "../../components/shu-element.js";
 // The view catalog itself, never the render-type module that re-exports it: that pulls the whole 3D layout chain in
 // behind a name this element only reads.
-import { VIEW_LABELS, type TViewChoice } from "../domains/views.js";
+import { VIEW_LABELS, type ViewType } from "../domains/views.js";
 import type { GraphSceneConfig } from "./scene.js";
 import type { TViewForces } from "./render-type.js";
 import "@haibun/shu/page/components/shu-field.js";
@@ -28,10 +28,9 @@ import "../../components/shu-field.js";
 const IDS = SHU_TEST_IDS.POLYMORPHIC_VIEW;
 
 /** The options a reader sets: the scene's own config, with what the graph draws in place of the scene's view type. */
-export type TPolymorphicOptions = Omit<GraphSceneConfig, "viewType"> & { viewType: TViewChoice };
 
 /** Reported when a control changes: the one option the reader touched, for the host to merge into its own state. */
-export type TPolymorphicOptionChange = Partial<TPolymorphicOptions>;
+export type TPolymorphicOptionChange = Partial<GraphSceneConfig>;
 
 class ShuPolymorphicSettings extends ShuElement<z.ZodObject> {
 	/** A control doesn't contribute to a conversation's context, since it isn't a view of data. */
@@ -60,9 +59,9 @@ class ShuPolymorphicSettings extends ShuElement<z.ZodObject> {
 	/** Which settings group this instance renders. */
 	declare group: "layout" | "scenes";
 	/** The host's current options, rendered, never stored. Set by the host that owns them. */
-	declare options: TPolymorphicOptions;
+	declare options: GraphSceneConfig;
 	/** What the graph can draw, which the view control offers: a host's own graph draws its records alone. */
-	declare choices: readonly TViewChoice[];
+	declare choices: readonly ViewType[];
 	/** The axes the scene derives from its data, handed down by the host. */
 	declare groupByAxes: string[];
 	/** What the active view FORCES: an option it settles is not offered here, since a control that cannot act is a
@@ -116,7 +115,7 @@ class ShuPolymorphicSettings extends ShuElement<z.ZodObject> {
 		const o = this.options;
 		return html`
 			<shu-field label="view">
-				<select data-testid=${IDS.VIEW_TYPE} .value=${o.viewType} @change=${(e: Event) => this.onChange({ viewType: (e.target as HTMLSelectElement).value as TViewChoice })}>
+				<select data-testid=${IDS.VIEW_TYPE} .value=${o.viewType} @change=${(e: Event) => this.onChange({ viewType: (e.target as HTMLSelectElement).value as ViewType })}>
 					${this.choices.map((v) => html`<option value=${v} ?selected=${o.viewType === v}>${VIEW_LABELS[v]}</option>`)}
 				</select>
 			</shu-field>
@@ -147,7 +146,7 @@ class ShuPolymorphicSettings extends ShuElement<z.ZodObject> {
 					: ""
 			}
 			<shu-field label="depth by">
-				<select data-testid=${IDS.Z_BASIS} .value=${o.zBasis} @change=${(e: Event) => this.onChange({ zBasis: (e.target as HTMLSelectElement).value as TPolymorphicOptions["zBasis"] })}>
+				<select data-testid=${IDS.Z_BASIS} .value=${o.zBasis} @change=${(e: Event) => this.onChange({ zBasis: (e.target as HTMLSelectElement).value as GraphSceneConfig["zBasis"] })}>
 					<option value="valid">valid time</option>
 					<option value="indexed">indexed time</option>
 					<option value="connections"># connections</option>

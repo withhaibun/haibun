@@ -1,7 +1,7 @@
 /**
  * GraphSourceStepper declares the steps that serve a page's reads of the graph. A page reads the site's graph the same
  * way whatever serves the read: a query, a count over a span, one individual with its edges, the clustered sample a
- * graph view draws, what a graph view shows as TPTP formulas, and the reads a federated peer serves.
+ * graph view draws, what a graph view shows described in description logic, and the reads a federated peer serves.
  *
  * Each step reads the store this instance holds. The reads a consumer may serve for itself declare `fallback`, so a
  * consumer with an engine of its own serves those instead, and the page sends the same request.
@@ -27,8 +27,8 @@ import {
 } from "@haibun/core/lib/quad-types.js";
 import { recordWithEdges } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { DOMAIN_RECORD_ID, DOMAIN_LINK, DOMAIN_PRINCIPAL_REF, type TIndividualRef } from "@haibun/core/lib/domains/domains.js";
-import { clusteredQuads, federate, graphTptp, selectValues, servingSite, type TGraphView } from "./pipelines/graph-source.js";
-import { DOMAIN_FORMULA_PROJECTION, ProjectionSchema } from "@haibun/logic/domains/logic.js";
+import { clusteredQuads, federate, graphDescriptionOf, selectValues, servingSite, type TGraphView } from "./pipelines/graph-source.js";
+import { DOMAIN_DESCRIPTION, DescriptionSchema } from "@haibun/core/lib/records/domains/description.js";
 import { openPeerGraphSource } from "./root.js";
 
 /** The values a filter offers for each field of a type that names one. */
@@ -55,7 +55,7 @@ const ClusteredQuadsSchema = z.object({
 	site: z.string().optional(),
 });
 
-/** What a graph view shows, which `show graph {view} as tptp` renders: as `TGraphView` states it. */
+/** What a graph view shows, which `show graph {view} in description logic` describes: as `TGraphView` states it. */
 const GraphViewSchema = z
 	.object({
 		perTypeLimit: z.number().int(),
@@ -64,7 +64,6 @@ const GraphViewSchema = z
 		hiddenPredicates: z.array(z.string()),
 		prune: z.boolean(),
 		timeCursor: z.number().optional(),
-		goal: z.string().optional(),
 	})
 	.strict() satisfies z.ZodType<TGraphView>;
 
@@ -99,12 +98,14 @@ const GRAPH_SOURCE_DOMAINS: TDomainDefinition[] = [
 	{
 		selectors: [DOMAIN_GRAPH_VIEW],
 		schema: fromJsonText(GraphViewSchema),
-		description: "What a graph view shows: the records of each type it reads, the types and predicates it shows or hides, its prune, its time cursor and its goal",
+		description: "What a graph view shows: the records of each type it reads, the types and predicates it shows or hides, its prune and its time cursor",
 	},
 	{
-		selectors: [DOMAIN_FORMULA_PROJECTION],
-		schema: ProjectionSchema,
-		description: "Formulas as TPTP text a prover reads, as Unicode tokens with the statement and the record behind each, and as their term graph",
+		selectors: [DOMAIN_DESCRIPTION],
+		schema: DescriptionSchema,
+		list: listOf(DescriptionSchema, "frames"),
+		description:
+			"What a graph shows in description logic: a frame for each class, property and individual, in Manchester syntax and DL notation, with the statement and the record behind each",
 	},
 ];
 
@@ -168,16 +169,16 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 				}
 			},
 		},
-		showGraphAsTptp: {
+		showGraphDescription: {
 			read: true,
 			readsAt: Access.public,
-			gwta: `show graph {view: ${DOMAIN_GRAPH_VIEW}} as tptp`,
+			gwta: `show graph {view: ${DOMAIN_GRAPH_VIEW}} in description logic`,
 			description:
-				"Returns what a graph view shows as TPTP FOF: the text a prover reads, each formula's Unicode tokens with the statement and the record behind it, and the term graph. A record's type is a unary predicate and each literal property and edge a binary one, the producer rules and waypoint rules that apply to what it shows are quantified axioms, and its goal is a conjecture.",
-			productsDomain: DOMAIN_FORMULA_PROJECTION,
-			// The projection is the RPC response; keeping it on the event too holds a second copy of it per call.
+				"Returns what a graph view shows in description logic: an individual frame for each record with its class and facts, a class frame for each type with its superclasses, and a property frame for each link relation with the unions of its domain and range, each in Manchester syntax and DL notation.",
+			productsDomain: DOMAIN_DESCRIPTION,
+			// The description is the RPC response; keeping it on the event too holds a second copy of it per call.
 			retainProducts: false,
-			action: async ({ view }: { view: TGraphView }) => actionOKWithProducts(await graphTptp(this.getWorld(), view)),
+			action: async ({ view }: { view: TGraphView }) => actionOKWithProducts(await graphDescriptionOf(this.getWorld(), view)),
 		},
 		clusteredGraphHoldsFromSite: {
 			gwta: `clustered graph holds {type: ${DOMAIN_PERSISTED_TYPE}} {subject: ${DOMAIN_RECORD_ID}} from site {site: ${DOMAIN_PRINCIPAL_REF}}`,

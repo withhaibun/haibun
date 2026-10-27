@@ -7,7 +7,6 @@ import { VERDICT } from "@haibun/core/lib/domains/protocol.js";
 import type { TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import { DOMAIN_DOMAIN_KEY } from "@haibun/core/lib/domains/domains.js";
 import type { TQuad } from "@haibun/core/lib/steps/domains/quad-types.js";
-import { TOKEN_ROLE } from "./tokens.js";
 
 /** The statement of a goal, which the resolve step's pattern parses and a goal's proof and conjecture render. */
 export const RESOLVE_STATEMENT = `resolve {goal: ${DOMAIN_DOMAIN_KEY}}`;
@@ -117,58 +116,8 @@ export const DerivationSchema = z.object({
 export type TDerivation = z.infer<typeof DerivationSchema>;
 
 /** A rule a formula states: the formula's name, its role, and its rendering in Unicode notation. */
-export const RuleSchema = z.object({ name: z.string(), role: z.string(), rendered: z.string() });
-export type TRule = z.infer<typeof RuleSchema>;
-
 export const DOMAIN_DERIVATION = "derivation";
-export const DOMAIN_FORMULA = "formula";
-export const DOMAIN_RULE = "rule";
 export const DOMAIN_LINE_TERM = "line-term";
-/** The domain of a projection of formulas, which the stepper whose step returns one declares. */
-export const DOMAIN_FORMULA_PROJECTION = "formula-projection";
-
-/** A TPTP FOF formula a line writes. The logic stepper adds the resolver's check: the formula parses, it is in the engine's
- *  fragment, and each predicate it names is an entry of the registry. */
-export const formulaDomainDefinition: TDomainDefinition = {
-	selectors: [DOMAIN_FORMULA],
-	schema: z.string().min(1),
-	written: true,
-	description: "One annotated TPTP FOF formula in the engine's fragment, whose predicates are entries of the registry",
-};
-
-/** The record a formula's statement names: its type and its id. */
-const AssertedBySchema = z.object({ persistedAs: z.string(), id: z.string() }).strict();
-export type TAssertedBy = z.infer<typeof AssertedBySchema>;
-
-/**
- * Formulas projected for every surface that reads them: their ASCII TPTP text, a summary of their kinds, each formula's Unicode
- * tokens with its statement and asserting record, and their term graph, whose nodes and edges each name the formulas that state
- * them, with the clusters the projection badges.
- */
-export const ProjectionSchema = z
-	.object({
-		text: z.string(),
-		summary: z.object({ axioms: z.number().int(), rules: z.number().int(), conjectures: z.number().int() }).strict(),
-		formulas: z.array(
-			z
-				.object({
-					name: z.string(),
-					role: z.string(),
-					statement: z.string(),
-					assertedBy: AssertedBySchema.optional(),
-					tptp: z.string(),
-					tokens: z.array(z.object({ text: z.string(), role: z.enum(TOKEN_ROLE), node: z.string().optional() }).strict()),
-				})
-				.strict(),
-		),
-		nodes: z.array(
-			z.object({ id: z.string(), label: z.string(), kind: z.string(), classes: z.array(z.string()), formulas: z.array(z.string()), hollow: z.literal(true).optional() }).strict(),
-		),
-		edges: z.array(z.object({ from: z.string(), to: z.string(), label: z.string(), formula: z.string() }).strict()),
-		clusters: z.array(z.object({ kind: z.string(), badge: z.string() }).strict()),
-	})
-	.strict();
-export type TProjection = z.infer<typeof ProjectionSchema>;
 
 /** A line and the term it parses to, with the line the term renders as. */
 export const LineTermSchema = z.object({ line: z.string(), term: z.string(), rendered: z.string() });
@@ -180,7 +129,6 @@ export const logicDomainDefinitions: TDomainDefinition[] = [
 		description: "A statement's verdict, the records its proof wrote, its calls, and the first goal it couldn't prove with its reason",
 	},
 	{ selectors: [DOMAIN_LINE_TERM], schema: LineTermSchema, description: "A line, the term the registry parses it to, and the line the term renders as" },
-	{ selectors: [DOMAIN_RULE], schema: RuleSchema, description: "A rule a formula states: its name, its role and its rendering in Unicode notation" },
 ];
 
 /** The namespace of the IRIs a proof's N3 export names. */

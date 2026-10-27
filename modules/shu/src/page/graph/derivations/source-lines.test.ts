@@ -1,29 +1,28 @@
 /**
  * The source pane's lines and the selection that links them to the scene both ways: the line a key moves to, what is behind a
- * line, the summary of kinds, and the mapping between the scene's ids and the projection's, for a graph of records whose ids the
- * projection's constants name and for the terms of a source drawn as the projection names them.
+ * line, the summary of kinds, and the frames that state the records and edges a reader chose in the scene.
  */
 import { describe, expect, it } from "vitest";
-import { constantOf, literalOf, nameOfText, type TFormula, type TTerm } from "@haibun/logic/derivations/formula.js";
-import { edgeKey, projected } from "@haibun/logic/derivations/term-graph.js";
+import { graphDescription } from "../../../derivations/graph-description.js";
+import { edgeKey } from "./focus-policy.js";
 import { lineAfterKey, linesOfScene, provenanceOf, sceneOfLine, statusOf, summaryOf } from "./source-lines.js";
 
-const atom = (predicate: string, ...args: TTerm[]): TFormula => ({ atom: predicate, args });
-/** A record whose id the projection's constant names in JSON's escapes, beside one it names as it is. */
+/** Two emails, the second a reply to the first, whose id holds quotes. */
 const [QUOTED, PLAIN] = ['say "hi"', "m2"];
-const RECORD = { persistedAs: "Email", id: QUOTED };
-const projection = projected([
-	{ name: "n1", role: "axiom", formula: atom("Email", constantOf(QUOTED)), statement: `Email ${QUOTED}`, assertedBy: RECORD },
-	{ name: "p1", role: "axiom", formula: atom("subject", constantOf(QUOTED), literalOf("Roadmap")), statement: `Email ${QUOTED}`, assertedBy: RECORD },
-	{ name: "e1", role: "axiom", formula: atom("inReplyTo", constantOf(PLAIN), constantOf(QUOTED)), statement: "Email m2" },
+const REPLY = "inReplyTo";
+const description = graphDescription(
 	{
-		name: "goal",
-		role: "conjecture",
-		formula: { quantifier: "?", variables: ["X1"], body: atom("inReplyTo", { variable: "X1" }, constantOf(QUOTED)) },
-		statement: "resolve reply",
+		nodes: [
+			{ id: QUOTED, type: "Email", properties: { subject: "Roadmap" } },
+			{ id: PLAIN, type: "Email", properties: {} },
+		],
+		edges: [{ from: PLAIN, to: QUOTED, predicate: REPLY, graph: "Email" }],
 	},
-]);
-const RECORDS = { nodes: [QUOTED, PLAIN], edges: [{ from: PLAIN, predicate: "inReplyTo", to: QUOTED }] };
+	[],
+	(_type, edge) => edge,
+);
+const RECORDS = { nodes: [QUOTED, PLAIN], edges: [{ from: PLAIN, predicate: REPLY, to: QUOTED }] };
+const [CLASS, PROPERTY, QUOTED_LINE, PLAIN_LINE] = ["Class Email", `ObjectProperty ${REPLY}`, `Individual ${QUOTED}`, `Individual ${PLAIN}`];
 
 describe("lineAfterKey", () => {
 	const names = ["n1", "p1", "e1"];
@@ -43,13 +42,12 @@ describe("lineAfterKey", () => {
 });
 
 describe("what a line states to a reader", () => {
-	it("states the statement behind a line, and the record that asserted it", () => {
-		const [n1, , e1] = projection.formulas;
-		expect(n1 && provenanceOf(n1)).toBe(`Email ${QUOTED} · asserted by Email ${QUOTED}`);
-		expect(e1 && provenanceOf(e1)).toBe("Email m2");
+	it("states a line's axioms in DL notation, the statement behind it, and the record that asserted it", () => {
+		const frame = description.frames.find(({ name }) => name === QUOTED_LINE);
+		expect(frame && provenanceOf(frame)).toBe(`Email(<say%20%22hi%22>) · subject(<say%20%22hi%22>, "Roadmap") · Email ${QUOTED} · asserted by Email ${QUOTED}`);
 	});
-	it("summarises the source's kinds with their counts", () => {
-		expect(summaryOf(projection.summary)).toBe("axioms 3 · rules 0 · conjectures 1");
+	it("summarises the description's kinds with their counts", () => {
+		expect(summaryOf(description.summary)).toBe("classes 1 · properties 1 · individuals 2");
 	});
 	it("states what a reader's line lights in the scene, or how many lines state the scene's selection", () => {
 		expect(statusOf("e1", { nodes: ["a", "b"], edges: ["k"] }, new Set())).toBe("e1 lights 2 nodes and 1 edge");
@@ -59,18 +57,12 @@ describe("what a line states to a reader", () => {
 });
 
 describe("the selection between the scene and the lines", () => {
-	it("lights the lines that state a record a reader chose in a graph of records, through the text its constant names", () => {
-		expect(linesOfScene(projection, nameOfText, { nodes: [QUOTED], edges: [] })).toEqual(["n1", "p1", "e1", "goal"]);
-		expect(linesOfScene(projection, nameOfText, { nodes: [], edges: RECORDS.edges }), "an edge lights the line that states it").toEqual(["e1"]);
+	it("lights the lines that state a record or an edge a reader chose", () => {
+		expect(linesOfScene(description, { nodes: [QUOTED], edges: [] })).toEqual([CLASS, QUOTED_LINE]);
+		expect(linesOfScene(description, { nodes: [], edges: RECORDS.edges }), "an edge lights the lines that state it").toEqual([PROPERTY, PLAIN_LINE]);
 	});
-	it("lights the records and the edge a line states, among those the scene draws", () => {
-		expect(sceneOfLine(projection, nameOfText, "e1", RECORDS)).toEqual({ nodes: [QUOTED, PLAIN], edges: [edgeKey(PLAIN, "inReplyTo", QUOTED)] });
-		expect(sceneOfLine(projection, nameOfText, "p1", RECORDS), "a literal isn't a record the scene draws").toEqual({ nodes: [QUOTED], edges: [] });
-	});
-	it("maps the terms of a source as the projection names them", () => {
-		const terms = { nodes: projection.nodes.map(({ id }) => id), edges: projection.edges.map(({ from, label, to }) => ({ from, predicate: label, to })) };
-		const named = nameOfText(QUOTED);
-		expect(sceneOfLine(projection, (id) => id, "goal", terms)).toEqual({ nodes: [named, "goal:X1"], edges: [edgeKey("goal:X1", "inReplyTo", named)] });
-		expect(linesOfScene(projection, (id) => id, { nodes: ["goal:X1"], edges: [] })).toEqual(["goal"]);
+	it("lights the records and the edges a line states, among those the scene draws", () => {
+		expect(sceneOfLine(description, PLAIN_LINE, RECORDS)).toEqual({ nodes: [PLAIN], edges: [edgeKey(PLAIN, REPLY, QUOTED)] });
+		expect(sceneOfLine(description, CLASS, RECORDS), "a class lights its records").toEqual({ nodes: [QUOTED, PLAIN], edges: [] });
 	});
 });

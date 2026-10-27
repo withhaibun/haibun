@@ -9,7 +9,6 @@ import {
 	type TStepperSteps,
 } from "@haibun/core/lib/steps/domains/stepper.js";
 import type { TWorld } from "@haibun/core/lib/actuality/domains/world.js";
-import type { TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import {
 	DOMAIN_STATEMENT,
 	DOMAIN_TEXT,
@@ -22,6 +21,7 @@ import {
 	DOMAIN_WAYPOINT_ARGUMENT,
 } from "@haibun/core/lib/domains/domains.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
+import { counted } from "@haibun/core/lib/domains/hypermedia.js";
 import { actionNotOK, actionOK, actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
 import { argumentsOf } from "@haibun/core/lib/steps/pipelines/populate-action-args.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
@@ -40,19 +40,11 @@ import { affordancesAt, chainLint, pursued, resolved, walkAdvanced, walkBegun, t
 import { stepperContext } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
 import { proverOf } from "./pipelines/prove.js";
 import { canonicalOf, readerOf, recordsWhere, writeFacts } from "./pipelines/reads.js";
-import { callTerm, derivationUnder, formulaRefusal, lineTerm, refuseDeclarations, ruleOf } from "./pipelines/registry-reads.js";
-import { logicEngine } from "./root.js";
-import {
-	DOMAIN_DERIVATION,
-	DOMAIN_FORMULA,
-	DOMAIN_LINE_TERM,
-	DOMAIN_RULE,
-	READ_GRAPH,
-	READ_PREDICATE,
-	RESOLVE_STATEMENT,
-	formulaDomainDefinition,
-	logicDomainDefinitions,
-} from "./domains/logic.js";
+import { callTerm, derivationUnder, lineTerm, refuseDeclarations } from "./pipelines/registry-reads.js";
+import { logicEngine, reasoner } from "./root.js";
+import { entailedMembers } from "./pipelines/members.js";
+import { DOMAIN_CLASS_EXPRESSION, DOMAIN_ENTAILED_MEMBERS, reasoningDomainDefinitions } from "./domains/reasoning.js";
+import { DOMAIN_DERIVATION, DOMAIN_LINE_TERM, READ_GRAPH, READ_PREDICATE, RESOLVE_STATEMENT, logicDomainDefinitions } from "./domains/logic.js";
 import { DOMAIN_ALTERNATIVES, DOMAIN_OBSERVATION_SOURCE, DOMAIN_REFUSAL, DOMAIN_STATUS, readingDomainDefinitions } from "./domains/readings.js";
 
 /** The feature's step records as an observation source: each record's fields, the stepper of the step it called, and its
@@ -83,11 +75,8 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 		world.runtime.prover = proverOf(await logicEngine());
 	}
 
-	/** The formula domain, whose refusal holds a written formula to the registry of the steppers and the world's domains. */
-	private readonly formulaDomain: TDomainDefinition = { ...formulaDomainDefinition, refuses: (text, steppers) => formulaRefusal(text, steppers, this.getWorld().domains) };
-
 	cycles: IStepperCycles = {
-		getConcerns: () => ({ sources: [steps], domains: [...logicDomainDefinitions, ...readingDomainDefinitions, ...goalDomainDefinitions, this.formulaDomain] }),
+		getConcerns: () => ({ sources: [steps], domains: [...logicDomainDefinitions, ...readingDomainDefinitions, ...goalDomainDefinitions, ...reasoningDomainDefinitions] }),
 	};
 
 	/** What a goal's proof reads, under the caller's authority. */
@@ -227,6 +216,18 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 				return actionOKWithProducts(await derivationUnder(stepperContext(this.getWorld(), this.steppers), featureStep, itemAt(statement, 0)));
 			},
 		},
+		individualsOf: {
+			read: true,
+			readsAt: Access.public,
+			gwta: `individuals of {expression: ${DOMAIN_CLASS_EXPRESSION}}`,
+			description:
+				"Returns the records a class expression entails as its members, through the reasoner over the ontology and the records an expression's names reach, under the caller's authority. A member the records don't entail may exist.",
+			productsDomain: DOMAIN_ENTAILED_MEMBERS,
+			action: async ({ expression }: { expression: string }) => {
+				const members = await entailedMembers(reasoner(), this.getWorld().shared.getStore(), this.getWorld().domains, expression);
+				return actionOKWithProducts({ members, ...counted(members.length) });
+			},
+		},
 		lineRendersAsWritten: {
 			read: true,
 			readsAt: Access.public,
@@ -249,18 +250,6 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 				const [call, written] = [callTerm(world, method, input), lineTerm(world, this.steppers, line).term];
 				if (call === written) return actionOK();
 				return actionNotOK(`The call ${method} parses to ${call}, and \`${line}\` parses to ${written}. Give the call the values the line states.`);
-			},
-		},
-		rule: {
-			read: true,
-			readsAt: Access.public,
-			gwta: `rule {formula: ${DOMAIN_FORMULA}}`,
-			description:
-				"Enters one TPTP FOF formula for a complex single-purpose rule, and returns its name, its role and its rendering in Unicode notation. A line resolves only where the formula parses, is in the engine's fragment and names entries of the registry; other lines name the rule.",
-			productsDomain: DOMAIN_RULE,
-			action: ({ formula }: { formula: string }) => {
-				const rule = ruleOf(formula, this.steppers, this.getWorld().domains);
-				return "refused" in rule ? actionNotOK(rule.refused) : actionOKWithProducts(rule);
 			},
 		},
 	} as const satisfies TStepperSteps;

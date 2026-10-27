@@ -50,7 +50,6 @@ export type DataPipelineDeps = {
 	visibleQuads: () => TQuad[];
 	hiddenGraphs: () => string[]; // cgState.hiddenGraphs
 	visibleModel: () => GraphModel;
-	hollow: (id: string) => boolean; // the projection that drew the node requests it hollow (TSceneStyles)
 	lastModelHash: () => number | undefined; // undefined = first feed / post-reset (everything is "new", without arrival pops)
 	timeCursor: () => number | null; // the resolved cursor (a pinned view's frozen instant, else the global cursor); null = live
 	zBasis: () => "valid" | "indexed" | "connections"; // what places depth: the object's valid time (its declared field), its indexed time (generatedAtTime), or its number of connections
@@ -262,18 +261,16 @@ export class DataPipeline {
 				node.vx = 0;
 				node.vy = 0;
 			};
-			// A node drawn hollow is a node of its own: the library builds its object afresh when the style changes.
-			const hollow = this.deps.hollow(n.id) ? { hollow: true as const } : {};
 			let fgNode: FGNode;
-			if (existing && existing.name === name && existing.type === n.type && existing.hollow === hollow.hollow) {
+			if (existing && existing.name === name && existing.type === n.type) {
 				fgNode = existing;
 				pinAt(fgNode);
 			} else if (existing) {
 				const { x, y, z, vx, vy, vz } = existing;
-				fgNode = { id: n.id, name, type: n.type, isCluster: n.isCluster, ...hollow, x, y, z, vx, vy, vz };
+				fgNode = { id: n.id, name, type: n.type, isCluster: n.isCluster, x, y, z, vx, vy, vz };
 				pinAt(fgNode);
 			} else {
-				fgNode = { id: n.id, name, type: n.type, isCluster: n.isCluster, ...hollow };
+				fgNode = { id: n.id, name, type: n.type, isCluster: n.isCluster };
 				const parked = this.parkedPositions.get(n.id);
 				if (parked) this.parkedPositions.delete(n.id);
 				if (pin) pinAt(fgNode);

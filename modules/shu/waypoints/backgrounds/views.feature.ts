@@ -2,7 +2,7 @@ import type { TKirejiExport } from "@haibun/core/kireji/derivations/withAction.j
 import { RAIL_EDGE_TITLE, SETTINGS_GROUP, SHU_ATTR, SHU_TAG, TIME_SYNC_CLASS } from "@haibun/shu/domains/elements.js";
 import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
 import { RAIL_POSITION_MAX } from "@haibun/shu/page/derivations/rail.js";
-import { READ_STATE, VIEW_LABELS } from "@haibun/shu/page/graph/domains/views.js";
+import { READ_STATE } from "@haibun/shu/page/graph/domains/views.js";
 
 /** A waypoint's placeholder for the view whose page it reads, which a feature names by its tag, quoted. */
 const VIEW = "{view}";
@@ -101,7 +101,7 @@ export const views = {
 	graphChipIsntTicked: (view: string, name: string) => `chip ${name} of graph ${view} isn't ticked`,
 	pointAtGraphChip: (view: string, name: string) => `point at chip ${name} of graph ${view}`,
 	pointAtGraphHead: (view: string) => `point at the head of graph ${view}`,
-	graphDrawsSourceTerms: (view: string) => `graph ${view} draws the terms of its source beside the source`,
+	graphShowsDescription: (view: string) => `graph ${view} shows its description beside the scene`,
 	sourceLineLights: (view: string, line: string) => `line ${line} of the source of graph ${view} lights what it states`,
 	enterInStepInput: (statement: string) => `enter ${statement} in the actions bar's step input`,
 	runLastStepForm: () => "run the last step form in the actions bar",
@@ -198,15 +198,12 @@ export const backgrounds: TKirejiExport = {
 		"The query lists each individual it matches as a row that carries the individual's type and id.",
 		...within("Read a listed individual", PAGE, `[data-persisted-as="{type}"][data-individual-id="{id}"]`, "wait for", views.queryLists("{type}", "{id}")),
 
-		"A graph view reads its source as text beside the scene, through the step that projects what the graph shows on the server, and draws the terms of that source in place of its records.",
-		"Activity: Draw a graph's terms beside its source",
-		`in {view}, click "${GRAPH.SETTINGS.layout}" by test id`,
-		`compose ${TARGET} as page-locator with ${testId(GRAPH.VIEW_TYPE)}`,
-		`in {view}, select "${VIEW_LABELS.terms}" for ${TARGET}`,
+		"A graph view reads what it shows as a description in description logic beside the scene, a frame of Manchester syntax for each class, property and record, through the step that describes the graph on the server.",
+		"Activity: Read a graph's description beside the scene",
 		`in {view}, click "${GRAPH.SOURCE}" by test id`,
 		`compose ${TARGET} as page-locator with ${testId(GRAPH.SOURCE_LINES)} [role="option"] >> nth=0`,
 		`in {view}, wait for ${TARGET}`,
-		`waypoint ${views.graphDrawsSourceTerms(VIEW)}`,
+		`waypoint ${views.graphShowsDescription(VIEW)}`,
 		"A line of the source lights the nodes and edges it states in the scene and frames them, and states what it lights to a reader who isn't looking at the scene.",
 		"Activity: Press a line of a graph's source",
 		`compose ${TARGET} as page-locator with ${testId(GRAPH.SOURCE_LINES)} [data-name="{line}"]`,

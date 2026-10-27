@@ -72,6 +72,9 @@ Both engines run side by side on the same runtime until stage 7 removes the Prol
 7. Waypoints as N3 rules, one library at a time (core, logic, shu); then the Prolog knowledge path removed (goals, waypoint rules, falsity, sameAs, chain lint), `haibun.pl` reduced to the closed proof of a line (about 341 → 150 lines), `fol-in-haibun.md` removed; docs and architecture.md updated.
 Estimated total: about −1,300 / +880 source lines.
 
+## Later
+- W3C Solid and the fediverse (ActivityPub) matter later, as standards, and the model stays compatible with them without adopting either now: records stay RDF with JSON-LD contexts, and the topology stays describable declaratively, for example as Shape Trees for Solid pods.
+
 ## Checklist
 - [x] 1 OWL export and EYE runtime
   - Net source lines: +374 (core +79, logic +295). Tests: +129. Steps removed: 0. Special cases removed: 0. Feature lines whose meaning changed: none.
@@ -81,7 +84,12 @@ Estimated total: about −1,300 / +880 source lines.
   - Decided by the operator, in a follow-up commit: the served `@context` names each type's class `hbn:<label>`, maps the type's term to it, and states the declared `@type` IRI and the declared superclasses on that class node, so classes that declare one IRI keep their own axioms and a record's `@type` expands to its own class.
   - Decided by the operator, in the same commit: a complete graph is complete only to a reader at or above its type's access level, the narrowest level that holds its records. For a reader below that level the graph is open, so the `reason` pipeline doesn't state it as a formula, and a claim its records don't prove stays `unknown`. Tests cover both sides.
   - Decided by the operator, in the same commit: the downstream-names rule matches application and organization names only, and its baseline counts those mentions. haibun's prose calls its authority model ZCAPs (capabilities and delegations).
-- [ ] 2 DL view, TPTP removed
+- [x] 2 DL view, TPTP removed
+  - Net source lines: −517 (+586, −1,103). Tests: −347. Feature lines: −32. Steps removed: `rule {formula}` and `show graph {view} as tptp`. Steps added: `show graph {view} in description logic`, which takes the source pane's place, and `individuals of {expression}`. Special cases removed: the source-terms view choice, hollow chips, cluster badges and the scene styles a projection requested.
+  - Removed: logic `derivations/formula.ts`, `derivations/term-graph.ts`, `domains/tokens.ts`, the TPTP faces of `derivations/registry.ts` and `pipelines/registry-reads.ts`, `producerAxioms` and `goalConjecture`, the formula domain, the projection schemas and the rule schema; the record arities of core's predicate registry; shu `derivations/graph-formulas.ts`, `page/graph/derivations/term-scene.ts`, and the graph view's goal, which only the TPTP conjecture read.
+  - Added: core `records/domains/description.ts` and `records/derivations/description.ts` (Manchester syntax and DL notation of a class, a property and an individual); the ontology read states each term's axioms in DL notation; shu `derivations/graph-description.ts` describes what a graph view shows as frames, which the source pane shows as Manchester text with the DL notation on hover; logic `derivations/class-expression.ts` and `pipelines/members.ts` read a class expression (named classes, `and`, `or`, `some`, `value`) and return the members the reasoner entails. The query box is the step input running `individuals of`, whose members are a counted list, so the combinators apply.
+  - Feature lines whose meaning changed: requirements 13 "Formula notation" became "Conjunctions"; its three scenarios of the `rule` step are removed. shu's views waypoint "graph {view} draws the terms of its source" became "graph {view} shows its description beside the scene". New lines: the monitor feature reads the ontology's DL notation, `individuals of`, and `show graph … in description logic`; requirements 07 counts the members `individuals of` returns.
+  - Open: a feature doesn't ensure the source pane's waypoints in a browser, as before this stage. The monitor feature runs the step that the pane calls.
 - [ ] 3 Claim forms and expressions
 - [ ] 4 Typed refusals and `didn't`
 - [ ] 6 Capabilities and knowledge lines

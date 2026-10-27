@@ -1,6 +1,6 @@
 /**
  * The graph a page draws: the clustered sample of the store with the schema its terms use, the same sample as the report
- * carries it, the layout a feature reads as tokens, what a graph view shows as TPTP formulas, and a federated peer's graph
+ * carries it, the layout a feature reads as tokens, what a graph view shows described in description logic, and a federated peer's graph
  * merged into this instance's.
  */
 import { MAX_PAGE_ROWS, buildResourceRels, pageLimit, relOf } from "@haibun/core/lib/domains/hypermedia.js";
@@ -21,18 +21,11 @@ import type { TOpenPeerGraphSource, TPeerCalls } from "../ports.js";
 import { RPC_METHOD } from "../domains/elements.js";
 import { AUTHORITY_CAPABILITIES } from "@haibun/core/lib/domains/actions.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
-import { callerHolds } from "@haibun/core/lib/domains/capability-context.js";
-import { runSteppers } from "@haibun/core/lib/actuality/domains/world.js";
-import { FACT_FIELD } from "@haibun/core/lib/records/domains/facts.js";
-import { FACT_LABEL, SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
-import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
-import { projected } from "@haibun/logic/derivations/term-graph.js";
-import type { TProjection } from "@haibun/logic/domains/logic.js";
-import { goalConjecture, producerAxioms, stepSignatures } from "@haibun/logic/derivations/goals.js";
-import { waypointAxioms } from "@haibun/logic/pipelines/registry-reads.js";
-import { graphAxioms } from "../derivations/graph-formulas.js";
-import { predicateArities } from "@haibun/core/lib/steps/derivations/predicate-registry.js";
 import { visibleGraphModel } from "../page/graph/derivations/scene-data.js";
+import { ontologyToQuads } from "@haibun/core/lib/records/derivations/ontology.js";
+import type { TDescription } from "@haibun/core/lib/records/domains/description.js";
+import { concernCatalogOf } from "@haibun/core/lib/steps/pipelines/discover-steps.js";
+import { graphDescription } from "../derivations/graph-description.js";
 import { effectiveHiddenTypes } from "../page/graph/derivations/graph-filter.js";
 
 type TClusters = Awaited<ReturnType<NonNullable<IQuadStore["getClusteredQuads"]>>>["clusters"];
@@ -139,8 +132,8 @@ export async function clusteredQuads(world: TWorld, request: TClusteredRequest):
 }
 
 /** What a graph view shows: the records of each type it reads at a query level, the reader's choice of each type it shows or
- *  hides, the predicates whose edges it hides, whether it prunes the nodes an edge doesn't connect, the moment its time cursor
- *  stands at where it doesn't show the live edge, and the goal a reader selected where one is selected. */
+ *  hides, the predicates whose edges it hides, whether it prunes the nodes an edge doesn't connect, and the moment its time cursor
+ *  stands at where it doesn't show the live edge. */
 export type TGraphView = {
 	perTypeLimit: number;
 	accessLevel: AccessQueryLevel;
@@ -148,16 +141,13 @@ export type TGraphView = {
 	hiddenPredicates: string[];
 	prune: boolean;
 	timeCursor?: number;
-	goal?: string;
 };
 
 /**
- * What a graph view shows as TPTP FOF, projected as its text, its formulas and its term graph: the graph's axioms; the producer
- * rules the caller may use that take or return the domain of a fact the view shows; the rules of the waypoints whose head the
- * line of a step record the view shows applies; and the goal as a conjecture. The view hides the types and predicates the reader
- * hid and the types a view hides by default, as the page does.
+ * What a graph view shows, described in description logic: a frame for each record it shows, each type and each link relation
+ * of its edges. The view hides the types and predicates the reader hid and the types a view hides by default, as the page does.
  */
-export async function graphTptp(world: TWorld, view: TGraphView): Promise<TProjection> {
+export async function graphDescriptionOf(world: TWorld, view: TGraphView): Promise<TDescription> {
 	const { quads, clusters } = await clusteredQuads(world, { perTypeLimit: view.perTypeLimit, accessLevel: view.accessLevel });
 	const { timeCursor } = view;
 	const rels = resourceRels(world);
@@ -165,17 +155,13 @@ export async function graphTptp(world: TWorld, view: TGraphView): Promise<TProje
 	const hiddenGraphs = effectiveHiddenTypes(types, view.overrides, new Set([...types].filter((type) => rels.instrumentation(type))));
 	const shown = timeCursor === undefined ? quads : quads.filter((quad) => quad.timestamp <= timeCursor);
 	const model = visibleGraphModel({ quads: shown, clusters, hiddenGraphs, hiddenPredicates: view.hiddenPredicates, prune: view.prune, roleRels: [] });
-	const textsOf = (type: string, field: string): string[] =>
-		model.nodes.flatMap((node) => (node.type === type && typeof node.properties[field] === "string" ? [node.properties[field]] : []));
-	const steppers = runSteppers(world);
-	const arities = predicateArities(steppers, world.domains);
-	const formulas = [
-		...graphAxioms(model, arities),
-		...producerAxioms(stepSignatures(steppers), callerHolds(), new Set(textsOf(FACT_LABEL, FACT_FIELD.domain)), arities),
-		...waypointAxioms(world, steppers, textsOf(SEQ_PATH_LABEL, SEQ_PATH_FIELD.stepText)),
-		...(view.goal === undefined ? [] : [goalConjecture(view.goal, arities)]),
-	];
-	return projected(formulas);
+	const concerns = new Map(Object.values(concernCatalogOf(world.domains).persisted).map((concern) => [concern.label, concern]));
+	const relOf = (type: string, edge: string): string => {
+		const rel = concerns.get(type)?.edges[edge]?.rel;
+		if (rel === undefined) throw new Error(`${type} doesn't declare the edge ${edge} that the graph shows. Declare the edge in the type's topology.`);
+		return rel;
+	};
+	return graphDescription(model, ontologyToQuads(world.domains).quads, relOf);
 }
 
 /** Whether this instance's merged sample, read at `level`, holds `subject`, and the site it names as serving it. A subject

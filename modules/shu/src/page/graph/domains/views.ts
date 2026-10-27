@@ -2,25 +2,17 @@
 // declare them as bare literals: the render types, the camera, the data pipeline, the view, and the controls all
 // reference VIEW.* / REFRAME.*. A rename or a new view is one edit here.
 
-/** The view types the polymorphic view can render. force/td/lr are force-layout variants; gantt + sequence are time-on-z views.
- *  terms isn't a view type: it is the choice of the source's terms in place of the records, which the force layout draws. */
-export const VIEW = { force: "force", td: "td", lr: "lr", gantt: "gantt", sequence: "sequence", terms: "terms" } as const;
+/** The view types the polymorphic view can render. force/td/lr are force-layout variants; gantt + sequence are time-on-z views. */
+export const VIEW = { force: "force", td: "td", lr: "lr", gantt: "gantt", sequence: "sequence" } as const;
 export const VIEW_TYPES = [VIEW.force, VIEW.td, VIEW.lr, VIEW.gantt, VIEW.sequence] as const;
 export type ViewType = (typeof VIEW_TYPES)[number];
-
-/** What a reader chooses the graph draws: its records in a view type, or the term graph of the source the source pane reads. */
-export const VIEW_CHOICES = [...VIEW_TYPES, VIEW.terms] as const;
-export type TViewChoice = (typeof VIEW_CHOICES)[number];
-
-/** The view type the scene lays a choice out in: the terms of a source in the force layout, and every view type as itself. */
-export const sceneViewOf = (choice: TViewChoice): ViewType => (choice === VIEW.terms ? VIEW.force : choice);
 
 /** The views that draw every node on one lane plane with time along it: gantt and sequence. */
 const LANE_VIEWS: readonly ViewType[] = [VIEW.gantt, VIEW.sequence];
 export const isLaneView = (v: ViewType): boolean => LANE_VIEWS.includes(v);
 
-/** Display label per choice: the view control renders the whole catalog from this, so every choice is always offered. */
-export const VIEW_LABELS: Record<TViewChoice, string> = { force: "force 3D", td: "top-down", lr: "left-right", gantt: "gantt", sequence: "sequence", terms: "source terms" };
+/** Display label per view type: the view control renders the whole catalog from this, so every view type is always offered. */
+export const VIEW_LABELS: Record<ViewType, string> = { force: "force 3D", td: "top-down", lr: "left-right", gantt: "gantt", sequence: "sequence" };
 
 /** The camera aim a view queues once its layout settles: front is the force-family default; gantt + sequence frame the
  *  lane plane (gantt looks down +x with time horizontal; sequence rolls 90° so participants read across and time down). */

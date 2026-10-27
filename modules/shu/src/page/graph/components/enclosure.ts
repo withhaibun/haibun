@@ -64,7 +64,6 @@ type EnclosureDeps = {
 	groupBy: () => GroupKeyMode;
 	grouped: () => boolean;
 	edgeLabelColor: () => string;
-	badgeOf: (type: string) => string | undefined; // the badge a projection puts on a type's cluster, which titles its box under the type axis
 	enclosureParent: () => Obj3D | undefined; // the forcegraph object3D the box group parents into (shared node coordinate space)
 	applyEnclosureFocus: () => void; // re-assert the active dim state on boxes created this pass
 };
@@ -193,7 +192,7 @@ export class EnclosureController {
 			if (arr) arr.push(n);
 			else byKey.set(groupKeyOf(n, groupBy), [n]);
 		}
-		const titles = groupTitles(this.deps.nodeMap().values(), groupBy, this.deps.badgeOf, roleNounFor);
+		const titles = groupTitles(this.deps.nodeMap().values(), groupBy, roleNounFor);
 		for (const [key, members] of byKey) {
 			// Chips are centred on the node (sprite.center = (0.5, 0.5)), so the footprint is symmetric (± rx about node.x)
 			// groupBounds' own ± rx computation covers it directly, without a per-member x shift.
@@ -205,7 +204,7 @@ export class EnclosureController {
 				e = this.createEnclosure(T, key, title);
 				this.enclosuresMap.set(key, e);
 				for (const o of [e.box, e.edges, e.label.object]) this.enclosureGroup.add(o);
-			} else e.label.text = title; // a party's name or a cluster's badge that arrives later retitles its box
+			} else e.label.text = title; // a party's name that arrives later retitles its box
 			e.box.position.set(b.cx, b.cy, b.cz);
 			e.box.scale.set(b.sx, b.sy, b.sz);
 			e.edges.position.set(b.cx, b.cy, b.cz);

@@ -41,7 +41,7 @@ import { type ViewType, FRAME, VIEW, isLaneView, viewChangeRebuildsNodes } from 
 import { SCHEMA_TERM, holdsSchema, isSchemaType, schemaHoverText, schemaTermOf, schemaTypes } from "../../../derivations/ontology-projection.js";
 import { actorTypesFor, fromActorEdgeLabels, relationOfPredicate, roleEdgeLabels, roleNounFor, toActorEdgeLabels, validTimeFieldOf } from "../../controllers/catalog-controller.js";
 import { compositeRenderer, threeRenderer } from "./renderer.js";
-import { A11yRenderer, kindRead } from "./a11y-renderer.js";
+import { A11yRenderer } from "./a11y-renderer.js";
 import type { TFenceGl } from "../adapters/frame-time.js";
 import { ObserverController } from "../../controllers/observer-controller.js";
 import { pageAddress } from "../../controllers/hash-controller.js";
@@ -57,7 +57,7 @@ import { paintMarkScene, type ShapeThree } from "./node-shapes.js";
 import { PolymorphicFocus, NODE_RENDER_ORDER } from "../controllers/focus-controller.js";
 import { EnclosureController, type EnclosureThree, ENCLOSURE_FILL_OPACITY, ENCLOSURE_EDGE_OPACITY, type Obj3D } from "./enclosure.js";
 import { presentationForType } from "../derivations/type-presentation.js";
-import { EVERY_FRAME, type NodeMark, type TSceneStyles } from "../domains/graph-scene.js";
+import { EVERY_FRAME, type NodeMark } from "../domains/graph-scene.js";
 import { appAccessLevel } from "../../controllers/view-query-controller.js";
 import { PaneOpenSchema, addsToSelection, type DesiredPane, type TPaneOpen } from "../../derivations/pane-kinds.js";
 
@@ -95,8 +95,6 @@ export interface GraphSceneModel {
 	site?: string;
 	perTypeLimit: number;
 	timeCursor: number | null;
-	/** What the projection that drew the quads requests beside them; a graph of records doesn't request styles. */
-	styles?: TSceneStyles;
 }
 
 /** The layout choices, owned and persisted by the host, pushed down as a plain object so the scene doesn't hold persisted state. */
@@ -429,7 +427,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		visibleQuads: () => this.model.visibleQuads,
 		hiddenGraphs: () => this.model.hiddenGraphs,
 		visibleModel: () => this.visibleModel(),
-		hollow: (id) => this.model.styles?.hollow.has(id) === true,
 		lastModelHash: () => this.lastModelHash,
 		timeCursor: () => this.model.timeCursor, // the pinning-aware cursor the host resolved (a snapshot-pinned view reads its frozen instant)
 		zBasis: () => this.config.zBasis,
@@ -498,7 +495,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		groupBy: () => this.groupBy,
 		grouped: () => this.groupingActive(), // a lane/2D view (gantt/sequence) suppresses enclosures: its lanes/actors ARE the grouping
 		edgeLabelColor: () => this.edgeLabelColor,
-		badgeOf: (type) => this.model.styles?.badges.get(type),
 		enclosureParent: () => this.enclosureParent(),
 		applyEnclosureFocus: () => this.focusCtl.applyEnclosureFocus(),
 	});
@@ -836,14 +832,12 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.configureGraph(this.graph);
 		// One draw, two media: WebGL shows the graph, the accessible document reads it. The a11y entries drive the same
 		// scene entries a pointer does (activate opens, focus highlights), so keyboard and pointer take one path.
-		const badgeOf = (type: string): string | undefined => this.model.styles?.badges.get(type);
 		this.#reading = new A11yRenderer({
 			region: () => this.querySelector<HTMLElement>("#polymorphic-a11y"),
 			bars: () => this.actorBars(),
-			badgeOf,
 			labelOf: (n) => this.chipLabelOf(n, this.markFor(n)),
 			marks: () => ({ active: this.activeSubject, tierOf: this.focusCtl.tierOf(), pinned: (id) => this.userPins.has(id) }),
-			groups: () => (this.groupingActive() ? [...groupTitles(this.nodeMap.values(), this.groupBy, badgeOf, roleNounFor).values()] : []),
+			groups: () => (this.groupingActive() ? [...groupTitles(this.nodeMap.values(), this.groupBy, roleNounFor).values()] : []),
 			onActivate: (id) => this.openNode(id),
 			onFocus: (id) => this.setHoveredNode(id),
 		});
@@ -904,9 +898,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				? makeTroikaChip(chipLabel, mark.color, three, {
 						fontSize: chipTextHeight(mark),
 						renderOrder: NODE_RENDER_ORDER,
-						// A hollow chip doesn't fill, so its label stands on the scene as an edge label does.
-						textColor: mark.hollow ? this.sceneTextColor : this.chipTextColor,
-						hollow: mark.hollow,
+						textColor: this.chipTextColor,
 						borderColor: NODE_BORDER_COLOR,
 						highlightColor: this.activeHighlightColor,
 						avatar: typeAvatar(mark.type),
@@ -1092,20 +1084,16 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		return { display: `${n.__tField} ${date}`, chip: date };
 	}
 
-	/** Essentials for the node under the pointer, overlaid above the controls: the statement its projection states behind it,
-	 *  or its label · its type, with its cluster's badge · what its depth encodes. */
+	/** Essentials for the node under the pointer, overlaid above the controls: its label · its type · what its depth encodes. */
 	private updateHoverInfo(n: FGNode | null): void {
 		if (!n || n.isCluster) return this.showInfo(null);
 		// Ontology terms are timeless, so the z/time factor is meaningless for them: show the vocabulary that declares a Property
 		// (haibun's own vs a standard's prefix) and whether the type's data uses it, in place of the time.
-		const read = isSchemaType(n.type) ? schemaHoverText(n) : `${n.name} · ${kindRead(n, this.model.styles?.badges.get(n.type))} · ${this.zFactor(n).display}`;
-		this.showInfo(this.model.styles?.behind.get(n.id) ?? read);
+		this.showInfo(isSchemaType(n.type) ? schemaHoverText(n) : `${n.name} · ${n.type} · ${this.zFactor(n).display}`);
 	}
 
-	/** An edge as a hover states it: the statement its projection states behind it, or its ends and its predicate. */
+	/** An edge as a hover states it: its ends and its predicate. */
 	private linkInfo(l: FGLink): string {
-		const behind = this.model.styles?.behind.get(linkKey(l));
-		if (behind !== undefined) return behind;
 		const nameOf = (end: string | FGNode): string => this.nodeMap.get(linkEndId(end))?.name ?? linkEndId(end);
 		return `${nameOf(l.source)} ${l.predicate} ${nameOf(l.target)}`;
 	}

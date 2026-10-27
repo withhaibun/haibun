@@ -18,11 +18,6 @@ describe("node presenters (per-@type, capability-driven default)", () => {
 		expect(m).toMatchObject({ kind: "box", zExtent: 44, role: { kind: "time", start: 10, end: 30 } });
 	});
 
-	it("default presenter draws a chip hollow where its projection requests", () => {
-		expect(CAPABILITY_PRESENTER.present({ id: "r1:X1", name: "X1", type: "r1", hollow: true }, {})).toMatchObject({ kind: "chip", hollow: true });
-		expect(CAPABILITY_PRESENTER.present({ id: "a", name: "Alice", type: "Person" }, {}).hollow).toBeUndefined();
-	});
-
 	it("a cluster is never a box, even when a time placement is present", () => {
 		const m = CAPABILITY_PRESENTER.present({ id: "c", name: "+3", type: "Task", isCluster: true }, { time: { start: 0, end: 1, zExtent: 5 } });
 		expect(m.kind).toBe("chip");

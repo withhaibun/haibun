@@ -247,34 +247,31 @@ A line that reads as until states how long it proves its statements again, or it
 exception, such as a wait for a node that isn't the until open at its position, fails its line with the line and the cause,
 ends each record it opened, and the features after it run as `HAIBUN_CONTINUE_AFTER_ERROR` states.
 
-### Formulas
+### Description logic and the reasoner
 
-`rule {formula}` enters one TPTP FOF formula. The logic module's grammar (`modules/logic/src/derivations/formula.ts`)
-parses it, refuses a formula outside the engine's fragment with its remedy, and renders it as TPTP text and as Unicode
-tokens. Each predicate a formula names is an entry of the predicate registry
-(`modules/core/src/lib/steps/derivations/predicate-registry.ts`) with its arity: a step by its method, a waypoint by its
-head, `member_of(V, D)`, which the step `{value} is in {domain}` proves and which one step declares, `precedes(D, A, B)`,
-the order an ordered domain declares, or a record's type or field. Show steps lists the predicates of the steps its caller may call, each with its parts
-and the line that states it, and every surface reads a step's parts from the registry: the tools MCP and a model receive,
-the affordances and the line a call renders as. `modules/logic/src/derivations/term-graph.ts` projects formulas once for
-every surface: their ASCII TPTP text, which a prover such as Vampire or E reads unchanged, each formula's Unicode tokens with the statement and the record behind
-it, a summary of their kinds, and their term graph, whose constants, variables, hubs and classes name the formulas that
-state them. GraphSourceStepper's `show graph {view} as tptp` returns that projection for what a graph view shows under its
-filters, its limits and its time cursor: each record's type as a unary predicate and each literal property and edge as a
-binary one, all ground axioms, the producer rules and the waypoint rules that apply to what it shows as quantified axioms,
-and the goal a reader opened as a conjecture. Each axiom names its predicates through the registry, and the projection refuses
-a predicate the registry doesn't hold.
+Knowledge is open world: OWL 2 at the RL profile states it, and N3 rules run by EYE evaluate it
+(`modules/logic/src/adapters/eye.ts`, `modules/logic/src/pipelines/reason.ts`). EYE runs on the swipl-wasm runtime the step
+program uses, one session at a time, each in a runtime of its own. A rule reads the store through the `h:read` built-in, which
+yields the read effect a proof's read yields. A type declares its named graph complete with `complete: true`, and a rule's
+scoped negation (`log:notIncludes`) applies only over a complete graph, which the pipeline states as one formula. A graph is
+complete only to a reader at or above its type's access level; below it the graph is open, and a claim its records don't prove
+is unknown.
 
-The graph view reads that projection as a source format, which `modules/shu/src/page/graph/domains/sources.ts` declares as
-data: a step that returns the projection, its label and its file's extension. Its source pane
-(`modules/shu/src/page/graph/components/shu-graph-source.ts`) shows the source beside the scene, for every view choice: each
-line in Unicode notation with the statement and the record behind it on hover, the summary of its kinds, a copy and a
-download of its ASCII text, and the arrow keys, Home and End to move through the lines. A line and the scene select each other
-through `modules/shu/src/page/graph/derivations/source-lines.ts`: a line lights and frames the nodes and edges it states, and
-a node or an edge a reader chooses lights the lines that state it. The terms choice draws the source's term graph with the same
-renderer (`modules/shu/src/page/graph/derivations/term-scene.ts`), so a node the records and the terms share keeps its place
-as the reader switches. A projection requests styles of the scene beside its quads: a hollow node, drawn as an outlined ring
-and read as unbound, the badge on a cluster, and the statement behind each node and edge, which a hover shows.
+`modules/core/src/lib/records/derivations/owl.ts` derives the ontology as OWL 2: each type's class `hbn:<label>` with its
+declared `@type` IRI and its superclasses as superclasses, and each link relation with the union of the classes that declare it
+as its domain and the union of the classes it reaches as its range. `show ontology` states each term's axioms in DL notation
+(`modules/core/src/lib/records/derivations/description.ts`). `individuals of {expression}` returns the records a class
+expression in Manchester syntax entails as its members (`modules/logic/src/pipelines/members.ts`); others may exist.
+
+GraphSourceStepper's `show graph {view} in description logic` describes what a graph view shows under its filters, its limits
+and its time cursor: an individual frame for each record with its class and facts, a class frame for each type, and a property
+frame for each link relation of its edges, each in Manchester syntax and DL notation. The graph view reads that description as
+a source format, which `modules/shu/src/page/graph/domains/sources.ts` declares as data: a step that returns the description,
+its label and its file's extension. Its source pane (`modules/shu/src/page/graph/components/shu-graph-source.ts`) shows the
+frames beside the scene, each with its DL notation, the statement and the record behind it on hover, the summary of its kinds,
+a copy and a download of its text, and the arrow keys, Home and End to move through the lines. A line and the scene select each
+other through `modules/shu/src/page/graph/derivations/source-lines.ts`: a line lights and frames the nodes and edges it states,
+and a node or an edge a reader chooses lights the lines that state it.
 
 ## Domains
 

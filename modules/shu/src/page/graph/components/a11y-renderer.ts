@@ -31,8 +31,6 @@ export type TA11yRendererDeps = {
 	/** The actor bars the active view draws, each with the nodes attached to it in appearance order, null when the
 	 *  view is not built on actors. The document then reads as the picture does: one section per bar. */
 	bars(): Array<{ id: string; label: string; nodeIds: string[] }> | null;
-	/** The badge a projection puts on a type's cluster, read before the type. */
-	badgeOf(type: string): string | undefined;
 	/** What a node's chip reads, which names its entry: its name, or the value that places its depth where chips read that. */
 	labelOf(n: FGNode): string;
 	/** What the picture shows of the nodes now. */
@@ -50,11 +48,6 @@ export type TReadingMarks = { active: string | null; tierOf: (n: FGNode) => Focu
 
 const NODE_ID_ATTR = "data-node-id";
 const DIMMED: FocusState = "dimmed";
-
-/** A node's type as a reader reads it: after the badge its projection puts on the type's cluster, and unbound where the node
- *  is drawn hollow. The reading and the scene's hover state a node alike. */
-export const kindRead = (n: { type: string; hollow?: true }, badge: string | undefined): string =>
-	`${badge === undefined ? "" : `${badge} `}${n.type}${n.hollow ? ", unbound" : ""}`;
 
 /** A button that is the way to node `id`: activating it opens the node, focusing it hovers the node. */
 const wayTo = (doc: Document, id: string): HTMLButtonElement => {
@@ -310,7 +303,7 @@ export class A11yRenderer implements TGraphRenderer {
 			const id = entry.getAttribute(NODE_ID_ATTR);
 			const n = id === null ? undefined : byId.get(id);
 			if (n === undefined) throw new Error(`A11yRenderer: an entry names node ${id}, which the last draw doesn't hold`);
-			const states = [kindRead(n, this.deps.badgeOf(n.type)), ...(pinned(n.id) ? [READ_STATE.pinned] : []), ...(tierOf(n) === DIMMED ? [READ_STATE.dimmed] : [])];
+			const states = [n.type, ...(pinned(n.id) ? [READ_STATE.pinned] : []), ...(tierOf(n) === DIMMED ? [READ_STATE.dimmed] : [])];
 			entry.textContent = `${this.deps.labelOf(n)} (${states.join(", ")})`;
 			if (n.id === active) entry.setAttribute("aria-current", "true");
 			else entry.removeAttribute("aria-current");

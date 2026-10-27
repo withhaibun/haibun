@@ -5,6 +5,10 @@
  * it is a closed check.
  */
 import { z } from "zod";
+import { CountedFields } from "@haibun/core/lib/domains/hypermedia.js";
+import { listOf } from "@haibun/core/lib/domains/lists.js";
+import type { TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
+import { IndividualAddressSchema } from "@haibun/core/lib/domains/typed-links.js";
 
 /** The namespace of the built-ins and terms that haibun's N3 rules name. */
 export const REASONER_NAMESPACE = "urn:haibun:";
@@ -22,3 +26,32 @@ export type TTriple = { subject: string; predicate: string; object: string };
 /** What a reasoning reads: its N3 rules and facts, the query that selects what it returns, and the types whose complete graphs
  *  its rules close over. */
 export type TReasoning = { rules: string; query: string; closedOver: readonly string[] };
+
+/** The namespace of the classes a query's rules name for the parts of its class expression. */
+export const QUERY_NAMESPACE = `${REASONER_NAMESPACE}query#`;
+/** The rules of OWL 2 RL a query of members reads: a member of a class is a member of each superclass, and a fact of a property
+ *  is a fact of each superproperty. */
+export const OWL_RL_RULES = [
+	"{ ?x a ?c . ?c <http://www.w3.org/2000/01/rdf-schema#subClassOf> ?d } => { ?x a ?d } .",
+	"{ ?s ?p ?o . ?p <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> ?q } => { ?s ?q ?o } .",
+].join("\n");
+/** The domain of a class expression, which `individuals of` reads. */
+export const DOMAIN_CLASS_EXPRESSION = "class-expression";
+/** The domain of the members a query entails. */
+export const DOMAIN_ENTAILED_MEMBERS = "entailed-members";
+/** The members a class expression entails, each by its address, and how many there are. A member the records don't entail may exist. */
+export const EntailedMembersSchema = z.object({ members: z.array(IndividualAddressSchema), ...CountedFields });
+
+export const reasoningDomainDefinitions: TDomainDefinition[] = [
+	{
+		selectors: [DOMAIN_CLASS_EXPRESSION],
+		schema: z.string().min(1),
+		description: "A class expression in Manchester syntax: a named class, and, or, {property} some {class} and {property} value {Type:id}",
+	},
+	{
+		selectors: [DOMAIN_ENTAILED_MEMBERS],
+		schema: EntailedMembersSchema,
+		list: listOf(EntailedMembersSchema, "members"),
+		description: "The records a class expression entails as its members. Others may exist that the records don't entail.",
+	},
+];

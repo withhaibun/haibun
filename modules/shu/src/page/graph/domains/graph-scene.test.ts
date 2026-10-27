@@ -26,12 +26,6 @@ describe("graph-scene vocabulary (backend-neutral, fail-fast)", () => {
 		expect(() => assertNodeMark(mark({ kind: "image" }))).toThrow(/image requires/);
 	});
 
-	it("draws a chip or a square hollow, and refuses a hollow mark a paint doesn't outline", () => {
-		expect(assertNodeMark(mark({ hollow: true }))).toMatchObject({ hollow: true });
-		expect(assertNodeMark(mark({ kind: "square", hollow: true }))).toMatchObject({ kind: "square", hollow: true });
-		expect(() => assertNodeMark(mark({ kind: "box", zExtent: 1, role: { kind: "time", start: 0, end: 1 }, hollow: true }))).toThrow(/a box isn't drawn hollow/);
-	});
-
 	it("validates each layout role, including xyz", () => {
 		expect(assertLayoutRole({ kind: "free" }, "n")).toEqual({ kind: "free" });
 		expect(assertLayoutRole({ kind: "xyz", x: 1, y: 2, z: 3 }, "n")).toMatchObject({ kind: "xyz" });

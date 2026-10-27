@@ -78,8 +78,7 @@
 		"has at most one call site: GraphSourceStepper.federateGraphReads": 1,
 		"returns a list of records or a count its domain doesn't declare as a list: GraphSourceStepper.density (density)": 1,
 		"returns a list of records or a count its domain doesn't declare as a list: GraphSourceStepper.getClusteredQuads (clustered-quads)": 1,
-		"returns a list of records or a count its domain doesn't declare as a list: GraphSourceStepper.getIndividualWithEdges (individual-with-edges)": 1,
-		"returns a list of records or a count its domain doesn't declare as a list: GraphSourceStepper.showGraphAsTptp (formula-projection)": 1
+		"returns a list of records or a count its domain doesn't declare as a list: GraphSourceStepper.getIndividualWithEdges (individual-with-edges)": 1
 	},
 	"modules/shu/src/monitor-stepper.ts": {
 		"has at most one call site: MonitorStepper.recordClientBlips": 1,

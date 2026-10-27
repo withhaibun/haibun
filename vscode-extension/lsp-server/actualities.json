@@ -7,8 +7,8 @@
 				"status": "passed",
 				"tookMs": 0,
 				"digest": {
-					"modules/core/src": "20bbd1bb20adb671cfc9a89405381a8e7ff32c894d9366c58aa201d1f70020a3",
-					"modules/logic/src": "8da7f49a993993ddb6c46c805bbe20e73bdf522506ea83e74321697285fc21ba",
+					"modules/core/src": "b73476e1bf15dbfdcff55a1d2ef47ab1a4b3195fef03e3ae9fbc3d08e06ad219",
+					"modules/logic/src": "bb95492881f7522a8a04014247112d7568762c3bde60cf96640bf82570ff0ced",
 					"modules/lsp/src": "6877b36b59ae7fa911d8193965639eaa3497a67e797ecee13678fe48557a1407",
 					"vscode-extension/lsp-server": "8ea6e899022a1e3cfd2555d0d7fee02dc8e59af4c98af1b65985a19644e579b0"
 				}

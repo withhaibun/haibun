@@ -8,7 +8,8 @@ import { CountedFields } from "../../domains/hypermedia.js";
 /** The two kinds of term a read of the ontology lists. */
 export const ONTOLOGY_TERM = { class: "class", property: "property" } as const;
 /** A class as a read of the ontology states it: its IRI where a type names one, its designation, its superclasses, each
- *  field of the type with the link relation it declares, and each edge with its relation and the classes in its range. */
+ *  field of the type with the link relation it declares, each edge with its relation and the classes in its range, and its
+ *  axioms in DL notation, where its IRI is a superclass. */
 const OntologyClassSchema = z
 	.object({
 		kind: z.literal(ONTOLOGY_TERM.class),
@@ -18,10 +19,12 @@ const OntologyClassSchema = z
 		subClassOf: z.array(z.string()),
 		properties: z.record(z.string(), z.string()),
 		edges: z.record(z.string(), z.object({ rel: z.string(), range: z.array(z.string()) }).strict()),
+		dl: z.string(),
 	})
 	.strict();
 /** A link relation, or a term of a standard vocabulary a type conforms to, as a read of the ontology states it: its IRI,
- *  whether it is abstract, whether a type's data holds it, its superproperties and the classes it connects. */
+ *  whether it is abstract, whether a type's data holds it, its superproperties, the classes it connects, and its axioms in
+ *  DL notation. */
 const OntologyPropertySchema = z
 	.object({
 		kind: z.literal(ONTOLOGY_TERM.property),
@@ -32,6 +35,7 @@ const OntologyPropertySchema = z
 		subPropertyOf: z.array(z.string()),
 		domain: z.array(z.string()),
 		range: z.array(z.string()),
+		dl: z.string(),
 	})
 	.strict();
 /** What a read of the ontology returns: a counted list of its terms, each class and then each property. Its products open a

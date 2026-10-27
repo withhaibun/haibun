@@ -50,6 +50,10 @@ export type TRecordTerms = {
 	patternOf: (subject: string, predicate: string) => Required<Pick<TFact, "subject" | "predicate" | "namedGraph">>;
 	/** A fact's object as an N3 term. */
 	objectOf: (fact: TFact) => string;
+	/** The address of the record an individual's IRI names, in angle brackets as N3 writes it. */
+	addressOf: (iri: string) => { persistedAs: string; id: string };
+	/** The IRI of the record at an address, `Type:id`. */
+	individualAt: (address: string) => string;
 };
 
 /** Returns the N3 terms of the records of the types a concern catalog states, with each IRI from the served context. */
@@ -104,5 +108,14 @@ export function recordTerms(catalog: TConcernCatalog, context: Record<string, un
 			return { subject: id, predicate: field[0], namedGraph: label };
 		},
 		objectOf,
+		addressOf: (iri) => {
+			const { label, id } = iriOf(iri.slice(1, -1));
+			return { persistedAs: label, id };
+		},
+		individualAt: (address) => {
+			const colon = address.indexOf(":");
+			if (colon <= 0) throw new Error(`${address} isn't a record's address. Write it as Type:id.`);
+			return individualIri(typeOf(address.slice(0, colon)).classIri, address.slice(colon + 1));
+		},
 	};
 }

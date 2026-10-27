@@ -3,7 +3,7 @@
  * inside the chip, that the label clears it, and that adding a badge does not move the node's point off the chip.
  */
 import { describe, expect, it } from "vitest";
-import { avatarLeadX, chipGeometry, ringBars } from "./troika-label.js";
+import { avatarLeadX, chipGeometry } from "./troika-label.js";
 
 const FONT = 10;
 /** A measured label, as troika reports it: anchorX left / anchorY top, so it starts at the origin and flows right + down. */
@@ -66,18 +66,5 @@ describe("chipGeometry", () => {
 		expect(short.glow.w).toBeGreaterThan(short.w);
 		expect(short.glow.h).toBeGreaterThan(short.h);
 		expect(long.glow.w - long.w).toBeCloseTo(short.glow.w - short.w, 6); // the reach is the same on both, though one chip is ten times wider
-	});
-});
-
-describe("ringBars", () => {
-	it("frames a hollow chip's box on every side, the top and bottom spanning the corners, without covering the box", () => {
-		const box = { w: 60, h: 20, cx: 30, cy: -10 };
-		const [top, bottom, left, right] = ringBars(box, 2);
-		expect([top, bottom, left, right]).toEqual([
-			{ w: 64, h: 2, cx: 30, cy: 1 },
-			{ w: 64, h: 2, cx: 30, cy: -21 },
-			{ w: 2, h: 20, cx: -1, cy: -10 },
-			{ w: 2, h: 20, cx: 61, cy: -10 },
-		]);
 	});
 });

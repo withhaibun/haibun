@@ -1,14 +1,11 @@
 /**
  * The lines of a graph's source as the source pane reads them, and the selection that links them to the scene both ways: the
  * line a key moves to, the statement and record behind a line, the summary of the source's kinds, the lines that state the
- * nodes and edges a reader chose in the scene, and the nodes and edges the scene draws that a line states. A scene names the
- * projection's terms through its naming: the terms of a source as the projection names them, and a graph of records by each
- * record's and each predicate's id, whose text the projection's constant or predicate names.
+ * nodes and edges a reader chose in the scene, and the nodes and edges the scene draws that a line states. A line is a frame
+ * of the graph's description, which names the records and edges it states by the scene's ids.
  */
-import { edgeKey, formulasStating, statedBy } from "@haibun/logic/derivations/term-graph.js";
-import type { TProjection } from "@haibun/logic/domains/logic.js";
-
-type TFormulaLine = TProjection["formulas"][number];
+import type { TDescription, TFrame } from "@haibun/core/lib/records/domains/description.js";
+import { edgeKey } from "./focus-policy.js";
 
 /** An edge the scene draws: its ends and its predicate, by the scene's ids. */
 export type TDrawnEdge = { from: string; predicate: string; to: string };
@@ -36,12 +33,12 @@ export function lineAfterKey(names: readonly string[], current: string | null, k
 	return names[at < 0 ? 0 : step(at, names.length - 1)];
 }
 
-/** The statement behind a line, and the record that asserted it where a record did, as a hover shows them. */
-export const provenanceOf = ({ statement, assertedBy }: TFormulaLine): string =>
-	assertedBy === undefined ? statement : `${statement} · asserted by ${assertedBy.persistedAs} ${assertedBy.id}`;
+/** A line's axioms in DL notation, the statement behind it, and the record that asserted it where a record did, as a hover shows them. */
+export const provenanceOf = ({ dl, statement, assertedBy }: TFrame): string =>
+	[dl, statement, ...(assertedBy === undefined ? [] : [`asserted by ${assertedBy.persistedAs} ${assertedBy.id}`])].join(" · ");
 
 /** The source's kinds, each with its count. */
-export const summaryOf = (summary: TProjection["summary"]): string =>
+export const summaryOf = (summary: TDescription["summary"]): string =>
 	Object.entries(summary)
 		.map(([kind, count]) => `${kind} ${count}`)
 		.join(" · ");
@@ -56,19 +53,18 @@ export function statusOf(line: string | null, lights: TSceneSelection | null, li
 	return lit.size > 0 ? `the selection lights ${counted(lit.size, "line")}` : "";
 }
 
-/** The key of a drawn edge as the projection names it, through the scene's naming. */
-const namedKey = (naming: (id: string) => string, { from, predicate, to }: TDrawnEdge): string => edgeKey(naming(from), naming(predicate), naming(to));
-
 /** The lines that state the nodes and edges a reader chose in the scene. */
-export const linesOfScene = (projection: TProjection, naming: (id: string) => string, chosen: { nodes: readonly string[]; edges: readonly TDrawnEdge[] }): string[] =>
-	formulasStating(projection, new Set(chosen.nodes.map(naming)), new Set(chosen.edges.map((edge) => namedKey(naming, edge))));
+export function linesOfScene({ frames }: TDescription, chosen: { nodes: readonly string[]; edges: readonly TDrawnEdge[] }): string[] {
+	const [nodes, edges] = [new Set(chosen.nodes), new Set(chosen.edges.map(({ from, predicate, to }) => edgeKey(from, predicate, to)))];
+	return frames
+		.filter((frame) => frame.nodes.some((id) => nodes.has(id)) || frame.edges.some(({ from, label, to }) => edges.has(edgeKey(from, label, to))))
+		.map(({ name }) => name);
+}
 
 /** The nodes and edges the scene draws that a line states, by the scene's ids and its edges' keys. */
-export function sceneOfLine(projection: TProjection, naming: (id: string) => string, line: string, drawn: TDrawn): TSceneSelection {
-	const stated = statedBy(projection, line);
-	const [nodes, edges] = [new Set(stated.nodes), new Set(stated.edges)];
-	return {
-		nodes: drawn.nodes.filter((id) => nodes.has(naming(id))),
-		edges: drawn.edges.filter((edge) => edges.has(namedKey(naming, edge))).map(({ from, predicate, to }) => edgeKey(from, predicate, to)),
-	};
+export function sceneOfLine({ frames }: TDescription, line: string, drawn: TDrawn): TSceneSelection {
+	const frame = frames.find(({ name }) => name === line);
+	if (frame === undefined) throw new Error(`the source doesn't hold the line ${line}, which the reader is on`);
+	const [nodes, edges] = [new Set(frame.nodes), new Set(frame.edges.map(({ from, label, to }) => edgeKey(from, label, to)))];
+	return { nodes: drawn.nodes.filter((id) => nodes.has(id)), edges: drawn.edges.map(({ from, predicate, to }) => edgeKey(from, predicate, to)).filter((key) => edges.has(key)) };
 }

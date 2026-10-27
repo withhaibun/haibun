@@ -56,8 +56,6 @@ export type FGNode = {
 	name: string;
 	type: string;
 	isCluster?: boolean;
-	/** Drawn hollow, as the projection that drew the node requests (see TSceneStyles). */
-	hollow?: true;
 	x?: number;
 	y?: number;
 	z?: number;

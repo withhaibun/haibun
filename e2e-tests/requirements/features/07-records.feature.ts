@@ -32,5 +32,10 @@ export const features: TKirejiExport = {
 		'waypoint Visits are counted with variable visits is "1"',
 		'set nodes from show derivation of "ensure Visits are counted"',
 		"variable nodes.records.0.isPartOf exists",
+
+		scenario({ scenario: "A class expression returns the records it entails, which a combinator counts" }),
+		"Essential, for the open world. A record is a member of its type's class and of each class that subsumes it, so a class expression over the ontology returns the step records actuality wrote; another member may exist that the records don't entail. Source: members.ts and reason.ts.",
+		'set entailed steps from counting individuals of "SeqPath"',
+		'variable entailed steps.total is more than "1"',
 	],
 };

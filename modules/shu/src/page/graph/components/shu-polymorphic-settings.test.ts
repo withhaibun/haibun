@@ -8,14 +8,14 @@ import { describe, expect, it } from "vitest";
 import { html, render } from "lit";
 import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
 import { SHU_TAG } from "../../../domains/elements.js";
-import { VIEW, VIEW_CHOICES } from "../domains/views.js";
+import { VIEW, VIEW_TYPES } from "../domains/views.js";
 import { viewActions } from "./view-head.js";
-import type { TPolymorphicOptions } from "./shu-polymorphic-settings.js";
+import type { GraphSceneConfig } from "./scene.js";
 import type { TViewForces } from "./render-type.js";
 import "./shu-polymorphic-settings.js";
 
 const IDS = SHU_TEST_IDS.POLYMORPHIC_VIEW;
-const OPTIONS: TPolymorphicOptions = {
+const OPTIONS: GraphSceneConfig = {
 	viewType: VIEW.force,
 	flatten: false,
 	grouped: true,
@@ -30,12 +30,12 @@ const OPTIONS: TPolymorphicOptions = {
 const LAYOUT = [IDS.VIEW_TYPE, IDS.GROUPED, IDS.GROUP_BY, IDS.FLATTEN, IDS.Z_BASIS, IDS.LABEL_AS_Z];
 const SCENES = [IDS.SCENE_PICKER, IDS.SCENE_NAME, IDS.SCENE_SAVE];
 
-type TSettings = HTMLElement & { group: "layout" | "scenes"; options: TPolymorphicOptions; choices: readonly string[]; forces: TViewForces; updateComplete: Promise<boolean> };
+type TSettings = HTMLElement & { group: "layout" | "scenes"; options: GraphSceneConfig; choices: readonly string[]; forces: TViewForces; updateComplete: Promise<boolean> };
 
 async function settings(group: "layout" | "scenes", forces: TViewForces = {}): Promise<TSettings> {
 	document.body.innerHTML = "";
 	const el = document.createElement(SHU_TAG.POLYMORPHIC_SETTINGS) as TSettings;
-	Object.assign(el, { group, options: OPTIONS, choices: VIEW_CHOICES, forces, onChange: () => undefined, onApplyScene: () => undefined, onSaveScene: () => undefined });
+	Object.assign(el, { group, options: OPTIONS, choices: VIEW_TYPES, forces, onChange: () => undefined, onApplyScene: () => undefined, onSaveScene: () => undefined });
 	document.body.append(el);
 	await el.updateComplete;
 	return el;
@@ -57,7 +57,7 @@ describe("the graph view's settings groups", () => {
 
 	it("offers every view the graph draws in the view control", async () => {
 		const el = await settings("layout");
-		expect([...el.querySelectorAll<HTMLOptionElement>(`[data-testid="${IDS.VIEW_TYPE}"] option`)].map((o) => o.value)).toEqual([...VIEW_CHOICES]);
+		expect([...el.querySelectorAll<HTMLOptionElement>(`[data-testid="${IDS.VIEW_TYPE}"] option`)].map((o) => o.value)).toEqual([...VIEW_TYPES]);
 	});
 
 	it("doesn't offer the grouping a lane view settles, whose lifelines are its grouping", async () => {

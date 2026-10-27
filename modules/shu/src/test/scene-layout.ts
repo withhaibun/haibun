@@ -168,7 +168,6 @@ export class SceneLayout {
 			visibleQuads: () => this.#quads,
 			hiddenGraphs: () => this.options.hiddenGraphs,
 			visibleModel: () => this.#visible(),
-			hollow: () => false,
 			lastModelHash: () => this.#lastModelHash,
 			timeCursor: () => null,
 			zBasis: () => this.options.zBasis,

@@ -54,17 +54,17 @@ describe("groupTitles", () => {
 	const record = { id: "r1", type: "Record", name: "a record", properties: { [HYPERMEDIA_ROLE_KEY]: maker.id } };
 	const nouns = (rel: unknown): string | undefined => (rel === "made" ? "Maker" : undefined);
 
-	it("titles a box by the type under the type axis, after the badge a projection puts on the type's cluster", () => {
-		const titles = groupTitles([record, maker], "type", (type) => (type === "Record" ? "∀" : undefined), nouns);
+	it("titles a box by the type under the type axis", () => {
+		const titles = groupTitles([record, maker], "type", nouns);
 		expect([...titles]).toEqual([
-			["Record", "∀ Record"],
+			["Record", "Record"],
 			["Principal", "Principal"],
 		]);
 	});
 
 	it("titles a party's box by its role and its name under the role axis, by its type where its role lacks a noun", () => {
 		const keepers = { ...record, id: "r2", properties: { [HYPERMEDIA_ROLE_KEY]: keeper.id } };
-		const titles = groupTitles([record, keepers, maker, keeper], "role", () => undefined, nouns);
+		const titles = groupTitles([record, keepers, maker, keeper], "role", nouns);
 		expect(titles.get(maker.id)).toBe("Maker, The Maker");
 		expect(titles.get(keeper.id)).toBe("Principal, The Keeper");
 	});

@@ -1,5 +1,5 @@
 // The graph a page reads, over the store this instance holds: the values a filter offers for a type, one individual with the
-// edges its quads name, and what a graph view shows as TPTP formulas.
+// edges its quads name, and what a graph view shows, described in description logic.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDefaultWorld, getTestWorldWithOptions, testWithWorld } from "@haibun/core/lib/test/lib.js";
 import LogicStepper from "@haibun/logic/logic-stepper.js";
@@ -8,11 +8,7 @@ import ResourcesStepper from "@haibun/core/steps/resources-stepper.js";
 import type { TStepResult } from "@haibun/core/lib/domains/protocol.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { Access, AccessLevelSchema, FACT_LABEL, LinkRelations, SEQ_PATH_LABEL, commentDomainDefinition } from "@haibun/core/lib/domains/resources.js";
-import { AStepper, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
-import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { RUN_AUTHORITY, runAuthorizedWith } from "@haibun/core/lib/domains/capability-context.js";
-import ActivitiesStepper from "@haibun/core/steps/activities-stepper.js";
-import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import { FACT_FIELD } from "@haibun/core/lib/records/domains/facts.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import type { TDensityQuery, TQuad } from "@haibun/core/lib/quad-types.js";
@@ -24,7 +20,7 @@ import { z } from "zod";
 import { callStatedStepFrom } from "@haibun/core/lib/call-step.js";
 import GraphSourceStepper from "./graph-source-stepper.js";
 import type { TGraphView } from "./pipelines/graph-source.js";
-import { ProjectionSchema, type TProjection } from "@haibun/logic/domains/logic.js";
+import { DescriptionSchema, type TDescription } from "@haibun/core/lib/records/domains/description.js";
 
 function mockQuadStore(overrides: Partial<IQuadStore> = {}): IQuadStore {
 	return {
@@ -153,7 +149,7 @@ describe("the clustered sample a graph view reads", () => {
 	});
 });
 
-describe("what a graph view shows as TPTP formulas", () => {
+describe("what a graph view shows, described in description logic", () => {
 	const [EMAIL, A, B, C] = ["Email", "a@test.com", "b@test.com", "c@test.com"];
 	const quad = (subject: string, namedGraph: string, predicate: string, object: string, objectType?: string): TQuad => ({
 		subject,
@@ -183,108 +179,57 @@ describe("what a graph view shows as TPTP formulas", () => {
 	/** The emails' type, which declares the property and the edge their quads state, so the registry holds their predicates. */
 	const EMAIL_TYPE = {
 		selectors: ["test-email"],
-		schema: z.looseObject({ id: z.string() }),
+		schema: z.looseObject({ id: z.string(), generatedAtTime: z.string() }),
 		description: "An email a test reads",
 		topology: {
 			persistedAs: EMAIL,
 			id: "id",
 			accessLevel: Access.private,
-			properties: { subject: LinkRelations.NAME.rel },
+			properties: { id: LinkRelations.IDENTIFIER.rel, subject: LinkRelations.NAME.rel },
 			edges: { inReplyTo: { rel: LinkRelations.IN_REPLY_TO.rel, range: EMAIL } },
 		},
 	};
 
-	/** Fills a cart and places an order from one: the producer rules of the domain cart, which a fact of the graph states. */
-	class Kitchen extends AStepper {
-		description = "Fills a cart and places an order from it.";
-		steps: TStepperSteps = {
-			fillCart: { gwta: "fill a cart", productsDomain: "cart", action: async () => OK },
-			placeOrder: { gwta: "place an order from {cart: cart}", productsDomain: "order", action: async () => OK },
-		};
-	}
-
-	const projectedFor = async (view: Pick<TGraphView, "overrides"> & Partial<TGraphView>, quads = QUADS): Promise<TProjection> => {
+	const describedFor = async (view: Pick<TGraphView, "overrides"> & Partial<TGraphView>): Promise<TDescription> => {
 		const stepper = new GraphSourceStepper();
 		const world = getDefaultWorld();
 		world.domains = { ...world.domains, ...mapDefinitionsToDomains([EMAIL_TYPE]) };
-		const activities = new ActivitiesStepper();
-		const lines = ["Activity: Cook dinner", 'set dinner to "ready"', 'waypoint {meal} is ready with variable {meal} is "ready"'];
-		activities.steps.activity.resolveFeatureLine(lines[2] as string, "/backgrounds/kitchen.feature", activities, [], lines, 2);
-		world.runtime.steppers = [stepper, activities, new VariablesStepper(), new Kitchen()];
+		world.runtime.steppers = [stepper];
 		await stepper.setWorld(world, world.runtime.steppers);
-		world.shared.getStore = vi.fn(() => mockQuadStore({ getClusteredQuads: vi.fn(async () => ({ quads, clusters: CLUSTERS })) }));
+		world.shared.getStore = vi.fn(() => mockQuadStore({ getClusteredQuads: vi.fn(async () => ({ quads: QUADS, clusters: CLUSTERS })) }));
 		const result = await runAuthorizedWith(RUN_AUTHORITY, async () =>
-			stepper.steps.showGraphAsTptp.action({ view: { perTypeLimit: 10, accessLevel: Access.private, hiddenPredicates: [], prune: false, ...view } }),
+			stepper.steps.showGraphDescription.action({ view: { perTypeLimit: 10, accessLevel: Access.private, hiddenPredicates: [], prune: false, ...view } }),
 		);
 		if (!result.ok) throw new Error(result.errorMessage);
-		return ProjectionSchema.parse(result.products);
+		return DescriptionSchema.parse(result.products);
 	};
-	const shown = async (view: Pick<TGraphView, "overrides"> & Partial<TGraphView>): Promise<string> => (await projectedFor(view)).text;
+	const named = async (view: Pick<TGraphView, "overrides"> & Partial<TGraphView>): Promise<string[]> => (await describedFor(view)).frames.map(({ name }) => name);
 
-	it("states each record's type, its literal properties and its edges, the rules that apply to the facts and steps it shows, and its goal", async () => {
-		const text = await shown({ overrides: { [FACT_LABEL]: true, [SEQ_PATH_LABEL]: true }, goal: "order" });
-		expect(text.split("\n")).toEqual([
-			"fof(n1, axiom, 'Email'('a@test.com')).",
-			"fof(n2, axiom, 'Email'('b@test.com')).",
-			"fof(n3, axiom, 'Email'('c@test.com')).",
-			"fof(n4, axiom, facts('fact-1')).",
-			"fof(n5, axiom, 'SeqPath'('step-1')).",
-			"fof(p1, axiom, subject('a@test.com', '\"Roadmap\"')).",
-			"fof(p2, axiom, subject('b@test.com', '\"Re: Roadmap\"')).",
-			"fof(p3, axiom, domain('fact-1', '\"cart\"')).",
-			"fof(p4, axiom, stepText('step-1', '\"dinner is ready\"')).",
-			"fof(e1, axiom, inReplyTo('b@test.com', 'a@test.com')).",
-			"fof(r1, axiom, domain('Kitchen-fillCart', '\"cart\"')).",
-			"fof(r2, axiom, ![X1] : (domain(X1, '\"cart\"') => domain('Kitchen-placeOrder'(X1), '\"order\"'))).",
-			"fof(w1, axiom, ![X1] : ('VariablesStepper-is'(X1, '\"ready\"') => '{meal} is ready'(X1))).",
-			"fof(goal, conjecture, ?[X1] : domain(X1, '\"order\"')).",
-		]);
-	});
-
-	it("names the statement and the record behind each formula, and draws the formulas' term graph", async () => {
-		const { formulas, summary, nodes, edges, clusters } = await projectedFor({ overrides: { [FACT_LABEL]: true, [SEQ_PATH_LABEL]: true }, goal: "order" });
-		const about = (name: string) => {
-			const formula = formulas.find((one) => one.name === name);
-			return formula === undefined ? undefined : { statement: formula.statement, assertedBy: formula.assertedBy };
-		};
-		expect(about("e1"), "a record's axiom names the record").toEqual({ statement: "Email b@test.com", assertedBy: { persistedAs: EMAIL, id: B } });
-		expect(about("p4"), "a step's record states its line").toEqual({ statement: "dinner is ready", assertedBy: { persistedAs: SEQ_PATH_LABEL, id: "step-1" } });
-		expect(about("r2"), "a producer rule states the step's pattern").toEqual({ statement: "place an order from {cart: cart}", assertedBy: undefined });
-		expect(about("w1")?.statement, "a waypoint's rule states its line and where it is stated").toBe(
-			'waypoint {meal} is ready with variable {meal} is "ready" (/backgrounds/kitchen.feature:3)',
-		);
-		expect(about("goal")?.statement, "the goal states its resolve line").toBe('resolve "order"');
-		expect(summary).toEqual({ axioms: 11, rules: 2, conjectures: 1 });
-		expect(
-			nodes.find(({ id }) => id === C),
-			"a record without a property or an edge is drawn by its type",
-		).toEqual({ id: C, label: C, kind: EMAIL, classes: [EMAIL], formulas: ["n3"] });
-		expect(edges.find(({ label }) => label === "inReplyTo")).toEqual({ from: B, to: A, label: "inReplyTo", formula: "e1" });
-		expect(clusters).toEqual([
-			{ kind: "r2", badge: "∀" },
-			{ kind: "w1", badge: "∀" },
-		]);
-	});
-
-	it("refuses a record's predicate the registry doesn't hold, and names it", async () => {
-		await expect(projectedFor({ overrides: {} }, [...QUADS, quad(A, EMAIL, "undeclared", "a field the type doesn't declare")])).rejects.toThrow(
-			"the predicate undeclared/2 isn't an entry of the registry",
-		);
+	it("describes each record as an individual of its type's class with its facts, each type as a class and each link relation of an edge as a property", async () => {
+		const { frames, summary, text } = await describedFor({ overrides: { [FACT_LABEL]: true, [SEQ_PATH_LABEL]: true } });
+		const frame = (name: string) => frames.find((one) => one.name === name);
+		expect(frame(`Individual ${B}`)).toMatchObject({
+			manchester: `Individual: <${B}>\n    Types: Email\n    Facts: subject "Re: Roadmap", inReplyTo <${A}>`,
+			dl: `Email(<${B}>) · subject(<${B}>, "Re: Roadmap") · inReplyTo(<${B}>, <${A}>)`,
+			statement: "Email b@test.com",
+			assertedBy: { persistedAs: EMAIL, id: B },
+			edges: [{ from: B, label: "inReplyTo", to: A }],
+		});
+		expect(frame(`Individual step-1`)?.statement, "a step's record states its line").toBe("dinner is ready");
+		expect(frame(`ObjectProperty ${LinkRelations.IN_REPLY_TO.rel}`)?.dl).toContain(`∃${LinkRelations.IN_REPLY_TO.rel}.⊤ ⊑ `);
+		expect(frame("Class Email")).toMatchObject({ manchester: "Class: Email", dl: "Email ⊑ ⊤", nodes: [A, B, C] });
+		expect(summary).toEqual({ classes: 3, properties: 1, individuals: 5 });
+		expect(text.split("\n\n")).toHaveLength(frames.length);
 	});
 
 	it("hides the types a view hides and the predicates a reader hid, prunes, and stops at the time cursor", async () => {
-		expect(await shown({ overrides: {}, hiddenPredicates: ["inReplyTo"], timeCursor: 1 })).toBe(
-			["fof(n1, axiom, 'Email'('a@test.com')).", "fof(p1, axiom, subject('a@test.com', '\"Roadmap\"'))."].join("\n"),
-		);
-		expect(await shown({ overrides: { [EMAIL]: true }, prune: true })).toBe(
-			[
-				"fof(n1, axiom, 'Email'('a@test.com')).",
-				"fof(n2, axiom, 'Email'('b@test.com')).",
-				"fof(p1, axiom, subject('a@test.com', '\"Roadmap\"')).",
-				"fof(p2, axiom, subject('b@test.com', '\"Re: Roadmap\"')).",
-				"fof(e1, axiom, inReplyTo('b@test.com', 'a@test.com')).",
-			].join("\n"),
-		);
+		expect(await named({ overrides: {}, hiddenPredicates: ["inReplyTo"], timeCursor: 1 })).toEqual(["Class Email", `Individual ${A}`]);
+		expect(await named({ overrides: { [EMAIL]: true }, prune: true })).toEqual([
+			"Class Email",
+			`ObjectProperty ${LinkRelations.IN_REPLY_TO.rel}`,
+			`Individual ${A}`,
+			`Individual ${B}`,
+		]);
 	});
 });
 

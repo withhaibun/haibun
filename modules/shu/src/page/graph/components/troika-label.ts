@@ -4,7 +4,7 @@
  * billboard, focus dimming and the opacity readback never branch on the object's concrete type. Two implementations:
  *
  *  - makeTroikaChip: an SDF glyph-atlas chip (troika-three-text): a small group of a solid type-coloured background
- *    quad (or, for a hollow chip, a transparent one inside an outline in that colour), an SDF text label, and a leading
+ *    quad, an SDF text label, and a leading
  *    avatar badge carrying the type's initials. Every label shares ONE glyph
  *    atlas texture and every background shares ONE unit plane,
  *    so a chip takes a couple of small objects (a per-node material, a bit of glyph geometry against the shared atlas)
@@ -93,7 +93,6 @@ type ChipDeps = {
 	borderColor: string; // the chip's own edge, so a pale type colour still has a shape against a light page
 	highlightColor: string; // the colour the active-node glow is drawn in when the chip wears one (setHighlighted)
 	avatar?: string; // the type's initials, badged at the chip's leading edge; absent for a chip without a type to show
-	hollow?: boolean; // an outlined ring: a transparent fill inside an outline in the chip's colour, for a node an individual doesn't bind
 	laidOut: () => void; // called each time the chip is laid out from measured text, which arrives off the main thread, so a resting scene draws it
 };
 /** Background padding around the measured text, in fontSize units. */
@@ -108,8 +107,6 @@ const AVATAR_BG_COLOR = "#ffffff";
 const AVATAR_TEXT_COLOR = "#000000";
 /** The chip's edge, in fontSize units, drawn beyond the background on every side. */
 const BORDER_WIDTH = 0.045;
-/** A hollow chip's outline, in fontSize units: wide enough to read as the chip's colour where the chip doesn't fill. */
-const RING_WIDTH = 0.16;
 /** A hair of background beyond the node's point on the top-left, so a raycast AT the exact anchor point lands just inside
  *  the quad (a ray at the precise corner is numerically unstable → misses). Imperceptible; the text still starts on the point. */
 const PICK_MARGIN = 0.12;
@@ -146,19 +143,6 @@ export function chipGeometry(textBounds: readonly [number, number, number, numbe
 	};
 }
 
-/** The four bars of a hollow chip's outline around its box, `width` thick: the top and bottom span the corners, and the sides
- *  span the box's height between them. */
-export function ringBars(box: { w: number; h: number; cx: number; cy: number }, width: number): Array<{ w: number; h: number; cx: number; cy: number }> {
-	const across = { w: box.w + width * 2, h: width, cx: box.cx };
-	const down = { w: width, h: box.h, cy: box.cy };
-	return [
-		{ ...across, cy: box.cy + (box.h + width) / 2 },
-		{ ...across, cy: box.cy - (box.h + width) / 2 },
-		{ ...down, cx: box.cx - (box.w + width) / 2 },
-		{ ...down, cx: box.cx + (box.w + width) / 2 },
-	];
-}
-
 /** Build a chip visual: a solid type-coloured background quad behind an avatar badge and an SDF text label, the node's
  *  exact point at the chip's TOP-LEFT corner (content flows right + down, so the point stays eyeball-able against the
  *  axes). sync() builds the SDF on troika's worker and, when done, sizes the background to the measured content. */
@@ -166,15 +150,11 @@ export function makeTroikaChip(label: string, bgColor: string, three: ChipThree,
 	if (!sharedPlane) sharedPlane = new three.PlaneGeometry(1, 1);
 	const group = new three.Group() as Group3D;
 
-	// A filled chip's edge is one plane behind the background, which draws over its middle, leaving the hairline. A hollow chip's
-	// background is transparent, so its edge is four bars in the chip's colour around it, and the scene shows through its middle.
-	const borderMaterial = new three.MeshBasicMaterial({ color: d.hollow ? bgColor : d.borderColor, transparent: true, depthTest: false, depthWrite: false });
-	const outline = Array.from({ length: d.hollow ? 4 : 1 }, () => {
-		const bar = new three.Mesh(sharedPlane, borderMaterial);
-		bar.renderOrder = d.renderOrder;
-		return bar;
-	});
-	const bgMaterial = new three.MeshBasicMaterial({ color: bgColor, transparent: true, opacity: d.hollow ? 0 : 1, depthTest: false, depthWrite: false });
+	// A chip's edge is one plane behind the background, which draws over its middle, leaving the hairline.
+	const borderMaterial = new three.MeshBasicMaterial({ color: d.borderColor, transparent: true, depthTest: false, depthWrite: false });
+	const border = new three.Mesh(sharedPlane, borderMaterial);
+	border.renderOrder = d.renderOrder;
+	const bgMaterial = new three.MeshBasicMaterial({ color: bgColor, transparent: true, depthTest: false, depthWrite: false });
 	const bg = new three.Mesh(sharedPlane, bgMaterial);
 	bg.renderOrder = d.renderOrder + 1;
 
@@ -208,7 +188,7 @@ export function makeTroikaChip(label: string, bgColor: string, three: ChipThree,
 		avatarBg.renderOrder = d.renderOrder + 1; // over the chip background, under both texts
 	}
 
-	for (const bar of outline) group.add(bar);
+	group.add(border);
 	group.add(bg);
 	if (avatarBg) group.add(avatarBg);
 	group.add(text);
@@ -232,13 +212,8 @@ export function makeTroikaChip(label: string, bgColor: string, three: ChipThree,
 		const g = chipGeometry(labelBounds, leadX, d.fontSize);
 		bg.scale.set(g.w, g.h, 1);
 		bg.position.set(g.cx, g.cy, 0);
-		const bars = d.hollow ? ringBars(g, d.fontSize * RING_WIDTH) : [{ ...g.border, cx: g.cx, cy: g.cy }];
-		bars.forEach((bar, at) => {
-			const mesh = outline[at];
-			if (mesh === undefined) throw new Error(`a chip's outline holds ${outline.length} bars, and its layout places ${bars.length}`);
-			mesh.scale.set(bar.w, bar.h, 1);
-			mesh.position.set(bar.cx, bar.cy, 0);
-		});
+		border.scale.set(g.border.w, g.border.h, 1);
+		border.position.set(g.cx, g.cy, 0);
 		if (avatarBg && g.badge) {
 			avatarBg.scale.set(g.badge.w, g.h, 1);
 			avatarBg.position.set(g.badge.cx, g.cy, 0);

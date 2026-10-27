@@ -9,8 +9,6 @@
 /** The visual marks a node can be drawn as. EVERY paint must handle each kind it's given, or throw, never skip silently. */
 export const MARK_KINDS = ["chip", "square", "lozenge", "box", "image", "mesh", "marker"] as const;
 type MarkKind = (typeof MARK_KINDS)[number];
-/** The marks a paint draws hollow, as an outline in place of a fill. */
-const OUTLINED_KINDS: readonly MarkKind[] = ["chip", "square"];
 
 /** A node's position, declared by its type's presenter. A backend-neutral layout pass resolves roles to coordinates
  *  (shared scales across all nodes of a role) so both paints place marks identically. `free` leaves x/y to the force
@@ -37,14 +35,7 @@ export type NodeMark = {
 	/** Drawn ghosted (reduced opacity): a schema Property a standard vocabulary declares but the type's data never uses,
 	 *  so the full vocabulary reads as present-vs-declared at a glance, not only on hover. */
 	faint?: boolean;
-	/** Drawn as an outlined ring: a transparent fill inside a bright outline in the node's colour, with its label. A projection
-	 *  requests it for a node that an individual doesn't bind, such as a rule's variable. */
-	hollow?: boolean;
 };
-
-/** What a projection requests of a scene beside its quads: the nodes drawn hollow by id, the badge on each cluster by its
- *  type, and the statement behind each node and edge by its id or edge key, which a hover shows. */
-export type TSceneStyles = { hollow: ReadonlySet<string>; badges: ReadonlyMap<string, string>; behind: ReadonlyMap<string, string> };
 
 const finite = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n);
 
@@ -74,7 +65,6 @@ export function assertNodeMark(m: NodeMark): NodeMark {
 	if (!m.color) throw new Error(`NodeMark ${m.id}: missing color`);
 	if (m.kind === "box" && !(finite(m.zExtent) && (m.zExtent as number) >= 0)) throw new Error(`NodeMark ${m.id}: box requires a finite zExtent >= 0`);
 	if (m.kind === "image" && !m.image) throw new Error(`NodeMark ${m.id}: image requires a src`);
-	if (m.hollow && !OUTLINED_KINDS.includes(m.kind)) throw new Error(`NodeMark ${m.id}: a ${m.kind} isn't drawn hollow; a paint outlines ${OUTLINED_KINDS.join(" and ")} marks`);
 	assertLayoutRole(m.role, m.id);
 	return m;
 }

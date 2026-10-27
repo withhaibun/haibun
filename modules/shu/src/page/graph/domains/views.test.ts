@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { VIEW, VIEW_TYPES, sceneViewOf, viewChangeRebuildsNodes } from "./views.js";
+import { VIEW, viewChangeRebuildsNodes } from "./views.js";
 
 // The render-on-first-switch bug in the flesh: entering the sequence turns participant chips into activation BOXES, so the
 // lib's identity-cached node objects MUST be rebuilt on the crossing, while a force↔td↔lr switch keeps the chips and must
@@ -23,12 +23,5 @@ describe("viewChangeRebuildsNodes, node-shape boundary → rebuild", () => {
 		expect(viewChangeRebuildsNodes(VIEW.td, VIEW.lr)).toBe(false);
 		expect(viewChangeRebuildsNodes(VIEW.lr, VIEW.force)).toBe(false);
 		expect(viewChangeRebuildsNodes(VIEW.force, VIEW.force)).toBe(false);
-	});
-});
-
-describe("sceneViewOf: the view type a choice lays out in", () => {
-	it("lays a source's terms out in the force layout, and every view type as itself", () => {
-		expect(sceneViewOf(VIEW.terms)).toBe(VIEW.force);
-		expect(VIEW_TYPES.map(sceneViewOf)).toEqual([...VIEW_TYPES]);
 	});
 });

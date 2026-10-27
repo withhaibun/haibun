@@ -1,13 +1,11 @@
 /**
- * The predicate registry: each predicate a line and a formula name, derived from the steppers' declarations. A step proves the
+ * The predicate registry: each predicate a line names, derived from the steppers' declarations. A step proves the
  * predicate its method names, or the one it declares, such as member_of for a domain's membership; its parts are its pattern's
  * placeholders in order, each with its domain, and its pattern is the line that states it. A step that holds rules proves the
  * predicate of each rule's head, named by the head as written, with the library that states the rule. precedes(D, A, B) holds where the order of the domain D puts A
- * before B, as `ordered set of` declares it, and a line doesn't state it. A record states the predicates of its persisted type
- * and of the fields the type's topology declares, which the graph's TPTP axioms state.
+ * before B, as `ordered set of` declares it, and a line doesn't state it.
  */
 import { DOMAIN_DOMAIN_KEY, DOMAIN_VARIABLE_VALUE } from "../../domains/domains.js";
-import { isPersisted, type TRegisteredDomain } from "../../domains/resources.js";
 import { constructorName } from "../../domains/util.js";
 import { PREDICATE, type AStepper, type TStepAction } from "../domains/stepper.js";
 import { stepMethodName } from "../domains/step-method.js";
@@ -44,25 +42,4 @@ export function predicatesOf(steps: readonly TStepAction[]): TPredicate[] {
 	for (const [name, both] of Map.groupBy(declaring, predicateOf))
 		if (both.length > 1) throw new Error(`${both.map(methodOf).join(" and ")} each declare the predicate ${name}; declare it on one step`);
 	return [...steps.flatMap(stepPredicates), PRECEDES];
-}
-
-/** The arity of each predicate a record states, as the graph's axioms state it: a persisted type over its record, and each
- *  property and edge the type's topology declares over the record and its value. */
-const recordArities = (domains: Record<string, TRegisteredDomain>): [string, number][] =>
-	Object.values(domains).flatMap(({ topology }) =>
-		isPersisted(topology) ? [[topology.persistedAs, 1], ...Object.keys({ ...topology.properties, ...topology.edges }).map((field): [string, number] => [field, 2])] : [],
-	);
-
-/** The registry's predicates by name, with their arity, which a formula's predicates are held to: the records' and the steps'. */
-export const predicateArities = (steppers: readonly AStepper[], domains: Record<string, TRegisteredDomain>): Map<string, number> =>
-	new Map([...recordArities(domains), ...predicatesOf(declaredSteps(steppers)).map(({ name, parts }): [string, number] => [name, parts.length])]);
-
-/** The name of the predicate `name` that an axiom states over `arity` terms, as the registry's `arities` hold it. Throws for a
- *  predicate the registry doesn't hold at that arity. */
-export function registeredPredicate(arities: ReadonlyMap<string, number>, name: string, arity: number): string {
-	if (arities.get(name) !== arity)
-		throw new Error(
-			`the predicate ${name}/${arity} isn't an entry of the registry; declare it as a persisted type, a property or an edge of a persisted type's topology, a step's predicate or a waypoint's head`,
-		);
-	return name;
 }
