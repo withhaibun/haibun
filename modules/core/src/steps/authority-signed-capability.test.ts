@@ -106,6 +106,24 @@ holding capability cap at "urn:res:1", comment on "${TEST_NODE_LABEL}" "node-1" 
 		expect(evidence.presenter, "the evidence names the root as the presenter, and a verifier checks the presenter against the document's controller").toEqual({ root: true });
 	});
 
+	it("refuses a capability's use outside its target, naming the target that exceeds it", async () => {
+		verifierDecides(true);
+		const world = getDefaultWorld({ HAIBUN_LOG_LEVEL: "none" });
+		world.runtime.keys = { ...world.runtime.keys, principal: resolveSitePrincipal({}) };
+		const feature = {
+			path: "/features/authority-signed-capability-elsewhere.feature",
+			content: `
+set cap as json to ${CAP_JSON}
+holding capability cap at "urn:res:2", comment on "${TEST_NODE_LABEL}" "node-1" with "should never be written"
+`,
+		};
+		const result = await testWithWorld(world, [feature], STEPPERS);
+		expect(result.ok).toBe(false);
+		const refusals = result.featureResults?.flatMap((fr) => fr.stepResults.flatMap((sr) => (sr.ok ? [] : [sr.errorMessage]))) ?? [];
+		expect(refusals.join("\n")).toContain("its use exceeds the capability by target urn:res:2");
+		expect(await readEvery(world.shared.getStore(), { label: COMMENT_LABEL })).toHaveLength(0);
+	});
+
 	it("fails the step and doesn't write a record when the registered verifier rejects the signed capability", async () => {
 		verifierDecides(false, "invalid proof");
 		const world = getDefaultWorld({ HAIBUN_LOG_LEVEL: "none" });

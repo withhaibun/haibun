@@ -42,7 +42,8 @@ import {
 } from "../domains/logic.js";
 import { quantifierOf, statementList, statementParams, UNTIL_RETRY_MS } from "../domains/readings.js";
 import { atom, factsTerm, list, whyText } from "../derivations/terms.js";
-import type { TLogicEngine } from "../ports.js";
+import type { TLogicEngine, TReasoner } from "../ports.js";
+import { containment } from "./containment.js";
 import { canonicalOf, readerOf } from "./reads.js";
 
 /** A node of a line's proof: the step it states, and the variable a quantifier binds. */
@@ -466,9 +467,10 @@ export async function proved(engine: TLogicEngine, term: string, perform: (need:
 	}
 }
 
-/** The prover of an engine. */
-export function proverOf(engine: TLogicEngine): TProver {
+/** The prover of an engine, which proves a permission's containment through the reasoner. */
+export function proverOf(engine: TLogicEngine, reasoner: TReasoner): TProver {
 	return {
+		exceeding: async (candidate, bound) => (await containment(reasoner, candidate, bound)).exceeds,
 		prove: async (ctx, line) => {
 			const proof = new Proof(ctx, line);
 			let term: string;

@@ -11,7 +11,8 @@ import { AUTHORITY_KEY } from "../lib/domains/session-authority.js";
 import { DELEGATIONS_READ_ACTION, DOMAIN_HELD_CALLS, HeldCallsSchema, type IAuthority } from "../lib/domains/authority-types.js";
 import { DOMAIN_ACTIONS, DOMAIN_JSON, DOMAIN_LINK, DOMAIN_PRINCIPAL_REF } from "../lib/domains/domains.js";
 import { actingAs, actingFor, callerHolds, runActingAs, runAuthorizedWith } from "../lib/domains/capability-context.js";
-import { AUTHORITY_CAPABILITIES, capabilityAllows, delegatedActions, readAction } from "../lib/domains/actions.js";
+import { AUTHORITY_CAPABILITIES, delegatedActions, permissionOf, readAction, witnessOf } from "../lib/domains/actions.js";
+import { proverOf } from "../lib/actuality/pipelines/step-dispatch.js";
 import { activeSitePrincipal, SITE_DID_PREFIX } from "../lib/domains/host-id.js";
 import { Access, AccessLevelSchema, PRINCIPAL_LABEL, principalDomainDefinition } from "../lib/domains/resources.js";
 
@@ -141,10 +142,13 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			description:
 				"Proves a statement as the same caller with only those of the listed actions that its caller holds. The actions are comma-separated. A statement can do less than its caller and never more, so a feature can state a caller that holds some actions and not others. A refusal names the action the caller lacks.",
 			reading: READING.within,
-			context: ({ actions }) => {
+			context: async ({ actions }) => {
+				// The statement holds each listed action its caller's actions contain, which the reasoner proves.
 				const held = callerHolds();
-				const narrowed = (actions as string[]).filter((action) => capabilityAllows(held, action));
-				return Promise.resolve(<T>(run: () => Promise<T>) => runAuthorizedWith(narrowed, run));
+				const listed = actions as string[];
+				const beyond = await proverOf(this.getWorld()).exceeding({ actions: listed }, { actions: held === undefined ? [] : [held].flat() });
+				const narrowed = listed.filter((action) => !beyond.some(({ value }) => value === action));
+				return <T>(run: () => Promise<T>) => runAuthorizedWith(narrowed, run);
 			},
 		},
 		holdingCapability: {
@@ -175,6 +179,13 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			return { refused: "holding capability: the caller isn't the root and doesn't prove a key, so the verifier can't check who presents the capability. Sign the call." };
 		const verified = await this.getAuthority().verifyEvidence({ kind: "document", document: capability, target, presenter });
 		if (!verified.ok) return { refused: `holding capability: the evidence was refused, ${verified.error}` };
+		// The use at the target and the present time is contained in the capability, which the reasoner proves: the capability
+		// covers the target and hasn't expired.
+		const world = this.getWorld();
+		const use = { actions: [], target, usedAt: new Date(world.clock.now()).toISOString() };
+		const beyond = await proverOf(world).exceeding(use, permissionOf(capability));
+		if (beyond.length > 0)
+			return { refused: `holding capability: its use exceeds the capability by ${witnessOf(beyond)}. Present a capability whose target covers ${target} and that hasn't expired.` };
 		// The statements run with the actions the verifier allows, or the capability's delegated actions where the verifier
 		// doesn't list them. They run as the principal the verifier returns, or as the capability's controller.
 		const allowed = verified.allowedAction ?? delegatedActions(capability);

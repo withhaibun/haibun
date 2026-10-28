@@ -6,11 +6,15 @@ import { localOrigin } from "@haibun/core/lib/domains/local-origin.js";
 
 const { feature, scenario } = withAction(new Haibun());
 const RPC = `${localOrigin(DEFAULT_PORT)}${RPC_ROUTE}`;
-const capability = (id: string, allowedAction: string[]) => JSON.stringify({ id, controller: "ranger", allowedAction, proof: { type: "stand-in" } });
+const ORIGIN = localOrigin(DEFAULT_PORT);
+const capability = (id: string, allowedAction: string[], more: Record<string, string> = {}) =>
+	JSON.stringify({ id, controller: "ranger", invocationTarget: ORIGIN, allowedAction, ...more, proof: { type: "stand-in" } });
 const CAPABILITY = capability("urn:capability:ranger-sets", ["VariablesStepper:set", "Read:private"]);
 const NESTING = capability("urn:capability:ranger-nests", ["AuthorityStepper:holdingCapability", "VariablesStepper:set", "Read:private"]);
 const SETS_ONLY = capability("urn:capability:ranger-sets-only", ["VariablesStepper:set", "Read:private"]);
-const AT = `at "${localOrigin(DEFAULT_PORT)}"`;
+const ELSEWHERE = capability("urn:capability:ranger-elsewhere", ["VariablesStepper:set", "Read:private"], { invocationTarget: "https://elsewhere.example" });
+const EXPIRED = capability("urn:capability:ranger-expired", ["VariablesStepper:set", "Read:private"], { expires: "2020-01-01T00:00:00.000Z" });
+const AT = `at "${ORIGIN}"`;
 
 export const features: TKirejiExport = {
 	"Capabilities authorize every call": [
@@ -37,6 +41,12 @@ export const features: TKirejiExport = {
 		`holding capability ${CAPABILITY} ${AT}, set presented to "yes"`,
 		'variable presented is "yes"',
 		`didn't holding capability ${CAPABILITY} ${AT}, variable presented is "yes"`,
+
+		scenario({ scenario: "A presented capability covers only its target, until it expires" }),
+		"Essential, for a page and another instance that present a capability. The reasoner proves the use at its target and time contained in the capability, as ODRL reads it, and a refusal names what exceeds it. Source: authority-stepper.ts, holdingCapability, and logic's containment.ts.",
+		'accept authority from "ranger" for "VariablesStepper:set,Read:private"',
+		`didn't holding capability ${ELSEWHERE} ${AT}, set elsewhere to "yes"`,
+		`didn't holding capability ${EXPIRED} ${AT}, set expired to "yes"`,
 
 		scenario({ scenario: "A capability presented inside another parses one way and holds only what it delegates" }),
 		"Essential, for a page that presents a capability within a statement another capability allows. Each quoted term ends at its own closing quote, so the outer target doesn't take the inner capability. Source: named-vars.ts, quotedGroup.",

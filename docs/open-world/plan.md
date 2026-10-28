@@ -110,4 +110,8 @@ Estimated total: about −1,300 / +880 source lines.
   - A list of statements is read by one reader, which a comma inside a quoted or backticked term or a JSON value doesn't split (review LD4).
   - Feature lines whose meaning changed: none. `didn't` states what `not` stated.
 - [ ] 6 Capabilities and knowledge lines
+  - First part, capabilities. Decided by the operator: option A. The reasoner proves containment where authority is set: a statement under a presented capability, a narrowed statement, and an application's delegation and grant. The synchronous gate keeps its check (`capabilityAllows` in `lackedByCall`, `mayCall`, `readCeilingOf` and `mayWriteAt`), and a test runs the same cases through both and requires the same verdict.
+  - logic `derivations/containment.ts` states ODRL 2.2's reading of a ZCAP-LD capability: the alignment axioms (`sec:invocationTarget` is `odrl:target`, `sec:allowedAction` is `odrl:action`, `sec:controller` is `odrl:assignee`, the parent's controller is the assigner, `sec:expires` is a constraint on the dateTime), the action grammar with the read levels from core's access order, target containment, and containment with its witness: each action, target and expiry the bound doesn't allow. `pipelines/containment.ts` proves it, and the prover's `exceeding` port returns it to core.
+  - `holding capability` refuses a use outside the capability's target or after its expiry, naming the witness. `holding only` holds each listed action its caller's actions contain.
+  - Feature lines whose meaning changed: requirements 02's stand-in capabilities state their target. New: requirements 02, "A presented capability covers only its target, until it expires".
 - [ ] 7 Waypoints as rules, Prolog knowledge path removed

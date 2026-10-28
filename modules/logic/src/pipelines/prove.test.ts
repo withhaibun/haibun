@@ -19,7 +19,7 @@ import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { DIFFERENT_BUILDS, EFFECT } from "../domains/logic.js";
 import { atom } from "../derivations/terms.js";
 import type { TLogicEngine } from "../ports.js";
-import { logicEngine } from "../root.js";
+import { logicEngine, reasoner } from "../root.js";
 import { proverOf } from "./prove.js";
 
 const HEAD = "Variable changed by waypoint";
@@ -47,7 +47,7 @@ class WaitingEngine extends AStepper implements IHasCycles {
 	description = "Proves through an engine that yields until's wait for the line that applies a waypoint";
 	cycles = {
 		startFeature: async () => {
-			this.getWorld().runtime.prover = proverOf(waitingAt(await logicEngine(), HEAD));
+			this.getWorld().runtime.prover = proverOf(waitingAt(await logicEngine(), HEAD), reasoner());
 		},
 	};
 	steps = {} as const satisfies TStepperSteps;

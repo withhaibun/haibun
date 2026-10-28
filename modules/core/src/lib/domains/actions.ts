@@ -198,6 +198,25 @@ export function actionsToReadAndWrite(ceiling: AccessLevel, levels: AccessLevel[
  *  it covers, and `expires` states when it ends. */
 export type TDelegation = Record<string, unknown> & { allowedAction?: unknown; invocationTarget?: unknown; expires?: unknown };
 
+/** What a containment holds within its bound, as ODRL reads a capability: the actions it allows, the target it covers, when it
+ *  ends, and the time of its use. A delegation, a grant and a call are each one. */
+export type TPermission = { actions: readonly string[]; target?: string; expires?: string; usedAt?: string };
+
+/** What a candidate holds beyond its bound: an action, a target, or an expiry or a time of use past the bound's expiry. */
+export const EXCEEDS = { action: "action", target: "target", expires: "expires" } as const;
+/** The expiry a candidate exceeds by where it doesn't end and its bound does. */
+export const NEVER_EXPIRES = "never";
+/** One witness of a candidate that exceeds its bound: what it holds beyond the bound, by kind. */
+export type TExceeding = { kind: keyof typeof EXCEEDS; value: string };
+/** The witness of a candidate that exceeds its bound, as a refusal names it. */
+export const witnessOf = (exceeding: readonly TExceeding[]): string => exceeding.map(({ kind, value }) => `${kind} ${value}`).join(", ");
+
+/** Returns the permission a delegation grants: the actions it allows, and its target and expiry where it states them. */
+export function permissionOf(delegation: TDelegation): TPermission {
+	const { invocationTarget: target, expires } = delegation;
+	return { actions: delegatedActions(delegation), ...(typeof target === "string" ? { target } : {}), ...(typeof expires === "string" ? { expires } : {}) };
+}
+
 /** The entry that names every action. Actuality holds it, and a delegation that doesn't restrict an action allows it. */
 export const EVERY_ACTION = "*";
 
