@@ -471,8 +471,8 @@ describe("examining a finished test run", () => {
 				'{"total":1,"vertices":"1 entries; read one through TestRunnerStepper-askTestRun"}',
 			);
 			expect(asked.answer, "`answer` holds the entries for a caller that requests them").toBe('{"total":1,"vertices":[{"id":"cmt-1"}]}');
-			const shown = answerOfRun({ apps: ["/muskeg"] });
-			expect(shown.text, "a response without a total keeps its entries").toBe('{"apps":["/muskeg"]}');
+			const shown = answerOfRun({ apps: ["/site"] });
+			expect(shown.text, "a response without a total keeps its entries").toBe('{"apps":["/site"]}');
 			const long = answerOfRun({ total: 40, vertices: Array.from({ length: 500 }, (_, at) => ({ id: `cmt-${at}`, body: "x".repeat(40) })) });
 			expect(long.answer, "an `answer` longer than ANSWER_LIMIT ends with its full length in characters").toMatch(/characters in all\)$/);
 		});
