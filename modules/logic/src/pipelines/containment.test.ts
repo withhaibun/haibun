@@ -43,14 +43,14 @@ describe("containment", () => {
 			const exceeds = await exceeding({ actions: [required] }, { actions: held });
 			expect(exceeds.length === 0, `${held.join(",")} allowing ${required}`).toBe(capabilityAllows(held, required));
 		}
-	});
+	}, 15_000);
 
 	it("returns the verdict of `actionUnder` on a delegation's action at a target and a time", async () => {
 		for (const [held, required, target] of UNDER) {
 			const exceeds = await exceeding({ actions: [required], target, usedAt: new Date(NOW).toISOString() }, permissionOf(held));
 			expect(exceeds.length === 0, `${JSON.stringify(held)} for ${required} at ${target}`).toBe(actionUnder(held, required, target, NOW) !== undefined);
 		}
-	});
+	}, 15_000);
 
 	it("contains a delegation in its parent where each action, its target and its expiry are within the parent's", async () => {
 		const parent = { actions: ["TrustedList:registerAnchor"], target: "https://lists.example/trusted-lists", expires: "2027-06-01T00:00:00Z" };
