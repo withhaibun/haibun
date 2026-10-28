@@ -10,6 +10,7 @@
  */
 import { RecordSchema } from "../../domains/json-text.js";
 import { itemAt } from "../../domains/item-at.js";
+import { assertDeclaredEdge } from "../../domains/hypermedia.js";
 import {
 	SHARED_GRAPH,
 	matchesQuadPattern,
@@ -264,11 +265,13 @@ export class QuadStore implements IQuadStore {
 	 * backing store the edge is a quad in the source's named graph. The edge is routed as `add`, `set` and `query` are, so a
 	 * caller writes it the same way whether a graph engine holds the source's named graph or not.
 	 */
-	createEdge(fromLabel: string, fromId: string, edgeLabel: string, toLabel: string, toId: string): Promise<void> {
+	async createEdge(fromLabel: string, fromId: string, edgeLabel: string, toLabel: string, toId: string): Promise<void> {
 		const backing = this.storeFor(fromLabel);
-		if (backing?.createEdge) return backing.createEdge(fromLabel, fromId, edgeLabel, toLabel, toId);
+		if (backing?.createEdge) return await backing.createEdge(fromLabel, fromId, edgeLabel, toLabel, toId);
+		const surface = this.declarations?.().of(fromLabel)?.surface;
+		if (surface !== undefined) assertDeclaredEdge(surface, edgeLabel);
 		// objectType states the target's type, so the quad reads back as an edge rather than a literal property.
-		return this.add({ subject: fromId, predicate: edgeLabel, object: toId, namedGraph: fromLabel, objectType: toLabel });
+		return await this.add({ subject: fromId, predicate: edgeLabel, object: toId, namedGraph: fromLabel, objectType: toLabel });
 	}
 
 	/**

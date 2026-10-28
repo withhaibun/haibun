@@ -1655,24 +1655,24 @@
 			"actuality": {
 				"text": "e2e-tests/tests, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
 				"status": "passed",
-				"tookMs": 22700,
+				"tookMs": 22600,
 				"digest": {
 					"e2e-tests/src": "5b34e8c21088b4dee95e0ae578eb3ee0dace862b62cc83e755cb7f34fb28f804",
 					"e2e-tests/tests": "37ff6ea7c41d9236a6361aff24039bd09aa16cfd4153f33086f4cee7a33f278a",
 					"modules/cli/src": "b63215ce2af7820bb66e5e42da9bb75189724b99cac21bd99c6224a514b60544",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "d280e8f5b9ffd746059a11648a57a54eb858a412de282d4312cd88dd991dbd00",
+					"modules/core/src": "cb89d402d2696ec970d859954d9248aba5cd5e9bee9ddafa0cfafe633c75fcf3",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
 					"modules/logic/src": "b037408713a3ea814e1c3f5a682d168544db39eea5510d00584138cd150f0577",
 					"modules/monitor-otel/src": "4fbef0f2c78fed7b3e2d03ec4ab094bef11766724e5f5f6efb73491ea1d4dea6",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/out-junit/src": "22d1ca5d4f4449cae6186ff8d84c1f0b182e7591e1ffda9520a38daa3e8681d2",
 					"modules/recorder/src": "4483bd44ae0de4ad4e504b6b398a05042484a83df837a6cfa085869c7e69332d",
-					"modules/shu/src": "a81aab26303f2bab092de7ef8ed24d0c2ee610210b464c53521c74b40acc8f1d",
+					"modules/shu/src": "926f437aac7f480a8080732b206178d0006a41d1cd62e989720eb94fb1450755",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/utils/src": "9799d114ca397313863bfc29604199b02bc9daf1a4bfa26675dbfe7cfc30e36c",
-					"modules/web-accessibility-axe/src": "e890f3d1da024ea7a96409d105a10069f87bd0b64b3b8907e66c47f4ec4e8963",
+					"modules/web-accessibility-axe/src": "3d48353ab2129ed817b5c6042255557d5542234818407a3fa77a540d7aa8cb40",
 					"modules/web-playwright/src": "497f4af5bd16f8ab20e92b99a27fd73f60127be42d94ad0653f3c26942e060b4",
 					"modules/web-server-hono/src": "d2999619f8e6e6caae50dab5f3bd8295e324da0a4098f8467cecb7a6d83c2284",
 					"modules/web-server-hono/waypoints": "fa5853749829db27d77867eb4c13e1860184beafed284ebff8f0672c617affe3"
@@ -1682,13 +1682,13 @@
 				"/features/a11y-fail.feature": {
 					"text": "/features/a11y-fail",
 					"status": "passed",
-					"tookMs": 900,
+					"tookMs": 800,
 					"steps": 13
 				},
 				"/features/a11y-pass.feature": {
 					"text": "/features/a11y-pass",
 					"status": "passed",
-					"tookMs": 800,
+					"tookMs": 700,
 					"steps": 13
 				},
 				"/features/after-every.feature": {
@@ -1706,7 +1706,7 @@
 				"/features/auth-bearer.feature": {
 					"text": "/features/auth-bearer",
 					"status": "passed",
-					"tookMs": 800,
+					"tookMs": 700,
 					"steps": 78
 				},
 				"/features/auth-form.feature": {
@@ -1718,13 +1718,13 @@
 				"/features/counter.feature": {
 					"text": "/features/counter",
 					"status": "passed",
-					"tookMs": 1100,
+					"tookMs": 1000,
 					"steps": 20
 				},
 				"/features/counter.feature.ts": {
 					"text": "Counts feature",
 					"status": "passed",
-					"tookMs": 1400,
+					"tookMs": 2100,
 					"steps": 20
 				},
 				"/features/counts.feature.ts": {
@@ -1736,7 +1736,7 @@
 				"/features/elements.feature": {
 					"text": "/features/elements",
 					"status": "passed",
-					"tookMs": 800,
+					"tookMs": 900,
 					"steps": 17
 				},
 				"/features/executor-rpc.feature.ts": {
@@ -1766,7 +1766,7 @@
 				"/features/once.feature.ts": {
 					"text": "A group of features runs once per state of what it depends on",
 					"status": "passed",
-					"tookMs": 2500,
+					"tookMs": 2300,
 					"steps": 20
 				},
 				"/features/page-visits.feature.ts": {
@@ -1784,7 +1784,7 @@
 				"/features/qrcode.feature": {
 					"text": "/features/qrcode",
 					"status": "passed",
-					"tookMs": 2700,
+					"tookMs": 2600,
 					"steps": 19
 				},
 				"/features/recurse.feature": {
@@ -1814,7 +1814,7 @@
 				"/features/visited-pages.feature": {
 					"text": "/features/visited-pages",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 700,
 					"steps": 31
 				},
 				"/features/workflow.feature.ts": {
@@ -1826,7 +1826,7 @@
 				"/features/xss.feature": {
 					"text": "/features/xss",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 600,
 					"steps": 13
 				}
 			}

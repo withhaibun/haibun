@@ -1,9 +1,16 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import type { QuadStore } from "./quad-store.js";
-import { LinkRelations, READING_LABEL, SEQ_PATH_LABEL, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL } from "../../domains/resources.js";
+import {
+	LinkRelations,
+	readingDomainDefinition,
+	SEQ_PATH_LABEL,
+	SPECIFIC_RESOURCE_LABEL,
+	specificResourceDomainDefinition,
+	textQuoteSelectorDomainDefinition,
+} from "../../domains/resources.js";
 import { readTypedLinks } from "../../records/pipelines/discourse-writes.js";
 import { RECORDED_STATUS } from "../../domains/protocol.js";
-import { storeDeclaring } from "../../test/declared-types.js";
+import { declaredTypeOf, storeDeclaring } from "../../test/declared-types.js";
 
 const REPORT = "FieldReport";
 /** A line's record, and the record of a statement of it, by their record names. */
@@ -23,7 +30,12 @@ describe("statementsWith", () => {
 	let store: QuadStore;
 
 	beforeEach(async () => {
-		store = storeDeclaring(Object.fromEntries([REPORT, SEQ_PATH_LABEL, READING_LABEL, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL].map((label) => [label, {}])));
+		store = storeDeclaring(
+			Object.fromEntries([
+				...[REPORT, SEQ_PATH_LABEL].map((label) => [label, {}]),
+				...[readingDomainDefinition, specificResourceDomainDefinition, textQuoteSelectorDomainDefinition].map(declaredTypeOf),
+			]),
+		);
 		// A feature of an actuality: the line `1-1.0.1.1.2` passed, and its statement `1-1.0.1.1.2.1` is running.
 		await store.upsertIndividual(SEQ_PATH_LABEL, { [SEQ_PATH_FIELD.id]: LINE, [SEQ_PATH_FIELD.actionStatus]: RECORDED_STATUS.completed, [SEQ_PATH_FIELD.stepText]: "a line" });
 		await store.upsertIndividual(SEQ_PATH_LABEL, { [SEQ_PATH_FIELD.id]: STEP, [SEQ_PATH_FIELD.actionStatus]: RECORDED_STATUS.running, [SEQ_PATH_FIELD.stepText]: "prose" });

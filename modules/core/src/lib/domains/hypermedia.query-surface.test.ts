@@ -9,7 +9,7 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import { Access, LinkRelations, type THypermediaTopology } from "./resources.js";
-import { REACHED_BY, pointsThrough, querySurface } from "./hypermedia.js";
+import { REACHED_BY, assertDeclaredEdge, isVocabularyEdge, pointsThrough, querySurface } from "./hypermedia.js";
 
 const MessageSchema = z.object({ messageId: z.string(), subject: z.string(), folder: z.string(), unread: z.boolean(), generatedAtTime: z.date() });
 const topology: THypermediaTopology = {
@@ -62,5 +62,21 @@ describe("what a type offers a reader", () => {
 		// A type's identifier is held and shown, and a reader can't query it. The query surface omits it, so a reader sees
 		// that before trying a query.
 		expect(querySurface(message).properties.messageId).toBeUndefined();
+	});
+});
+
+describe("the edges a type's records hold", () => {
+	it("holds an edge its topology declares, and a relation of the shared vocabulary that reaches an IRI", () => {
+		expect(() => assertDeclaredEdge(querySurface(message), "from")).not.toThrow();
+		expect(isVocabularyEdge(LinkRelations.AUTHOR.rel)).toBe(true);
+		expect(() => assertDeclaredEdge(querySurface(message), LinkRelations.AUTHOR.rel)).not.toThrow();
+	});
+
+	it("refuses an edge its topology doesn't declare and the vocabulary doesn't hold, naming the edges it declares", () => {
+		expect(isVocabularyEdge("wroteBy")).toBe(false);
+		expect(isVocabularyEdge(LinkRelations.NAME.rel), "a relation that reaches a literal isn't an edge").toBe(false);
+		expect(() => assertDeclaredEdge(querySurface(message), "wroteBy")).toThrow(
+			"Message doesn't declare the edge wroteBy, so a Message record doesn't hold it. Declare the edge in the type's topology, or write an edge it declares (from, attachment).",
+		);
 	});
 });

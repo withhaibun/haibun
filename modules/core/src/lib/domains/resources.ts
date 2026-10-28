@@ -1125,6 +1125,9 @@ export const PartSchema = z.union([FragmentSchema, QuoteAnchorSchema]);
 export type TPart = z.infer<typeof PartSchema>;
 
 export const TextQuoteSelectorSchema = QuoteAnchorSchema.extend({ ...PersistedVertexSchema.shape, id: z.string(), generatedAtTime: z.string() });
+/** The edge from an anchor to the reading that wrote it. */
+const GENERATED_BY_READING = { rel: LinkRelations.WAS_GENERATED_BY.rel, range: READING_LABEL };
+
 export const textQuoteSelectorDomainDefinition: TDomainDefinition = {
 	selectors: [TEXT_QUOTE_SELECTOR_DOMAIN],
 	schema: TextQuoteSelectorSchema,
@@ -1135,6 +1138,8 @@ export const textQuoteSelectorDomainDefinition: TDomainDefinition = {
 		type: "oa:TextQuoteSelector",
 		id: "id",
 		properties: { id: LinkRelations.IDENTIFIER.rel, exact: LinkRelations.EXACT.rel, prefix: LinkRelations.PREFIX.rel, suffix: LinkRelations.SUFFIX.rel },
+		// The reading that wrote the selector, which a later reading of the same text retracts.
+		edges: { wasGeneratedBy: GENERATED_BY_READING },
 		// The quote is the labelling property and isn't mapped to CONTENT.rel. The selector doesn't have content, and
 		// stating the quote as its content would serialize a false statement.
 		displayLabel: "exact",
@@ -1154,6 +1159,7 @@ export const fragmentSelectorDomainDefinition: TDomainDefinition = {
 		type: "oa:FragmentSelector",
 		id: "id",
 		properties: { id: LinkRelations.IDENTIFIER.rel, value: LinkRelations.VALUE.rel, conformsTo: LinkRelations.CONFORMS_TO.rel },
+		edges: { wasGeneratedBy: GENERATED_BY_READING },
 		displayLabel: "value",
 		sortColumns: { value: "TEXT" },
 	},
@@ -1192,6 +1198,7 @@ export const specificResourceDomainDefinition: TDomainDefinition = {
 		edges: {
 			hasSource: { rel: LinkRelations.HAS_SOURCE.rel, range: RESOURCE_LABEL },
 			hasSelector: { rel: LinkRelations.HAS_SELECTOR.rel, range: [TEXT_QUOTE_SELECTOR_LABEL, FRAGMENT_SELECTOR_LABEL] },
+			wasGeneratedBy: GENERATED_BY_READING,
 		},
 		// Titled through its selector where the individual doesn't carry an rdfs:label.
 		displayLabel: "hasSelector",

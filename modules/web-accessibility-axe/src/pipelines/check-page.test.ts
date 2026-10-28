@@ -7,10 +7,10 @@ import { toRegisteredDomain } from "@haibun/core/lib/domains/domains.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { readEvery, recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
-import { storeDeclaring } from "@haibun/core/lib/test/declared-types.js";
+import { declaredTypeOf, storeDeclaring } from "@haibun/core/lib/test/declared-types.js";
 
 /** The EARL types, declared so the store reads their records. */
-const EARL_TYPES = Object.fromEntries(Object.values(EARL_LABEL).map((label) => [label, {}]));
+const EARL_TYPES = Object.fromEntries(earlDomainDefinitions.map(declaredTypeOf));
 
 const registered = Object.fromEntries(earlDomainDefinitions.map((definition) => [definition.selectors[0], toRegisteredDomain(definition)]));
 

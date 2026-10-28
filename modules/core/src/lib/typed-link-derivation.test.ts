@@ -1,11 +1,25 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import type { QuadStore } from "./steps/pipelines/quad-store.js";
-import { BODY_LABEL, COMMENT_LABEL, FRAGMENT_SELECTOR_LABEL, READING_LABEL, LinkRelations, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL } from "./domains/resources.js";
+import {
+	BODY_LABEL,
+	bodyDomainDefinition,
+	COMMENT_LABEL,
+	commentDomainDefinition,
+	FRAGMENT_SELECTOR_LABEL,
+	fragmentSelectorDomainDefinition,
+	READING_LABEL,
+	readingDomainDefinition,
+	LinkRelations,
+	SPECIFIC_RESOURCE_LABEL,
+	specificResourceDomainDefinition,
+	TEXT_QUOTE_SELECTOR_LABEL,
+	textQuoteSelectorDomainDefinition,
+} from "./domains/resources.js";
 import { commentBodyIdOf, createComment, readTypedLinks, readingIdFor } from "./records/pipelines/discourse-writes.js";
 import { DEFAULT_BODY_KIND } from "./records/derivations/bodies.js";
 import { MEDIA_TYPE } from "./domains/media-types.js";
 import { readEvery, recordOf } from "./records/pipelines/record-reads.js";
-import { storeDeclaring } from "./test/declared-types.js";
+import { declaredTypeOf, storeDeclaring } from "./test/declared-types.js";
 import { z } from "zod";
 import { FRAGMENT_SPEC } from "./domains/media-fragments.js";
 import type { TLinkVocabulary } from "./domains/typed-links.js";
@@ -14,8 +28,19 @@ import { itemAt } from "./domains/item-at.js";
 // A registered fixture type, as a consumer would declare one. Statements connect records of registered types only.
 const REPORT = "FieldReport";
 const TYPES = new Set([REPORT, COMMENT_LABEL, BODY_LABEL, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL, READING_LABEL]);
-/** The types the derivation writes and reads, declared so the store reads their records. */
-const DECLARED = Object.fromEntries([...TYPES, FRAGMENT_SELECTOR_LABEL].map((label) => [label, {}]));
+/** The types the derivation writes and reads, declared so the store reads their records: core's as core declares them, and the
+ *  fixture type with the relations its links state. */
+const DECLARED = Object.fromEntries([
+	...[
+		commentDomainDefinition,
+		bodyDomainDefinition,
+		specificResourceDomainDefinition,
+		textQuoteSelectorDomainDefinition,
+		fragmentSelectorDomainDefinition,
+		readingDomainDefinition,
+	].map(declaredTypeOf),
+	[REPORT, { relations: { [LinkRelations.CITES.rel]: [REPORT], [LinkRelations.MENTIONS.rel]: [REPORT] } }],
+]);
 const vocab: TLinkVocabulary = {
 	relRange: (rel) => Object.values(LinkRelations).find((e) => e.rel === rel && !(e as { abstract?: boolean }).abstract)?.range,
 	isType: (name) => TYPES.has(name),

@@ -3,7 +3,7 @@
  * carries it, the layout a feature reads as tokens, the axioms of what a graph view shows, and a federated peer's graph
  * merged into this instance's.
  */
-import { MAX_PAGE_ROWS, buildResourceRels, pageLimit, relOf } from "@haibun/core/lib/domains/hypermedia.js";
+import { MAX_PAGE_ROWS, buildResourceRels, isVocabularyEdge, pageLimit, relOf } from "@haibun/core/lib/domains/hypermedia.js";
 import { hypermediaDomainMap } from "@haibun/core/lib/domains/domains.js";
 import { Access, LinkRelations, storeScopeFor, type AccessLevel, type AccessQueryLevel } from "@haibun/core/lib/domains/resources.js";
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
@@ -157,7 +157,7 @@ export async function graphAxiomsOf(world: TWorld, view: TGraphView): Promise<TG
 	const model = visibleGraphModel({ quads: shown, clusters, hiddenGraphs, hiddenPredicates: view.hiddenPredicates, prune: view.prune, roleRels: [] });
 	const concerns = new Map(Object.values(concernCatalogOf(world.domains).persisted).map((concern) => [concern.label, concern]));
 	const relOf = (type: string, edge: string): string => {
-		const rel = concerns.get(type)?.edges[edge]?.rel;
+		const rel = concerns.get(type)?.edges[edge]?.rel ?? (isVocabularyEdge(edge) ? edge : undefined);
 		if (rel === undefined) throw new Error(`${type} doesn't declare the edge ${edge} that the graph shows. Declare the edge in the type's topology.`);
 		return rel;
 	};

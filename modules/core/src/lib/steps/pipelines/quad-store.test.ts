@@ -322,3 +322,12 @@ describe("the distinct values of a property", () => {
 		expect(await store.distinctPropertyValues(GRAPH, FIELD), "a count below the ceiling states every value").toMatchObject({ total: COUNT_CEILING - 1, saturated: false });
 	});
 });
+
+describe("the edges a store of quads writes", () => {
+	it("writes an edge its type declares, and refuses one its type doesn't declare and the vocabulary doesn't hold", async () => {
+		const store = storeDeclaring({ Step: { relations: { isPartOf: ["Step"] } } });
+		await store.createEdge("Step", "a", "isPartOf", "Step", "b");
+		expect((await store.query({ subject: "a", predicate: "isPartOf" })).map(({ object }) => object)).toEqual(["b"]);
+		await expect(store.createEdge("Step", "a", "wroteBy", "Step", "b")).rejects.toThrow("Step doesn't declare the edge wroteBy");
+	});
+});

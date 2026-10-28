@@ -188,6 +188,20 @@ export function querySurface(domain: { schema: z.ZodType | undefined; topology: 
 	return QuerySurfaceSchema.parse({ label: domain.topology.persistedAs, properties, references });
 }
 
+/** Whether an edge is a relation of the shared vocabulary that reaches an IRI, which a record of any type may state, as a typed
+ *  link in a text states it. */
+export const isVocabularyEdge = (edge: string): boolean => getRelRange(edge) === "iri";
+
+/** Throws where a type's surface doesn't declare the edge a write states and the shared vocabulary doesn't hold it, so a record
+ *  holds only the edges its type or the vocabulary declares. */
+export function assertDeclaredEdge({ label, references }: TQuerySurface, edge: string): void {
+	if (edge in references || isVocabularyEdge(edge)) return;
+	const declared = Object.keys(references);
+	throw new Error(
+		`${label} doesn't declare the edge ${edge}, so a ${label} record doesn't hold it. Declare the edge in the type's topology, or write an edge it declares (${declared.length === 0 ? "it doesn't declare an edge" : declared.join(", ")}).`,
+	);
+}
+
 /** A rel's declared `rdfs:subPropertyOf` parent(s) (the canonical LinkRelations declaration), mapped to their term
  *  strings; undefined when the rel doesn't declare one. Mirrors the `subClassOf` lookup the type node emits, so a served
  *  JSON-LD context carries the genuine rel hierarchy (e.g. `schema:author rdfs:subPropertyOf hbn:inRoleOf`). */

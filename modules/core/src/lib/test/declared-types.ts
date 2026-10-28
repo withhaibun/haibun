@@ -2,10 +2,10 @@
  * Read declarations for a test store's own types. A store of quads reads a type's records only where it holds the type's
  * declaration, so a test that writes records of a type it names declares that type here.
  */
-import { REACHED_BY } from "../domains/hypermedia.js";
+import { querySurface, REACHED_BY } from "../domains/hypermedia.js";
 import { QuadStore, newStoreChain } from "../steps/pipelines/quad-store.js";
 import type { TStoreLevels } from "../steps/ports.js";
-import { HAIBUN_RECORD_NAMESPACE, LinkRelations, type TDomainDefinition } from "../domains/resources.js";
+import { HAIBUN_RECORD_NAMESPACE, isPersisted, LinkRelations, type TDomainDefinition } from "../domains/resources.js";
 import { mapDefinitionsToDomains } from "../domains/domains.js";
 import { readDeclarationsOf, servedIdOf, type TReadDeclarations } from "../records/derivations/read-records.js";
 import { recordIri } from "../records/derivations/record-iri.js";
@@ -31,6 +31,12 @@ export function declaredTypes(types: Record<string, TDeclaredType>): TReadDeclar
 			return { id: type.id === undefined ? "id" : type.id, surface: { label, properties, references }, defaultSort: LinkRelations.GENERATED_AT_TIME.rel };
 		},
 	};
+}
+
+/** Returns the test declaration of a persisted type its definition declares: its id field and the edges its topology declares. */
+export function declaredTypeOf({ schema, topology }: TDomainDefinition): [string, TDeclaredType] {
+	if (!isPersisted(topology)) throw new Error("a test declares a persisted type, and this definition doesn't persist one. Pass a persisted type's definition.");
+	return [topology.persistedAs, { id: topology.id, relations: querySurface({ schema, topology }).references }];
 }
 
 /** Returns read declarations of the types `types` names as a page reads them: a read states the `@id` the instance served,
