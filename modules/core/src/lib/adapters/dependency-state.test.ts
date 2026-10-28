@@ -1,22 +1,22 @@
 // Tests moduleRootOf, dependencyRoots and dependencyState. Most cases create a temporary git repository, so their
 // results don't depend on this workspace's files.
+import { testTempDir } from "../test/temp-dir.js";
 import { describe, it, expect } from "vitest";
 import { execFileSync } from "node:child_process";
 import nodeFS from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { ACTUALITIES_FILE, dependencyRoots, dependencyState, moduleRootOf } from "./dependency-state.js";
 
 /** Creates a temporary git repository with the given files and returns its real path. The files aren't committed,
  *  because the state is read from the working tree. */
 function aRepository(files: Record<string, string>): string {
-	const dir = nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-state-"));
+	const dir = testTempDir("haibun-state-");
 	execFileSync("git", ["init", "-q"], { cwd: dir });
 	for (const [file, content] of Object.entries(files)) {
 		nodeFS.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
 		nodeFS.writeFileSync(path.join(dir, file), content);
 	}
-	return nodeFS.realpathSync(dir);
+	return dir;
 }
 
 describe("the state of a group's dependencies", () => {
@@ -66,7 +66,7 @@ describe("the state of a group's dependencies", () => {
 	});
 
 	it("is undefined for a directory that isn't in a repository, rather than the empty state", () => {
-		const dir = nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-norepo-"));
+		const dir = testTempDir("haibun-norepo-");
 		nodeFS.writeFileSync(path.join(dir, "a.feature"), "Feature: a\n");
 		expect(dependencyState([dir])).toBeUndefined();
 	});

@@ -8,6 +8,7 @@
  * The store is an in-memory QuadStore. The tests assert the agent's own bookkeeping and the Principal it writes. The
  * supervisor's tests assert the records of a test run's levels. They don't test a graph engine. A consumer's agent feature tests the agent loop against a live model.
  */
+import { testTempDir } from "@haibun/core/lib/test/temp-dir.js";
 import { describe, expect, it, beforeEach } from "vitest";
 import TestRunnerStepper, { RUNNER_DEFAULTS, TEST_RUNNER_AUTHOR } from "./test-runner-stepper.js";
 import { answerOfRun, askParams, stepAtRun } from "./test-runner-stepper.js";
@@ -27,7 +28,6 @@ import { openRunRegistry, runRegistry } from "@haibun/core/lib/step-registry.js"
 import { getStepperOptionName } from "@haibun/core/lib/domains/util.js";
 import { QuadStore, newStoreChain } from "@haibun/core/lib/quad-store.js";
 import nodeFS from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { ACTUALITIES_FILE } from "@haibun/core/lib/adapters/dependency-state.js";
 import { RUN_AUTHORITY, runAuthorizedWith } from "@haibun/core/lib/domains/capability-context.js";
@@ -169,7 +169,7 @@ describe("the test-runner agent's limits", () => {
 
 	const heldDigest = (dir: string) => JSON.parse(nodeFS.readFileSync(path.join(dir, ACTUALITIES_FILE), "utf-8")).machine.conditions.actuality.digest;
 	it("clears the digests of every actuality of a base's features when a change to every feature is noted, so the features run again in any state", () => {
-		const dir = nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-noted-"));
+		const dir = testTempDir("haibun-noted-");
 		const actuality = { filter: "", actuality: { text: "an actuality", status: "passed", tookMs: 0, digest: { features: "d" } }, features: {} };
 		nodeFS.writeFileSync(path.join(dir, ACTUALITIES_FILE), JSON.stringify({ machine: { conditions: actuality } }));
 		h.stepper.noteApplied("", dir);
@@ -177,7 +177,7 @@ describe("the test-runner agent's limits", () => {
 	});
 
 	it("clears the digests of the actuality of the features a noted change names, so they run again in any state", async () => {
-		const dir = nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-noted-"));
+		const dir = testTempDir("haibun-noted-");
 		const actuality = { filter: "one", actuality: { text: "an actuality", status: "passed", tookMs: 0, digest: { features: "d" } }, features: {} };
 		nodeFS.writeFileSync(path.join(dir, ACTUALITIES_FILE), JSON.stringify({ machine: { conditions: actuality } }));
 		expect((await h.stepper.steps.noteSourceChanged.action({ filter: "one", where: dir })).ok).toBe(true);

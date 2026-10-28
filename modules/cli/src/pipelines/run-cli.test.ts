@@ -1,5 +1,5 @@
-import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { testTempDir } from "@haibun/core/lib/test/temp-dir.js";
+import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { vitest, describe, it, expect } from "vitest";
 
@@ -262,7 +262,7 @@ describe("getConfigFromBase with extends", () => {
 	};
 	/** A directory holding the base config in its parent folder and the given config beside its own folder. */
 	const group = (own: Record<string, unknown>): string => {
-		const root = mkdtempSync(join(tmpdir(), "extends-"));
+		const root = testTempDir("extends-");
 		mkdirSync(join(root, "shared"));
 		mkdirSync(join(root, "group"));
 		writeFileSync(join(root, "base.json"), JSON.stringify(BASE));
@@ -283,7 +283,7 @@ describe("getConfigFromBase with extends", () => {
 
 	it("takes the base's group where the config states one, with what the config states replacing it, and leaves a config that doesn't state one outside the groups", () => {
 		const grouped = { ...BASE, group: { bases: [".", "@haibun/shu/waypoints"], filter: ["a-"] } };
-		const root = mkdtempSync(join(tmpdir(), "extends-group-"));
+		const root = testTempDir("extends-group-");
 		writeFileSync(join(root, "base.json"), JSON.stringify(grouped));
 		writeFileSync(join(root, "refined.json"), JSON.stringify({ extends: "./base.json", steppers: [], group: { filter: ["b-"] } }));
 		writeFileSync(join(root, "launched.json"), JSON.stringify({ extends: "./base.json", steppers: [] }));

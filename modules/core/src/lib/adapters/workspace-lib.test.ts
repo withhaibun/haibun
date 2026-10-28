@@ -1,8 +1,8 @@
+import { testTempDir } from "../test/temp-dir.js";
 import { describe, it, expect } from "vitest";
 import * as TFileSystemJs from "./workspace-lib.js";
 
-import nodeFS, { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
-import { tmpdir } from "os";
+import nodeFS, { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import { RemoteStepperProxy } from "../transport/remote-proxy-stepper.js";
 import { itemAt } from "../domains/item-at.js";
@@ -41,7 +41,7 @@ describe("getModuleLocation", () => {
 describe("packageLocation", () => {
 	/** A directory holding a package that names itself, beside the node_modules that holds another package. */
 	const workspace = () => {
-		const root = mkdtempSync(join(tmpdir(), "package-location-"));
+		const root = testTempDir("package-location-");
 		const write = (file: string, content: unknown) => {
 			mkdirSync(dirname(join(root, file)), { recursive: true });
 			writeFileSync(join(root, file), JSON.stringify(content));

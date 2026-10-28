@@ -1,6 +1,7 @@
+import { testTempDir } from "@haibun/core/lib/test/temp-dir.js";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { tmpdir } from "node:os";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ServerHono } from "./server-hono.js";
 import { QuadStore, newStoreChain } from "@haibun/core/lib/quad-store.js";
@@ -222,7 +223,7 @@ describe("ServerHono", () => {
 		});
 
 		it("serves only a folder its base holds, lists only what is under it, and lists a name as text", async () => {
-			const base = mkdtempSync(join(tmpdir(), "served-"));
+			const base = testTempDir("served-");
 			mkdirSync(join(base, "shown"));
 			writeFileSync(join(base, "shown", "<b>named.txt"), "");
 			const held = new ServerHono(mockLogger, base, () => store, OPEN);
@@ -236,7 +237,7 @@ describe("ServerHono", () => {
 		});
 
 		it("gates the files a folder at the root holds, and passes a request for a route beside it to that route", async () => {
-			const base = mkdtempSync(join(tmpdir(), "rooted-"));
+			const base = testTempDir("rooted-");
 			writeFileSync(join(base, "page.html"), "a page");
 			const rooted = new ServerHono(mockLogger, base, () => store, OPEN);
 			rooted.checkAddStaticFolder(".", "/", P, (c) => Promise.resolve(c.text("held back", 403)));

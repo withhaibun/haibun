@@ -1,5 +1,5 @@
-import nodeFS, { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { testTempDir } from "../../test/temp-dir.js";
+import nodeFS, { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it, expect } from "vitest";
 
@@ -75,7 +75,7 @@ describe("the feature files of a file system", () => {
 	});
 
 	it("collects a base that names a file as one feature, whatever its extension, where the filter takes it", async () => {
-		const dir = mkdtempSync(join(tmpdir(), "file-base-"));
+		const dir = testTempDir("file-base-");
 		const guide = join(dir, "GUIDE.md");
 		writeFileSync(guide, '# A guide\n\n    set example to "test"\n');
 		const collected = await featureFiles(nodeFS).collect([guide], ["GUIDE"], undefined);

@@ -1,4 +1,5 @@
 // Tests the actualities file: a group's last actuality against the state of its dependencies, and how long each feature took.
+import { testTempDir } from "@haibun/core/lib/test/temp-dir.js";
 import { describe, it, expect, vi } from "vitest";
 import { execFileSync } from "node:child_process";
 import nodeFS from "node:fs";
@@ -12,7 +13,7 @@ import { forgetOutcome, forgetOutcomes, machineKey, outcomeAgainst, recordActual
 /** Creates a group of features and a library in its own git repository. The group doesn't load steppers, so its only
  *  dependency is its own directory, or its features and its library where it names them as two roots. */
 function aGroup(): { dir: string; config: string } {
-	const dir = nodeFS.realpathSync(nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-verified-")));
+	const dir = testTempDir("haibun-verified-");
 	execFileSync("git", ["init", "-q"], { cwd: dir });
 	nodeFS.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ steppers: [] }));
 	for (const dependency of ["features", "lib"]) nodeFS.mkdirSync(path.join(dir, dependency));
@@ -116,7 +117,7 @@ describe("how a group last ran against its state", () => {
 	});
 
 	it("doesn't verify a group outside a git repository against a state", () => {
-		const dir = nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-norepo-"));
+		const dir = testTempDir("haibun-norepo-");
 		nodeFS.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ steppers: [] }));
 		expect(verificationOf(conditions(dir, path.join(dir, "config.json")))).toBeUndefined();
 	});

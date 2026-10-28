@@ -42,7 +42,9 @@ const WILDCARD = /\*.*$/;
 /** A config of a group, which lists the steppers it loads and the external environments its features use. */
 const GroupConfigSchema = z.object({ steppers: z.array(z.unknown()), environments: z.array(z.string()).optional() });
 /** A baseline that a rule test reads, a long-term tracking file beside a group's actualities file. */
-const BASELINE = ":(glob)**/*.baseline.json";
+/** The suffix of every baseline file's name. */
+const BASELINE_SUFFIX = ".baseline.json";
+const BASELINE = `:(glob)**/*${BASELINE_SUFFIX}`;
 
 /** The files git tracks in a repository that match a pattern, by their paths from the repository root. */
 export const trackedFiles = (repository: string, pattern: string): string[] =>
@@ -148,6 +150,24 @@ function ignoredOf(repository: string, files: readonly string[]): Set<string> {
 	return new Set(checked.stdout.split("\n").filter(Boolean));
 }
 
+/** Lists the files of `pattern` in a repository by git's arguments `args`, each by its path from the repository root. */
+const listed = (repository: string, args: readonly string[], pattern: string): string[] =>
+	execFileSync("git", ["ls-files", ...args, "--", pattern], { cwd: repository, encoding: "utf-8" })
+		.split("\n")
+		.filter(Boolean);
+
+/**
+ * Each baseline a repository holds, tracked or not, ignored or not. An untracked listing reads every directory it reaches, and
+ * an ignored directory such as node_modules holds hundreds of thousands of entries, so the listing doesn't enter one: the
+ * untracked files outside ignored directories, and the ignored files outside them, named as ignored directories where git
+ * stops. A baseline isn't kept inside an ignored directory, so the two listings hold every baseline.
+ */
+function baselineFiles(repository: string): string[] {
+	const kept = listed(repository, ["--cached", "--others", "--exclude-standard"], BASELINE);
+	const ignored = listed(repository, ["--others", "--ignored", "--exclude-standard", "--directory"], BASELINE).filter((file) => file.endsWith(BASELINE_SUFFIX));
+	return [...new Set([...kept, ...ignored])];
+}
+
 /**
  * Each long-term tracking file that a repository doesn't hold with its version. Every group directory, by its path from the repository
  * root, and every directory under it in the same package that holds a group's config, such as an instance a feature launches, holds its actualities file
@@ -167,7 +187,7 @@ export function untrackedRecords(repository: string, groupDirectories: readonly 
 			.map(dirname),
 	);
 	const records = [...new Set([...groupDirectories, ...nested])].sort().map((dir) => join(dir, ACTUALITIES_FILE));
-	const baselines = execFileSync("git", ["ls-files", "--cached", "--others", "--", BASELINE], { cwd: repository, encoding: "utf-8" }).split("\n").filter(Boolean);
+	const baselines = baselineFiles(repository);
 	const ignored = ignoredOf(repository, [...records, ...baselines]);
 	return [...records, ...baselines].flatMap((file) => [
 		...(tracked.has(file) ? [] : [{ file, finding: "isn't tracked: run its group, or its rule test, and commit the file with the code it measures" }]),

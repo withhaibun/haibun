@@ -54,7 +54,7 @@ describe("the parent paths and tracking files of a repository's groups", () => {
 		]);
 	});
 
-	it("find an untracked or ignored actualities file of a group or an instance under it that doesn't need an environment, and an untracked baseline", () => {
+	it("find an untracked or ignored actualities file of a group or an instance under it that doesn't need an environment, and an untracked or ignored baseline outside an ignored directory", () => {
 		const group = { steppers: [] };
 		committed({
 			"e2e/p/config.json": JSON.stringify(group),
@@ -63,15 +63,21 @@ describe("the parent paths and tracking files of a repository's groups", () => {
 			"e2e/t/peer/config.json": JSON.stringify(group),
 			"e2e/t/peer/actualities.json": "{}\n",
 			"e2e/t/staging/config.json": JSON.stringify({ ...group, environments: ["staging"] }),
-			".gitignore": "e2e/t/peer/actualities.json\n",
+			".gitignore": "e2e/t/peer/actualities.json\nscripts/old.baseline.json\nnode_modules\n",
 			"scripts/steps.baseline.json": "{}\n",
 		});
 		writeFileSync(join(repository, "scripts/prose.baseline.json"), "{}\n");
+		writeFileSync(join(repository, "scripts/old.baseline.json"), "{}\n");
+		// An installed package's baseline is in an ignored directory, which the listing doesn't enter.
+		mkdirSync(join(repository, "node_modules/p"), { recursive: true });
+		writeFileSync(join(repository, "node_modules/p/x.baseline.json"), "{}\n");
 		expect(untrackedRecords(repository, ["e2e/p", "e2e/t"])).toEqual([
 			{ file: "e2e/t/actualities.json", finding: "isn't tracked: run its group, or its rule test, and commit the file with the code it measures" },
 			{ file: "e2e/t/peer/actualities.json", finding: "isn't tracked: run its group, or its rule test, and commit the file with the code it measures" },
 			{ file: "e2e/t/peer/actualities.json", finding: "is ignored by a .gitignore entry: remove the entry, so a commit holds the file" },
 			{ file: "scripts/prose.baseline.json", finding: "isn't tracked: run its group, or its rule test, and commit the file with the code it measures" },
+			{ file: "scripts/old.baseline.json", finding: "isn't tracked: run its group, or its rule test, and commit the file with the code it measures" },
+			{ file: "scripts/old.baseline.json", finding: "is ignored by a .gitignore entry: remove the entry, so a commit holds the file" },
 		]);
 	});
 

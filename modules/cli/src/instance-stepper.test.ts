@@ -10,6 +10,7 @@
  * These tests cover RunTail, runEnvironment, verifiedRun, the steps against a held run, and a launch against a child that
  * writes events, which ends where the child stops before it serves. The feature tests fork a real cli.
  */
+import { testTempDir } from "@haibun/core/lib/test/temp-dir.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { z } from "zod";
 import InstanceStepper, { type TRun } from "./instance-stepper.js";
@@ -18,7 +19,6 @@ import { verifiedRun } from "./pipelines/run-conditions.js";
 import { supervisorPorts } from "./root.js";
 import { execFileSync } from "node:child_process";
 import nodeFS from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { getConfigFromBase } from "./pipelines/specl.js";
 import { processBaseEnvToOptionsAndErrors } from "./domains/base-options.js";
@@ -187,8 +187,7 @@ describe("watching a run", () => {
 		// An operator finds this state after a session ends and its children keep running. A server responds on the
 		// requested port. An "address in use" error in the exited child's output doesn't name that server or the remedy.
 		const { createServer } = await import("node:http");
-		const { mkdtempSync, writeFileSync } = await import("node:fs");
-		const { tmpdir } = await import("node:os");
+		const { writeFileSync } = await import("node:fs");
 		const path = await import("node:path");
 		const server = createServer((_req, res) => {
 			res.statusCode = 404;
@@ -196,7 +195,7 @@ describe("watching a run", () => {
 		});
 		await new Promise<void>((resolve) => server.listen(0, resolve));
 		const port = (server.address() as { port: number }).port;
-		const dir = mkdtempSync(path.join(tmpdir(), "busy-port-"));
+		const dir = testTempDir("busy-port-");
 		writeFileSync(path.join(dir, "config.json"), "{}");
 		const s = stepper();
 		const result = (await (s.steps.startRun.action as (a: { where: string; filter: string; from: string; port: number; run: string }) => Promise<TResult>)({
@@ -241,7 +240,7 @@ describe("whether a run would repeat the outcome of an earlier run", () => {
 	/** Creates a group of features in its own git repository, so its state depends only on its own files. The repository ignores
 	 *  its .env file, as a repository that holds a group does. */
 	const aGroup = () => {
-		const dir = nodeFS.realpathSync(nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-verified-run-")));
+		const dir = testTempDir("haibun-verified-run-");
 		execFileSync("git", ["init", "-q"], { cwd: dir });
 		nodeFS.writeFileSync(path.join(dir, ".gitignore"), ".env\n");
 		const config = path.join(dir, "config.json");
@@ -412,7 +411,7 @@ describe("launching an instance", () => {
 		const child = Object.assign(new EventEmitter(), { stdout, stderr: new EventEmitter(), exitCode: null }) as unknown as ChildProcess;
 		const forked = vi.spyOn(supervisorPorts.processes, "forkCli").mockReturnValue(child);
 		vi.spyOn(supervisorPorts.hosts, "begin").mockImplementation(begin);
-		const where = nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-launch-"));
+		const where = testTempDir("haibun-launch-");
 		nodeFS.writeFileSync(path.join(where, "config.json"), JSON.stringify({ steppers: [] }));
 		const action = stepper().steps.startInstance.action as (a: { where: string; port: number; hostId: number }) => Promise<TResult>;
 		const started = action({ where: [where, ...named(where)].join(","), port: 8297, hostId: HOST_ID });
