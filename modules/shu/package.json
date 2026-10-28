@@ -45,7 +45,7 @@
 		"@lit-labs/signals": "^0.3.0",
 		"@lit-labs/virtualizer": "^2.1.1",
 		"@lit/task": "^1.0.3",
-		"@recogito/text-annotator": "^4.2.5",
+		"@recogito/text-annotator": "^4.3.7",
 		"3d-force-graph-vr": "^3.1.1",
 		"aframe": "~1.7.1",
 		"base58-universal": "^2.0.0",
@@ -73,7 +73,7 @@
 		"@haibun/tooling": "*",
 		"@types/markdown-it": "^14.1.2",
 		"esbuild": "^0.28.2",
-		"fake-indexeddb": "^6.2.5",
+		"fake-indexeddb": "^6.2.6",
 		"jsdom": "^28.1.0"
 	}
 }
