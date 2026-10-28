@@ -98,6 +98,6 @@
 		}
 	},
 	"devDependencies": {
-		"@types/markdown-it": "^14.1.2"
+		"@types/markdown-it": "^14.2.0"
 	}
 }

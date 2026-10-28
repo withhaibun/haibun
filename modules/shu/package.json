@@ -46,7 +46,7 @@
 		"@lit-labs/virtualizer": "^2.1.1",
 		"@lit/task": "^1.0.3",
 		"@recogito/text-annotator": "^4.3.7",
-		"3d-force-graph-vr": "^3.1.1",
+		"3d-force-graph-vr": "^3.1.2",
 		"aframe": "~1.7.1",
 		"base58-universal": "^2.0.0",
 		"d3-force-3d": "^3.0.6",
@@ -55,7 +55,7 @@
 		"jsonld-signatures": "^11.6.0",
 		"lit": "^3.3.3",
 		"markdown-it": "^14.0.0",
-		"troika-three-text": "^0.52.4",
+		"troika-three-text": "^0.52.5",
 		"zod": "4.6.7"
 	},
 	"peerDependencies": {
@@ -71,7 +71,7 @@
 		"@haibun/storage-fs": "*",
 		"@haibun/storage-mem": "*",
 		"@haibun/tooling": "*",
-		"@types/markdown-it": "^14.1.2",
+		"@types/markdown-it": "^14.2.0",
 		"esbuild": "^0.28.2",
 		"fake-indexeddb": "^6.2.6",
 		"jsdom": "^28.1.0"
