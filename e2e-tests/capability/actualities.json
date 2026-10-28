@@ -190,7 +190,7 @@
 			"actuality": {
 				"text": "e2e-tests/capability, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
 				"status": "passed",
-				"tookMs": 800,
+				"tookMs": 700,
 				"digest": {
 					"e2e-tests/capability": "f60a467b1916bade9b199593dc655ac9b6694b0c489cd1975c9c83bf14918d77",
 					"e2e-tests/src": "5b34e8c21088b4dee95e0ae578eb3ee0dace862b62cc83e755cb7f34fb28f804",
@@ -198,8 +198,8 @@
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
 					"modules/core/src": "d280e8f5b9ffd746059a11648a57a54eb858a412de282d4312cd88dd991dbd00",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
-					"modules/logic/src": "6bd5337916c808e33e48b48f5bad90db9dc5333dfadf562a8be047cd59609f48",
-					"modules/monitor-otel/src": "51ad9d33751b0654ac68a6a7280ef036d2c5e4b9b676bbacb9c6999d64c5d3d8",
+					"modules/logic/src": "b037408713a3ea814e1c3f5a682d168544db39eea5510d00584138cd150f0577",
+					"modules/monitor-otel/src": "4fbef0f2c78fed7b3e2d03ec4ab094bef11766724e5f5f6efb73491ea1d4dea6",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/out-junit/src": "22d1ca5d4f4449cae6186ff8d84c1f0b182e7591e1ffda9520a38daa3e8681d2",
 					"modules/recorder/src": "4483bd44ae0de4ad4e504b6b398a05042484a83df837a6cfa085869c7e69332d",
