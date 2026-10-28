@@ -1,3 +1,4 @@
+import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -199,14 +200,14 @@ export async function openPolymorphicPage(opts: { external: boolean; box: TBox; 
 	const started = await pageEntry();
 	const opened = await openTestPage(
 		(url, res) => {
-			if (url === "/") res.writeHead(200, { "Content-Type": "text/html" }).end(html);
-			else if (url === POLYMORPHIC_ROUTE.entry) res.writeHead(200, { "Content-Type": "application/javascript" }).end(started);
-			else if (url === POLYMORPHIC_ROUTE.bundle) res.writeHead(200, { "Content-Type": "application/javascript" }).end(bundle);
+			if (url === "/") res.writeHead(200, { "Content-Type": MEDIA_TYPE.html }).end(html);
+			else if (url === POLYMORPHIC_ROUTE.entry) res.writeHead(200, { "Content-Type": MEDIA_TYPE.javascript }).end(started);
+			else if (url === POLYMORPHIC_ROUTE.bundle) res.writeHead(200, { "Content-Type": MEDIA_TYPE.javascript }).end(bundle);
 			else if (url === LABEL_FONT) res.writeHead(200, { "Content-Type": "font/woff" }).end(Buffer.from(bundleFile().labelFont()));
 			else if (url.startsWith(`${LABEL_FONT_FALLBACKS}/`)) {
 				const response = labelFontResponse(bundleFile(), url.slice(LABEL_FONT_FALLBACKS.length + 1));
 				if (response === undefined) return false;
-				if ("json" in response) res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify(response.json));
+				if ("json" in response) res.writeHead(200, { "Content-Type": MEDIA_TYPE.json }).end(JSON.stringify(response.json));
 				else res.writeHead(200, { "Content-Type": "font/woff" }).end(Buffer.from(response.font));
 			} else return false;
 			return true;

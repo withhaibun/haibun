@@ -10,6 +10,7 @@
  *
  * Used by tests/features/voice-ui.feature.ts.
  */
+import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { z } from "zod";
 import { AStepper, IHasCycles, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { actionOK, getFromRuntime } from "@haibun/core/lib/domains/util.js";
@@ -56,7 +57,7 @@ export default class VoiceUITestStepper extends AStepper implements IHasCycles {
 	private serveTestComponentRoute(): void {
 		const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER) as IWebServer;
 		webserver.addRouteIfAbsent("get", TEST_COMPONENT_URL, { description: "Voice UI test component" }, (c: Context) => {
-			c.header("Content-Type", "application/javascript");
+			c.header("Content-Type", MEDIA_TYPE.javascript);
 			return c.body(TEST_COMPONENT_JS);
 		});
 	}

@@ -1,61 +1,109 @@
 /**
- * Writes a store's values as N3 terms, and reads the triples EYE derives back from its N3 output. An absolute IRI is an IRI,
- * a finite number and a boolean are their own literals, and every other string is a string literal. A record is an
- * individual of its type's class, named by its record IRI as the served context expands it.
+ * N3 through N3.js: a store's values as RDF/JS terms, a record's facts as quads N3.js writes, EYE's N3 output read by N3.js's
+ * parser, and the formulas and rules EYE reads. A record is an individual of its type's class, named by its record IRI as the
+ * served context expands it.
+ *
+ * The formula writer is the one exception to writing N3 through N3.js: N3.js writes Turtle, TriG and N-Quads, while N3 states
+ * a formula as `{ … }` and a rule with `=>` (W3C Notation3 Language, Community Group report, the grammar's `formula`
+ * production and the `=>` of its `verb` production), which N3.js doesn't write. EYE reads N3 only, so each triple pattern of a
+ * formula is written by N3.js, which encodes and escapes every term, and the writer adds only the braces and the rule's arrow.
+ * A formula that stands as a pattern's subject or object is written in place of a blank node at that position, by position,
+ * so a literal's text never reads as a formula.
  */
+import { DataFactory, Parser, Writer } from "n3";
+import type { BlankNode, Literal, NamedNode, Quad, Quad_Object, Quad_Predicate, Quad_Subject, Term, Variable } from "@rdfjs/types";
 import type { TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
+import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import type { TRecordNamespace } from "@haibun/core/lib/domains/resources.js";
+import { LOG, RDF, RDFS, XSD } from "@haibun/core/lib/domains/vocabularies.js";
 import { iriIn } from "@haibun/core/lib/records/derivations/owl.js";
 import { recordIri, recordOfIri } from "@haibun/core/lib/records/derivations/record-iri.js";
 import type { TFact } from "../domains/logic.js";
-import type { TTriple } from "../domains/reasoning.js";
 
+const { namedNode, literal, blankNode } = DataFactory;
 const ABSOLUTE_IRI = /^[a-z][a-z\d+.-]*:[^\s<>"{}|\\^`]+$/i;
-/** One term of an N3 line as EYE writes it with full IRIs: an IRI, a literal with its datatype or language, a number or a boolean. */
-const TERM = /<[^>]*>|"(?:[^"\\]|\\.)*"(?:\^\^<[^>]*>|@[\w-]+)?|[-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?|true|false/g;
-const TRIPLE_TERMS = 3;
-const N3_PREFIX = "@prefix";
+const writer = new Writer({ format: MEDIA_TYPE.n3 });
 
-/** Returns a value as an N3 term. Throws where a value isn't a string, a finite number or a boolean. */
-export function n3Term(value: unknown): string {
-	if (typeof value === "string") return ABSOLUTE_IRI.test(value) ? `<${value}>` : JSON.stringify(value);
-	if ((typeof value === "number" && Number.isFinite(value)) || typeof value === "boolean") return String(value);
+/** Returns a store's value as an RDF/JS term: an absolute IRI as a named node, a finite number and a boolean as typed literals,
+ *  and every other string as a string literal. Throws where a value isn't a string, a finite number or a boolean. */
+export function termOf(value: unknown): NamedNode | Literal {
+	if (typeof value === "string") return ABSOLUTE_IRI.test(value) ? namedNode(value) : literal(value);
+	if (typeof value === "number" && Number.isFinite(value)) return literal(String(value), namedNode(Number.isInteger(value) ? XSD.integer : XSD.decimal));
+	if (typeof value === "boolean") return literal(String(value), namedNode(XSD.boolean));
 	throw new Error(`a store's value ${JSON.stringify(value)} doesn't have an N3 term. Store a string, a finite number or a boolean.`);
 }
 
-/** Returns the triples of N3 text that states one triple per line, as EYE writes a query's result. Prefix and empty lines
- *  aren't triples. Throws at a line that states something else, such as a formula, which a query's result doesn't hold. */
-export function triplesOf(text: string): TTriple[] {
-	return text.split("\n").flatMap((line) => {
-		if (line.trim() === "" || line.startsWith(N3_PREFIX)) return [];
-		const terms = line.match(TERM);
-		if (terms?.length !== TRIPLE_TERMS || !line.trimEnd().endsWith("."))
-			throw new Error(`EYE derived \`${line}\`, which isn't one triple. Write the query's conclusion as triples.`);
-		const [subject, predicate, object] = terms as [string, string, string];
-		return [{ subject, predicate, object }];
-	});
+/** A formula: the patterns between its braces. */
+export type TN3Formula = { formula: readonly TN3Pattern[] };
+/** A triple pattern of a formula, whose subject or object may be a formula of its own. */
+export type TN3Pattern = { subject: Quad_Subject | TN3Formula; predicate: Quad_Predicate; object: Quad_Object | TN3Formula };
+const isFormula = (part: Term | TN3Formula): part is TN3Formula => "formula" in part;
+
+/** Returns a literal as a quad's subject. An N3 subject is any expression, a literal among them (W3C Notation3 Language, the grammar's
+ *  `subject` production), which RDF/JS's quad doesn't type as a subject; N3.js writes one there as N3 reads it. */
+export const literalSubject = (term: Literal): Quad_Subject => term as unknown as Quad_Subject;
+
+/** Returns a list, which N3 states as a blank node of `rdf:first` and `rdf:rest` and N3.js writes in parentheses. */
+export const listOf = (items: readonly Quad_Object[]): BlankNode => writer.list([...items]) as unknown as BlankNode;
+
+/** Returns a pattern as N3: N3.js writes its terms, and a formula stands in place of a blank node at its own position. */
+export function patternText({ subject, predicate, object }: TN3Pattern): string {
+	const [at, of] = [blankNode("s"), blankNode("o")];
+	const text = writer.quadToString(isFormula(subject) ? at : subject, predicate, isFormula(object) ? of : object).trim();
+	const [subjectText, rest] = isFormula(subject) ? [formulaText(subject), text.slice(`_:${at.value}`.length)] : ["", text];
+	const ending = ` _:${of.value} .`;
+	return isFormula(object) ? `${subjectText}${rest.slice(0, -ending.length)} ${formulaText(object)} .` : `${subjectText}${rest}`;
 }
 
+/** Returns a formula as N3, its patterns between braces. */
+export const formulaText = ({ formula }: TN3Formula): string => `{ ${formula.map(patternText).join(" ")} }`;
+
+/** Returns a rule as N3: what its body derives as its head. */
+export const ruleText = (body: readonly TN3Pattern[], head: readonly TN3Pattern[]): string =>
+	patternText({ subject: { formula: body }, predicate: namedNode(LOG.implies), object: { formula: head } });
+
+/** Returns quads as N3, each a triple N3.js writes. */
+export const quadsText = (quads: readonly Quad[]): string => writer.quadsToString([...quads]);
+
+/** A triple pattern of terms, with an IRI where a term is a vocabulary's or a variable's name after `?`. */
+export const pattern = (subject: Quad_Subject | TN3Formula | string, predicate: Quad_Predicate | string, object: Quad_Object | TN3Formula | string): TN3Pattern => ({
+	subject: typeof subject === "string" ? termNamed(subject) : subject,
+	predicate: typeof predicate === "string" ? termNamed(predicate) : predicate,
+	object: typeof object === "string" ? termNamed(object) : object,
+});
+/** A variable written `?name`, or else a named node. */
+const termNamed = (name: string): NamedNode | Variable => (name.startsWith("?") ? DataFactory.variable(name.slice(1)) : namedNode(name));
+
+/** The rules of OWL 2 RL a query of members reads: a member of a class is a member of each superclass, and a fact of a property
+ *  is a fact of each superproperty. */
+export const OWL_RL_RULES = [
+	ruleText([pattern("?x", RDF.type, "?c"), pattern("?c", RDFS.subClassOf, "?d")], [pattern("?x", RDF.type, "?d")]),
+	ruleText([pattern("?s", "?p", "?o"), pattern("?p", RDFS.subPropertyOf, "?q")], [pattern("?s", "?q", "?o")]),
+].join("\n");
+
+/** Returns the quads of N3 text, read by N3.js's parser in N3 mode, which reads formulas and rules. */
+export const quadsOf = (text: string): Quad[] => new Parser({ format: MEDIA_TYPE.n3 }).parse(text);
+
 /** A field's or an edge's IRI, with the types an edge reaches. A field doesn't reach a type. */
-type TFieldTerm = { iri: string; targets: readonly string[] };
+type TFieldTerm = { iri: NamedNode; targets: readonly string[] };
 /** A type's terms as N3 states them: its label, its class, and each field and edge by its IRI. */
-type TTypeTerms = { label: string; classIri: string; fields: Map<string, TFieldTerm> };
+type TTypeTerms = { label: string; classIri: NamedNode; fields: Map<string, TFieldTerm> };
 
 /** The N3 terms of the records of the persisted types: each record as an individual of its type's class, and each of its
  *  facts as a triple whose predicate is the IRI its field or edge declares. An edge's value is the record it reaches. */
 export type TRecordTerms = {
-	/** A type's records and their facts as N3 statements, each record stated a member of its class. */
-	statements: (label: string, facts: readonly TFact[]) => string;
-	classIri: (label: string) => string;
-	/** The store's pattern of an individual's IRI and a field's IRI, as a read built-in names them. */
-	patternOf: (subject: string, predicate: string) => Required<Pick<TFact, "subject" | "predicate" | "namedGraph">>;
-	/** A fact's object as an N3 term. */
-	objectOf: (fact: TFact) => string;
-	/** The address of the record an individual's IRI names, in angle brackets as N3 writes it. */
-	addressOf: (iri: string) => { persistedAs: string; id: string };
-	/** The IRI of the record at an address, `Type:id`. */
-	individualAt: (address: string) => string;
+	/** A type's records and their facts as quads, each record stated a member of its class. */
+	statements: (label: string, facts: readonly TFact[]) => Quad[];
+	classIri: (label: string) => NamedNode;
+	/** The store's pattern of an individual and a field's IRI, as a read built-in names them. */
+	patternOf: (subject: Term, predicate: Term) => Required<Pick<TFact, "subject" | "predicate" | "namedGraph">>;
+	/** A fact's object as a term. */
+	objectOf: (fact: TFact) => Quad_Object;
+	/** The address of the record an individual names. */
+	addressOf: (individual: Term) => { persistedAs: string; id: string };
+	/** The individual that is the record at an address, `Type:id`. */
+	individualAt: (address: string) => NamedNode;
 };
 
 /** Returns the N3 terms of the records of the types a concern catalog states, with each IRI from the served context, which
@@ -66,10 +114,10 @@ export function recordTerms(catalog: TConcernCatalog, context: Record<string, un
 			label,
 			{
 				label,
-				classIri: iriIn(context, label),
+				classIri: namedNode(iriIn(context, label)),
 				fields: new Map([
-					...Object.entries(properties).map(([field, { term }]): [string, TFieldTerm] => [field, { iri: iriIn(context, term), targets: [] }]),
-					...Object.entries(edges).map(([edge, { term, targets }]): [string, TFieldTerm] => [edge, { iri: iriIn(context, term), targets }]),
+					...Object.entries(properties).map(([field, { term }]): [string, TFieldTerm] => [field, { iri: namedNode(iriIn(context, term)), targets: [] }]),
+					...Object.entries(edges).map(([edge, { term, targets }]): [string, TFieldTerm] => [edge, { iri: namedNode(iriIn(context, term)), targets }]),
 				]),
 			},
 		]),
@@ -85,44 +133,44 @@ export function recordTerms(catalog: TConcernCatalog, context: Record<string, un
 		return held;
 	};
 	/** The IRI of a record of a persisted type: its record IRI, expanded through the context. */
-	const individualOf = (label: string, id: string): string => iriIn(context, recordIri(records.prefix, typeOf(label).label, id));
+	const individualOf = (label: string, id: string): NamedNode => namedNode(iriIn(context, recordIri(records.prefix, typeOf(label).label, id)));
 	const fieldOf = (label: string, field: string): TFieldTerm => {
 		const held = typeOf(label).fields.get(field);
 		if (held === undefined) throw new Error(`${label} doesn't declare the field ${field}, so its facts don't have an N3 predicate. Declare the field in the type's topology.`);
 		return held;
 	};
-	const objectOf = ({ namedGraph, predicate, object }: TFact): string => {
+	const objectOf = ({ namedGraph, predicate, object }: TFact): Quad_Object => {
 		const { targets } = fieldOf(namedGraph, predicate);
-		if (targets.length === 0) return n3Term(object);
+		if (targets.length === 0) return termOf(object);
 		if (targets.length > 1)
 			throw new Error(
 				`the edge ${predicate} of ${namedGraph} reaches ${targets.join(", ")}, so its value ${String(object)} doesn't name one record. Declare one range for the edge.`,
 			);
-		return `<${individualOf(itemAt(targets, 0), String(object))}>`;
+		return individualOf(itemAt(targets, 0), String(object));
 	};
-	const iriOf = (subject: string): { label: string; id: string } => {
-		const named = subject.startsWith(namespace) ? recordOfIri(`${records.prefix}:${subject.slice(namespace.length)}`) : undefined;
+	const iriOf = (individual: Term): { label: string; id: string } => {
+		const iri = individual.value;
+		const named = individual.termType === "NamedNode" && iri.startsWith(namespace) ? recordOfIri(`${records.prefix}:${iri.slice(namespace.length)}`) : undefined;
 		const label = named === undefined ? undefined : byLowerLabel.get(named.lowerLabel);
-		if (named === undefined || label === undefined) throw new Error(`${subject} isn't the IRI of a record of a persisted type. Name a record as recordIri names it.`);
+		if (named === undefined || label === undefined) throw new Error(`${iri} isn't the IRI of a record of a persisted type. Name a record as recordIri names it.`);
 		return { label, id: named.id };
 	};
 	return {
 		classIri: (label) => typeOf(label).classIri,
 		statements: (label, facts) => {
 			const { classIri } = typeOf(label);
-			const subjects = [...new Set(facts.map(({ subject }) => subject))].map((id) => `<${individualOf(label, id)}> a <${classIri}> .`);
-			return [...subjects, ...facts.map((fact) => `<${individualOf(label, fact.subject)}> <${fieldOf(label, fact.predicate).iri}> ${objectOf(fact)} .`)].join("\n");
+			const typed = [...new Set(facts.map(({ subject }) => subject))].map((id) => DataFactory.quad(individualOf(label, id), namedNode(RDF.type), classIri));
+			return [...typed, ...facts.map((fact) => DataFactory.quad(individualOf(label, fact.subject), fieldOf(label, fact.predicate).iri, objectOf(fact)))];
 		},
 		patternOf: (subject, predicate) => {
-			const { label, id } = iriOf(subject.slice(1, -1));
-			const iri = predicate.slice(1, -1);
-			const field = [...typeOf(label).fields].find(([, held]) => held.iri === iri);
-			if (field === undefined) throw new Error(`${label} doesn't declare a field whose IRI is ${iri}. Read a field the type declares.`);
+			const { label, id } = iriOf(subject);
+			const field = [...typeOf(label).fields].find(([, held]) => held.iri.equals(predicate));
+			if (field === undefined) throw new Error(`${label} doesn't declare a field whose IRI is ${predicate.value}. Read a field the type declares.`);
 			return { subject: id, predicate: field[0], namedGraph: label };
 		},
 		objectOf,
-		addressOf: (iri) => {
-			const { label, id } = iriOf(iri.slice(1, -1));
+		addressOf: (individual) => {
+			const { label, id } = iriOf(individual);
 			return { persistedAs: label, id };
 		},
 		individualAt: (address) => {

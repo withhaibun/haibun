@@ -2,6 +2,7 @@
  * The calls a process sends to the `/rpc` of a haibun host: each call built over the wire's envelope with the proof its
  * sender computes, the sign-ins this process holds for the sites it calls, and the handshake that begins every surface.
  */
+import { MEDIA_TYPE } from "../../domains/media-types.js";
 import { stripTrailingSlash } from "../../domains/local-origin.js";
 import { basicAuthorization, type TBasicAuthUser } from "../../domains/basic-auth.js";
 import {
@@ -46,7 +47,7 @@ export function releaseSignIn(origin: string): void {
 export async function buildRpcCall(base: string, envelope: TRpcEnvelope, prove: TProveRequest): Promise<TRpcCall> {
 	const url = `${stripTrailingSlash(base)}${RPC_ROUTE}${encodeURIComponent(envelope.method)}`;
 	const body = rpcEnvelope(envelope);
-	const headers = { "content-type": "application/json", host: new URL(url).host };
+	const headers = { "content-type": MEDIA_TYPE.json, host: new URL(url).host };
 	const signedIn = heldSignIns.get(new URL(url).origin);
 	return { url, init: { method: "POST", headers: { ...(await prove({ url, method: "POST", headers, body })), ...signedIn }, body, credentials: WITH_THE_SITES_SIGN_IN } };
 }

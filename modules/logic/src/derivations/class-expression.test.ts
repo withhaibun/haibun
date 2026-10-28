@@ -3,6 +3,9 @@
  * mix of `and` and `or` without parentheses, and one class per part in the rules that derive its members.
  */
 import { describe, expect, it } from "vitest";
+import { DataFactory } from "n3";
+import { LOG, RDF } from "@haibun/core/lib/domains/vocabularies.js";
+import { patternText } from "./n3.js";
 import { dlOf, expressionRules, frozenMembers, nameRefusal, namesOf, parseClassExpression, readingOf, type TVocabulary } from "./class-expression.js";
 
 describe("parseClassExpression", () => {
@@ -34,17 +37,23 @@ describe("parseClassExpression", () => {
 	});
 });
 
+const IRIS = {
+	classIri: (name: string) => DataFactory.namedNode(`urn:c:${name}`),
+	propertyIri: (name: string) => DataFactory.namedNode(`urn:p:${name}`),
+	individualIri: (address: string) => DataFactory.namedNode(`urn:i:${address}`),
+};
+const IMPLIES = `<${LOG.implies}>`;
+const TYPE = `<${RDF.type}>`;
+
 describe("expressionRules", () => {
-	const iris = { classIri: (name: string) => `urn:c:${name}`, propertyIri: (name: string) => `urn:p:${name}`, individualIri: (address: string) => `urn:i:${address}` };
 	it("derives a named class's members by its own class, and each other part by a class of the query", () => {
-		expect(expressionRules({ named: "Note" }, "urn:q#", iris).rules).toBe("");
-		const { rules, query } = expressionRules(parseClassExpression("Note and isPartOf some Step"), "urn:q#", iris);
-		const type = "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>";
+		expect(expressionRules({ named: "Note" }, "urn:q#", IRIS).rules).toBe("");
+		const { rules, query } = expressionRules(parseClassExpression("Note and isPartOf some Step"), "urn:q#", IRIS);
 		expect(rules.split("\n")).toEqual([
-			`{ ?x <urn:p:isPartOf> ?y . ?y ${type} <urn:c:Step> } => { ?x ${type} <urn:q#e2> } .`,
-			`{ ?x ${type} <urn:c:Note> . ?x ${type} <urn:q#e2> } => { ?x ${type} <urn:q#e1> } .`,
+			`{ ?x <urn:p:isPartOf> ?y . ?y ${TYPE} <urn:c:Step> . } ${IMPLIES} { ?x ${TYPE} <urn:q#e2> . } .`,
+			`{ ?x ${TYPE} <urn:c:Note> . ?x ${TYPE} <urn:q#e2> . } ${IMPLIES} { ?x ${TYPE} <urn:q#e1> . } .`,
 		]);
-		expect(query).toBe(`{ ?x ${type} <urn:q#e1> } => { ?x ${type} <urn:q#e1> } .`);
+		expect(query).toBe(`{ ?x ${TYPE} <urn:q#e1> . } ${IMPLIES} { ?x ${TYPE} <urn:q#e1> . } .`);
 	});
 });
 
@@ -75,11 +84,9 @@ describe("an expression's notations and its member", () => {
 		expect(dlOf(parseClassExpression("inverse isPartOf some Note"))).toBe("∃isPartOf⁻.Note");
 	});
 	it("states a member that stands for any member of each alternative, with a fresh individual for each value an existential reaches", () => {
-		const iris = { classIri: (name: string) => `urn:c:${name}`, propertyIri: (name: string) => `urn:p:${name}`, individualIri: (address: string) => `urn:i:${address}` };
-		const type = "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>";
-		expect(frozenMembers(expression, "<urn:m>", "urn:q#", iris)).toEqual([
-			[`<urn:m> ${type} <urn:c:Note>`, "<urn:m> <urn:p:isPartOf> <urn:q#v1>", `<urn:q#v1> ${type} <urn:c:Step>`],
-			[`<urn:m> ${type} <urn:c:Note>`, "<urn:m> <urn:p:isPartOf> <urn:i:Step:s2>"],
+		expect(frozenMembers(expression, DataFactory.namedNode("urn:m"), "urn:q#", IRIS).map((facts) => facts.map(patternText))).toEqual([
+			[`<urn:m> ${TYPE} <urn:c:Note> .`, "<urn:m> <urn:p:isPartOf> <urn:q#v1> .", `<urn:q#v1> ${TYPE} <urn:c:Step> .`],
+			[`<urn:m> ${TYPE} <urn:c:Note> .`, "<urn:m> <urn:p:isPartOf> <urn:i:Step:s2> ."],
 		]);
 	});
 });

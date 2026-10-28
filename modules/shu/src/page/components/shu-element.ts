@@ -35,6 +35,7 @@
  * resolve their children) override `createRenderRoot()` to return `this`.
  */
 
+import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { LitElement, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
@@ -475,7 +476,7 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 	/** Wrap a view's hypermedia products as a W3C `<script type="application/ld+json">` block. Used when a view embeds its structured payload for the chat-context harvester / a downstream agent following `_links`. */
 	protected emitHypermediaScript(products: unknown): string {
 		if (products == null) throw new Error(`<${this.localName}>.emitHypermediaScript called with ${products === null ? "null" : "undefined"} products`);
-		return `<script type="application/ld+json">${JSON.stringify(products).replaceAll("</", "<\\/")}</script>`;
+		return `<script type="${MEDIA_TYPE.jsonld}">${JSON.stringify(products).replaceAll("</", "<\\/")}</script>`;
 	}
 
 	/** Subscribe to inbound events via the installed `TEventStream`, batching all events received between paints into one `onBatch(events)` call inside an animation frame. Delegates to the shared `subscribeBatchedEvents` (the data controllers use the same path). */

@@ -4,6 +4,7 @@
  * so the press's click reaches it; and the column leaves the document while its virtualizer lays out rows without an
  * error. Each needs a layout, which only a browser computes.
  */
+import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,7 +28,7 @@ beforeAll(async () => {
 	opened = await openTestPage(
 		(url, res) => {
 			if (url === "/") res.writeHead(200, { "Content-Type": "text/html" }).end(PAGE);
-			else if (url === VIRTUAL_COLUMN_PAGE.entry) res.writeHead(200, { "Content-Type": "application/javascript" }).end(entry);
+			else if (url === VIRTUAL_COLUMN_PAGE.entry) res.writeHead(200, { "Content-Type": MEDIA_TYPE.javascript }).end(entry);
 			else return false;
 			return true;
 		},

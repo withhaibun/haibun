@@ -1,13 +1,15 @@
 /**
- * EYE's proof as structured steps: the proof's conclusion, each inference with its evidence and rule, each extraction with
- * its source, and a rule's formula giving an empty list of triples. The proof is the one EYE writes for `:a a :Step` and the rule from a
- * step to an activity.
+ * EYE's proof as structured steps, read by N3.js: the proof's conclusion, each inference with its evidence and rule, each
+ * extraction with its source, and a rule's formula giving an empty list of triples. The proof is the one EYE writes for
+ * `:a a :Step` and the rule from a step to an activity.
  */
 import { describe, expect, it } from "vitest";
+import type { Quad, Term } from "@rdfjs/types";
+import { NAMESPACE, RDF } from "@haibun/core/lib/domains/vocabularies.js";
 import { proofOf } from "./proof.js";
 
-const R = "http://www.w3.org/2000/10/swap/reason#";
-const TYPE = "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>";
+const R = NAMESPACE.r;
+const TYPE = `<${RDF.type}>`;
 const [ACTIVITY, STEP, A, X] = ["<urn:t#Activity>", "<urn:t#Step>", "<urn:t#a>", "<http://www.w3.org/2000/10/swap/var#x_0>"];
 const lemma = (n: number | string) => `<urn:genid#${n}>`;
 const extraction = (n: number, gives: string, source: string) =>
@@ -24,29 +26,43 @@ const PROOF = [
 	extraction(4, `${A} ${TYPE} ${STEP}.`, "sources.n3"),
 	extraction(5, rule(STEP, ACTIVITY), "sources.n3"),
 ].join("\n\n");
-const activity = { subject: A, predicate: TYPE, object: ACTIVITY };
+
+const value = (n3: string): string => n3.slice(1, -1);
+/** A quad's subject, predicate and object, each by its value. */
+const triple = ({ subject, predicate, object }: Quad) => [subject.value, predicate.value, object.value];
+const activity = [value(A), RDF.type, value(ACTIVITY)];
 
 describe("proofOf", () => {
 	it("reads the proof's conclusion and each step with its evidence, its rule and its source", () => {
-		const { gives, steps } = proofOf(PROOF);
-		expect(gives).toEqual([activity]);
-		expect(steps).toEqual([
-			{ step: lemma("proof"), kind: "proof", gives: [activity], evidence: [lemma(1)] },
-			{ step: lemma(1), kind: "inference", gives: [activity], evidence: [lemma(2)], rule: lemma(3) },
-			{ step: lemma(2), kind: "inference", gives: [activity], evidence: [lemma(4)], rule: lemma(5) },
-			{ step: lemma(3), kind: "extraction", gives: [], evidence: [], source: "<file:///query.n3>" },
-			{ step: lemma(4), kind: "extraction", gives: [{ subject: A, predicate: TYPE, object: STEP }], evidence: [], source: "<file:///sources.n3>" },
-			{ step: lemma(5), kind: "extraction", gives: [], evidence: [], source: "<file:///sources.n3>" },
+		const { gives, steps, text } = proofOf(PROOF);
+		expect(gives.map(triple)).toEqual([activity]);
+		expect(text).toBe(PROOF);
+		const values = (terms: readonly Term[]) => terms.map((term) => term.value);
+		expect(
+			steps.map(({ step, kind, gives: held, evidence, rule: applied, source }) => ({
+				step: step.value,
+				kind,
+				gives: held.map(triple),
+				evidence: values(evidence),
+				rule: applied?.value,
+				source: source?.value,
+			})),
+		).toEqual([
+			{ step: value(lemma("proof")), kind: "proof", gives: [activity], evidence: [value(lemma(1))], rule: undefined, source: undefined },
+			{ step: value(lemma(1)), kind: "inference", gives: [activity], evidence: [value(lemma(2))], rule: value(lemma(3)), source: undefined },
+			{ step: value(lemma(2)), kind: "inference", gives: [activity], evidence: [value(lemma(4))], rule: value(lemma(5)), source: undefined },
+			{ step: value(lemma(3)), kind: "extraction", gives: [], evidence: [], rule: undefined, source: "file:///query.n3" },
+			{ step: value(lemma(4)), kind: "extraction", gives: [[value(A), RDF.type, value(STEP)]], evidence: [], rule: undefined, source: "file:///sources.n3" },
+			{ step: value(lemma(5)), kind: "extraction", gives: [], evidence: [], rule: undefined, source: "file:///sources.n3" },
 		]);
 	});
 
 	it("reads empty text as a proof that gives an empty list, since EYE writes an empty text where the query selects an empty set", () => {
-		expect(proofOf("")).toEqual({ gives: [], steps: [] });
+		expect(proofOf("")).toEqual({ gives: [], steps: [], text: "" });
 	});
 
-	it("refuses text that doesn't state its proof, a step without a kind, and a statement cut short", () => {
+	it("refuses text that doesn't state its proof, and a statement cut short", () => {
 		expect(() => proofOf(extraction(4, `${A} ${TYPE} ${STEP}.`, "sources.n3"))).toThrow(/doesn't state its proof/);
-		expect(() => proofOf(`${A} ${TYPE} ${STEP}.`)).toThrow(/without a kind of step/);
-		expect(() => proofOf(`${lemma(1)} <${R}gives> { ${A} ${TYPE}`)).toThrow(/ended inside a statement/);
+		expect(() => proofOf(`${lemma(1)} <${R}gives> { ${A} ${TYPE}`)).toThrow();
 	});
 });

@@ -5,6 +5,7 @@
  */
 import type { TLintFinding } from "@haibun/core/lib/domains/goal-resolution.js";
 import type { TProofState } from "./domains/logic.js";
+import type { Term } from "@rdfjs/types";
 import type { TReasonerState } from "./domains/reasoning.js";
 
 export type TLogicEngine = {
@@ -24,8 +25,8 @@ export type TLogicEngine = {
 export type TReasonerSession = {
 	/** Starts the session over its sources and query. An explained session's derived text is the proof of what the query selects. */
 	start: (sources: string, query: string, explained: boolean) => Promise<TReasonerState>;
-	/** Resumes with the objects the read found, each an N3 term. */
-	resume: (rows: readonly string[]) => TReasonerState;
+	/** Resumes with the objects the read found. */
+	resume: (rows: readonly Term[]) => TReasonerState;
 };
 
 /** The reasoner: it runs each session once the sessions before it ended. */

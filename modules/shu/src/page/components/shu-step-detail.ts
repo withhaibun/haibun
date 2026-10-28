@@ -6,6 +6,7 @@
  * read of the graph rather than a second account of the same act. The read is a load controller's, so opening another
  * step ends the earlier read without showing it, and a refused read shows the refusal and its remedy.
  */
+import { PROV_ACTIVITY } from "@haibun/core/lib/domains/vocabularies.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { recordJson } from "./json-disclosure.js";
 import { html, css, type TemplateResult } from "lit";
@@ -50,7 +51,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		if (!data?.step) return null;
 		return {
 			"@id": `view:step-${this.state.record?.id}`,
-			"@type": "prov:Activity",
+			"@type": PROV_ACTIVITY,
 			name: "a step's detail",
 			step: data.step,
 			...(data.variablesSet.length ? { variablesSet: data.variablesSet } : {}),

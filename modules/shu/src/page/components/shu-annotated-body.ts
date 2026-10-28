@@ -17,6 +17,7 @@
  * The `.annotated-content` node does NOT carry lit bindings, so lit creates it once and never re-diffs it, leaving the
  * innerHTML this component sets and the layer the annotator injects intact across re-renders (see lit render pitfalls).
  */
+import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { html, type TemplateResult, type PropertyValues } from "lit";
@@ -146,7 +147,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 	}
 
 	@property({ attribute: false }) accessor content = "";
-	@property({ attribute: false }) accessor mediaType = "text/plain";
+	@property({ attribute: false }) accessor mediaType: string = MEDIA_TYPE.plain;
 	@property({ attribute: false }) accessor sourceId = "";
 	@property({ attribute: false }) accessor sourceLabel = "";
 	@property({ attribute: false }) accessor annotations: TAnnotationView[] = [];
@@ -548,7 +549,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 							@click=${() => this.selectCard(a.commentId)}
 						>
 							<div class="annotation-card-quote">“${a.exact}”</div>
-							${a.body ? html`<div class="annotation-card-body">${unsafeHTML(DOMPurify.sanitize(renderContentHtml(a.body, "text/markdown", refContext), STYLED_REF_SANITIZE))}</div>` : html``}
+							${a.body ? html`<div class="annotation-card-body">${unsafeHTML(DOMPurify.sanitize(renderContentHtml(a.body, MEDIA_TYPE.markdown, refContext), STYLED_REF_SANITIZE))}</div>` : html``}
 							${a.author ? html`<div class="annotation-card-author">${recordRef(principalAddress(a.author), a.author)}</div>` : html``}
 							${(a.links ?? []).map(
 								(link) => html`<span

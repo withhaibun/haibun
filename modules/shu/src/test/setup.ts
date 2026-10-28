@@ -15,6 +15,7 @@
  * what was missed.
  */
 
+import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { actualityAt } from "@haibun/core/lib/transport/adapters/rpc-call.js";
 import { HYDRATION_ID } from "../domains/elements.js";
 import { RESPONSE_TIMEOUT_MS, type TDeploymentSettings } from "../domains/hydration.js";
@@ -319,7 +320,7 @@ const CARRIED_RUN = { shape: CACHE_SHAPE, actuality: "r1", quads: [] };
 export function hydrate(payload: unknown): HTMLScriptElement {
 	document.getElementById(HYDRATION_ID)?.remove();
 	const script = document.createElement("script");
-	script.type = "application/json";
+	script.type = MEDIA_TYPE.json;
 	script.id = HYDRATION_ID;
 	script.textContent = JSON.stringify(payload);
 	document.head.appendChild(script);
@@ -372,7 +373,7 @@ export function setupShuTest(config: TShuTestConfig = {}): TShuTestHandle {
 		});
 	const conduit = new TestConduit(dispatch);
 	const eventStream = installCarriedEventStream();
-	const stopServingArtifacts = servingArtifacts(config.artifact ?? (() => new Response(new Blob([], { type: "image/png" }))));
+	const stopServingArtifacts = servingArtifacts(config.artifact ?? (() => new Response(new Blob([], { type: MEDIA_TYPE.png }))));
 	installConduit(conduit);
 	installAuthority(authorityPort());
 	installMemoryDeviceStore();

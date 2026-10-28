@@ -3,6 +3,7 @@ import { actionUnder, capabilityAllows, EVERY_ACTION, NEVER_EXPIRES, permissionO
 import { Access } from "@haibun/core/lib/domains/resources.js";
 import { reasoner } from "../root.js";
 import { containment } from "./containment.js";
+import { CONTAINMENT_TERM } from "../derivations/containment.js";
 
 const exceeding = async (candidate: Parameters<typeof containment>[1], bound: Parameters<typeof containment>[2]) => (await containment(reasoner(), candidate, bound)).exceeds;
 
@@ -57,7 +58,7 @@ describe("containment", () => {
 		const child = { actions: ["TrustedList:registerAnchor"], target: "https://lists.example/trusted-lists/eu", expires: "2027-01-01T00:00:00Z" };
 		const { exceeds, proof } = await containment(reasoner(), child, parent);
 		expect(exceeds).toEqual([]);
-		expect(proof.gives.map(({ predicate }) => predicate)).toEqual(["<urn:haibun:containedIn>"]);
+		expect(proof.gives.map(({ predicate }) => predicate.value)).toEqual([CONTAINMENT_TERM.containedIn.value]);
 	});
 
 	it("returns each action, target and expiry a delegation holds beyond its parent as the witness", async () => {

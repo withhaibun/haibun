@@ -4,6 +4,7 @@
  * its first step and ends after its failure cycle; a scenario starts at its heading and ends where the next scenario,
  * the next feature heading or the feature's last step ends it.
  */
+import { MEDIA_TYPE } from "../../domains/media-types.js";
 import { basename } from "path";
 import { RUN_AUTHORITY, runAuthorizedWith } from "../../domains/capability-context.js";
 import type { TWorld } from "../domains/world.js";
@@ -91,7 +92,7 @@ export class Executor {
 				kind: "artifact",
 				artifactType: "resolvedFeatures",
 				resolvedFeatures: features.map(featureAsData),
-				mimetype: "application/json",
+				mimetype: MEDIA_TYPE.json,
 			}),
 		);
 

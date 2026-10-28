@@ -10,6 +10,16 @@ export const MEDIA_TYPE = {
 	html: "text/html",
 	csv: "text/csv",
 	json: "application/json",
+	jsonld: "application/ld+json",
+	/** Notation3, as the reasoner reads and writes it (W3C Team Submission, Notation3). */
+	n3: "text/n3",
+	turtle: "text/turtle",
+	/** JavaScript, as RFC 9239 names it. */
+	javascript: "text/javascript",
+	eventStream: "text/event-stream",
+	ndjson: "application/x-ndjson",
+	mermaid: "text/x-mermaid",
+	formUrlEncoded: "application/x-www-form-urlencoded",
 	pdf: "application/pdf",
 	zip: "application/zip",
 	docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",

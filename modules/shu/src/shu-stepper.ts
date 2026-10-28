@@ -2,6 +2,7 @@
  * ShuStepper: serves the @haibun/shu hypermedia SPA.
  * Any application that loads this stepper gets a UI driven entirely by stepper concerns.
  */
+import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { z } from "zod";
 import { AStepper, type TStepperSteps, type IHasOptions } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK, actionOKWithProducts, errorDetail, getFromRuntime, getStepperOption, intOrError } from "@haibun/core/lib/domains/util.js";
@@ -61,7 +62,7 @@ function createSpaHandler(basePath: string, hydration: () => TServedHydration) {
 /** An Accept-Encoding header that accepts gzip. */
 const GZIP = /\bgzip\b/;
 /** The media type of a served bundle file, by its name's extension. */
-const assetType = (path: string): string => (path.endsWith(".map") ? "application/json" : "application/javascript");
+const assetType = (path: string): string => (path.endsWith(".map") ? MEDIA_TYPE.json : MEDIA_TYPE.javascript);
 
 /** A served bundle file's response. The file is read on each request, so a rebuilt one is served after `npm run build`
  *  without a restart. `no-cache` revalidates it, so an unchanged file returns 304 and a rebuilt one gets a fresh ETag and a full

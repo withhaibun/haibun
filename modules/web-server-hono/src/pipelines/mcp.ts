@@ -3,6 +3,7 @@
  * presented, through the dispatch that `/rpc` calls take. A request is verified as a whole, the body its digest covers
  * included, before its server reads it.
  */
+import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPTransport } from "@hono/mcp";
 import {
@@ -33,7 +34,7 @@ import { refuseInvocation } from "./capability-verifier.js";
 /** The name this MCP server states to its callers. */
 const SERVER_NAME = "haibun-mcp";
 /** The media types a caller of the endpoint accepts, which the transport requires a request to state. */
-const ACCEPTS = "application/json, text/event-stream";
+const ACCEPTS = `${MEDIA_TYPE.json}, ${MEDIA_TYPE.eventStream}`;
 /** The header that states the media types a request accepts. */
 const ACCEPT_HEADER = "Accept";
 
@@ -92,11 +93,11 @@ function mcpServerOf(parts: TMcpParts): McpServer {
 		return callTool(parts, request.params.name, args === undefined ? {} : args, callerOfRequest(parts.verifier));
 	});
 	mcpServer.server.setRequestHandler(ListResourcesRequestSchema, () => ({
-		resources: [{ uri: info, name: "Haibun MCP Server Info", mimeType: "application/json", description: "Basic information about this MCP server" }],
+		resources: [{ uri: info, name: "Haibun MCP Server Info", mimeType: MEDIA_TYPE.json, description: "Basic information about this MCP server" }],
 	}));
 	mcpServer.server.setRequestHandler(ReadResourceRequestSchema, (request) => {
 		if (request.params.uri !== info) throw new McpError(ErrorCode.InvalidRequest, `Resource not found: ${request.params.uri}`);
-		return { contents: [{ uri: request.params.uri, mimeType: "application/json", text: JSON.stringify({ version: parts.version, name: SERVER_NAME, status: "running" }) }] };
+		return { contents: [{ uri: request.params.uri, mimeType: MEDIA_TYPE.json, text: JSON.stringify({ version: parts.version, name: SERVER_NAME, status: "running" }) }] };
 	});
 	return mcpServer;
 }

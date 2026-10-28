@@ -2,6 +2,7 @@
  * The documents shu serves: the page a server serves, which loads its bundle, the standalone report that carries its
  * bundle and hydration as a payload, and the component scripts a report inlines.
  */
+import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { gzipSync } from "node:zlib";
 import { HYDRATION_ID } from "../domains/elements.js";
 import type { TServedHydration } from "../domains/hydration.js";
@@ -37,7 +38,7 @@ ${scriptsHtml}
 
 /** The page a server serves: its hydration element, and its bundle loaded as a module under the response's script nonce. */
 export function buildSpaHtml(basePath: string, hydration: TServedHydration, nonce: string): string {
-	const scripts = `  <script type="application/json" id="${HYDRATION_ID}">${JSON.stringify(hydration)}</script>\n\n  <script type="module" nonce="${nonce}" src="${PAGE_BUNDLE_JS}"></script>`;
+	const scripts = `  <script type="${MEDIA_TYPE.json}" id="${HYDRATION_ID}">${JSON.stringify(hydration)}</script>\n\n  <script type="module" nonce="${nonce}" src="${PAGE_BUNDLE_JS}"></script>`;
 	return spaDocument(basePath, scripts);
 }
 
@@ -48,11 +49,11 @@ export function buildSpaHtml(basePath: string, hydration: TServedHydration, nonc
  * plain JSON with `</` escaped, so a reader audits its redacted text in the file, as the check of obscured secrets does.
  */
 export function buildReportHtml(basePath: string, payload: string, compressed: boolean): string {
-	const inject = `const h = document.createElement("script"); h.type = "application/json"; h.id = "${HYDRATION_ID}"; h.textContent = hydration; document.body.appendChild(h);
+	const inject = `const h = document.createElement("script"); h.type = "${MEDIA_TYPE.json}"; h.id = "${HYDRATION_ID}"; h.textContent = hydration; document.body.appendChild(h);
     for (const s of scripts) { const el = document.createElement("script"); el.textContent = s; document.body.appendChild(el); }
     const b = document.createElement("script"); b.textContent = bundle; document.body.appendChild(b);`;
 	const loader = compressed
-		? `  <script type="application/octet-stream" id="shu-payload">${gzipSync(payload).toString("base64")}</script>
+		? `  <script type="${MEDIA_TYPE.bytes}" id="shu-payload">${gzipSync(payload).toString("base64")}</script>
   <script>
   (async () => {
     const raw = Uint8Array.from(atob(document.getElementById("shu-payload").textContent), (c) => c.charCodeAt(0));
@@ -60,7 +61,7 @@ export function buildReportHtml(basePath: string, payload: string, compressed: b
     ${inject}
   })();
   </script>`
-		: `  <script type="application/json" id="shu-payload">${payload.replaceAll("</", "<\\/")}</script>
+		: `  <script type="${MEDIA_TYPE.json}" id="shu-payload">${payload.replaceAll("</", "<\\/")}</script>
   <script>
   (() => {
     const { bundle, hydration, scripts } = JSON.parse(document.getElementById("shu-payload").textContent);

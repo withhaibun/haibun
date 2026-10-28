@@ -3,6 +3,7 @@
  * and the pages and samples a store returns. A quad carries properties, as a property-graph store's vertex carries them,
  * so a store with an engine writes a quad's properties as they are.
  */
+import { MEDIA_TYPE } from "../../domains/media-types.js";
 import { z } from "zod";
 import type { TListQuery } from "../../domains/lists.js";
 import { AccessLevelSchema, AccessQueryLevelSchema, type AccessLevel } from "../../domains/resources.js";
@@ -318,7 +319,7 @@ export function quadObservation(id: string, quad: TQuad): TJsonArtifact {
 		level: "debug",
 		kind: "artifact",
 		artifactType: "json",
-		mimetype: "application/json",
+		mimetype: MEDIA_TYPE.json,
 		json: { quadObservation: observed },
 	};
 }

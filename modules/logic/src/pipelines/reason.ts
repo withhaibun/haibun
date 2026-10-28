@@ -13,8 +13,10 @@ import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { buildConcernCatalog, getJsonLdContext } from "@haibun/core/lib/domains/hypermedia.js";
 import { isPersisted, withinAccess, type TRecordNamespace, type TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
 import { readingAt } from "@haibun/core/lib/domains/capability-context.js";
-import { COMPLETE_GRAPH, REASONING_READ_CEILING, type TExplained, type TOpenGraph, type TReasoning, type TTriple } from "../domains/reasoning.js";
-import { recordTerms, triplesOf } from "../derivations/n3.js";
+import type { Quad } from "@rdfjs/types";
+import { DataFactory } from "n3";
+import { COMPLETE_GRAPH, REASONING_READ_CEILING, type TExplained, type TOpenGraph, type TReasoning } from "../domains/reasoning.js";
+import { patternText, quadsOf, recordTerms } from "../derivations/n3.js";
 import { proofOf } from "../derivations/proof.js";
 import type { TReasoner } from "../ports.js";
 import { readerOf } from "./reads.js";
@@ -26,8 +28,8 @@ export async function reason(
 	domains: Record<string, TRegisteredDomain>,
 	records: TRecordNamespace,
 	reasoning: TReasoning,
-): Promise<TTriple[]> {
-	return triplesOf((await reasoned(reasoner, store, domains, records, reasoning, false)).derived);
+): Promise<Quad[]> {
+	return quadsOf((await reasoned(reasoner, store, domains, records, reasoning, false)).derived);
 }
 
 /** Returns the proof of what a reasoning's query selects, and the graphs its rules close over that are open to the reader. */
@@ -66,7 +68,9 @@ async function reasoned(
 	const reader = readerOf(store);
 	// A graph complete to the reader is read up to the ceiling; one whose read stopped there is open, and isn't stated.
 	const reads = await Promise.all(closing.filter(({ complete }) => complete).map(async ({ graph }) => ({ graph, ...(await reader.records(graph)) })));
-	const formulas = reads.flatMap(({ graph, facts, truncated }) => (truncated ? [] : [`<${terms.classIri(graph)}> <${COMPLETE_GRAPH}> {\n${terms.statements(graph, facts)}\n} .`]));
+	const formulas = reads.flatMap(({ graph, facts, truncated }) =>
+		truncated ? [] : [patternText({ subject: terms.classIri(graph), predicate: DataFactory.namedNode(COMPLETE_GRAPH), object: { formula: terms.statements(graph, facts) } })],
+	);
 	const open: TOpenGraph[] = [
 		...closing.flatMap(({ graph, accessLevel, complete }) => (complete ? [] : [{ graph, accessLevel }])),
 		...reads.flatMap(({ graph, truncated }) => (truncated ? [{ graph, readCeiling: REASONING_READ_CEILING }] : [])),

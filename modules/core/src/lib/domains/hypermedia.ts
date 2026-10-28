@@ -197,6 +197,7 @@ function subPropertyOfRel(rel: string): string | string[] | undefined {
 	}
 	return undefined;
 }
+import { NAMESPACE, RDFS_CLASS, RDF_PROPERTY, XSD_BOOLEAN, XSD_DATE, XSD_DATE_TIME, XSD_DECIMAL, XSD_DOUBLE, XSD_INTEGER } from "./vocabularies.js";
 import { AccessLevelSchema, DOMAIN_PERSISTED_TYPE, GeneratedAtTimeTextSchema, HAIBUN_NS, type TRecordNamespace, type TRegisteredDomain } from "./resources.js";
 import { DOMAIN_UNION, hypermediaDomainMap, refTargetOf } from "./domains.js";
 import { jsonSchemaFor } from "./json-schema-of.js";
@@ -516,15 +517,16 @@ export function viewCollection(states: { id: string; name: string; items: Readon
 	return ViewCollectionSchema.parse({ ...stated, "@id": id, name, items: [...items], totalItems: totalItems ?? items.length });
 }
 
-/** Type hint (xsd / primitive) → {zod, sql}. Defaults to string/TEXT. */
-const TYPE_KINDS: Record<string, { zod: () => z.ZodType; sql: string }> = {
-	"xsd:integer": { zod: () => z.number(), sql: "BIGINT" },
-	"xsd:decimal": { zod: () => z.number(), sql: "DOUBLE PRECISION" },
-	"xsd:double": { zod: () => z.number(), sql: "DOUBLE PRECISION" },
-	"xsd:boolean": { zod: () => z.boolean(), sql: "BOOLEAN" },
-	"xsd:date": { zod: () => z.string(), sql: "TIMESTAMP" },
-	"xsd:dateTime": { zod: () => z.string(), sql: "TIMESTAMP" },
-};
+/** Type hint (xsd / primitive) → {zod, sql}. Defaults to string/TEXT. A bundler keeps an object with computed keys, so it is
+ *  built by a pure call, which a bundle that doesn't read it leaves out. */
+const TYPE_KINDS: Record<string, { zod: () => z.ZodType; sql: string }> = /* @__PURE__ */ (() => ({
+	[XSD_INTEGER]: { zod: () => z.number(), sql: "BIGINT" },
+	[XSD_DECIMAL]: { zod: () => z.number(), sql: "DOUBLE PRECISION" },
+	[XSD_DOUBLE]: { zod: () => z.number(), sql: "DOUBLE PRECISION" },
+	[XSD_BOOLEAN]: { zod: () => z.boolean(), sql: "BOOLEAN" },
+	[XSD_DATE]: { zod: () => z.string(), sql: "TIMESTAMP" },
+	[XSD_DATE_TIME]: { zod: () => z.string(), sql: "TIMESTAMP" },
+}))();
 const kindOf = (typeHint?: string) => (typeHint && TYPE_KINDS[typeHint]) || { zod: () => z.string(), sql: "TEXT" };
 
 /**
@@ -1008,23 +1010,11 @@ function assertBoundPrefixes(label: string, domainKey: string, topology: THyperm
 /** The vocabularies core itself binds: the standards every domain may name, without declaring them. A consumer's own
  *  prefixes are NOT here: each domain declares those in `topology.namespaces`. ONE source, so what is served and what
  *  `assertBoundPrefixes` accepts cannot drift: a prefix that resolves in the context is exactly one a type may use. */
-const STANDARD_NAMESPACES: Record<string, string> = {
-	as: "https://www.w3.org/ns/activitystreams#",
-	foaf: "http://xmlns.com/foaf/0.1/",
-	dcterms: "http://purl.org/dc/terms/",
-	prov: "https://www.w3.org/ns/prov#",
-	sec: "https://w3id.org/security#",
-	did: "https://www.w3.org/ns/did#",
-	sosa: "http://www.w3.org/ns/sosa/",
-	schema: "https://schema.org/",
-	oa: "http://www.w3.org/ns/oa#",
-	skos: "http://www.w3.org/2004/02/skos/core#",
-	cito: "http://purl.org/spar/cito/",
-	earl: "http://www.w3.org/ns/earl#",
-	otel: "https://opentelemetry.io/schemas/",
-	rdf: "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
-	rdfs: "http://www.w3.org/2000/01/rdf-schema#",
-};
+const SERVED_PREFIXES = ["as", "foaf", "dcterms", "prov", "sec", "did", "sosa", "schema", "oa", "skos", "cito", "earl", "otel", "rdf", "rdfs"] as const;
+/** Each prefix's namespace, as the served context binds it. */
+const namespacesOf = (prefixes: readonly (keyof typeof NAMESPACE)[]): Record<string, string> => Object.fromEntries(prefixes.map((prefix) => [prefix, NAMESPACE[prefix]]));
+// A pure call, so a page that doesn't serve a context leaves the namespaces out of its bundle.
+const STANDARD_NAMESPACES = /* @__PURE__ */ namespacesOf(SERVED_PREFIXES);
 
 /** A JSON-LD context document: its term map, and the class and property nodes it states. */
 export type TJsonLdContextDocument = { "@context": Record<string, unknown>; "@graph": Record<string, unknown>[] };
@@ -1060,8 +1050,8 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, hai
 	const propNodes = new Map<string, Record<string, unknown>>();
 	const declareProp = (iri: string, hbnRel: string, subProperty: string | string[] | undefined): void => {
 		if (propNodes.has(iri)) return;
-		const node: Record<string, unknown> = { "@id": iri, "@type": "rdf:Property", "hbn:rel": hbnRel };
-		if (subProperty !== undefined) node["rdfs:subPropertyOf"] = iriRef(subProperty);
+		const node: Record<string, unknown> = { "@id": iri, "@type": RDF_PROPERTY, "hbn:rel": hbnRel };
+		if (subProperty !== undefined) node[LinkRelations.SUB_PROPERTY_OF.uri] = iriRef(subProperty);
 		propNodes.set(iri, node);
 	};
 	const subPropertyAxiom = (rel: string | undefined): string | string[] | undefined => {
@@ -1119,8 +1109,8 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, hai
 		const classIri = `hbn:${topology.persistedAs}`;
 		context[topology.persistedAs] = { "@id": classIri, "@context": typeContext };
 		const superclasses = [...(topology.type === undefined ? [] : [topology.type]), ...(topology.subClassOf === undefined ? [] : [topology.subClassOf].flat())];
-		const classNode: Record<string, unknown> = { "@id": classIri, "@type": "rdfs:Class" };
-		if (superclasses.length > 0) classNode["rdfs:subClassOf"] = iriRef(superclasses);
+		const classNode: Record<string, unknown> = { "@id": classIri, "@type": RDFS_CLASS };
+		if (superclasses.length > 0) classNode[LinkRelations.SUB_CLASS_OF.uri] = iriRef(superclasses);
 		classNodes.push(classNode);
 	}
 	for (const [key, { node, consistent }] of topTerm) {

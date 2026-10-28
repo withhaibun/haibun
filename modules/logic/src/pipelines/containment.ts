@@ -14,7 +14,7 @@ export async function containment(reasoner: TReasoner, candidate: TPermission, b
 	const derived = await reasoner.session(async (session) => {
 		const state = await session.start(`${CONTAINMENT_RULES}\n${containmentFacts(candidate, bound)}`, CONTAINMENT_QUERY, true);
 		if ("need" in state)
-			throw new Error(`a containment reads only its own facts, and its rules reached a read of ${state.predicate} of ${state.subject}. Check the containment rules.`);
+			throw new Error(`a containment reads only its own facts, and its rules reached a read of ${state.predicate.value} of ${state.subject.value}. Check the containment rules.`);
 		return state.derived;
 	});
 	const proof = proofOf(derived);

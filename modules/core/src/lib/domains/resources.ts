@@ -17,6 +17,7 @@
  * JSON-LD emits. `id` is the IRI.
  */
 import { stripTrailingSlash } from "./local-origin.js";
+import { PROV_ACTIVITY, PROV_AGENT } from "./vocabularies.js";
 import { z } from "zod";
 import { MEDIA_TYPE } from "./media-types.js";
 import { FragmentSchema, isFragment } from "./media-fragments.js";
@@ -1020,7 +1021,7 @@ export const principalDomainDefinition: TDomainDefinition = {
 		type: "sec:Controller",
 		// A Principal is the responsible agent every persisted node is attributed to (prov:wasAttributedTo, range
 		// prov:Agent). Declaring sec:Controller a kind of prov:Agent makes that attribution well-formed against the rel's range.
-		subClassOf: "prov:Agent",
+		subClassOf: PROV_AGENT,
 		id: "id",
 		accessLevel: Access.public,
 		properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, controller: LinkRelations.CONTROLLER.rel, publicKey: LinkRelations.PUBLIC_KEY.rel },
@@ -1219,7 +1220,7 @@ export const readingDomainDefinition: TDomainDefinition = {
 		persistedAs: READING_LABEL,
 		accessLevel: Access.private,
 		instrumentation: true,
-		type: "prov:Activity",
+		type: PROV_ACTIVITY,
 		id: "id",
 		properties: { id: LinkRelations.IDENTIFIER.rel, seqPath: LinkRelations.SEQ_PATH.rel, stated: LinkRelations.STATED.rel },
 		edges: { used: { rel: LinkRelations.USED.rel, range: RESOURCE_LABEL } },

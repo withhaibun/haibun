@@ -3,6 +3,7 @@
  * that may read at the event's level, awaiting each write, and ends a follower past a named count of writes in flight.
  * A call reaches each handler of the transport under the request it arrived in, whose proof covers its bytes.
  */
+import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { EventEmitter } from "events";
 import { z } from "zod";
 import { stream, streamSSE } from "hono/streaming";
@@ -122,7 +123,7 @@ export class SSETransport implements ITransport, IStepTransport {
 			// the request's emit callback from the context and sends chunks as it runs; the dispatch's result, success or
 			// refusal, lands on the seqPath through the lifecycle events. One handler path: one dispatcher, one error contract.
 			if (envelope.stream === true) {
-				c.header("Content-Type", "application/x-ndjson");
+				c.header("Content-Type", MEDIA_TYPE.ndjson);
 				return stream(c, async (s) => {
 					const stopped = new AbortController();
 					s.onAbort(() => stopped.abort());

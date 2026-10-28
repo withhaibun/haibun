@@ -3,6 +3,7 @@
  * requests inside the page, and reaching a browser a person attached through the relay. Each step reads its input and
  * calls a pipeline over the session's page; the cycles start and end a feature's session.
  */
+import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import {
 	AStepper,
 	CycleWhen,
@@ -649,7 +650,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			precludes: [`${constructorName(this)}.restEndpointRequest`],
 			gwta: `make an ${HTTP} {method: ${DOMAIN_HTTP_METHOD_WITH_BODY}} to {endpoint: ${DOMAIN_LINK}} with {payload: ${DOMAIN_JSON}}`,
 			action: ({ method, endpoint, payload }: { method: string; endpoint: string; payload: unknown }, featureStep: TFeatureStep) =>
-				request(this.#rest, featureStep, endpoint, method, { postData: JSON.stringify(payload), headers: { "Content-Type": "application/json" } }),
+				request(this.#rest, featureStep, endpoint, method, { postData: JSON.stringify(payload), headers: { "Content-Type": MEDIA_TYPE.json } }),
 		},
 		showJsonResponse: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,

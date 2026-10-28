@@ -11,10 +11,12 @@ import type { TQuad } from "@haibun/core/lib/quad-types.js";
 /** The W3C Web Annotation the annotator library reads: a TextualBody, and a target that carries both a TextQuoteSelector
  *  (the content-anchored form the graph holds) and a TextPositionSelector (the offsets in the rendered text, which the
  *  library requires to anchor). `source` is the annotated content's IRI. */
+/** The Web Annotation Data Model's JSON-LD context. */
+const ANNOTATION_CONTEXT = "http://www.w3.org/ns/anno.jsonld";
 type TTextQuoteSelector = { type: "TextQuoteSelector"; exact: string; prefix?: string; suffix?: string };
 type TTextPositionSelector = { type: "TextPositionSelector"; start: number; end: number };
 export type TW3CTextAnnotation = {
-	"@context": "http://www.w3.org/ns/anno.jsonld";
+	"@context": typeof ANNOTATION_CONTEXT;
 	id: string;
 	type: "Annotation";
 	body?: Array<{ type: "TextualBody"; value: string; format?: string }>;
@@ -29,7 +31,7 @@ export function toW3CAnnotations(annotations: TAnnotationView[], source: string,
 		const pos = locateQuoteOffsets(containerText, a.exact, a.prefix, a.suffix);
 		if (!pos) continue;
 		out.push({
-			"@context": "http://www.w3.org/ns/anno.jsonld",
+			"@context": ANNOTATION_CONTEXT,
 			id: a.commentId,
 			type: "Annotation",
 			...(a.body ? { body: [{ type: "TextualBody" as const, value: a.body, format: MEDIA_TYPE.markdown }] } : {}),

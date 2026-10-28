@@ -1,3 +1,4 @@
+import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import type { Context } from "@haibun/web-server-hono/defs.js";
 import { setCookie } from "@haibun/web-server-hono/cookie.js";
 import type TestServer from "./test-server.js";
@@ -64,7 +65,7 @@ export const restRoutes = (testServer: TestServer) => {
 
 		resources(c: Context): Response {
 			// Auth is checked by middleware before this runs
-			if (c.req.header("accept") !== "application/json") {
+			if (c.req.header("accept") !== MEDIA_TYPE.json) {
 				return c.text(`Must use application/json, not ${c.req.header("accept")}`, 401);
 			}
 

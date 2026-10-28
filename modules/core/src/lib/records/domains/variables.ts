@@ -2,6 +2,7 @@
  * Declares a variable: a named value a feature sets, held in core's in-memory store. The variable's record links each step
  * that set it through `prov:wasGeneratedBy`. A secret's record holds the obscured value.
  */
+import { PROV_ENTITY } from "../../domains/vocabularies.js";
 import { z } from "zod";
 import { Access, EDGE, HELD_BY, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "../../domains/resources.js";
 import { SHARED_GRAPH } from "../../steps/domains/quad-types.js";
@@ -36,7 +37,7 @@ export const variableDomainDefinition: TDomainDefinition = {
 	description: "A named value a feature set, with its domain and origin. It links each step that set it.",
 	topology: {
 		persistedAs: SHARED_GRAPH,
-		type: "prov:Entity",
+		type: PROV_ENTITY,
 		id: VARIABLE_FIELD.name,
 		heldBy: HELD_BY.inMemoryStore,
 		instrumentation: true,

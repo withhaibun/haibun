@@ -8,6 +8,7 @@
  * It also implements the reads of what a text states. It reads a feature's prose as facts, checks that every cited
  * passage still resolves, and reads the statements made with a predicate.
  */
+import { RDF_STATEMENT } from "../lib/domains/vocabularies.js";
 import { listOf } from "../lib/domains/lists.js";
 import { CountedFields, counted } from "../lib/domains/hypermedia.js";
 import { itemAt } from "../lib/domains/item-at.js";
@@ -76,7 +77,7 @@ const ReferenceSchema = z.object({ "@id": z.string(), "@type": z.string() });
 const StatementsSchema = z.object({
 	statements: z.array(
 		z.object({
-			"@type": z.literal("rdf:Statement"),
+			"@type": z.literal(RDF_STATEMENT),
 			subject: ReferenceSchema,
 			predicate: z.string(),
 			object: ReferenceSchema,

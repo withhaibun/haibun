@@ -12,7 +12,8 @@ import type { TIndividualAddress } from "@haibun/core/lib/domains/typed-links.js
 import { ancestorsWith, ontologyToQuads } from "@haibun/core/lib/records/derivations/ontology.js";
 import { iriIn, ontologyOwl } from "@haibun/core/lib/records/derivations/owl.js";
 import { ONTOLOGY_FIELD } from "@haibun/core/lib/records/domains/ontology.js";
-import { OWL_RL_RULES, QUERY_NAMESPACE, REASONING_READ_CEILING } from "../domains/reasoning.js";
+import { QUERY_NAMESPACE, REASONING_READ_CEILING } from "../domains/reasoning.js";
+import { DataFactory } from "n3";
 import {
 	dlOf,
 	expressionRules,
@@ -25,7 +26,7 @@ import {
 	type TExpressionIris,
 	type TVocabulary,
 } from "../derivations/class-expression.js";
-import { recordTerms, type TRecordTerms } from "../derivations/n3.js";
+import { OWL_RL_RULES, patternText, quadsText, recordTerms, type TRecordTerms } from "../derivations/n3.js";
 import type { TReasoner } from "../ports.js";
 import { readerOf } from "./reads.js";
 import { reason } from "./reason.js";
@@ -68,10 +69,10 @@ function derivedBasis(domains: Record<string, TRegisteredDomain>): TQueryBasis {
 			.filter((q) => q.subject === name)
 			.map((q) => String(q.object));
 	const propertyUri = new Map(stated(PROPERTY_LABEL, ONTOLOGY_FIELD.uri).map((q) => [q.subject, String(q.object)]));
-	const propertyIri = (name: string): string => {
+	const propertyIri = (name: string) => {
 		const uri = propertyUri.get(name);
 		if (uri === undefined) throw new Error(`the class expression names the property ${name}, which the ontology doesn't hold. Name a link relation that \`show ontology\` lists.`);
-		return iriIn(context, uri);
+		return DataFactory.namedNode(iriIn(context, uri));
 	};
 	const parents = [...stated(CLASS_LABEL, ONTOLOGY_FIELD.classIri), ...stated(CLASS_LABEL, ONTOLOGY_FIELD.subClassOf)];
 	const supers = new Map([...Map.groupBy(parents, (q) => q.subject)].map(([subject, held]) => [subject, held.map((q) => String(q.object))]));
@@ -89,7 +90,7 @@ function derivedBasis(domains: Record<string, TRegisteredDomain>): TQueryBasis {
 		return labels.filter((label) => connected.has(label) || [...ancestorsWith(label, supers)].some((cls) => iris.has(iriIn(context, cls))));
 	};
 	return {
-		iris: { classIri: (name) => iriIn(context, name), propertyIri },
+		iris: { classIri: (name) => DataFactory.namedNode(iriIn(context, name)), propertyIri },
 		termsOf: (records) => recordTerms(catalog, getJsonLdContext(domains, undefined, records)["@context"], records),
 		axioms: [ontologyOwl(ontology, context), OWL_RL_RULES].join("\n"),
 		vocabulary,
@@ -149,14 +150,14 @@ export async function entailedMembers(
 	const reader = readerOf(store);
 	const reads = await Promise.all(basis.typesReached(expression).map(async (label) => ({ label, ...(await reader.records(label)) })));
 	const { rules, query } = expressionRules(expression, QUERY_NAMESPACE, irisOf(basis, terms));
-	const facts = reads.map(({ label, facts: read }) => terms.statements(label, read));
+	const facts = reads.map(({ label, facts: read }) => quadsText(terms.statements(label, read)));
 	const derived = await reason(reasoner, store, domains, records, { rules: [basis.axioms, rules, ...facts].join("\n"), query, closedOver: [] });
 	const members = [...new Map(derived.map(({ subject }) => [subject, terms.addressOf(subject)])).values()];
 	return { members, truncated: reads.flatMap(({ label, truncated }) => (truncated ? [label] : [])) };
 }
 
 /** The individual that stands for any member of an expression in a subsumption. */
-const FROZEN = `<${QUERY_NAMESPACE}member>`;
+const FROZEN = DataFactory.namedNode(`${QUERY_NAMESPACE}member`);
 
 /** Returns why the ontology doesn't entail that every member of `sub` is a member of `sup`, with the entailed members of
  *  `sub` that `sup` doesn't hold as the witness, or undefined where it entails it. */
@@ -192,8 +193,8 @@ export async function subsumes(
 	const [narrower, wider] = [checkedExpression(sub, basis), checkedExpression(sup, basis)];
 	const { rules, query } = expressionRules(wider, QUERY_NAMESPACE, iris);
 	for (const facts of frozenMembers(narrower, FROZEN, QUERY_NAMESPACE, iris)) {
-		const derived = await reason(reasoner, store, domains, records, { rules: [basis.axioms, rules, ...facts.map((fact) => `${fact} .`)].join("\n"), query, closedOver: [] });
-		if (!derived.some(({ subject }) => subject === FROZEN)) return false;
+		const derived = await reason(reasoner, store, domains, records, { rules: [basis.axioms, rules, ...facts.map(patternText)].join("\n"), query, closedOver: [] });
+		if (!derived.some(({ subject }) => subject.equals(FROZEN))) return false;
 	}
 	return true;
 }

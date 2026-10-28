@@ -4,6 +4,7 @@
  * edges and its `domain` and `range` edges to the classes it connects. A graph view draws the quads, and the store of
  * the ontology's records reads the records.
  */
+import { PROV_ACTIVITY, PROV_AGENT, PROV_ENTITY, SOSA_OBSERVATION } from "../../domains/vocabularies.js";
 import { Access, CLASS_LABEL, edgeRanges, edgeRel, isPersisted, LinkRelations, PROPERTY_LABEL, type TRegisteredDomain } from "../../domains/resources.js";
 import type { TCluster, TClusteredQuads, TQuad } from "../../steps/domains/quad-types.js";
 import { ONTOLOGY_FIELD } from "../domains/ontology.js";
@@ -35,8 +36,15 @@ export function superMap(quads: readonly TQuad[]): Map<string, string[]> {
 	return new Map([...Map.groupBy(parents, (q) => q.subject)].map(([subject, held]) => [subject, held.map((q) => String(q.object))]));
 }
 
-/** Maps each PROV and SOSA class to the designation of its subclasses. `sosa:Observation` is a subclass of `prov:Activity`, so it precedes Activity. */
-const CATEGORY_ANCHOR: Record<string, string> = { "prov:Agent": "agent", "sosa:Observation": "observation", "prov:Activity": "activity", "prov:Entity": "artifact" };
+/** Maps each PROV and SOSA class to the designation of its subclasses. `sosa:Observation` is a subclass of `prov:Activity`, so
+ *  it precedes Activity. A bundler keeps an object with computed keys, so it is built by a pure call, which a bundle that
+ *  doesn't read it leaves out. */
+const CATEGORY_ANCHOR: Record<string, string> = /* @__PURE__ */ (() => ({
+	[PROV_AGENT]: "agent",
+	[SOSA_OBSERVATION]: "observation",
+	[PROV_ACTIVITY]: "activity",
+	[PROV_ENTITY]: "artifact",
+}))();
 const CATEGORY_PRECEDENCE = ["agent", "observation", "activity", "artifact"] as const;
 
 /** Returns a class's designation: the first PROV or SOSA class its ancestry reaches, or artifact. */

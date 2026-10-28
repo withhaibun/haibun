@@ -1,3 +1,4 @@
+import { MEDIA_TYPE } from "./media-types.js";
 import { z } from "zod";
 import type { TSpecl } from "../actuality/domains/actuality.js";
 import type { TWorld, TRuntime, TModuleOptions } from "../actuality/domains/world.js";
@@ -41,7 +42,7 @@ export function actionOKWithProducts(products: Record<string, unknown>, w?: { ar
 
 let artifactCounter = 0;
 export function jsonArtifact(json: Record<string, unknown>): TJsonArtifact {
-	return { kind: "artifact", artifactType: "json", id: `json-${++artifactCounter}`, timestamp: Date.now(), source: "haibun", level: "info", json, mimetype: "application/json" };
+	return { kind: "artifact", artifactType: "json", id: `json-${++artifactCounter}`, timestamp: Date.now(), source: "haibun", level: "info", json, mimetype: MEDIA_TYPE.json };
 }
 
 export function createSteppers(steppers: CStepper[]): AStepper[] {

@@ -3,6 +3,7 @@
  * Property record describes a link relation, or a term that a type's standard context declares. Core derives
  * both from the declarations, so each type states `heldBy: declarations`.
  */
+import { RDFS_CLASS, RDF_PROPERTY } from "../../domains/vocabularies.js";
 import { z } from "zod";
 import { Access, CLASS_LABEL, DOMAIN_PERSISTED_TYPE, HELD_BY, LinkRelations, PROPERTY_LABEL, PersistedVertexSchema, type TDomainDefinition } from "../../domains/resources.js";
 
@@ -52,7 +53,7 @@ export const classDomainDefinition: TDomainDefinition = {
 	description: "A type the declarations state, or a class a type names as its superclass. It links its superclasses and the records of the type it names.",
 	topology: {
 		persistedAs: CLASS_LABEL,
-		type: "rdfs:Class",
+		type: RDFS_CLASS,
 		id: ONTOLOGY_FIELD.name,
 		heldBy: HELD_BY.declarations,
 		accessLevel: Access.public,
@@ -77,7 +78,7 @@ export const propertyDomainDefinition: TDomainDefinition = {
 	description: "A link relation or a standard vocabulary's term. It links its superproperties and the classes it connects.",
 	topology: {
 		persistedAs: PROPERTY_LABEL,
-		type: "rdf:Property",
+		type: RDF_PROPERTY,
 		id: ONTOLOGY_FIELD.name,
 		heldBy: HELD_BY.declarations,
 		accessLevel: Access.public,

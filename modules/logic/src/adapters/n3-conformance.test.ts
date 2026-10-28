@@ -5,7 +5,8 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { VERDICT } from "@haibun/core/lib/domains/protocol.js";
 import { EFFECT, PROOF_NAMESPACE, READ_PREDICATE, type TReadRequest } from "../domains/logic.js";
-import { triplesOf } from "../derivations/n3.js";
+import type { Quad } from "@rdfjs/types";
+import { quadsOf } from "../derivations/n3.js";
 import type { TLogicEngine, TReasoner } from "../ports.js";
 import { eyeReasoner } from "./eye.js";
 import { startSwipl } from "./swipl.js";
@@ -15,12 +16,15 @@ const PROVED_QUERY = `{ ?part <${PROOF_NAMESPACE}is> ?verdict } => { ?part <${PR
 /** A fact of an export: a line that isn't a rule. */
 const RULE_OPENING = "{";
 
-/** Runs EYE over N3 text, and returns each triple its query selects, as one line. */
+/** A quad's terms, which two readings of one triple share. */
+const keyOf = ({ subject, predicate, object }: Quad): string => `${subject.value} ${predicate.value} ${object.value}`;
+
+/** Runs EYE over N3 text, and returns each triple its query selects, by its terms. */
 const eyeDerives = (reasoner: TReasoner, n3: string): Promise<string[]> =>
 	reasoner.session(async (session) => {
 		const state = await session.start(n3, PROVED_QUERY, false);
-		if ("need" in state) throw new Error(`the export doesn't read the store, and EYE requested a read of ${state.subject}`);
-		return triplesOf(state.derived).map(({ subject, predicate, object }) => `${subject} ${predicate} ${object}.`);
+		if ("need" in state) throw new Error(`the export doesn't read the store, and EYE requested a read of ${state.subject.value}`);
+		return quadsOf(state.derived).map(keyOf);
 	});
 
 /** The N3 triple that states the node at a position proved, as the export names it. */
@@ -75,6 +79,7 @@ describe("the engine's readings in N3", () => {
 	it.each(PROOFS)("EYE derives the nodes the engine proves: %s", { timeout: 30_000 }, async (_, term, calls) => {
 		const { n3, nodes } = proved(engine, "conformance", term, calls);
 		const facts = n3.split("\n").filter((line) => line !== "" && !line.startsWith(RULE_OPENING));
-		expect((await eyeDerives(reasoner, n3)).sort()).toEqual([...new Set([...facts, ...nodes])].sort());
+		const stated = quadsOf([...facts, ...nodes].join("\n")).map(keyOf);
+		expect((await eyeDerives(reasoner, n3)).sort()).toEqual([...new Set(stated)].sort());
 	});
 });

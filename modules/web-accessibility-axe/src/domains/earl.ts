@@ -6,6 +6,7 @@
  * class, so a test case or a subject that several assertions name is one record they share. An assertion links to the
  * step that made it, so what a step found is read the same way as what a step produced.
  */
+import { PROV_AGENT } from "@haibun/core/lib/domains/vocabularies.js";
 import { z } from "zod";
 import { Access, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 
@@ -59,7 +60,7 @@ export const earlDomainDefinitions: TDomainDefinition[] = [
 		topology: {
 			persistedAs: EARL_LABEL.assertor,
 			type: "earl:Assertor",
-			subClassOf: "prov:Agent",
+			subClassOf: PROV_AGENT,
 			id: "id",
 			accessLevel: Access.public,
 			properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel },

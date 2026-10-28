@@ -9,6 +9,7 @@
  * failed bind both call this function, so both describe the occupant the same way.
  */
 
+import { MEDIA_TYPE } from "../domains/media-types.js";
 import { localOrigin } from "../domains/local-origin.js";
 import { ACTION_BEGIN, RPC_ROUTE, rpcEnvelope } from "../transport/domains/rpc-wire.js";
 
@@ -20,7 +21,7 @@ export async function describePortOccupant(port: number, timeoutMs: number): Pro
 	try {
 		res = await fetch(`${localOrigin(port)}${RPC_ROUTE}${encodeURIComponent(ACTION_BEGIN)}`, {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			headers: { "Content-Type": MEDIA_TYPE.json },
 			body: rpcEnvelope({ id: "port-probe", method: ACTION_BEGIN, params: {}, seqPath: [] }),
 			signal: AbortSignal.timeout(timeoutMs),
 		});

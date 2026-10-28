@@ -10,6 +10,7 @@
  * predicate, object) with provenance. A coverage table is this read with the citation predicate and not a separate
  * report. Each row of the table holds a cited requirement and the status of the line that contains the citing step.
  */
+import { RDF_STATEMENT } from "../../domains/vocabularies.js";
 import { READING_LABEL, SEQ_PATH_LABEL, StatedRecordSchema } from "../../domains/resources.js";
 import { fromJsonText } from "../../domains/json-text.js";
 import { SEQ_PATH_FIELD, formatRecordName, linePathOf, parseRecordName } from "../../actuality/domains/seq-path.js";
@@ -22,7 +23,7 @@ export type TReference = { "@id": string; "@type": string };
 /** One statement and its provenance. `assertedBy` is the line that contains the step of the asserting reading. `outcome`
  *  is that line's status. */
 export type TStatementRow = {
-	"@type": "rdf:Statement";
+	"@type": typeof RDF_STATEMENT;
 	subject: TReference;
 	predicate: string;
 	object: TReference;
@@ -73,7 +74,7 @@ export async function statementsWith(store: TStatementStore, predicate: string):
 		// A quad without a target type is a literal property and doesn't relate the subject to another individual.
 		if (!objectType) continue;
 		const row: TStatementRow = {
-			"@type": "rdf:Statement",
+			"@type": RDF_STATEMENT,
 			subject: { "@id": quad.subject, "@type": quad.namedGraph },
 			predicate,
 			object: { "@id": String(quad.object), "@type": objectType },

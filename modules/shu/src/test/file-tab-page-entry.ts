@@ -4,6 +4,7 @@
  * the device holds of every quad, in one transaction of many requests. The page counts each write and keeps each failure,
  * and its button opens a PDF in a tab.
  */
+import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { serveThePage } from "./setup.js";
 import { showFile } from "../page/controllers/file-controller.js";
 import { deviceQuads } from "../page/client-cache/root.js";
@@ -21,7 +22,7 @@ Object.assign(globalThis, { [FILE_TAB_PAGE.failures]: failures });
 
 const button = document.createElement("button");
 button.id = FILE_TAB_PAGE.open;
-button.addEventListener("click", () => showFile(new Blob(["%PDF-1.4\n%%EOF"], { type: "application/pdf" }), "a.pdf", "page=2"));
+button.addEventListener("click", () => showFile(new Blob(["%PDF-1.4\n%%EOF"], { type: MEDIA_TYPE.pdf }), "a.pdf", "page=2"));
 document.body.append(button);
 
 for (;;) {

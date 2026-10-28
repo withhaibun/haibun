@@ -8,6 +8,7 @@
  * both send a field added to the envelope. The client adapters send what this module states, and the step infrastructure
  * reads the refusals it states.
  */
+import { MEDIA_TYPE } from "../../domains/media-types.js";
 import { z } from "zod";
 import { AccessLevelSchema } from "../../domains/resources.js";
 import type { TProveRequest } from "../ports.js";
@@ -197,7 +198,7 @@ const UNSTATED_MEDIA_TYPE = "a body that doesn't state its media type";
  */
 export async function readRpcAnswer(method: string, res: Response): Promise<TRpcAnswer> {
 	const mediaType = res.headers.get("content-type");
-	if (mediaType === null || !mediaType.startsWith("application/json")) {
+	if (mediaType === null || !mediaType.startsWith(MEDIA_TYPE.json)) {
 		const site = URL.canParse(res.url) ? new URL(res.url).origin : undefined;
 		const stated = mediaType === null ? UNSTATED_MEDIA_TYPE : mediaType;
 		return { kind: "refused", ...notFromActuality(method, res.status, stated, (await res.text()).slice(0, 200), site) };

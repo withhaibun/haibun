@@ -1,4 +1,5 @@
 /** A feature's end: its downloads removed, its video recorded as an artifact, and its context and browser closed. */
+import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import type { TResolvedFeature } from "@haibun/core/lib/astepper.js";
 import { featureAsData } from "@haibun/core/lib/domains/features.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
@@ -35,7 +36,7 @@ export async function endFeature({ session, world, storage, files, captureVideo 
 			kind: "artifact",
 			artifactType: "video",
 			path,
-			mimetype: "video/webm",
+			mimetype: MEDIA_TYPE.webm,
 			isTimeLined: true,
 		});
 		world.eventLogger.artifact(artifact);

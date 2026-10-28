@@ -1,3 +1,4 @@
+import { XSD_BOOLEAN, XSD_DATE, XSD_DATE_TIME, XSD_DECIMAL, XSD_INTEGER } from "../lib/domains/vocabularies.js";
 import { listOf } from "../lib/domains/lists.js";
 import { z } from "zod";
 
@@ -538,12 +539,12 @@ export default VariablesStepper;
 const STORED_AT = /^stored at\s+(\S+)$/;
 
 const XSD_FOR: Record<string, string> = {
-	number: "xsd:integer",
-	integer: "xsd:integer",
-	decimal: "xsd:decimal",
-	boolean: "xsd:boolean",
-	date: "xsd:date",
-	datetime: "xsd:dateTime",
+	number: XSD_INTEGER,
+	integer: XSD_INTEGER,
+	decimal: XSD_DECIMAL,
+	boolean: XSD_BOOLEAN,
+	date: XSD_DATE,
+	datetime: XSD_DATE_TIME,
 	string: "",
 };
 

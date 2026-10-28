@@ -28,7 +28,12 @@
 	"license": "ISC",
 	"dependencies": {
 		"@haibun/core": "*",
+		"n3": "2.13.12",
 		"swipl-wasm": "8.2.3",
 		"zod": "4.6.7"
+	},
+	"devDependencies": {
+		"@rdfjs/types": "2.0.1",
+		"@types/n3": "1.26.4"
 	}
 }

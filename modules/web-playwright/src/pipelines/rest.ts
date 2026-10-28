@@ -2,6 +2,7 @@
  * Requests made inside the page, with its cookies and the headers a step sets, and the last response, which actuality
  * keeps as JSON text in the variable HTTP_RESPONSE, whose status, json and text a feature reads as any variable's fields.
  */
+import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import type { TFeatureStep } from "@haibun/core/lib/astepper.js";
 import { fromJsonText } from "@haibun/core/lib/domains/json-text.js";
 import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
@@ -19,7 +20,7 @@ export const HTTP_RESPONSE = "HTTP response";
 export const AUTHORIZATION = "Authorization";
 const ACCESS_TOKEN = "access_token";
 const USER_AGENT = "User-Agent";
-const JSON_CONTENT = { "Content-Type": "application/json" };
+const JSON_CONTENT = { "Content-Type": MEDIA_TYPE.json };
 
 /** What a request inside the page reads and writes through: the session, the world that keeps the last response, and the page's fetch. */
 export type TRestContext = { session: BrowserSession; world: TWorld; fetch: TPageFetch };

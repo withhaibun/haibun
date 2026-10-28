@@ -1,3 +1,4 @@
+import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { rmSync, writeFileSync, readFileSync } from "fs";
 import { createRequire } from "module";
 import { actualityAt } from "@haibun/core/lib/transport/adapters/rpc-call.js";
@@ -55,7 +56,7 @@ const rpcCall = async (url: string, id: string, method: string, params: Record<s
 /** Posts a JSON-RPC message to `url`. FakeInvoker signs the request when `signer` is defined. */
 async function post(url: string, message: Record<string, unknown>, signer: TSigner): Promise<Response> {
 	const body = JSON.stringify({ jsonrpc: "2.0", ...message });
-	const headers = { "content-type": "application/json", accept: "application/json, text/event-stream" };
+	const headers = { "content-type": MEDIA_TYPE.json, accept: `${MEDIA_TYPE.json}, ${MEDIA_TYPE.eventStream}` };
 	return fetch(url, { method: "POST", headers: signer ? await new FakeInvoker(signer.holder).sign({ method: "POST", url, headers, body }, signer.action) : headers, body });
 }
 
@@ -220,7 +221,8 @@ class TestServer extends AStepper {
 		return c.html(`<h1>Counter test</h1>tally: ${cur}<br />username ${username} `);
 	};
 
-	qrcanvasScript: TRequestHandler = (c: Context): Promise<Response> => Promise.resolve(c.body(readFileSync(QRCANVAS_SCRIPT, "utf-8"), 200, { "Content-Type": "text/javascript" }));
+	qrcanvasScript: TRequestHandler = (c: Context): Promise<Response> =>
+		Promise.resolve(c.body(readFileSync(QRCANVAS_SCRIPT, "utf-8"), 200, { "Content-Type": MEDIA_TYPE.javascript }));
 
 	download: TRequestHandler = (c: Context): Promise<Response> => {
 		if (!this.toDelete.uploaded) {
@@ -230,9 +232,7 @@ class TestServer extends AStepper {
 		this.toDelete.downloaded = "/tmp/test-downloaded.jpg";
 		const fileBuffer = readFileSync(this.toDelete.uploaded);
 		const filename = this.toDelete.uploaded.split("/").pop() ?? "download";
-		return Promise.resolve(
-			new Response(fileBuffer, { status: 200, headers: { "Content-Type": "application/octet-stream", "Content-Disposition": `attachment; filename="${filename}"` } }),
-		);
+		return Promise.resolve(new Response(fileBuffer, { status: 200, headers: { "Content-Type": MEDIA_TYPE.bytes, "Content-Disposition": `attachment; filename="${filename}"` } }));
 	};
 
 	upload: TRequestHandler = async (c: Context): Promise<Response> => {

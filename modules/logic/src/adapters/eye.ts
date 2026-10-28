@@ -9,7 +9,10 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import SWIPL from "swipl-wasm";
-import { REASONER_BUILTIN, ReasonerReadSchema, type TReasonerState } from "../domains/reasoning.js";
+import { DataFactory } from "n3";
+import type { Term } from "@rdfjs/types";
+import { XSD } from "@haibun/core/lib/domains/vocabularies.js";
+import { REASONER_BUILTIN, type TReasonerState } from "../domains/reasoning.js";
 import type { TReasoner, TReasonerSession } from "../ports.js";
 
 /** The libraries EYE reaches through autoload, which the runtime's library holds as .qlf files that autoload doesn't read. */
@@ -23,23 +26,20 @@ const BUILTINS = `'<${REASONER_BUILTIN.read}>'([S, P], O) :- engine_self(_), eng
 /** EYE's arguments: without a banner, and with each IRI in full. Unexplained, EYE writes each derived triple as one line; explained,
  *  it writes the proof of what the query selects in the N3 proof vocabulary. */
 const eyeArguments = (explained: boolean): string => `[${explained ? "" : "'--nope', "}'--quiet', '--no-qnames', '${SOURCES_FILE}', '--query', '${QUERY_FILE}']`;
-const NEED = /^need\(read,'(<[^']*>)','(<[^']*>)'\)$/;
-const LITERAL = /^("(?:[^"\\]|\\.)*")(?:\^\^<([^>]*)>|@([\w-]+))?$/;
-const NUMBER_OR_BOOLEAN = /^(?:[-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?|true|false)$/;
-/** The datatype of a literal that doesn't state one. */
-const XSD_STRING = "http://www.w3.org/2001/XMLSchema#string";
+const NEED = /^need\(read,'<([^']*)>','<([^']*)>'\)$/;
+/** The datatypes EYE holds as Prolog numbers and booleans, in place of `literal/2`. */
+const NATIVE: ReadonlySet<string> = new Set([XSD.integer, XSD.decimal, XSD.boolean]);
 const quotedAtom = (text: string): string => `'${text.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
 
-/** Returns an N3 term as EYE holds it in Prolog: an IRI as a quoted atom, a literal as `literal/2`, and a number or a boolean as itself. */
-function prologOf(term: string): string {
-	if (term.startsWith("<")) return quotedAtom(term);
-	if (NUMBER_OR_BOOLEAN.test(term)) return term;
-	const literal = LITERAL.exec(term);
-	if (literal === null) throw new Error(`\`${term}\` isn't an N3 term that n3Term writes. Write the value with n3Term.`);
-	const [, quoted, datatype, language] = literal as unknown as [string, string, string | undefined, string | undefined];
-	const text = quotedAtom(JSON.parse(quoted) as string);
-	if (language !== undefined) return `literal(${text}, lang(${quotedAtom(language)}))`;
-	return `literal(${text}, type(${quotedAtom(`<${datatype === undefined ? XSD_STRING : datatype}>`)}))`;
+/** Returns a term as EYE holds it in Prolog: an IRI as a quoted atom in angle brackets, a number or a boolean as itself, and
+ *  another literal as `literal/2` with its language or datatype. */
+function prologOf(term: Term): string {
+	if (term.termType === "NamedNode") return quotedAtom(`<${term.value}>`);
+	if (term.termType !== "Literal") throw new Error(`a read's value ${term.value} is a ${term.termType}, and a read returns a named node or a literal.`);
+	if (NATIVE.has(term.datatype.value)) return term.value;
+	const text = quotedAtom(term.value);
+	if (term.language !== "") return `literal(${text}, lang(${quotedAtom(term.language)}))`;
+	return `literal(${text}, type(${quotedAtom(`<${term.datatype.value}>`)}))`;
 }
 
 type TRuntime = Awaited<ReturnType<typeof SWIPL>>;
@@ -81,7 +81,7 @@ export function eyeReasoner(): TReasoner {
 		const stateOf = ({ runtime, printed, errors }: Awaited<ReturnType<typeof started>>, answer: TAnswer): TReasonerState => {
 			const text = String(answer.S);
 			const need = NEED.exec(text);
-			if (need !== null) return ReasonerReadSchema.parse({ need: "read", subject: need[1], predicate: need[2] });
+			if (need !== null) return { need: "read", subject: DataFactory.namedNode(String(need[1])), predicate: DataFactory.namedNode(String(need[2])) };
 			once(runtime, `engine_destroy(${ENGINE})`);
 			if (text !== "done") throw new Error(`EYE ended with ${text}: ${errors.join("\n")}. Check the rules and the query of the session.`);
 			return { derived: printed.join("\n") };

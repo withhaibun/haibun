@@ -1,7 +1,8 @@
+import { MEDIA_TYPE } from "../domains/media-types.js";
 import { ACTION_BEGIN, RPC_PROTOCOL, RPC_ROUTE, newActualityId, type THandshake } from "../transport/domains/rpc-wire.js";
 
 /** Returns a host response as actuality sends one. The body is JSON, and `status` reports whether the host served the call. */
-export const rpcAnswer = (body: unknown, status: number): Response => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+export const rpcAnswer = (body: unknown, status: number): Response => new Response(JSON.stringify(body), { status, headers: { "Content-Type": MEDIA_TYPE.json } });
 
 /** The path where a stand-in host responds to the handshake. */
 export const HANDSHAKE_PATH = `${RPC_ROUTE}${ACTION_BEGIN}`;

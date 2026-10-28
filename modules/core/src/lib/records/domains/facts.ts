@@ -3,6 +3,7 @@
  * product whose domain the step declares. The fact links the step that produced it through `prov:wasGeneratedBy`, and it is
  * instrumentation, so a store's retention removes it with the steps' records of its time.
  */
+import { PROV_ENTITY } from "../../domains/vocabularies.js";
 import { z } from "zod";
 import { Access, EDGE, FACT_LABEL, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "../../domains/resources.js";
 
@@ -27,7 +28,7 @@ export const factDomainDefinition: TDomainDefinition = {
 	description: "A product of a step, by its domain. It links the step that produced it.",
 	topology: {
 		persistedAs: FACT_LABEL,
-		type: "prov:Entity",
+		type: PROV_ENTITY,
 		id: FACT_FIELD.id,
 		instrumentation: true,
 		accessLevel: Access.private,

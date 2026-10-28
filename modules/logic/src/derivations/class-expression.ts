@@ -6,7 +6,11 @@
  * the form to write instead. Writes an expression as the N3 rules that derive its members, in DL notation and as a
  * plain-English reading.
  */
+import { DataFactory } from "n3";
+import type { NamedNode, Quad_Object, Quad_Subject } from "@rdfjs/types";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
+import { RDF } from "@haibun/core/lib/domains/vocabularies.js";
+import { pattern, ruleText, type TN3Pattern } from "./n3.js";
 
 /** A property as a restriction names it, read in its own direction or inverted. */
 export type TRestricted = { property: string; inverse: boolean };
@@ -21,7 +25,7 @@ export type TClassExpression =
 /** The rules that derive an expression's members, and the class whose members they are. */
 export type TExpressionRules = { rules: string; query: string };
 /** The IRIs of an expression's names: a class's, a property's and an individual's by its address. */
-export type TExpressionIris = { classIri: (name: string) => string; propertyIri: (name: string) => string; individualIri: (address: string) => string };
+export type TExpressionIris = { classIri: (name: string) => NamedNode; propertyIri: (name: string) => NamedNode; individualIri: (address: string) => NamedNode };
 /** The terms an expression's names are checked against: each class, and each property with the classes it connects, and the
  *  classes that subsume a class. */
 export type TVocabulary = {
@@ -34,7 +38,6 @@ const TOKEN = /\(|\)|\{|\}|[^\s(){}]+/g;
 const KEYWORD = { and: "and", or: "or", some: "some", value: "value", inverse: "inverse" } as const;
 const KEYWORDS: ReadonlySet<string> = new Set(Object.values(KEYWORD));
 const [OPEN, CLOSE] = ["(", ")"];
-const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 /** The constructs of Manchester syntax a query refuses, each with the reason and the form to write instead. */
 const REFUSED: Readonly<Record<string, string>> = {
 	only: "OWL 2 RL doesn't evaluate `only` in a query, since a universal over an open graph isn't proved by the facts it reads. State the positive check `every {class} is a {class}`, or read a complete graph",
@@ -161,41 +164,48 @@ export function nameRefusal(expression: TClassExpression, vocabulary: TVocabular
 	return reversed(expression);
 }
 
-const member = (subject: string, cls: string): string => `${subject} <${RDF_TYPE}> <${cls}>`;
+const member = (subject: Quad_Subject, cls: NamedNode): TN3Pattern => pattern(subject, RDF.type, cls);
 /** A restriction's fact between a member and the value it reaches, in the property's direction. */
-const restricted = ({ property, inverse }: TRestricted, iris: TExpressionIris, subject: string, object: string): string =>
-	inverse ? `${object} <${iris.propertyIri(property)}> ${subject}` : `${subject} <${iris.propertyIri(property)}> ${object}`;
+const restricted = ({ property, inverse }: TRestricted, iris: TExpressionIris, subject: Quad_Subject, object: Quad_Object): TN3Pattern =>
+	inverse ? pattern(object as Quad_Subject, iris.propertyIri(property), subject) : pattern(subject, iris.propertyIri(property), object);
+const [X, Y] = [DataFactory.variable("x"), DataFactory.variable("y")];
 
 /** Returns the N3 rules that derive an expression's members as members of a class in `namespace`, with each name's IRI from `iris`. */
 export function expressionRules(expression: TClassExpression, namespace: string, iris: TExpressionIris): TExpressionRules {
 	const rules: string[] = [];
 	let count = 0;
-	const classOf = (part: TClassExpression): string => {
+	const classOf = (part: TClassExpression): NamedNode => {
 		if ("named" in part) return iris.classIri(part.named);
 		count += 1;
-		const cls = `${namespace}e${count}`;
-		if ("or" in part) for (const alternative of part.or) rules.push(`{ ${member("?x", classOf(alternative))} } => { ${member("?x", cls)} } .`);
-		else if ("and" in part) rules.push(`{ ${part.and.map((each) => member("?x", classOf(each))).join(" . ")} } => { ${member("?x", cls)} } .`);
-		else if ("some" in part) rules.push(`{ ${restricted(part, iris, "?x", "?y")} . ${member("?y", classOf(part.some))} } => { ${member("?x", cls)} } .`);
-		else rules.push(`{ ${restricted(part, iris, "?x", `<${iris.individualIri(part.value)}>`)} } => { ${member("?x", cls)} } .`);
+		const cls = DataFactory.namedNode(`${namespace}e${count}`);
+		if ("or" in part) for (const alternative of part.or) rules.push(ruleText([member(X, classOf(alternative))], [member(X, cls)]));
+		else if ("and" in part)
+			rules.push(
+				ruleText(
+					part.and.map((each) => member(X, classOf(each))),
+					[member(X, cls)],
+				),
+			);
+		else if ("some" in part) rules.push(ruleText([restricted(part, iris, X, Y), member(Y, classOf(part.some))], [member(X, cls)]));
+		else rules.push(ruleText([restricted(part, iris, X, iris.individualIri(part.value))], [member(X, cls)]));
 		return cls;
 	};
 	const queried = classOf(expression);
-	return { rules: rules.join("\n"), query: `{ ${member("?x", queried)} } => { ${member("?x", queried)} } .` };
+	return { rules: rules.join("\n"), query: ruleText([member(X, queried)], [member(X, queried)]) };
 }
 
 /** Returns, for each alternative of an expression, the facts of a member that stands for any member of that alternative: the
  *  individual `subject`, with a fresh individual in `namespace` for each value an existential reaches. An expression subsumes
  *  another where each alternative's member is a member of the other. */
-export function frozenMembers(expression: TClassExpression, subject: string, namespace: string, iris: TExpressionIris): string[][] {
+export function frozenMembers(expression: TClassExpression, subject: NamedNode, namespace: string, iris: TExpressionIris): TN3Pattern[][] {
 	let count = 0;
-	const factsOf = (part: TClassExpression, of: string): string[][] => {
+	const factsOf = (part: TClassExpression, of: NamedNode): TN3Pattern[][] => {
 		if ("named" in part) return [[member(of, iris.classIri(part.named))]];
 		if ("or" in part) return part.or.flatMap((alternative) => factsOf(alternative, of));
-		if ("and" in part) return part.and.reduce<string[][]>((joined, each) => joined.flatMap((facts) => factsOf(each, of).map((more) => [...facts, ...more])), [[]]);
-		if ("value" in part) return [[restricted(part, iris, of, `<${iris.individualIri(part.value)}>`)]];
+		if ("and" in part) return part.and.reduce<TN3Pattern[][]>((joined, each) => joined.flatMap((facts) => factsOf(each, of).map((more) => [...facts, ...more])), [[]]);
+		if ("value" in part) return [[restricted(part, iris, of, iris.individualIri(part.value))]];
 		count += 1;
-		const reached = `<${namespace}v${count}>`;
+		const reached = DataFactory.namedNode(`${namespace}v${count}`);
 		return factsOf(part.some, reached).map((facts) => [restricted(part, iris, of, reached), ...facts]);
 	};
 	return factsOf(expression, subject);

@@ -1,4 +1,5 @@
 /** The browser's domains: the ways a step locates an element, what reading a page and a response returns, the HTTP and network records the page's observer keeps, and the options a step takes. */
+import { NAMESPACE } from "@haibun/core/lib/domains/vocabularies.js";
 import { HYPERMEDIA } from "@haibun/core/lib/domains/protocol.js";
 import { RecordSchema, RecordsSchema } from "@haibun/core/lib/domains/json-text.js";
 import { listOf } from "@haibun/core/lib/domains/lists.js";
@@ -88,7 +89,7 @@ const RunningBrowserExtensionSchema = BrowserExtensionSchema.extend({
 	sidePanel: z.object({ path: z.string(), opensOnAction: z.boolean() }).optional(),
 });
 
-const HTTP_NS = { http: "http://www.w3.org/2011/http#" };
+const HTTP_NS = { http: NAMESPACE.http };
 const httpRequestSchema = PersistedVertexSchema.extend({
 	id: z.string(),
 	method: z.string().optional(),

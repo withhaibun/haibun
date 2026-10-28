@@ -1,3 +1,4 @@
+import { MEDIA_TYPE } from "../lib/domains/media-types.js";
 import { resolve } from "path";
 
 import type { TWorld } from "../lib/actuality/domains/world.js";
@@ -27,7 +28,7 @@ const cycles = (narrator: Narrator): IStepperCycles => ({
 			narrator.speech.exec(narrator.captureStop, false);
 			const world = narrator.getWorld();
 			const path = captureLocator(world.options, world.tag);
-			const artifact = VideoArtifact.parse({ id: `narrator.video`, timestamp: Date.now(), kind: "artifact", artifactType: "video", path, mimetype: "video/webm" });
+			const artifact = VideoArtifact.parse({ id: `narrator.video`, timestamp: Date.now(), kind: "artifact", artifactType: "video", path, mimetype: MEDIA_TYPE.webm });
 			narrator.getWorld().eventLogger.emit(artifact);
 		}
 	},
@@ -99,7 +100,7 @@ class Narrator extends AStepper implements IHasOptions, IHasCycles {
 			kind: "artifact",
 			artifactType: "speech",
 			path,
-			mimetype: "audio/mpeg",
+			mimetype: MEDIA_TYPE.mpeg,
 			transcript,
 			durationS,
 		});

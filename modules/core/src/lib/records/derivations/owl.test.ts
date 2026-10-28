@@ -9,6 +9,11 @@ import { getJsonLdContext } from "../../domains/hypermedia.js";
 import { Access, LinkRelations } from "../../domains/resources.js";
 import { ontologyToQuads } from "./ontology.js";
 import { iriIn, ontologyOwl } from "./owl.js";
+import { DataFactory, Parser, Store } from "n3";
+import type { NamedNode, Term } from "@rdfjs/types";
+import { OWL, RDF, RDFS } from "../../domains/vocabularies.js";
+
+const { namedNode, quad } = DataFactory;
 
 const typeOf = (persistedAs: string, extra: { subClassOf?: string }) => ({
 	selectors: [persistedAs.toLowerCase()],
@@ -25,20 +30,26 @@ const typeOf = (persistedAs: string, extra: { subClassOf?: string }) => ({
 });
 const domains = mapDefinitionsToDomains([typeOf("Note", {}), typeOf("Memo", { subClassOf: "prov:Agent" })]);
 const context = getJsonLdContext(domains)["@context"];
-const owl = ontologyOwl(ontologyToQuads(domains), context);
-const ref = (term: string): string => `<${iriIn(context, term)}>`;
+const owl = new Store(new Parser().parse(ontologyOwl(ontologyToQuads(domains), context)));
+const ref = (term: string) => namedNode(iriIn(context, term));
 const [note, memo, entity, agent, content] = [ref("Note"), ref("Memo"), ref("prov:Entity"), ref("prov:Agent"), ref(LinkRelations.CONTENT.uri)];
+const holds = (subject: Term, predicate: string, object: Term): boolean => owl.has(quad(subject as NamedNode, namedNode(predicate), object as NamedNode));
 
 describe("ontologyOwl", () => {
 	it("states the classes that declare a property as the union that is its domain", () => {
-		expect(owl).toContain(`${content} rdfs:domain [ a owl:Class ; owl:unionOf ( ${note} ${memo} ) ] .`);
+		const [union] = owl.getObjects(content, namedNode(RDFS.domain), null);
+		if (union === undefined) throw new Error("the export doesn't state the property's domain");
+		expect(holds(union, RDF.type, namedNode(OWL.Class))).toBe(true);
+		const [members] = owl.getObjects(union, namedNode(OWL.unionOf), null);
+		const lists = owl.extractLists();
+		expect(members === undefined ? undefined : lists[members.value]?.map((term) => term.value)).toEqual([note.value, memo.value]);
 	});
 
 	it("states a class's declared @type IRI as its superclass, apart from its other superclasses", () => {
-		expect(owl).toContain(`${note} rdfs:subClassOf ${entity} .`);
-		expect(owl).toContain(`${memo} rdfs:subClassOf ${entity} .`);
-		expect(owl).toContain(`${memo} rdfs:subClassOf ${agent} .`);
-		expect(owl).not.toContain(`${entity} rdfs:subClassOf`);
+		expect(holds(note, RDFS.subClassOf, entity)).toBe(true);
+		expect(holds(memo, RDFS.subClassOf, entity)).toBe(true);
+		expect(holds(memo, RDFS.subClassOf, agent)).toBe(true);
+		expect(owl.getObjects(entity, namedNode(RDFS.subClassOf), null)).toEqual([]);
 	});
 
 	it("refuses a CURIE whose prefix the context doesn't bind", () => {

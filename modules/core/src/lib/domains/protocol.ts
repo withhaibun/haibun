@@ -1,3 +1,4 @@
+import { MEDIA_TYPE } from "./media-types.js";
 import { z } from "zod";
 import { AccessLevelSchema } from "./resources.js";
 import type { TRemedy } from "../transport/domains/rpc-wire.js";
@@ -551,12 +552,12 @@ const BaseArtifact = BaseEvent.extend({
 });
 
 // Artifact Subtypes
-export const ImageArtifact = BaseArtifact.extend({ artifactType: z.literal("image"), path: z.string(), mimetype: z.string().default("image/png") });
+export const ImageArtifact = BaseArtifact.extend({ artifactType: z.literal("image"), path: z.string(), mimetype: z.string().default(MEDIA_TYPE.png) });
 
 export const VideoArtifact = BaseArtifact.extend({
 	artifactType: z.literal("video"),
 	path: z.string(),
-	mimetype: z.string().default("video/webm"),
+	mimetype: z.string().default(MEDIA_TYPE.webm),
 	isTimeLined: z.boolean().default(true),
 	startTime: z.number().optional().describe("Epoch timestamp when video recording started"),
 	duration: z.number().optional(),
@@ -564,19 +565,19 @@ export const VideoArtifact = BaseArtifact.extend({
 
 export const VideoStartArtifact = BaseArtifact.extend({ artifactType: z.literal("video-start"), startTime: z.number().describe("Relative start time of video in milliseconds") });
 
-export const HtmlArtifact = BaseArtifact.extend({ artifactType: z.literal("html"), path: z.string(), mimetype: z.string().default("text/html") });
+export const HtmlArtifact = BaseArtifact.extend({ artifactType: z.literal("html"), path: z.string(), mimetype: z.string().default(MEDIA_TYPE.html) });
 
 export const SpeechArtifact = BaseArtifact.extend({
 	artifactType: z.literal("speech"),
 	path: z.string(),
-	mimetype: z.string().default("audio/mpeg"),
+	mimetype: z.string().default(MEDIA_TYPE.mpeg),
 	transcript: z.string().optional(),
 	durationS: z.number().optional(),
 });
 
-export const JsonArtifact = BaseArtifact.extend({ artifactType: z.literal("json"), json: z.record(z.string(), z.unknown()), mimetype: z.string().default("application/json") });
+export const JsonArtifact = BaseArtifact.extend({ artifactType: z.literal("json"), json: z.record(z.string(), z.unknown()), mimetype: z.string().default(MEDIA_TYPE.json) });
 
-const MermaidArtifact = BaseArtifact.extend({ artifactType: z.literal("mermaid"), source: z.string(), mimetype: z.string().default("text/x-mermaid") });
+const MermaidArtifact = BaseArtifact.extend({ artifactType: z.literal("mermaid"), source: z.string(), mimetype: z.string().default(MEDIA_TYPE.mermaid) });
 
 export const HttpTraceArtifact = BaseArtifact.extend({
 	artifactType: z.literal("http-trace"),
@@ -591,14 +592,14 @@ export const HttpTraceArtifact = BaseArtifact.extend({
 		status: z.number().optional(),
 		statusText: z.string().optional(),
 	}),
-	mimetype: z.string().default("application/json"),
+	mimetype: z.string().default(MEDIA_TYPE.json),
 });
 
 export const ResolvedFeaturesArtifact = BaseArtifact.extend({
 	artifactType: z.literal("resolvedFeatures"),
 	resolvedFeatures: z.array(z.unknown()),
 	index: z.number().optional(),
-	mimetype: z.string().default("application/json"),
+	mimetype: z.string().default(MEDIA_TYPE.json),
 });
 
 // Generic file artifact for other types

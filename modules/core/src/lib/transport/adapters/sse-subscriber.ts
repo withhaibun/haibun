@@ -33,6 +33,7 @@
  * get the records of the events the stream didn't deliver during the break.
  */
 
+import { MEDIA_TYPE } from "../../domains/media-types.js";
 import { ACTUALITY_HEADER, type TActualityId } from "../domains/rpc-wire.js";
 import type { THaibunEvent } from "../../domains/protocol.js";
 import { REPLAY_BUFFER_LIMIT, StreamListeners } from "./stream-listeners.js";
@@ -106,7 +107,7 @@ export class SseSubscriber {
 	/** Reads one connection until it ends, and treats its end as a break, since a host's stream stays open while the host runs. */
 	private async read(reading: AbortController): Promise<void> {
 		try {
-			const headers = { accept: "text/event-stream", [ACTUALITY_HEADER]: this.actualityId, ...(await this.headers?.(this.url)) };
+			const headers = { accept: MEDIA_TYPE.eventStream, [ACTUALITY_HEADER]: this.actualityId, ...(await this.headers?.(this.url)) };
 			const res = await this.send(this.url, { headers, signal: reading.signal });
 			// A refusal is the host's response to this caller, and a repeated request receives the same response. The stream
 			// stays down, and this subscriber doesn't retry. A later connect() requests the stream again. That request

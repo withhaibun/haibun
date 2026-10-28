@@ -7,6 +7,7 @@
  * (`#Type:id:~:text=[prefix-,]exact[,-suffix]`) a passage inside it, which maps one-to-one onto the Web Annotation
  * TextQuoteSelector the graph persists. A rendered reference is a `<shu-ref>`, which opens its target in a column.
  */
+import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
 import { esc, headingAnchor } from "@haibun/core/lib/domains/document-content.js";
@@ -228,9 +229,9 @@ const preBlock = (text: string): string => `<pre style="font-family:monospace;wh
  *  other text preformatted. Each surface that shows a `content` value renders it here. Callers sanitize with
  *  `refSanitizeOptions`. */
 export function renderContentHtml(raw: string, mediaType: string, refs: TRefContext): string {
-	if (mediaType === "text/markdown") return renderRefBody(raw, refs);
-	if (mediaType === "text/html") return raw;
-	if (mediaType === "application/ld+json" || mediaType === "application/json") {
+	if (mediaType === MEDIA_TYPE.markdown) return renderRefBody(raw, refs);
+	if (mediaType === MEDIA_TYPE.html) return raw;
+	if (mediaType === MEDIA_TYPE.jsonld || mediaType === MEDIA_TYPE.json) {
 		const carried = jsonCarried(raw);
 		return preBlock(carried === undefined ? raw : JSON.stringify(carried, null, 2)); // a text that isn't JSON shows as it reads
 	}

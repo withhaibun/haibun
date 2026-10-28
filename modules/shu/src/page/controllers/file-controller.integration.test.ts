@@ -2,6 +2,7 @@
  * A file a page opens in a tab of its own, in a real browser driven as a test drives it: the page's IndexedDB transactions in
  * flight while the tab opens commit. A tab made in the page's process aborted them, which only a browser shows.
  */
+import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,7 +23,7 @@ beforeAll(async () => {
 	opened = await openTestPage(
 		(url, res) => {
 			if (url === "/") res.writeHead(200, { "Content-Type": "text/html" }).end(PAGE);
-			else if (url === FILE_TAB_PAGE.entry) res.writeHead(200, { "Content-Type": "application/javascript" }).end(entry);
+			else if (url === FILE_TAB_PAGE.entry) res.writeHead(200, { "Content-Type": MEDIA_TYPE.javascript }).end(entry);
 			else return false;
 			return true;
 		},
