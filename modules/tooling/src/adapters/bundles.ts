@@ -7,7 +7,7 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { build, context, type BuildOptions, type Metafile, type Plugin } from "esbuild";
-import { BUDGET_FINDING, HAIBUN_SOURCE, type TBundle, type TBundleSizes } from "../domains/bundle.ts";
+import { BUDGET_FINDING, type TBundle, type TBundleSizes } from "../domains/bundle.ts";
 
 export { BUDGET_FINDING, BUDGET_FIX, HAIBUN_SOURCE, type TBundle, type TBundleSizes } from "../domains/bundle.ts";
 
@@ -166,7 +166,7 @@ export const bundleOptions = (root: string, bundle: TBundle): BuildOptions & { m
 	platform: "browser",
 	target: "es2022",
 	minify: true,
-	conditions: [HAIBUN_SOURCE],
+	conditions: bundle.conditions === undefined ? [] : [...bundle.conditions],
 	define: nodeEnvDefine(),
 	plugins: [onePackageCopy(root), zodEnglishLocale, d3EngineAlone, oneColourLibrary, extrasControlsAlone, gzipAlone, decodeAlone],
 	metafile: true,

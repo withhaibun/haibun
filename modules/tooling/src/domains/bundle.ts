@@ -1,6 +1,6 @@
 /** The declaration of a browser bundle and the names its budget records, which a repository's `bundles.ts` and its bundle test share. */
 
-/** The condition haibun's packages export their TypeScript source under, and the bundles build under it. */
+/** The condition haibun's packages export their TypeScript source under, by which haibun's own workspace resolves them. */
 export const HAIBUN_SOURCE = "haibun-source";
 
 /** One build: its entries, each by the name of its output and the source it starts from, where it writes them, and how. */
@@ -17,6 +17,8 @@ export type TBundle = {
 	files?: Readonly<Record<string, string>>;
 	/** What the build copies beside its outputs in `outdir`, by file name, from its path from the root: a page the repository holds. */
 	copies?: Readonly<Record<string, string>>;
+	/** The export conditions the build resolves a package by before esbuild's own, such as haibun's workspace source condition. */
+	conditions?: readonly string[];
 };
 
 /** The finding a bundle's budget records: the KiB, rounded up, that loading an entry fetches. */

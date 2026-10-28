@@ -4,7 +4,6 @@
 	"compilerOptions": {
 		"outDir": "build",
 		"rootDir": "src",
-		"target": "ES2022",
 		"experimentalDecorators": false,
 		"importHelpers": false,
 		"lib": ["ES2022", "DOM", "DOM.Iterable"]

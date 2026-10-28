@@ -92,12 +92,7 @@ export const ICON_DEFAULT = "•";
 
 // Structured Output
 export const ICON_ARTIFACT = "⌬"; // Benzene ring
-export enum Origin {
-	defined = "defined",
-	var = "var",
-	env = "env",
-	quoted = "quoted",
-}
+export const Origin = { defined: "defined", var: "var", env: "env", quoted: "quoted" } as const;
 export type TOrigin = keyof typeof Origin;
 
 export type TDebugSignal = "fail" | "step" | "continue" | "retry" | "next";

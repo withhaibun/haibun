@@ -83,11 +83,3 @@ export const readBack = (turn: string, inReplyTo?: string, bundle: TSessionTurn[
 	generatedAtTime: `2026-01-01T00:00:${turn.replace(/\D/g, "").slice(-2).padStart(2, "0")}.000Z`,
 	status: "completed",
 });
-
-/** The pane as a case drives it: the element, and what a case calls on it. */
-export type TDriven = HTMLElement & {
-	updateComplete: Promise<unknown>;
-	submitChat(): Promise<void>;
-	setState(s: Record<string, unknown>): void;
-	fork(forking: { prompt: string; patterns: unknown[]; inReplyTo?: string; send: boolean }): Promise<void>;
-};

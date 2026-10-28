@@ -6,7 +6,7 @@
  */
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runBundleScript, type TBundle } from "@haibun/tooling/bundles.js";
+import { HAIBUN_SOURCE, runBundleScript, type TBundle } from "@haibun/tooling/bundles.js";
 import { BUNDLE_NAMES, PAGE_CHUNK_DIR } from "../src/domains/bundle-files.ts";
 import { BUNDLE_DIRS } from "../src/ports.ts";
 
@@ -14,6 +14,8 @@ import { BUNDLE_DIRS } from "../src/ports.ts";
 export const SHU_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const APP = "entries/shu-app.ts";
 const POLYMORPHIC = "entries/polymorphic-bundle.ts";
+/** Each bundle reads the source of the workspace modules it imports, as shu's tests do, so its budget measures them as edited. */
+const SOURCE = [HAIBUN_SOURCE];
 
 export const SHU_BUNDLES: readonly TBundle[] = [
 	{
@@ -25,9 +27,10 @@ export const SHU_BUNDLES: readonly TBundle[] = [
 		format: "esm",
 		splitting: { chunkDir: PAGE_CHUNK_DIR },
 		sourcemap: true,
+		conditions: SOURCE,
 	},
-	{ entryPoints: [{ out: BUNDLE_NAMES.report, in: APP }], outdir: BUNDLE_DIRS.whole, format: "iife", splitting: false, sourcemap: false },
-	{ entryPoints: [{ out: BUNDLE_NAMES.polymorphic, in: POLYMORPHIC }], outdir: BUNDLE_DIRS.whole, format: "iife", splitting: false, sourcemap: false },
+	{ entryPoints: [{ out: BUNDLE_NAMES.report, in: APP }], outdir: BUNDLE_DIRS.whole, format: "iife", splitting: false, sourcemap: false, conditions: SOURCE },
+	{ entryPoints: [{ out: BUNDLE_NAMES.polymorphic, in: POLYMORPHIC }], outdir: BUNDLE_DIRS.whole, format: "iife", splitting: false, sourcemap: false, conditions: SOURCE },
 ];
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) await runBundleScript(SHU_ROOT, { page: SHU_BUNDLES });

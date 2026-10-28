@@ -8,6 +8,7 @@ Status is kept in the checklist at the end. Each stage ends with haibun's suites
 - Suites: `npm run build`, `npm run lint`, `PLAYWRIGHT_BROWSERS_PATH=/tmp/claude-0/pw-browsers npx vitest run`, and `HAIBUN_O_WEBPLAYWRIGHT_HEADLESS=true npm run test:e2e` with the same browser path.
 - Commits are signed (`git commit -S`) and use bullet-grouped messages without attribution lines. Hooks always run. Each commit includes the `actualities.json` changes its suites wrote. Push to origin `delegated-action`.
 - Applications built on haibun keep their own plans for their part of the change, in their own repositories, and run their suites against each stage before it is pushed.
+- An application reads haibun as an ordinary dependency: each package's build and `.d.ts`, linked from its `node_modules`. haibun builds (`npm run build`, or `build:watch` running) before an application uses a change, and the application compiles each of its projects with `tsc -p`, which checks again where a changed `.d.ts` changes the project, since `tsc -b` compares only the project's own inputs with its build info.
 - Each stage ticks its checklist line in this file in the same commit. Beneath the line it records the net source lines, the steps removed and the feature lines whose meaning changed. A question that needs an operator decision is recorded there too.
 - The N3 rules from the trial that the stages reuse are in `trial/` beside this file.
 

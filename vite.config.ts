@@ -1,5 +1,5 @@
 import { defineConfig } from "vite";
-import { haibunPreset, type THaibunConfig } from "@haibun/tooling/vitest-preset.js";
+import { workspacePreset, type THaibunConfig } from "@haibun/tooling/vitest-preset.js";
 
 // `*.integration.test.ts` is the convention for a test that boots a real dependency: here each launches a browser and
 // serves a built bundle to it. Run beside 270 other files they contend for the machine and time out without a fault
@@ -8,9 +8,9 @@ const INTEGRATION_TESTS = "modules/**/*.integration.test.{ts,tsx}";
 const EXCLUDE = ["**/node_modules/**", "**/dist/**", "**/build/**"];
 
 const config: THaibunConfig = {
-	...haibunPreset,
+	...workspacePreset,
 	test: {
-		...haibunPreset.test,
+		...workspacePreset.test,
 		// A test under jsdom runs the browser's frame callbacks, which the text annotator draws its highlights in.
 		environmentOptions: { jsdom: { pretendToBeVisual: true } },
 		// The projects below say what runs; a root `include` beside them would be a third project running everything again.

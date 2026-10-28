@@ -8,8 +8,8 @@
 	},
 	"files": ["src/**", "build/**", "bin/**", "hooks/**", "biome.base.json"],
 	"exports": {
-		"./vitest-preset.js": { "types": "./build/root.d.ts", "default": "./src/root.ts" },
-		"./bundles.js": { "types": "./build/adapters/bundles.d.ts", "default": "./src/adapters/bundles.ts" },
+		"./vitest-preset.js": { "types": "./build/root.d.ts", "default": "./build/root.js" },
+		"./bundles.js": { "types": "./build/adapters/bundles.d.ts", "default": "./build/adapters/bundles.js" },
 		"./biome": "./biome.base.json"
 	},
 	"scripts": {

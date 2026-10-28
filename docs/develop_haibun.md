@@ -40,3 +40,9 @@ as its npm workspaces, so one `npm install` installs it with Haibun's modules. I
 spreads `@haibun/tooling/vitest-preset.js`, its Biome config extends `@haibun/tooling/biome`, its bundles build through
 `@haibun/tooling/bundles.js`, and its `prepare` script runs `haibun-install-hooks`. An application repository clones Haibun on its own branch
 into `haibun`, then `npm run setup` installs its packages, builds Haibun, fetches the browsers and models, and builds the application.
+
+The repository reads each Haibun package as an ordinary dependency: its build and `.d.ts`, through the package's exports. Haibun builds
+before the repository uses a change: `npm run build` in Haibun, or Haibun's `build:watch` running beside the repository's own. The
+repository compiles each of its projects with `tsc -p` in reference order, for a check and for its watch, since `tsc -b` compares only a
+project's own inputs with its build info and doesn't watch a changed `.d.ts` in a linked package. Only Haibun's own workspace resolves its
+packages' source, through the `haibun-source` condition of `workspacePreset` and of shu's bundles.

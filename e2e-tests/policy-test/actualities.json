@@ -618,6 +618,111 @@
 				}
 			}
 		},
+		"443fb14899204c51": {
+			"filter": "",
+			"actuality": {
+				"text": "e2e-tests/policy-test",
+				"status": "passed",
+				"tookMs": 100,
+				"digest": {
+					"e2e-tests/policy-test": "926b6ca236fb5c169cbd325b1a019947d5e11622ce559212af1fad0aaa6146d6",
+					"modules/core/src": "5ba3535539abed31536a9738422b167d53f5b561d3e9ef7ebf7227ac58047fbb",
+					"modules/logic/src": "a33987c6e6720e88bbc67187eb667d970622a447bd85f8feb86f576f9b964114"
+				}
+			},
+			"features": {
+				"/features/api/r_list.feature": {
+					"text": "/features/api/r_list",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				},
+				"/features/smoke/r_health.feature": {
+					"text": "/features/smoke/r_health",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 12
+				}
+			}
+		},
+		"55af9f07e98b10b4": {
+			"filter": "",
+			"actuality": {
+				"text": "e2e-tests/policy-test",
+				"status": "passed",
+				"tookMs": 100,
+				"digest": {
+					"e2e-tests/policy-test": "926b6ca236fb5c169cbd325b1a019947d5e11622ce559212af1fad0aaa6146d6",
+					"modules/core/src": "5ba3535539abed31536a9738422b167d53f5b561d3e9ef7ebf7227ac58047fbb",
+					"modules/logic/src": "a33987c6e6720e88bbc67187eb667d970622a447bd85f8feb86f576f9b964114"
+				}
+			},
+			"features": {
+				"/features/api/r_list.feature": {
+					"text": "/features/api/r_list",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				},
+				"/features/smoke/r_health.feature": {
+					"text": "/features/smoke/r_health",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 11
+				}
+			}
+		},
+		"61333951f237ac76": {
+			"filter": "",
+			"actuality": {
+				"text": "e2e-tests/policy-test",
+				"status": "passed",
+				"tookMs": 200,
+				"digest": {
+					"e2e-tests/policy-test": "926b6ca236fb5c169cbd325b1a019947d5e11622ce559212af1fad0aaa6146d6",
+					"modules/core/src": "5ba3535539abed31536a9738422b167d53f5b561d3e9ef7ebf7227ac58047fbb",
+					"modules/logic/src": "a33987c6e6720e88bbc67187eb667d970622a447bd85f8feb86f576f9b964114"
+				}
+			},
+			"features": {
+				"/features/api/a_profile.feature": {
+					"text": "/features/api/a_profile",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				},
+				"/features/api/r_list.feature": {
+					"text": "/features/api/r_list",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				},
+				"/features/api/w_create.feature": {
+					"text": "/features/api/w_create",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				},
+				"/features/smoke/a_auth_check.feature": {
+					"text": "/features/smoke/a_auth_check",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				},
+				"/features/smoke/r_health.feature": {
+					"text": "/features/smoke/r_health",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 11
+				},
+				"/features/smoke/w_write_check.feature": {
+					"text": "/features/smoke/w_write_check",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				}
+			}
+		},
 		"6779795d8d84fed3": {
 			"filter": "",
 			"actuality": {
@@ -642,6 +747,53 @@
 					"status": "passed",
 					"tookMs": 100,
 					"steps": 11
+				}
+			}
+		},
+		"6ac97d39061cf355": {
+			"filter": "",
+			"actuality": {
+				"text": "e2e-tests/policy-test",
+				"status": "failed",
+				"error": "0.5.0.3: variable THIS_PLACE exists (the variable THIS_PLACE isn't set, and the environment doesn't hold it)",
+				"tookMs": 100,
+				"digest": {
+					"e2e-tests/policy-test": "926b6ca236fb5c169cbd325b1a019947d5e11622ce559212af1fad0aaa6146d6",
+					"modules/core/src": "5ba3535539abed31536a9738422b167d53f5b561d3e9ef7ebf7227ac58047fbb",
+					"modules/logic/src": "a33987c6e6720e88bbc67187eb667d970622a447bd85f8feb86f576f9b964114"
+				}
+			},
+			"features": {
+				"/features/api/a_profile.feature": {
+					"text": "/features/api/a_profile",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				},
+				"/features/api/r_list.feature": {
+					"text": "/features/api/r_list",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				},
+				"/features/api/w_create.feature": {
+					"text": "/features/api/w_create",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				},
+				"/features/smoke/a_auth_check.feature": {
+					"text": "/features/smoke/a_auth_check",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				},
+				"/features/smoke/r_health.feature": {
+					"text": "/features/smoke/r_health",
+					"status": "failed",
+					"error": "0.5.0.3: variable THIS_PLACE exists (the variable THIS_PLACE isn't set, and the environment doesn't hold it)",
+					"tookMs": 0,
+					"steps": 3
 				}
 			}
 		},
