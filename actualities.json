@@ -59,12 +59,12 @@
 			"actuality": {
 				"text": "AGENTS.md",
 				"status": "passed",
-				"tookMs": 500,
+				"tookMs": 600,
 				"digest": {
 					"AGENTS.md": "3dd848abaa4341b061ad512a73b25459b9b5b4a28f8860d325bd51e179f03ebe",
-					"modules/core/src": "ad383ced6addbc94e08e08a9993bbab7781f26c650c4a14ac98d2bc8fa6c030c",
+					"modules/core/src": "f2ebd4e22e6229d5cbef8929bcdec6d5ab81aecfbc7e96acadfeeb22e1f661a5",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
-					"modules/logic/src": "afd2de5a4ab61dd229f2da6f5da94ec581a3fcc1dac5abf235218f9a71c33b31",
+					"modules/logic/src": "e107d7445a2e4b0b33de3d1e4a757092245680eed166634c821b339ff7eb161d",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/web-playwright/src": "183837582c6745581f805bc27a237802cbe289e8d03346c3f4542012f75925be",
