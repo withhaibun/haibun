@@ -486,19 +486,19 @@
 			"actuality": {
 				"text": "modules/shu/tests-profile, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 12500,
+				"tookMs": 12800,
 				"digest": {
-					"modules/core/src": "f2ebd4e22e6229d5cbef8929bcdec6d5ab81aecfbc7e96acadfeeb22e1f661a5",
+					"modules/core/src": "cc647d98cfd8ca75b34d9ee3b236cf3f971d9d180e050cb6f0698a17cb98d659",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
-					"modules/logic/src": "e107d7445a2e4b0b33de3d1e4a757092245680eed166634c821b339ff7eb161d",
+					"modules/logic/src": "3f1e099eaa3c062bbadf4366d067e1516a41cdc34feef830d72e8e3adf2f0edb",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/shu/src": "78c719cfbbac330a2442b4e35cdd11d3a4015b18cce5f0deeceb87d3f55eda59",
+					"modules/shu/src": "bcebb2de957f32940f4ce259e3fa0ff6321538f6fb6279b394f4f551e2ef017c",
 					"modules/shu/tests-profile": "e3b3bf7b4fe401d47683e9e42bb954f3620a9b2fc51c214808d39bf06148d8ec",
 					"modules/shu/waypoints": "85c65554dd406b66e361f3a3a5683db72f20656c2f827dff70c53761a388b64b",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/web-playwright/src": "183837582c6745581f805bc27a237802cbe289e8d03346c3f4542012f75925be",
-					"modules/web-server-hono/src": "7b53083f3a54d0d78a7ca90c99dd325f87cd42cfdfe36487284e87d4296d2503"
+					"modules/web-server-hono/src": "a3d5c2677fbc128a15542bdab445475e4f2d167d51e6e8b38b884d7e535b54d5"
 				}
 			},
 			"features": {
@@ -511,7 +511,7 @@
 				"/features/c-reading-a-report.feature.ts": {
 					"text": "Reading a report of this actuality",
 					"status": "passed",
-					"tookMs": 1800,
+					"tookMs": 2100,
 					"steps": 223
 				},
 				"/features/d-two-origins.feature.ts": {
@@ -533,26 +533,26 @@
 			"actuality": {
 				"text": "modules/shu/tests-profile, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 2400,
+				"tookMs": 2500,
 				"digest": {
-					"modules/core/src": "f2ebd4e22e6229d5cbef8929bcdec6d5ab81aecfbc7e96acadfeeb22e1f661a5",
+					"modules/core/src": "cc647d98cfd8ca75b34d9ee3b236cf3f971d9d180e050cb6f0698a17cb98d659",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
-					"modules/logic/src": "e107d7445a2e4b0b33de3d1e4a757092245680eed166634c821b339ff7eb161d",
+					"modules/logic/src": "3f1e099eaa3c062bbadf4366d067e1516a41cdc34feef830d72e8e3adf2f0edb",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/shu/src": "78c719cfbbac330a2442b4e35cdd11d3a4015b18cce5f0deeceb87d3f55eda59",
+					"modules/shu/src": "bcebb2de957f32940f4ce259e3fa0ff6321538f6fb6279b394f4f551e2ef017c",
 					"modules/shu/tests-profile": "e3b3bf7b4fe401d47683e9e42bb954f3620a9b2fc51c214808d39bf06148d8ec",
 					"modules/shu/waypoints": "85c65554dd406b66e361f3a3a5683db72f20656c2f827dff70c53761a388b64b",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/web-playwright/src": "183837582c6745581f805bc27a237802cbe289e8d03346c3f4542012f75925be",
-					"modules/web-server-hono/src": "7b53083f3a54d0d78a7ca90c99dd325f87cd42cfdfe36487284e87d4296d2503"
+					"modules/web-server-hono/src": "a3d5c2677fbc128a15542bdab445475e4f2d167d51e6e8b38b884d7e535b54d5"
 				}
 			},
 			"features": {
 				"/features/a-an-actuality-to-come-back-to.feature.ts": {
 					"text": "An actuality to come back to",
 					"status": "passed",
-					"tookMs": 2200,
+					"tookMs": 2300,
 					"steps": 209
 				}
 			}

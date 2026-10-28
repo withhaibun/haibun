@@ -22,7 +22,8 @@ export type TLogicEngine = {
 
 /** A session of the reasoner: it starts EYE over N3 sources and a query, and resumes it with the rows of the read it needed. */
 export type TReasonerSession = {
-	start: (sources: string, query: string) => Promise<TReasonerState>;
+	/** Starts the session over its sources and query. An explained session's derived text is the proof of what the query selects. */
+	start: (sources: string, query: string, explained: boolean) => Promise<TReasonerState>;
 	/** Resumes with the objects the read found, each an N3 term. */
 	resume: (rows: readonly string[]) => TReasonerState;
 };

@@ -18,7 +18,7 @@ const RULE_OPENING = "{";
 /** Runs EYE over N3 text, and returns each triple its query selects, as one line. */
 const eyeDerives = (reasoner: TReasoner, n3: string): Promise<string[]> =>
 	reasoner.session(async (session) => {
-		const state = await session.start(n3, PROVED_QUERY);
+		const state = await session.start(n3, PROVED_QUERY, false);
 		if ("need" in state) throw new Error(`the export doesn't read the store, and EYE requested a read of ${state.subject}`);
 		return triplesOf(state.derived).map(({ subject, predicate, object }) => `${subject} ${predicate} ${object}.`);
 	});

@@ -7,7 +7,7 @@
 import { z } from "zod";
 import { CountedFields } from "@haibun/core/lib/domains/hypermedia.js";
 import { listOf } from "@haibun/core/lib/domains/lists.js";
-import type { TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
+import type { AccessLevel, TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import { IndividualAddressSchema } from "@haibun/core/lib/domains/typed-links.js";
 
 /** The namespace of the built-ins and terms that haibun's N3 rules name. */
@@ -26,6 +26,17 @@ export type TTriple = { subject: string; predicate: string; object: string };
 /** What a reasoning reads: its N3 rules and facts, the query that selects what it returns, and the types whose complete graphs
  *  its rules close over. */
 export type TReasoning = { rules: string; query: string; closedOver: readonly string[] };
+/** A graph the rules close over that is open to the reader, since its type's records are held at a level above the reader's. */
+export type TOpenGraph = { graph: string; accessLevel: AccessLevel };
+/** A step of a proof: what it gives, as the triples of its formula, and how. An inference rests on the steps its evidence
+ *  names and applies its rule; an extraction reads its formula from a source. A rule's formula isn't a triple, so a step
+ *  that gives a rule gives an empty list of triples. */
+export type TProofStep = { step: string; kind: "proof" | "inference" | "extraction"; gives: TTriple[]; evidence: string[]; rule?: string; source?: string };
+/** A proof: what it concludes, and each of its steps by its name. */
+export type TProof = { gives: TTriple[]; steps: TProofStep[] };
+/** An explained reasoning: the proof of what its query selects, and the graphs its rules close over that are open to the reader,
+ *  so a claim the proof doesn't give is unknown because of them. */
+export type TExplained = { proof: TProof; open: TOpenGraph[] };
 
 /** The namespace of the classes a query's rules name for the parts of its class expression. */
 export const QUERY_NAMESPACE = `${REASONER_NAMESPACE}query#`;

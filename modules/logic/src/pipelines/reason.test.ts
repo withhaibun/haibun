@@ -10,10 +10,10 @@ import { runReadingAt } from "@haibun/core/lib/domains/capability-context.js";
 import { DEF_PROTO_OPTIONS, getTestWorldWithOptions } from "@haibun/core/lib/test/lib.js";
 import { individualIri, iriIn } from "@haibun/core/lib/records/derivations/owl.js";
 import { getJsonLdContext } from "@haibun/core/lib/domains/hypermedia.js";
-import { COMPLETE_GRAPH, REASONER_BUILTIN } from "../domains/reasoning.js";
+import { COMPLETE_GRAPH, REASONER_BUILTIN, type TProofStep } from "../domains/reasoning.js";
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { reasoner } from "../root.js";
-import { reason } from "./reason.js";
+import { explain, reason } from "./reason.js";
 
 const [STEP, NOTE] = ["Step", "Note"];
 const typeOf = (persistedAs: string, complete: boolean) => ({
@@ -70,6 +70,32 @@ describe("reason", () => {
 		const closed = (level: AccessLevel) => runReadingAt(level, () => reason(reasoner(), store, domains, { rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] }));
 		expect(await closed(Access.private)).toEqual([{ subject: step("s2"), predicate: `<${MISSING}>`, object: '"outcome"' }]);
 		expect(await closed(Access.public), "s3's outcome is private, so a public reader reads the graph as open and the rules don't derive a missing outcome").toEqual([]);
+	});
+
+	it("explains a proved claim by its inference chain, down to the complete graph and the rule it rests on", { timeout: 30_000 }, async () => {
+		const { proof, open } = await explain(reasoner(), await storeWith(), domains, { rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] });
+		const missing = { subject: step("s2"), predicate: `<${MISSING}>`, object: '"outcome"' };
+		expect(proof.gives).toEqual([missing]);
+		expect(open).toEqual([]);
+		const byName = new Map(proof.steps.map((held) => [held.step, held]));
+		const leaves = (name: string): TProofStep[] => {
+			const held = byName.get(name);
+			if (held === undefined) throw new Error(`the proof names ${name} without stating it`);
+			return held.kind === "extraction" ? [held] : [...held.evidence, ...(held.rule === undefined ? [] : [held.rule])].flatMap(leaves);
+		};
+		const proved = proof.steps.find(({ kind }) => kind === "proof");
+		const rested = leaves(proved?.step ?? "").map(({ gives, source }) => ({ source, graphs: gives.map(({ subject, predicate }) => `${subject} ${predicate}`) }));
+		expect(rested, "the proof rests on the complete graph's formula, the rule and the query, each read from its source").toEqual([
+			{ source: "<file:///sources.n3>", graphs: [`<${stepClass}> <${COMPLETE_GRAPH}>`] },
+			{ source: "<file:///sources.n3>", graphs: [] },
+			{ source: "<file:///query.n3>", graphs: [] },
+		]);
+	});
+
+	it("explains an unknown claim by the graph that stayed open to the reader, and its type's access level", { timeout: 30_000 }, async () => {
+		const store = await storeWith();
+		const explained = await runReadingAt(Access.public, () => explain(reasoner(), store, domains, { rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] }));
+		expect(explained).toEqual({ proof: { gives: [], steps: [] }, open: [{ graph: STEP, accessLevel: Access.private }] });
 	});
 
 	it("refuses to close over an open graph", async () => {

@@ -20,8 +20,9 @@ const [EYE_FILE, BUILTINS_FILE, SOURCES_FILE, QUERY_FILE] = ["eye.qlf", "builtin
 const ENGINE = "eye";
 /** The read built-in: it yields the subject and the predicate, and binds its object to each row the host posts. */
 const BUILTINS = `'<${REASONER_BUILTIN.read}>'([S, P], O) :- engine_self(_), engine_yield(need(read, S, P)), engine_fetch(rows(Os)), member(O, Os).`;
-/** EYE's arguments: without a proof explanation or a banner, and with each IRI in full, so each derived triple is one line. */
-const EYE_ARGUMENTS = `['--nope', '--quiet', '--no-qnames', '${SOURCES_FILE}', '--query', '${QUERY_FILE}']`;
+/** EYE's arguments: without a banner, and with each IRI in full. Unexplained, EYE writes each derived triple as one line; explained,
+ *  it writes the proof of what the query selects in the N3 proof vocabulary. */
+const eyeArguments = (explained: boolean): string => `[${explained ? "" : "'--nope', "}'--quiet', '--no-qnames', '${SOURCES_FILE}', '--query', '${QUERY_FILE}']`;
 const NEED = /^need\(read,'(<[^']*>)','(<[^']*>)'\)$/;
 const LITERAL = /^("(?:[^"\\]|\\.)*")(?:\^\^<([^>]*)>|@([\w-]+))?$/;
 const NUMBER_OR_BOOLEAN = /^(?:[-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?|true|false)$/;
@@ -53,7 +54,7 @@ function once(runtime: TRuntime, goal: string, input?: Record<string, unknown>):
 }
 
 /** Starts a runtime with EYE and the built-in loaded, writes a session's sources and query, and starts EYE over them. */
-async function started(program: Uint8Array, sources: string, query: string): Promise<{ runtime: TRuntime; printed: string[]; errors: string[] }> {
+async function started(program: Uint8Array, sources: string, query: string, explained: boolean): Promise<{ runtime: TRuntime; printed: string[]; errors: string[] }> {
 	const printed: string[] = [];
 	const errors: string[] = [];
 	const runtime = await SWIPL({ arguments: ["-q"], print: (line: string) => printed.push(line), printErr: (line: string) => errors.push(line) });
@@ -64,7 +65,7 @@ async function started(program: Uint8Array, sources: string, query: string): Pro
 	once(runtime, `consult('${BUILTINS_FILE}')`);
 	runtime.FS.writeFile(SOURCES_FILE, sources);
 	runtime.FS.writeFile(QUERY_FILE, query);
-	once(runtime, `engine_create(done, user:main(${EYE_ARGUMENTS}), _, [alias(${ENGINE})])`);
+	once(runtime, `engine_create(done, user:main(${eyeArguments(explained)}), _, [alias(${ENGINE})])`);
 	return { runtime, printed, errors };
 }
 
@@ -90,8 +91,8 @@ export function eyeReasoner(): TReasoner {
 			return opened;
 		};
 		return await run({
-			start: async (sources, query) => {
-				opened = await started(held, sources, query);
+			start: async (sources, query, explained) => {
+				opened = await started(held, sources, query, explained);
 				return stateOf(opened, once(opened.runtime, `engine_next(${ENGINE}, A), term_string(A, S)`));
 			},
 			resume: (rows) => {
