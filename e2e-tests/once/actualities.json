@@ -219,7 +219,7 @@
 			"actuality": {
 				"text": "e2e-tests/once",
 				"status": "passed",
-				"tookMs": 100
+				"tookMs": 0
 			},
 			"features": {
 				"/features/once.feature": {

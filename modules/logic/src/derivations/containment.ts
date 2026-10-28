@@ -13,21 +13,27 @@ import { EXCEEDS, NEVER_EXPIRES, readAction, type TExceeding, type TPermission }
 import { REASONER_NAMESPACE, type TTriple } from "../domains/reasoning.js";
 
 const DATE_TIME = "http://www.w3.org/2001/XMLSchema#dateTime";
-/** The IRIs a containment's facts and query name: the candidate and its bound, and each kind of what exceeds. */
-const TERM = {
+/** The IRIs a containment's facts and query name: the candidate and its bound, a candidate's bound, a use's time, containment,
+ *  an entry allowing an action, and what exceeds. */
+export const CONTAINMENT_TERM = {
 	candidate: `${REASONER_NAMESPACE}candidate`,
 	bound: `${REASONER_NAMESPACE}bound`,
 	boundedBy: `${REASONER_NAMESPACE}boundedBy`,
 	usedAt: `${REASONER_NAMESPACE}usedAt`,
 	containedIn: `${REASONER_NAMESPACE}containedIn`,
+	allows: `${REASONER_NAMESPACE}allows`,
+	exceeds: `${REASONER_NAMESPACE}exceeds`,
 };
-const EXCEEDING: Record<keyof typeof EXCEEDS, string> = {
+/** The IRI of each kind of what a candidate holds beyond its bound. */
+export const EXCEEDING: Record<keyof typeof EXCEEDS, string> = {
 	action: `${REASONER_NAMESPACE}exceedsAction`,
 	target: `${REASONER_NAMESPACE}exceedsTarget`,
 	expires: `${REASONER_NAMESPACE}exceedsExpiry`,
 };
 const SECURITY = "https://w3id.org/security#";
 const [ALLOWED_ACTION, INVOCATION_TARGET, EXPIRES] = [`${SECURITY}allowedAction`, `${SECURITY}invocationTarget`, `${SECURITY}expires`];
+/** ZCAP-LD's term for the capability a delegation narrows, which bounds it. */
+export const PARENT_CAPABILITY = `${SECURITY}parentCapability`;
 
 const PREFIXES = `@prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
@@ -82,28 +88,37 @@ export const CONTAINMENT_QUERY = `${PREFIXES}
 const dateTime = (at: string): string => `${JSON.stringify(at)}^^<${DATE_TIME}>`;
 
 /** A permission's facts in ZCAP-LD's terms, as its JSON-LD expands them, under `iri`. */
-function permissionFacts(iri: string, { actions, target, expires, usedAt }: TPermission): string[] {
+export function permissionFacts(iri: string, { actions, target, expires, usedAt }: TPermission): string[] {
 	return [
 		...actions.map((action) => `<${iri}> <${ALLOWED_ACTION}> ${JSON.stringify(action)} .`),
 		...(target === undefined ? [] : [`<${iri}> <${INVOCATION_TARGET}> ${JSON.stringify(target)} .`]),
 		...(expires === undefined ? [] : [`<${iri}> <${EXPIRES}> ${dateTime(expires)} .`]),
-		...(usedAt === undefined ? [] : [`<${iri}> <${TERM.usedAt}> ${dateTime(usedAt)} .`]),
+		...(usedAt === undefined ? [] : [`<${iri}> <${CONTAINMENT_TERM.usedAt}> ${dateTime(usedAt)} .`]),
 	];
 }
 
 /** The facts of a candidate bounded by its bound. */
 export const containmentFacts = (candidate: TPermission, bound: TPermission): string =>
-	[`<${TERM.candidate}> <${TERM.boundedBy}> <${TERM.bound}> .`, ...permissionFacts(TERM.candidate, candidate), ...permissionFacts(TERM.bound, bound)].join("\n");
+	[
+		`<${CONTAINMENT_TERM.candidate}> <${CONTAINMENT_TERM.boundedBy}> <${CONTAINMENT_TERM.bound}> .`,
+		...permissionFacts(CONTAINMENT_TERM.candidate, candidate),
+		...permissionFacts(CONTAINMENT_TERM.bound, bound),
+	].join("\n");
 
 /** The value of a literal as EYE writes it, without its datatype. */
 const literalValue = (term: string): string => JSON.parse(term.replace(/\^\^<[^>]*>$/, "")) as string;
 
+/** Each witness the triples state: the permission that exceeds, as N3 writes it, and what it holds beyond its bound, by kind. */
+export function witnessesIn(triples: readonly TTriple[]): (TExceeding & { subject: string })[] {
+	const kinds = Object.entries(EXCEEDING) as [keyof typeof EXCEEDS, string][];
+	return triples.flatMap(({ subject, predicate, object }) => kinds.filter(([, iri]) => predicate === `<${iri}>`).map(([kind]) => ({ subject, kind, value: literalValue(object) })));
+}
+
 /** Returns what the query's triples state the candidate holds beyond its bound. Throws where they state only other triples,
  *  since the rules derive the candidate's containment or what exceeds its bound. */
 export function exceedingOf(triples: readonly TTriple[]): TExceeding[] {
-	const kinds = Object.entries(EXCEEDING) as [keyof typeof EXCEEDS, string][];
-	const exceeding = triples.flatMap(({ predicate, object }) => kinds.filter(([, iri]) => predicate === `<${iri}>`).map(([kind]) => ({ kind, value: literalValue(object) })));
-	if (exceeding.length === 0 && !triples.some(({ predicate }) => predicate === `<${TERM.containedIn}>`))
+	const exceeding = witnessesIn(triples).map(({ kind, value }) => ({ kind, value }));
+	if (exceeding.length === 0 && !triples.some(({ predicate }) => predicate === `<${CONTAINMENT_TERM.containedIn}>`))
 		throw new Error("the containment's proof states only other triples, and the rules derive the candidate's containment or what exceeds its bound. Check the containment rules.");
 	return exceeding;
 }
