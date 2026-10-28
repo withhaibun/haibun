@@ -12,7 +12,7 @@ import type { TIndividualAddress } from "@haibun/core/lib/domains/typed-links.js
 import { ancestorsWith, ontologyToQuads } from "@haibun/core/lib/records/derivations/ontology.js";
 import { iriIn, ontologyOwl } from "@haibun/core/lib/records/derivations/owl.js";
 import { ONTOLOGY_FIELD } from "@haibun/core/lib/records/domains/ontology.js";
-import { OWL_RL_RULES, QUERY_NAMESPACE } from "../domains/reasoning.js";
+import { OWL_RL_RULES, QUERY_NAMESPACE, REASONING_READ_CEILING } from "../domains/reasoning.js";
 import {
 	dlOf,
 	expressionRules,
@@ -123,22 +123,36 @@ export function expressionReading(text: string, domains: Record<string, TRegiste
 	return `${dlOf(expression)} · ${readingOf(expression)}`;
 }
 
-/** Returns the addresses of the records a class expression entails as its members. */
+/** The members a class expression entails, and the types whose reads stopped at the reasoning's ceiling, whose further
+ *  records may hold more members. */
+export type TEntailed = { members: TIndividualAddress[]; truncated: string[] };
+
+/** The members as a counted list: a count of what the reads entail, which is a floor where a read stopped at its ceiling. */
+export const countedMembers = ({ members, truncated }: TEntailed) => ({ members, total: members.length, saturated: truncated.length > 0 });
+
+/** Why an unproved membership stays unknown beyond the open world: the types whose reads stopped at the reasoning's ceiling. */
+export const truncationOf = ({ truncated }: TEntailed): string =>
+	truncated.length === 0 ? "" : ` The reads of ${truncated.join(", ")} stopped at ${REASONING_READ_CEILING} records, and the records after them weren't read.`;
+
+/** Returns the addresses of the records a class expression entails as its members, and the types whose reads stopped at the
+ *  reasoning's ceiling. */
 export async function entailedMembers(
 	reasoner: TReasoner,
 	store: IQuadStore,
 	domains: Record<string, TRegisteredDomain>,
 	records: TRecordNamespace,
 	text: string,
-): Promise<TIndividualAddress[]> {
+): Promise<TEntailed> {
 	const basis = queryBasis(domains);
 	const terms = basis.termsOf(records);
 	const expression = checkedExpression(text, basis);
 	const reader = readerOf(store);
-	const facts = await Promise.all(basis.typesReached(expression).map(async (label) => terms.statements(label, await reader.facts({ namedGraph: label }))));
+	const reads = await Promise.all(basis.typesReached(expression).map(async (label) => ({ label, ...(await reader.records(label)) })));
 	const { rules, query } = expressionRules(expression, QUERY_NAMESPACE, irisOf(basis, terms));
+	const facts = reads.map(({ label, facts: read }) => terms.statements(label, read));
 	const derived = await reason(reasoner, store, domains, records, { rules: [basis.axioms, rules, ...facts].join("\n"), query, closedOver: [] });
-	return [...new Map(derived.map(({ subject }) => [subject, terms.addressOf(subject)])).values()];
+	const members = [...new Map(derived.map(({ subject }) => [subject, terms.addressOf(subject)])).values()];
+	return { members, truncated: reads.flatMap(({ label, truncated }) => (truncated ? [label] : [])) };
 }
 
 /** The individual that stands for any member of an expression in a subsumption. */
@@ -157,7 +171,7 @@ export async function subsumptionRefusal(
 	if (await subsumes(reasoner, store, domains, records, sub, sup)) return undefined;
 	const basis = queryBasis(domains);
 	const subsumption = `${dlOf(checkedExpression(sub, basis))} ⊑ ${dlOf(checkedExpression(sup, basis))}`;
-	const addressed = async (text: string) => (await entailedMembers(reasoner, store, domains, records, text)).map(({ persistedAs, id }) => `${persistedAs}:${id}`);
+	const addressed = async (text: string) => (await entailedMembers(reasoner, store, domains, records, text)).members.map(({ persistedAs, id }) => `${persistedAs}:${id}`);
 	const held = new Set(await addressed(sup));
 	const witness = (await addressed(sub)).filter((address) => !held.has(address));
 	const exceeding = witness.length === 0 ? "the records don't hold a member that exceeds it" : `the witness that exceeds it is ${witness.join(", ")}`;

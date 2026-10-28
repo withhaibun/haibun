@@ -6,10 +6,11 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import { Access, HAIBUN_RECORD_NAMESPACE, LinkRelations } from "@haibun/core/lib/domains/resources.js";
-import { DEF_PROTO_OPTIONS, getTestWorldWithOptions } from "@haibun/core/lib/test/lib.js";
+import { storeOfDomains } from "@haibun/core/lib/test/declared-types.js";
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { reasoner } from "../root.js";
-import { entailedMembers, expressionCompletions, subsumes } from "./members.js";
+import { countedMembers, entailedMembers, expressionCompletions, subsumes, truncationOf } from "./members.js";
+import { REASONING_READ_CEILING } from "../domains/reasoning.js";
 
 const [STEP, NOTE] = ["Step", "Note"];
 const typeOf = (persistedAs: string, type: string) => ({
@@ -25,7 +26,8 @@ const typeOf = (persistedAs: string, type: string) => ({
 		edges: { about: { rel: LinkRelations.PART_OF.rel, range: STEP } },
 	},
 });
-const domains = mapDefinitionsToDomains([typeOf(STEP, "prov:Activity"), typeOf(NOTE, "prov:Entity")]);
+const definitions = [typeOf(STEP, "prov:Activity"), typeOf(NOTE, "prov:Entity")];
+const domains = mapDefinitionsToDomains(definitions);
 /** Two steps, and a note about the second. */
 const FACTS: [string, string, string, string][] = [
 	["s1", "id", "s1", STEP],
@@ -35,14 +37,35 @@ const FACTS: [string, string, string, string][] = [
 ];
 
 async function storeWith(): Promise<IQuadStore> {
-	const store = getTestWorldWithOptions(DEF_PROTO_OPTIONS).shared.getStore();
+	const store = storeOfDomains(definitions);
 	for (const [subject, predicate, object, namedGraph] of FACTS) await store.add({ subject, predicate, object, namedGraph, accessLevel: Access.private });
 	return store;
 }
-const members = async (expression: string) => entailedMembers(reasoner(), await storeWith(), domains, HAIBUN_RECORD_NAMESPACE, expression);
+/** A store that refuses a read of quads without a key, as a store that indexes its records by key does, and serves reads of records. */
+const keyedOnly = (store: IQuadStore): IQuadStore =>
+	new Proxy(store, {
+		get: (target, property, receiver) =>
+			property === "query"
+				? (pattern: { subject?: unknown }) => (pattern.subject === undefined ? Promise.reject(new Error("a read of quads names a subject")) : target.query(pattern as never))
+				: Reflect.get(target, property, receiver),
+	});
+const entailed = async (expression: string) => entailedMembers(reasoner(), keyedOnly(await storeWith()), domains, HAIBUN_RECORD_NAMESPACE, expression);
+const members = async (expression: string) => (await entailed(expression)).members;
 const sorted = (found: { persistedAs: string; id: string }[]) => found.map(({ persistedAs, id }) => `${persistedAs}:${id}`).sort();
 
 describe("entailedMembers", () => {
+	it("reads each type's records in pages through the store's read of records, from a store that refuses reads without a key", { timeout: 30_000 }, async () => {
+		expect(await entailed("Step")).toMatchObject({ truncated: [] });
+		expect(countedMembers(await entailed("Step")), "a count of what the reads entail").toMatchObject({ total: 2, saturated: false });
+	});
+
+	it("states the types whose reads stopped at the ceiling, as a floor of the count and in an unknown claim's reason", () => {
+		const stopped = { members: [], truncated: [STEP] };
+		expect(countedMembers(stopped)).toEqual({ members: [], total: 0, saturated: true });
+		expect(truncationOf(stopped)).toBe(` The reads of ${STEP} stopped at ${REASONING_READ_CEILING} records, and the records after them weren't read.`);
+		expect(truncationOf({ members: [], truncated: [] })).toBe("");
+	});
+
 	it("returns the records of each type a named class subsumes, through the IRI the type declares", { timeout: 30_000 }, async () => {
 		expect(sorted(await members("prov:Activity"))).toEqual(["Step:s1", "Step:s2"]);
 		expect(sorted(await members("Note or Step"))).toEqual(["Note:n1", "Step:s1", "Step:s2"]);

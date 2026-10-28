@@ -7,11 +7,12 @@ import { z } from "zod";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import { Access, HAIBUN_RECORD_NAMESPACE, LinkRelations, type AccessLevel } from "@haibun/core/lib/domains/resources.js";
 import { runReadingAt } from "@haibun/core/lib/domains/capability-context.js";
-import { DEF_PROTO_OPTIONS, getTestWorldWithOptions } from "@haibun/core/lib/test/lib.js";
+import { heldRecordIri, storeOfDomains } from "@haibun/core/lib/test/declared-types.js";
+import type { TGraphQuery } from "@haibun/core/lib/steps/domains/quad-types.js";
 import { iriIn } from "@haibun/core/lib/records/derivations/owl.js";
 import { recordIri } from "@haibun/core/lib/records/derivations/record-iri.js";
 import { getJsonLdContext } from "@haibun/core/lib/domains/hypermedia.js";
-import { COMPLETE_GRAPH, REASONER_BUILTIN, type TProofStep } from "../domains/reasoning.js";
+import { COMPLETE_GRAPH, REASONER_BUILTIN, REASONING_READ_CEILING, type TProofStep } from "../domains/reasoning.js";
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { reasoner } from "../root.js";
 import { explain, reason } from "./reason.js";
@@ -30,7 +31,8 @@ const typeOf = (persistedAs: string, complete: boolean) => ({
 		edges: { about: { rel: LinkRelations.PART_OF.rel, range: STEP } },
 	},
 });
-const domains = mapDefinitionsToDomains([typeOf(STEP, true), typeOf(NOTE, false)]);
+const definitions = [typeOf(STEP, true), typeOf(NOTE, false)];
+const domains = mapDefinitionsToDomains(definitions);
 const context = getJsonLdContext(domains)["@context"];
 const iri = (term: string): string => iriIn(context, term);
 const [stepClass, outcome, content, about] = [iri(STEP), iri(LinkRelations.OUTCOME.uri), iri(LinkRelations.CONTENT.uri), iri(LinkRelations.PART_OF.uri)];
@@ -56,7 +58,7 @@ const FACTS: [string, string, string, string, AccessLevel][] = [
 ];
 
 async function storeWith(): Promise<IQuadStore> {
-	const store = getTestWorldWithOptions(DEF_PROTO_OPTIONS).shared.getStore();
+	const store = storeOfDomains(definitions);
 	for (const [subject, predicate, object, namedGraph, accessLevel] of FACTS) await store.add({ subject, predicate, object, namedGraph, accessLevel });
 	return store;
 }
@@ -101,6 +103,25 @@ describe("reason", () => {
 			explain(reasoner(), store, domains, HAIBUN_RECORD_NAMESPACE, { rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] }),
 		);
 		expect(explained).toEqual({ proof: { gives: [], steps: [] }, open: [{ graph: STEP, accessLevel: Access.private }] });
+	});
+
+	it("leaves open a complete graph whose read stopped at the ceiling, and names the ceiling", { timeout: 30_000 }, async () => {
+		const store = await storeWith();
+		/** A store whose Step records run past the reasoning's ceiling. */
+		const many = new Proxy(store, {
+			get: (target, property, receiver) =>
+				property === "readRecords"
+					? (query: TGraphQuery) => {
+							if (query.label !== STEP) return target.readRecords(query);
+							const { offset, limit } = query;
+							if (offset === undefined || limit === undefined) throw new Error("the reasoning reads a type's records in pages");
+							const ids = Array.from({ length: Math.max(0, Math.min(limit, REASONING_READ_CEILING + 1 - offset)) }, (_, at) => `s-${offset + at}`);
+							return Promise.resolve({ vertices: ids.map((id) => ({ "@id": heldRecordIri(STEP, id), "@type": STEP, id })), total: ids.length, saturated: false, order: [] });
+						}
+					: Reflect.get(target, property, receiver),
+		});
+		const explained = await explain(reasoner(), many, domains, HAIBUN_RECORD_NAMESPACE, { rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] });
+		expect(explained).toEqual({ proof: { gives: [], steps: [] }, open: [{ graph: STEP, readCeiling: REASONING_READ_CEILING }] });
 	});
 
 	it("refuses to close over an open graph", async () => {

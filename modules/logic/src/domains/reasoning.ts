@@ -5,10 +5,11 @@
  * it is a closed check.
  */
 import { z } from "zod";
-import { CountedFields } from "@haibun/core/lib/domains/hypermedia.js";
+import { CountedFields, MAX_PAGE_ROWS } from "@haibun/core/lib/domains/hypermedia.js";
 import { listOf } from "@haibun/core/lib/domains/lists.js";
 import type { AccessLevel, TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import { IndividualAddressSchema } from "@haibun/core/lib/domains/typed-links.js";
+import type { TFact } from "./logic.js";
 
 /** The namespace of the built-ins and terms that haibun's N3 rules name. */
 export const REASONER_NAMESPACE = "urn:haibun:";
@@ -27,8 +28,14 @@ export type TTriple = z.infer<typeof TripleSchema>;
 /** What a reasoning reads: its N3 rules and facts, the query that selects what it returns, and the types whose complete graphs
  *  its rules close over. */
 export type TReasoning = { rules: string; query: string; closedOver: readonly string[] };
-/** A graph the rules close over that is open to the reader, since its type's records are held at a level above the reader's. */
-export type TOpenGraph = { graph: string; accessLevel: AccessLevel };
+/** The records of a type a reasoning reads at most. A read stops there and states that it stopped, so a graph read in part
+ *  stays open and a claim its records don't prove stays unknown. */
+export const REASONING_READ_CEILING = MAX_PAGE_ROWS;
+/** A type's records as a reasoning reads them: their facts, and whether the read stopped at `REASONING_READ_CEILING`. */
+export type TTypeRead = { facts: TFact[]; truncated: boolean };
+/** A graph the rules close over that is open to the reader: its type's records are held at a level above the reader's, or
+ *  the read of them stopped at its ceiling. */
+export type TOpenGraph = { graph: string; accessLevel: AccessLevel } | { graph: string; readCeiling: number };
 /** A step of a proof: what it gives, as the triples of its formula, and how. An inference rests on the steps its evidence
  *  names and applies its rule; an extraction reads its formula from a source. A rule's formula isn't a triple, so a step
  *  that gives a rule gives an empty list of triples. */

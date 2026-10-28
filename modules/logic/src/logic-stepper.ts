@@ -21,7 +21,6 @@ import {
 	DOMAIN_WAYPOINT_ARGUMENT,
 } from "@haibun/core/lib/domains/domains.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
-import { counted } from "@haibun/core/lib/domains/hypermedia.js";
 import { actionNotOK, actionOK, actionOKWithProducts, errorDetail } from "@haibun/core/lib/domains/util.js";
 import { argumentsOf } from "@haibun/core/lib/steps/pipelines/populate-action-args.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
@@ -42,7 +41,7 @@ import { proverOf } from "./pipelines/prove.js";
 import { canonicalOf, readerOf, recordsWhere, writeFacts } from "./pipelines/reads.js";
 import { callTerm, derivationUnder, lineTerm, refuseDeclarations } from "./pipelines/registry-reads.js";
 import { logicEngine, reasoner } from "./root.js";
-import { checkedExpression, entailedMembers, expressionCompletions, expressionReading, queryBasis, subsumptionRefusal } from "./pipelines/members.js";
+import { checkedExpression, countedMembers, entailedMembers, expressionCompletions, expressionReading, queryBasis, subsumptionRefusal, truncationOf } from "./pipelines/members.js";
 import { DOMAIN_INDIVIDUAL_ADDRESS, type TIndividualAddress } from "@haibun/core/lib/domains/typed-links.js";
 import { DOMAIN_CLASS_EXPRESSION, DOMAIN_ENTAILED_MEMBERS, classExpressionDomainDefinition, reasoningDomainDefinitions } from "./domains/reasoning.js";
 import { DOMAIN_DERIVATION, DOMAIN_LINE_TERM, READ_GRAPH, READ_PREDICATE, RESOLVE_STATEMENT, logicDomainDefinitions } from "./domains/logic.js";
@@ -249,8 +248,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 				"Returns the records a class expression entails as its members, through the reasoner over the ontology and the records an expression's names reach, under the caller's authority. A member the records don't entail may exist.",
 			productsDomain: DOMAIN_ENTAILED_MEMBERS,
 			action: async ({ expression }: { expression: string }) => {
-				const members = await this.members(expression);
-				return actionOKWithProducts({ members, ...counted(members.length) });
+				return actionOKWithProducts(countedMembers(await this.members(expression)));
 			},
 		},
 		individualIsA: {
@@ -260,10 +258,10 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			description:
 				"Holds where the reasoner entails the record at an address as a member of a class expression. A membership the records don't entail is unknown, which isn't false in the open world, so the claim fails closed.",
 			action: async ({ address, expression }: { address: TIndividualAddress; expression: string }) => {
-				const members = await this.members(expression);
-				if (members.some(({ persistedAs, id }) => persistedAs === address.persistedAs && id === address.id)) return actionOK();
+				const entailed = await this.members(expression);
+				if (entailed.members.some(({ persistedAs, id }) => persistedAs === address.persistedAs && id === address.id)) return actionOK();
 				return actionNotOK(
-					`${address.persistedAs}:${address.id} ∈ ${expression} is unknown: the records don't entail it, and unknown isn't false in the open world. Add the fact, or read a complete graph.`,
+					`${address.persistedAs}:${address.id} ∈ ${expression} is unknown: the records don't entail it, and unknown isn't false in the open world.${truncationOf(entailed)} Add the fact, or read a complete graph.`,
 				);
 			},
 		},
@@ -286,9 +284,11 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			description: "Holds where the reasoner entails a member of a class expression. Without one the claim is unknown, which isn't false in the open world, so it fails closed.",
 			productsDomain: DOMAIN_ENTAILED_MEMBERS,
 			action: async ({ expression }: { expression: string }) => {
-				const members = await this.members(expression);
-				if (members.length > 0) return actionOKWithProducts({ members, ...counted(members.length) });
-				return actionNotOK(`some ${expression} is unknown: the records don't entail a member, and unknown isn't false in the open world. Add the fact, or read a complete graph.`);
+				const entailed = await this.members(expression);
+				if (entailed.members.length > 0) return actionOKWithProducts(countedMembers(entailed));
+				return actionNotOK(
+					`some ${expression} is unknown: the records don't entail a member, and unknown isn't false in the open world.${truncationOf(entailed)} Add the fact, or read a complete graph.`,
+				);
 			},
 		},
 		lineRendersAsWritten: {

@@ -5,14 +5,15 @@
  * the store doesn't hold leaves a claim unproved. A read runs under the caller's authority, as a proof's read does. A graph is
  * complete only to a reader at or above its type's access level, which is the narrowest level that holds its records. A
  * reader below that level reads part of the graph, so for that reader the graph is open and isn't stated as a formula: a
- * claim its records don't prove stays unknown. An explained reasoning returns the proof of what its query selects and names the
+ * claim its records don't prove stays unknown. A complete graph is read in pages up to a ceiling, and a graph whose read stops
+ * there is open as well. An explained reasoning returns the proof of what its query selects and names the
  * graphs that stayed open to the reader, so a verdict carries how it was reached and why a claim stayed unknown.
  */
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { buildConcernCatalog, getJsonLdContext } from "@haibun/core/lib/domains/hypermedia.js";
 import { isPersisted, withinAccess, type TRecordNamespace, type TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
 import { readingAt } from "@haibun/core/lib/domains/capability-context.js";
-import { COMPLETE_GRAPH, type TExplained, type TOpenGraph, type TReasoning, type TTriple } from "../domains/reasoning.js";
+import { COMPLETE_GRAPH, REASONING_READ_CEILING, type TExplained, type TOpenGraph, type TReasoning, type TTriple } from "../domains/reasoning.js";
 import { recordTerms, triplesOf } from "../derivations/n3.js";
 import { proofOf } from "../derivations/proof.js";
 import type { TReasoner } from "../ports.js";
@@ -63,8 +64,13 @@ async function reasoned(
 	});
 	const terms = recordTerms(buildConcernCatalog(domains), getJsonLdContext(domains, undefined, records)["@context"], records);
 	const reader = readerOf(store);
-	const formulaOf = async (graph: string) => `<${terms.classIri(graph)}> <${COMPLETE_GRAPH}> {\n${terms.statements(graph, await reader.facts({ namedGraph: graph }))}\n} .`;
-	const formulas = await Promise.all(closing.filter(({ complete }) => complete).map(({ graph }) => formulaOf(graph)));
+	// A graph complete to the reader is read up to the ceiling; one whose read stopped there is open, and isn't stated.
+	const reads = await Promise.all(closing.filter(({ complete }) => complete).map(async ({ graph }) => ({ graph, ...(await reader.records(graph)) })));
+	const formulas = reads.flatMap(({ graph, facts, truncated }) => (truncated ? [] : [`<${terms.classIri(graph)}> <${COMPLETE_GRAPH}> {\n${terms.statements(graph, facts)}\n} .`]));
+	const open: TOpenGraph[] = [
+		...closing.flatMap(({ graph, accessLevel, complete }) => (complete ? [] : [{ graph, accessLevel }])),
+		...reads.flatMap(({ graph, truncated }) => (truncated ? [{ graph, readCeiling: REASONING_READ_CEILING }] : [])),
+	];
 	const derived = await reasoner.session(async (session) => {
 		let state = await session.start([rules, ...formulas].join("\n"), query, explained);
 		while ("need" in state) {
@@ -73,5 +79,5 @@ async function reasoned(
 		}
 		return state.derived;
 	});
-	return { derived, open: closing.flatMap(({ graph, accessLevel, complete }) => (complete ? [] : [{ graph, accessLevel }])) };
+	return { derived, open };
 }

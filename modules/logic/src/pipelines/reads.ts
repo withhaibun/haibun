@@ -14,9 +14,23 @@ import { FACT_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { FACT_FIELD } from "@haibun/core/lib/records/domains/facts.js";
 import { FACT_POSITIONS, READ_GRAPH, READ_PREDICATE, type TFact } from "../domains/logic.js";
 import type { THeldFact } from "../derivations/goals.js";
+import { REASONING_READ_CEILING, type TTypeRead } from "../domains/reasoning.js";
+import { MAX_PAGE_ROWS, readInPages } from "@haibun/core/lib/domains/hypermedia.js";
+import { GraphQuerySchema, isProjectionKey } from "@haibun/core/lib/steps/domains/quad-types.js";
+import { recordOfIri } from "@haibun/core/lib/records/derivations/record-iri.js";
 
-/** A proof's reads: the facts that hold a pattern, and the products of steps as typed records, the latest first. */
-export type TReader = { facts: (pattern: TQuadPattern) => Promise<TFact[]>; products: () => Promise<THeldFact[]> };
+/** A proof's reads: the facts that hold a pattern, a type's records as facts up to the reasoning's ceiling, and the products of
+ *  steps as typed records, the latest first. */
+export type TReader = { facts: (pattern: TQuadPattern) => Promise<TFact[]>; records: (label: string) => Promise<TTypeRead>; products: () => Promise<THeldFact[]> };
+
+/** A record a read returns as the facts of its fields, each value of a list its own fact, about the id its record IRI states. */
+function factsOfRecord(namedGraph: string, record: Record<string, unknown>): TFact[] {
+	const named = recordOfIri(record["@id"]);
+	if (named === undefined) throw new Error(`a ${namedGraph} record a read returned doesn't state its record IRI as its @id. Read records through a store that names them.`);
+	return Object.entries(record).flatMap(([predicate, value]) =>
+		isProjectionKey(predicate) || value === undefined ? [] : (Array.isArray(value) ? value : [value]).map((object) => ({ subject: named.id, predicate, object, namedGraph })),
+	);
+}
 
 /** A reader of the store for one proof. Where `asOf` states a step, it leaves out a fact about the record or a product of a later step. */
 export function readerOf(store: IQuadStore, asOf?: readonly number[]): TReader {
@@ -33,6 +47,13 @@ export function readerOf(store: IQuadStore, asOf?: readonly number[]): TReader {
 			const reading = store.query(pattern).then((quads) => quads.filter(heldAt));
 			held.set(key, reading);
 			return reading;
+		},
+		// A type's records are read in pages through the store's read of records, which every store serves, up to the ceiling.
+		records: async (label) => {
+			const read = (from: number, to: number) => store.readRecords(GraphQuerySchema.parse({ label, offset: from, limit: to - from, skipCount: true }));
+			const { vertices } = await readInPages(read, 0, REASONING_READ_CEILING + 1, MAX_PAGE_ROWS);
+			const facts = vertices.slice(0, REASONING_READ_CEILING).flatMap((record) => factsOfRecord(label, record).filter(heldAt));
+			return { facts, truncated: vertices.length > REASONING_READ_CEILING };
 		},
 		// The products are records of their type, held where the steps' records are, so they are read as records, not as quads.
 		products: async () =>
