@@ -104,8 +104,8 @@ const READINGS: [string, string, boolean][] = [
 		true,
 	],
 	[
-		"ensure is refuted where the activity doesn't prove the proof",
-		'Activity: Unset\nset left to "no"\nwaypoint It is set with variable left is "yes"\ndidn\'t ensure It is set',
+		"ensure is unknown where the activity doesn't prove the proof and a falsity isn't stated",
+		'Activity: Unset\nset left to "no"\nwaypoint It is set with variable left is "yes"\nset outcome from maybe ensure It is set\nvariable outcome.verdict is "unknown"',
 		true,
 	],
 	[
@@ -130,7 +130,7 @@ describe("the readings of the logic engine", () => {
 	});
 
 	it("types a refusal by the action its call lacked, which a claim reads in place of the refusal's text", async () => {
-		const content = 'set refused from didn\'t holding only "Read:public", set x to "2"\nvariable refused.lacksAction is "VariablesStepper:set"';
+		const content = 'set refused from maybe holding only "Read:public", set x to "2"\nvariable refused.lacksAction is "VariablesStepper:set"';
 		const typed = await passWithDefaults(content, [...STEPPERS, AuthorityStepper]);
 		expect(typed.ok, JSON.stringify(typed.failure)).toBe(true);
 	});

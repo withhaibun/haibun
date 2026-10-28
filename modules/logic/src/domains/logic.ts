@@ -68,11 +68,11 @@ const ProofNodeSchema: z.ZodType<TProofNode> = z.union([
 	z.object({ unmet: z.string(), why: z.string() }),
 ]);
 
-/** A goal's proof: the facts of its domain, a proof for each producer whose inputs hold, and, where it doesn't have either, the
- *  chain of sub-goals down to the first it couldn't prove. */
+/** A goal's proof: its verdict, proved by a fact of its domain and unknown without one, a proof for each producer whose inputs
+ *  hold, and, for a goal without a fact or a plan, the chain of sub-goals down to the first it couldn't prove. */
 export const GoalProofSchema = z.object({
 	goal: z.string(),
-	held: z.stringbool(),
+	held: z.enum([VERDICT.proved, VERDICT.unknown]),
 	plans: z.array(ProofNodeSchema),
 	unmet: z.array(z.union([z.object({ domain: z.string(), do: z.string() }), z.object({ unmet: z.string(), why: z.string() })])),
 });

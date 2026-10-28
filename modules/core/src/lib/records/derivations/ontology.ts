@@ -115,7 +115,8 @@ export function ontologyToQuads(domains: Record<string, TRegisteredDomain>): TCl
 		if (propLabels[rel] !== undefined) return;
 		propLabels[rel] = rel;
 		propSubjects.push(rel);
-		quads.push(quadOf(rel, ONTOLOGY_FIELD.name, rel, PROPERTY_LABEL));
+		// A declared relation is in the records' data; a standard term withStandardTerms adds states that it isn't.
+		quads.push(quadOf(rel, ONTOLOGY_FIELD.name, rel, PROPERTY_LABEL), quadOf(rel, ONTOLOGY_FIELD.inData, true, PROPERTY_LABEL));
 	};
 	for (const entry of Object.values(LinkRelations)) {
 		const rel = entry.rel;

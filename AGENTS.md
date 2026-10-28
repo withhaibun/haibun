@@ -220,7 +220,7 @@ Compound statements use the statement domain to compose logic:
 - `whenever {condition}, {action}` - Loop
 - `any of {stmt}, {stmt}, ...` - Disjunction
 - `until {statements}` - Repeat until success
-- `didn't {statement}` - Negation as failure: the statement didn't succeed
+- `didn't {statement}` - Negation as failure: the statement was refuted. A statement that is unknown, such as a refused call, leaves it unknown; state an expected refusal with `set r from maybe {statement}` and its `verdict` or `lacksAction`
 - `some {variable} in {domain} is {check}` - Existential quantifier
 - `every {variable} in {domain} is {check}` - Universal quantifier
 

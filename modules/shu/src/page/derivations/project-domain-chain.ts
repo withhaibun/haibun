@@ -9,7 +9,7 @@
  * Goal verdicts drive node `kind` via the built-in vocabulary:
  *   - satisfied  →  proved: a fact of the domain holds
  *   - reachable  →  unknown: a plan would prove it
- *   - unreachable  →  refuted: a fact doesn't hold and a plan doesn't prove it
+ *   - unreachable  →  unknown with an unmet sub-goal: a goal without a fact or a plan
  *
  * Step readiness drives edge `kind`:
  *   - ready      →  inputs satisfied; bold arrow
@@ -18,7 +18,7 @@
  */
 import { AFFORDANCE_PARAM, SHU_TAG } from "../../domains/elements.js";
 import { hashWithColumns } from "./address.js";
-import { SOURCE_DOMAIN, type TCompositeRanges, type TForwardAffordance, type TWaypointEntry } from "@haibun/core/lib/domains/goal-resolution.js";
+import { SOURCE_DOMAIN, type TCompositeRanges, type TForwardAffordance, type TGoalResolution, type TWaypointEntry } from "@haibun/core/lib/domains/goal-resolution.js";
 import { VERDICT } from "@haibun/core/lib/domains/protocol.js";
 import { EDGE_KIND, NODE_KIND, type TGraph, type TGraphEdge, type TGraphNode } from "../domains/graph.js";
 import { producingStepRecord } from "@haibun/core/lib/seq-path.js";
@@ -41,7 +41,7 @@ type TGoalPathRef = { steps: TPathStepRef[] };
 
 export type TAffordancesSnapshot = {
 	forward: TForwardEdge[];
-	goals: Array<{ domain: string; resolution: { verdict: string; plans?: TGoalPathRef[]; factIds?: string[] } }>;
+	goals: Array<{ domain: string; resolution: { verdict: TGoalResolution["verdict"]; unmet?: string; plans?: TGoalPathRef[]; factIds?: string[] } }>;
 	/**
 	 * Per-domain field-range map carried from the server's `topology.ranges`
 	 * (haibun's SHACL `sh:node` / RDFS `rdfs:range` equivalent). When present,
@@ -84,11 +84,15 @@ export function waypointNodeId(outcome: string): string {
  *
  */
 
-function verdictToKind(verdict: string | undefined): string {
-	if (verdict === VERDICT.proved) return NODE_KIND.satisfied;
-	if (verdict === VERDICT.unknown) return NODE_KIND.reachable;
-	if (verdict === VERDICT.refuted) return NODE_KIND.unreachable;
-	return NODE_KIND.default;
+/** What a goal's node reads of its resolution. */
+type TGoalStanding = Pick<TGoalResolution, "verdict" | "unmet">;
+
+/** A goal's node kind: satisfied where a fact proves it, unreachable where an unmet sub-goal stops every plan, and reachable
+ *  where a plan would prove it. */
+function goalKind(resolution: TGoalStanding | undefined): string {
+	if (resolution === undefined) return NODE_KIND.default;
+	if (resolution.verdict === VERDICT.proved) return NODE_KIND.satisfied;
+	return resolution.unmet === undefined ? NODE_KIND.reachable : NODE_KIND.unreachable;
 }
 
 const edgeKind = (f: TForwardEdge): string => (f.readyToRun ? EDGE_KIND.ready : EDGE_KIND.blocked);
@@ -99,12 +103,12 @@ function fieldNodeId(domain: string, fieldName: string): string {
 }
 
 export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
-	const goalVerdicts = new Map(a.goals.map((g) => [g.domain, g.resolution.verdict]));
+	const goalResolutions = new Map<string, TGoalStanding>(a.goals.map((g) => [g.domain, g.resolution]));
 	// Working-memory truth: a domain with a fact is satisfied, regardless of whether
 	// the goal-frontier kept it (trivial-filtered goals are absent from `goals[]` but
 	// their producing fact may still exist).
 	const satisfied = new Set(a.satisfiedDomains);
-	for (const d of satisfied) goalVerdicts.set(d, VERDICT.proved);
+	for (const d of satisfied) goalResolutions.set(d, { verdict: VERDICT.proved });
 
 	const domains = new Set<string>();
 	let hasSource = false;
@@ -134,7 +138,7 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 	/** A domain's node: its verdict as its kind, a link to it in the affordances panel, and its one producer, if one. */
 	const domainNode = (d: string): TGraphNode => {
 		if (d === SOURCE_DOMAIN) return { id: d, label: `${SOURCE_DOMAIN} without preconditions`, kind: NODE_KIND.default };
-		const node: TGraphNode = { id: d, label: d, kind: verdictToKind(goalVerdicts.get(d)), link: { href: affordancesAt(AFFORDANCE_PARAM.GOAL, d) } };
+		const node: TGraphNode = { id: d, label: d, kind: goalKind(goalResolutions.get(d)), link: { href: affordancesAt(AFFORDANCE_PARAM.GOAL, d) } };
 		const producer = producersByDomain.get(d);
 		if (producer) node.invokes = { stepperName: producer.stepperName, stepName: producer.stepName };
 		return node;

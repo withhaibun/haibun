@@ -290,7 +290,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 
 	private renderResolutionTpl(g: TGoalAffordance, goalIdx: number): TemplateResult {
 		const r = g.resolution;
-		if (r.verdict === VERDICT.refuted) return html`<span class="resolution-detail">${r.unmetChain?.map((d, i) => html`${i > 0 ? " ← " : ""}${domainRef(d)}`)}: ${r.unmet}</span>`;
+		if (r.unmet !== undefined) return html`<span class="resolution-detail">${r.unmetChain?.map((d, i) => html`${i > 0 ? " ← " : ""}${domainRef(d)}`)}: ${r.unmet}</span>`;
 		const plansTpl = r.plans.length > 0 ? this.renderPlansSectionTpl(r.plans, goalIdx, r.verdict === VERDICT.proved) : "";
 		// A proved goal can be produced again, so its plans render after the facts that prove it.
 		if (r.verdict === VERDICT.proved)
@@ -415,7 +415,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		.goal { padding: var(--shu-space-4) var(--shu-space-5); margin: var(--shu-space-2) 0; border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); background: var(--shu-bg-soft); }
 		.goal-proved { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-success); }
 		.goal-unknown { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-info); }
-		.goal-refuted { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-error); }
+		.goal-unmet { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-error); }
 		.goal-header { display: flex; justify-content: space-between; align-items: center; gap: var(--shu-space-4); width: 100%; padding: var(--shu-space-3) var(--shu-space-4); margin: calc(var(--shu-space-4) * -1) calc(var(--shu-space-5) * -1) 0; background: transparent; border: 0; cursor: pointer; font: inherit; color: inherit; text-align: left; -webkit-user-select: text; user-select: text; }
 		.goal-header * { -webkit-user-select: text; user-select: text; }
 		.goal-header:hover { background: var(--shu-bg-hover); }
@@ -425,7 +425,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		.goal-name { font-size: var(--shu-font-xs); color: var(--shu-fg-faded); }
 		.goal-proved .finding { background: var(--shu-bg-success-soft); color: var(--shu-success); }
 		.goal-unknown .finding { background: var(--shu-bg-info-soft); color: var(--shu-info); }
-		.goal-refuted .finding { background: var(--shu-bg-error-soft); color: var(--shu-error); }
+		.goal-unmet .finding { background: var(--shu-bg-error-soft); color: var(--shu-error); }
 		.finding { display: inline-block; padding: 0 var(--shu-space-3); border-radius: var(--shu-radius); font-size: var(--shu-font-sm); background: var(--shu-bg-elevated); color: var(--shu-fg-muted); }
 		.resolution-detail { display: block; margin-top: var(--shu-space-3); color: var(--shu-fg); }
 		.plan-steps { margin: var(--shu-space-2) 0 var(--shu-space-2) var(--shu-space-6); padding: 0; font-size: var(--shu-font-sm); }
@@ -523,8 +523,8 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				`shu-affordances-panel: goal "${g.domain}" is missing a description. The goal-domain registry must declare one, see TRegisteredDomain.description. Got: ${JSON.stringify(g).slice(0, 200)}.`,
 			);
 		const isOpen = openGoal === g.domain;
-		const { verdict, factIds } = g.resolution;
-		const cls = `goal goal-${verdict}${isOpen ? " goal-open" : ""}`;
+		const { verdict, factIds, unmet } = g.resolution;
+		const cls = `goal goal-${verdict}${unmet === undefined ? "" : " goal-unmet"}${isOpen ? " goal-open" : ""}`;
 		return html`<div class=${cls} data-testid=${`goal-${g.domain}`} data-goal-domain=${g.domain}>
 			<button class="goal-header" type="button" data-goal-domain=${g.domain} aria-expanded=${isOpen ? "true" : "false"} data-testid=${`goal-${g.domain}-toggle`} @click=${(e: Event): void => this.onGoalHeaderClick(e, g.domain)}>
 				<div class="goal-heading">
@@ -554,7 +554,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		for (const wrapper of Array.from(this.shadowRoot.querySelectorAll<HTMLElement>(".goal-graph"))) {
 			const goal = this.affordances?.goals[Number(wrapper.dataset.goalIdx)];
 			if (!goal) continue;
-			if (goal.resolution.verdict === VERDICT.refuted) continue;
+			if (goal.resolution.unmet !== undefined) continue;
 			const graph: TGraph = projectGoalPaths(goal.resolution);
 			const slot = goalGraphSlot(goal.domain);
 			this.goalGraphs.set(slot, graph);

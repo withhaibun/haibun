@@ -53,6 +53,12 @@ export function ontologyReader(domains: () => Record<string, TRegisteredDomain>,
 /** The names an edge of each record links, by the edge's relation. */
 const linked = (record: THeldRecord, rel: string): string[] => record.edges.filter((edge) => edge.rel === rel).map(({ id }) => id);
 const optionalText = (value: unknown): string | undefined => (typeof value === "string" ? value : undefined);
+/** Whether a Property's term is in the records' data, which the ontology states of every Property at derivation. */
+function statedInData(property: string, value: unknown): boolean {
+	if (typeof value !== "boolean")
+		throw new Error(`the Property ${property} states inData as ${String(value)}, and the ontology states it as true or false of every Property. Derive it with ontologyToQuads.`);
+	return value;
+}
 
 /**
  * Returns an ontology's terms as a counted list: each class, with each field and edge its type declares and the link
@@ -89,7 +95,7 @@ function readOntology(ontology: TClusteredQuads, domains: Record<string, TRegist
 				name: record.id,
 				...(uri === undefined ? {} : { uri }),
 				abstract: record.fields[ONTOLOGY_FIELD.abstract] === true,
-				inData: record.fields[ONTOLOGY_FIELD.inData] !== false,
+				inData: statedInData(record.id, record.fields[ONTOLOGY_FIELD.inData]),
 				subPropertyOf,
 				domain,
 				range,

@@ -40,7 +40,7 @@ import {
 	type TNodeRequest,
 	type TReadRequest,
 } from "../domains/logic.js";
-import { quantifierOf, statementList, statementParams, UNTIL_RETRY_MS } from "../domains/readings.js";
+import { quantifierOf, statementList, statementParams, UNTIL_RETRY_MS, type TRefusal } from "../domains/readings.js";
 import { atom, factsTerm, list, whyText } from "../derivations/terms.js";
 import type { TLogicEngine, TReasoner } from "../ports.js";
 import { containment } from "./containment.js";
@@ -291,16 +291,15 @@ class Proof {
 		return "closed";
 	}
 
-	/** The products of a node that holds: maybe's verdict, why the statement under didn't failed, and otherwise the products of
-	 *  its statements. */
+	/** The products of a node that holds: maybe's verdict, with why its statement didn't hold where it didn't, why the statement
+	 *  under didn't failed, and otherwise the products of its statements. */
 	private productsOf(path: readonly number[], node: string): Record<string, unknown> | undefined {
 		const { reading } = this.node(node).step.action.step;
-		if (reading === READING.maybe) return { verdict: verdictOf(this.lastPart(path)) };
-		if (reading !== READING.didnt) return this.productsUnder.get(keyOf(path));
-		const failed = this.lastPart(path);
-		if (failed.ok) throw this.differentBuilds("holds not over a statement that held");
-		const lacks = failed.remedy?.do === "request" ? { lacksAction: failed.remedy.action } : {};
-		return { refusal: failed.errorMessage, seqPath: formatSeqPath(failed.seqPath), ...lacks };
+		if (reading !== READING.maybe && reading !== READING.didnt) return this.productsUnder.get(keyOf(path));
+		const last = this.lastPart(path);
+		if (reading === READING.maybe) return { verdict: verdictOf(last), ...(last.ok ? {} : refusalOf(last)) };
+		if (last.ok) throw this.differentBuilds("holds not over a statement that held");
+		return refusalOf(last);
 	}
 
 	/** The remedy of the part that determined a node's verdict, where that part carries one, so a refusal's type reaches the line. */
@@ -465,6 +464,11 @@ export async function proved(engine: TLogicEngine, term: string, perform: (need:
 	} finally {
 		engine.forget(top);
 	}
+}
+
+/** Why a statement didn't hold: its failing step's error text and seqPath, and the action the gate refused it for, where it did. */
+function refusalOf(failed: TStepResult & { ok: false }): TRefusal {
+	return { refusal: failed.errorMessage, seqPath: formatSeqPath(failed.seqPath), ...(failed.remedy?.do === "request" ? { lacksAction: failed.remedy.action } : {}) };
 }
 
 /** The prover of an engine, which proves a permission's containment through the reasoner. */

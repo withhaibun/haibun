@@ -42,7 +42,7 @@ export const PropertySchema = PersistedVertexSchema.extend({
 	[ONTOLOGY_FIELD.name]: z.string(),
 	[ONTOLOGY_FIELD.uri]: z.string().optional(),
 	[ONTOLOGY_FIELD.abstract]: z.boolean().optional(),
-	[ONTOLOGY_FIELD.inData]: z.boolean().optional(),
+	[ONTOLOGY_FIELD.inData]: z.boolean(),
 	[ONTOLOGY_FIELD.generatedAtTime]: z.string(),
 });
 

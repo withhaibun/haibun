@@ -23,7 +23,8 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "A statement can hold less than actuality, and never more" }),
 		`A feature runs with actuality's authority. A statement narrowed to some actions holds only those actions. A feature's lines can state a caller that holds one action and doesn't hold another. The protected step runs under a statement narrowed to the protected action. The gate refuses the admin step under the same narrowing.`,
 		'holding only "TestServer:protected", protected rpc ping',
-		'didn\'t holding only "TestServer:protected", protected admin rpc ping',
+		'set adminRefusal from maybe holding only "TestServer:protected", protected admin rpc ping',
+		'variable adminRefusal.lacksAction is "TestServer:admin"',
 
 		scenario({ scenario: "A caller's proof is verified over RPC, and grants only what it proves" }),
 		`The gate refuses the protected step before it runs when a request doesn't present a proof. The gate refuses a step that doesn't declare an action in the same way. The gate refuses a method that doesn't name a step in the same way. The three refusals state the same reason, so a refusal doesn't reveal actuality's steps to a caller that didn't prove a capability. A holder that the verifier accepts for the protected action signs its call. The same step at the same endpoint runs for that call. The gate still refuses the admin step to that holder, since the holder proved only the protected action. The gate refuses a request from a holder that the verifier doesn't accept. The holder's proof fails, so the request doesn't run a step.`,

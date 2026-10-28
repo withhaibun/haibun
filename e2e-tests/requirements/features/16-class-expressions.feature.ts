@@ -19,7 +19,8 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "A subsumption holds where the ontology entails it" }),
 		"Essential, for containment checks. A step that is part of a step is a step, by the intersection alone; a step isn't entailed a comment, so that claim fails closed. Source: members.ts, subsumes.",
 		"every SeqPath and isPartOf some SeqPath is a SeqPath",
-		"didn't every SeqPath is a Comment",
+		"set comments from maybe every SeqPath is a Comment",
+		'variable comments.verdict is "unknown"',
 
 		scenario({ scenario: "An existence holds where the records entail a member" }),
 		"Essential, for the open world. Source: logic-stepper.ts, someOf.",

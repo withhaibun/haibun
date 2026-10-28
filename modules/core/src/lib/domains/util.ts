@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { TSpecl } from "../actuality/domains/actuality.js";
 import type { TWorld, TRuntime, TModuleOptions } from "../actuality/domains/world.js";
-import { TActionResult, OK, TDebugSignal, MODULE_OPTION_PREFIX } from "./protocol.js";
+import { TActionResult, OK, TDebugSignal, MODULE_OPTION_PREFIX, VERDICT } from "./protocol.js";
 import { IHasOptions, AStepper, CStepper, TFeatureStep } from "../steps/domains/stepper.js";
 import { TArtifactEvent, type TJsonArtifact } from "./protocol.js";
 import type { TRemedy } from "../transport/domains/rpc-wire.js";
@@ -28,6 +28,9 @@ export function actionNotOK(errorMessage: string, w?: { artifact?: TArtifactEven
 	const message = typeof raw === "string" ? raw : raw instanceof Error ? raw.message : String(raw);
 	return { ok: false, errorMessage: message, artifact: w?.artifact, controlSignal: w?.controlSignal, ...(remedy === undefined ? {} : { remedy }) };
 }
+/** The result of a step whose claim the records don't prove: unknown, which isn't false in the open world. */
+export const actionUnknown = (errorMessage: string): TActionResult => ({ ...actionNotOK(errorMessage), verdict: VERDICT.unknown });
+
 export function actionOK(w?: { artifact?: TArtifactEvent; controlSignal?: TDebugSignal }): TActionResult {
 	return { ...OK, artifact: w?.artifact, controlSignal: w?.controlSignal };
 }

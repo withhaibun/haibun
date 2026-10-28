@@ -12,7 +12,7 @@ export const features: TKirejiExport = {
 		"Essential, for a model's tool calls. A turn calls each line a model proposes under the speaker's capability, as holding only proves a statement under the actions it names. Source: turns.ts:357 and authority-stepper.ts, holdingOnly.",
 		'holding only "VariablesStepper:set,Read:public", set x to "1"',
 		'variable x is "1"',
-		'set proposal from didn\'t holding only "Read:public", set x to "2"',
+		'set proposal from maybe holding only "Read:public", set x to "2"',
 		'variable proposal.lacksAction is "VariablesStepper:set"',
 		'variable x is "1"',
 

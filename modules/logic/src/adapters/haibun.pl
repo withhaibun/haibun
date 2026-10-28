@@ -64,7 +64,7 @@ outcome_verdict(refused, unknown).
 
 naf(proved, refuted).
 naf(refuted, proved).
-naf(unknown, proved).
+naf(unknown, unknown).
 naf(contradiction, contradiction).
 
 % worse(+Held, +Found, -Kept): a disjunction or a search without a proof is unknown where any part is unknown.
@@ -211,23 +211,23 @@ plan(run, T, Proof, Activity, P, B, A, D, V, Why) :-
 % and takes D₁ …. The rules are r(Producers, Produced, Composites, Read): p(Method, D, Inputs) for each such step, the
 % domains any step returns, c(D, Fields) for a domain whose fields range over domains, and the read whose rows are the
 % domains a fact holds of, which goals/3 replaces with those domains. A goal holds by a fact of its domain, by a producer
-% whose inputs hold, by the fields of a composite domain no step returns, or as an argument a caller supplies where no step
-% returns its domain. The ancestor check and the depth limit bound each proof. A proof leaves each do(s) unproved, so its
-% plan is the steps it would call. Negation reads only the closed term a query is given, through none/1.
+% whose inputs hold, by the fields of a composite domain no step returns, or as an argument a caller supplies, which the
+% rule supplied_by_caller/2 states of a domain no step returns and that isn't a composite. The ancestor check and the depth
+% limit bound each proof. A proof leaves each do(s) unproved, so its plan is the steps it would call. Negation reads only the closed term a query is given, through none/1.
 none(G) :- ( call(G) -> fail ; true ).
 
-% goals(+Rules, +Goals, -Results): reads the domains a fact holds of once, and returns whether a fact of each goal holds,
-% a plan for each of its producers whose inputs hold, and, where it has neither, the chain of sub-goals to the first it
-% couldn't prove.
+% goals(+Rules, +Goals, -Results): reads the domains a fact holds of once, and returns each goal's verdict, proved by a fact
+% of its domain and unknown without one, since a fact the read didn't return may hold elsewhere; a plan for each of its
+% producers whose inputs hold; and, where it has neither, the chain of sub-goals to the first it couldn't prove.
 goals(r(Ps, Produced, Cs, Read), Goals, Results) :-
     Read = q(_, _, D, _), read([], [], [Read], D, rows(Ds)), sort(Ds, Domains), maplist(goal_result(r(Ps, Produced, Cs, Domains)), Goals, Results).
 
 goal_result(R, G, _{goal: G, held: Held, plans: Plans, unmet: Unmet}) :-
     R = r(Ps, _, _, Domains),
-    ( memberchk(G, Domains) -> Held = true ; Held = false ),
+    ( memberchk(G, Domains) -> Held = proved ; Held = unknown ),
     findall(M-Ins, member(p(M, G, Ins), Ps), Producers),
     findall(P, ( member(M-Ins, Producers), produced_by(R, G, M, Ins, [], 1, P), none(unmet_in(P)) ), Plans),
-    (   Held == false, Plans == [] ->
+    (   Held == unknown, Plans == [] ->
         ( Producers = [M-Ins|_] -> produced_by(R, G, M, Ins, [], 1, P0), chain(P0, Unmet) ; Unmet = [_{unmet: G, why: no_producer}] )
     ;   Unmet = []
     ).
@@ -249,7 +249,10 @@ proof(R, Anc, Depth, D, P) :-
     R = r(_, _, Cs, _), memberchk(c(D, Fields), Cs), !, Depth1 is Depth + 1,
     foldl(field(R, [D|Anc], Depth1), Fields, held([]), Held),
     ( Held = held(Rev) -> reverse(Rev, Fs), P = _{composite: D, fields: Fs} ; P = _{argument: D} ).
-proof(_, _, _, D, _{argument: D}).
+proof(R, _, _, D, _{argument: D}) :- supplied_by_caller(R, D).
+
+% supplied_by_caller(+Rules, +Domain): a caller supplies a domain no step returns and whose fields don't range over domains.
+supplied_by_caller(r(_, Produced, Cs, _), D) :- none(memberchk(D, Produced)), none(memberchk(c(D, _), Cs)).
 
 field(_, _, _, _, unheld, unheld) :- !.
 field(_, _, _, f(N, '', T, O), held(Acc), held([_{name: N, domain: '', type: T, optional: O, proof: _{argument: N}}|Acc])) :- !.

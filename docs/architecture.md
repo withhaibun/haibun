@@ -195,6 +195,12 @@ set secondRun from didn't run all the tests in "once"
 matches secondRun.refusal with "*passed against its present dependencies*"
 ```
 
+A statement that is unknown leaves its negation unknown: a refused call, a goal without a fact, and a claim the records don't prove are each unknown, which isn't false in the open world. `maybe statement` holds whatever its statement's verdict, and its products hold that verdict with why the statement didn't hold, so a feature states an expected refusal through it:
+```
+set refused from maybe holding only "Read:public", set x to "2"
+variable refused.lacksAction is "VariablesStepper:set"
+```
+
 ### Conditionals
 
 `where condition, action` proves the action where the condition holds, and `where not condition, action` where it doesn't:

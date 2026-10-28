@@ -21,7 +21,7 @@ import {
 	DOMAIN_WAYPOINT_ARGUMENT,
 } from "@haibun/core/lib/domains/domains.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
-import { actionNotOK, actionOK, actionOKWithProducts, errorDetail } from "@haibun/core/lib/domains/util.js";
+import { actionNotOK, actionOK, actionOKWithProducts, actionUnknown, errorDetail } from "@haibun/core/lib/domains/util.js";
 import { argumentsOf } from "@haibun/core/lib/steps/pipelines/populate-action-args.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { Access, SEQ_PATH_LABEL, type TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
@@ -260,7 +260,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			action: async ({ address, expression }: { address: TIndividualAddress; expression: string }) => {
 				const entailed = await this.members(expression);
 				if (entailed.members.some(({ persistedAs, id }) => persistedAs === address.persistedAs && id === address.id)) return actionOK();
-				return actionNotOK(
+				return actionUnknown(
 					`${address.persistedAs}:${address.id} ∈ ${expression} is unknown: the records don't entail it, and unknown isn't false in the open world.${truncationOf(entailed)} Add the fact, or read a complete graph.`,
 				);
 			},
@@ -274,7 +274,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			action: async ({ sub, sup }: { sub: string; sup: string }) => {
 				const world = this.getWorld();
 				const refusal = await subsumptionRefusal(reasoner(), world.shared.getStore(), world.domains, world.runtime.records, sub, sup);
-				return refusal === undefined ? actionOK() : actionNotOK(refusal);
+				return refusal === undefined ? actionOK() : actionUnknown(refusal);
 			},
 		},
 		someOf: {
@@ -286,7 +286,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			action: async ({ expression }: { expression: string }) => {
 				const entailed = await this.members(expression);
 				if (entailed.members.length > 0) return actionOKWithProducts(countedMembers(entailed));
-				return actionNotOK(
+				return actionUnknown(
 					`some ${expression} is unknown: the records don't entail a member, and unknown isn't false in the open world.${truncationOf(entailed)} Add the fact, or read a complete graph.`,
 				);
 			},

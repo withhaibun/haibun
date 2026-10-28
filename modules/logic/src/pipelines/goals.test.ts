@@ -1,8 +1,9 @@
 /**
  * Goals over producer rules: the engine proves a goal by a fact of its domain, leaves a plan where only steps would prove it,
- * and refutes a goal that a step the caller may call doesn't return or that its own proof takes again. The step graph's lint
+ * and leaves unknown a goal that a step the caller may call doesn't return or that its own proof takes again. The step graph's lint
  * reads the same signatures.
  */
+import { VERDICT } from "@haibun/core/lib/domains/protocol.js";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
@@ -62,7 +63,7 @@ const stepsOf = (proof: Awaited<ReturnType<typeof prove>>) => proof.plans.map((p
 describe("goals over producer rules", () => {
 	it("leaves a plan of the steps a goal takes, in the order their products are taken", async () => {
 		const proof = await prove("receipt", [], RUN_AUTHORITY);
-		expect(proof.held).toBe(false);
+		expect(proof.held, "a goal without a fact is unknown, since a fact the read didn't return may hold").toBe(VERDICT.unknown);
 		expect(stepsOf(proof)).toEqual([["fillCart", "placeOrder", "printReceipt"]]);
 	});
 
@@ -73,16 +74,16 @@ describe("goals over producer rules", () => {
 	});
 
 	it("proves a goal by a fact of its domain", async () => {
-		expect((await prove("receipt", ["receipt"], RUN_AUTHORITY)).held).toBe(true);
+		expect((await prove("receipt", ["receipt"], RUN_AUTHORITY)).held).toBe(VERDICT.proved);
 	});
 
-	it("refutes a goal whose producer the caller may not call, naming the sub-goal", async () => {
+	it("leaves unknown a goal whose producer the caller may not call, naming the sub-goal", async () => {
 		const proof = await prove("receipt", [], ["Shop:printReceipt", "Shop:placeOrder"]);
 		expect(proof.plans).toEqual([]);
 		expect(unmetReason(proof)).toContain("doesn't return cart");
 	});
 
-	it("refutes a goal that its own proof takes again", async () => {
+	it("leaves unknown a goal that its own proof takes again", async () => {
 		const proof = await prove("loop-a", [], RUN_AUTHORITY);
 		expect(proof.unmet.map((node) => ("do" in node ? node.domain : node.unmet))).toEqual(["loop-a", "loop-b", "loop-a"]);
 		expect(unmetReason(proof)).toContain("is taken again below its own proof");

@@ -181,10 +181,11 @@ export const features: TKirejiExport = {
 		setAs({ what: CHAIN_GRAPH_CANVAS, domain: "page-locator", value: `"${CHAIN_GRAPH_CANVAS_SELECTOR}"` }),
 		waitFor({ target: CHAIN_GRAPH_CANVAS }),
 
-		scenario({ scenario: "Goal resolution: `resolve` refutes a registered domain that a step doesn't return" }),
+		scenario({ scenario: "Goal resolution: `resolve` leaves unknown a registered domain that a step doesn't return" }),
 
-		"The engine proves a goal over any registered domain key. The registry holds every locator domain, including page-alt-text. A step doesn't return page-alt-text, so the engine refutes the goal and its step fails.",
-		'didn\'t resolve "page-alt-text"',
+		"The engine proves a goal over any registered domain key. The registry holds every locator domain, including page-alt-text. A step doesn't return page-alt-text and a fact doesn't hold, so the goal is unknown, which isn't false in the open world.",
+		'set altText from maybe resolve "page-alt-text"',
+		'variable altText.verdict is "unknown"',
 
 		scenario({ scenario: "Repeated `show chain lint` invocations must not duplicate the pane" }),
 
