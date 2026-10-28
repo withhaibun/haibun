@@ -313,13 +313,47 @@
 			"filter": "",
 			"actuality": {
 				"text": "modules/shu/tests, modules/shu/waypoints",
-				"status": "passed",
-				"tookMs": 29400,
+				"status": "failed",
+				"error": "0.1.2.2: go to the \"http://localhost:8237/spa#?label=Nonesuch\" webpage (Did not go to http://localhost:8237/spa#?label=Nonesuch: browserContext.newPage: Target page, context or browser has been closed\nBrowser logs:\n\n<launching> /tmp/claude-0/pw-browsers/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-XCb1ks --remote-debugging-pipe --no-startup-window\n<launched> pid=14192\n[pid=14192][err] [1027/235947.065170:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory\n[pid=14192][err] [1027/235947.066514:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory\n[pid=14192][err] [1027/235947.066617:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory\n[pid=14192][err] [1027/235947.083702:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.\n[pid=14192][err] [1027/235947.098455:WARNING:sandbox/policy/linux/sandbox_linux.cc:414] InitializeSandbox() called with multiple threads in process gpu-process.\n[pid=14192] <gracefully close start>)",
+				"tookMs": 700,
 				"digest": {
 					"modules/cli/src": "011b53b25f856d14cbee6ea272f35e7d9320e71059763cabb31d0d04d424e9d5",
 					"modules/core/src": "41bf9325e40cb56b4b1bc7f5ec80b3041ae0ae4b99b7c46bb5b23613aaa84005",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
-					"modules/logic/src": "0c6f6be3a97e86fe62a670c91f3e50620070608749de4d7ec8fd5aa6cb114d07",
+					"modules/logic/src": "dc6840118453a27066bc69f5767198cc5ebb076c8745f26ce4b0e46788d40100",
+					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
+					"modules/shu/src": "81b3b4b2a4ce5d4f56ce649fb8aa0bb033f99363d19b407e2c8002cc8ec8d541",
+					"modules/shu/tests": "510453cef1165bcb91464669fa3fb7c0628dd906fdc3ee5b76664055a82ce786",
+					"modules/shu/waypoints": "85c65554dd406b66e361f3a3a5683db72f20656c2f827dff70c53761a388b64b",
+					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
+					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
+					"modules/web-playwright/src": "183837582c6745581f805bc27a237802cbe289e8d03346c3f4542012f75925be",
+					"modules/web-server-hono/src": "7b53083f3a54d0d78a7ca90c99dd325f87cd42cfdfe36487284e87d4296d2503"
+				}
+			},
+			"features": {
+				"/features/address.feature.ts": {
+					"text": "An address names a type",
+					"status": "failed",
+					"error": "0.1.2.2: go to the \"http://localhost:8237/spa#?label=Nonesuch\" webpage (Did not go to http://localhost:8237/spa#?label=Nonesuch: browserContext.newPage: Target page, context or browser has been closed\nBrowser logs:\n\n<launching> /tmp/claude-0/pw-browsers/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-XCb1ks --remote-debugging-pipe --no-startup-window\n<launched> pid=14192\n[pid=14192][err] [1027/235947.065170:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory\n[pid=14192][err] [1027/235947.066514:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory\n[pid=14192][err] [1027/235947.066617:ERROR:dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory\n[pid=14192][err] [1027/235947.083702:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.\n[pid=14192][err] [1027/235947.098455:WARNING:sandbox/policy/linux/sandbox_linux.cc:414] InitializeSandbox() called with multiple threads in process gpu-process.\n[pid=14192] <gracefully close start>)",
+					"tookMs": 500,
+					"steps": 194
+				}
+			}
+		}
+	},
+	"linux-x64-4x-intel-xeon-processor-2-30ghz": {
+		"e1227d2dad4c2371": {
+			"filter": "",
+			"actuality": {
+				"text": "modules/shu/tests, modules/shu/waypoints",
+				"status": "passed",
+				"tookMs": 25300,
+				"digest": {
+					"modules/cli/src": "011b53b25f856d14cbee6ea272f35e7d9320e71059763cabb31d0d04d424e9d5",
+					"modules/core/src": "41bf9325e40cb56b4b1bc7f5ec80b3041ae0ae4b99b7c46bb5b23613aaa84005",
+					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
+					"modules/logic/src": "dc6840118453a27066bc69f5767198cc5ebb076c8745f26ce4b0e46788d40100",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/shu/src": "81b3b4b2a4ce5d4f56ce649fb8aa0bb033f99363d19b407e2c8002cc8ec8d541",
 					"modules/shu/tests": "510453cef1165bcb91464669fa3fb7c0628dd906fdc3ee5b76664055a82ce786",
@@ -340,31 +374,31 @@
 				"/features/federate.feature.ts": {
 					"text": "Federated graph reads from a sibling instance",
 					"status": "passed",
-					"tookMs": 1300,
+					"tookMs": 1000,
 					"steps": 6
 				},
 				"/features/monitor-serves.feature.ts": {
 					"text": "The monitor serves shu on a port of its own",
 					"status": "passed",
-					"tookMs": 1400,
+					"tookMs": 1200,
 					"steps": 198
 				},
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
-					"tookMs": 20400,
-					"steps": 714
+					"tookMs": 16500,
+					"steps": 712
 				},
 				"/features/remote-store.feature.ts": {
 					"text": "A satellite instance keeps its records in the main instance's store",
 					"status": "passed",
-					"tookMs": 1400,
+					"tookMs": 1100,
 					"steps": 8
 				},
 				"/features/voice-ui.feature.ts": {
 					"text": "UI extension propagation: domain ui → concern catalog → SPA actions bar",
 					"status": "passed",
-					"tookMs": 1900,
+					"tookMs": 2700,
 					"steps": 214
 				}
 			}

@@ -103,12 +103,7 @@
 			"actuality": {
 				"text": "e2e-tests/once",
 				"status": "passed",
-				"tookMs": 0,
-				"digest": {
-					"e2e-tests/once": "2366cba89b9728bb36b9ea80bfe754e50f7397a9644e62f52cb8cc3d85133581",
-					"modules/core/src": "41bf9325e40cb56b4b1bc7f5ec80b3041ae0ae4b99b7c46bb5b23613aaa84005",
-					"modules/logic/src": "0c6f6be3a97e86fe62a670c91f3e50620070608749de4d7ec8fd5aa6cb114d07"
-				}
+				"tookMs": 0
 			},
 			"features": {
 				"/features/once.feature": {
@@ -152,6 +147,24 @@
 			}
 		},
 		"d2f7f24a6f426a64": {
+			"filter": "",
+			"actuality": {
+				"text": "e2e-tests/once",
+				"status": "passed",
+				"tookMs": 0
+			},
+			"features": {
+				"/features/once.feature": {
+					"text": "/features/once",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 1
+				}
+			}
+		}
+	},
+	"linux-x64-4x-intel-xeon-processor-2-30ghz": {
+		"1c898c9ac690ca0d": {
 			"filter": "",
 			"actuality": {
 				"text": "e2e-tests/once",

@@ -77,11 +77,11 @@
 			"actuality": {
 				"text": "modules/shu/tests-basic-auth",
 				"status": "passed",
-				"tookMs": 2200,
+				"tookMs": 1700,
 				"digest": {
-					"modules/core/src": "f1b1471d6849ddc809a0a7ad6ef81e7ceea9a82db39d8d71967b2c5576df0935",
+					"modules/core/src": "41bf9325e40cb56b4b1bc7f5ec80b3041ae0ae4b99b7c46bb5b23613aaa84005",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
-					"modules/logic/src": "cd60ed3e853d528a4d8dd1819bef9251ff6b8bf000c34970e57b9b8bbf6b9b6d",
+					"modules/logic/src": "dc6840118453a27066bc69f5767198cc5ebb076c8745f26ce4b0e46788d40100",
 					"modules/shu/src": "81b3b4b2a4ce5d4f56ce649fb8aa0bb033f99363d19b407e2c8002cc8ec8d541",
 					"modules/shu/tests-basic-auth": "9cca75b8a1c2cb5e25f1d47bc884cf26c5940a3fcec9dde0934acb925e34ae32",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
@@ -94,7 +94,7 @@
 				"/features/behind-basic-auth.feature.ts": {
 					"text": "A page behind basic auth",
 					"status": "passed",
-					"tookMs": 1900,
+					"tookMs": 1500,
 					"steps": 214
 				}
 			}
@@ -139,6 +139,35 @@
 					"status": "passed",
 					"tookMs": 1700,
 					"steps": 212
+				}
+			}
+		}
+	},
+	"linux-x64-4x-intel-xeon-processor-2-30ghz": {
+		"1b9baefb85bdfa71": {
+			"filter": "",
+			"actuality": {
+				"text": "modules/shu/tests-basic-auth",
+				"status": "passed",
+				"tookMs": 1600,
+				"digest": {
+					"modules/core/src": "41bf9325e40cb56b4b1bc7f5ec80b3041ae0ae4b99b7c46bb5b23613aaa84005",
+					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
+					"modules/logic/src": "dc6840118453a27066bc69f5767198cc5ebb076c8745f26ce4b0e46788d40100",
+					"modules/shu/src": "81b3b4b2a4ce5d4f56ce649fb8aa0bb033f99363d19b407e2c8002cc8ec8d541",
+					"modules/shu/tests-basic-auth": "9cca75b8a1c2cb5e25f1d47bc884cf26c5940a3fcec9dde0934acb925e34ae32",
+					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
+					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
+					"modules/web-playwright/src": "183837582c6745581f805bc27a237802cbe289e8d03346c3f4542012f75925be",
+					"modules/web-server-hono/src": "7b53083f3a54d0d78a7ca90c99dd325f87cd42cfdfe36487284e87d4296d2503"
+				}
+			},
+			"features": {
+				"/features/behind-basic-auth.feature.ts": {
+					"text": "A page behind basic auth",
+					"status": "passed",
+					"tookMs": 1400,
+					"steps": 214
 				}
 			}
 		}
