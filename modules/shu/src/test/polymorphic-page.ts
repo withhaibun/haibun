@@ -84,15 +84,22 @@ export type TPixel = { x: number; y: number };
 export type TReadEntry = { id: string; active: boolean; dimmed: boolean };
 
 /** Selectors and names the page-side readers take, passed in since a function evaluated in the page sees only its argument. */
-const IN_PAGE = { view: "shu-polymorphic-graph-view", reading: `[data-testid="${SHU_TEST_IDS.POLYMORPHIC_VIEW.A11Y}"]`, dimmed: `, ${READ_STATE.dimmed})` };
+const IN_PAGE = {
+	view: "shu-polymorphic-graph-view",
+	frame: "#polymorphic-canvas",
+	reading: `[data-testid="${SHU_TEST_IDS.POLYMORPHIC_VIEW.A11Y}"]`,
+	dimmed: `, ${READ_STATE.dimmed})`,
+};
 type TInPage = typeof IN_PAGE;
 
 /** In the page: where each named node draws, through the library's camera and the library's own projection, once the
  *  scene is at rest, two frames in a row draw each at the same pixel, and the canvas draws at its shown size, the scene's
  *  own. A resize reaches the scene a frame after the page's layout, and the camera returns to a followed node once the
  *  frame takes its size, so two frames can be equal before either. The scene's rest, which counts the resize and the
- *  camera still pending, and the canvas at the scene's size mark the settled view. The renderer takes a new size a frame
- *  before the canvas's own box does, and a read between the two maps the node onto a box that is no longer there. False
+ *  camera still pending, and the canvas at the size of its frame mark the settled view: the scene's rest can read as
+ *  settled in the frame a resize lands, before the scene counts it, while the library's wrapper still holds the old size.
+ *  The renderer takes a new size a frame before the canvas's own box does, and a read between the two maps the node onto
+ *  a box that is no longer there. False
  *  until then, so a wait polled each frame returns the pixels. */
 const steadyIn = ({ ids, at }: { ids: readonly string[]; at: TInPage }): Record<string, TPixel> | false => {
 	type TNode = { id: string; x: number; y: number; z: number };
@@ -106,11 +113,12 @@ const steadyIn = ({ ids, at }: { ids: readonly string[]; at: TInPage }): Record<
 	if (!scene?.camera || !engine || !canvas) return false;
 	if (document.querySelector(`${at.view} ${at.reading}`)?.getAttribute("aria-busy") !== "false") return false;
 	const shown = canvas.getBoundingClientRect();
-	const hosted = scene.getBoundingClientRect();
+	const framed = view?.querySelector(at.frame)?.getBoundingClientRect();
 	const dpr = window.devicePixelRatio;
 	if (Math.abs(canvas.width / dpr - shown.width) >= 1 || Math.abs(canvas.height / dpr - shown.height) >= 1) return false;
-	// The canvas has taken the scene's size, so a resize of the view has reached the frame as well as the camera.
-	if (Math.abs(shown.width - hosted.width) >= 1 || Math.abs(shown.height - hosted.height) >= 1) return false;
+	// The canvas has taken the size of the frame that holds it, so a resize of the view has reached the library's wrapper,
+	// which the scene sizes once the frame's resize settles, as well as the camera.
+	if (!framed || Math.abs(shown.width - framed.width) >= 1 || Math.abs(shown.height - framed.height) >= 1) return false;
 	scene.camera.updateMatrixWorld(true);
 	const drawn: Record<string, TPixel> = {};
 	for (const n of engine.components.forcegraph.forceGraph.graphData().nodes) {
