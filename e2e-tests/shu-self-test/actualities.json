@@ -213,14 +213,14 @@
 			"actuality": {
 				"text": "e2e-tests/shu-self-test, node_modules/@haibun/web-playwright/waypoints",
 				"status": "passed",
-				"tookMs": 108800,
+				"tookMs": 114100,
 				"digest": {
 					"e2e-tests/shu-self-test": "083b5e4ddc0b56ecc1c63d54b98884c4174da6d92d9e370d76947686c31334aa",
-					"modules/core/src": "ce4de6ab1e69cb0d70ed8da94236acf4229b83573b86710da739bf5890da6695",
+					"modules/core/src": "f5635063437353b4ea59d63a56c4d9f1d6c84aae32fa5154e605bf399043b304",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
-					"modules/logic/src": "3c3dced0112acbb0766aa9abcfe313035d37ce373a18ff7c647a252c6dd77e4a",
+					"modules/logic/src": "b8001ecadbafa6cbb0b24ecfd4c2564fcfea41938ba4daea82781eee46bbad9f",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/shu/src": "ceed760d4284ff87b6eeea80f3765e101e8dabc24ea8b51604fc61de0d0d87a8",
+					"modules/shu/src": "6ef8c3246512cb000ed1d399ec67de99d4a62256b15e6d27bb8c2d9ffd391d78",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/web-playwright/src": "183837582c6745581f805bc27a237802cbe289e8d03346c3f4542012f75925be",
@@ -232,8 +232,8 @@
 				"/features/shu-self-test.feature.ts": {
 					"text": "Shu SPA Self-Test",
 					"status": "passed",
-					"tookMs": 106500,
-					"steps": 737
+					"tookMs": 111600,
+					"steps": 734
 				},
 				"/features/z-post.feature.ts": {
 					"text": "Verify Shu Standalone Output Doesn't Hold Secrets",
