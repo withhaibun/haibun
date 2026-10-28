@@ -101,7 +101,7 @@ export function recordTerms(catalog: TConcernCatalog, context: Record<string, un
 		return `<${individualOf(itemAt(targets, 0), String(object))}>`;
 	};
 	const iriOf = (subject: string): { label: string; id: string } => {
-		const named = subject.startsWith(namespace) ? recordOfIri(records.prefix, `${records.prefix}:${subject.slice(namespace.length)}`) : undefined;
+		const named = subject.startsWith(namespace) ? recordOfIri(`${records.prefix}:${subject.slice(namespace.length)}`) : undefined;
 		const label = named === undefined ? undefined : byLowerLabel.get(named.lowerLabel);
 		if (named === undefined || label === undefined) throw new Error(`${subject} isn't the IRI of a record of a persisted type. Name a record as recordIri names it.`);
 		return { label, id: named.id };

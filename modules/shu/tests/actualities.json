@@ -348,14 +348,14 @@
 			"actuality": {
 				"text": "modules/shu/tests, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 24500,
+				"tookMs": 24200,
 				"digest": {
 					"modules/cli/src": "b052d930084f013610f4455c159adbe38ac60803d5511738ebfe7956f66ac177",
-					"modules/core/src": "be7f55b6e4135cbd7e7fcfd43d93d38ce1dd83845e883492ae11b4b469052a93",
+					"modules/core/src": "ce4de6ab1e69cb0d70ed8da94236acf4229b83573b86710da739bf5890da6695",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
-					"modules/logic/src": "8c1d7aa5448e7698ebc39d3e750496ae5ff7dafe927e169e7e8d2a0dc93793c2",
+					"modules/logic/src": "3c3dced0112acbb0766aa9abcfe313035d37ce373a18ff7c647a252c6dd77e4a",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/shu/src": "5f444ccdbd02eb73ff9a41ee1b39764b3c302586f6e81f80a51f8ab01f8a534a",
+					"modules/shu/src": "ceed760d4284ff87b6eeea80f3765e101e8dabc24ea8b51604fc61de0d0d87a8",
 					"modules/shu/tests": "510453cef1165bcb91464669fa3fb7c0628dd906fdc3ee5b76664055a82ce786",
 					"modules/shu/waypoints": "85c65554dd406b66e361f3a3a5683db72f20656c2f827dff70c53761a388b64b",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
@@ -386,19 +386,19 @@
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
-					"tookMs": 16900,
+					"tookMs": 16700,
 					"steps": 710
 				},
 				"/features/remote-store.feature.ts": {
 					"text": "A satellite instance keeps its records in the main instance's store",
 					"status": "passed",
-					"tookMs": 1100,
+					"tookMs": 1000,
 					"steps": 8
 				},
 				"/features/voice-ui.feature.ts": {
 					"text": "UI extension propagation: domain ui → concern catalog → SPA actions bar",
 					"status": "passed",
-					"tookMs": 1800,
+					"tookMs": 1700,
 					"steps": 214
 				}
 			}

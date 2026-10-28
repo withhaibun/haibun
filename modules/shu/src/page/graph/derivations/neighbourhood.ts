@@ -4,6 +4,7 @@
  * not merely an edge's end, and every record named is pinned, so streamed data doesn't evict what the reader revealed.
  */
 import type { TIncomingEdges, TIndividualWithEdges, TQuad } from "@haibun/core/lib/quad-types.js";
+import { isProjectionKey } from "../../derivations/record-fields.js";
 
 /** The page of edges that reach a record, which the site caps, so a hub stays bounded. */
 export const INCOMING_LIMIT = 100;
@@ -19,7 +20,7 @@ function vertexQuads(label: string, vertex: Record<string, unknown>, idOf: TIdOf
 	const subject = idOf(vertex);
 	if (!subject) return [];
 	return Object.entries(vertex)
-		.filter(([k, v]) => !k.startsWith("_") && !k.startsWith("@") && k !== "id" && v !== undefined && v !== null)
+		.filter(([k, v]) => !isProjectionKey(k) && k !== "id" && v !== undefined && v !== null)
 		.map(([predicate, object]) => ({ subject, predicate, object, namedGraph: label, timestamp }));
 }
 

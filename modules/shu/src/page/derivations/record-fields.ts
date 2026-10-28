@@ -2,6 +2,7 @@
  * A record's fields as a view shows them: its type, its id, its title, the fields its field table shows, its governance
  * fields and its body literals, each read through the relations its type declares, and an object's handle.
  */
+import { recordOfIri } from "@haibun/core/lib/records/derivations/record-iri.js";
 import { TITLE_RELS, composeDisplayLabel, parseTimestampValue, type TTitledBy } from "@haibun/core/lib/domains/hypermedia.js";
 import { getRelPresentation, LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { STORED_TYPE_PROP } from "../../domains/elements.js";
@@ -22,17 +23,16 @@ export const persistedTypeOf = (v: Record<string, unknown>): string | undefined 
  *  test address an object by it; the store's vertex id stays the object's own id. */
 export const objectId = (type: string, id: string): string => `${type}:${id}`;
 
-/** Returns the tail of a record's JSON-LD `@id` after the type segment, or the value of its type's id field, which
- *  `idFieldOf` returns, where the record doesn't carry an `@id`. Throws for a record without an `@id` and without the value
- *  of its type's id field. */
+/** Returns the id a record's JSON-LD `@id` states: the id of a record IRI, or the `@id` itself where it names the record by
+ *  its id; or the value of its type's id field, which `idFieldOf` returns, where the record doesn't carry an `@id`. Throws for
+ *  a record without an `@id` and without the value of its type's id field. */
 export function idOf(v: Record<string, unknown>, idFieldOf: (type: string) => string | undefined): string {
 	const iri = v["@id"];
-	if (typeof iri === "string" && iri.length > 0) return iri.slice(iri.indexOf("/") + 1);
+	if (typeof iri === "string" && iri.length > 0) return recordOfIri(iri)?.id ?? iri;
 	const type = persistedTypeOf(v);
 	const idField = type === undefined ? undefined : idFieldOf(type);
-	if (type === undefined || idField === undefined) throw new Error("a record doesn't carry an @id or an @type that declares an id field, so a view can't address it");
-	const id = v[idField];
-	if (typeof id !== "string" && typeof id !== "number") throw new Error(`a ${type} record doesn't carry an @id or its id field ${idField}, so a view can't address it`);
+	const id = idField === undefined ? undefined : v[idField];
+	if (typeof id !== "string" && typeof id !== "number") throw new Error("a record doesn't carry an @id or the id field its type declares, so a view can't address it");
 	return String(id);
 }
 
@@ -49,6 +49,9 @@ export function titleFields(rels: TFieldRels | undefined, titledBy: TTitledBy | 
 export const instanceLabel = (v: Record<string, unknown>, rels: TFieldRels | undefined, titledBy: TTitledBy | undefined, id: string): string =>
 	composeDisplayLabel({ rels, getProperty: (field) => v[field], ...(titledBy ? { displayLabel: titledBy } : {}), id });
 
+/** Whether a key is a projection key (`@…`, `_…`), which a view's sections don't show as a field. */
+export const isProjectionKey = (k: string): boolean => k.startsWith("_") || k.startsWith("@");
+
 /** Whether a relation routes its field to the body or the governance section. */
 const routedElsewhere = (rel: string): boolean => {
 	const presentation = getRelPresentation(rel);
@@ -59,7 +62,7 @@ const routedElsewhere = (rel: string): boolean => {
  *  type. A key it doesn't show is a projection key (`@…`, `_…`), a key of `SPA_PROPS`, or a key whose own name or declared
  *  relation routes it to the body or the governance section. */
 export function isVisibleKey(k: string, rels: TFieldRels | undefined): boolean {
-	if (k.startsWith("_") || k.startsWith("@") || SPA_PROPS.has(k) || routedElsewhere(k)) return false;
+	if (isProjectionKey(k) || SPA_PROPS.has(k) || routedElsewhere(k)) return false;
 	const rel = rels?.[k];
 	return rel === undefined || !routedElsewhere(rel);
 }
@@ -69,7 +72,7 @@ export function isVisibleKey(k: string, rels: TFieldRels | undefined): boolean {
 export function governanceFields(vertex: Record<string, unknown>, rels: TFieldRels | undefined): Record<string, string> {
 	const out: Record<string, string> = {};
 	for (const [k, v] of Object.entries(vertex)) {
-		if (k.startsWith("_") || k.startsWith("@") || v === undefined || v === null) continue;
+		if (isProjectionKey(k) || v === undefined || v === null) continue;
 		const rel = rels?.[k] ?? k;
 		if (getRelPresentation(rel) === "governance") out[k] = typeof v === "string" ? v : JSON.stringify(v);
 	}
@@ -98,7 +101,7 @@ export function extractFieldEntries(vertex: Record<string, unknown>, rels: TFiel
 export function extractBodyLiterals(vertex: Record<string, unknown>, rels: TFieldRels | undefined): Record<string, string> {
 	const out: Record<string, string> = {};
 	for (const [k, v] of Object.entries(vertex)) {
-		if (typeof v !== "string" || v.length === 0 || k.startsWith("_") || k.startsWith("@")) continue;
+		if (typeof v !== "string" || v.length === 0 || isProjectionKey(k)) continue;
 		const rel = getRelPresentation(k) ? k : rels?.[k];
 		if (rel !== undefined && getRelPresentation(rel) === "body") out[k] = v;
 	}

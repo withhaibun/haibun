@@ -18,13 +18,13 @@ describe("recordIri", () => {
 	it("names a record by its label in lower case and its id percent-encoded, and its inverse reads both back", () => {
 		const iri = recordIri(PREFIX, "Mailbox", RESERVED_ID);
 		expect(iri).toBe("record:mailbox/work%2FINBOX%20%3F%23%5B%5D%40%21%24%26%27%28%29%2A%2B%2C%3B%3D%25%20%C3%A9");
-		expect(recordOfIri(PREFIX, iri)).toEqual({ lowerLabel: "mailbox", id: RESERVED_ID });
+		expect(recordOfIri(iri)).toEqual({ prefix: PREFIX, lowerLabel: "mailbox", id: RESERVED_ID });
 	});
 
-	it("reads an IRI under another prefix, without a label, or with an id recordIri doesn't write as undefined", () => {
-		expect(recordOfIri(PREFIX, recordIri("other", "Mailbox", "a"))).toBeUndefined();
-		expect(recordOfIri(PREFIX, "record:a")).toBeUndefined();
-		expect(recordOfIri(PREFIX, "record:mailbox/a b")).toBeUndefined();
+	it("reads text without a label, with an id recordIri doesn't write, or with a scheme's path as undefined", () => {
+		expect(recordOfIri("record:a")).toBeUndefined();
+		expect(recordOfIri("record:mailbox/a b")).toBeUndefined();
+		expect(recordOfIri("did:key:z6Mk/a")).toBeUndefined();
 	});
 
 	it("expands through the context that binds its prefix, and an HTTP origin as the namespace round-trips", () => {
@@ -33,7 +33,7 @@ describe("recordIri", () => {
 		const expanded = iriIn(context, recordIri(records.prefix, "Mailbox", RESERVED_ID));
 		expect(expanded).toBe(`${records.namespace}mailbox/work%2FINBOX%20%3F%23%5B%5D%40%21%24%26%27%28%29%2A%2B%2C%3B%3D%25%20%C3%A9`);
 		expect(new URL(expanded).pathname.split("/").length, "the id is one path segment").toBe(4);
-		expect(recordOfIri(records.prefix, `${records.prefix}:${expanded.slice(records.namespace.length)}`)).toEqual({ lowerLabel: "mailbox", id: RESERVED_ID });
+		expect(recordOfIri(`${records.prefix}:${expanded.slice(records.namespace.length)}`)).toEqual({ prefix: PREFIX, lowerLabel: "mailbox", id: RESERVED_ID });
 	});
 
 	it("refuses records named under a prefix a type binds to its vocabulary", () => {

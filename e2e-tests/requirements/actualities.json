@@ -378,22 +378,22 @@
 			"actuality": {
 				"text": "e2e-tests/requirements, node_modules/@haibun/cli/waypoints, node_modules/@haibun/logic/waypoints, node_modules/@haibun/core/waypoints",
 				"status": "passed",
-				"tookMs": 16100,
+				"tookMs": 15800,
 				"digest": {
 					"e2e-tests/requirements": "f30bfee93d96748275228e71866713c54af3b53d75581c9d9a6e0a9f1eb9947a",
 					"e2e-tests/src": "58d60ee765cabcfce203a6cacd4f669fb0c891d1d0153c1134505572772c2c6a",
 					"modules/cli/src": "b052d930084f013610f4455c159adbe38ac60803d5511738ebfe7956f66ac177",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "be7f55b6e4135cbd7e7fcfd43d93d38ce1dd83845e883492ae11b4b469052a93",
+					"modules/core/src": "ce4de6ab1e69cb0d70ed8da94236acf4229b83573b86710da739bf5890da6695",
 					"modules/core/waypoints": "f573c51de6e8154e49adbb5d98a25b3fd1872742dfdab0f3d6ec8f6164759860",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
-					"modules/logic/src": "8c1d7aa5448e7698ebc39d3e750496ae5ff7dafe927e169e7e8d2a0dc93793c2",
+					"modules/logic/src": "3c3dced0112acbb0766aa9abcfe313035d37ce373a18ff7c647a252c6dd77e4a",
 					"modules/logic/waypoints": "93e972f98438aa5cbe8f36d93e6aa45924af65df9fdb2846bf209209421a4671",
 					"modules/monitor-otel/src": "51ad9d33751b0654ac68a6a7280ef036d2c5e4b9b676bbacb9c6999d64c5d3d8",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/out-junit/src": "22d1ca5d4f4449cae6186ff8d84c1f0b182e7591e1ffda9520a38daa3e8681d2",
 					"modules/recorder/src": "4483bd44ae0de4ad4e504b6b398a05042484a83df837a6cfa085869c7e69332d",
-					"modules/shu/src": "5f444ccdbd02eb73ff9a41ee1b39764b3c302586f6e81f80a51f8ab01f8a534a",
+					"modules/shu/src": "ceed760d4284ff87b6eeea80f3765e101e8dabc24ea8b51604fc61de0d0d87a8",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/utils/src": "9799d114ca397313863bfc29604199b02bc9daf1a4bfa26675dbfe7cfc30e36c",
@@ -442,7 +442,7 @@
 				"/features/07-records.feature.ts": {
 					"text": "Records, events and actualities",
 					"status": "passed",
-					"tookMs": 1500,
+					"tookMs": 1600,
 					"steps": 121
 				},
 				"/features/08-timing.feature.ts": {
@@ -496,7 +496,7 @@
 				"/features/16-class-expressions.feature.ts": {
 					"text": "Class expressions",
 					"status": "passed",
-					"tookMs": 11400,
+					"tookMs": 11200,
 					"steps": 34
 				}
 			}

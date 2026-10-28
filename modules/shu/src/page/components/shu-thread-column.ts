@@ -22,7 +22,7 @@ import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { LinkRelations, isCommentType, isReplyEdge } from "@haibun/core/lib/domains/resources.js";
 import { appAccessLevel } from "../controllers/view-query-controller.js";
 import { extractBodyLiterals, idOf, instanceLabel, titleFields } from "../controllers/record-controller.js";
-import { persistedTypeOf } from "../derivations/record-fields.js";
+import { isProjectionKey, persistedTypeOf } from "../derivations/record-fields.js";
 import { addsToSelection } from "../derivations/pane-kinds.js";
 import { relatedRecords } from "../controllers/read-controller.js";
 import { LoadController } from "../controllers/load-controller.js";
@@ -255,7 +255,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		const preview = String(v[CARRIED_TEXT] ?? Object.values(bodyLiterals)[0] ?? "");
 		const shown = new Set([...(senderField ? [senderField] : []), ...titleFields(label), timeField, CARRIED_TEXT, ...Object.keys(bodyLiterals)]);
 		const hasKnownContent = !!(sender || date || preview);
-		const extraFields = Object.entries(v).filter(([k, val]) => !k.startsWith("_") && !k.startsWith("@") && !shown.has(k) && val !== undefined && val !== null && val !== "");
+		const extraFields = Object.entries(v).filter(([k, val]) => !isProjectionKey(k) && !shown.has(k) && val !== undefined && val !== null && val !== "");
 		return html`<div class=${`thread-card${isCurrent ? " current" : ""}`} data-id=${id} data-label=${label} @click=${this.onCardClick(id, label)}>
 			${label ? html`<span class="type-badge">${typeRef(label, SHU_TEST_IDS.THREAD.ITEM_TYPE)}</span>` : ""}
 			${hasKnownContent ? html`<div class="meta"><span class="sender">${senderField && sender ? fieldRef(label, senderField, sender, SHU_TEST_IDS.THREAD.SENDER) : isCommentType(label) ? label : ""}</span><span>${date}</span></div>` : ""}

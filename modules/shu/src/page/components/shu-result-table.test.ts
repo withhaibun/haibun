@@ -5,6 +5,7 @@
  * columns, row test-ids, selection, group headers, future-dimming, and the sort/row/deselect events. Scroll geometry
  * (thumb, marker jump, O(viewport) window) needs real layout and is covered by shu-scrollbar's tests and the browser e2e.
  */
+import { recordIri } from "@haibun/core/lib/records/derivations/record-iri.js";
 import { beforeEach, describe, it, expect } from "vitest";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import "./shu-result-table.js"; // side-effect import runs the module so customElements.define registers the element
@@ -32,7 +33,10 @@ async function settle(el: ShuResultTable): Promise<void> {
 	if (vc?.updateComplete) await vc.updateComplete;
 }
 
-const rows = (n: number, type = "Person"): Row[] => Array.from({ length: n }, (_, i) => ({ "@id": `${type}/${i}`, "@type": type, name: `n${i}`, age: i }));
+/** The prefix the rows' record IRIs are stated under. */
+const RECORD_PREFIX = "record";
+const rows = (n: number, type = "Person"): Row[] =>
+	Array.from({ length: n }, (_, i) => ({ "@id": recordIri(RECORD_PREFIX, type, String(i)), "@type": type, name: `n${i}`, age: i }));
 const q = (el: ShuResultTable, sel: string): Element[] => Array.from(el.shadowRoot?.querySelectorAll(sel) ?? []);
 /** The one element on which a case acts. Absent means the render did not produce it, which is what the case should report. */
 const one = (el: ShuResultTable, sel: string): HTMLElement => {
@@ -199,7 +203,7 @@ describe("shu-result-table", () => {
 	it("shows a type's id field beside the fixed field in pairs mode, where the id field isn't the first field", async () => {
 		declareSpec({ types: ["Email"], idFields: { Email: "messageId" }, rels: { Email: { sender: "attributedTo", messageId: "identifier", folder: "context" } } });
 		const el = await mount();
-		el.setResults([{ "@id": "Email/m1", "@type": "Email", sender: "a@example.org", messageId: "m1", folder: "INBOX" }]);
+		el.setResults([{ "@id": recordIri(RECORD_PREFIX, "Email", "m1"), "@type": "Email", sender: "a@example.org", messageId: "m1", folder: "INBOX" }]);
 		el.updateState({ displayMode: "pairs", fixedProperty: "folder" });
 		await settle(el);
 		expect(q(el, ".grid-header .th").map((h) => (h.textContent ?? "").trim())).toEqual(["messageId", "folder"]);

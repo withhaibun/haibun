@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { objectId, persistedTypeOf } from "./record-fields.js";
+import { recordIri } from "@haibun/core/lib/records/derivations/record-iri.js";
+import { idOf, objectId, persistedTypeOf } from "./record-fields.js";
 import { paneIdOf } from "./pane-kinds.js";
 
 describe("objectId: one cross-system object handle", () => {
@@ -18,5 +19,13 @@ describe("a record's persisted type", () => {
 		expect(persistedTypeOf({ "@type": "Email" })).toBe("Email");
 		expect(persistedTypeOf({ "@id": "r/1" })).toBeUndefined();
 		expect(persistedTypeOf({ "@type": "" })).toBeUndefined();
+	});
+});
+
+describe("a record's id", () => {
+	const noIdField = () => undefined;
+	it("reads the id a record IRI states, decoded, and an @id that names the record by its id as itself", () => {
+		expect(idOf({ "@id": recordIri("record", "Capability", "urn:uuid:a/b") }, noIdField)).toBe("urn:uuid:a/b");
+		expect(idOf({ "@id": "urn:uuid:a" }, noIdField)).toBe("urn:uuid:a");
 	});
 });
