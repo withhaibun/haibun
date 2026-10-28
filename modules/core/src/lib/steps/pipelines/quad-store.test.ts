@@ -1,4 +1,5 @@
 import { QuadStore, newStoreChain } from "./quad-store.js";
+import { heldRecordIri } from "../../test/declared-types.js";
 import { bucketOf } from "../derivations/quad-sample.js";
 import { GraphQuerySchema } from "../domains/quad-types.js";
 import { readEvery } from "../../records/pipelines/record-reads.js";
@@ -193,8 +194,8 @@ describe("the page a store of quads returns for a graph query", () => {
 	it("lists a type's records, narrowed by equality and windowed", async () => {
 		expect((await store.readRecords(GraphQuerySchema.parse({ label: "Letter" }))).total).toBe(2);
 		const [inbox, sent] = [
-			{ "@id": "a", "@type": "Letter", id: "a", folder: "INBOX" },
-			{ "@id": "b", "@type": "Letter", id: "b", folder: "Sent" },
+			{ "@id": heldRecordIri("Letter", "a"), "@type": "Letter", id: "a", folder: "INBOX" },
+			{ "@id": heldRecordIri("Letter", "b"), "@type": "Letter", id: "b", folder: "Sent" },
 		];
 		expect((await store.readRecords(GraphQuerySchema.parse({ label: "Letter", filters: [{ predicate: "folder", operator: "eq", value: "Sent" }] }))).vertices).toEqual([sent]);
 		expect(

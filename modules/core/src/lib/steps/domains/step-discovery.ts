@@ -12,7 +12,7 @@ import { HYPERMEDIA, productData } from "../../domains/protocol.js";
 import { ActionSchema, readAction } from "../../domains/actions.js";
 import { StepMethodSchema, type TStepMethod } from "./step-method.js";
 import { DomainKeySchema } from "../../domains/domains.js";
-import { Access, AccessLevelSchema } from "../../domains/resources.js";
+import { Access, AccessLevelSchema, RecordNamespaceSchema } from "../../domains/resources.js";
 
 /** The lines and the methods of the steps that show actuality's declarations: the steps a caller may call, their
  *  definitions, and the steppers. The `Haibun` stepper declares them, so the configuration of an instance that serves
@@ -165,6 +165,8 @@ export const StepDefinitionsSchema = z
 		steps: z.array(StepDefinitionSchema),
 		domains: z.record(z.string(), DomainDiscoveryInfoSchema),
 		concerns: ConcernCatalogSchema,
+		/** The records' namespace, which names each record a page reads by its record IRI. */
+		records: RecordNamespaceSchema,
 		predicates: z.array(PredicateSchema),
 		...CountedFields,
 	})

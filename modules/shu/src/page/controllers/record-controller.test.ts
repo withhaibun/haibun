@@ -48,7 +48,7 @@ describe("a record's id and title", () => {
 	});
 
 	it("rejects a record that doesn't carry an @id or its declared id field", () => {
-		expect(() => idOf({ "@type": CONCEPT.type, [CONCEPT.titleField]: "Watershed" })).toThrow(/doesn't carry an @id or the id field its type declares/);
+		expect(() => idOf({ "@type": CONCEPT.type, [CONCEPT.titleField]: "Watershed" })).toThrow(/doesn't carry a record IRI or the id field its type declares/);
 	});
 });
 

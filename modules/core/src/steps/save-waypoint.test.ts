@@ -2,6 +2,7 @@
  * A waypoint that `save waypoint` saves. Actuality states its rule at once, and its activity runs the saved lines. Saving is
  * refused where a line doesn't resolve to a step or the head is already registered with other lines.
  */
+import { HAIBUN_RECORD_NAMESPACE } from "../lib/domains/resources.js";
 import { describe, it, expect } from "vitest";
 import { failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
 import { LogicStepper } from "../lib/test/logic-stepper.js";
@@ -88,7 +89,7 @@ describe("a waypoint a step saves", () => {
 					const store = this.getWorld().shared.getStore();
 					if (!(store instanceof QuadStore)) throw new Error("the world's store isn't a QuadStore, which routes a graph to a backing store");
 					const { domains } = this.getWorld();
-					await store.registerStore(new QuadStore(newStoreChain(), undefined, () => readDeclarationsOf(domains)), [SAVED_WAYPOINT_LABEL]);
+					await store.registerStore(new QuadStore(newStoreChain(), undefined, () => readDeclarationsOf(domains, HAIBUN_RECORD_NAMESPACE)), [SAVED_WAYPOINT_LABEL]);
 					await store.upsertIndividual(SAVED_WAYPOINT_LABEL, record as Record<string, unknown>);
 				},
 			};

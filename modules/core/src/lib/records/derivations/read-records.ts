@@ -31,7 +31,8 @@ import {
 	type TSearchCondition,
 	type TStatedQuery,
 } from "../../steps/domains/quad-types.js";
-import { AccessQuery, LinkRelations, isPersisted, sortFieldOf, statedLevel, type THeldBy, type TRegisteredDomain } from "../../domains/resources.js";
+import { AccessQuery, LinkRelations, isPersisted, sortFieldOf, statedLevel, type THeldBy, type TRecordNamespace, type TRegisteredDomain } from "../../domains/resources.js";
+import { recordIri } from "./record-iri.js";
 import { itemAt } from "../../domains/item-at.js";
 
 /** The name a refusal and a rejected bound state for the read function. */
@@ -43,7 +44,9 @@ export const READ_RECORDS = "readRecords";
 export type TReadDeclaration = { id: string; surface: TQuerySurface; defaultSort: string; heldBy?: THeldBy; title?: TTitledBy };
 
 /** The declared types a store holds, the relations they declare, and each type's declaration. */
-export type TReadDeclarations = { types: readonly string[]; relations: readonly string[]; of(label: string): TReadDeclaration | undefined };
+/** What a store reads by: the types and relations it holds, each type's declaration, and the records' namespace, which names each
+ *  record it reads by its record IRI. */
+export type TReadDeclarations = { types: readonly string[]; relations: readonly string[]; records: TRecordNamespace; of(label: string): TReadDeclaration | undefined };
 
 /** What a store reads: whether it searches text, the types it holds and the relations it holds. */
 export type TReadReach = { search: boolean; types: readonly string[]; relations: readonly string[] };
@@ -54,14 +57,14 @@ export type TReadPage = { limit: number; offset: number } | { perType: number };
 const unique = (values: Iterable<string>): string[] => [...new Set(values)].sort();
 
 /** The read declarations derived from a set of domains, and the count of those domains. */
-const declarationsFor = new WeakMap<Record<string, TRegisteredDomain>, { size: number; declarations: TReadDeclarations }>();
+const declarationsFor = new WeakMap<Record<string, TRegisteredDomain>, { size: number; records: TRecordNamespace; declarations: TReadDeclarations }>();
 
 /** Returns the read declarations of the persisted types among `domains`. A type's declaration is derived once, where a read
  *  first names it, and the declarations are derived again where a domain was registered since. */
-export function readDeclarationsOf(domains: Record<string, TRegisteredDomain>): TReadDeclarations {
+export function readDeclarationsOf(domains: Record<string, TRegisteredDomain>, records: TRecordNamespace): TReadDeclarations {
 	const size = Object.keys(domains).length;
 	const held = declarationsFor.get(domains);
-	if (held?.size === size) return held.declarations;
+	if (held?.size === size && held.records === records) return held.declarations;
 	const persisted = Object.values(domains).flatMap(({ schema, topology }) => (isPersisted(topology) ? [{ schema, topology }] : []));
 	const derived = new Map<string, TReadDeclaration | undefined>();
 	const declarationOf = (label: string): TReadDeclaration | undefined => {
@@ -74,22 +77,24 @@ export function readDeclarationsOf(domains: Record<string, TRegisteredDomain>): 
 	const declarations: TReadDeclarations = {
 		types: unique(persisted.map(({ topology }) => topology.persistedAs)),
 		relations: unique(persisted.flatMap(({ topology }) => (topology.edges === undefined ? [] : Object.keys(topology.edges)))),
+		records,
 		of(label) {
 			if (!derived.has(label)) derived.set(label, declarationOf(label));
 			return derived.get(label);
 		},
 	};
-	declarationsFor.set(domains, { size, declarations });
+	declarationsFor.set(domains, { size, records, declarations });
 	return declarations;
 }
 
 /** Returns the read declarations of the types a concern catalog lists. The catalog doesn't list the fields a search reads, and
  *  a store that reads by these declarations doesn't search. */
-export function readDeclarationsOfCatalog(catalog: TConcernCatalog): TReadDeclarations {
+export function readDeclarationsOfCatalog(catalog: TConcernCatalog, records: TRecordNamespace): TReadDeclarations {
 	const concerns = Object.values(catalog.persisted);
 	return {
 		types: unique(concerns.map(({ label }) => label)),
 		relations: unique(concerns.flatMap(({ edges }) => Object.keys(edges))),
+		records,
 		of(label) {
 			const concern = catalog.persisted[label];
 			if (!concern) return undefined;
@@ -316,7 +321,12 @@ export function readFromRecords(records: readonly THeldRecord[], read: TGraphQue
 			readsAtLevel(record.level, query.accessLevel),
 	);
 	const matched = query.named ? narrowed : narrowed.sort(byOrder(order));
-	const vertexOf = ({ record, via }: TReached): Record<string, unknown> => ({ ...record.fields, "@id": record.id, "@type": record.label, ...(via ? { [VIA_FIELD]: via } : {}) });
+	const vertexOf = ({ record, via }: TReached): Record<string, unknown> => ({
+		...record.fields,
+		"@id": recordIri(declarations.records.prefix, record.label, record.id),
+		"@type": record.label,
+		...(via ? { [VIA_FIELD]: via } : {}),
+	});
 	if ("perType" in page) {
 		const byType = Map.groupBy(matched, (one) => one.record.label);
 		const kept = [...byType.values()].flatMap((ofType) => ofType.slice(0, page.perType));

@@ -75,6 +75,8 @@ const quadOf = (subject: string, predicate: string, object: unknown, namedGraph:
 	object,
 	namedGraph,
 	timestamp: ONTOLOGY_TS,
+	// The ontology is served to every reader as the `@context`, so each of its terms states the public level.
+	accessLevel: Access.public,
 	...(objectType ? { objectType } : {}),
 });
 
@@ -195,6 +197,5 @@ export function ontologyRecords(ontology: TClusteredQuads): THeldRecord[] {
 	return recordsOfQuads(ontology.quads).map((record) => ({
 		...record,
 		fields: { ...record.fields, [ONTOLOGY_FIELD.generatedAtTime]: ONTOLOGY_GENERATED_AT, [ONTOLOGY_FIELD.accessLevel]: Access.public },
-		level: Access.public,
 	}));
 }

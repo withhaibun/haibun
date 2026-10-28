@@ -50,7 +50,8 @@ export const HAIBUN_PREFIXES = [HAIBUN_PREFIX] as const;
 /** The namespace of the records' IRIs: the @context prefix a record's `@id` states, and the namespace the prefix stands for in
  *  the served context. An application serves its records under its own prefix and namespace, which its context states, and haibun serves
  *  its records under haibun's namespace. */
-export type TRecordNamespace = { prefix: string; namespace: string };
+export const RecordNamespaceSchema = z.object({ prefix: z.string().min(1), namespace: z.string().min(1) });
+export type TRecordNamespace = z.infer<typeof RecordNamespaceSchema>;
 /** The namespace of haibun's records, which an application's runtime replaces with the application's namespace. */
 export const HAIBUN_RECORD_NAMESPACE: TRecordNamespace = { prefix: HAIBUN_PREFIX, namespace: HAIBUN_NS };
 

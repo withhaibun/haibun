@@ -348,14 +348,14 @@
 			"actuality": {
 				"text": "modules/shu/tests, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 24100,
+				"tookMs": 25700,
 				"digest": {
-					"modules/cli/src": "b052d930084f013610f4455c159adbe38ac60803d5511738ebfe7956f66ac177",
-					"modules/core/src": "f5635063437353b4ea59d63a56c4d9f1d6c84aae32fa5154e605bf399043b304",
+					"modules/cli/src": "b63215ce2af7820bb66e5e42da9bb75189724b99cac21bd99c6224a514b60544",
+					"modules/core/src": "4ec7df9b0e0407b5e62331c3e4d01190276f261466d0e18c6719896c4d0326dc",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
-					"modules/logic/src": "b8001ecadbafa6cbb0b24ecfd4c2564fcfea41938ba4daea82781eee46bbad9f",
+					"modules/logic/src": "a33987c6e6720e88bbc67187eb667d970622a447bd85f8feb86f576f9b964114",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/shu/src": "6ef8c3246512cb000ed1d399ec67de99d4a62256b15e6d27bb8c2d9ffd391d78",
+					"modules/shu/src": "24214ce7710d20162fa9a8ad99a8ff4818d88807d62c955a5dc395528ff8c82e",
 					"modules/shu/tests": "510453cef1165bcb91464669fa3fb7c0628dd906fdc3ee5b76664055a82ce786",
 					"modules/shu/waypoints": "85c65554dd406b66e361f3a3a5683db72f20656c2f827dff70c53761a388b64b",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
@@ -374,7 +374,7 @@
 				"/features/federate.feature.ts": {
 					"text": "Federated graph reads from a sibling instance",
 					"status": "passed",
-					"tookMs": 1000,
+					"tookMs": 1300,
 					"steps": 6
 				},
 				"/features/monitor-serves.feature.ts": {
@@ -386,8 +386,8 @@
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
-					"tookMs": 16000,
-					"steps": 712
+					"tookMs": 17200,
+					"steps": 714
 				},
 				"/features/remote-store.feature.ts": {
 					"text": "A satellite instance keeps its records in the main instance's store",

@@ -165,6 +165,9 @@ export type TOrderKey = z.infer<typeof OrderKeySchema>;
 /** The field of a reference read's record that lists the relations that reach the record. */
 export const VIA_FIELD = "_via";
 
+/** Whether a key of a read's record is a projection key (`@…`, `_…`), which names the record or the read rather than a field. */
+export const isProjectionKey = (key: string): boolean => key.startsWith("_") || key.startsWith("@");
+
 /** The page a graph query returns: its records, their count, and what a store with a query engine adds about the read. The
  *  site's step and a page that reads its own copy return this one shape. */
 export const GraphQueryResultSchema = z.object({

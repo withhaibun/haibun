@@ -18,7 +18,7 @@ import { ACTUALITY_DOMAIN_DEFINITIONS, actualityStore } from "../actuality-store
 import { timeCursor } from "../../controllers/page-cell-controller.js";
 import { currentActualityFeature, deviceGraph, installGraph } from "../controllers/device-controller.js";
 import { servedDatabase } from "../root.js";
-import { GRAPH_BOUND } from "../adapters/quad-store.js";
+import { GRAPH_BOUND } from "../ports.js";
 import { graphActualitySource } from "../controllers/actuality-controller.js";
 import { endPage } from "../../adapters/page-held.js";
 

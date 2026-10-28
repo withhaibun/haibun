@@ -15,7 +15,7 @@ import { deviceDatabase } from "../adapters/device-store.js";
 import { CACHE_SHAPE, DEVICE_STORES, META_KEY } from "../ports.js";
 import { GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
 import { equalTo, readEvery, recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
-import { declaredTypes } from "@haibun/core/lib/test/declared-types.js";
+import { declaredTypes, heldRecordIri } from "@haibun/core/lib/test/declared-types.js";
 
 /** The types these tests write, declared so the device store reads their records. */
 const declared = () => declaredTypes({ Email: { filters: ["folder"] }, Comment: {}, SeqPath: {} });
@@ -32,15 +32,15 @@ describe("the reads the site serves, made of the graph this page caches", () => 
 	beforeEach(async () => {
 		store = servedGraph();
 		await store.clear();
-		await store.upsertIndividual("Email", { "@id": "a", folder: "INBOX", subject: "one", accessLevel: Access.public });
-		await store.upsertIndividual("Email", { "@id": "b", folder: "Sent", subject: "two", accessLevel: Access.public });
-		await store.upsertIndividual("Comment", { "@id": "c", content: "hello", accessLevel: Access.public });
+		await store.upsertIndividual("Email", { "@id": heldRecordIri("Email", "a"), folder: "INBOX", subject: "one", accessLevel: Access.public });
+		await store.upsertIndividual("Email", { "@id": heldRecordIri("Email", "b"), folder: "Sent", subject: "two", accessLevel: Access.public });
+		await store.upsertIndividual("Comment", { "@id": heldRecordIri("Comment", "c"), content: "hello", accessLevel: Access.public });
 	});
 
 	it("returns a read at the level it was made at, not everything it happens to hold", async () => {
 		// A page holds what it was served, which may have been read at a wider level than a later read's.
-		await store.upsertIndividual("Email", { "@id": "p", accessLevel: "private", folder: "INBOX" });
-		await store.upsertIndividual("Email", { "@id": "o", accessLevel: "public", folder: "INBOX" });
+		await store.upsertIndividual("Email", { "@id": heldRecordIri("Email", "p"), accessLevel: "private", folder: "INBOX" });
+		await store.upsertIndividual("Email", { "@id": heldRecordIri("Email", "o"), accessLevel: "public", folder: "INBOX" });
 		const publicly = await store.getClusteredQuads({ perTypeLimit: 10, types: ["Email"], accessLevel: "public" as AccessLevel });
 		expect([...new Set(publicly.quads.map((q) => q.subject))].sort(), "the record stating a level beyond the read is not in it").toEqual(["a", "b", "o"]);
 		const privately = await store.getClusteredQuads({ perTypeLimit: 10, types: ["Email"], accessLevel: "private" as AccessLevel });
@@ -49,8 +49,8 @@ describe("the reads the site serves, made of the graph this page caches", () => 
 
 	it("returns what points at an individual by its id, and a value that is not an id the same way", async () => {
 		// An id is looked up; a value that cannot be a key is matched after the widest read. Both return the same quads.
-		await store.upsertIndividual("Email", { "@id": "e", inReplyTo: "a", flagged: true, tags: ["x", "y"] });
-		await store.upsertIndividual("Comment", { "@id": "d", inReplyTo: "a" });
+		await store.upsertIndividual("Email", { "@id": heldRecordIri("Email", "e"), inReplyTo: "a", flagged: true, tags: ["x", "y"] });
+		await store.upsertIndividual("Comment", { "@id": heldRecordIri("Comment", "d"), inReplyTo: "a" });
 		expect((await store.query({ object: "a" })).map((q) => `${q.namedGraph}:${q.subject}`).sort()).toEqual(["Comment:d", "Email:e"]);
 		expect((await store.query({ object: true })).map((q) => q.subject)).toEqual(["e"]);
 		expect((await store.query({ object: ["x", "y"], namedGraph: "Email" })).map((q) => q.predicate)).toEqual(["tags"]);
@@ -73,13 +73,13 @@ describe("the reads the site serves, made of the graph this page caches", () => 
 	it("lists a type's records, narrowed by a field and windowed", async () => {
 		expect((await readEvery(store, { label: "Email" })).length).toBe(2);
 		expect(await readEvery(store, { label: "Email", filters: equalTo({ folder: "Sent" }) })).toEqual([
-			{ "@id": "b", "@type": "Email", folder: "Sent", subject: "two", accessLevel: Access.public },
+			{ "@id": heldRecordIri("Email", "b"), "@type": "Email", folder: "Sent", subject: "two", accessLevel: Access.public },
 		]);
 		const window = await store.readRecords(GraphQuerySchema.parse({ label: "Email", offset: 1, limit: 1 }));
 		expect(
 			window.vertices.map((i) => i["@id"]),
 			"records without a time order by id, newest first",
-		).toEqual(["a"]);
+		).toEqual([heldRecordIri("Email", "a")]);
 	});
 
 	it("reports the distinct values a field holds, for the dropdowns a reader filters by", async () => {
@@ -89,16 +89,16 @@ describe("the reads the site serves, made of the graph this page caches", () => 
 });
 
 describe("an individual in the page's cache", () => {
-	// The page caches a record under the `@id` that dereferenced it: that is the identity a view holds and reads again. The authoritative store instead requires the identity field the type declares, and validates the record.
+	// The page caches a record under the id its record IRI states, and reads it back by that IRI: the identity a view holds and reads again. The authoritative store instead requires the identity field the type declares, and validates the record.
 	beforeEach(async () => {
 		await servedGraph().clear();
 	});
 
-	it("caches a record by its @id, reads it back with its type, replaces it in place and deletes it", async () => {
+	it("caches a record by the id its record IRI states, reads it back with its type, replaces it in place and deletes it", async () => {
 		const store = servedGraph();
-		expect(await store.upsertIndividual("Comment", { "@id": "c1", content: "hello", author: "did:example:a" })).toBe("c1");
-		expect(await recordOf(store, "Comment", "c1")).toMatchObject({ "@id": "c1", "@type": "Comment", content: "hello", author: "did:example:a" });
-		await store.upsertIndividual("Comment", { "@id": "c1", content: "changed" });
+		expect(await store.upsertIndividual("Comment", { "@id": heldRecordIri("Comment", "c1"), content: "hello", author: "did:example:a" })).toBe("c1");
+		expect(await recordOf(store, "Comment", "c1")).toMatchObject({ "@id": heldRecordIri("Comment", "c1"), "@type": "Comment", content: "hello", author: "did:example:a" });
+		await store.upsertIndividual("Comment", { "@id": heldRecordIri("Comment", "c1"), content: "changed" });
 		expect(await recordOf(store, "Comment", "c1")).toMatchObject({ content: "changed", author: "did:example:a" });
 		await store.deleteIndividual("Comment", "c1");
 		expect(await recordOf(store, "Comment", "c1")).toBeUndefined();
@@ -118,9 +118,9 @@ describe("an individual in the page's cache", () => {
 		await expect(servedGraph().upsertIndividual("Comment", { content: "no id" })).rejects.toThrow(/doesn't state an identity/);
 	});
 
-	it("holds a record by the identity it states, whether that is its @id or the id it records", async () => {
+	it("holds a record by the identity it states, whether that is its record IRI or the id it records", async () => {
 		const store = servedGraph();
-		expect(await store.upsertIndividual("Comment", { "@id": "c1", content: "served" }), "what a site serves names itself @id").toBe("c1");
+		expect(await store.upsertIndividual("Comment", { "@id": heldRecordIri("Comment", "c1"), content: "served" }), "what a site serves names itself by its record IRI").toBe("c1");
 		expect(await store.upsertIndividual("SeqPath", { id: "1700000000000-1.0.1", stepText: "a step" }), "what an actuality records names itself id").toBe("1700000000000-1.0.1");
 	});
 });
@@ -129,13 +129,13 @@ describe("the records of another actuality", () => {
 	it("aren't read by a page served for another actuality, and the device holds each actuality's records apart", async () => {
 		serveThePage();
 		const first = servedGraph();
-		await first.upsertIndividual("SeqPath", { "@id": "s1", stepText: "a step of the first actuality" });
+		await first.upsertIndividual("SeqPath", { "@id": heldRecordIri("SeqPath", "s1"), stepText: "a step of the first actuality" });
 		hydrate({ actualityId: crypto.randomUUID() });
 		hydrateFromDom();
 		const second = servedGraph();
 		expect(await recordOf(second, "SeqPath", "s1"), "the other actuality's record").toBeUndefined();
 		expect(await recordOf(first, "SeqPath", "s1"), "still held in its own").toMatchObject({ stepText: "a step of the first actuality" });
-		await second.upsertIndividual("SeqPath", { "@id": "s2", stepText: "a step of the second actuality" });
+		await second.upsertIndividual("SeqPath", { "@id": heldRecordIri("SeqPath", "s2"), stepText: "a step of the second actuality" });
 		expect(await heldDatabases()).toEqual(expect.arrayContaining([first.database, second.database]));
 	});
 });
@@ -144,8 +144,8 @@ describe("a clustered read of named types", () => {
 	it("reads each named type through the type index, rather than every quad the device holds", async () => {
 		const store = servedGraph();
 		await store.clear();
-		await store.upsertIndividual("Email", { "@id": "a", folder: "INBOX", accessLevel: Access.public });
-		await store.upsertIndividual("Comment", { "@id": "c", content: "hello", accessLevel: Access.public });
+		await store.upsertIndividual("Email", { "@id": heldRecordIri("Email", "a"), folder: "INBOX", accessLevel: Access.public });
+		await store.upsertIndividual("Comment", { "@id": heldRecordIri("Comment", "c"), content: "hello", accessLevel: Access.public });
 		const everyQuad = vi.spyOn(IDBObjectStore.prototype, "getAll");
 		const clustered = await store.getClusteredQuads({ perTypeLimit: 10, types: ["Comment"], accessLevel: Access.public });
 		expect(clustered.clusters.map((c) => c.type)).toEqual(["Comment"]);

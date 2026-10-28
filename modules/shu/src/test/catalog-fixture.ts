@@ -2,6 +2,7 @@
  * A catalog a test declares: a compact spec of types, their fields by relation, their edges and their declarations, built
  * into the concern catalog a site returns, and declared as the page's step registry, as a read of actuality's steps holds it.
  */
+import { HAIBUN_RECORD_NAMESPACE } from "@haibun/core/lib/domains/resources.js";
 import type { TConcernCatalog, TTitledBy } from "@haibun/core/lib/domains/hypermedia.js";
 import type { TDomainDiscoveryInfo } from "@haibun/core/lib/step-discovery.js";
 import { Access } from "@haibun/core/lib/domains/resources.js";
@@ -65,7 +66,7 @@ export function catalogOf(spec: TCatalogSpec): TConcernCatalog {
 /** Declares `concerns` and `domains` as the page's step registry, read from the site, with the steps the registry holds. */
 export function declareCatalog(concerns: TConcernCatalog, domains: Record<string, TDomainDiscoveryInfo> = {}): void {
 	const held = pageRegistry().state.get();
-	declareRegistry({ steps: held.status === REGISTRY_STATUS.READ ? held.read.list.declared : [], domains, concerns, predicates: [] });
+	declareRegistry({ steps: held.status === REGISTRY_STATUS.READ ? held.read.list.declared : [], domains, concerns, records: HAIBUN_RECORD_NAMESPACE, predicates: [] });
 }
 
 /** Declares what a read of the step definitions holds as the page's step registry, read from the site: the steps, each with
@@ -94,4 +95,4 @@ export const GRAPH_READ_STEPS = (["graphQuery", "density", "getClusteredQuads", 
 
 /** Declares the catalog `spec` states, with the graph source's reads, as the registry of a page that reads a run. */
 export const declareGraphSpec = (spec: TCatalogSpec): void =>
-	declareRegistry({ steps: stepsShown(GRAPH_READ_STEPS).steps, domains: domainsOf(spec), concerns: catalogOf(spec), predicates: [] });
+	declareRegistry({ steps: stepsShown(GRAPH_READ_STEPS).steps, domains: domainsOf(spec), concerns: catalogOf(spec), records: HAIBUN_RECORD_NAMESPACE, predicates: [] });

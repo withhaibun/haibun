@@ -12,6 +12,7 @@
  * import of the module in a new module-graph context (achieved here by
  * deleting the cached module) sees the same singleton store.
  */
+import { heldRecordIri } from "@haibun/core/lib/test/declared-types.js";
 import { catalogOf, declareCatalog, declareRegistry, declareSpec, declareGraphSpec } from "../../../test/catalog-fixture.js";
 import { requiredActionOf } from "../../controllers/registry-controller.js";
 import { serveThePage, setupShuTest, stepsShown, newPage } from "../../../test/setup.js";
@@ -288,7 +289,7 @@ describe("the rows a graph query names, without a server to query", () => {
 		expect((await queryGraph({ label: "Email" })).total).toBe(2);
 		// The row carries its @id, its type and the type's own id field. A reader opens the record from the list by that id.
 		expect((await queryGraph({ label: "Email", filters: [{ predicate: "folder", operator: "eq", value: "Sent" }] })).vertices).toEqual([
-			{ "@id": "b", "@type": "Email", messageId: "b", folder: "Sent" },
+			{ "@id": heldRecordIri("Email", "b"), "@type": "Email", messageId: "b", folder: "Sent" },
 		]);
 	});
 

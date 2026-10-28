@@ -1,5 +1,6 @@
 // The store another instance serves, held to the same specification as the store it serves from: a satellite keeps its
 // records in the main instance's store, so what a reader is given must not depend on which side holds them.
+import { HAIBUN_RECORD_NAMESPACE } from "../../domains/resources.js";
 import { ACTION_BEGIN, callFailed } from "../domains/rpc-wire.js";
 import { errorDetail } from "../../domains/util.js";
 import { QuadStore, newStoreChain } from "../../steps/pipelines/quad-store.js";
@@ -30,7 +31,7 @@ function servedBy(store: QuadStore): typeof fetch {
 
 // The store connects before use, as an instance that mounts it does, so it holds the serving site's principal.
 describeQuadStore("served by another instance", async (domains) => {
-	const serving = new QuadStore(newStoreChain(), undefined, () => readDeclarationsOf(domains));
+	const serving = new QuadStore(newStoreChain(), undefined, () => readDeclarationsOf(domains, HAIBUN_RECORD_NAMESPACE));
 	const remote = new RemoteQuadStore({
 		url: "http://serving.example",
 		sign: new FakeInvoker("delegated").sign,

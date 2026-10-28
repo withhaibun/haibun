@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 /** A reader should be able to tell a stored copy from a fresh one: an individual served from the session copy or, when
  *  the server cannot be reached, the persisted browser store carries such a claim; a freshly fetched one doesn't. */
+import { heldRecordIri } from "@haibun/core/lib/test/declared-types.js";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";
 
@@ -16,7 +17,9 @@ describe("shu-entity-column stored-copy indication", () => {
 		endPage();
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
 		handle = setupShuTest({
-			dispatch: makeEntityDispatch({ entity: () => ({ vertex: { "@id": "t1", title: "a task" }, edges: [], incomingCount: { total: 0, saturated: false } }) }),
+			dispatch: makeEntityDispatch({
+				entity: () => ({ vertex: { "@id": heldRecordIri("Task", "t1"), title: "a task" }, edges: [], incomingCount: { total: 0, saturated: false } }),
+			}),
 		});
 	});
 	afterEach(() => handle.teardown());

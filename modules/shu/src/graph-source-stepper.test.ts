@@ -1,5 +1,6 @@
 // The graph a page reads, over the store this instance holds: the values a filter offers for a type, one individual with the
 // edges its quads name, and the axioms of what a graph view shows.
+import { heldRecordIri } from "@haibun/core/lib/test/declared-types.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDefaultWorld, getTestWorldWithOptions, testWithWorld } from "@haibun/core/lib/test/lib.js";
 import LogicStepper from "@haibun/logic/logic-stepper.js";
@@ -122,7 +123,7 @@ describe("one individual with its edges, from the store this instance holds", ()
 		const result = await stepper.steps.getIndividualWithEdges.action({ label: EMAIL, id: "a@test.com" });
 		expect(result.ok).toBe(true);
 		const read = result.products as { vertex: Record<string, unknown>; edges: Array<{ type: string; direction: string }>; incomingCount: number };
-		expect(read.vertex).toMatchObject({ "@id": "a@test.com", "@type": EMAIL, address: "a@test.com" });
+		expect(read.vertex).toMatchObject({ "@id": heldRecordIri(EMAIL, "a@test.com"), "@type": EMAIL, address: "a@test.com" });
 		expect(read.edges, "the record doesn't hold an edge of its own").toEqual([]);
 		expect(read.incomingCount).toEqual({ total: 1, saturated: false });
 	});

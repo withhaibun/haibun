@@ -3,7 +3,7 @@
  * the page holds by the reads it sends the site, so a view offline reads the records the site already served this reader.
  */
 import { RecordSchema } from "@haibun/core/lib/domains/json-text.js";
-import { withinAccess, type AccessLevel } from "@haibun/core/lib/domains/resources.js";
+import { storeScopeFor, withinAccess, type AccessQueryLevel } from "@haibun/core/lib/domains/resources.js";
 import type { TClusteredQuads, TDensityQuery, TDensityResult, TDistinctValues, TGraphQuery, TQuad, TQuadPattern, TRecordsPage } from "@haibun/core/lib/quad-types.js";
 import { distinctOf, type TReadDeclarations } from "@haibun/core/lib/records/derivations/read-records.js";
 import { readQuadRecords } from "@haibun/core/lib/records/pipelines/record-reads.js";
@@ -89,13 +89,15 @@ export class DeviceGraph implements TDeviceGraph {
 	 * names: a record stating a level beyond it is left out, so the level a reader sets means the same whether or not a
 	 * site serves the page. Each subject's level is read from one map, built in one pass.
 	 */
-	async getClusteredQuads(opts: { perTypeLimit: number; types?: string[]; accessLevel: AccessLevel }): Promise<TClusteredQuads> {
+	async getClusteredQuads(opts: { perTypeLimit: number; types?: string[]; accessLevel: AccessQueryLevel }): Promise<TClusteredQuads> {
 		const types = opts.types;
 		const named = types === undefined ? await this.quads.all() : (await Promise.all(types.map((namedGraph) => this.quads.query({ namedGraph })))).flat();
 		const levels = levelsOf(named);
+		// A read of every level reads at the widest, as every surface scopes it.
+		const seen = storeScopeFor(opts.accessLevel);
 		const declarations = this.declarations();
 		return sliceQuadsPerType(
-			named.filter((q) => withinAccess(levels.get(subjectKey(q)), opts.accessLevel)),
+			named.filter((q) => withinAccess(levels.get(subjectKey(q)), seen)),
 			opts.perTypeLimit,
 			[],
 			(type) => declarations.of(type),

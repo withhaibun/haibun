@@ -24,8 +24,8 @@ describe("a record's persisted type", () => {
 
 describe("a record's id", () => {
 	const noIdField = () => undefined;
-	it("reads the id a record IRI states, decoded, and an @id that names the record by its id as itself", () => {
+	it("reads the id a record IRI states, decoded, and refuses an @id that isn't a record IRI without the id field", () => {
 		expect(idOf({ "@id": recordIri("record", "Capability", "urn:uuid:a/b") }, noIdField)).toBe("urn:uuid:a/b");
-		expect(idOf({ "@id": "urn:uuid:a" }, noIdField)).toBe("urn:uuid:a");
+		expect(() => idOf({ "@id": "urn:uuid:a" }, noIdField)).toThrow(/doesn't carry a record IRI or the id field/);
 	});
 });

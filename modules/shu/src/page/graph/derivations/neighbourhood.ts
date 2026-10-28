@@ -4,7 +4,7 @@
  * not merely an edge's end, and every record named is pinned, so streamed data doesn't evict what the reader revealed.
  */
 import type { TIncomingEdges, TIndividualWithEdges, TQuad } from "@haibun/core/lib/quad-types.js";
-import { isProjectionKey } from "../../derivations/record-fields.js";
+import { isProjectionKey } from "@haibun/core/lib/quad-types.js";
 
 /** The page of edges that reach a record, which the site caps, so a hub stays bounded. */
 export const INCOMING_LIMIT = 100;

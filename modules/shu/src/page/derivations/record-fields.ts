@@ -3,6 +3,7 @@
  * fields and its body literals, each read through the relations its type declares, and an object's handle.
  */
 import { recordOfIri } from "@haibun/core/lib/records/derivations/record-iri.js";
+import { isProjectionKey } from "@haibun/core/lib/quad-types.js";
 import { TITLE_RELS, composeDisplayLabel, parseTimestampValue, type TTitledBy } from "@haibun/core/lib/domains/hypermedia.js";
 import { getRelPresentation, LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { STORED_TYPE_PROP } from "../../domains/elements.js";
@@ -23,16 +24,15 @@ export const persistedTypeOf = (v: Record<string, unknown>): string | undefined 
  *  test address an object by it; the store's vertex id stays the object's own id. */
 export const objectId = (type: string, id: string): string => `${type}:${id}`;
 
-/** Returns the id a record's JSON-LD `@id` states: the id of a record IRI, or the `@id` itself where it names the record by
- *  its id; or the value of its type's id field, which `idFieldOf` returns, where the record doesn't carry an `@id`. Throws for
- *  a record without an `@id` and without the value of its type's id field. */
+/** Returns the id a record's JSON-LD `@id` states as a record IRI, or the value of its type's id field, which `idFieldOf`
+ *  returns, where the record doesn't carry a record IRI. Throws for a record without either. */
 export function idOf(v: Record<string, unknown>, idFieldOf: (type: string) => string | undefined): string {
-	const iri = v["@id"];
-	if (typeof iri === "string" && iri.length > 0) return recordOfIri(iri)?.id ?? iri;
+	const named = recordOfIri(v["@id"]);
+	if (named !== undefined) return named.id;
 	const type = persistedTypeOf(v);
 	const idField = type === undefined ? undefined : idFieldOf(type);
 	const id = idField === undefined ? undefined : v[idField];
-	if (typeof id !== "string" && typeof id !== "number") throw new Error("a record doesn't carry an @id or the id field its type declares, so a view can't address it");
+	if (typeof id !== "string" && typeof id !== "number") throw new Error("a record doesn't carry a record IRI or the id field its type declares, so a view can't address it");
 	return String(id);
 }
 
@@ -48,9 +48,6 @@ export function titleFields(rels: TFieldRels | undefined, titledBy: TTitledBy | 
 /** Returns a record's title: the field its type declares, then a title relation of its properties `rels`, then `id`. */
 export const instanceLabel = (v: Record<string, unknown>, rels: TFieldRels | undefined, titledBy: TTitledBy | undefined, id: string): string =>
 	composeDisplayLabel({ rels, getProperty: (field) => v[field], ...(titledBy ? { displayLabel: titledBy } : {}), id });
-
-/** Whether a key is a projection key (`@…`, `_…`), which a view's sections don't show as a field. */
-export const isProjectionKey = (k: string): boolean => k.startsWith("_") || k.startsWith("@");
 
 /** Whether a relation routes its field to the body or the governance section. */
 const routedElsewhere = (rel: string): boolean => {

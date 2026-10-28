@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 /** An individual that other records point at links to them, with how many there are: "or more" where the site's count
  *  stopped at its ceiling, since a stopped count is a floor. */
+import { heldRecordIri } from "@haibun/core/lib/test/declared-types.js";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { countedTo } from "@haibun/core/lib/domains/hypermedia.js";
 import { ShuEntityColumn } from "./shu-entity-column.js";
@@ -15,7 +16,7 @@ describe("shu-entity-column what links here", () => {
 		endPage();
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
 		handle = setupShuTest({
-			dispatch: makeEntityDispatch({ entity: () => ({ vertex: { "@id": "t1", title: "a task" }, edges: [], incomingCount: countedTo(CEILING, CEILING) }) }),
+			dispatch: makeEntityDispatch({ entity: () => ({ vertex: { "@id": heldRecordIri("Task", "t1"), title: "a task" }, edges: [], incomingCount: countedTo(CEILING, CEILING) }) }),
 		});
 	});
 	afterEach(() => handle.teardown());

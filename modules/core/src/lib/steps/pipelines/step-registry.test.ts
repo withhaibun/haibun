@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { HAIBUN_RECORD_NAMESPACE } from "../../domains/resources.js";
 import { z } from "zod";
 import { StepRegistry, type StepTool, createStepHandler, createStepTool } from "./step-registry.js";
 import { buildFeatureStepForTransport } from "./call-step.js";
@@ -140,7 +141,7 @@ describe("what a read of actuality's declarations shows", () => {
 			};
 		}
 		const world = {
-			runtime: {},
+			runtime: { records: HAIBUN_RECORD_NAMESPACE },
 			domains: {
 				"record-key": { selectors: ["record-key"], schema: z.string(), description: "the id of a record" },
 				colour: { selectors: ["colour"], schema: z.string(), description: "a colour" },

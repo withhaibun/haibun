@@ -7,10 +7,10 @@ import { machine, type Machine } from "@haibun/core/lib/machines/machine.js";
 import { pagePinned } from "../adapters/page-held.js";
 import { pageHydration, pageLog } from "../root.js";
 import { databaseOf, deviceDatabase, heldDatabaseNames, IndexedDbDeviceStore, MemoryDeviceStore, type TDeviceConnections } from "./adapters/device-store.js";
-import { GRAPH_BOUND, IndexedDbQuads } from "./adapters/quad-store.js";
+import { IndexedDbQuads } from "./adapters/quad-store.js";
 import { indexedDbSummary, type TIdbDatabaseSummary } from "./adapters/idb-summary.js";
 import { INITIAL_ACTUALITY_FEATURES, actualityFeaturesTransition, type TActualityFeaturesEvent, type TActualityFeaturesState } from "./machines/actuality-features.js";
-import type { TCachedGraph, TDeviceDatabase, TDeviceQuads, TDeviceReport, TDeviceStore, TActualityRegistry } from "./ports.js";
+import { GRAPH_BOUND, type TCachedGraph, type TDeviceDatabase, type TDeviceQuads, type TDeviceReport, type TDeviceStore, type TActualityRegistry } from "./ports.js";
 
 export { CACHE_SHAPE } from "./ports.js";
 import type { TGraphActualitySource } from "./pipelines/actuality-sources.js";

@@ -7,10 +7,10 @@ import type { TStepDefinition, TStepDefinitions } from "@haibun/core/lib/step-di
 
 /** What the page reads of actuality's steps: the steps it may call, every step actuality declares, the domains, the concern
  *  catalog and the predicates the steps prove. A view of a step the page can't call, or of an action, reads `declared`. */
-export type TStepList = Pick<TStepDefinitions, "domains" | "concerns" | "predicates"> & { steps: TStepDefinition[]; declared: TStepDefinition[] };
+export type TStepList = Pick<TStepDefinitions, "domains" | "concerns" | "records" | "predicates"> & { steps: TStepDefinition[]; declared: TStepDefinition[] };
 
 /** The step list of a read of actuality's step definitions, whose steps state whether the page may call each. */
-export const stepListOf = ({ steps, ...read }: Pick<TStepDefinitions, "steps" | "domains" | "concerns" | "predicates">): TStepList => ({
+export const stepListOf = ({ steps, ...read }: Pick<TStepDefinitions, "steps" | "domains" | "concerns" | "records" | "predicates">): TStepList => ({
 	...read,
 	steps: steps.filter((step) => step.callable),
 	declared: steps,

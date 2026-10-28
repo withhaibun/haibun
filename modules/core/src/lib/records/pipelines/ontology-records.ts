@@ -6,7 +6,7 @@
 import type { TClusteredQuads, TGraphQuery, TRecordsPage } from "../../steps/domains/quad-types.js";
 import { ontologyRecords, ontologyToQuads, withStandardTerms } from "../derivations/ontology.js";
 import { counted } from "../../domains/hypermedia.js";
-import { CLASS_LABEL, PROPERTY_LABEL, type TRegisteredDomain } from "../../domains/resources.js";
+import { CLASS_LABEL, PROPERTY_LABEL, type TRecordNamespace, type TRegisteredDomain } from "../../domains/resources.js";
 import { concernCatalogOf } from "../../steps/pipelines/discover-steps.js";
 import { ONTOLOGY_FIELD } from "../domains/ontology.js";
 import { ONTOLOGY_TERM, type TOntologyRead } from "../domains/ontology-read.js";
@@ -38,13 +38,14 @@ export const ontologyRead = (domains: Record<string, TRegisteredDomain>, warn: T
 
 /**
  * Returns the reader of the ontology's records over the current declarations. The declarations are served to every
- * reader as the `@context`, so a read returns the ontology's records at every level it states.
+ * reader as the `@context`, so a read returns the ontology's records at every level it states, each by its record IRI under
+ * the records' namespace.
  */
-export function ontologyReader(domains: () => Record<string, TRegisteredDomain>, warn: TVocabularyWarning): TRecordReader {
+export function ontologyReader(domains: () => Record<string, TRegisteredDomain>, records: () => TRecordNamespace, warn: TVocabularyWarning): TRecordReader {
 	return {
 		async readRecords({ accessLevel: _stated, ...everyLevel }: TGraphQuery): Promise<TRecordsPage> {
 			const declared = domains();
-			return readFromRecords(await derivedOf(declared, warn).records, everyLevel, readDeclarationsOf(declared));
+			return readFromRecords(await derivedOf(declared, warn).records, everyLevel, readDeclarationsOf(declared, records()));
 		},
 	};
 }

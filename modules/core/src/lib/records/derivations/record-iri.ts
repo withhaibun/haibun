@@ -15,8 +15,8 @@ export const recordIri = (prefix: string, label: string, id: string): string =>
 	`${prefix}:${label.toLowerCase()}/${encodeURIComponent(id).replace(SUB_DELIMITERS, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)}`;
 
 /** Returns the prefix, the lower-case label and the id a record's IRI states, which reverses recordIri, or undefined where the
- *  text isn't a record's IRI. */
-export function recordOfIri(iri: string): { prefix: string; lowerLabel: string; id: string } | undefined {
-	const named = RECORD_IRI.exec(iri);
+ *  value isn't a record's IRI, as a record's `@id` that another source states may not be. */
+export function recordOfIri(iri: unknown): { prefix: string; lowerLabel: string; id: string } | undefined {
+	const named = typeof iri === "string" ? RECORD_IRI.exec(iri) : null;
 	return named === null ? undefined : { prefix: itemAt(named, 1), lowerLabel: itemAt(named, 2), id: decodeURIComponent(itemAt(named, 3)) };
 }

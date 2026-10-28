@@ -22,9 +22,6 @@ const strip = ({ spg, ...quad }: StoredQuad): TQuad => quad;
 /** What a read returns: the quads it read, or an empty list where the browser lacks IndexedDB, as the module states. */
 const heldOrEmpty = (rows: TQuad[] | undefined): TQuad[] => (rows === undefined ? [] : rows);
 
-/** The most quads a database of one actuality holds (CA4D13). A write past it drops the oldest quads by the time each was held. */
-export const GRAPH_BOUND = 100_000;
-
 /** The rows a database holds under a quad's subject, predicate and graph: their keys, and the rows. */
 type THeld = { keys: IDBValidKey[]; rows: StoredQuad[] };
 

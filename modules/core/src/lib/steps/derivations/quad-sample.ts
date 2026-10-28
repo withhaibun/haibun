@@ -9,8 +9,15 @@ import { BODY_LABEL, LinkRelations } from "../../domains/resources.js";
 import { GraphQuerySchema, ORDER_KEY, statedQuery, type TCluster, type TClusteredQuads, type TOrderKey, type TQuad } from "../domains/quad-types.js";
 
 /** What a sample reads of a type's declaration, where the type declares one: the property or edge that titles its records,
- *  and the field that orders its records. */
-export type TSampledDeclarationOf = (type: string) => Pick<TReadDeclaration, "title" | "defaultSort"> | undefined;
+ *  the field that orders its records, and the relations its records point through, with the types each reaches. */
+export type TSampledDeclarationOf = (type: string) => (Pick<TReadDeclaration, "title" | "defaultSort"> & { surface?: TReadDeclaration["surface"] }) | undefined;
+
+/** A held quad as a graph reads it: an edge where its type declares its predicate a relation to one type. A record written
+ *  whole states its relations as fields, and the graph draws each as an edge to the record it names. */
+const asDeclared = (quad: TQuad, declared: TSampledDeclarationOf): TQuad => {
+	const ranges = quad.objectType === undefined ? declared(quad.namedGraph)?.surface?.references[quad.predicate] : undefined;
+	return ranges?.length === 1 && typeof quad.object === "string" ? { ...quad, objectType: ranges[0] } : quad;
+};
 
 /**
  * Which bucket an instant falls in, over a span divided into a fixed number, or -1 outside the span.
@@ -104,7 +111,8 @@ export function sliceQuadsPerType(quads: readonly TQuad[], perTypeLimit: number,
 	const quadsBySubject = new Map<string, TQuad[]>();
 	const bodyContentBySubject = new Map<string, string>();
 	const parentOf = new Map<string, string>();
-	for (const q of quads) {
+	for (const held of quads) {
+		const q = asDeclared(held, declared);
 		heldSet(subjectsByType, q.namedGraph).add(q.subject);
 		heldList(quadsByType, q.namedGraph).push(q);
 		heldList(quadsBySubject, q.subject).push(q);

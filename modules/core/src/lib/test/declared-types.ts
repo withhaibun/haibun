@@ -5,21 +5,23 @@
 import { REACHED_BY } from "../domains/hypermedia.js";
 import { QuadStore, newStoreChain } from "../steps/pipelines/quad-store.js";
 import type { TStoreLevels } from "../steps/ports.js";
-import { LinkRelations, type TDomainDefinition } from "../domains/resources.js";
+import { HAIBUN_RECORD_NAMESPACE, LinkRelations, type TDomainDefinition } from "../domains/resources.js";
 import { mapDefinitionsToDomains } from "../domains/domains.js";
 import { readDeclarationsOf, type TReadDeclarations } from "../records/derivations/read-records.js";
+import { recordIri } from "../records/derivations/record-iri.js";
 
 /** The fields and relations of one test type, and the field that identifies its records where it isn't `id`. A relation
  *  maps to the types at its other end. */
 export type TDeclaredType = { id?: string; filters?: readonly string[]; relations?: Record<string, readonly string[]> };
 
 /** Returns read declarations of the types `types` names. Each type's id field is the one it names or `id`, its filters
- *  compare the fields it names, and a page of it orders by `generatedAtTime`. */
+ *  compare the fields it names, a page of it orders by `generatedAtTime`, and its records are named under haibun's namespace. */
 export function declaredTypes(types: Record<string, TDeclaredType>): TReadDeclarations {
 	const relations = [...new Set(Object.values(types).flatMap((type) => (type.relations === undefined ? [] : Object.keys(type.relations))))].sort();
 	return {
 		types: Object.keys(types).sort(),
 		relations,
+		records: HAIBUN_RECORD_NAMESPACE,
 		of(label) {
 			const type = types[label];
 			if (!type) return undefined;
@@ -30,6 +32,9 @@ export function declaredTypes(types: Record<string, TDeclaredType>): TReadDeclar
 	};
 }
 
+/** Returns the record IRI of the record of `label` with `id`, under haibun's namespace. */
+export const heldRecordIri = (label: string, id: string): string => recordIri(HAIBUN_RECORD_NAMESPACE.prefix, label, id);
+
 /** Returns an in-memory store that reads the records of the types `types` names. */
 export function storeDeclaring(types: Record<string, TDeclaredType>, levels?: TStoreLevels): QuadStore {
 	return new QuadStore(newStoreChain(), levels, () => declaredTypes(types));
@@ -37,6 +42,6 @@ export function storeDeclaring(types: Record<string, TDeclaredType>, levels?: TS
 
 /** Returns an in-memory store that reads the records of the persisted types `definitions` declares. */
 export function storeOfDomains(definitions: TDomainDefinition[], levels?: TStoreLevels): QuadStore {
-	const declarations = readDeclarationsOf(mapDefinitionsToDomains(definitions));
+	const declarations = readDeclarationsOf(mapDefinitionsToDomains(definitions), HAIBUN_RECORD_NAMESPACE);
 	return new QuadStore(newStoreChain(), levels, () => declarations);
 }

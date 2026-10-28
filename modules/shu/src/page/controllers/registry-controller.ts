@@ -9,6 +9,7 @@ import { SHOW_STEP_DEFINITIONS_METHOD, SHOW_STEPS_ACTION } from "@haibun/core/li
 import { PAGE_CALL_ACTIONS } from "../domains/page-calls.js";
 import { pageRegistry, registryScope } from "../root.js";
 import { readSteps } from "../pipelines/read-steps.js";
+import { heldSteps } from "../pipelines/held-catalog.js";
 import { outcomeOf, type TCallOutcome } from "../pipelines/call-step.js";
 import { REGISTRY_EVENT, REGISTRY_STATUS, type TRegistryOrigin, type TStepList } from "../machines/registry.js";
 import * as Steps from "../derivations/steps.js";
@@ -24,11 +25,7 @@ function heldList(): TStepList | undefined {
 }
 
 /** Returns the steps the page holds. Throws before its first read, and names what reads them. */
-function readList(what: string): TStepList {
-	const list = heldList();
-	if (list === undefined) throw new Error(`${what} is read after actuality's steps: call getAvailableSteps() first`);
-	return list;
-}
+const readList = (what: string): TStepList => heldSteps(pageRegistry(), what);
 
 /** Returns actuality's steps, read where the page doesn't hold them. */
 export const getAvailableSteps = async (): Promise<TStepDefinition[]> => (await stepList()).steps;

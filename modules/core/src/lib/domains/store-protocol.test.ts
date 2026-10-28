@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { heldRecordIri } from "../test/declared-types.js";
 import { QuadStore, newStoreChain } from "../steps/pipelines/quad-store.js";
 import { handleStoreCall, isStoreMethod, requiredStoreCapability, STORE_READ, STORE_WRITE } from "./store-protocol.js";
 import { itemAt } from "./item-at.js";
@@ -24,7 +25,7 @@ describe("handleStoreCall", () => {
 		const up = await handleStoreCall(store, "store.upsertIndividual", { label: "Widget", data: { id: "w-1", name: "One" } });
 		expect(up.result).toBe("w-1");
 		const got = await handleStoreCall(store, "store.readRecords", { query: { label: "Widget", named: ["w-1"], limit: 1 } });
-		expect(GraphQueryResultSchema.parse(got.result).vertices).toEqual([{ "@id": "w-1", "@type": "Widget", id: "w-1", name: "One" }]);
+		expect(GraphQueryResultSchema.parse(got.result).vertices).toEqual([{ "@id": heldRecordIri("Widget", "w-1"), "@type": "Widget", id: "w-1", name: "One" }]);
 		const missing = await handleStoreCall(store, "store.get", { subject: "w-2", predicate: "name", namedGraph: "Widget" });
 		expect(missing).toEqual({ result: undefined });
 	});

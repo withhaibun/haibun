@@ -49,6 +49,9 @@ export type TDeviceReport = { warn(message: string): void; failure(message: stri
  *  within that bound. */
 export type TGraphSaturation = { held: number; bound: number; dropped: number };
 
+/** The most quads a graph of one actuality holds (CA4D13). A write past it drops the oldest quads by the time each was held. */
+export const GRAPH_BOUND = 100_000;
+
 /** A graph the page caches, which holds facts in one write. */
 export type TCachedGraph = IQuadStore & { setMany(quads: TQuad[]): Promise<void> };
 

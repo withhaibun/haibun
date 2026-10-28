@@ -5,7 +5,7 @@
  */
 import { readDeclarationsOfCatalog, type TReadDeclarations } from "@haibun/core/lib/records/derivations/read-records.js";
 import type { TCachePayload } from "../../../domains/hydration.js";
-import { getConcernCatalog } from "../../controllers/catalog-controller.js";
+import { getConcernCatalog, getRecordNamespace } from "../../controllers/catalog-controller.js";
 import { deviceQuads, graphSlot, heldDatabases, installMemoryDeviceStore, pageActualityFeatures, servedDatabase } from "../root.js";
 import type { TCachedGraph, TDeviceGraph, TGraphSaturation } from "../ports.js";
 import { DeviceGraph } from "../pipelines/device-graph.js";
@@ -18,7 +18,7 @@ export type { TGraphSaturation, TStoredRegistry } from "../ports.js";
 export type { TIdbDatabaseSummary } from "../adapters/idb-summary.js";
 
 /** Returns the read declarations of the types the page's concern catalog lists. */
-export const pageReadDeclarations = (): TReadDeclarations => readDeclarationsOfCatalog(getConcernCatalog());
+export const pageReadDeclarations = (): TReadDeclarations => readDeclarationsOfCatalog(getConcernCatalog(), getRecordNamespace());
 
 /** The device's graph of the actuality `database` names. */
 export const deviceGraph = (database: string): TDeviceGraph => new DeviceGraph(deviceQuads(database), pageReadDeclarations);

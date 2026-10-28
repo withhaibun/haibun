@@ -1,4 +1,5 @@
 /** The step registry's statuses, held to their table, and the read each move holds. */
+import { HAIBUN_RECORD_NAMESPACE } from "@haibun/core/lib/domains/resources.js";
 import { describe, expect, it } from "vitest";
 import { assertTable, staying } from "@haibun/core/lib/test/machine-table.js";
 import { INITIAL_REGISTRY, REGISTRY_EVENT, REGISTRY_STATUS, registryTransition, type TRegistryEvent, type TRegistryRead, type TRegistryState, type TStepList } from "./registry.js";
@@ -9,7 +10,7 @@ type TStatus = TRegistryState["status"];
 const { UNREAD, READ } = REGISTRY_STATUS;
 
 /** A read of an empty step list, from `from`. */
-const NO_STEPS: TStepList = { steps: [], declared: [], domains: {}, concerns: { persisted: {}, references: {} }, predicates: [] };
+const NO_STEPS: TStepList = { steps: [], declared: [], domains: {}, concerns: { persisted: {}, references: {} }, records: HAIBUN_RECORD_NAMESPACE, predicates: [] };
 const readFrom = (from: "site" | "device"): TRegistryRead => (from === "site" ? { from, list: NO_STEPS } : { from, savedAt: 1, list: NO_STEPS });
 
 const TABLE: Record<TStatus, Record<TType, TStatus>> = {

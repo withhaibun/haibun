@@ -1,4 +1,5 @@
 import { ACTION_BEGIN } from "../domains/rpc-wire.js";
+import { heldRecordIri } from "../../test/declared-types.js";
 import { hostHandshake } from "../../test/rpc-answer.js";
 import { describe, expect, it } from "vitest";
 import { QuadStore, newStoreChain } from "../../steps/pipelines/quad-store.js";
@@ -10,7 +11,7 @@ import { FakeInvoker } from "../../test/fake-authority.js";
 
 const sign = new FakeInvoker("satellite").sign;
 const WIDGETS = { Widget: { filters: ["id"] } };
-const WIDGET_ONE = { "@id": "w-1", "@type": "Widget", id: "w-1", name: "One" };
+const WIDGET_ONE = { "@id": heldRecordIri("Widget", "w-1"), "@type": "Widget", id: "w-1", name: "One" };
 
 /** A canned serving instance: a real in-memory QuadStore behind the real protocol handler, plus the handshake. */
 function servingPeer(store: QuadStore) {
@@ -56,7 +57,7 @@ describe("RemoteQuadStore", () => {
 		const satellite = new QuadStore(newStoreChain());
 		await satellite.registerStore(remote, ["Widget"]);
 		await satellite.upsertIndividual("Widget", { id: "w-9", name: "Nine" });
-		const nine = { "@id": "w-9", "@type": "Widget", id: "w-9", name: "Nine" };
+		const nine = { "@id": heldRecordIri("Widget", "w-9"), "@type": "Widget", id: "w-9", name: "Nine" };
 		expect(await recordOf(backing, "Widget", "w-9")).toEqual(nine);
 		expect(await readEvery(satellite, { label: "Widget", filters: equalTo({ id: "w-9" }) })).toEqual([nine]);
 	});

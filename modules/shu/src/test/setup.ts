@@ -15,6 +15,7 @@
  * what was missed.
  */
 
+import { HAIBUN_RECORD_NAMESPACE } from "@haibun/core/lib/domains/resources.js";
 import { actualityAt } from "@haibun/core/lib/transport/adapters/rpc-call.js";
 import { HYDRATION_ID } from "../domains/elements.js";
 import { RESPONSE_TIMEOUT_MS, type TDeploymentSettings } from "../domains/hydration.js";
@@ -244,7 +245,15 @@ export function stepsShown(
 		}),
 	);
 	const definitions = described.map((step, at) => stepDefinition(step, steps[at]?.callable !== false));
-	return readStepDefinitions({ steppers: steppersOf(described), steps: definitions, domains, concerns, predicates: [], ...counted(described.length) });
+	return readStepDefinitions({
+		steppers: steppersOf(described),
+		steps: definitions,
+		domains,
+		concerns,
+		records: HAIBUN_RECORD_NAMESPACE,
+		predicates: [],
+		...counted(described.length),
+	});
 }
 
 /** A dispatch over a run that declares what `shown` returns each time the page reads its steps; any other call throws. */

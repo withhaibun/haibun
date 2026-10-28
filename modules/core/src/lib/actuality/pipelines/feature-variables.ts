@@ -91,9 +91,10 @@ export class FeatureVariables {
 		this.store = new QuadStore(
 			prevStore === undefined ? newStoreChain() : prevStore.storeChain(),
 			{ bound: accessBound, writeBound, declared: (label: string) => declaredAccessLevel(persistedDomainOf(world.domains, label)) },
-			() => readDeclarationsOf(world.domains),
+			() => readDeclarationsOf(world.domains, world.runtime.records),
 			ontologyReader(
 				() => world.domains,
+				() => world.runtime.records,
 				(message) => world.eventLogger.warn(message),
 			),
 		);
