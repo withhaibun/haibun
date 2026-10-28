@@ -1,11 +1,13 @@
 /**
  * Writes a store's values as N3 terms, and reads the triples EYE derives back from its N3 output. An absolute IRI is an IRI,
  * a finite number and a boolean are their own literals, and every other string is a string literal. A record is an
- * individual of its type's class.
+ * individual of its type's class, named by its record IRI as the served context expands it.
  */
 import type { TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
-import { individualIri, iriIn } from "@haibun/core/lib/records/derivations/owl.js";
+import type { TRecordNamespace } from "@haibun/core/lib/domains/resources.js";
+import { iriIn } from "@haibun/core/lib/records/derivations/owl.js";
+import { recordIri, recordOfIri } from "@haibun/core/lib/records/derivations/record-iri.js";
 import type { TFact } from "../domains/logic.js";
 import type { TTriple } from "../domains/reasoning.js";
 
@@ -37,8 +39,8 @@ export function triplesOf(text: string): TTriple[] {
 
 /** A field's or an edge's IRI, with the types an edge reaches. A field doesn't reach a type. */
 type TFieldTerm = { iri: string; targets: readonly string[] };
-/** A type's terms as N3 states them: its class, and each field and edge by its IRI. */
-type TTypeTerms = { classIri: string; fields: Map<string, TFieldTerm> };
+/** A type's terms as N3 states them: its label, its class, and each field and edge by its IRI. */
+type TTypeTerms = { label: string; classIri: string; fields: Map<string, TFieldTerm> };
 
 /** The N3 terms of the records of the persisted types: each record as an individual of its type's class, and each of its
  *  facts as a triple whose predicate is the IRI its field or edge declares. An edge's value is the record it reaches. */
@@ -56,12 +58,14 @@ export type TRecordTerms = {
 	individualAt: (address: string) => string;
 };
 
-/** Returns the N3 terms of the records of the types a concern catalog states, with each IRI from the served context. */
-export function recordTerms(catalog: TConcernCatalog, context: Record<string, unknown>): TRecordTerms {
+/** Returns the N3 terms of the records of the types a concern catalog states, with each IRI from the served context, which
+ *  binds the records' prefix. */
+export function recordTerms(catalog: TConcernCatalog, context: Record<string, unknown>, records: TRecordNamespace): TRecordTerms {
 	const types = new Map(
 		Object.values(catalog.persisted).map(({ label, properties, edges }): [string, TTypeTerms] => [
 			label,
 			{
+				label,
 				classIri: iriIn(context, label),
 				fields: new Map([
 					...Object.entries(properties).map(([field, { term }]): [string, TFieldTerm] => [field, { iri: iriIn(context, term), targets: [] }]),
@@ -70,11 +74,18 @@ export function recordTerms(catalog: TConcernCatalog, context: Record<string, un
 			},
 		]),
 	);
+	const namespace = context[records.prefix];
+	if (typeof namespace !== "string") throw new Error(`the served context doesn't bind the records' prefix ${records.prefix}. Pass the records to getJsonLdContext.`);
+	const byLowerLabel = new Map([...types.keys()].map((label) => [label.toLowerCase(), label]));
+	if (byLowerLabel.size < types.size)
+		throw new Error(`two persisted types share a label in lower case, so their records share IRIs. Rename one of ${[...types.keys()].join(", ")}.`);
 	const typeOf = (label: string): TTypeTerms => {
 		const held = types.get(label);
 		if (held === undefined) throw new Error(`${label} isn't a persisted type, so its records don't have N3 terms. Name a type the steppers declare.`);
 		return held;
 	};
+	/** The IRI of a record of a persisted type: its record IRI, expanded through the context. */
+	const individualOf = (label: string, id: string): string => iriIn(context, recordIri(records.prefix, typeOf(label).label, id));
 	const fieldOf = (label: string, field: string): TFieldTerm => {
 		const held = typeOf(label).fields.get(field);
 		if (held === undefined) throw new Error(`${label} doesn't declare the field ${field}, so its facts don't have an N3 predicate. Declare the field in the type's topology.`);
@@ -87,18 +98,20 @@ export function recordTerms(catalog: TConcernCatalog, context: Record<string, un
 			throw new Error(
 				`the edge ${predicate} of ${namedGraph} reaches ${targets.join(", ")}, so its value ${String(object)} doesn't name one record. Declare one range for the edge.`,
 			);
-		return `<${individualIri(typeOf(itemAt(targets, 0)).classIri, String(object))}>`;
+		return `<${individualOf(itemAt(targets, 0), String(object))}>`;
 	};
 	const iriOf = (subject: string): { label: string; id: string } => {
-		for (const [label, { classIri }] of types) if (subject.startsWith(`${classIri}/`)) return { label, id: decodeURIComponent(subject.slice(classIri.length + 1)) };
-		throw new Error(`${subject} isn't the IRI of a record of a persisted type. Name a record as individualIri names it.`);
+		const named = subject.startsWith(namespace) ? recordOfIri(records.prefix, `${records.prefix}:${subject.slice(namespace.length)}`) : undefined;
+		const label = named === undefined ? undefined : byLowerLabel.get(named.lowerLabel);
+		if (named === undefined || label === undefined) throw new Error(`${subject} isn't the IRI of a record of a persisted type. Name a record as recordIri names it.`);
+		return { label, id: named.id };
 	};
 	return {
 		classIri: (label) => typeOf(label).classIri,
 		statements: (label, facts) => {
 			const { classIri } = typeOf(label);
-			const subjects = [...new Set(facts.map(({ subject }) => subject))].map((id) => `<${individualIri(classIri, id)}> a <${classIri}> .`);
-			return [...subjects, ...facts.map((fact) => `<${individualIri(classIri, fact.subject)}> <${fieldOf(label, fact.predicate).iri}> ${objectOf(fact)} .`)].join("\n");
+			const subjects = [...new Set(facts.map(({ subject }) => subject))].map((id) => `<${individualOf(label, id)}> a <${classIri}> .`);
+			return [...subjects, ...facts.map((fact) => `<${individualOf(label, fact.subject)}> <${fieldOf(label, fact.predicate).iri}> ${objectOf(fact)} .`)].join("\n");
 		},
 		patternOf: (subject, predicate) => {
 			const { label, id } = iriOf(subject.slice(1, -1));
@@ -115,7 +128,7 @@ export function recordTerms(catalog: TConcernCatalog, context: Record<string, un
 		individualAt: (address) => {
 			const colon = address.indexOf(":");
 			if (colon <= 0) throw new Error(`${address} isn't a record's address. Write it as Type:id.`);
-			return individualIri(typeOf(address.slice(0, colon)).classIri, address.slice(colon + 1));
+			return individualOf(address.slice(0, colon), address.slice(colon + 1));
 		},
 	};
 }

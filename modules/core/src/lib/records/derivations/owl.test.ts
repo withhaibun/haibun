@@ -8,7 +8,7 @@ import { mapDefinitionsToDomains } from "../../domains/domains.js";
 import { getJsonLdContext } from "../../domains/hypermedia.js";
 import { Access, LinkRelations } from "../../domains/resources.js";
 import { ontologyToQuads } from "./ontology.js";
-import { individualIri, iriIn, ontologyOwl } from "./owl.js";
+import { iriIn, ontologyOwl } from "./owl.js";
 
 const typeOf = (persistedAs: string, extra: { subClassOf?: string }) => ({
 	selectors: [persistedAs.toLowerCase()],
@@ -43,9 +43,5 @@ describe("ontologyOwl", () => {
 
 	it("refuses a CURIE whose prefix the context doesn't bind", () => {
 		expect(() => iriIn(context, "cred:Thing")).toThrow(/the prefix cred of cred:Thing isn't bound/);
-	});
-
-	it("names a record by its class and its encoded id", () => {
-		expect(individualIri(iriIn(context, "Note"), "a b")).toBe(`${iriIn(context, "Note")}/a%20b`);
 	});
 });

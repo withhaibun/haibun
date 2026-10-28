@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
-import { Access, LinkRelations } from "@haibun/core/lib/domains/resources.js";
+import { Access, HAIBUN_RECORD_NAMESPACE, LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { DEF_PROTO_OPTIONS, getTestWorldWithOptions } from "@haibun/core/lib/test/lib.js";
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { reasoner } from "../root.js";
@@ -39,7 +39,7 @@ async function storeWith(): Promise<IQuadStore> {
 	for (const [subject, predicate, object, namedGraph] of FACTS) await store.add({ subject, predicate, object, namedGraph, accessLevel: Access.private });
 	return store;
 }
-const members = async (expression: string) => entailedMembers(reasoner(), await storeWith(), domains, expression);
+const members = async (expression: string) => entailedMembers(reasoner(), await storeWith(), domains, HAIBUN_RECORD_NAMESPACE, expression);
 const sorted = (found: { persistedAs: string; id: string }[]) => found.map(({ persistedAs, id }) => `${persistedAs}:${id}`).sort();
 
 describe("entailedMembers", () => {
@@ -60,7 +60,7 @@ describe("entailedMembers", () => {
 });
 
 describe("subsumes", () => {
-	const subsumed = async (sub: string, sup: string) => subsumes(reasoner(), await storeWith(), domains, sub, sup);
+	const subsumed = async (sub: string, sup: string) => subsumes(reasoner(), await storeWith(), domains, HAIBUN_RECORD_NAMESPACE, sub, sup);
 	it("holds where a member that stands for any member of the first is a member of the second", { timeout: 30_000 }, async () => {
 		expect(await subsumed("Step", "prov:Activity")).toBe(true);
 		expect(await subsumed(`Note and ${LinkRelations.PART_OF.rel} some Step`, "prov:Entity")).toBe(true);

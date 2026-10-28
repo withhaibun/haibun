@@ -284,7 +284,10 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 		webserver.addRoute("get", path, { description: `Shu SPA mounted at ${path}` }, createSpaHandler(path, hydration));
 		// The context is built from the domains as they stand, so a type declared after the page was served is in it, and for
 		// the origin the request arrived on, so the handler doesn't keep anything per host.
-		const jsonLdHandler = (c: Context) => c.json(getJsonLdContext(this.getWorld().domains, haibunNsForHost(requestBaseIri(c.req.header(), webserver.origins))));
+		const jsonLdHandler = (c: Context) => {
+			const world = this.getWorld();
+			return c.json(getJsonLdContext(world.domains, haibunNsForHost(requestBaseIri(c.req.header(), webserver.origins)), world.runtime.records));
+		};
 		// What every app of a server shares is served once per server, however many apps it mounts: the page's bundles with their
 		// chunks and source maps, and the JSON-LD context.
 		for (const route of [`${PAGE_ASSETS}/:file`, `${PAGE_CHUNKS}/:file`])

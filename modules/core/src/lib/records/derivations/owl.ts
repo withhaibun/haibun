@@ -6,7 +6,7 @@
  * axioms would state their intersection. Every CURIE expands through the prefixes of the served `@context`.
  */
 import { itemAt } from "../../domains/item-at.js";
-import { CLASS_LABEL, PROPERTY_LABEL } from "../../domains/resources.js";
+import { CLASS_LABEL, HAIBUN_PREFIX, PROPERTY_LABEL } from "../../domains/resources.js";
 import type { TClusteredQuads, TQuad } from "../../steps/domains/quad-types.js";
 import { ONTOLOGY_FIELD } from "../domains/ontology.js";
 
@@ -18,8 +18,6 @@ const OWL_PREFIXES = [
 ];
 const CURIE = /^([A-Za-z][\w-]*):(?!\/\/)(.+)$/;
 const ABSOLUTE_IRI = /^[a-z][a-z\d+.-]*:\/\//i;
-/** The prefix of the haibun namespace in the served `@context`. A class without a prefix is a term of that namespace. */
-const HAIBUN_PREFIX = "hbn";
 
 /** Returns the IRI a term names: an absolute IRI as itself, a CURIE through the context's prefixes, and a bare name in the
  *  haibun namespace. Throws where a CURIE's prefix isn't bound in the context. */
@@ -57,6 +55,3 @@ export function ontologyOwl(ontology: TClusteredQuads, context: Record<string, u
 	const axioms = [...classes, ...superclasses(ONTOLOGY_FIELD.classIri), ...superclasses(ONTOLOGY_FIELD.subClassOf), ...properties, ...subProperties];
 	return `${[...OWL_PREFIXES, ...new Set(axioms)].join("\n")}\n`;
 }
-
-/** Returns the IRI of a record: the IRI of its type's class, a slash and its id. */
-export const individualIri = (classIri: string, id: string): string => `${classIri}/${encodeURIComponent(id)}`;

@@ -10,7 +10,7 @@
  */
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { buildConcernCatalog, getJsonLdContext } from "@haibun/core/lib/domains/hypermedia.js";
-import { isPersisted, withinAccess, type TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
+import { isPersisted, withinAccess, type TRecordNamespace, type TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
 import { readingAt } from "@haibun/core/lib/domains/capability-context.js";
 import { COMPLETE_GRAPH, type TExplained, type TOpenGraph, type TReasoning, type TTriple } from "../domains/reasoning.js";
 import { recordTerms, triplesOf } from "../derivations/n3.js";
@@ -19,13 +19,25 @@ import type { TReasoner } from "../ports.js";
 import { readerOf } from "./reads.js";
 
 /** Returns the triples a reasoning's query selects from what its rules derive over the store. */
-export async function reason(reasoner: TReasoner, store: IQuadStore, domains: Record<string, TRegisteredDomain>, reasoning: TReasoning): Promise<TTriple[]> {
-	return triplesOf((await reasoned(reasoner, store, domains, reasoning, false)).derived);
+export async function reason(
+	reasoner: TReasoner,
+	store: IQuadStore,
+	domains: Record<string, TRegisteredDomain>,
+	records: TRecordNamespace,
+	reasoning: TReasoning,
+): Promise<TTriple[]> {
+	return triplesOf((await reasoned(reasoner, store, domains, records, reasoning, false)).derived);
 }
 
 /** Returns the proof of what a reasoning's query selects, and the graphs its rules close over that are open to the reader. */
-export async function explain(reasoner: TReasoner, store: IQuadStore, domains: Record<string, TRegisteredDomain>, reasoning: TReasoning): Promise<TExplained> {
-	const { derived, open } = await reasoned(reasoner, store, domains, reasoning, true);
+export async function explain(
+	reasoner: TReasoner,
+	store: IQuadStore,
+	domains: Record<string, TRegisteredDomain>,
+	records: TRecordNamespace,
+	reasoning: TReasoning,
+): Promise<TExplained> {
+	const { derived, open } = await reasoned(reasoner, store, domains, records, reasoning, true);
 	return { proof: proofOf(derived), open };
 }
 
@@ -35,6 +47,7 @@ async function reasoned(
 	reasoner: TReasoner,
 	store: IQuadStore,
 	domains: Record<string, TRegisteredDomain>,
+	records: TRecordNamespace,
 	{ rules, query, closedOver }: TReasoning,
 	explained: boolean,
 ): Promise<{ derived: string; open: TOpenGraph[] }> {
@@ -48,7 +61,7 @@ async function reasoned(
 			);
 		return { graph: label, accessLevel: topology.accessLevel, complete: ceiling === undefined || withinAccess(topology.accessLevel, ceiling) };
 	});
-	const terms = recordTerms(buildConcernCatalog(domains), getJsonLdContext(domains)["@context"]);
+	const terms = recordTerms(buildConcernCatalog(domains), getJsonLdContext(domains, undefined, records)["@context"], records);
 	const reader = readerOf(store);
 	const formulaOf = async (graph: string) => `<${terms.classIri(graph)}> <${COMPLETE_GRAPH}> {\n${terms.statements(graph, await reader.facts({ namedGraph: graph }))}\n} .`;
 	const formulas = await Promise.all(closing.filter(({ complete }) => complete).map(({ graph }) => formulaOf(graph)));

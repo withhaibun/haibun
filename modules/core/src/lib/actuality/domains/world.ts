@@ -6,7 +6,7 @@ import type { Prompter } from "../../prompts/pipelines/prompter.js";
 import type { IEventLogger } from "../../steps/ports.js";
 import type { TStepResult, TFeatureSteps } from "../../domains/protocol.js";
 import { CONTINUE_AFTER_ERROR, NDJSON, ShownLogLevelSchema } from "../../domains/protocol.js";
-import type { TRegisteredDomain } from "../../domains/resources.js";
+import type { TRecordNamespace, TRegisteredDomain } from "../../domains/resources.js";
 import type { StepRegistry } from "../../steps/pipelines/step-registry.js";
 import type { TFeature } from "./actuality.js";
 import type { AStepper } from "../../steps/domains/stepper.js";
@@ -33,6 +33,9 @@ export type TRuntime = {
 	/** The id of the actuality that owns the records in the store. Each call to this instance after the handshake states
 	 *  this id. A stepper whose store keeps its records across processes replaces this id with the id that the store holds. */
 	actualityId: TActualityId;
+	/** The namespace of the records' IRIs. A stepper whose store serves its records under an application's namespace replaces
+	 *  it with that namespace, which the application's served context binds. */
+	records: TRecordNamespace;
 	/** The levels of actuality: every lifecycle event of a level that actuality emits is a move of this machine. */
 	actuality: TActualityMachine;
 	/** The records of actuality's levels by their events' id. A level's end extends its start's record. */

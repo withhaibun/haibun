@@ -3,6 +3,7 @@
  * features or statements, each through the ports the program's entry point builds.
  */
 import { newActualityId } from "@haibun/core/lib/rpc-wire.js";
+import { HAIBUN_RECORD_NAMESPACE } from "@haibun/core/lib/domains/resources.js";
 import { namesPackage, type TSpecl, type TFeaturesBackgrounds } from "@haibun/core/lib/actuality.js";
 import { BASE_WITHOUT_FEATURES } from "@haibun/core/lib/actuality/ports.js";
 import type { TBase, TBaseOptions, TProtoOptions, TWorld } from "@haibun/core/lib/world.js";
@@ -233,6 +234,7 @@ function getCliWorld(protoOptions: TProtoOptions, bases: TBase, ports: TCliPorts
 		tag,
 		runtime: {
 			actualityId: newActualityId(),
+			records: HAIBUN_RECORD_NAMESPACE,
 			actuality: actualityMachine(),
 			levels: new Map(),
 			stepResults: [],

@@ -7,7 +7,7 @@
  */
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { buildConcernCatalog, getJsonLdContext } from "@haibun/core/lib/domains/hypermedia.js";
-import { CLASS_LABEL, PROPERTY_LABEL, isPersisted, type TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
+import { CLASS_LABEL, PROPERTY_LABEL, isPersisted, type TRecordNamespace, type TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
 import type { TIndividualAddress } from "@haibun/core/lib/domains/typed-links.js";
 import { ancestorsWith, ontologyToQuads } from "@haibun/core/lib/records/derivations/ontology.js";
 import { iriIn, ontologyOwl } from "@haibun/core/lib/records/derivations/owl.js";
@@ -30,9 +30,19 @@ import type { TReasoner } from "../ports.js";
 import { readerOf } from "./reads.js";
 import { reason } from "./reason.js";
 
-/** What a query over the declarations reads: the IRIs of its names, the records' N3 terms, the ontology as OWL 2 with the
- *  rules of OWL 2 RL, the vocabulary its names are checked against, and the types each class subsumes. */
-type TQueryBasis = { iris: TExpressionIris; terms: TRecordTerms; axioms: string; vocabulary: TVocabulary; typesReached: (expression: TClassExpression) => string[] };
+/** What a query over the declarations reads: the IRIs of its classes and properties, the records' N3 terms under the records'
+ *  namespace, the ontology as OWL 2 with the rules of OWL 2 RL, the vocabulary its names are checked against, and the types
+ *  each class subsumes. */
+type TQueryBasis = {
+	iris: Omit<TExpressionIris, "individualIri">;
+	termsOf: (records: TRecordNamespace) => TRecordTerms;
+	axioms: string;
+	vocabulary: TVocabulary;
+	typesReached: (expression: TClassExpression) => string[];
+};
+
+/** The IRIs of a query's names, with each record named by its IRI under the records' namespace. */
+const irisOf = (basis: TQueryBasis, terms: TRecordTerms): TExpressionIris => ({ ...basis.iris, individualIri: terms.individualAt });
 
 /** What a query read, by the declarations it was derived from, with the count of those declarations. */
 const basisFor = new WeakMap<Record<string, TRegisteredDomain>, { size: number; basis: TQueryBasis }>();
@@ -51,7 +61,7 @@ export function queryBasis(domains: Record<string, TRegisteredDomain>): TQueryBa
 function derivedBasis(domains: Record<string, TRegisteredDomain>): TQueryBasis {
 	const context = getJsonLdContext(domains)["@context"];
 	const ontology = ontologyToQuads(domains);
-	const terms = recordTerms(buildConcernCatalog(domains), context);
+	const catalog = buildConcernCatalog(domains);
 	const stated = (label: string, field: string) => ontology.quads.filter((q) => q.namedGraph === label && q.predicate === field);
 	const declared = (field: string, name: string): string[] =>
 		stated(PROPERTY_LABEL, field)
@@ -79,8 +89,8 @@ function derivedBasis(domains: Record<string, TRegisteredDomain>): TQueryBasis {
 		return labels.filter((label) => connected.has(label) || [...ancestorsWith(label, supers)].some((cls) => iris.has(iriIn(context, cls))));
 	};
 	return {
-		iris: { classIri: (name) => iriIn(context, name), propertyIri, individualIri: terms.individualAt },
-		terms,
+		iris: { classIri: (name) => iriIn(context, name), propertyIri },
+		termsOf: (records) => recordTerms(catalog, getJsonLdContext(domains, undefined, records)["@context"], records),
 		axioms: [ontologyOwl(ontology, context), OWL_RL_RULES].join("\n"),
 		vocabulary,
 		typesReached,
@@ -114,14 +124,21 @@ export function expressionReading(text: string, domains: Record<string, TRegiste
 }
 
 /** Returns the addresses of the records a class expression entails as its members. */
-export async function entailedMembers(reasoner: TReasoner, store: IQuadStore, domains: Record<string, TRegisteredDomain>, text: string): Promise<TIndividualAddress[]> {
+export async function entailedMembers(
+	reasoner: TReasoner,
+	store: IQuadStore,
+	domains: Record<string, TRegisteredDomain>,
+	records: TRecordNamespace,
+	text: string,
+): Promise<TIndividualAddress[]> {
 	const basis = queryBasis(domains);
+	const terms = basis.termsOf(records);
 	const expression = checkedExpression(text, basis);
 	const reader = readerOf(store);
-	const facts = await Promise.all(basis.typesReached(expression).map(async (label) => basis.terms.statements(label, await reader.facts({ namedGraph: label }))));
-	const { rules, query } = expressionRules(expression, QUERY_NAMESPACE, basis.iris);
-	const derived = await reason(reasoner, store, domains, { rules: [basis.axioms, rules, ...facts].join("\n"), query, closedOver: [] });
-	return [...new Map(derived.map(({ subject }) => [subject, basis.terms.addressOf(subject)])).values()];
+	const facts = await Promise.all(basis.typesReached(expression).map(async (label) => terms.statements(label, await reader.facts({ namedGraph: label }))));
+	const { rules, query } = expressionRules(expression, QUERY_NAMESPACE, irisOf(basis, terms));
+	const derived = await reason(reasoner, store, domains, records, { rules: [basis.axioms, rules, ...facts].join("\n"), query, closedOver: [] });
+	return [...new Map(derived.map(({ subject }) => [subject, terms.addressOf(subject)])).values()];
 }
 
 /** The individual that stands for any member of an expression in a subsumption. */
@@ -133,13 +150,14 @@ export async function subsumptionRefusal(
 	reasoner: TReasoner,
 	store: IQuadStore,
 	domains: Record<string, TRegisteredDomain>,
+	records: TRecordNamespace,
 	sub: string,
 	sup: string,
 ): Promise<string | undefined> {
-	if (await subsumes(reasoner, store, domains, sub, sup)) return undefined;
+	if (await subsumes(reasoner, store, domains, records, sub, sup)) return undefined;
 	const basis = queryBasis(domains);
 	const subsumption = `${dlOf(checkedExpression(sub, basis))} ⊑ ${dlOf(checkedExpression(sup, basis))}`;
-	const addressed = async (text: string) => (await entailedMembers(reasoner, store, domains, text)).map(({ persistedAs, id }) => `${persistedAs}:${id}`);
+	const addressed = async (text: string) => (await entailedMembers(reasoner, store, domains, records, text)).map(({ persistedAs, id }) => `${persistedAs}:${id}`);
 	const held = new Set(await addressed(sup));
 	const witness = (await addressed(sub)).filter((address) => !held.has(address));
 	const exceeding = witness.length === 0 ? "the records don't hold a member that exceeds it" : `the witness that exceeds it is ${witness.join(", ")}`;
@@ -147,12 +165,20 @@ export async function subsumptionRefusal(
 }
 
 /** Returns whether the ontology entails that every member of `sub` is a member of `sup`. */
-export async function subsumes(reasoner: TReasoner, store: IQuadStore, domains: Record<string, TRegisteredDomain>, sub: string, sup: string): Promise<boolean> {
+export async function subsumes(
+	reasoner: TReasoner,
+	store: IQuadStore,
+	domains: Record<string, TRegisteredDomain>,
+	records: TRecordNamespace,
+	sub: string,
+	sup: string,
+): Promise<boolean> {
 	const basis = queryBasis(domains);
+	const iris = irisOf(basis, basis.termsOf(records));
 	const [narrower, wider] = [checkedExpression(sub, basis), checkedExpression(sup, basis)];
-	const { rules, query } = expressionRules(wider, QUERY_NAMESPACE, basis.iris);
-	for (const facts of frozenMembers(narrower, FROZEN, QUERY_NAMESPACE, basis.iris)) {
-		const derived = await reason(reasoner, store, domains, { rules: [basis.axioms, rules, ...facts.map((fact) => `${fact} .`)].join("\n"), query, closedOver: [] });
+	const { rules, query } = expressionRules(wider, QUERY_NAMESPACE, iris);
+	for (const facts of frozenMembers(narrower, FROZEN, QUERY_NAMESPACE, iris)) {
+		const derived = await reason(reasoner, store, domains, records, { rules: [basis.axioms, rules, ...facts.map((fact) => `${fact} .`)].join("\n"), query, closedOver: [] });
 		if (!derived.some(({ subject }) => subject === FROZEN)) return false;
 	}
 	return true;

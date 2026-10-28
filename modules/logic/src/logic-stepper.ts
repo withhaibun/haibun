@@ -100,7 +100,8 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 
 	/** The members a class expression entails over the world's store, under the caller's authority. */
 	private members(expression: string) {
-		return entailedMembers(reasoner(), this.getWorld().shared.getStore(), this.getWorld().domains, expression);
+		const world = this.getWorld();
+		return entailedMembers(reasoner(), world.shared.getStore(), world.domains, world.runtime.records, expression);
 	}
 
 	/** What a goal's proof reads, under the caller's authority. */
@@ -274,7 +275,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 				"Holds where the ontology entails that every member of the first class expression is a member of the second. Fails closed otherwise, with the entailed members of the first that the second doesn't hold as the witness.",
 			action: async ({ sub, sup }: { sub: string; sup: string }) => {
 				const world = this.getWorld();
-				const refusal = await subsumptionRefusal(reasoner(), world.shared.getStore(), world.domains, sub, sup);
+				const refusal = await subsumptionRefusal(reasoner(), world.shared.getStore(), world.domains, world.runtime.records, sub, sup);
 				return refusal === undefined ? actionOK() : actionNotOK(refusal);
 			},
 		},

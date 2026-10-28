@@ -197,7 +197,7 @@ function subPropertyOfRel(rel: string): string | string[] | undefined {
 	}
 	return undefined;
 }
-import { AccessLevelSchema, DOMAIN_PERSISTED_TYPE, GeneratedAtTimeTextSchema, HAIBUN_NS, type TRegisteredDomain } from "./resources.js";
+import { AccessLevelSchema, DOMAIN_PERSISTED_TYPE, GeneratedAtTimeTextSchema, HAIBUN_NS, type TRecordNamespace, type TRegisteredDomain } from "./resources.js";
 import { DOMAIN_UNION, hypermediaDomainMap, refTargetOf } from "./domains.js";
 import { jsonSchemaFor } from "./json-schema-of.js";
 import { unwrap, unwrapToShape, zodTypeLabel } from "./zod-unwrap.js";
@@ -1029,9 +1029,12 @@ const STANDARD_NAMESPACES: Record<string, string> = {
 /** A JSON-LD context document: its term map, and the class and property nodes it states. */
 export type TJsonLdContextDocument = { "@context": Record<string, unknown>; "@graph": Record<string, unknown>[] };
 
-/** Build JSON-LD context from domain topology. Derives URI mappings from domain property rels. */
-export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, haibunNs: string = HAIBUN_NS): TJsonLdContextDocument {
+/** Build JSON-LD context from domain topology. Derives URI mappings from domain property rels. A context that states records
+ *  binds the records' prefix to their namespace, so a record's `@id` expands through it; haibun's own prefix keeps the
+ *  namespace of the serving host. */
+export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, haibunNs: string = HAIBUN_NS, records?: TRecordNamespace): TJsonLdContextDocument {
 	const context: Record<string, unknown> = { "@version": 1.1, ...STANDARD_NAMESPACES, hbn: haibunNs };
+	if (records !== undefined) context[records.prefix] ??= records.namespace;
 	// JSON-LD 1.1 type-scoped context. Each @type carries a nested @context mapping ITS field/edge terms to the genuine
 	// IRIs its own rels declare, so a field name reused across domains (e.g. "expires", "author", "type") resolves to the
 	// CORRECT IRI under each type, honoring the per-domain rel (which also drives column-view presentation: filter via
@@ -1072,7 +1075,13 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, hai
 		const topology = domain.topology;
 		// A type's own vocabulary prefixes (CURIEs its @types/rels use beyond the standards + haibun's own), merged into the
 		// served context. First declaration wins; core doesn't declare one of these itself.
-		for (const [prefix, iri] of topology.namespaces === undefined ? [] : Object.entries(topology.namespaces)) context[prefix] ??= iri;
+		for (const [prefix, iri] of topology.namespaces === undefined ? [] : Object.entries(topology.namespaces)) {
+			if (prefix === records?.prefix && iri !== records.namespace)
+				throw new Error(
+					`${topology.persistedAs} binds ${prefix} to ${iri}, which the records' @ids name under ${records.namespace}. Name the records under a prefix of their own.`,
+				);
+			context[prefix] ??= iri;
+		}
 		const scoped: Record<string, unknown> = {};
 		const put = (key: string, node: Record<string, string>): void => {
 			scoped[key] = node;

@@ -44,7 +44,15 @@ export const RESOURCE_LABEL = "Resource";
 export const HAIBUN_NS = "https://withhaibun.github.io/ns/";
 const HAIBUN_NS_PATH = "/ns/";
 /** The @context prefix bound to the haibun namespace. Any other prefix names a separate vocabulary, not haibun's. */
-export const HAIBUN_PREFIXES = ["hbn"] as const;
+export const HAIBUN_PREFIX = "hbn";
+export const HAIBUN_PREFIXES = [HAIBUN_PREFIX] as const;
+
+/** The namespace of the records' IRIs: the @context prefix a record's `@id` states, and the namespace the prefix stands for in
+ *  the served context. An application serves its records under its own prefix and namespace, which its context states, and haibun serves
+ *  its records under haibun's namespace. */
+export type TRecordNamespace = { prefix: string; namespace: string };
+/** The namespace of haibun's records, which an application's runtime replaces with the application's namespace. */
+export const HAIBUN_RECORD_NAMESPACE: TRecordNamespace = { prefix: HAIBUN_PREFIX, namespace: HAIBUN_NS };
 
 /** Returns the haibun namespace under a request origin (`https://192.0.2.9:8223` → `…/ns/`), or the canonical stem
  *  without an origin. Pass the result to getJsonLdContext's `haibunNs`. */

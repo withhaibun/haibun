@@ -5,10 +5,11 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
-import { Access, LinkRelations, type AccessLevel } from "@haibun/core/lib/domains/resources.js";
+import { Access, HAIBUN_RECORD_NAMESPACE, LinkRelations, type AccessLevel } from "@haibun/core/lib/domains/resources.js";
 import { runReadingAt } from "@haibun/core/lib/domains/capability-context.js";
 import { DEF_PROTO_OPTIONS, getTestWorldWithOptions } from "@haibun/core/lib/test/lib.js";
-import { individualIri, iriIn } from "@haibun/core/lib/records/derivations/owl.js";
+import { iriIn } from "@haibun/core/lib/records/derivations/owl.js";
+import { recordIri } from "@haibun/core/lib/records/derivations/record-iri.js";
 import { getJsonLdContext } from "@haibun/core/lib/domains/hypermedia.js";
 import { COMPLETE_GRAPH, REASONER_BUILTIN, type TProofStep } from "../domains/reasoning.js";
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
@@ -33,7 +34,8 @@ const domains = mapDefinitionsToDomains([typeOf(STEP, true), typeOf(NOTE, false)
 const context = getJsonLdContext(domains)["@context"];
 const iri = (term: string): string => iriIn(context, term);
 const [stepClass, outcome, content, about] = [iri(STEP), iri(LinkRelations.OUTCOME.uri), iri(LinkRelations.CONTENT.uri), iri(LinkRelations.PART_OF.uri)];
-const step = (id: string) => `<${individualIri(stepClass, id)}>`;
+const individual = (label: string, id: string) => `<${iriIn(context, recordIri(HAIBUN_RECORD_NAMESPACE.prefix, label, id))}>`;
+const step = (id: string) => individual(STEP, id);
 const LOG = "http://www.w3.org/2000/10/swap/log#";
 const MISSING = "urn:test:missing";
 const QUERY = `{ ?s <${MISSING}> ?o } => { ?s <${MISSING}> ?o } .`;
@@ -61,19 +63,20 @@ async function storeWith(): Promise<IQuadStore> {
 
 describe("reason", () => {
 	it("closes over a complete graph with scoped negation", { timeout: 30_000 }, async () => {
-		const derived = await reason(reasoner(), await storeWith(), domains, { rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] });
+		const derived = await reason(reasoner(), await storeWith(), domains, HAIBUN_RECORD_NAMESPACE, { rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] });
 		expect(derived).toEqual([{ subject: step("s2"), predicate: `<${MISSING}>`, object: '"outcome"' }]);
 	});
 
 	it("closes over a complete graph for a reader at its type's access level, and leaves it open for a reader below it", { timeout: 30_000 }, async () => {
 		const store = await storeWith();
-		const closed = (level: AccessLevel) => runReadingAt(level, () => reason(reasoner(), store, domains, { rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] }));
+		const closed = (level: AccessLevel) =>
+			runReadingAt(level, () => reason(reasoner(), store, domains, HAIBUN_RECORD_NAMESPACE, { rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] }));
 		expect(await closed(Access.private)).toEqual([{ subject: step("s2"), predicate: `<${MISSING}>`, object: '"outcome"' }]);
 		expect(await closed(Access.public), "s3's outcome is private, so a public reader reads the graph as open and the rules don't derive a missing outcome").toEqual([]);
 	});
 
 	it("explains a proved claim by its inference chain, down to the complete graph and the rule it rests on", { timeout: 30_000 }, async () => {
-		const { proof, open } = await explain(reasoner(), await storeWith(), domains, { rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] });
+		const { proof, open } = await explain(reasoner(), await storeWith(), domains, HAIBUN_RECORD_NAMESPACE, { rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] });
 		const missing = { subject: step("s2"), predicate: `<${MISSING}>`, object: '"outcome"' };
 		expect(proof.gives).toEqual([missing]);
 		expect(open).toEqual([]);
@@ -94,26 +97,28 @@ describe("reason", () => {
 
 	it("explains an unknown claim by the graph that stayed open to the reader, and its type's access level", { timeout: 30_000 }, async () => {
 		const store = await storeWith();
-		const explained = await runReadingAt(Access.public, () => explain(reasoner(), store, domains, { rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] }));
+		const explained = await runReadingAt(Access.public, () =>
+			explain(reasoner(), store, domains, HAIBUN_RECORD_NAMESPACE, { rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] }),
+		);
 		expect(explained).toEqual({ proof: { gives: [], steps: [] }, open: [{ graph: STEP, accessLevel: Access.private }] });
 	});
 
 	it("refuses to close over an open graph", async () => {
-		await expect(reason(reasoner(), await storeWith(), domains, { rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [NOTE] })).rejects.toThrow(
+		await expect(reason(reasoner(), await storeWith(), domains, HAIBUN_RECORD_NAMESPACE, { rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [NOTE] })).rejects.toThrow(
 			/Note, whose type doesn't declare its graph complete/,
 		);
 	});
 
 	it("reads an open fact through the read built-in, with an edge's value as the record it reaches", { timeout: 30_000 }, async () => {
-		const note = `<${individualIri(iriIn(context, NOTE), "n1")}>`;
+		const note = individual(NOTE, "n1");
 		const rules = `{ (${note} <${about}>) <${REASONER_BUILTIN.read}> ?s . (${note} <${content}>) <${REASONER_BUILTIN.read}> ?c } => { ?s <${MISSING}> ?c } .`;
-		const derived = await reason(reasoner(), await storeWith(), domains, { rules, query: QUERY, closedOver: [] });
+		const derived = await reason(reasoner(), await storeWith(), domains, HAIBUN_RECORD_NAMESPACE, { rules, query: QUERY, closedOver: [] });
 		expect(derived).toEqual([{ subject: step("s2"), predicate: `<${MISSING}>`, object: '"checked"' }]);
 	});
 
 	it("runs sessions that start together one after the other", { timeout: 30_000 }, async () => {
 		const [held, store] = [reasoner(), await storeWith()];
-		const both = await Promise.all([STEP, STEP].map(() => reason(held, store, domains, { rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] })));
+		const both = await Promise.all([STEP, STEP].map(() => reason(held, store, domains, HAIBUN_RECORD_NAMESPACE, { rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] })));
 		expect(both[0]).toEqual(both[1]);
 	});
 });

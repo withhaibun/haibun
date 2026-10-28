@@ -18,6 +18,7 @@ import { FeatureVariables, secretsOf } from "../actuality/pipelines/feature-vari
 import { Prompter } from "../prompts/pipelines/prompter.js";
 import { consolePrompter } from "../prompts/root.js";
 import { getCoreDomains } from "../pipelines/core-domains.js";
+import { HAIBUN_RECORD_NAMESPACE } from "../domains/resources.js";
 import assert from "assert";
 import { createServer } from "node:net";
 import { EventLogger } from "../steps/pipelines/event-logger.js";
@@ -131,6 +132,7 @@ export function getDefaultWorld(env: NodeJS.ProcessEnv = process.env): TWorld {
 		prompter: new Prompter(consolePrompter()),
 		runtime: {
 			actualityId: newActualityId(),
+			records: HAIBUN_RECORD_NAMESPACE,
 			actuality: actualityMachine(),
 			levels: new Map(),
 			stepResults: [],

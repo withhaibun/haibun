@@ -486,13 +486,13 @@
 			"actuality": {
 				"text": "modules/shu/tests-profile, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 12800,
+				"tookMs": 13500,
 				"digest": {
-					"modules/core/src": "cc647d98cfd8ca75b34d9ee3b236cf3f971d9d180e050cb6f0698a17cb98d659",
+					"modules/core/src": "be7f55b6e4135cbd7e7fcfd43d93d38ce1dd83845e883492ae11b4b469052a93",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
-					"modules/logic/src": "3f1e099eaa3c062bbadf4366d067e1516a41cdc34feef830d72e8e3adf2f0edb",
+					"modules/logic/src": "8c1d7aa5448e7698ebc39d3e750496ae5ff7dafe927e169e7e8d2a0dc93793c2",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/shu/src": "bcebb2de957f32940f4ce259e3fa0ff6321538f6fb6279b394f4f551e2ef017c",
+					"modules/shu/src": "5f444ccdbd02eb73ff9a41ee1b39764b3c302586f6e81f80a51f8ab01f8a534a",
 					"modules/shu/tests-profile": "e3b3bf7b4fe401d47683e9e42bb954f3620a9b2fc51c214808d39bf06148d8ec",
 					"modules/shu/waypoints": "85c65554dd406b66e361f3a3a5683db72f20656c2f827dff70c53761a388b64b",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
@@ -505,7 +505,7 @@
 				"/features/b-reading-a-cached-actuality.feature.ts": {
 					"text": "Reading an actuality this device holds",
 					"status": "passed",
-					"tookMs": 2700,
+					"tookMs": 2800,
 					"steps": 219
 				},
 				"/features/c-reading-a-report.feature.ts": {
@@ -523,7 +523,7 @@
 				"/features/e-deleting-an-actuality.feature.ts": {
 					"text": "Deleting an actuality this device holds",
 					"status": "passed",
-					"tookMs": 4600,
+					"tookMs": 5200,
 					"steps": 210
 				}
 			}
@@ -535,11 +535,11 @@
 				"status": "passed",
 				"tookMs": 2500,
 				"digest": {
-					"modules/core/src": "cc647d98cfd8ca75b34d9ee3b236cf3f971d9d180e050cb6f0698a17cb98d659",
+					"modules/core/src": "be7f55b6e4135cbd7e7fcfd43d93d38ce1dd83845e883492ae11b4b469052a93",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
-					"modules/logic/src": "3f1e099eaa3c062bbadf4366d067e1516a41cdc34feef830d72e8e3adf2f0edb",
+					"modules/logic/src": "8c1d7aa5448e7698ebc39d3e750496ae5ff7dafe927e169e7e8d2a0dc93793c2",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/shu/src": "bcebb2de957f32940f4ce259e3fa0ff6321538f6fb6279b394f4f551e2ef017c",
+					"modules/shu/src": "5f444ccdbd02eb73ff9a41ee1b39764b3c302586f6e81f80a51f8ab01f8a534a",
 					"modules/shu/tests-profile": "e3b3bf7b4fe401d47683e9e42bb954f3620a9b2fc51c214808d39bf06148d8ec",
 					"modules/shu/waypoints": "85c65554dd406b66e361f3a3a5683db72f20656c2f827dff70c53761a388b64b",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",

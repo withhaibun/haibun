@@ -59,12 +59,12 @@
 			"actuality": {
 				"text": "AGENTS.md",
 				"status": "passed",
-				"tookMs": 500,
+				"tookMs": 600,
 				"digest": {
 					"AGENTS.md": "3dd848abaa4341b061ad512a73b25459b9b5b4a28f8860d325bd51e179f03ebe",
-					"modules/core/src": "cc647d98cfd8ca75b34d9ee3b236cf3f971d9d180e050cb6f0698a17cb98d659",
+					"modules/core/src": "be7f55b6e4135cbd7e7fcfd43d93d38ce1dd83845e883492ae11b4b469052a93",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
-					"modules/logic/src": "3f1e099eaa3c062bbadf4366d067e1516a41cdc34feef830d72e8e3adf2f0edb",
+					"modules/logic/src": "8c1d7aa5448e7698ebc39d3e750496ae5ff7dafe927e169e7e8d2a0dc93793c2",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/web-playwright/src": "183837582c6745581f805bc27a237802cbe289e8d03346c3f4542012f75925be",
@@ -75,7 +75,7 @@
 				"/AGENTS.md": {
 					"text": "/AGENTS",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 600,
 					"steps": 394
 				}
 			}
