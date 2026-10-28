@@ -12,7 +12,7 @@ import { validatedFeatureStep } from "@haibun/core/lib/steps/pipelines/call-step
 import { literalTerm, renderStepLine } from "@haibun/core/lib/steps/derivations/named-vars.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { VERDICT, type TActionResult, type TStepResult } from "@haibun/core/lib/domains/protocol.js";
-import { actionNotOK, actionOKWithProducts, actionUnknown } from "@haibun/core/lib/domains/util.js";
+import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
 import { itemAt, valueAt } from "@haibun/core/lib/domains/item-at.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { actingAs } from "@haibun/core/lib/domains/capability-context.js";
@@ -78,10 +78,10 @@ async function resolutions(scope: TGoalScope, goals: readonly string[], facts: r
 	if (!("goals" in ended)) throw new Error(`A proof of goals ended without the proof of each goal. ${DIFFERENT_BUILDS}`);
 	return ended.goals.map((proof) => {
 		const plans = proof.plans.map((plan) => planOf(plan, byMethod, latest));
-		// A goal without a fact or a plan is unknown, since a fact the read didn't return may hold; it states the chain to its first unmet sub-goal.
-		const unmet = proof.unmet.length > 0 ? { unmet: unmetReason(proof), unmetChain: proof.unmet.map((node) => ("do" in node ? node.domain : node.unmet)) } : {};
-		const factIds = proof.held === VERDICT.proved ? valueAt(byDomain, proof.goal, "the facts of a goal the engine holds").map((fact) => fact.id) : [];
-		return GoalResolutionSchema.parse({ goal: proof.goal, verdict: proof.held, factIds, plans, ...unmet });
+		const verdict = proof.held ? VERDICT.proved : plans.length > 0 ? VERDICT.unknown : VERDICT.refuted;
+		const unmet = verdict === VERDICT.refuted ? { unmet: unmetReason(proof), unmetChain: proof.unmet.map((node) => ("do" in node ? node.domain : node.unmet)) } : {};
+		const factIds = proof.held ? valueAt(byDomain, proof.goal, "the facts of a goal the engine holds").map((fact) => fact.id) : [];
+		return GoalResolutionSchema.parse({ goal: proof.goal, verdict, factIds, plans, ...unmet });
 	});
 }
 
@@ -105,14 +105,14 @@ async function proveUnder(ctx: DispatchContext, parent: TFeatureStep, method: st
 }
 
 /** Proves a goal under the step `pattern` states. A proved goal returns its proof as statements in proof order: the line that
- *  asserted its fact, then the goal's statement. A goal without a fact or a plan is unknown, and its first unproved
- *  sub-goal is proved under the step, so the sub-goal's record states why. */
+ *  asserted its fact, then the goal's statement. A refuted goal's first unproved sub-goal is proved under the step, so the
+ *  sub-goal's record states why. */
 export async function resolved(scope: TGoalScope, parent: TFeatureStep, goal: string, pattern: string): Promise<TActionResult> {
 	const resolution = await resolutionOf(scope, goal);
-	if (resolution.unmet !== undefined) {
+	if (resolution.verdict === VERDICT.refuted) {
 		const unmet = resolution.unmetChain?.at(-1);
 		if (unmet !== undefined && unmet !== goal) await proveUnder(scope.ctx, parent, stepMethodName(scope.stepper, "resolve"), { goal: unmet });
-		return actionUnknown(`\`${parent.in}\` isn't proved: ${unmetOf(resolution)}`);
+		return actionNotOK(`\`${parent.in}\` doesn't hold: ${unmetOf(resolution)}`);
 	}
 	const [fact] = resolution.factIds;
 	if (fact === undefined) return actionOKWithProducts(resolution);
@@ -131,7 +131,7 @@ export async function pursued(scope: TGoalScope, parent: TFeatureStep, goal: str
 	const resolution = await resolutionOf(scope, goal);
 	if (resolution.verdict === VERDICT.proved) return actionOKWithProducts(resolution);
 	const [plan] = resolution.plans;
-	if (plan === undefined) return actionUnknown(`\`${parent.in}\` isn't proved: ${unmetOf(resolution)}`);
+	if (plan === undefined) return actionNotOK(`\`${parent.in}\` doesn't hold: ${unmetOf(resolution)}`);
 	const supplied = argumentsOf(plan);
 	if (supplied.length > 0)
 		return actionNotOK(`\`${parent.in}\` needs ${supplied.join(", ")} from the caller, which its plan takes. Supply each through \`walk toward "${goal}"\`.`);
@@ -170,7 +170,8 @@ async function readWalk(store: IQuadStore, walk: string): Promise<TWalk> {
 async function walkProducts(scope: TGoalScope, line: string, walk: string, goal: string, factIds: string[]): Promise<TActionResult> {
 	const resolution = await resolutionOf(scope, goal);
 	const next = resolution.verdict === VERDICT.proved ? undefined : resolution.plans[0]?.steps[0];
-	if (resolution.verdict === VERDICT.unknown && next === undefined) return actionUnknown(`\`${line}\` can't reach ${goal}: ${unmetOf(resolution)}`);
+	if (resolution.verdict === VERDICT.refuted || (resolution.verdict === VERDICT.unknown && next === undefined))
+		return actionNotOK(`\`${line}\` can't reach ${goal}: ${unmetOf(resolution)}`);
 	if (next === undefined) return actionOKWithProducts(ChainWalkSchema.parse({ walk, goal, status: WALK_STATUS.ended, needs: [], factIds }));
 	const method = stepMethodName(next.stepperName, next.stepName);
 	const needs = [...scope.ctx.registry.named(method).paramDomainKeys.keys()];
@@ -217,7 +218,7 @@ async function snapshotOf(scope: TGoalScope, asOf: readonly number[] | undefined
 	const isReference = (domain: string) => world.domains[domain] !== undefined && refTargetOf(world.domains[domain], world.domains) !== undefined;
 	const goals = [...new Set(signatures.flatMap((one) => one.outputDomains))].filter((domain) => !isReference(domain));
 	const goalsOf = (await resolutions(scope, goals, facts)).flatMap((resolution) => {
-		if (resolution.unmet === undefined && isTrivial(resolution.plans)) return [];
+		if (resolution.verdict !== VERDICT.refuted && isTrivial(resolution.plans)) return [];
 		const domain = world.domains[resolution.goal];
 		const description = domain?.description ?? domain?.schema.description;
 		if (description === undefined)

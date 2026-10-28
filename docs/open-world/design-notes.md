@@ -116,7 +116,7 @@ Actuality's records of a run are one named graph. A check is scoped negation ove
 | a persisted type, `subClassOf`, a link relation | `owl:Class`, `rdfs:subClassOf`, `owl:ObjectProperty` with union domain and range |
 | `is the same as` | `owl:sameAs` |
 | `absent {goal}` | a stated falsity; N3 `t:falsity`, or `owl:NegativePropertyAssertion` |
-| waypoint (head ⇐ proof, activity) | N3 backward rule `{head} <= {proof}`. A proof's step call is the built-in `h:call` and a read is `h:read`, both yielding modules/logic's effects |
+| a waypoint's proof (the waypoint's head, activity, library and record stay haibun's) | N3 backward rule `{head} <= {proof}`. A proof's step call is the built-in `h:call` and a read is `h:read`, both yielding modules/logic's effects |
 | `resolve`, `pursue`, `walk toward`, affordances | N3 backward rules over producer signatures. A missing proof is `unknown` |
 | chain lint | N3 scoped negation over the step-graph formula |
 | `every … observed`, `some … observed`, `not`, `where`, `whenever`, `until` | stay in `haibun.pl` as the proof of a line over actuality; already exported as N3 with scoped negation |
@@ -170,7 +170,7 @@ Each stage keeps both repos' suites green and is one commit pair. Line counts ar
 | 3 | The OWL export of the ontology records: union domain and range, `@type` as superclass, typed blank expressions. Served beside `@context`, and read by `show ontology` | 0 | 90 |
 | 4 | Capabilities: the alignment axioms and containment rules as an N3 library of `@haibun/core`. The gate's `capabilityAllows`, `actionUnder` and `narrowing` return through it, and a refusal returns the witness. Pages send the query to the instance rather than loading EYE, so bundle budgets don't grow | 110 | 70 (N3) + 40 |
 | 5 | Goals and affordances as N3 backward rules over producer signatures; `resolve`, `pursue`, `walk toward` and affordances read them | 55 (Prolog, `haibun.pl:208-262`) + 90 (`goals.ts`, `derivations/goals.ts`) | 60 (N3) + 50 |
-| 6 | Waypoints as N3 backward rules with `h:call`; `absent` as a stated falsity; `is the same as` as `owl:sameAs`; the chain lint as scoped negation over the step-graph formula. Removes `applied`, `stated`, `plan` and `lint` from `haibun.pl`, and `canonicalOf` | 120 (Prolog) + 70 | 70 (N3) + 40 |
+| 6 | Waypoints' proofs as N3 backward rules with `h:call`; `absent` as a stated falsity; `is the same as` as `owl:sameAs`; the chain lint as scoped negation over the step-graph formula. Removes `applied`, `stated`, `plan` and `lint` from `haibun.pl`, and `canonicalOf` | 120 (Prolog) + 70 | 70 (N3) + 40 |
 | 7 | The DL view (section 5) replaces the TPTP projection | 840 | 290 |
 | 8 | Removes `docs/planning/fol-in-haibun.md`, `formula.test.ts` and `term-graph.test.ts` (238 test lines), and the `rule {formula}` step | 12 | 0 |
 

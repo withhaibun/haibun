@@ -222,9 +222,9 @@
 				"tookMs": 600,
 				"digest": {
 					"mcp-server": "6c710ec3b9f627f32df0a59fb03960978e4eae1e54af532c3183aad1cbe2d155",
-					"modules/core/src": "3bc719e1c58212c98ce1591e764051dc572a5e33d441a5fd62fdefbe0616efb3",
+					"modules/core/src": "40cbbf9dc8a436566e0528781e58299c207d621400d84761d02fe918a8eb4015",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
-					"modules/logic/src": "fc725173a2939cc4879f0a08b9c6dc928def20d52c377d8fb9677a7bc7a12c2a",
+					"modules/logic/src": "cfb3512672f9769f3fb2aaaa37cfa988ef1039672bbf4d84de8ff70f0b875ce5",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/web-playwright/src": "183837582c6745581f805bc27a237802cbe289e8d03346c3f4542012f75925be",

@@ -62,6 +62,22 @@ haibun is a readable, declarative language over hypermedia and RDF, open world, 
 - The ontology export lists every type declaring a relation as its domain; in OWL several domain axioms mean intersection, so export them as `owl:unionOf`. A class's declared `@type` IRI is its superclass (several classes share one IRI).
 - `not` (renamed `didn't`) of an `unknown` is `unknown`.
 
+## Glossary
+Approved by the operator; stage 7 applies the renames as part of its rewrite. Each term has one meaning in haibun, and the standard's term is used where one exists.
+- **waypoint**: a named outcome in readable domain prose, its head, that a feature or a person states. Its proof proves it, evaluated as an N3 backward rule over claims from stage 7; its activity establishes it where the proof doesn't hold. A module publishes its waypoints in its `waypoints` library, and the step input offers them. The head, the activity, `ensure`'s check and establish, the library and the waypoint's record in actuality stay haibun's.
+- **goal**: what `ensure {goal}` holds: a waypoint's head, stated as a statement, or a domain goal, stated as a quoted domain key (automated planning's goal). A domain goal holds by a fact of its domain, a product of a step, and producer rules state the steps that return it.
+- **producer rule**: a step's signature read as a rule: a fact of the domain it returns holds where facts of the domains it takes hold and the step is performed (STRIPS: an action's preconditions and effect). Separate from a waypoint.
+- **ensure {goal}**: proves the goal, and where it doesn't hold, establishes it: a waypoint's activity, or a domain goal's plan, then proves it again. `pursue` is removed into it.
+- **plan {goal}** (was `walk toward`): writes a plan record, the steps that would make a domain goal hold, naming the next step (PDDL's plan). `planOf` and `TPlan` already mean this. Other uses of the word: `queryExplain` (was `queryPlan`, a SQL query plan) and `TProposedTurn` (was `TPlannedTurn`, a model's proposed lines) are renamed; this file and the application's `docs/planning/` are project plans, which are prose.
+- **advance plan {plan} with {args}** (was `advance the walk`): performs a plan's next step with the values a person supplies. The domains are `plan-id` and `plan-progress`, the graph `PLAN_GRAPH`, and the type `TPlanProgress`.
+- **applicable steps** (was "affordances on offer"): the steps the caller may call whose inputs the facts hold (automated planning's applicable actions); `show applicable steps`, domain `applicable-steps`.
+- **claim**: a statement the reasoner proves over the ontology and the records, open world: `individual … is a …`, `every … is a …`, `some …`. One the records don't prove is unknown.
+- **containment**: a permission's place within its bound, as ODRL 2.2 reads a ZCAP-LD capability: each action, the target and the expiry within the bound's. Its witness is what exceeds.
+- **urakata**: a background task the instance runs (Japanese: the crew behind the stage).
+- **kireji**: the builder that writes features as code (Japanese: the cutting word of a haiku).
+- **taiwa**: a conversation between people and a model, as an actuality (Japanese: dialogue).
+- **shu**: haibun's page: the hypermedia app that shows an actuality and calls its steps.
+
 ## Stages
 Both engines run side by side on the same runtime until stage 7 removes the Prolog knowledge path. Stage 5 is an application's, and its plan holds it. Each stage reports steps and special cases removed, net source lines, and the feature lines whose meaning changed.
 
@@ -70,7 +86,7 @@ Both engines run side by side on the same runtime until stage 7 removes the Prol
 3. Claim forms and the class-expression domain with refusals, name and direction checks, completion and plain-English reading; rule test for positive safety checks.
 4. Typed refusals in the ontology; `not` renamed `didn't` everywhere (37 lines plus docs); expected errors moved to claims where the refusal is typed.
 6. Capabilities and delegation as ODRL claims (attenuation, boundary containment, `holding capability`, `capabilityAllows`), then the remaining knowledge lines (about 70) and knowledge sites (8) moved to claims. Graph reads' own filters replaced by class expressions.
-7. Waypoints as N3 rules, one library at a time (core, logic, shu); then the Prolog knowledge path removed (goals, waypoint rules, falsity, sameAs, chain lint), `haibun.pl` reduced to the closed proof of a line (about 341 → 150 lines), `fol-in-haibun.md` removed; docs and architecture.md updated.
+7. Waypoints' proofs as N3 rules, one library at a time (core, logic, shu), and domain goals over producer rules as N3 rules, with sites #9, #10, #11 and #14; then the Prolog knowledge path removed (goals, waypoint proofs, falsity, sameAs, chain lint), `haibun.pl` reduced to the closed proof of a line (about 341 → 150 lines), `fol-in-haibun.md` removed; docs and architecture.md updated.
 Estimated total: about −1,300 / +880 source lines.
 
 ## Later
@@ -114,10 +130,10 @@ Estimated total: about −1,300 / +880 source lines.
   - logic `derivations/containment.ts` states ODRL 2.2's reading of a ZCAP-LD capability: the alignment axioms (`sec:invocationTarget` is `odrl:target`, `sec:allowedAction` is `odrl:action`, `sec:controller` is `odrl:assignee`, the parent's controller is the assigner, `sec:expires` is a constraint on the dateTime), the action grammar with the read levels from core's access order, target containment, and containment with its witness: each action, target and expiry the bound doesn't allow. `pipelines/containment.ts` proves it, and the prover's `exceeding` port returns it to core.
   - `holding capability` refuses a use outside the capability's target or after its expiry, naming the witness. `holding only` holds each listed action its caller's actions contain.
   - Feature lines whose meaning changed: requirements 02's stand-in capabilities state their target. New: requirements 02, "A presented capability covers only its target, until it expires".
-  - Second part, the open-world knowledge sites. Decided by the operator: the narrower reading. Goals, affordances, `ensure`, `pursue` and `walk toward` are the waypoint mechanism, and move to N3 backward rules with stage 7's waypoints as rules, so the goal path is written once.
+  - Second part, the open-world knowledge sites. Decided by the operator: the narrower reading. Goals, affordances, `ensure`, `pursue` and `walk toward` read waypoints' proofs and domain goals, whose reasoning moves to N3 in stage 7, so the goal path is written once.
     - `not` of an unknown statement is unknown (`naf(unknown, unknown)`): a refused call, a goal without a fact and a claim the records don't prove each stay unknown under `didn't`. `maybe`'s products hold its statement's verdict with why it didn't hold, so a feature states an expected refusal through `set … from maybe …` and its `verdict`, `refusal` or `lacksAction`.
-    - A goal is proved by a fact of its domain and unknown without one (design notes #10, #14): `resolve`, `pursue` and `walk toward` end unknown for a goal without a fact or a plan, with the chain to the first unmet sub-goal. A domain a caller supplies is stated by the rule `supplied_by_caller/2` in place of a default (#11). Every Property states `inData` at derivation, and a read refuses one that doesn't (#18).
+    - Every Property states `inData` at derivation, and a read refuses one that doesn't (design notes #18). Decided by the operator: sites #9, #10, #11 and #14 are in the Prolog goal path, so their open-world behaviour is set once, in stage 7's N3 rewrite of the goal path; the change to them made here was taken back.
     - The claims `individual … is a …`, `every … is a …` and `some …` end unknown where the records don't prove them, as they stated.
-    - Feature lines whose result moved from refuted to unknown: shu-self-test "`resolve` leaves unknown a registered domain that a step doesn't return"; requirements 16 `every SeqPath is a Comment`; requirements 03 `ensure Supper is served` and `ensure It is set`. Lines that negated an unknown statement and now state it through `maybe`: capability identity-and-capability 26, requirements 02 (four lines), requirements 14 15, tests recurse.feature, and in the application, eight lines over refused calls.
+    - Feature lines whose result moved from refuted to unknown: requirements 16 `every SeqPath is a Comment`; requirements 03 `ensure Supper is served` and `ensure It is set`. Lines that negated an unknown statement and now state it through `maybe`: capability identity-and-capability 26, requirements 02 (four lines), requirements 14 15, tests recurse.feature, and in the application, seven lines over refused calls.
     - Knowledge lines: the `resolve` and `absent` lines read goals over step products and a waypoint's stated falsity, which are the waypoint mechanism, and a claim over a class doesn't state the same thing, so they stay for stage 7 with `pursue`, `walk toward`, the affordances, `ensure` and `didn't ensure`. The `every` and `some x in D` lines range over declared closed sets and stay closed.
-- [ ] 7 Waypoints as rules, Prolog knowledge path removed
+- [ ] 7 Waypoints' proofs and domain goals as N3 rules, Prolog knowledge path removed
