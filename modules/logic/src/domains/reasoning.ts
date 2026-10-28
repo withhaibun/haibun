@@ -22,7 +22,8 @@ export type TReasonerRead = z.infer<typeof ReasonerReadSchema>;
 /** How a session step ended: the effect it needs, or the N3 text of what the query derived. */
 export type TReasonerState = TReasonerRead | { derived: string };
 /** A triple of derived N3, each term as N3 writes it: an IRI in angle brackets, a quoted literal, a number or a boolean. */
-export type TTriple = { subject: string; predicate: string; object: string };
+export const TripleSchema = z.object({ subject: z.string(), predicate: z.string(), object: z.string() });
+export type TTriple = z.infer<typeof TripleSchema>;
 /** What a reasoning reads: its N3 rules and facts, the query that selects what it returns, and the types whose complete graphs
  *  its rules close over. */
 export type TReasoning = { rules: string; query: string; closedOver: readonly string[] };
@@ -31,9 +32,18 @@ export type TOpenGraph = { graph: string; accessLevel: AccessLevel };
 /** A step of a proof: what it gives, as the triples of its formula, and how. An inference rests on the steps its evidence
  *  names and applies its rule; an extraction reads its formula from a source. A rule's formula isn't a triple, so a step
  *  that gives a rule gives an empty list of triples. */
-export type TProofStep = { step: string; kind: "proof" | "inference" | "extraction"; gives: TTriple[]; evidence: string[]; rule?: string; source?: string };
+export const ProofStepSchema = z.object({
+	step: z.string(),
+	kind: z.enum(["proof", "inference", "extraction"]),
+	gives: z.array(TripleSchema),
+	evidence: z.array(z.string()),
+	rule: z.string().optional(),
+	source: z.string().optional(),
+});
+export type TProofStep = z.infer<typeof ProofStepSchema>;
 /** A proof: what it concludes, and each of its steps by its name. */
-export type TProof = { gives: TTriple[]; steps: TProofStep[] };
+export const ProofSchema = z.object({ gives: z.array(TripleSchema), steps: z.array(ProofStepSchema) });
+export type TProof = z.infer<typeof ProofSchema>;
 /** An explained reasoning: the proof of what its query selects, and the graphs its rules close over that are open to the reader,
  *  so a claim the proof doesn't give is unknown because of them. */
 export type TExplained = { proof: TProof; open: TOpenGraph[] };
