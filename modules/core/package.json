@@ -100,7 +100,7 @@
 	},
 	"devDependencies": {
 		"@rdfjs/types": "2.0.1",
-		"@types/markdown-it": "^14.1.2",
+		"@types/markdown-it": "^14.2.0",
 		"@types/n3": "1.26.4"
 	}
 }

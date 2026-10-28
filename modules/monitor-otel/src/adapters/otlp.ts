@@ -16,7 +16,7 @@ export function otlpProviders(endpoint: string, serviceName: string): TOtelProvi
 	const resource = resourceFromAttributes({ [ATTR_SERVICE_NAME]: serviceName, [ATTR_SERVICE_VERSION]: "1.0.0" });
 	const tracerProvider = new NodeTracerProvider({ resource, spanProcessors: [new SimpleSpanProcessor(new OTLPTraceExporter({ url: `${endpoint}/v1/traces` }))] });
 	tracerProvider.register();
-	const loggerProvider = new LoggerProvider({ resource, processors: [new BatchLogRecordProcessor(new OTLPLogExporter({ url: `${endpoint}/v1/logs` }))] });
+	const loggerProvider = new LoggerProvider({ resource, processors: [new BatchLogRecordProcessor({ exporter: new OTLPLogExporter({ url: `${endpoint}/v1/logs` }) })] });
 	logs.setGlobalLoggerProvider(loggerProvider);
 	return { tracerProvider, loggerProvider };
 }
