@@ -838,7 +838,7 @@ export const PROSE_RULES: readonly TProseRule[] = [
 	{
 		id: "banned-word",
 		pattern:
-			/\b(?:honest|honestly|honesty|dishonest|dishonestly|dishonesty|being\s+straight|altitude|fold|folds|folded|folding|seams?|blast\s+radius|bake|bakes|baked|baking|load-bearing|earn|earns|earned|earning|pay\s+for|pays|paid|paying|costs?|armed)\b/gi,
+			/\b(?:honest|honestly|honesty|dishonest|dishonestly|dishonesty|being\s+straight|altitude|fold|folds|folded|folding|seams?|blast\s+radius|bake|bakes|baked|baking|load-bearing|earn|earns|earned|earning|pay\s+for|pays|paid|paying|costs?|armed|mint|mints|minted|minting)\b/gi,
 		instead: "Write the plain technical term for the operation or the quantity.",
 		allows: insideQuote,
 	},

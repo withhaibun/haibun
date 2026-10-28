@@ -6,16 +6,14 @@ import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { recordOfIri } from "@haibun/core/lib/records/derivations/record-iri.js";
 
 /** One individual as the quads that state it. Exported so what a page holds a window of records by is one write of the
- *  same quads a single upsert would have written. A record's identity is the id its record IRI states, else the `id` it
- *  states: the page holds what a site serves and what a site records, and both name themselves. The page's graph names it
- *  by its record IRI again where it reads it. */
+ *  same quads a single upsert would have written. A record's identity is the id its served `@id` states, read back through
+ *  recordOfIri, else the `id` it states: the page holds what a site serves and what a site records, and both are one record.
+ *  The served `@id` is held with the record, and a read states it again; the page doesn't derive an `@id`. */
 export function individualAsQuads(label: string, individual: Record<string, unknown>): [string, TQuad[]] {
 	const named = recordOfIri(individual["@id"]);
 	const id = named === undefined ? individual.id : named.id;
 	if (typeof id !== "string") throw new Error(`this individual doesn't state an identity to hold it by (got ${JSON.stringify(individual["@id"] ?? individual.id)}).`);
-	const quads = Object.entries(individual)
-		.filter(([predicate]) => predicate !== "@id")
-		.map(([predicate, object]) => ({ subject: id, predicate, object, namedGraph: label, timestamp: Date.now() }));
+	const quads = Object.entries(individual).map(([predicate, object]) => ({ subject: id, predicate, object, namedGraph: label, timestamp: Date.now() }));
 	return [id, quads];
 }
 

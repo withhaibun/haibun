@@ -15,10 +15,10 @@ import { deviceDatabase } from "../adapters/device-store.js";
 import { CACHE_SHAPE, DEVICE_STORES, META_KEY } from "../ports.js";
 import { GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
 import { equalTo, readEvery, recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
-import { declaredTypes, heldRecordIri } from "@haibun/core/lib/test/declared-types.js";
+import { heldRecordIri, servedTypes } from "@haibun/core/lib/test/declared-types.js";
 
 /** The types these tests write, declared so the device store reads their records. */
-const declared = () => declaredTypes({ Email: { filters: ["folder"] }, Comment: {}, SeqPath: {} });
+const declared = () => servedTypes({ Email: { filters: ["folder"] }, Comment: {}, SeqPath: {} });
 
 /** The device's graph of the actuality the page reads, reading the types these tests declare. */
 const servedGraph = (): DeviceGraph => new DeviceGraph(deviceQuads(servedDatabase()), declared);

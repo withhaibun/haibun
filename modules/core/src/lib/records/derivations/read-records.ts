@@ -43,10 +43,10 @@ export const READ_RECORDS = "readRecords";
  *  property or edge that titles a record. */
 export type TReadDeclaration = { id: string; surface: TQuerySurface; defaultSort: string; heldBy?: THeldBy; title?: TTitledBy };
 
-/** The declared types a store holds, the relations they declare, and each type's declaration. */
-/** What a store reads by: the types and relations it holds, each type's declaration, and the records' namespace, which names each
- *  record it reads by its record IRI. */
-export type TReadDeclarations = { types: readonly string[]; relations: readonly string[]; records: TRecordNamespace; of(label: string): TReadDeclaration | undefined };
+/** What a store reads by: the types and relations it holds, each type's declaration, and the `@id` a read states for each record
+ *  it holds. An instance states the record IRI it derives from the type's label and the record's id; a page states the `@id`
+ *  the instance served, which it holds with the record. */
+export type TReadDeclarations = { types: readonly string[]; relations: readonly string[]; idOf: (record: THeldRecord) => string; of(label: string): TReadDeclaration | undefined };
 
 /** What a store reads: whether it searches text, the types it holds and the relations it holds. */
 export type TReadReach = { search: boolean; types: readonly string[]; relations: readonly string[] };
@@ -77,7 +77,7 @@ export function readDeclarationsOf(domains: Record<string, TRegisteredDomain>, r
 	const declarations: TReadDeclarations = {
 		types: unique(persisted.map(({ topology }) => topology.persistedAs)),
 		relations: unique(persisted.flatMap(({ topology }) => (topology.edges === undefined ? [] : Object.keys(topology.edges)))),
-		records,
+		idOf: ({ label, id }) => recordIri(records.prefix, label, id),
 		of(label) {
 			if (!derived.has(label)) derived.set(label, declarationOf(label));
 			return derived.get(label);
@@ -87,14 +87,19 @@ export function readDeclarationsOf(domains: Record<string, TRegisteredDomain>, r
 	return declarations;
 }
 
+/** The `@id` a page states for a record it holds: the `@id` the instance served, held with the record, else the record's id
+ *  where the instance didn't serve it. */
+export const servedIdOf = ({ id, fields }: THeldRecord): string => (typeof fields["@id"] === "string" ? fields["@id"] : id);
+
 /** Returns the read declarations of the types a concern catalog lists. The catalog doesn't list the fields a search reads, and
- *  a store that reads by these declarations doesn't search. */
-export function readDeclarationsOfCatalog(catalog: TConcernCatalog, records: TRecordNamespace): TReadDeclarations {
+ *  a store that reads by these declarations doesn't search. A page reads by them: it holds each record with the `@id` the
+ *  instance served, and a read states that `@id`, or the record's id where the page holds a record the instance didn't serve. */
+export function readDeclarationsOfCatalog(catalog: TConcernCatalog): TReadDeclarations {
 	const concerns = Object.values(catalog.persisted);
 	return {
 		types: unique(concerns.map(({ label }) => label)),
 		relations: unique(concerns.flatMap(({ edges }) => Object.keys(edges))),
-		records,
+		idOf: servedIdOf,
 		of(label) {
 			const concern = catalog.persisted[label];
 			if (!concern) return undefined;
@@ -323,7 +328,7 @@ export function readFromRecords(records: readonly THeldRecord[], read: TGraphQue
 	const matched = query.named ? narrowed : narrowed.sort(byOrder(order));
 	const vertexOf = ({ record, via }: TReached): Record<string, unknown> => ({
 		...record.fields,
-		"@id": recordIri(declarations.records.prefix, record.label, record.id),
+		"@id": declarations.idOf(record),
 		"@type": record.label,
 		...(via ? { [VIA_FIELD]: via } : {}),
 	});

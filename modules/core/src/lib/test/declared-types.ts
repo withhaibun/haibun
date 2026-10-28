@@ -7,7 +7,7 @@ import { QuadStore, newStoreChain } from "../steps/pipelines/quad-store.js";
 import type { TStoreLevels } from "../steps/ports.js";
 import { HAIBUN_RECORD_NAMESPACE, LinkRelations, type TDomainDefinition } from "../domains/resources.js";
 import { mapDefinitionsToDomains } from "../domains/domains.js";
-import { readDeclarationsOf, type TReadDeclarations } from "../records/derivations/read-records.js";
+import { readDeclarationsOf, servedIdOf, type TReadDeclarations } from "../records/derivations/read-records.js";
 import { recordIri } from "../records/derivations/record-iri.js";
 
 /** The fields and relations of one test type, and the field that identifies its records where it isn't `id`. A relation
@@ -15,13 +15,14 @@ import { recordIri } from "../records/derivations/record-iri.js";
 export type TDeclaredType = { id?: string; filters?: readonly string[]; relations?: Record<string, readonly string[]> };
 
 /** Returns read declarations of the types `types` names. Each type's id field is the one it names or `id`, its filters
- *  compare the fields it names, a page of it orders by `generatedAtTime`, and its records are named under haibun's namespace. */
+ *  compare the fields it names, a page of it orders by `generatedAtTime`, and a read states each record's IRI, derived under
+ *  haibun's namespace. */
 export function declaredTypes(types: Record<string, TDeclaredType>): TReadDeclarations {
 	const relations = [...new Set(Object.values(types).flatMap((type) => (type.relations === undefined ? [] : Object.keys(type.relations))))].sort();
 	return {
 		types: Object.keys(types).sort(),
 		relations,
-		records: HAIBUN_RECORD_NAMESPACE,
+		idOf: ({ label, id }) => recordIri(HAIBUN_RECORD_NAMESPACE.prefix, label, id),
 		of(label) {
 			const type = types[label];
 			if (!type) return undefined;
@@ -31,6 +32,10 @@ export function declaredTypes(types: Record<string, TDeclaredType>): TReadDeclar
 		},
 	};
 }
+
+/** Returns read declarations of the types `types` names as a page reads them: a read states the `@id` the instance served,
+ *  which the page holds with the record. */
+export const servedTypes = (types: Record<string, TDeclaredType>): TReadDeclarations => ({ ...declaredTypes(types), idOf: servedIdOf });
 
 /** Returns the record IRI of the record of `label` with `id`, under haibun's namespace. */
 export const heldRecordIri = (label: string, id: string): string => recordIri(HAIBUN_RECORD_NAMESPACE.prefix, label, id);

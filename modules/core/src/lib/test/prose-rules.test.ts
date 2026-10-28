@@ -94,6 +94,10 @@ describe("each rule", () => {
 		expect(rulesOf(violations)).toEqual(Array(24).fill(BANNED_WORD));
 	});
 
+	it("reports each form of `mint`, which names a financial act rather than what the code does", () => {
+		expect(rulesOf(violationsIn(MARKDOWN, "Mint an IRI. It mints one. It minted one. Minting one."))).toEqual(Array(4).fill(BANNED_WORD));
+	});
+
 	it("reports `honesty`, `dishonest` and the forms of `pay for`", () => {
 		expect(rulesOf(violationsIn(MARKDOWN, "The honesty of it. A dishonest step. The renderer pays it. It paid. A call doesn't pay for it."))).toEqual(Array(5).fill(BANNED_WORD));
 	});

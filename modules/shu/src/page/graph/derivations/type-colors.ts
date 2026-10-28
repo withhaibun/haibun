@@ -21,7 +21,7 @@ const TYPE_PALETTE: readonly [string, ...string[]] = [
 	"#cdb4db", // lavender
 	"#bde0fe", // sky
 	"#ffd6a5", // peach
-	"#80ed99", // mint
+	"#80ed99",
 	"#ff9b85", // salmon
 	"#a3c4f3", // periwinkle
 	"#fff3b0", // straw

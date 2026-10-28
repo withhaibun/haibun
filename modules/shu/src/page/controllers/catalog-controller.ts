@@ -5,7 +5,6 @@
  */
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import type { TConcernCatalog, TTitledBy } from "@haibun/core/lib/domains/hypermedia.js";
-import type { TRecordNamespace } from "@haibun/core/lib/domains/resources.js";
 import { pageRegistry, selectValues } from "../root.js";
 import * as Catalog from "../derivations/catalog.js";
 import { modelType } from "../ask/derivations/ask-steps.js";
@@ -36,9 +35,6 @@ export const conversationModelType = (): string | undefined => modelType(getConc
 
 /** Returns the concern catalog the page holds. */
 export const getConcernCatalog = (): TConcernCatalog => heldSteps(pageRegistry(), "the concern catalog").concerns;
-
-/** Returns the namespace of the site's records, which names each record the page reads by its record IRI. */
-export const getRecordNamespace = (): TRecordNamespace => heldSteps(pageRegistry(), "the records' namespace").records;
 
 /** Returns a type's fields by relation, or undefined where the catalog doesn't declare the type. */
 export const getRels = (label: string): Record<string, string> | undefined => catalog(`the fields of ${label}`).rels[label];

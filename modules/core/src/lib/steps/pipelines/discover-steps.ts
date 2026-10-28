@@ -49,7 +49,6 @@ type TDeclarations = {
 	summaryDomains: TStepSummaries["domains"];
 	definitionDomains: TStepDefinitions["domains"];
 	concerns: TStepDefinitions["concerns"];
-	records: TStepDefinitions["records"];
 	predicates: TStepDefinitions["predicates"];
 };
 
@@ -66,8 +65,7 @@ const declaredDomainEntries = (domains: Readonly<Record<string, TRegisteredDomai
 function declarationsOf(world: TWorld, registry: StepRegistry): TDeclarations {
 	const domains = declaredDomainEntries(world.domains);
 	const held = heldDeclarations.get(registry);
-	if (held !== undefined && held.version === registry.version && sameEntries(held.domains, domains) && held.declarations.records === world.runtime.records)
-		return held.declarations;
+	if (held !== undefined && held.version === registry.version && sameEntries(held.domains, domains)) return held.declarations;
 	const steps = registry.descriptors();
 	const entries = Object.entries(world.domains);
 	const { persisted, references } = concernCatalogOf(world.domains);
@@ -77,7 +75,6 @@ function declarationsOf(world: TWorld, registry: StepRegistry): TDeclarations {
 		summaryDomains: Object.fromEntries(entries.map(([key, { description }]) => [key, domainSummary(key, description)])),
 		definitionDomains: Object.fromEntries(entries.map(([key, domain]) => [key, domainDiscoveryInfo(key, domain)])),
 		concerns: { persisted, references },
-		records: world.runtime.records,
 		// A step another host runs proves that host's predicates.
 		predicates: predicatesOf(
 			steps.flatMap(({ method, stepperName, stepName }) => {
@@ -108,17 +105,9 @@ export function stepSummaries(world: TWorld, registry: StepRegistry, held: strin
 /** The definitions of every step actuality declares, each with whether a caller holding `held` may call it, with the steppers
  *  of the steps, every domain, the concern catalog and the registry's predicates, as a counted list of steps. */
 export function stepDefinitions(world: TWorld, registry: StepRegistry, held: string | string[] | undefined): TStepDefinitions {
-	const { steps, steppers, definitionDomains, concerns, records, predicates } = declarationsOf(world, registry);
+	const { steps, steppers, definitionDomains, concerns, predicates } = declarationsOf(world, registry);
 	const callable = callableTo(steps, held);
-	return {
-		steppers,
-		steps: steps.map((step, at) => stepDefinition(step, callable[at] === true)),
-		domains: definitionDomains,
-		concerns,
-		records,
-		predicates,
-		...counted(steps.length),
-	};
+	return { steppers, steps: steps.map((step, at) => stepDefinition(step, callable[at] === true)), domains: definitionDomains, concerns, predicates, ...counted(steps.length) };
 }
 
 /** The fields of a listed step that name what it names: its method, its pattern, and, at the definition detail, the domain

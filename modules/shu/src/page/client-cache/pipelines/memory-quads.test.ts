@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { Access, AccessQuery, type AccessLevel } from "@haibun/core/lib/domains/resources.js";
-import { declaredTypes } from "@haibun/core/lib/test/declared-types.js";
+import { servedTypes } from "@haibun/core/lib/test/declared-types.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { GRAPH_BOUND } from "../ports.js";
 import { DeviceGraph } from "./device-graph.js";
@@ -20,7 +20,7 @@ const fact = (subject: string, predicate: string, object: unknown, accessLevel: 
 	accessLevel,
 });
 const graphOf = async (quads: TQuad[]) => {
-	const graph = new DeviceGraph(new MemoryQuads("carried", GRAPH_BOUND), () => declaredTypes({ Email: { relations: { inReplyTo: ["Email"] } } }));
+	const graph = new DeviceGraph(new MemoryQuads("carried", GRAPH_BOUND), () => servedTypes({ Email: { relations: { inReplyTo: ["Email"] } } }));
 	await graph.setMany(quads);
 	return graph;
 };
