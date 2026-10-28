@@ -16,7 +16,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "Until fails when its statements don't pass within the duration" }),
 		"Essential. Source: haibun-stepper.ts:208.",
-		'not until variable ready is "never" within 300ms',
+		'didn\'t until variable ready is "never" within 300ms',
 
 		scenario({ scenario: "Two callers' proofs interleave at each call" }),
 		"Essential, for RPC, MCP and a page during a service feature. Source: docs/reasoner.md, q8-replay.",

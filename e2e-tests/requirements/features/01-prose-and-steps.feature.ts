@@ -20,7 +20,7 @@ export const features: TKirejiExport = {
 		'set who to "Ada"',
 		'set {who} greeted to "yes"',
 		'variable Ada greeted is "yes"',
-		"not variable greeting is unsetTerm",
+		"didn't variable greeting is unsetTerm",
 
 		scenario({ scenario: "Every surface validates a line against the same steps" }),
 		"Essential, for the LSP, the page and a model. Source: haibun-stepper.ts:165 and step-validation.ts.",

@@ -145,7 +145,7 @@ export function downstreamNameFindings(
  *  The open world doesn't prove absence, so such a check passes where a fact is missing. */
 const ABSENCE_CHECKS: readonly TWordFinding[] = [
 	{ pattern: /\b(?:exactly|at most) 0,?\s+individuals of\b/gi, finding: "states a safety check as an absence of a class expression's members" },
-	{ pattern: /\bnot individual \S+ is a\b/gi, finding: "states a safety check as a negated membership" },
+	{ pattern: /\bdidn't individual \S+ is a\b/gi, finding: "states a safety check as a negated membership" },
 ];
 
 /** Each safety check over a class expression stated as an absence, in the files under the roots. A check proves containment instead. */

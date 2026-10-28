@@ -21,7 +21,7 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "A statement holds less than its caller, and never more" }),
 		"Essential, for every surface. A step that reads a variable needs a read action besides its own. Source: authority-stepper.ts:127 and capability-context.ts:160.",
 		'holding only "VariablesStepper:set,Read:private", set narrowed to "yes"',
-		'not holding only "VariablesStepper:set,Read:private", variable narrowed is "yes"',
+		'didn\'t holding only "VariablesStepper:set,Read:private", variable narrowed is "yes"',
 
 		scenario({ scenario: "A signed call holds only what its proof grants, and a refusal names the action to request" }),
 		"Essential, for RPC and MCP. Source: gate.ts:153 and identity-and-capability.feature.ts.",
@@ -36,14 +36,14 @@ export const features: TKirejiExport = {
 		'accept authority from "ranger" for "VariablesStepper:set,Read:private"',
 		`holding capability ${CAPABILITY} ${AT}, set presented to "yes"`,
 		'variable presented is "yes"',
-		`not holding capability ${CAPABILITY} ${AT}, variable presented is "yes"`,
+		`didn't holding capability ${CAPABILITY} ${AT}, variable presented is "yes"`,
 
 		scenario({ scenario: "A capability presented inside another parses one way and holds only what it delegates" }),
 		"Essential, for a page that presents a capability within a statement another capability allows. Each quoted term ends at its own closing quote, so the outer target doesn't take the inner capability. Source: named-vars.ts, quotedGroup.",
 		'accept authority from "ranger" for "AuthorityStepper:holdingCapability,VariablesStepper:set,Read:private"',
 		`holding capability ${NESTING} ${AT}, holding capability ${SETS_ONLY} ${AT}, set nested to "yes"`,
 		'variable nested is "yes"',
-		`not holding capability ${NESTING} ${AT}, holding capability ${SETS_ONLY} ${AT}, variable nested is "yes"`,
+		`didn't holding capability ${NESTING} ${AT}, holding capability ${SETS_ONLY} ${AT}, variable nested is "yes"`,
 
 		scenario({ scenario: "A source read above the held capability is refused with the read to request" }),
 		"Essential, for every surface. A quantifier reads its observation source under what its statement holds, and a statement that doesn't hold a read action doesn't read records. Source: prove.ts, members, and capability-context.ts, WITHOUT_READ.",

@@ -42,7 +42,7 @@ A step's line determines its logical role:
 | `dinner is "ready"`, `fact …`               | fact query                                      |
 | `ensure …`, `resolve …`                     | goal-directed proof search                      |
 | `every {x} in D is …`, `some {x} in D is …` | quantification                                  |
-| `not …`, `where …`, `any of …`              | connective                                      |
+| `didn't …`, `where …`, `any of …`           | connective                                      |
 | navigate, sign, fetch, ingest, click        | outside-world action; results enter as facts    |
 | capital-letter sentence ending in `.`       | narrative prose, dispatched as a no-op          |
 
@@ -125,7 +125,7 @@ The show steps step (`Haibun-showSteps`) returns the steps and domains that matc
 
 ## Negation, equality, functions
 
-`not {statement}` is negation as failure. The negation succeeds when the statement can't be proved.
+`didn't {statement}` is negation as failure. The negation succeeds when the statement can't be proved.
 
 `absent {statement}` is the closed-world counterpart. It is an authored assertion that the statement is false. It separates the case where a proof doesn't exist from the case where a proof of falsity exists.
 
@@ -146,7 +146,7 @@ A function declaration `function {name}({parts}) → D` registers a domain-typed
 
   assert {subject} {predicate} {value}
   {subject} {predicate} {value}                       (query form)
-✓ not {statement}
+✓ didn't {statement}
   absent {statement}
   {a} is the same as {b}
 

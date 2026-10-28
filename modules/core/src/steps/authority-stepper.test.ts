@@ -60,12 +60,12 @@ describe("holding only", () => {
 	});
 
 	it("refuses a step whose action the statement doesn't list, though its caller holds it", async () => {
-		expect(await holds(`not holding only "Ping:other", protected ping`)).toBe(true);
+		expect(await holds(`didn't holding only "Ping:other", protected ping`)).toBe(true);
 		expect(await holds(`holding only "Ping:other", protected ping`), "the refusal fails the statement").toBe(false);
 	});
 
 	it("never widens: a statement inside a narrower one holds only what both list", async () => {
-		expect(await holds(`not holding only "Ping:other", holding only "Ping:protected", protected ping`)).toBe(true);
+		expect(await holds(`didn't holding only "Ping:other", holding only "Ping:protected", protected ping`)).toBe(true);
 	});
 });
 

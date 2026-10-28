@@ -14,7 +14,7 @@ export const features: TKirejiExport = {
 		'set plan from resolve "var-snapshot"',
 		'variable plan.verdict is "unknown"',
 		"Pursuing the goal refuses its plan, which takes a value from the caller.",
-		'not pursue "var-snapshot"',
+		'didn\'t pursue "var-snapshot"',
 
 		scenario({ scenario: "A walk calls one step at a time with what a person supplies" }),
 		"Essential. Source: pipelines/goals.ts, walkBegun and walkAdvanced.",

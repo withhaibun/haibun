@@ -19,7 +19,7 @@ export const features: TKirejiExport = {
     The first check requires the obscured marker. The marker shows that the report holds an obscured secret. The next check alone would also pass on a report that didn't hold a secret.
     text at "/tmp/shu-audit.html" contains "${OBSCURED_VALUE}"
     The output must not hold the raw secret value.
-    not text at "/tmp/shu-audit.html" contains "${SECRETS.TEST_PASSWORD}"
+    didn't text at "/tmp/shu-audit.html" contains "${SECRETS.TEST_PASSWORD}"
     `,
 	],
 };

@@ -7,7 +7,7 @@ Scenario: Check against URI xss exploit
     webserver is listening for "xss"
     accept next dialog to "clicked"
     go to the xss webpage
-    not variable clicked.message exists
+    didn't variable clicked.message exists
 
     compose exploit with {xss}?;alert('hi')
     go to the exploit webpage

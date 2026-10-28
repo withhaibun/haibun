@@ -12,7 +12,7 @@ click "description" by placeholder
 
 The test navigates to the webpage, where the automated accessibility evaluation will take place.
 
-not page is accessible accepting serious 0 and moderate 0
+didn't page is accessible accepting serious 0 and moderate 0
 
 The settings allow for this number of issues without failing the test. The test should pass because the axe tool identified nine or fewer serious accessibility issues.
 

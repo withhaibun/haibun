@@ -33,5 +33,5 @@ A new feature restores the variables to their values before the first scenario. 
 
 variable outsideVariable is "outsideValue"
 variable featureVariable is "f1value"
-not variable scenarioVariable exists
+didn't variable scenarioVariable exists
 

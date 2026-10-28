@@ -11,9 +11,10 @@ import { FACT_FIELD } from "../domains/facts.js";
 /** One product of a step: its domain, its value, the field of the product where the step declares a domain for each field, and when it was produced. */
 export type TProduct = { domain: string; value: unknown; field?: string; generatedAtTime: string };
 
-/** Writes the fact of one product of a step, and the fact's edge to the step's record. Returns the fact's id. */
-export async function assertFact(store: Pick<IQuadStore, "upsertIndividual" | "createEdge">, step: TRecordName, product: TProduct): Promise<string> {
-	if (!store.createEdge) throw new Error(`the store doesn't write edges, so a fact can't link the step ${formatRecordName(step)} that produced it`);
+/** Writes the fact of one product of a step, and the fact's edge to the step's record. The edge is written as a reference,
+ *  since a step's caller may not hold a read action, and the fact is actuality's record of the step. Returns the fact's id. */
+export async function assertFact(store: Pick<IQuadStore, "upsertIndividual" | "referenceEdge">, step: TRecordName, product: TProduct): Promise<string> {
+	if (!store.referenceEdge) throw new Error(`the store doesn't write edges, so a fact can't link the step ${formatRecordName(step)} that produced it`);
 	const id = factIdOf(step, product.field);
 	await store.upsertIndividual(FACT_LABEL, {
 		[FACT_FIELD.id]: id,
@@ -21,6 +22,6 @@ export async function assertFact(store: Pick<IQuadStore, "upsertIndividual" | "c
 		[FACT_FIELD.value]: product.value,
 		[FACT_FIELD.generatedAtTime]: product.generatedAtTime,
 	});
-	await store.createEdge(FACT_LABEL, id, EDGE.wasGeneratedBy, SEQ_PATH_LABEL, formatRecordName(step));
+	await store.referenceEdge(FACT_LABEL, id, EDGE.wasGeneratedBy, SEQ_PATH_LABEL, formatRecordName(step));
 	return id;
 }

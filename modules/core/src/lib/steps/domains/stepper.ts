@@ -226,7 +226,7 @@ type TStepperStepBase = TStepReads & {
  * that declares a reading doesn't hold an action: the engine proves it from its statements.
  */
 export const READING = {
-	not: "not",
+	didnt: "not",
 	where: "where",
 	anyOf: "any_of",
 	maybe: "maybe",

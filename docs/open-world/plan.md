@@ -101,6 +101,12 @@ Estimated total: about −1,300 / +880 source lines.
   - Decided by the operator on question 3: (c), the three claim steps are added. `individual {address} is a {expression}` holds a membership, `every {expression} is a {expression}` a subsumption the ontology entails, with the members that exceed it as the witness where it doesn't, and `some {expression}` an existence, returning the members. Each fails closed: a claim the records don't prove is unknown, which isn't false. `individuals of` stays as the query.
   - Decided by the operator on question 4: the page's bundle doesn't grow. The instance returns the reading and the completions through `validate step`: a domain may state the completions of a term it refuses, and the class expression domain offers each class or property name that begins with the expression's last word.
   - Feature lines whose meaning changed: none. New: requirements 16 states the three claims and a completion; shu's monitor feature states a membership, an existence and a subsumption through a class's declared IRI.
-- [ ] 4 Typed refusals and `didn't`
+- [x] 4 Typed refusals and `didn't`
+  - Net source lines: +49 (+86, −37). Tests: +50. Feature lines changed: 48 here and 51 in the application's features, each a renamed line or a moved claim. Steps removed: 0. Steps added: 0. Special cases removed: the in-memory holding of the products of steps.
+  - `not` is `didn't {statements}` everywhere: the step, its reading, every feature line in both repositories, the executable AGENTS.md, the tests and the docs. The engine's functor stays `not`. The old name doesn't remain.
+  - A refusal is typed: where the gate refused a call for an action its caller doesn't hold, the refusal carries `lacksAction`, and a node carries the remedy of the part that determined its verdict. Two expected errors moved from matching the refusal's text to the typed claim `variable … .lacksAction is …`; an untyped refusal keeps its text.
+  - The products of steps are records of their type held where the steps' records are, retained as instrumentation, and linked to their step by a reference edge, which a caller without a read action writes. A proof of goals reads them as records rather than as quads, so a store that refuses a quad read without a subject holds them (review LR1).
+  - A list of statements is read by one reader, which a comma inside a quoted or backticked term or a JSON value doesn't split (review LD4).
+  - Feature lines whose meaning changed: none. `didn't` states what `not` stated.
 - [ ] 6 Capabilities and knowledge lines
 - [ ] 7 Waypoints as rules, Prolog knowledge path removed

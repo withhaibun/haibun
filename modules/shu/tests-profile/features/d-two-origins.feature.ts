@@ -48,6 +48,6 @@ export const features: TKirejiExport = {
 		`save text from ${IDS.CLIENT_CACHE.ROOT} to atOtherAddress`,
 		"The reader is reading here, and holds this actuality: what is absent is the earlier one, not the view.",
 		'matches atOtherAddress with "*What a reader holds is held per address*"',
-		'not matches atOtherAddress with "*An actuality to come back to*"',
+		'didn\'t matches atOtherAddress with "*An actuality to come back to*"',
 	],
 };

@@ -40,7 +40,7 @@ export const features: TKirejiExport = {
 		click({ target: OLDEST_DELETE }),
 		waitFor({ target: IDS.CLIENT_CACHE.DELETED }),
 		`save text from ${IDS.CLIENT_CACHE.HELD} to heldAfter`,
-		'not matches heldAfter with "*An actuality to come back to*"',
+		'didn\'t matches heldAfter with "*An actuality to come back to*"',
 		'matches heldAfter with "*Reading an actuality this device holds*"',
 	],
 };

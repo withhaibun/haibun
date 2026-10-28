@@ -184,14 +184,14 @@ Haibun includes logical constructs for expressing verification rules declarative
 
 ### Negation
 
-`not statement` inverts the result:
+`didn't statement` holds where its statement didn't succeed, over actuality's results, a closed world:
 ```
-not variable status is "Error"
+didn't variable status is "Error"
 ```
 
 Its products hold the failure: the failing step's error text as `refusal`, and that step's `seqPath`. A feature that expects a failure confirms it was the expected error by setting a variable from the negation and matching its refusal:
 ```
-set secondRun from not run all the tests in "once"
+set secondRun from didn't run all the tests in "once"
 matches secondRun.refusal with "*passed against its present dependencies*"
 ```
 
@@ -453,7 +453,7 @@ and its products open the class browser.
 | Haibun | `Backgrounds: name`, `Feature:`, `Scenario:`, `Pending scenario:`, `until statement within duration` |
 | VariablesStepper | `set var to "value"`, `variable var is "value"`, `set of domain is [values]`, `{value} is in {domain}`, `variable var is less than "value"`, `matches {var} with "pattern"`, `increment var` |
 | ActivitiesStepper | `Activity: name`, `waypoint Label with proof`, `ensure outcome`, `for every {x: domain} where body, head`, `after every StepperName, statement` |
-| LogicStepper | `not statement`, `where condition, action`, `maybe statement`, `every x in domain is statement`, `some x in domain is statement`, `absent goal`, `"a" is the same as "b"`, `rule formula`, `resolve goal`, `pursue goal`, `walk toward goal`, `show affordances`, `show chain lint` |
+| LogicStepper | `didn't statement`, `where condition, action`, `maybe statement`, `every x in domain is statement`, `some x in domain is statement`, `absent goal`, `"a" is the same as "b"`, `rule formula`, `resolve goal`, `pursue goal`, `walk toward goal`, `show affordances`, `show chain lint` |
 | DebuggerStepper | `debug step by step`; debugger commands: `step`, `continue`, `retry`, `next`, `fail`; `DEBUG_STEPPERS` names the steppers it pauses before as actuality starts |
 
 ### Web Steppers

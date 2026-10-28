@@ -189,7 +189,7 @@ describe("the records of variables and facts", () => {
 describe("vars between features", () => {
 	it("clears variables between features", async () => {
 		const feature = { path: "/features/test.feature", content: 'set x to "y"' };
-		const anotherFeature = { path: "/features/verify.feature", content: "not variable x exists" };
+		const anotherFeature = { path: "/features/verify.feature", content: "didn't variable x exists" };
 		const res = await passWithDefaults([feature, anotherFeature], steppers);
 
 		expect(res.ok).toBe(true);
@@ -254,7 +254,7 @@ describe("less than comparisons", () => {
 	it("compares numeric variables", async () => {
 		const content = `set counter as number to 5
 variable counter is less than 7
-not variable counter is less than 5
+didn't variable counter is less than 5
 `;
 		const res = await passWithDefaults(content, steppers);
 		expect(res.ok).toBe(true);
@@ -277,7 +277,7 @@ describe("more than comparisons", () => {
 	it("compares numeric variables", async () => {
 		const content = `set counter as number to 5
 variable counter is more than 3
-not variable counter is more than 5`;
+didn't variable counter is more than 5`;
 		const res = await passWithDefaults(content, steppers);
 		expect(res.ok).toBe(true);
 	});
@@ -297,7 +297,7 @@ variable name is more than "Bob"`;
 		const content = `ordered set of phase is ["required" "started" "finished"]
 set point as phase to "started"
 variable point is more than "required"
-not variable point is more than "started"`;
+didn't variable point is more than "started"`;
 		const res = await passWithDefaults(content, steppers);
 		expect(res.ok).toBe(true);
 	});
@@ -314,7 +314,7 @@ variable priority is less than "high"`;
 	it("supports defining magnitude domains for not less than", async () => {
 		const content = `ordered set of priority is ["low" "medium" "high"]
 set priority as priority to "low"
-not variable priority is less than "low"`;
+didn't variable priority is less than "low"`;
 		const res = await passWithDefaults(content, steppers);
 		expect(res.ok).toBe(true);
 	});
@@ -328,14 +328,14 @@ variable priority is more than "low"`;
 	it("supports defining magnitude domains for not more than", async () => {
 		const content = `ordered set of priority is ["low" "medium" "high"]
 set priority as priority to "medium"
-not variable priority is more than "medium"`;
+didn't variable priority is more than "medium"`;
 		const res = await passWithDefaults(content, steppers);
 		expect(res.ok).toBe(true);
 	});
 	it("fails for invalid magnitude comparisons", async () => {
 		const content = `ordered set of priority is ["low" "medium" "high"]
 set priority as priority to "low"
-not variable priority is more than "low"`;
+didn't variable priority is more than "low"`;
 		const res = await passWithDefaults(content, steppers);
 		expect(res.ok).toBe(true);
 	});

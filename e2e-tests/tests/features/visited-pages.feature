@@ -27,5 +27,5 @@ Scenario: All visited pages start with allowed prefix
     set of External patterns as [string]
     set external as External patterns to "https://external.com/*"
     
-    not some page observed in visited pages is some pattern in External patterns is matches {page} with {pattern}
+    didn't some page observed in visited pages is some pattern in External patterns is matches {page} with {pattern}
 

@@ -46,7 +46,7 @@ import { DIFFERENT_BUILDS, EFFECT, type TReadRequest } from "../domains/logic.js
 import { atom, factsTerm, list } from "../derivations/terms.js";
 import type { TLogicEngine } from "../ports.js";
 import { proved } from "./prove.js";
-import { readerOf, writeFacts, type TReader } from "./reads.js";
+import { readerOf, writeFacts } from "./reads.js";
 
 /** What a goal's proof reads: the context whose steps and domains state the rules and whose store holds the facts, the engine,
  *  what the caller holds, and the name of the logic engine's stepper, whose steps a proof calls. */
@@ -54,21 +54,26 @@ export type TGoalScope = { ctx: DispatchContext; engine: TLogicEngine; held: str
 
 const storeOf = ({ ctx }: TGoalScope): IQuadStore => ctx.world.shared.getStore();
 
-/** The facts a reader reads, the latest first, as a read of records orders them. */
-const factsOf = async (reader: TReader): Promise<THeldFact[]> =>
-	(await reader.facts(FACTS_HELD)).map(({ subject, object }) => ({ id: subject, domain: String(object) })).toReversed();
-
-/** Proves each goal over the facts its reader reads, and returns its resolution. */
-async function resolutions(scope: TGoalScope, reader: TReader, goals: readonly string[], facts: readonly THeldFact[]): Promise<TGoalResolution[]> {
+/** Proves each goal over the products of steps `facts` holds, and returns its resolution. */
+async function resolutions(scope: TGoalScope, goals: readonly string[], facts: readonly THeldFact[]): Promise<TGoalResolution[]> {
 	const { steppers, world } = scope.ctx;
 	const signatures = stepSignatures(steppers);
 	const byMethod = new Map(signatures.map((one) => [one.method, one]));
 	const byDomain = Map.groupBy(facts, (fact) => fact.domain);
 	const latest = new Map(facts.toReversed().map((fact) => [fact.domain, fact.id]));
-	const ended = await proved(scope.engine, `goals(${producerRules(signatures, world.domains, scope.held)}, ${list(goals.map(atom))})`, async ({ need, request }) => {
-		if (need !== EFFECT.read) throw new Error(`A proof of goals makes a request besides a read of facts. ${DIFFERENT_BUILDS}`);
+	const ended = await proved(scope.engine, `goals(${producerRules(signatures, world.domains, scope.held)}, ${list(goals.map(atom))})`, ({ need, request }) => {
+		if (need !== EFFECT.read) return Promise.reject(new Error(`A proof of goals makes a request besides a read of facts. ${DIFFERENT_BUILDS}`));
 		const { patterns } = request as TReadRequest;
-		return factsTerm(patterns, await Promise.all(patterns.map(reader.facts)));
+		// A proof of goals reads the products of steps, which the reader read as records, latest first.
+		if (patterns.some((pattern) => pattern.predicate !== FACTS_HELD.predicate || pattern.namedGraph !== FACTS_HELD.namedGraph))
+			return Promise.reject(new Error(`A proof of goals reads a pattern besides the products of steps. ${DIFFERENT_BUILDS}`));
+		const held = facts.toReversed().map(({ id, domain }) => ({ subject: id, predicate: FACTS_HELD.predicate, object: domain, namedGraph: FACTS_HELD.namedGraph }));
+		return Promise.resolve(
+			factsTerm(
+				patterns,
+				patterns.map(() => held),
+			),
+		);
 	});
 	if (!("goals" in ended)) throw new Error(`A proof of goals ended without the proof of each goal. ${DIFFERENT_BUILDS}`);
 	return ended.goals.map((proof) => {
@@ -86,7 +91,7 @@ const unmetOf = ({ goal, unmet }: TGoalResolution): string => (unmet === undefin
 /** Proves a goal over the facts the store holds now. */
 async function resolutionOf(scope: TGoalScope, goal: string): Promise<TGoalResolution> {
 	const reader = readerOf(storeOf(scope));
-	return itemAt(await resolutions(scope, reader, [goal], await factsOf(reader)), 0);
+	return itemAt(await resolutions(scope, [goal], await reader.products()), 0);
 }
 
 /** Proves a step of a plan under the step that calls it, through the path every surface proves a step by, with the input its
@@ -207,12 +212,12 @@ export async function walkAdvanced(scope: TGoalScope, parent: TFeatureStep, walk
 async function snapshotOf(scope: TGoalScope, asOf: readonly number[] | undefined) {
 	const { steppers, world } = scope.ctx;
 	const reader = readerOf(storeOf(scope), asOf);
-	const facts = await factsOf(reader);
+	const facts = await reader.products();
 	const signatures = stepSignatures(steppers);
 	// A reference names a record of its target, so the goal is the target where a step returns it.
 	const isReference = (domain: string) => world.domains[domain] !== undefined && refTargetOf(world.domains[domain], world.domains) !== undefined;
 	const goals = [...new Set(signatures.flatMap((one) => one.outputDomains))].filter((domain) => !isReference(domain));
-	const goalsOf = (await resolutions(scope, reader, goals, facts)).flatMap((resolution) => {
+	const goalsOf = (await resolutions(scope, goals, facts)).flatMap((resolution) => {
 		if (resolution.verdict !== VERDICT.refuted && isTrivial(resolution.plans)) return [];
 		const domain = world.domains[resolution.goal];
 		const description = domain?.description ?? domain?.schema.description;

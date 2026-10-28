@@ -10,4 +10,4 @@ Scenario: Not seeing the text
     go to the page webpage
     wait for "Test Page"
     using timeout of 100ms
-    not wait for "Upload form"
+    didn't wait for "Upload form"

@@ -85,6 +85,30 @@
 			}
 		}
 	},
+	"linux-x64-4x-intel-xeon-processor-2-30ghz": {
+		"2156d8abbf3d7a08": {
+			"filter": "serve-lsp",
+			"actuality": {
+				"text": "vscode-extension/lsp-server",
+				"status": "passed",
+				"tookMs": 0,
+				"digest": {
+					"modules/core/src": "46d0baf5c47d579b3f245b64d16db52dec3df6c1f7a432f9cefd9cbdeda20121",
+					"modules/logic/src": "cad9b3b28ae8a60f2e7e690c81515cba6898e79ee333cc94b38fcf0dddee34e1",
+					"modules/lsp/src": "6877b36b59ae7fa911d8193965639eaa3497a67e797ecee13678fe48557a1407",
+					"vscode-extension/lsp-server": "d551206d22fffaf8f4bff8d8a234b6c2d1d0fb2d3e359df0f107bd9dfe68c45c"
+				}
+			},
+			"features": {
+				"/features/serve-lsp.feature": {
+					"text": "/features/serve-lsp",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				}
+			}
+		}
+	},
 	"linux-x64-4x-intel-xeon-processor-2-80ghz": {
 		"2156d8abbf3d7a08": {
 			"filter": "serve-lsp",

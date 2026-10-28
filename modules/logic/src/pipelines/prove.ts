@@ -13,6 +13,7 @@ import { findFeatureStepsFromStatement } from "@haibun/core/lib/actuality/pipeli
 import { argumentsOf } from "@haibun/core/lib/steps/pipelines/populate-action-args.js";
 import { VERDICT, verdictOf, type TActionResult, type TStepArgs, type TStepResult } from "@haibun/core/lib/domains/protocol.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
+import { refusalCarried, type TRemedy } from "@haibun/core/lib/rpc-wire.js";
 import {
 	hasCycles,
 	READING,
@@ -39,7 +40,7 @@ import {
 	type TNodeRequest,
 	type TReadRequest,
 } from "../domains/logic.js";
-import { quantifierOf, alternativesOf, statementParams, UNTIL_RETRY_MS } from "../domains/readings.js";
+import { quantifierOf, statementList, statementParams, UNTIL_RETRY_MS } from "../domains/readings.js";
 import { atom, factsTerm, list, whyText } from "../derivations/terms.js";
 import type { TLogicEngine } from "../ports.js";
 import { canonicalOf, readerOf } from "./reads.js";
@@ -121,7 +122,7 @@ class Proof {
 			return `${reading}(${this.add({ step })}, ${atom(rule.head)})`;
 		}
 		if (reading === READING.anyOf) {
-			const alternatives = await Promise.all(alternativesOf(writtenTerm(step, "alternatives")).map((text) => this.listOf(this.statementSteps(text, step))));
+			const alternatives = await Promise.all(statementList(writtenTerm(step, "alternatives")).map((text) => this.listOf(this.statementSteps(text, step))));
 			return `${reading}(${this.add({ step })}, ${list(alternatives)})`;
 		}
 		const what = reading === READING.some || reading === READING.every ? writtenTerm(step, "what") : undefined;
@@ -205,7 +206,9 @@ class Proof {
 	 *  reports a refused call. */
 	private refused(path: readonly number[], step: TFeatureStep, caught: unknown): string {
 		if (path.length === 0) throw caught;
-		this.hold(path, { ok: false, errorMessage: errorDetail(caught), name: step.action.actionName, in: step.in, seqPath: step.seqPath, verdict: VERDICT.unknown });
+		const remedy = refusalCarried(caught)?.remedy;
+		const result = { ok: false as const, errorMessage: errorDetail(caught), name: step.action.actionName, in: step.in, seqPath: step.seqPath, verdict: VERDICT.unknown };
+		this.hold(path, remedy === undefined ? result : { ...result, remedy });
 		return CALL_OUTCOME.refused;
 	}
 
@@ -281,21 +284,28 @@ class Proof {
 		opened.close(
 			request.verdict === VERDICT.proved
 				? { ok: true, verdict: request.verdict, ...(products === undefined ? {} : { products }) }
-				: { ok: false, verdict: request.verdict, errorMessage: this.why(path, request, opened.step) },
+				: { ok: false, verdict: request.verdict, errorMessage: this.why(path, request, opened.step), ...this.remedyOf(request) },
 		);
 		this.hold(path, await opened.dispatched);
 		return "closed";
 	}
 
-	/** The products of a node that holds: maybe's verdict, why the statement under not didn't hold, and otherwise the products of
+	/** The products of a node that holds: maybe's verdict, why the statement under didn't failed, and otherwise the products of
 	 *  its statements. */
 	private productsOf(path: readonly number[], node: string): Record<string, unknown> | undefined {
 		const { reading } = this.node(node).step.action.step;
 		if (reading === READING.maybe) return { verdict: verdictOf(this.lastPart(path)) };
-		if (reading !== READING.not) return this.productsUnder.get(keyOf(path));
+		if (reading !== READING.didnt) return this.productsUnder.get(keyOf(path));
 		const failed = this.lastPart(path);
 		if (failed.ok) throw this.differentBuilds("holds not over a statement that held");
-		return { refusal: failed.errorMessage, seqPath: formatSeqPath(failed.seqPath) };
+		const lacks = failed.remedy?.do === "request" ? { lacksAction: failed.remedy.action } : {};
+		return { refusal: failed.errorMessage, seqPath: formatSeqPath(failed.seqPath), ...lacks };
+	}
+
+	/** The remedy of the part that determined a node's verdict, where that part carries one, so a refusal's type reaches the line. */
+	private remedyOf({ why }: TCloseRequest): { remedy?: TRemedy } {
+		const part = Array.isArray(why) ? this.results.get(keyOf(why)) : undefined;
+		return part === undefined || part.ok || part.remedy === undefined ? {} : { remedy: part.remedy };
 	}
 
 	/** Why a node's verdict isn't proved: the part that determined it, with that part's own reason, the record that stated its

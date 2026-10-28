@@ -29,7 +29,7 @@ export const features: TKirejiExport = {
 		"waypoint Waved to {who} with variable waved is {who}",
 		'ensure Greeted "Ada"',
 		'variable greeted is "Ada"',
-		"not variable waved exists",
+		"didn't variable waved exists",
 
 		scenario({ scenario: "A goal unifies with a waypoint's head, whose placeholder names a domain" }),
 		"Essential, for the formal model. Source: docs/reasoner.md, Waypoints as rules with unification.",
@@ -39,7 +39,7 @@ export const features: TKirejiExport = {
 		'waypoint {m:meal} is ready with variable {m} is "ready"',
 		"ensure dinner is ready",
 		'variable dinner is "ready"',
-		"not variable lunch exists",
+		"didn't variable lunch exists",
 
 		scenario({ scenario: "A waypoint's head in a proof is a goal that starts a sub-proof" }),
 		"Essential. The proof of the goal's rule is proved beneath it, and the rule's activity doesn't run. Source: haibun.pl, plan(prove).",
@@ -49,16 +49,16 @@ export const features: TKirejiExport = {
 		"Activity: Serve supper",
 		'set served to "yes"',
 		"waypoint Supper is served with Supper is cooked",
-		"not ensure Supper is served",
+		"didn't ensure Supper is served",
 		'variable served is "yes"',
-		"not variable cooked exists",
+		"didn't variable cooked exists",
 
 		scenario({ scenario: "Ensure fails where the activity doesn't make the proof hold" }),
 		"Essential. Source: activities-stepper.ts:632.",
 		"Activity: Leave it unset",
 		'set left to "no"',
 		'waypoint It is set with variable left is "yes"',
-		"not ensure It is set",
+		"didn't ensure It is set",
 
 		scenario({ scenario: "A waypoint a step saves runs its lines" }),
 		"Essential, for a model's turn saved as a waypoint and run again. Source: activities-stepper.ts, saveWaypoint.",

@@ -158,8 +158,8 @@ set afterstep to "done"`,
 			content: `ensure First outcome
 			variable step1 is "1"
 			variable first is "1"
-			not variable step2 exists
-			not variable second exists`,
+			didn't variable step2 exists
+			didn't variable second exists`,
 		};
 
 		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers, LogicStepper], DEF_PROTO_OPTIONS, [background]);
@@ -174,7 +174,7 @@ set afterstep to "done"`,
 			variable first is "1"
 			variable step2 is "2"
 			variable second is "2"
-			not variable afterstep exists`,
+			didn't variable afterstep exists`,
 		};
 
 		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers, LogicStepper], DEF_PROTO_OPTIONS, [background]);

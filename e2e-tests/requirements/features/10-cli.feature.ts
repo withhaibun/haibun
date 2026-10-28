@@ -14,6 +14,6 @@ export const features: TKirejiExport = {
 		"Essential, for --once and an agent's runs. Source: actualities.ts:142 and once.feature.ts.",
 		`note that the tests in ${GROUP} have changed`,
 		testRuns.pass(GROUP, "120"),
-		`not run all the tests in ${GROUP}`,
+		`didn't run all the tests in ${GROUP}`,
 	],
 };

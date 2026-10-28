@@ -10,9 +10,13 @@ import { readingAt } from "@haibun/core/lib/domains/capability-context.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { compareSeqPath, factSeqPath } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { equalTo, readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { FACT_LABEL } from "@haibun/core/lib/domains/resources.js";
+import { FACT_FIELD } from "@haibun/core/lib/records/domains/facts.js";
 import { FACT_POSITIONS, READ_GRAPH, READ_PREDICATE, type TFact } from "../domains/logic.js";
+import type { THeldFact } from "../derivations/goals.js";
 
-export type TReader = { facts: (pattern: TQuadPattern) => Promise<TFact[]> };
+/** A proof's reads: the facts that hold a pattern, and the products of steps as typed records, the latest first. */
+export type TReader = { facts: (pattern: TQuadPattern) => Promise<TFact[]>; products: () => Promise<THeldFact[]> };
 
 /** A reader of the store for one proof. Where `asOf` states a step, it leaves out a fact about the record or a product of a later step. */
 export function readerOf(store: IQuadStore, asOf?: readonly number[]): TReader {
@@ -30,6 +34,11 @@ export function readerOf(store: IQuadStore, asOf?: readonly number[]): TReader {
 			held.set(key, reading);
 			return reading;
 		},
+		// The products are records of their type, held where the steps' records are, so they are read as records, not as quads.
+		products: async () =>
+			(await readEvery(store, { label: FACT_LABEL }))
+				.map((record) => ({ id: String(record[FACT_FIELD.id]), domain: String(record[FACT_FIELD.domain]) }))
+				.filter(({ id }) => heldAt({ subject: id, predicate: FACT_FIELD.domain, object: "", namedGraph: FACT_LABEL })),
 	};
 }
 

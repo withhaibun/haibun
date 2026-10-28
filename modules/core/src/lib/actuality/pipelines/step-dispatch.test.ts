@@ -21,6 +21,7 @@ import type { TWorld } from "../domains/world.js";
 import { Access, DOMAIN_PERSISTED_TYPE, FACT_LABEL, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "../../domains/resources.js";
 import { SEQ_PATH_EDGE, SEQ_PATH_FIELD, actualityFeatureOf, factIdOf, formatRecordName } from "../domains/seq-path.js";
 import { readEvery, equalTo } from "../../records/pipelines/record-reads.js";
+import { factDomainDefinition } from "../../records/domains/facts.js";
 import { streamContext, streamOver } from "../../transport/domains/step-stream-context.js";
 import { capabilityAllows } from "../../domains/actions.js";
 import { RUN_AUTHORITY, readingAt, runActingAs, runAsking, runInStep, runReadingAt, WITHOUT_READ_REFUSAL } from "../../domains/capability-context.js";
@@ -764,6 +765,31 @@ describe("step-dispatch", () => {
 			expect((await recordOf([0, 9, 3])).length, "a read a feature states is a step of actuality").toBeGreaterThan(0);
 			expect(await countFact(world, [0, 9, 3]), "whose products are a fact of actuality").toMatchObject({ count: 3 });
 			expect(world.runtime.stepResults?.length ?? 0, "and is kept with actuality's other steps").toBe(kept + 1);
+		});
+
+		it("records an RPC call's results as a record of their type linked to its step, held where the steps' records are and retained as they are", async () => {
+			const stepper = new (class extends AStepper {
+				description = "An act that counts.";
+				steps = { counts: { gwta: "counts", productsDomain: TEST_DOMAIN.count, action: async () => actionOKWithProducts({ count: 7 }) } };
+			})();
+			const steppers = [stepper];
+			const registry = new StepRegistry(steppers, world);
+			const tool = registry.get(`${stepper.constructor.name}-counts`);
+			if (!tool) throw new Error("Expected the act to be registered");
+			// A page's call states a seqPath of the synthetic feature, as an RPC call does.
+			const path = [0, -1, 5, 1];
+			const call = buildFeatureStepForTransport(tool, {}, path);
+			call.programmatic = undefined;
+			expect((await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, call)).ok).toBe(true);
+			expect(await countFact(world, path), "the call's results are a fact").toMatchObject({ count: 7 });
+			const factId = factIdOf({ actuality: actualityFeatureOf(world.tag), path });
+			const linked = await world.shared.getStore().query({ subject: factId, predicate: LinkRelations.WAS_GENERATED_BY.rel });
+			expect(
+				linked.map((quad) => quad.object),
+				"which links the call's step",
+			).toEqual([formatRecordName({ actuality: actualityFeatureOf(world.tag), path })]);
+			expect(factDomainDefinition.topology, "the facts are held where the steps' records are, and retained as instrumentation").toMatchObject({ instrumentation: true });
+			expect(factDomainDefinition.topology).not.toHaveProperty("heldBy");
 		});
 
 		it("holds a fact of what a step retains, so actuality doesn't hold the products of a step that doesn't retain them", async () => {

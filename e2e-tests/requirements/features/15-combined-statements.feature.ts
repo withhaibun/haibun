@@ -43,7 +43,7 @@ export const features: TKirejiExport = {
 		'set stew to "cooked"',
 		'for every {dish: Dishes} where variable {dish} is "cooked", {dish} is edible',
 		'"stew" is edible',
-		'not "salad" is edible',
+		'didn\'t "salad" is edible',
 
 		scenario({ scenario: "A proof renders as its statements in proof order, the goal last" }),
 		"Essential, for people and models. The verdict is the proof's, and each statement's is in its record. Source: docs/reasoner.md, Proofs as SeqPath records.",

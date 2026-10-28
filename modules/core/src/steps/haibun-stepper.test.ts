@@ -367,15 +367,15 @@ describe("backgrounds", () => {
 		]);
 	});
 
-	it("not with Backgrounds fails", async () => {
-		const feature = { path: "/features/test.feature", content: "not Backgrounds: bg" };
+	it("didn't with Backgrounds fails", async () => {
+		const feature = { path: "/features/test.feature", content: "didn't Backgrounds: bg" };
 		const background = { path: "/backgrounds/bg.feature", content: "fails" };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps, VariablesSteppers, LogicStepper], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 	});
 
-	it("not with Backgrounds passes", async () => {
-		const feature = { path: "/features/test.feature", content: "not Backgrounds: bg" };
+	it("didn't with Backgrounds passes", async () => {
+		const feature = { path: "/features/test.feature", content: "didn't Backgrounds: bg" };
 		const background = { path: "/backgrounds/bg.feature", content: "passes" };
 		const result = await failWithDefaults([feature], [Haibun, TestSteps, VariablesSteppers, LogicStepper], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(false);
@@ -389,8 +389,8 @@ describe("backgrounds", () => {
 		expect(result.failure?.error.message).toMatch(/can't find single "missing.feature"/);
 	});
 
-	it("not invalid Backgrounds fails during Resolve", async () => {
-		const feature = { path: "/features/test.feature", content: "not Backgrounds: nowhere" };
+	it("didn't with invalid Backgrounds fails during Resolve", async () => {
+		const feature = { path: "/features/test.feature", content: "didn't Backgrounds: nowhere" };
 		const result = await failWithDefaults([feature], [Haibun, TestSteps, VariablesSteppers, LogicStepper], DEF_PROTO_OPTIONS, []);
 		expect(result.ok).toBe(false);
 		expect(result.failure?.stage).toBe("Resolve");

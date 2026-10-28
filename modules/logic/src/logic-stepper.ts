@@ -120,12 +120,12 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			reading: READING.where,
 		},
 		anyOf: { gwta: `any of {alternatives: ${DOMAIN_ALTERNATIVES}}`, description: "Holds where one of the comma-separated statements holds: A ∨ B ∨ C.", reading: READING.anyOf },
-		not: {
-			gwta: `not {statements:${DOMAIN_STATEMENT}}`,
+		didnt: {
+			gwta: `didn't {statements:${DOMAIN_STATEMENT}}`,
 			description:
-				"Holds where the statement isn't proved, as negation as failure over the results of its line. Its products hold the failure: its failing step's error text as refusal, and that step's seqPath, so a feature that expects a failure confirms it was the expected error with set … from not … and then matches ….refusal with the error's pattern. Its record states whether the statement is refuted or unknown.",
+				"Holds where the statement didn't succeed, as negation as failure over the results of its line in actuality, a closed world. Its products hold the failure: its failing step's error text as refusal, and that step's seqPath, so a feature that expects a failure confirms it was the expected error with set … from didn't … and then matches ….refusal with the error's pattern. Its record states whether the statement is refuted or unknown.",
 			productsDomain: DOMAIN_REFUSAL,
-			reading: READING.not,
+			reading: READING.didnt,
 		},
 		maybe: {
 			gwta: `maybe {statements:${DOMAIN_STATEMENT}}`,

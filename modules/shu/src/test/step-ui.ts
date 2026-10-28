@@ -121,7 +121,7 @@ export function createStepUI(wp: WebPlaywright) {
 	/** Ensure the actions bar is open: its pane's minimize control opens a pane standing at its strip. Uses MODE_SELECT (always present when the bar is open, regardless of Ask availability) so this works without an LLM provider. The `where … , …` form is idempotent: the click is skipped when MODE_SELECT is already on the page. */
 	const expandActionsBar: TKirejiStep[] = [
 		...actionsPaneAttached,
-		`where not has test id ${IDS.APP.MODE_SELECT}, in "${ACTIONS_PANE}", click ${IDS.COLUMN_PANE.MINIMIZE}`,
+		`where didn't has test id ${IDS.APP.MODE_SELECT}, in "${ACTIONS_PANE}", click ${IDS.COLUMN_PANE.MINIMIZE}`,
 		waitFor({ target: IDS.APP.MODE_SELECT }),
 	];
 
@@ -138,7 +138,7 @@ export function createStepUI(wp: WebPlaywright) {
 	/** Show the settings of the view in the actions pane, which its pane's settings control holds. `marker` is a control
 	 *  those settings hold, which states whether they are shown: the press is skipped where it is already on the page. */
 	const showPaneSettings = (marker: string): TKirejiStep[] => [
-		`where not has test id ${marker}, in "${ACTIONS_PANE}", click ${IDS.COLUMN_PANE.CONTROLS_TOGGLE}`,
+		`where didn't has test id ${marker}, in "${ACTIONS_PANE}", click ${IDS.COLUMN_PANE.CONTROLS_TOGGLE}`,
 		waitFor({ target: marker }),
 	];
 

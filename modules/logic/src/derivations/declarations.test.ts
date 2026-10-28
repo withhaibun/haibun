@@ -42,7 +42,7 @@ describe("one declaration", () => {
 	});
 
 	it("start-up holds a reading as a step's functor", () => {
-		expect(() => refuseDeclarations([declaring({ never: { gwta: "never {statement: statement}", reading: READING.not } })])).not.toThrow();
+		expect(() => refuseDeclarations([declaring({ never: { gwta: "never {statement: statement}", reading: READING.didnt } })])).not.toThrow();
 	});
 
 	it("the core steppers with the logic stepper declare each step once with every face", () => {

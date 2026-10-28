@@ -41,7 +41,7 @@ class TickHarnessStepper extends AStepper {
 
 describe("urakata-stepper", () => {
 	it("`stop urakata` stops a ticker by the id that another stepper's step returns as a product, which runs until then", async () => {
-		const lines = ["set t from start tick", "urakata is running t.id", 'pause for "30 ms"', "stop urakata t.id", "not urakata is running t.id", 'pause for "30 ms"'];
+		const lines = ["set t from start tick", "urakata is running t.id", 'pause for "30 ms"', "stop urakata t.id", "didn't urakata is running t.id", 'pause for "30 ms"'];
 		const result = await passWithDefaults(
 			[{ path: "/features/main.feature", content: lines.join("\n") }],
 			[VariablesStepper, Haibun, UrakataStepper, TickHarnessStepper, LogicStepper],

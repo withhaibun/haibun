@@ -1,9 +1,10 @@
 /**
- * Declares a fact: one product of a step, held in core's in-memory store. Dispatch writes a fact of each product whose domain
- * the step declares. The fact links the step that produced it through `prov:wasGeneratedBy`.
+ * Declares a fact: one product of a step, a typed record held where the steps' records are. Dispatch writes a fact of each
+ * product whose domain the step declares. The fact links the step that produced it through `prov:wasGeneratedBy`, and it is
+ * instrumentation, so a store's retention removes it with the steps' records of its time.
  */
 import { z } from "zod";
-import { Access, EDGE, FACT_LABEL, HELD_BY, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "../../domains/resources.js";
+import { Access, EDGE, FACT_LABEL, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "../../domains/resources.js";
 
 const FACT_DOMAIN = "fact";
 
@@ -28,7 +29,6 @@ export const factDomainDefinition: TDomainDefinition = {
 		persistedAs: FACT_LABEL,
 		type: "prov:Entity",
 		id: FACT_FIELD.id,
-		heldBy: HELD_BY.inMemoryStore,
 		instrumentation: true,
 		accessLevel: Access.private,
 		displayLabel: FACT_FIELD.domain,

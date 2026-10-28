@@ -470,7 +470,7 @@ describe("feature text", () => {
 		scenario({ scenario: "The store knows it" }),
 		annotate({ role: "answers whether it holds", note: "It is no finding." }),
 		set({ what: "x", value: '"The store knows it"', confidence: "known since then" }),
-		not({ statement: "set nothing to 1" }),
+		didnt({ statement: "set nothing to 1" }),
 	],
 };
 const clauseSuffix = (clause: string) => { throw new Error(\`clause \${clause} has no opening\`); };`,

@@ -14,7 +14,7 @@ Scenario: Generate and clear a QR code
 
   click "Draw QR Code"
 
-  not canvas "canvas" is empty
+  didn't canvas "canvas" is empty
 
   click "Clear QR Code"
 
@@ -24,5 +24,5 @@ Scenario: Generate and clear a QR code
 
   click "Draw QR Code"
 
-  not canvas "canvas" is empty
+  didn't canvas "canvas" is empty
   

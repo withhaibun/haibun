@@ -13,10 +13,10 @@ click {target: string | page-locator} by method
 variable x exists
 ;; Compound Step: 'variable' and 'exists' are recognized. tokens: function (variable, exists), parameter (x)
 
-not variable x exists 
+didn't variable x exists 
 ;; Recursive Highlighting: 'not' is a step. Inner 'variable x exists' is colored as a step. tokens: function (not), function (variable exists), parameter (x)
 
-not variable what 
+didn't variable what 
 ;; Resolution Fallback: 'not' is a step, 'variable what' is INVALID so it falls back to 'parameter' color. tokens: function (not), parameter (variable what)
 
 aosdfisodfda

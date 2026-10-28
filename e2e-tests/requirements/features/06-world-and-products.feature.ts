@@ -30,6 +30,6 @@ export const features: TKirejiExport = {
 		"Essential, for the signature. Source: docs/architecture.md, Domains.",
 		'set of Levels is ["log", "info"]',
 		'set level as Levels to "info"',
-		'not set level as Levels to "error"',
+		'didn\'t set level as Levels to "error"',
 	],
 };

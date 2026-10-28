@@ -148,7 +148,7 @@ describe("DebuggerStepper sequence integration", () => {
 			callCount = 0;
 			prompt = () => {
 				this.callCount++;
-				// The first prompt is for the line 'not fails', and the nested 'fails' doesn't prompt.
+				// The first prompt is for the line `didn't fails`, and the nested 'fails' doesn't prompt.
 				if (this.callCount > 1) {
 					throw new Error("the debugger paused before a call nested in a line's proof");
 				}
@@ -168,11 +168,11 @@ describe("DebuggerStepper sequence integration", () => {
 		vi.spyOn(testPrompter, "prompt");
 		world.prompter.subscribe(testPrompter);
 
-		// 'not fails' holds: the nested 'fails' is refuted.
-		const feature = { path: "/features/test.feature", content: "debug step by step\nnot fails" };
+		// `didn't fails` holds: the nested 'fails' is refuted.
+		const feature = { path: "/features/test.feature", content: "debug step by step\ndidn't fails" };
 		const res = await testWithWorld(world, [feature], [DebuggerStepper, TestSteps, Haibun, LogicStepper]);
 
-		// One prompt, for 'not fails'. 'debug step by step' sets the mode without a prompt.
+		// One prompt, for `didn't fails`. 'debug step by step' sets the mode without a prompt.
 		expect(res.ok).toBe(true);
 		expect(testPrompter.prompt).toHaveBeenCalledTimes(1);
 	});

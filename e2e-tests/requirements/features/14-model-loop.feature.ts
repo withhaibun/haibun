@@ -12,8 +12,8 @@ export const features: TKirejiExport = {
 		"Essential, for a model's tool calls. A turn calls each line a model proposes under the speaker's capability, as holding only proves a statement under the actions it names. Source: turns.ts:357 and authority-stepper.ts, holdingOnly.",
 		'holding only "VariablesStepper:set,Read:public", set x to "1"',
 		'variable x is "1"',
-		'set proposal from not holding only "Read:public", set x to "2"',
-		'matches proposal.refusal with "*VariablesStepper:set*"',
+		'set proposal from didn\'t holding only "Read:public", set x to "2"',
+		'variable proposal.lacksAction is "VariablesStepper:set"',
 		'variable x is "1"',
 
 		"Pending scenario: A model's output enters as a fact derived by a model",
@@ -22,6 +22,6 @@ export const features: TKirejiExport = {
 
 		"Pending scenario: A rule can require a person's confirmation before an action",
 		"Essential, for actions that read a fact derived by a model. Source: docs/reasoner.md, The model loop.",
-		'not the model proposes "delete the record" as "ranger" without confirmation',
+		'didn\'t the model proposes "delete the record" as "ranger" without confirmation',
 	],
 };

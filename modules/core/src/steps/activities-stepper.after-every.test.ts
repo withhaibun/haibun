@@ -105,7 +105,7 @@ describe("a rule over step records", () => {
 	});
 
 	it("runs once after a step of the feature and doesn't run after its substeps", async () => {
-		const feature = { path: "/features/test.feature", content: ["have a test", 'after every "TestSteps", Noodles, man.', "passes", "not fails"].join("\n") };
+		const feature = { path: "/features/test.feature", content: ["have a test", 'after every "TestSteps", Noodles, man.', "passes", "didn't fails"].join("\n") };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps, ActivitiesStepper, LogicStepper]);
 		expect(result.ok).toBe(true);
 		const said = itemAt(result.featureResults, 0).stepResults.filter((r) => r.in === "Noodles, man.").length;

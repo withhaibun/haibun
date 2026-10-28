@@ -32,7 +32,7 @@ describe("every/some with member values", () => {
           
           set of known is ["https://example.com" "https://example.org"]
           
-          not every u in urls is {u} is in known
+          didn't every u in urls is {u} is in known
         `,
 			};
 			const result = await passWithDefaults([feature], [VariablesStepper, LogicStepper]);
@@ -83,7 +83,7 @@ describe("every/some with member values", () => {
           
           set of known is ["https://example.com"]
           
-          not some u in urls is {u} is in known
+          didn't some u in urls is {u} is in known
         `,
 			};
 			const result = await passWithDefaults([feature], [VariablesStepper, LogicStepper]);
@@ -109,7 +109,7 @@ describe("every/some with member values", () => {
 				path: "/features/test.feature",
 				content: `
           set of colors is ["red" "green" "blue"]
-          not "yellow" is in colors
+          didn't "yellow" is in colors
         `,
 			};
 			const result = await passWithDefaults([feature], [VariablesStepper, LogicStepper]);
@@ -123,7 +123,7 @@ describe("every/some with member values", () => {
           set of colors is ["red" "green" "blue"]
           set red to "yellow"
           "red" is in colors
-          not red is in colors
+          didn't red is in colors
         `,
 			};
 			const result = await passWithDefaults([feature], [VariablesStepper, LogicStepper]);
@@ -169,7 +169,7 @@ describe("every/some with member values", () => {
 			const feature = {
 				path: "/features/test.feature",
 				content: `
-          not matches "https://other.com/page" with "https://test.com/*"
+          didn't matches "https://other.com/page" with "https://test.com/*"
         `,
 			};
 			const result = await passWithDefaults([feature], [VariablesStepper, LogicStepper]);
@@ -199,7 +199,7 @@ describe("every/some with member values", () => {
           set url1 as urls to "https://test.com/login"
           set url2 as urls to "https://other.com/page"
           
-          not every u in urls is matches {u} with "https://test.com/*"
+          didn't every u in urls is matches {u} with "https://test.com/*"
         `,
 			};
 			const result = await passWithDefaults([feature], [VariablesStepper, LogicStepper]);
@@ -238,7 +238,7 @@ describe("every/some with member values", () => {
           
           set of Allowed patterns is ["https://test.com/*" "https://staging.com/*"]
           
-          not every page in urls is some pattern in Allowed patterns is matches {page} with {pattern}
+          didn't every page in urls is some pattern in Allowed patterns is matches {page} with {pattern}
         `,
 			};
 			const result = await passWithDefaults([feature], [VariablesStepper, LogicStepper]);

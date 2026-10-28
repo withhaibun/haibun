@@ -13,7 +13,7 @@ const repository = mkdtempSync(join(tmpdir(), "haibun-surface-"));
 execFileSync("git", ["init", "-q"], { cwd: repository });
 mkdirSync(join(repository, "features"));
 /** The lines of a feature the rules read, each joined from its words, so this file doesn't state the checks it holds. */
-const FEATURE = [["set none from exactly", "0 individuals of SeqPath"], ["not individual", "Step:s1 is a Note"], ["every Note is a prov:Entity"], ["Acme ships it"]];
+const FEATURE = [["set none from exactly", "0 individuals of SeqPath"], ["didn't individual", "Step:s1 is a Note"], ["every Note is a prov:Entity"], ["Acme ships it"]];
 writeFileSync(join(repository, "features", "a.feature"), FEATURE.map((words) => words.join(" ")).join("\n"));
 writeFileSync(join(repository, "features", "rules.test.ts"), "names Acme");
 afterAll(() => rmSync(repository, { recursive: true }));

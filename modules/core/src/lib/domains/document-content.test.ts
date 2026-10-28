@@ -63,7 +63,7 @@ describe("what a run logged is text", () => {
 	});
 
 	it("places a step's own text as text, since a step quotes markup to assert about it", () => {
-		const events = [featureEvent("/f.feature", "F"), ran('not text at "/tmp/out.html" contains "<script>alert(1)</script>"')];
+		const events = [featureEvent("/f.feature", "F"), ran('didn\'t text at "/tmp/out.html" contains "<script>alert(1)</script>"')];
 		const { md } = generateDocumentMarkdown(events, buildArtifactIndex(events).artifactsByStep, LOG_LEVEL_INFO, firstAt(events));
 		expect(md).not.toContain("<script>");
 		expect(md).toContain("&lt;script&gt;");

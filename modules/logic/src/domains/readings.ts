@@ -31,8 +31,13 @@ export const readingDomainDefinitions: TDomainDefinition[] = [
 	{ selectors: [DOMAIN_STATUS], schema: z.object({ verdict: z.enum(VERDICT) }), description: "The verdict of a statement's proof: proved, refuted, unknown or contradiction" },
 	{
 		selectors: [DOMAIN_REFUSAL],
-		schema: z.object({ refusal: z.string(), seqPath: z.string() }),
-		description: "Why a statement didn't hold: its failing step's error text, and that step's seqPath",
+		schema: z.object({
+			refusal: z.string(),
+			seqPath: z.string(),
+			lacksAction: z.string().optional().describe("The action the refused call lacked, where the gate refused it for an action its caller doesn't hold"),
+		}),
+		description:
+			"Why a statement didn't hold: its failing step's error text, that step's seqPath, and, where the gate refused the call, the action it lacked, which a claim reads in place of the text",
 	},
 ];
 
@@ -45,8 +50,29 @@ export function quantifierOf(args: TStepArgs): TQuantifier {
 	return typeof args.source === "string" ? { what, source: args.source } : { what, domain: String(args.domain) };
 }
 
-/** Reads a disjunction's alternatives: its comma-separated statements. */
-export const alternativesOf = (text: string): string[] => text.split(",").map((one) => one.trim());
+/** The delimiters a statement list reads past a comma within: a quoted or backticked term, and a JSON value. */
+const PAIRED: Readonly<Record<string, string>> = { '"': '"', "`": "`", "{": "}", "[": "]" };
+
+/** Reads a list of statements: the statements its commas separate. A comma inside a quoted or backticked term or a JSON
+ *  value doesn't separate statements. */
+export function statementList(text: string): string[] {
+	const statements: string[] = [];
+	const open: string[] = [];
+	let start = 0;
+	for (let at = 0; at < text.length; at++) {
+		const char = text.charAt(at);
+		const closing = open.at(-1);
+		if (closing === '"' || closing === "`") {
+			if (char === closing) open.pop();
+		} else if (char === closing) open.pop();
+		else if (PAIRED[char] !== undefined) open.push(PAIRED[char]);
+		else if (char === "," && open.length === 0) {
+			statements.push(text.slice(start, at).trim());
+			start = at + 1;
+		}
+	}
+	return [...statements, text.slice(start).trim()];
+}
 
 /** The parameters of a step whose domain is a statement, in the order its phrase names them. */
 export const statementParams = (step: TStepperStep): string[] => stepParts(step).flatMap(({ name, domain }) => (domain === DOMAIN_STATEMENT ? [name] : []));

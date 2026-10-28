@@ -184,7 +184,7 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "Goal resolution: `resolve` refutes a registered domain that a step doesn't return" }),
 
 		"The engine proves a goal over any registered domain key. The registry holds every locator domain, including page-alt-text. A step doesn't return page-alt-text, so the engine refutes the goal and its step fails.",
-		'not resolve "page-alt-text"',
+		'didn\'t resolve "page-alt-text"',
 
 		scenario({ scenario: "Repeated `show chain lint` invocations must not duplicate the pane" }),
 
@@ -223,7 +223,7 @@ export const features: TKirejiExport = {
 		`save text from ${CACHE_LOG_CACHED} to cacheLogCached`,
 		'matches cacheLogCached with "0..*"',
 		`save text from ${CACHE_LOG_EVENTS} to cacheLogEvents`,
-		'not variable cacheLogEvents is "0"',
+		'didn\'t variable cacheLogEvents is "0"',
 
 		"The monitor's rail also spans all of actuality by index, whatever the monitor caches. Its top glyph represents actuality's first row. Pressing the top glyph loads that region. The first row then appears on the page, although the log cached only its newest page before the press. The page strip's current-time control still opens the playback controls after the reload.",
 		`in "${MONITOR_CONTAINER}", click ${IDS.SCROLLBAR.POS_TOP}`,
@@ -280,7 +280,7 @@ export const features: TKirejiExport = {
 
 		"The affordances panel has been open since a step showed it. The panel reads the affordances on offer after each step to stay current. Actuality doesn't record a read as an act. Actuality's records name the step that showed the panel and don't name the panel's reads. The report holds actuality's records, so it names showAffordances and doesn't name affordancesOnOffer.",
 		'text at "/tmp/shu-audit.html" contains "LogicStepper.showAffordances"',
-		'not text at "/tmp/shu-audit.html" contains "LogicStepper.affordancesOnOffer"',
+		'didn\'t text at "/tmp/shu-audit.html" contains "LogicStepper.affordancesOnOffer"',
 
 		scenario({ scenario: "A reload with the server unreachable reads actuality from the device" }),
 
@@ -353,7 +353,7 @@ export const features: TKirejiExport = {
 		`requests matching "${STREAM_GLOB}" are "allowed"`,
 		waitFor({ target: CACHE_LOG_LOADED }),
 		`save text from ${CACHE_LOG_EVENTS} to eventsCaughtUp`,
-		"not variable eventsCaughtUp is eventsUnheard",
+		"didn't variable eventsCaughtUp is eventsUnheard",
 
 		scenario({ scenario: "A page without a layout of its own starts on the views actuality showed" }),
 
@@ -371,7 +371,7 @@ export const features: TKirejiExport = {
 		`matches freshUri with "*col=${SHU_TAG.AFFORDANCES_PANEL}*"`,
 
 		"The address doesn't name a view that actuality's steps didn't show. This deployment declares the thread column. Actuality's steps didn't open it. An address that named the thread column wouldn't match the records.",
-		`not matches freshUri with "*${SHU_TAG.THREAD_COLUMN}*"`,
+		`didn't matches freshUri with "*${SHU_TAG.THREAD_COLUMN}*"`,
 
 		scenario({ scenario: "The views on offer are read from what the deployment declares" }),
 

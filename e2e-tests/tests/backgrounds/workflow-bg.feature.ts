@@ -20,11 +20,11 @@ export const features: TKirejiExport = {
 		"Activity: works on the phase",
 		"Calling a waypoint without ensure will always run the activity body once.",
 		`until whenever variable ${phase} is less than requested, Do work within "5s"`,
-		`waypoint ${Release_at} {requested} with not variable ${phase} is less than requested`,
+		`waypoint ${Release_at} {requested} with didn't variable ${phase} is less than requested`,
 
 		"Activity: Do work",
 		showVar({ what: "effort" }),
-		`whenever not variable ${effort} exists, set ${effort} as number to 0`,
+		`whenever didn't variable ${effort} exists, set ${effort} as number to 0`,
 		`increment ${effort}`,
 		`increment ${phase}`,
 		`waypoint Do work`,

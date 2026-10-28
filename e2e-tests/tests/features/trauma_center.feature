@@ -59,7 +59,7 @@ Feature: Patient Rights and Hospital Journey
   Right to a Clean Environment (whenever).
   The patient has a right to a clean room. Staff must clean the room when it isn't clean.
   set Room 101 status to "Dirty"
-  whenever not variable Room 101 status is "Clean", ensure Cleanup Crew is dispatched to "Room 101"
+  whenever didn't variable Room 101 status is "Clean", ensure Cleanup Crew is dispatched to "Room 101"
   
   Verify Cleanliness.
   variable Room 101 status is "Clean"
@@ -81,7 +81,7 @@ Feature: Patient Rights and Hospital Journey
   Dignity Assurance.
   The patient's dignity must never be violated.
   ensure Right to "Dignity" is upheld
-  not variable Dignity status is "Violated"
+  didn't variable Dignity status is "Violated"
 
   Final Safety Check.
   The discharge check ensures that every right was upheld, that the care team was present and that the open emergency department was covered.

@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { failWithDefaults, getDefaultWorld, passWithDefaults, testWithWorld } from "@haibun/core/lib/test/lib.js";
 import LogicStepper from "@haibun/logic/logic-stepper.js";
-import { UNTIL_RETRY_MS } from "./domains/readings.js";
+import { statementList, UNTIL_RETRY_MS } from "./domains/readings.js";
 import TestSteps from "@haibun/core/lib/test/TestSteps.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
@@ -27,40 +27,40 @@ class UntilWithoutDuration extends AStepper {
 
 /** A line or lines, and whether their feature passes. */
 const READINGS: [string, string, boolean][] = [
-	["negation of a refuted call", "not fails", true],
-	["negation of a proved call", "not passes", false],
-	["negation of a line that doesn't resolve", "not doesnotexist", false],
-	["double negation of a proved call", "not not passes", true],
-	["double negation of a refuted call", "not not fails", false],
-	["negation of a line that doesn't resolve below two negations", "not not who's there", false],
-	["four negations of a proved call", 'set who to "there"\nnot not not not variable "who" is "there"', true],
-	["negation of a set variable's existence", 'set wtw to 5\nnot variable "wtw" exists', false],
-	["negation of an unset variable's existence", 'not variable "unset" exists', true],
-	["implication with a refuted condition holds", 'not where variable "ghost" exists, passes', false],
-	["implication with a proved condition and a proved action", 'set a to 1\nnot where variable "a" exists, passes', false],
-	["implication with a proved condition and a refuted action", 'set a to 1\nnot where variable "a" exists, fails', true],
-	["implication nested under an implication", 'set who to "there"\nwhere variable "who" is "there", where not variable "who" is "there", passes', true],
+	["negation of a refuted call", "didn't fails", true],
+	["negation of a proved call", "didn't passes", false],
+	["negation of a line that doesn't resolve", "didn't doesnotexist", false],
+	["double negation of a proved call", "didn't didn't passes", true],
+	["double negation of a refuted call", "didn't didn't fails", false],
+	["negation of a line that doesn't resolve below two negations", "didn't didn't who's there", false],
+	["four negations of a proved call", 'set who to "there"\ndidn\'t didn\'t didn\'t didn\'t variable "who" is "there"', true],
+	["negation of a set variable's existence", 'set wtw to 5\ndidn\'t variable "wtw" exists', false],
+	["negation of an unset variable's existence", 'didn\'t variable "unset" exists', true],
+	["implication with a refuted condition holds", 'didn\'t where variable "ghost" exists, passes', false],
+	["implication with a proved condition and a proved action", 'set a to 1\ndidn\'t where variable "a" exists, passes', false],
+	["implication with a proved condition and a refuted action", 'set a to 1\ndidn\'t where variable "a" exists, fails', true],
+	["implication nested under an implication", 'set who to "there"\nwhere variable "who" is "there", where didn\'t variable "who" is "there", passes', true],
 	["disjunction with a proved alternative", "any of fails, passes", true],
 	["disjunction without a proved alternative", "any of fails, fails", false],
-	["maybe holds whatever its statement's verdict", "maybe fails\nmaybe passes\nnot not maybe this line resolves to no step", true],
+	["maybe holds whatever its statement's verdict", "maybe fails\nmaybe passes\ndidn't didn't maybe this line resolves to no step", true],
 	["repetition with a condition that doesn't resolve", "whenever doesnotexist, ends with OK", false],
 	["repetition with an action that doesn't resolve", "whenever passes, doesnotexist", false],
-	["repetition whose action is refuted", "not whenever passes, fails", true],
-	["repetition whose condition is refuted", "whenever not passes, fails", true],
-	["repetition until its condition is refuted", 'whenever not variable "fresh" exists, set fresh to 1\nvariable "fresh" is "1"', true],
-	["repetition that doesn't run its action", 'set existing to 2\nwhenever not variable "existing" exists, set existing to 3\nvariable "existing" is "2"', true],
-	["repetition that doesn't run its refuted action", 'set existing to 2\nwhenever not variable "existing" exists, fails', true],
+	["repetition whose action is refuted", "didn't whenever passes, fails", true],
+	["repetition whose condition is refuted", "whenever didn't passes, fails", true],
+	["repetition until its condition is refuted", 'whenever didn\'t variable "fresh" exists, set fresh to 1\nvariable "fresh" is "1"', true],
+	["repetition that doesn't run its action", 'set existing to 2\nwhenever didn\'t variable "existing" exists, set existing to 3\nvariable "existing" is "2"', true],
+	["repetition that doesn't run its refuted action", 'set existing to 2\nwhenever didn\'t variable "existing" exists, fails', true],
 	["existence over a domain", 'set of numbers is [1, 2, 3]\nsome n in numbers is where set temp to {n}, variable temp is "2"', true],
-	["existence over a domain without a match", "set of numbers is [1, 2, 3]\nnot some n in numbers is where set temp to {n}, variable temp is 4", true],
-	["existence over an empty domain", "set of nothing as [string]\nnot some n in nothing is passes", true],
+	["existence over a domain without a match", "set of numbers is [1, 2, 3]\ndidn't some n in numbers is where set temp to {n}, variable temp is 4", true],
+	["existence over an empty domain", "set of nothing as [string]\ndidn't some n in nothing is passes", true],
 	["universal over an empty domain", "set of nothing as [string]\nevery n in nothing is fails", true],
-	["universal over a domain with a refuted member", 'set of Meals is ["dinner", "lunch"]\nnot every meal in Meals is matches {meal} with "din*"', true],
+	["universal over a domain with a refuted member", 'set of Meals is ["dinner", "lunch"]\ndidn\'t every meal in Meals is matches {meal} with "din*"', true],
 	[
 		"nested quantifiers",
 		'set of Hosts is ["api.example.com"]\nset of Allowed is ["example.com"]\nevery host in Hosts is some domain in Allowed is matches {host} with "*{domain}"',
 		true,
 	],
-	["a quantifier's variable doesn't stay set after it", 'set of Meals is ["dinner"]\nevery meal in Meals is passes\nnot variable meal exists', true],
+	["a quantifier's variable doesn't stay set after it", 'set of Meals is ["dinner"]\nevery meal in Meals is passes\ndidn\'t variable meal exists', true],
 	["existence over an observation source", 'passes\nsome step observed in steps is variable step/called is "TestSteps.passes"', true],
 	["universal over an observation source", "passes\nevery step observed in steps is variable step/stepText exists", true],
 	["a quoted statement under a quantifier is proved", 'passes\nsome step observed in steps is "variable step/duration is more than 999999"', false],
@@ -82,7 +82,7 @@ const READINGS: [string, string, boolean][] = [
 	],
 	[
 		"a universal states a rule whose head a line proves where its body holds",
-		'set of Meals is ["dinner", "lunch"]\nset dinner to "cooked"\nfor every {meal: Meals} where variable {meal} is "cooked", {meal} is edible\n"dinner" is edible\nnot "lunch" is edible',
+		'set of Meals is ["dinner", "lunch"]\nset dinner to "cooked"\nfor every {meal: Meals} where variable {meal} is "cooked", {meal} is edible\n"dinner" is edible\ndidn\'t "lunch" is edible',
 		true,
 	],
 	[
@@ -97,30 +97,42 @@ const READINGS: [string, string, boolean][] = [
 	],
 	["an observation source that isn't declared", "every x observed in unknown source is passes", false],
 	["until holds once its statement holds", 'set ready to "yes"\nuntil variable ready is "yes" within 1s', true],
-	["until is refuted where its statement doesn't hold in time", 'set ready to "yes"\nnot until variable ready is "never" within 300ms', true],
+	["until is refuted where its statement doesn't hold in time", 'set ready to "yes"\ndidn\'t until variable ready is "never" within 300ms', true],
 	[
 		"ensure runs the activity where the proof is refuted",
 		'Activity: Count\nset runs to "1"\nwaypoint Counted with variable runs is "1"\nensure Counted\nvariable runs is "1"',
 		true,
 	],
-	["ensure is refuted where the activity doesn't prove the proof", 'Activity: Unset\nset left to "no"\nwaypoint It is set with variable left is "yes"\nnot ensure It is set', true],
+	[
+		"ensure is refuted where the activity doesn't prove the proof",
+		'Activity: Unset\nset left to "no"\nwaypoint It is set with variable left is "yes"\ndidn\'t ensure It is set',
+		true,
+	],
 	[
 		"ensure binds a waypoint's placeholder",
 		'Activity: Greet\nset greeted to {who}\nwaypoint Greeted {who} with variable greeted is {who}\nensure Greeted "Ada"\nvariable greeted is "Ada"',
 		true,
 	],
-	["ensure of a line that isn't a waypoint", "not ensure passes", true],
+	["ensure of a line that isn't a waypoint", "didn't ensure passes", true],
+	["an alternative whose quoted term holds a comma", 'set pair to "a,b"\nany of variable pair is "a,b", fails', true],
+	["an alternative that quotes a combinator holding a comma", 'any of fails, "at least 1, show steppers"', true],
 	["a waypoint applied below itself with the same arguments is unknown", "Activity: Loop\nensure Looped\nwaypoint Looped with fails\nensure Looped", false],
 ];
 
 describe("the readings of the logic engine", () => {
-	it("returns from not why its statement didn't hold, as a refused call's error text and seqPath, which a feature that expects a failure matches", async () => {
-		const refusal = await passWithDefaults('set refusal from not fails\nvariable refusal.refusal is "test fail"\nmatches refusal.seqPath with "*.*"', STEPPERS);
+	it("returns from didn't why its statement didn't hold, as a refused call's error text and seqPath, which a feature that expects a failure matches", async () => {
+		const refusal = await passWithDefaults('set refusal from didn\'t fails\nvariable refusal.refusal is "test fail"\nmatches refusal.seqPath with "*.*"', STEPPERS);
 		expect(refusal.ok, "not's products").toBe(true);
-		const thrown = await passWithDefaults('set thrown from not throw an exception\nmatches thrown.refusal with "the step threw: *"', STEPPERS);
+		const thrown = await passWithDefaults('set thrown from didn\'t throw an exception\nmatches thrown.refusal with "the step threw: *"', STEPPERS);
 		expect(thrown.ok, "a thrown error's message").toBe(true);
-		const differs = await failWithDefaults('set refusal from not fails\nmatches refusal.refusal with "*isn\'t permitted*"', STEPPERS);
+		const differs = await failWithDefaults("set refusal from didn't fails\nmatches refusal.refusal with \"*isn't permitted*\"", STEPPERS);
 		expect(differs.ok, "a refusal other than the expected error").toBe(false);
+	});
+
+	it("types a refusal by the action its call lacked, which a claim reads in place of the refusal's text", async () => {
+		const content = 'set refused from didn\'t holding only "Read:public", set x to "2"\nvariable refused.lacksAction is "VariablesStepper:set"';
+		const typed = await passWithDefaults(content, [...STEPPERS, AuthorityStepper]);
+		expect(typed.ok, JSON.stringify(typed.failure)).toBe(true);
 	});
 
 	it.each(READINGS)("%s", async (_, content, passes) => {
@@ -157,7 +169,7 @@ describe("the readings of the logic engine", () => {
 	});
 
 	it("proves a statement under a line, each part of the proof at its position", async () => {
-		const result = await passWithDefaults('set who to "there"\nwhere variable "who" is "there", not not variable "who" is "there"', STEPPERS);
+		const result = await passWithDefaults('set who to "there"\nwhere variable "who" is "there", didn\'t didn\'t variable "who" is "there"', STEPPERS);
 		expect(result.ok).toBe(true);
 		const records = await readEvery(result.world.shared.getStore(), { label: SEQ_PATH_LABEL });
 		const lines = records
@@ -170,5 +182,17 @@ describe("the readings of the logic engine", () => {
 			[".2.1", "refuted"],
 			[".2.1.1", "proved"],
 		]);
+	});
+});
+
+describe("a list of statements", () => {
+	it("is separated at its commas, apart from a comma inside a quoted or backticked term or a JSON value", () => {
+		expect(statementList('fails, variable pair is "a,b", `x,y`, set j to {"a": 1, "b": [2, 3]}')).toEqual([
+			"fails",
+			'variable pair is "a,b"',
+			"`x,y`",
+			'set j to {"a": 1, "b": [2, 3]}',
+		]);
+		expect(statementList('"at least 1, show steppers", passes')).toEqual(['"at least 1, show steppers"', "passes"]);
 	});
 });

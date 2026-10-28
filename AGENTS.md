@@ -102,13 +102,13 @@ If an unquoted variable exists in the environment, it takes precedence.
 
 Environment variables cannot be overwritten.
 
-    not set fromenv to "compromised"
+    didn't set fromenv to "compromised"
 
 **6. Strictness**
 
 Referring to an undefined variable causes an error.
 
-    not set missing setting to UndefinedVar
+    didn't set missing setting to UndefinedVar
 
 **7. Literals are quoted**
 
@@ -116,7 +116,7 @@ An unquoted term names a variable, so a literal is quoted. An unquoted term that
 
     set endpoint to "/api/items"
     variable endpoint is "/api/items"
-    not set endpoint to /api/items
+    didn't set endpoint to /api/items
 
 #### Stepper variables
 
@@ -131,7 +131,7 @@ Some steppers provide variables that are updated when steps execute. For example
 
 Haibun enforces **soundness** by preventing invalid states. A variable cannot hold a value outside its domain.
 
-    not set user_role as roles to "guest" ;; without `not`, this would fail because "guest" is not in roles
+    didn't set user_role as roles to "guest" ;; without `didn't`, this would fail because "guest" is not in roles
 
 #### Built-in domains
 
@@ -220,7 +220,7 @@ Compound statements use the statement domain to compose logic:
 - `whenever {condition}, {action}` - Loop
 - `any of {stmt}, {stmt}, ...` - Disjunction
 - `until {statements}` - Repeat until success
-- `not {statement}` - Negation
+- `didn't {statement}` - Negation as failure: the statement didn't succeed
 - `some {variable} in {domain} is {check}` - Existential quantifier
 - `every {variable} in {domain} is {check}` - Universal quantifier
 
@@ -236,7 +236,7 @@ Logic steps enable dependant workflows and limited conditional behavior.
 
 ### Negation
 
-    not variable status is "Error"
+    didn't variable status is "Error"
 
 ### Loops
 
