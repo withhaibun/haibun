@@ -18,7 +18,7 @@
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/out-junit/src": "22d1ca5d4f4449cae6186ff8d84c1f0b182e7591e1ffda9520a38daa3e8681d2",
 					"modules/recorder/src": "079caf826dbcad8943531b3f8f716e79a45d55f1668d29417e2a230978236208",
-					"modules/shu/src": "63ef1d5147fa206dfdfdbe7ff9608f20d6090e1d8e233b76e4dd1b3921737707",
+					"modules/shu/src": "f01174bec31d1174fca91f73a62421bf25101905c24782e4be01508573df1629",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/utils/src": "9799d114ca397313863bfc29604199b02bc9daf1a4bfa26675dbfe7cfc30e36c",

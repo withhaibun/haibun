@@ -21,7 +21,7 @@
 				"/AGENTS.md": {
 					"text": "/AGENTS",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 800,
 					"steps": 383
 				}
 			}

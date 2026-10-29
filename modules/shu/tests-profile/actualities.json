@@ -117,15 +117,15 @@
 			"actuality": {
 				"text": "modules/shu/tests-profile, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 21900,
+				"tookMs": 23100,
 				"digest": {
-					"modules/core/src": "6cf738f6efc0f62eb1bea96d1dcb9db829f5efb69bb7f9ddd5602b9ccaec1056",
+					"modules/core/src": "3dfb305412573f4d488af365973c8f8efac95406f14e4ab3d2ff9d35fe89ea4f",
 					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
-					"modules/logic/src": "8c7cc420d88ea6daa5e12d3a6cc8abb7a87b235c750185c7fd33fb9c52390333",
+					"modules/logic/src": "724ee2e93c7c6feddbea0c035ed7ae2aec1e1240b79392d122db5609d75a0402",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/shu/src": "a6d47774b5cac7bfbe37ad04a6ed87271eb9a98c6b594f2e1b6917cbeac70032",
+					"modules/shu/src": "f01174bec31d1174fca91f73a62421bf25101905c24782e4be01508573df1629",
 					"modules/shu/tests-profile": "e3b3bf7b4fe401d47683e9e42bb954f3620a9b2fc51c214808d39bf06148d8ec",
-					"modules/shu/waypoints": "de37110a82d0c48dc94ea5b069665a31dddcc2d863eaaca4957aaab759302368",
+					"modules/shu/waypoints": "0b629ae46bb99824a24722bbb18c11e3c35291b59784ee9fd9e5df9cb776fe95",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/web-playwright/src": "3f49c90fabe4b75a66b30ffdec7639c32a9fbc92a6badfe716962cf99ebdcd9b",
@@ -136,25 +136,25 @@
 				"/features/b-reading-a-cached-actuality.feature.ts": {
 					"text": "Reading an actuality this device holds",
 					"status": "passed",
-					"tookMs": 4700,
+					"tookMs": 4300,
 					"steps": 216
 				},
 				"/features/c-reading-a-report.feature.ts": {
 					"text": "Reading a report of this actuality",
 					"status": "passed",
-					"tookMs": 3200,
+					"tookMs": 3300,
 					"steps": 220
 				},
 				"/features/d-two-origins.feature.ts": {
 					"text": "What a reader holds is held per address",
 					"status": "passed",
-					"tookMs": 4000,
+					"tookMs": 3800,
 					"steps": 211
 				},
 				"/features/e-deleting-an-actuality.feature.ts": {
 					"text": "Deleting an actuality this device holds",
 					"status": "passed",
-					"tookMs": 8400,
+					"tookMs": 9500,
 					"steps": 207
 				}
 			}
@@ -381,15 +381,15 @@
 			"actuality": {
 				"text": "modules/shu/tests-profile, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 3600,
+				"tookMs": 3300,
 				"digest": {
-					"modules/core/src": "6cf738f6efc0f62eb1bea96d1dcb9db829f5efb69bb7f9ddd5602b9ccaec1056",
+					"modules/core/src": "3dfb305412573f4d488af365973c8f8efac95406f14e4ab3d2ff9d35fe89ea4f",
 					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
-					"modules/logic/src": "8c7cc420d88ea6daa5e12d3a6cc8abb7a87b235c750185c7fd33fb9c52390333",
+					"modules/logic/src": "724ee2e93c7c6feddbea0c035ed7ae2aec1e1240b79392d122db5609d75a0402",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/shu/src": "a6d47774b5cac7bfbe37ad04a6ed87271eb9a98c6b594f2e1b6917cbeac70032",
+					"modules/shu/src": "f01174bec31d1174fca91f73a62421bf25101905c24782e4be01508573df1629",
 					"modules/shu/tests-profile": "e3b3bf7b4fe401d47683e9e42bb954f3620a9b2fc51c214808d39bf06148d8ec",
-					"modules/shu/waypoints": "de37110a82d0c48dc94ea5b069665a31dddcc2d863eaaca4957aaab759302368",
+					"modules/shu/waypoints": "0b629ae46bb99824a24722bbb18c11e3c35291b59784ee9fd9e5df9cb776fe95",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/web-playwright/src": "3f49c90fabe4b75a66b30ffdec7639c32a9fbc92a6badfe716962cf99ebdcd9b",
@@ -400,7 +400,7 @@
 				"/features/a-an-actuality-to-come-back-to.feature.ts": {
 					"text": "An actuality to come back to",
 					"status": "passed",
-					"tookMs": 3200,
+					"tookMs": 2900,
 					"steps": 206
 				}
 			}
