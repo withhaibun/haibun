@@ -502,6 +502,14 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				</div>
 			</details>
 			${this.renderAsOfBannerTpl()}
+			${
+				shown
+					? html`<details class="explanation" data-key="chain" data-testid=${SHU_TEST_IDS.AFFORDANCES.CHAIN} @toggle=${this.onChainToggle}>
+							<summary>Domain chain${this.affordances && this.affordances.findings.length > 0 ? ` (${this.affordances.findings.length} findings)` : ""}</summary>
+							<slot name=${CHAIN_SLOT}></slot>
+						</details>`
+					: ""
+			}
 			${this.#affordances.render<TemplateResult | typeof nothing>({ ...loadRenders(html`Loading affordances`, this.#affordances), pending: () => nothing, completed: () => nothing })}
 			${
 				empty
@@ -518,14 +526,6 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				<div class="section-header"><h3>Waypoints (${waypoints.length})</h3><shu-copy-button data-copy-id="waypoints" label="Copy" title="Copy Waypoints JSON to clipboard" .source=${waypointsCopySource}></shu-copy-button></div>
 				<div data-testid="affordances-waypoints">${waypoints.map((w) => this.renderWaypointEntryTpl(w))}</div>
 			`
-					: ""
-			}
-			${
-				shown
-					? html`<details class="explanation" data-key="chain" data-testid=${SHU_TEST_IDS.AFFORDANCES.CHAIN} @toggle=${this.onChainToggle}>
-							<summary>Domain chain${this.affordances && this.affordances.findings.length > 0 ? ` (${this.affordances.findings.length} findings)` : ""}</summary>
-							<slot name=${CHAIN_SLOT}></slot>
-						</details>`
 					: ""
 			}
 			${

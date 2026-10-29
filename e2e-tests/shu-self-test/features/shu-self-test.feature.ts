@@ -21,7 +21,7 @@ const { serveShuApp } = withAction(new ShuStepper());
 const { set, setAs, exists, setFromStatement } = withAction(new VariablesStepper());
 const { comment } = withAction(new ResourcesStepper());
 const { feature, scenario } = withAction(new Haibun());
-const { enterStepMode, passesStepForm, chooseGraphLabel } = createStepUI(wp);
+const { enterStepMode, passesStepForm, chooseGraphLabel, collapseActionsBar } = createStepUI(wp);
 
 const host = "http://localhost:8239";
 const IDS = SHU_TEST_IDS;
@@ -42,7 +42,7 @@ const RPC_GLOB = "**/rpc/**";
 const STREAM_GLOB = "**/sse*";
 /** The monitor's pane. Every open column has the same pane controls, so a click on a control is scoped to this pane. */
 const MONITOR_PANE = `shu-column-pane[column-type="${SHU_TAG.MONITOR_COLUMN}"]`;
-const CHAIN_PANE = `shu-column-pane:has(${SHU_TAG.DOMAIN_CHAIN_VIEW})`;
+const CHAIN_PANE = SHU_TAG.DOMAIN_CHAIN_VIEW;
 const MAIN_GRAPH_PANE = `shu-column-pane:has(${SHU_TAG.POLYMORPHIC_GRAPH_VIEW}:not([data-external]))`;
 /** The canvas of the graph view that the domain chain view mounts in its graph slot. */
 /** The form of the ensure step, which a waypoint's Ensure opens. */
@@ -165,6 +165,8 @@ export const features: TKirejiExport = {
 		"Activity: Greet someone",
 		"set greeted to {who}",
 		"waypoint Greeted {who} with variable greeted is {who}",
+		"The reader puts the actions bar away, so the waypoints it would cover stand clear, and presses the waypoint's Ensure.",
+		...collapseActionsBar,
 		setAs({ what: "greeted-ensure", domain: "page-locator", value: `"[data-testid^='waypoint-Greeted '][data-testid$='-run']"` }),
 		click({ target: "greeted-ensure" }),
 		setAs({ what: "greeted-who", domain: "page-locator", value: `"${ENSURE_CALLER} [data-testid$='-step-input-outcome-who']"` }),
@@ -185,6 +187,9 @@ export const features: TKirejiExport = {
 		waitFor({ target: IDS.DOMAIN_CHAIN.GRAPH }),
 		setAs({ what: CHAIN_GRAPH_CANVAS, domain: "page-locator", value: `"${CHAIN_GRAPH_CANVAS_SELECTOR}"` }),
 		waitFor({ target: CHAIN_GRAPH_CANVAS }),
+		"The graph view draws the domain chain, so the chain holds the graph view's controls. The layout group opens in the chain as it does on the main graph. It offers each view type, including the layered top-down and left-right views.",
+		inElement({ container: `"${CHAIN_PANE}"`, what: `click ${IDS.POLYMORPHIC_VIEW.SETTINGS.layout}` }),
+		inElement({ container: `"${CHAIN_PANE}"`, what: `wait for ${IDS.POLYMORPHIC_VIEW.VIEW_TYPE}` }),
 
 		scenario({ scenario: "Goal resolution: `resolve` refutes a registered domain that a step doesn't return" }),
 
@@ -194,6 +199,7 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "Repeated `show affordances` invocations must not duplicate the pane" }),
 
 		"A view-open product is a request to mount a pane. Running the same show step twice reuses the open pane, and the pane's open chain section stays open. Each refresh of the affordances stream would add another pane without that reuse. This scenario invokes the step a second time and waits for the chain view's root and graph. Each wait reads the first match, so the scenario doesn't count the panes.",
+		...enterStepMode,
 		...passesStepForm("LogicStepper-showAffordances"),
 		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
 		waitFor({ target: IDS.DOMAIN_CHAIN.GRAPH }),
@@ -265,12 +271,6 @@ export const features: TKirejiExport = {
 		domains.hold(q(COMMENT_DOMAIN)),
 		domains.hold(q(DOMAIN_PAGE_TEST_ID)),
 		domains.viewOf(q(SHU_TAG.MONITOR_COLUMN), q(SHU_TAG.MONITOR_COLUMN)),
-
-		scenario({ scenario: "The domain chain has the graph view's controls" }),
-
-		"The graph view draws the domain chain, so the chain pane holds the graph view's controls. The layout group opens in the chain pane as it does on the main graph. It offers each view type, including the layered top-down and left-right views.",
-		inElement({ container: `"${CHAIN_PANE}"`, what: `click ${IDS.POLYMORPHIC_VIEW.SETTINGS.layout}` }),
-		inElement({ container: `"${CHAIN_PANE}"`, what: `wait for ${IDS.POLYMORPHIC_VIEW.VIEW_TYPE}` }),
 
 		scenario({ scenario: "The graph view's layout settings open as one group" }),
 
@@ -382,8 +382,8 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "The views on offer are read from what the deployment declares" }),
 
-		"A domain that declares a UI component is a view. The views picker reads the views a person can open from the Domain records, not from a separate list, and shows one row for each view. Each row's test id names the view that the row opens. The page opens the picker from its address. This scenario doesn't press a row.",
-		gotoPage({ name: `"${host}/haibun#?col=${SHU_TAG.VIEWS_PICKER}"` }),
+		"A domain that declares a UI component is a view. The views picker lists the views a person can open from the declarations the page holds, not from a separate list, and shows one row for each view, described by its domain. Each row's test id names the view that the row opens. The page loads its address afresh, which names the picker as its column. This scenario doesn't press a row.",
+		gotoPage({ name: `"${host}/haibun?#?col=${SHU_TAG.VIEWS_PICKER}"` }),
 		setAs({ what: VIEWS_PICKER, domain: "page-test-id", value: `"${VIEWS_PICKER}"` }),
 		setAs({ what: VIEWS_PICKER_MONITOR, domain: "page-test-id", value: `"${VIEWS_PICKER_MONITOR}"` }),
 		waitFor({ target: VIEWS_PICKER }),

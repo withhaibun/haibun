@@ -1,6 +1,6 @@
 /**
- * <shu-views-picker>: the views the domains declare, a row each (the domain it shows, and what it shows), as the page's catalog
- * declares them and actuality's domains describe them. A press on a row opens the view through the pane controller.
+ * <shu-views-picker>: the views the domains declare, a row each (the type or domain it shows, and what it shows), as actuality's
+ * domains declare them. A press on a row opens the view through the pane controller.
  */
 import { SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
@@ -11,7 +11,6 @@ import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { shuBaseStyles } from "./styles.js";
 import { requestPaneFrom } from "../controllers/pane-controller.js";
 import { domainsRead } from "../controllers/registry-controller.js";
-import { componentOfView, declaredViews as catalogViews } from "../controllers/catalog-controller.js";
 import { LoadController } from "../controllers/load-controller.js";
 import { addsToSelection } from "../derivations/pane-kinds.js";
 import { declaredViews, type TDeclaredView } from "../derivations/declared-views.js";
@@ -41,7 +40,7 @@ export class ShuViewsPicker extends ShuElement<typeof EmptyStateSchema> {
 	/** The views the picker lists, which the read of actuality's domains sets. */
 	@property({ attribute: false }) accessor views: TDeclaredView[] = [];
 
-	/** The read of actuality's domains, which describe the views the picker lists. */
+	/** The read of actuality's domains, which declare the views the picker lists. */
 	readonly #domains = new LoadController(this, domainsRead);
 
 	constructor() {
@@ -51,7 +50,7 @@ export class ShuViewsPicker extends ShuElement<typeof EmptyStateSchema> {
 	protected override onConnected(): void {
 		void this.#domains.run().then(() => {
 			const read = this.#domains.page;
-			if (read !== undefined) this.views = declaredViews(catalogViews(), componentOfView, read, SHU_TAG.VIEWS_PICKER);
+			if (read !== undefined) this.views = declaredViews(read, SHU_TAG.VIEWS_PICKER);
 		});
 	}
 
