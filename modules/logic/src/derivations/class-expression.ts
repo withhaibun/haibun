@@ -10,6 +10,7 @@ import { DataFactory } from "n3";
 import type { NamedNode, Quad_Object, Quad_Subject } from "@rdfjs/types";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { RDF } from "@haibun/core/lib/domains/vocabularies.js";
+import { DL_SYMBOL } from "@haibun/core/lib/records/domains/axioms.js";
 import { pattern, ruleText, type TN3Pattern } from "./n3.js";
 
 /** A property as a restriction names it, read in its own direction or inverted. */
@@ -211,14 +212,17 @@ export function frozenMembers(expression: TClassExpression, subject: NamedNode, 
 	return factsOf(expression, subject);
 }
 
+/** The mark of an inverse property in DL notation. A reading in the page's text writes it, and a graph's label doesn't. */
+const INVERSE_MARK = "⁻";
+
 /** Returns an expression in DL notation. */
 export function dlOf(expression: TClassExpression): string {
 	const nested = (part: TClassExpression): string => ("and" in part || "or" in part ? `(${dlOf(part)})` : dlOf(part));
 	if ("named" in expression) return expression.named;
-	if ("and" in expression) return expression.and.map(nested).join(" ⊓ ");
-	if ("or" in expression) return expression.or.map(nested).join(" ⊔ ");
-	const role = `${expression.property}${expression.inverse ? "⁻" : ""}`;
-	return "some" in expression ? `∃${role}.${nested(expression.some)}` : `∃${role}.{${expression.value}}`;
+	if ("and" in expression) return expression.and.map(nested).join(` ${DL_SYMBOL.intersection} `);
+	if ("or" in expression) return expression.or.map(nested).join(` ${DL_SYMBOL.union} `);
+	const role = `${expression.property}${expression.inverse ? INVERSE_MARK : ""}`;
+	return "some" in expression ? `${DL_SYMBOL.some}${role}.${nested(expression.some)}` : `${DL_SYMBOL.some}${role}.{${expression.value}}`;
 }
 
 /** Returns an expression as a plain-English reading, by fixed rules: a class is "a C", an existential is "something that P

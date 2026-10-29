@@ -8,7 +8,7 @@ import { buildSpaHtml } from "../derivations/page-html.js";
 import { pagePolicy } from "../derivations/content-security-policy.js";
 import type { TBundleFile } from "../ports.js";
 import { BUNDLE_NAMES, bundleFileName } from "../domains/bundle-files.js";
-import { labelFontFallback } from "../derivations/label-font-fallback.js";
+import { FALLBACK_FONT, labelFontFallback } from "../derivations/label-font-fallback.js";
 
 /** How many random bytes a page's script nonce holds: 128 bits, as CSP3 requires of a nonce. */
 const SCRIPT_NONCE_BYTES = 16;
@@ -24,9 +24,10 @@ export function servedPage(basePath: string, hydration: TServedHydration): { htm
 }
 
 /** The response to a request of troika's lookup of fallback label fonts at `path`, below the fallback address: an index or
- *  the fallback font's metadata as JSON, the label font as the fallback font's file, or undefined for another path. */
+ *  a fallback font's metadata as JSON, the label font or the math font as a fallback font's file, or undefined for another path. */
 export function labelFontResponse(bundles: TBundleFile, path: string): { json: unknown } | { font: ArrayBuffer } | undefined {
 	const answer = labelFontFallback(path);
 	if (answer === undefined) return undefined;
-	return answer.kind === "json" ? { json: answer.body } : { font: bundles.labelFont() };
+	if (answer.kind === "json") return { json: answer.body };
+	return { font: answer.font === FALLBACK_FONT.math ? bundles.mathFont() : bundles.labelFont() };
 }

@@ -37,6 +37,7 @@
 		"@digitalbazaar/zcap": "^9.0.3",
 		"@digitalbazaar/zcap-context": "^2.0.1",
 		"@fontsource/noto-sans": "^5.3.0",
+		"@fontsource/noto-sans-math": "^5.3.0",
 		"@haibun/core": "*",
 		"@haibun/domain-storage": "*",
 		"@haibun/logic": "*",

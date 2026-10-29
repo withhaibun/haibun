@@ -24,6 +24,8 @@ export type TBundleFile = {
 	whole(file: string): string;
 	/** The font of the graph's labels. */
 	labelFont(): ArrayBuffer;
+	/** The font of the DL symbols the graph's labels draw, which the label font lacks. */
+	mathFont(): ArrayBuffer;
 	/** The code points the font of the graph's labels covers, as a CSS `unicode-range`. */
 	labelFontRanges(): string;
 };

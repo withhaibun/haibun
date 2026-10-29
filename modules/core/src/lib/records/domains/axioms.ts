@@ -5,6 +5,10 @@
  */
 import { z } from "zod";
 
+/** The symbols of DL notation the axioms write, which a graph's labels draw: subsumption, the existential and universal
+ *  restrictions, union, intersection, the top class, membership and entailment. */
+export const DL_SYMBOL = { subsumedBy: "⊑", some: "∃", all: "∀", union: "⊔", intersection: "⊓", top: "⊤", member: "∈", entails: "⊨" } as const;
+
 /** The kinds of frame, as Manchester syntax names them. */
 export const FRAME_KIND = { class: "Class", property: "ObjectProperty", individual: "Individual" } as const;
 const AssertedBySchema = z.object({ persistedAs: z.string(), id: z.string() }).strict();

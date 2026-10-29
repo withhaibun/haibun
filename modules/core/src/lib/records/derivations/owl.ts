@@ -13,6 +13,7 @@ import { NAMESPACE, OWL, RDF, RDFS } from "../../domains/vocabularies.js";
 import { CLASS_LABEL, HAIBUN_PREFIX, PROPERTY_LABEL } from "../../domains/resources.js";
 import type { TClusteredQuads, TQuad } from "../../steps/domains/quad-types.js";
 import { ONTOLOGY_FIELD } from "../domains/ontology.js";
+import { unionMembers } from "./axioms.js";
 
 const CURIE = /^([A-Za-z][\w-]*):(?!\/\/)(.+)$/;
 const ABSOLUTE_IRI = /^[a-z][a-z\d+.-]*:\/\//i;
@@ -38,14 +39,16 @@ export function ontologyOwl(ontology: TClusteredQuads, context: Record<string, u
 		new Map([...Map.groupBy(stated(label, field), (q) => q.subject)].map(([subject, held]) => [subject, held.map((q) => String(q.object))]));
 	const propertyIri = new Map(stated(PROPERTY_LABEL, ONTOLOGY_FIELD.uri).map((q) => [q.subject, String(q.object)]));
 	const property = (name: string): NamedNode => ref(propertyIri.get(name) ?? name);
-	const unionOf = (classes: string[]): Quad_Object =>
-		classes.length === 1
+	const unionOf = (named: string[]): Quad_Object => {
+		const classes = unionMembers(named, (name) => ref(name).value);
+		return classes.length === 1
 			? ref(itemAt(classes, 0))
 			: writer.blank([
 					{ predicate: namedNode(RDF.type), object: namedNode(OWL.Class) },
 					// N3.js's writer returns a list it writes in place of an object; its typings state it as an array of objects.
 					{ predicate: namedNode(OWL.unionOf), object: writer.list(classes.map(ref)) as unknown as Quad_Object },
 				]);
+	};
 	// Each axiom of named terms is written once, though several records state it.
 	const written = new Set<string>();
 	const axiom = (subject: NamedNode, predicate: string, object: Quad_Object): void => {

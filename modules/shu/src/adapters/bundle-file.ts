@@ -21,6 +21,9 @@ const PAGE_FILE = /^(?:[\w-]+\/)?[\w-]+\.js(?:\.map)?$/;
 const LABEL_FONT_SUBSET = "latin";
 /** The font of the graph's labels, a dependency of the package: Noto Sans, the Latin subset, in the WOFF troika reads. */
 const LABEL_FONT_FILE = createRequire(import.meta.url).resolve(`@fontsource/noto-sans/files/noto-sans-${LABEL_FONT_SUBSET}-400-normal.woff`);
+/** The font of the DL symbols the graph's labels draw: Noto Sans Math, in the WOFF troika reads, which its package names `latin`
+ *  though it holds the font's whole set of mathematical symbols. */
+export const MATH_FONT_FILE = createRequire(import.meta.url).resolve("@fontsource/noto-sans-math/files/noto-sans-math-latin-400-normal.woff");
 /** The package's `unicode-range` of each subset, beside its folder of font files. */
 const LABEL_FONT_RANGES_FILE = join(dirname(LABEL_FONT_FILE), "..", "unicode.json");
 
@@ -58,6 +61,12 @@ const servedAsset = (path: string): TServedAsset => {
 	return asset;
 };
 
+/** The bytes of the font file at `path`. */
+function fontBytes(path: string): ArrayBuffer {
+	const font = readFileSync(path);
+	return font.buffer.slice(font.byteOffset, font.byteOffset + font.byteLength) as ArrayBuffer;
+}
+
 /** The bundle files under `build/`. */
 export function bundleFile(): TBundleFile {
 	return {
@@ -67,10 +76,8 @@ export function bundleFile(): TBundleFile {
 		},
 		pageBuiltAt: (file) => built(join(PAGE_DIR, file), `the page's bundle ${file}`, writtenAt).toISOString(),
 		whole: (file) => built(join(WHOLE_DIR, file), `the bundle ${file}`, servedAsset).content,
-		labelFont: () => {
-			const font = readFileSync(LABEL_FONT_FILE);
-			return font.buffer.slice(font.byteOffset, font.byteOffset + font.byteLength) as ArrayBuffer;
-		},
+		labelFont: () => fontBytes(LABEL_FONT_FILE),
+		mathFont: () => fontBytes(MATH_FONT_FILE),
 		labelFontRanges: () => {
 			const ranges: unknown = JSON.parse(text(LABEL_FONT_RANGES_FILE))[LABEL_FONT_SUBSET];
 			if (typeof ranges !== "string") throw new Error(`${LABEL_FONT_RANGES_FILE} doesn't state the range of the ${LABEL_FONT_SUBSET} subset: reinstall @fontsource/noto-sans`);

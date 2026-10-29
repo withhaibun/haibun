@@ -27,3 +27,15 @@ declare module "troika-three-text" {
 		dispose(): void;
 	}
 }
+
+/** troika's parser of a font file, as its worker loads it: the fonts a file holds, and the glyph each code point draws as. */
+declare module "troika-three-text/libs/typr.factory.js" {
+	const typrFactory: () => { parse(otf: ArrayBuffer): unknown[]; U: { codeToGlyph(font: unknown, point: number): number } };
+	export default typrFactory;
+}
+
+/** troika's conversion of a WOFF file to the OpenType its parser reads. */
+declare module "troika-three-text/libs/woff2otf.factory.js" {
+	const woff2otfFactory: () => (woff: ArrayBuffer) => ArrayBuffer;
+	export default woff2otfFactory;
+}

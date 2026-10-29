@@ -3,7 +3,7 @@
  * `or` and ⊔, an intersection of superclasses is `,` and ⊓, a domain is ∃p.⊤ ⊑ D and a range is ⊤ ⊑ ∀p.R. A name that
  * Manchester syntax doesn't read as written, such as one with a space, is an IRI in angle brackets.
  */
-import { FRAME_KIND } from "../domains/axioms.js";
+import { DL_SYMBOL, FRAME_KIND } from "../domains/axioms.js";
 
 /** A frame's axioms: its Manchester syntax and its DL notation. */
 export type TAxioms = { manchester: string; dl: string };
@@ -13,30 +13,39 @@ export type TIndividualFact = { property: string; value: string | number | boole
 const WRITTEN_NAME = /^(?:[A-Za-z_][\w.-]*:)?[A-Za-z_][\w.-]*$/;
 const SECTION = "\n    ";
 export const BETWEEN_AXIOMS = " · ";
-const TOP = "⊤";
 
 /** A name as Manchester syntax and DL notation write it. */
 export const manchesterName = (name: string): string => (WRITTEN_NAME.test(name) ? name : `<${encodeURI(name)}>`);
 const literal = (value: string | number | boolean): string => (typeof value === "string" ? JSON.stringify(value) : String(value));
 const sections = (head: string, parts: [string, string[]][]): string =>
 	[head, ...parts.flatMap(([label, items]) => (items.length === 0 ? [] : [`${label}: ${items.join(", ")}`]))].join(SECTION);
+/** The members of a union: each class once, by the IRI `iriOf` returns of it, in the order the classes first name it. Several types
+ *  that declare one relation name the same class, and the union states it once. */
+export const unionMembers = (classes: readonly string[], iriOf: (name: string) => string): string[] => {
+	const seen = new Set<string>();
+	return classes.filter((name) => !seen.has(iriOf(name)) && seen.add(iriOf(name)));
+};
 /** A union in DL notation, in parentheses where it joins more than one class. */
-const union = (classes: readonly string[]): string => (classes.length === 1 ? classes.join("") : `(${classes.join(" ⊔ ")})`);
+const union = (classes: readonly string[]): string => (classes.length === 1 ? classes.join("") : `(${classes.join(` ${DL_SYMBOL.union} `)})`);
 
 /** A class's axioms: each superclass it is subsumed by, or ⊤ where it doesn't state one. */
 export function classAxioms(name: string, superclasses: readonly string[]): TAxioms {
 	const [named, supers] = [manchesterName(name), superclasses.map(manchesterName)];
-	return { manchester: sections(`${FRAME_KIND.class}: ${named}`, [["SubClassOf", supers]]), dl: `${named} ⊑ ${supers.length === 0 ? TOP : supers.join(" ⊓ ")}` };
+	return {
+		manchester: sections(`${FRAME_KIND.class}: ${named}`, [["SubClassOf", supers]]),
+		dl: `${named} ${DL_SYMBOL.subsumedBy} ${supers.length === 0 ? DL_SYMBOL.top : supers.join(` ${DL_SYMBOL.intersection} `)}`,
+	};
 }
 
 /** A property's axioms: the union of the classes that declare it as its domain, the union of the classes it reaches as its
  *  range, and each of its superproperties. */
 export function propertyAxioms(name: string, domain: readonly string[], range: readonly string[], superProperties: readonly string[]): TAxioms {
-	const [named, domains, ranges, supers] = [manchesterName(name), domain.map(manchesterName), range.map(manchesterName), superProperties.map(manchesterName)];
+	const members = (classes: readonly string[]): string[] => unionMembers(classes.map(manchesterName), (written) => written);
+	const [named, domains, ranges, supers] = [manchesterName(name), members(domain), members(range), superProperties.map(manchesterName)];
 	const dl = [
-		...(domains.length === 0 ? [] : [`∃${named}.${TOP} ⊑ ${union(domains)}`]),
-		...(ranges.length === 0 ? [] : [`${TOP} ⊑ ∀${named}.${union(ranges)}`]),
-		...supers.map((parent) => `${named} ⊑ ${parent}`),
+		...(domains.length === 0 ? [] : [`${DL_SYMBOL.some}${named}.${DL_SYMBOL.top} ${DL_SYMBOL.subsumedBy} ${union(domains)}`]),
+		...(ranges.length === 0 ? [] : [`${DL_SYMBOL.top} ${DL_SYMBOL.subsumedBy} ${DL_SYMBOL.all}${named}.${union(ranges)}`]),
+		...supers.map((parent) => `${named} ${DL_SYMBOL.subsumedBy} ${parent}`),
 	];
 	const manchester = sections(`${FRAME_KIND.property}: ${named}`, [
 		["Domain", domains.length === 0 ? [] : [domains.join(" or ")]],

@@ -45,6 +45,25 @@ describe("ontologyOwl", () => {
 		expect(members === undefined ? undefined : lists[members.value]?.map((term) => term.value)).toEqual([note.value, memo.value]);
 	});
 
+	it("states each class of a union once, though several fields and types name it", () => {
+		const replies = (persistedAs: string) => ({
+			...typeOf(persistedAs, {}),
+			topology: { ...typeOf(persistedAs, {}).topology, edges: { inReplyTo: { range: "Note" }, follows: { rel: LinkRelations.IN_REPLY_TO.rel, range: "Note" } } },
+		});
+		const declared = mapDefinitionsToDomains([replies("Note"), replies("Memo")]);
+		const replyContext = getJsonLdContext(declared)["@context"];
+		const exported = new Store(new Parser().parse(ontologyOwl(ontologyToQuads(declared), replyContext)));
+		const inReplyTo = namedNode(iriIn(replyContext, LinkRelations.IN_REPLY_TO.uri));
+		const lists = exported.extractLists();
+		const [domain] = exported.getObjects(inReplyTo, namedNode(RDFS.domain), null);
+		const [domainMembers] = domain === undefined ? [] : exported.getObjects(domain, namedNode(OWL.unionOf), null);
+		expect(domainMembers === undefined ? undefined : lists[domainMembers.value]?.map((term) => term.value)).toEqual([note.value, memo.value]);
+		expect(
+			exported.getObjects(inReplyTo, namedNode(RDFS.range), null).map((term) => term.value),
+			"a range of one class is the class",
+		).toEqual([note.value]);
+	});
+
 	it("states a class's declared @type IRI as its superclass, apart from its other superclasses", () => {
 		expect(holds(note, RDFS.subClassOf, entity)).toBe(true);
 		expect(holds(memo, RDFS.subClassOf, entity)).toBe(true);
