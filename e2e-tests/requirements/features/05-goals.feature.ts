@@ -39,8 +39,9 @@ export const features: TKirejiExport = {
 		'variable pursued.verdict is "proved"',
 
 		scenario({ scenario: "The chain of producers doesn't hold a blocking finding" }),
-		"Essential, for the declarations check at start, which refuses a parameter whose domain is string. Source: declarations.ts and haibun.pl lint/2.",
-		"show chain lint",
+		"Essential, for the declarations check at start, which refuses a parameter whose domain is string. The affordances carry the chain's lint findings. Source: declarations.ts and haibun.pl lint/2.",
+		"set offered from show affordances",
+		"variable offered.findings exists",
 
 		scenario({ scenario: "A goal's proof is a set of records" }),
 		"Essential. Source: docs/reasoner.md, step 5.",

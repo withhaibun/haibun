@@ -5,22 +5,20 @@
  * their goal verdict gives them, and the steps between them as edges labelled by the step. The presenter draws it with
  * the graph's own controls (fit, follow, prune, reading, layout, filters), mounted in light DOM and shown through a slot.
  * A node opens what it names: a fact the step that produced it, a domain or waypoint the affordances panel at it. The
- * view owns the live refetch, the deep-link selection and the findings of a chain lint report.
+ * affordances panel holds the view and gives it the affordances it reads; the view owns the deep-link selection and lists the
+ * affordances' lint findings.
  */
 import { html, css, type TemplateResult } from "lit";
 import { shuBaseStyles } from "./styles.js";
 import { z } from "zod";
-import { affordancesOnOffer } from "../controllers/read-controller.js";
-import { LoadController } from "../controllers/load-controller.js";
-import { refusalTpl } from "./load-renders.js";
 import { producingStepOf, projectDomainChain, waypointNodeId, type TAffordancesSnapshot, type TWaypointSnapshot } from "../derivations/project-domain-chain.js";
 import { graphToQuads } from "../derivations/graph-quads.js";
 import { SHU_EVENT, AFFORDANCE_PARAM, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import * as PageHash from "../controllers/hash-controller.js";
-import { deepLinkOf, followDeepLink, openRef } from "./ref-navigation.js";
+import { deepLinkOf, followDeepLink, openRef, paneHref } from "./ref-navigation.js";
 import { domainRef, stepRef } from "./shu-ref.js";
-import { isStepEnd, LINT_FINDING, LintFindingSchema, type TLintFinding } from "@haibun/core/lib/domains/goal-resolution.js";
+import { LINT_FINDING, LintFindingSchema, type TLintFinding } from "@haibun/core/lib/domains/goal-resolution.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { noteActualityFeature } from "../client-cache/controllers/device-controller.js";
@@ -32,7 +30,6 @@ import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { typeShownIn } from "../controllers/catalog-controller.js";
 import "./shu-spinner.js";
 import { emptyState } from "./empty-state.js";
-import { SHOW_AFFORDANCES_METHOD, SHOW_VIEWS_METHOD } from "../domains/leads-on.js";
 
 /** Where the chain's graph is placed in the view, which is also the test id it is found by, and the scope it keeps its
  *  settings under. */
@@ -90,16 +87,25 @@ export class ShuDomainChainView extends ShuElement<typeof EmptyStateSchema> {
 	];
 	static domainSelector = SHU_TAG.DOMAIN_CHAIN_VIEW;
 
-	/** The affordances the chain draws: read from actuality, or given as a step's products. */
-	readonly #chain = new LoadController<TAffordancesSnapshot>(this, async () => {
-		const read = await affordancesOnOffer(undefined);
-		return read.ok ? { ok: true, value: snapshotOf(read.value) } : read;
-	});
+	/** The affordances as its host gave them, and the snapshot of them the chain draws; null before the host gives them. */
+	#given: { offered: Record<string, unknown>; snapshot: TAffordancesSnapshot } | null = null;
 
-	/** The affordances the chain draws, or null before they are read. */
+	/** The affordances the chain draws, or null before its host gives them. */
 	private get affordances(): TAffordancesSnapshot | null {
-		const page = this.#chain.page;
-		return page === undefined ? null : page;
+		return this.#given === null ? null : this.#given.snapshot;
+	}
+
+	/** The affordances its host gave, as the host gave them. */
+	get products(): Record<string, unknown> | undefined {
+		return this.#given?.offered;
+	}
+
+	/** The affordances its host reads, with their lint findings. */
+	set products(p: Record<string, unknown>) {
+		const snapshot = snapshotOf(p);
+		this.findings = z.array(LintFindingSchema).parse(p.findings);
+		this.#given = { offered: p, snapshot };
+		this.requestUpdate();
 	}
 	/** Test-only accessor; production reads happen inside `render()`. */
 	getAffordances(): TAffordancesSnapshot | null {
@@ -114,28 +120,17 @@ export class ShuDomainChainView extends ShuElement<typeof EmptyStateSchema> {
 
 	protected override onConnected(): void {
 		if (!this.hasAttribute("data-testid")) this.setAttribute("data-testid", SHU_TEST_IDS.DOMAIN_CHAIN.ROOT);
-		if (this.affordances === null) void this.#chain.run();
-		// A step's end can change the facts the chain reads, so the view reads the snapshot again quietly, once per batch. On
-		// reload the stream replays the whole history at once, and subscribeBatched collapses the replay to one re-fetch per frame.
-		this.autoTeardown(this.subscribeBatched({ onBatch: () => void this.#chain.refresh(), filter: isStepEnd }));
 		this.autoListen(this, SHU_EVENT.GRAPH_NODE_CLICK, (e) => this.onNodeClick(e));
 		// The address names the goal or waypoint the reader is on, which the graph marks as its active node.
 		this.autoTeardown(PageHash.onHashChanged(() => presenterIn(this, CHAIN_GRAPH.slot)?.selectNode(this.addressedNode())));
 	}
 
-	/** View-open contract, pane-opener assigns producer products on mount. */
-	set products(p: Record<string, unknown>) {
-		// A chain lint report carries its findings beside the chain.
-		this.findings = p.findings === undefined ? [] : z.array(LintFindingSchema).parse(p.findings);
-		this.#chain.hold(snapshotOf(p));
-	}
-
-	/** What the chain shows before its read completes. */
+	/** What the chain shows before its host gives it the affordances. */
 	private loadingTemplate(): TemplateResult {
 		return html`<shu-spinner visible status="Loading domain chain…"></shu-spinner>`;
 	}
 
-	/** What a chain lint report found, when the view shows one. */
+	/** The ways the steps' chain is incomplete, as the affordances' lint finds them. */
 	private findings: TLintFinding[] = [];
 
 	/** One finding, its step and its domain each a link to its view. */
@@ -152,17 +147,7 @@ export class ShuDomainChainView extends ShuElement<typeof EmptyStateSchema> {
 	}
 
 	render(): TemplateResult {
-		return this.#chain.render({
-			pending: () => this.loadingTemplate(),
-			running: () => this.loadingTemplate(),
-			failed: (refusal) =>
-				emptyState({
-					message: "The chain wasn't read.",
-					next: html`${refusalTpl(refusal, this.#chain)} Read it with ${stepRef(SHOW_AFFORDANCES_METHOD)}, or run any step.`,
-					testId: SHU_TEST_IDS.DOMAIN_CHAIN.EMPTY,
-				}),
-			completed: () => this.chainTemplate(),
-		});
+		return this.affordances === null ? this.loadingTemplate() : this.chainTemplate();
 	}
 
 	/** The chain's header, its explanation and its graph. */
@@ -178,7 +163,10 @@ export class ShuDomainChainView extends ShuElement<typeof EmptyStateSchema> {
 			${
 				graphPresenterTag()
 					? html`<div class="graph" data-testid=${CHAIN_GRAPH.slot}><slot name=${CHAIN_GRAPH.slot}></slot></div>`
-					: emptyState({ message: "The site doesn't declare a graph view that draws the chain.", next: html`The views it declares: ${stepRef(SHOW_VIEWS_METHOD)}.` })
+					: emptyState({
+							message: "The site doesn't declare a graph view that draws the chain.",
+							next: html`The <a href=${paneHref({ paneType: "component", tag: SHU_TAG.VIEWS_PICKER, label: "Views" })}>views</a> it declares.`,
+						})
 			}
 			${
 				this.findings.length

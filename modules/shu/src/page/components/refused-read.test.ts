@@ -14,11 +14,11 @@ import { provideLayout } from "../../test/jsdom-layout.js";
 import "./shu-filter-column.js";
 import "./shu-type-column.js";
 import "./shu-thread-column.js";
-import "./shu-domain-chain-view.js";
 import type { ShuFilterColumn } from "./shu-filter-column.js";
 import type { ShuTypeColumn } from "./shu-type-column.js";
 import type { ShuThreadColumn } from "./shu-thread-column.js";
-import type { ShuDomainChainView } from "./shu-domain-chain-view.js";
+import type { ShuAffordancesPanel } from "./shu-affordances-panel.js";
+import "./shu-affordances-panel.js";
 
 /** A read's step, as the show steps step describes it. */
 const read = (stepperName: string, stepName: string) => ({ method: `${stepperName}-${stepName}`, stepperName, stepName, pattern: stepName, read: true, readsAt: Access.public });
@@ -94,7 +94,7 @@ const VIEWS: Array<[string, () => Promise<TView>, boolean]> = [
 		},
 		false,
 	],
-	["the domain chain", async () => document.body.appendChild(document.createElement("shu-domain-chain-view")) as ShuDomainChainView, false],
+	["the affordances panel", async () => document.body.appendChild(document.createElement("shu-affordances-panel")) as ShuAffordancesPanel, false],
 ];
 
 describe("a refused read", () => {

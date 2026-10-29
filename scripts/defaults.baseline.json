@@ -109,7 +109,7 @@
 		"fills a falsy value with a constant through ||": 1
 	},
 	"modules/core/src/steps/variables-stepper.ts": {
-		"fills an absent value with a constant through ??": 5
+		"fills an absent value with a constant through ??": 4
 	},
 	"modules/monitor-otel/src/monitor-otel-stepper.ts": {
 		"fills a falsy value with a constant through ||": 5,

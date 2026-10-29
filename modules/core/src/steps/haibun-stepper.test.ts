@@ -9,12 +9,10 @@ import VariablesSteppers from "./variables-stepper.js";
 import { ActivitiesStepper } from "./activities-stepper.js";
 import { AStepper } from "../lib/steps/domains/stepper.js";
 import { actionOK } from "../lib/domains/util.js";
-import { listedSteppers } from "../lib/steps/pipelines/discover-steps.js";
 import { itemAt } from "../lib/domains/item-at.js";
 import { hostScopedMethodName } from "../lib/steps/domains/step-method.js";
 import { runRegistry, type StepRegistry } from "../lib/steps/pipelines/step-registry.js";
-import { productData, STEPS_CHANGED, type THaibunEvent } from "../lib/domains/protocol.js";
-import { SteppersSchema } from "../lib/steps/domains/steppers.js";
+import { STEPS_CHANGED, type THaibunEvent } from "../lib/domains/protocol.js";
 import { readStepDefinitions, readStepSummaries, SHOW_STEPS_LINE, SHOW_STEPS_METHOD, type TStepSummaries } from "../lib/steps/domains/step-discovery.js";
 import type { TStepResult } from "../lib/domains/protocol.js";
 import { validateStep } from "../lib/pipelines/step-validation.js";
@@ -174,16 +172,14 @@ describe("show steps", () => {
 		expect(discovery.predicates.map(({ method }) => method)).toEqual(["TestSteps-passes"]);
 	});
 
-	it("lists every step's summary, and every stepper with its steps as the CLI's --show-steppers prints them", async () => {
-		const feature = { path: "/features/test.feature", content: "show steps\nshow steppers" };
+	it("lists every step's summary with the steppers of the steps", async () => {
+		const feature = { path: "/features/test.feature", content: "show steps" };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps, LogicStepper]);
 		expect(result.ok).toBe(true);
 		const summaries = readStepSummaries(productsOfLine(result, "show steps"));
 		expect(summaries.steps.map((step) => step.method)).toContain("TestSteps-passes");
 		expect(summaries.total).toBe(summaries.steps.length);
-		const steppers = SteppersSchema.parse(productData(productsOfLine(result, "show steppers")));
-		expect(steppers).toEqual(listedSteppers(result.world.runtime.steppers ?? []));
-		expect(steppers.steppers.find(({ stepper }) => stepper === "TestSteps")?.steps).toContain("passes: passes");
+		expect(summaries.steppers.map(({ stepper }) => stepper)).toEqual(expect.arrayContaining(["TestSteps", "Haibun"]));
 	});
 
 	it("counts, limits and orders a statement's list, and refuses to bound by time a list whose items don't state one", async () => {
@@ -258,11 +254,11 @@ describe("show steps", () => {
 			description = "Records what a statement notes.";
 			steps = { note: { description: TEST_STEP, gwta: "note {value: text}", action: ({ value }: { value: string }) => (noted.push(value), Promise.resolve(actionOK())) } };
 		}
-		const result = await passWithDefaults('for each stepper of whose "stepper" matches "s", show steppers: note stepper/stepper', [Haibun, TestSteps, Notes, LogicStepper]);
+		const result = await passWithDefaults('for each step of whose "method" matches "-pass", show steps: note step/method', [Haibun, TestSteps, Notes, LogicStepper]);
 		expect(result.ok, JSON.stringify(result.failure)).toBe(true);
-		const kept = listedSteppers(result.world.runtime.steppers ?? []).steppers.flatMap(({ stepper }) => (stepper.toLowerCase().includes("s") ? [stepper] : []));
-		expect(noted, "once for each stepper the list's combinator keeps").toEqual(kept);
-		expect(noted).toEqual(expect.arrayContaining(["TestSteps", "Notes"]));
+		const kept = readStepSummaries(productsOfLine(result, "show steps")).steps.flatMap(({ method }) => (method.toLowerCase().includes("-pass") ? [method] : []));
+		expect(noted, "once for each step the list's combinator keeps").toEqual(kept);
+		expect(noted).toContain("TestSteps-passes");
 		const refused = await failWithDefaults("counting as of 0.1, show steps", [Haibun, TestSteps, LogicStepper]);
 		expect(refused.failure?.error.message).toContain("passes on its statement's products by its reading");
 	});

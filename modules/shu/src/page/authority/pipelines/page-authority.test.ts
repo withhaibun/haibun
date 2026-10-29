@@ -32,10 +32,10 @@ const records = { [delegatedReading.id]: { persistedAs: "Capability", accessLeve
 const opened = (delegations: Record<string, unknown>[], withoutDelegation: string[] = []) => openPageAuthority(() => Promise.resolve({ delegations, records }), withoutDelegation);
 
 const call = (action: string, method = "POST") => ({
-	url: `${SITE}/rpc/ShuStepper-showViews`,
+	url: `${SITE}/rpc/ShuStepper-showShuApps`,
 	method,
 	headers: { host: "localhost:8123", ...(method === "POST" ? { "content-type": "application/json" } : {}) },
-	...(method === "POST" ? { body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: "ShuStepper-showViews", params: {} }) } : {}),
+	...(method === "POST" ? { body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: "ShuStepper-showShuApps", params: {} }) } : {}),
 	action,
 });
 
@@ -98,7 +98,7 @@ describe("the key a page controls", () => {
 describe("what a page sends", () => {
 	it("signs a call under a delegation that allows it, invoking the action the delegation names", async () => {
 		const { controller } = await opened([delegatedReading, delegatedAll]);
-		const headers = await signedHeaders(call("ShuStepper:showViews"));
+		const headers = await signedHeaders(call("ShuStepper:showShuApps"));
 		expect(headers?.["capability-invocation"], "a delegation is matched on what it lists, so the action is its own").toContain('action="*"');
 		expect(headers?.[SIGNATURE_HEADER], "and the signature names the page's key").toContain(controller);
 		expect(headers?.digest, "which covers the body as well, so a different body fails the proof").toBeTruthy();
@@ -118,7 +118,7 @@ describe("what a page sends", () => {
 	});
 
 	it("doesn't sign a request before the page has read what it holds", async () => {
-		expect(await signedHeaders(call("ShuStepper:showViews"))).toBeUndefined();
+		expect(await signedHeaders(call("ShuStepper:showShuApps"))).toBeUndefined();
 	});
 });
 

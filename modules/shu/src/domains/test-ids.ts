@@ -262,12 +262,11 @@ export const SHU_TEST_IDS = {
 	},
 	/** The axioms pane: its lines, a frame each. */
 	GRAPH_SOURCE: { LINES: "graph-source-lines" },
-	AFFORDANCES: { ROOT: "shu-affordances", GOALS_LIST: "affordances-goals", EMPTY: "affordances-empty" },
+	AFFORDANCES: { ROOT: "shu-affordances", GOALS_LIST: "affordances-goals", EMPTY: "affordances-empty", CHAIN: "affordances-chain" },
 	DOMAIN_CHAIN: {
 		ROOT: "shu-domain-chain",
 		GRAPH: "domain-chain-graph",
-		EMPTY: "domain-chain-empty",
-		/** What a chain lint report found, and each finding. */
+		/** What the affordances' lint found, and each finding. */
 		FINDINGS: "domain-chain-findings",
 		FINDING: "domain-chain-finding",
 	},

@@ -27,15 +27,8 @@ import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { Access, SEQ_PATH_LABEL, type TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_FIELD, calledParts, actualityFeatureOf, stepRecordOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { callerHolds, readingAsOf } from "@haibun/core/lib/domains/capability-context.js";
-import {
-	DOMAIN_AFFORDANCES,
-	DOMAIN_CHAIN_LINT,
-	DOMAIN_CHAIN_WALK,
-	DOMAIN_GOAL_RESOLUTION,
-	DOMAIN_WALK_ID,
-	goalDomainDefinitions,
-} from "@haibun/core/lib/domains/goal-resolution.js";
-import { affordancesAt, chainLint, pursued, resolved, walkAdvanced, walkBegun, type TGoalScope } from "./pipelines/goals.js";
+import { DOMAIN_AFFORDANCES, DOMAIN_CHAIN_WALK, DOMAIN_GOAL_RESOLUTION, DOMAIN_WALK_ID, goalDomainDefinitions } from "@haibun/core/lib/domains/goal-resolution.js";
+import { affordancesAt, pursued, resolved, walkAdvanced, walkBegun, type TGoalScope } from "./pipelines/goals.js";
 import { stepperContext } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
 import { proverOf } from "./pipelines/prove.js";
 import { canonicalOf, readerOf, recordsWhere, writeFacts } from "./pipelines/reads.js";
@@ -223,12 +216,6 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			description: "Reads the affordances, as a page does after a step, now, or, under `as of`, at a step; a read from outside isn't recorded as actuality's step.",
 			productsDomain: DOMAIN_AFFORDANCES,
 			action: async (_args, featureStep: TFeatureStep) => affordancesAt(await this.goalScope(), featureStep, readingAsOf()),
-		},
-		showDomainChainLint: {
-			gwta: "show chain lint",
-			description: "Returns the step graph's lint findings, queries over the steps' signatures, with the chain they read.",
-			productsDomain: DOMAIN_CHAIN_LINT,
-			action: async () => chainLint(await this.goalScope()),
 		},
 		showDerivation: {
 			gwta: `show derivation of {statement: ${DOMAIN_STATEMENT}}`,

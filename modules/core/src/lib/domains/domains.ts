@@ -182,7 +182,7 @@ export function refDomainKey(domainKey: string): string {
  * feature declares is named: for each type a record persists as, a reference to one of its records (`refDomainKey`);
  * `persisted-type`, the type a record persists as; and `domain-key`, every domain's key. The last two test membership
  * with `names` and don't list members, so a step taking one, as a model's prompt describes it, doesn't state a list of every type
- * or domain; `show domains` lists them. `persisted-type` is open to any type name, since the store holds what exists and
+ * or domain; the Domain records list them. `persisted-type` is open to any type name, since the store holds what exists and
  * records of a type an earlier session declared stay readable; a bare word naming a declared type is that type.
  */
 export const deriveNamingDomains = (domains: Record<string, TRegisteredDomain>) => {
@@ -204,9 +204,9 @@ export const deriveNamingDomains = (domains: Record<string, TRegisteredDomain>) 
 	const registered = (key: string) => key !== DOMAIN_DOMAIN_KEY && domains[key] !== undefined;
 	domains[DOMAIN_DOMAIN_KEY] = toRegisteredDomain({
 		selectors: [DOMAIN_DOMAIN_KEY],
-		schema: z.string().refine(registered, "doesn't name a registered domain; `show domains` lists them"),
+		schema: z.string().refine(registered, "doesn't name a registered domain; the Domain records list them"),
 		names: registered,
-		description: "A registered domain's key; `show domains` lists them",
+		description: "A registered domain's key; the Domain records list them",
 	});
 	return domains;
 };

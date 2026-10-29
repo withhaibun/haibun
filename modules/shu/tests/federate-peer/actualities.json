@@ -252,15 +252,15 @@
 				"status": "passed",
 				"tookMs": 100,
 				"digest": {
-					"modules/core/src": "6d7a7b5ce196a88fa1b331044633540a2eb5303a02bd0c6b8b8e07a439fe56e3",
+					"modules/core/src": "3dfb305412573f4d488af365973c8f8efac95406f14e4ab3d2ff9d35fe89ea4f",
 					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
-					"modules/logic/src": "8c7cc420d88ea6daa5e12d3a6cc8abb7a87b235c750185c7fd33fb9c52390333",
-					"modules/shu/src": "8d465e8fb9513e5e681b475c833dc0e86ba58525c5891ac80bdff86d65ee2076",
+					"modules/logic/src": "724ee2e93c7c6feddbea0c035ed7ae2aec1e1240b79392d122db5609d75a0402",
+					"modules/shu/src": "5719ec9ad356b95ae155a63bee4bf381c78e9e3463ca8fa7d3b31ed1fcaf9b8a",
 					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/web-playwright/src": "3f49c90fabe4b75a66b30ffdec7639c32a9fbc92a6badfe716962cf99ebdcd9b",
-					"modules/web-server-hono/src": "e07b1ea8f97a1992213a8a85fca5c600f596ae31045f9be4c4f6ef6a17427819"
+					"modules/web-server-hono/src": "15bc6c19fd5a60098fc0428d37a4fec7f5accc6a9399c2e1cbc0b41c87af7b2d"
 				}
 			},
 			"features": {
@@ -360,15 +360,15 @@
 				"status": "passed",
 				"tookMs": 100,
 				"digest": {
-					"modules/core/src": "6d7a7b5ce196a88fa1b331044633540a2eb5303a02bd0c6b8b8e07a439fe56e3",
+					"modules/core/src": "3dfb305412573f4d488af365973c8f8efac95406f14e4ab3d2ff9d35fe89ea4f",
 					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
-					"modules/logic/src": "8c7cc420d88ea6daa5e12d3a6cc8abb7a87b235c750185c7fd33fb9c52390333",
-					"modules/shu/src": "8d465e8fb9513e5e681b475c833dc0e86ba58525c5891ac80bdff86d65ee2076",
+					"modules/logic/src": "724ee2e93c7c6feddbea0c035ed7ae2aec1e1240b79392d122db5609d75a0402",
+					"modules/shu/src": "5719ec9ad356b95ae155a63bee4bf381c78e9e3463ca8fa7d3b31ed1fcaf9b8a",
 					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/web-playwright/src": "3f49c90fabe4b75a66b30ffdec7639c32a9fbc92a6badfe716962cf99ebdcd9b",
-					"modules/web-server-hono/src": "e07b1ea8f97a1992213a8a85fca5c600f596ae31045f9be4c4f6ef6a17427819"
+					"modules/web-server-hono/src": "15bc6c19fd5a60098fc0428d37a4fec7f5accc6a9399c2e1cbc0b41c87af7b2d"
 				}
 			},
 			"features": {

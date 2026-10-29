@@ -276,7 +276,7 @@ describe("step-dispatch", () => {
 			expect(key.enum, "the key doesn't list a domain key").toBeUndefined();
 			expect(type.enum, "the type doesn't list a type").toBeUndefined();
 			expect(validateToolInput([], tool, { key: DOMAIN_NUMBER, type: "Anything" }, w, []).key).toBe(DOMAIN_NUMBER);
-			expect(() => validateToolInput([], tool, { key: "no-such-domain", type: "Anything" }, w, [])).toThrow(/`show domains` lists them/);
+			expect(() => validateToolInput([], tool, { key: "no-such-domain", type: "Anything" }, w, [])).toThrow(/the Domain records list them/);
 		});
 
 		it("applies domain.coerce() when world is provided", () => {

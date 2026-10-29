@@ -6,7 +6,9 @@ import { TestConduit, setupShuTest, type TShuTestHandle } from "../../test/setup
 import { installCarriedEventStream } from "../root.js";
 import { type TEvent } from "../ports.js";
 import * as PageHash from "../controllers/hash-controller.js";
-import { AFFORDANCE_PARAM } from "../../domains/elements.js";
+import { AFFORDANCE_PARAM, SHU_TAG } from "../../domains/elements.js";
+import { LINT_FINDING } from "@haibun/core/lib/domains/goal-resolution.js";
+import type { ShuDomainChainView } from "./shu-domain-chain-view.js";
 import { RPC_METHOD } from "../../domains/elements.js";
 import { readingActualityFeature } from "../client-cache/controllers/device-controller.js";
 import { declareFakeGraphPresenter, mountedPresenter } from "../../graph-presenter.test-fake.js";
@@ -77,6 +79,7 @@ describe("shu-affordances-panel", () => {
 		document.body.appendChild(panel);
 		panel.products = {
 			actuality: ACTUALITY_FEATURE,
+			findings: [],
 			satisfiedDomains: [],
 			forward: [{ method: "X-y", stepperName: "X", stepName: "y", inputDomains: [], outputDomains: ["g"], readyToRun: true }],
 			goals: [{ domain: "g", description: "Goal g", resolution: { verdict: "proved", goal: "g", factIds: ["fact-1"], plans: [] } }],
@@ -89,11 +92,31 @@ describe("shu-affordances-panel", () => {
 		expect(root?.querySelector('[data-testid="affordances-forward"]')).toBeNull();
 	});
 
+	it("holds the domain chain while its section is open, gives it the affordances it reads, and states how many findings the lint has", async () => {
+		const panel = new ShuAffordancesPanel();
+		document.body.appendChild(panel);
+		const offered = { actuality: ACTUALITY_FEATURE, findings: [{ kind: LINT_FINDING.UNREACHABLE_DOMAIN, domain: "dead" }], satisfiedDomains: [], forward: [], goals: [] };
+		panel.products = offered;
+		await applied(panel);
+		const section = panel.shadowRoot?.querySelector<HTMLDetailsElement>(`[data-testid="${SHU_TEST_IDS.AFFORDANCES.CHAIN}"]`);
+		expect(section?.querySelector("summary")?.textContent).toContain("1 findings");
+		expect(panel.querySelector(SHU_TAG.DOMAIN_CHAIN_VIEW), "the chain isn't held while its section is closed").toBeNull();
+		if (!section) throw new Error("the panel doesn't show the chain's section");
+		section.open = true;
+		section.dispatchEvent(new Event("toggle"));
+		const chain = panel.querySelector<ShuDomainChainView>(SHU_TAG.DOMAIN_CHAIN_VIEW);
+		expect(chain?.products, "the chain draws the affordances the panel read").toBe(offered);
+		section.open = false;
+		section.dispatchEvent(new Event("toggle"));
+		expect(panel.querySelector(SHU_TAG.DOMAIN_CHAIN_VIEW)).toBeNull();
+	});
+
 	it("renders a proved goal with every fact that proves it", async () => {
 		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
 		panel.products = {
 			actuality: ACTUALITY_FEATURE,
+			findings: [],
 			satisfiedDomains: [],
 			forward: [],
 			goals: [{ domain: "session", description: "Session", resolution: { verdict: "proved", goal: "session", factIds: ["s-1", "s-2", "s-3"], plans: [] } }],
@@ -114,6 +137,7 @@ describe("shu-affordances-panel", () => {
 		document.body.appendChild(panel);
 		panel.products = {
 			actuality: ACTUALITY_FEATURE,
+			findings: [],
 			satisfiedDomains: [],
 			forward: [],
 			goals: [
@@ -151,6 +175,7 @@ describe("shu-affordances-panel", () => {
 		const plan = { steps: [{ stepperName: ISSUE.stepperName, stepName: ISSUE.stepName, gwta: ISSUE.pattern }], bindings: [] };
 		panel.products = {
 			actuality: ACTUALITY_FEATURE,
+			findings: [],
 			satisfiedDomains: [],
 			forward: [],
 			goals: [{ domain: "report", description: "Audit report", resolution: { verdict: "unknown", goal: "report", factIds: [], plans: [plan] } }],
@@ -176,6 +201,7 @@ describe("shu-affordances-panel", () => {
 		const path = { steps: [{ stepperName: "Issue", stepName: "issueReport" }], bindings: [{ kind: "argument", domain: "issuer" }] };
 		panel.products = {
 			actuality: ACTUALITY_FEATURE,
+			findings: [],
 			satisfiedDomains: [],
 			forward: [],
 			goals: [{ domain: "report", description: "Audit report", resolution: { verdict: "unknown", goal: "report", factIds: [], plans: [path] } }],
@@ -201,6 +227,7 @@ describe("shu-affordances-panel", () => {
 		document.body.appendChild(panel);
 		panel.products = {
 			actuality: ACTUALITY_FEATURE,
+			findings: [],
 			satisfiedDomains: [],
 			forward: [],
 			goals: [
@@ -253,6 +280,7 @@ describe("shu-affordances-panel", () => {
 		document.body.appendChild(panel);
 		panel.products = {
 			actuality: ACTUALITY_FEATURE,
+			findings: [],
 			satisfiedDomains: [],
 			forward: [],
 			goals: [{ domain: "g", description: "Goal g", resolution: { verdict: "proved", goal: "g", factIds: ["fact-x"], plans: [] } }],
@@ -264,6 +292,7 @@ describe("shu-affordances-panel", () => {
 		explain.open = true;
 		panel.products = {
 			actuality: ACTUALITY_FEATURE,
+			findings: [],
 			satisfiedDomains: [],
 			forward: [],
 			goals: [
@@ -295,6 +324,7 @@ describe("shu-affordances-panel", () => {
 		};
 		panel.products = {
 			actuality: ACTUALITY_FEATURE,
+			findings: [],
 			satisfiedDomains: [],
 			forward: [],
 			goals: [{ domain: "report", description: "Audit report", resolution: { verdict: "unknown", goal: "report", factIds: [], plans: [compositePlan] } }],
@@ -308,6 +338,7 @@ describe("shu-affordances-panel", () => {
 		composite.open = true;
 		panel.products = {
 			actuality: ACTUALITY_FEATURE,
+			findings: [],
 			satisfiedDomains: [],
 			forward: [],
 			goals: [{ domain: "report", description: "Audit report", resolution: { verdict: "unknown", goal: "report", factIds: [], plans: [compositePlan] } }],
@@ -322,6 +353,7 @@ describe("shu-affordances-panel", () => {
 		document.body.appendChild(panel);
 		panel.products = {
 			actuality: ACTUALITY_FEATURE,
+			findings: [],
 			satisfiedDomains: [],
 			forward: [],
 			goals: [
@@ -365,7 +397,7 @@ describe("shu-affordances-panel", () => {
 		const wp = { outcome: "deliver-report", kind: "declarative", ensured: false, method: "Acts-ensure", resolvesDomain: "report", paramSlots: [], proofStatements: [] };
 		installConduit(new TestConduit(async () => ({})));
 		const panel = new ShuAffordancesPanel();
-		panel.products = { actuality: ACTUALITY_FEATURE, satisfiedDomains: [], forward: [], goals: [], waypoints: [wp] };
+		panel.products = { actuality: ACTUALITY_FEATURE, findings: [], satisfiedDomains: [], forward: [], goals: [], waypoints: [wp] };
 		document.body.appendChild(panel);
 		await applied(panel);
 		expect(panel.shadowRoot?.querySelector('[data-testid="affordances-waypoints"]')).toBeTruthy();
@@ -379,7 +411,7 @@ describe("shu-affordances-panel", () => {
 		installConduit(
 			new TestConduit((method: string) => {
 				if (method === RPC_METHOD.AFFORDANCES_ON_OFFER) snapshotCalls++;
-				return { actuality: ACTUALITY_FEATURE, waypoints: [], satisfiedDomains: [], forward: [], goals: [] };
+				return { actuality: ACTUALITY_FEATURE, findings: [], waypoints: [], satisfiedDomains: [], forward: [], goals: [] };
 			}),
 		);
 		declareRegistry(stepsShown([AFFORDANCES_STEP]));
@@ -397,7 +429,7 @@ describe("shu-affordances-panel", () => {
 	it("takes the actuality its snapshot names as the actuality the page reads, where a fact's step opens, and refuses one that doesn't name an actuality", () => {
 		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
-		panel.products = { actuality: ACTUALITY_FEATURE, satisfiedDomains: [], forward: [], goals: [] };
+		panel.products = { actuality: ACTUALITY_FEATURE, findings: [], satisfiedDomains: [], forward: [], goals: [] };
 		expect(readingActualityFeature()).toBe(ACTUALITY_FEATURE);
 		expect(() => {
 			panel.products = { satisfiedDomains: [], forward: [], goals: [] };

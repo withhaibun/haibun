@@ -140,10 +140,7 @@ export class ShuPage extends ShuElement<typeof EmptyStateSchema> {
 		this.autoTeardown(
 			this.subscribeBatched({
 				onBatch: (events) => {
-					for (const op of paneOpsFor(events).values()) {
-						if (op.op === "component") requestPane({ paneType: "component", tag: op.tag, label: op.label, data: op.data });
-						else requestPane({ paneType: "views-picker", views: op.views, label: op.label });
-					}
+					for (const op of paneOpsFor(events).values()) requestPane({ paneType: "component", tag: op.tag, label: op.label, data: op.data });
 				},
 			}),
 		);

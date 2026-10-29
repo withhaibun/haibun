@@ -19,7 +19,7 @@ import {
 } from "../../domains/domains.js";
 import { readDeclarationsOf } from "../../records/derivations/read-records.js";
 import { readEvery } from "../../records/pipelines/record-reads.js";
-import { ontologyReader } from "../../records/pipelines/ontology-records.js";
+import { declaredRecordsReader } from "../../records/pipelines/declared-records.js";
 import { VARIABLE_FIELD, VariableSchema, type TVariable } from "../../records/domains/variables.js";
 import { QuadStore, newStoreChain } from "../../steps/pipelines/quad-store.js";
 import { OBSCURED_VALUE, isSecretName } from "../../steps/domains/secrets.js";
@@ -92,7 +92,7 @@ export class FeatureVariables {
 			prevStore === undefined ? newStoreChain() : prevStore.storeChain(),
 			{ bound: accessBound, writeBound, declared: (label: string) => declaredAccessLevel(persistedDomainOf(world.domains, label)) },
 			() => readDeclarationsOf(world.domains, world.runtime.records),
-			ontologyReader(
+			declaredRecordsReader(
 				() => world.domains,
 				() => world.runtime.records,
 				(message) => world.eventLogger.warn(message),

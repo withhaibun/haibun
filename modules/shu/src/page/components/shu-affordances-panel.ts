@@ -15,6 +15,8 @@ import { LoadController } from "../controllers/load-controller.js";
 import { loadRenders } from "./load-renders.js";
 import {
 	isStepEnd,
+	LintFindingSchema,
+	type TLintFinding,
 	type TAffordances as TOffered,
 	type TBinding,
 	type TFieldBinding,
@@ -26,6 +28,7 @@ import { VERDICT } from "@haibun/core/lib/domains/protocol.js";
 import { isPrimitiveDomain, type TDomainKey } from "@haibun/core/lib/domains/domains.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { SHU_EVENT, AFFORDANCE_PARAM, SHU_TAG } from "../../domains/elements.js";
+import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { defineElement } from "../controllers/element-controller.js";
 import * as PageHash from "../controllers/hash-controller.js";
 import { pathNodeIds, projectGoalPaths } from "../derivations/project-goal-paths.js";
@@ -44,6 +47,7 @@ import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { typeShownIn } from "../controllers/catalog-controller.js";
 import "./shu-spinner.js";
 import "./shu-copy-button.js";
+import { ShuDomainChainView } from "./shu-domain-chain-view.js";
 import { SHOW_AFFORDANCES_METHOD } from "../domains/leads-on.js";
 import { emptyState } from "./empty-state.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
@@ -60,6 +64,10 @@ type TAffordances = {
 	forward: TForwardAffordance[];
 	goals: TGoalAffordance[];
 	waypoints?: TWaypointEntry[];
+	/** The ways the steps' chain is incomplete, which the domain chain lists. */
+	findings: TLintFinding[];
+	/** The affordances as given, which the domain chain projects. */
+	offered: Record<string, unknown>;
 };
 
 /** A snapshot of actuality's affordances, as a step's products or a read of them give it; refused where the forward
@@ -73,6 +81,8 @@ function snapshotOf(p: Record<string, unknown>): TAffordances {
 		forward: p.forward as TForwardAffordance[],
 		goals: p.goals as TGoalAffordance[],
 		waypoints: Array.isArray(p.waypoints) ? (p.waypoints as TWaypointEntry[]) : undefined,
+		findings: z.array(LintFindingSchema).parse(p.findings),
+		offered: p,
 	};
 }
 
@@ -104,6 +114,9 @@ type TSelection = { goal: string | undefined; waypoint: string | undefined };
 
 /** The scope every goal's graph keeps its settings under. */
 const GOAL_GRAPH_SCOPE = "goal-graph";
+
+/** The slot that shows the domain chain, which the panel holds while its section is open. */
+const CHAIN_SLOT = "domain-chain";
 
 /** The slot that shows a goal's graph, which is also the test id that finds its graph. */
 const goalGraphSlot = (domain: string): string => `goal-graph-${domain}`;
@@ -395,6 +408,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		h3 { margin: 0; font-size: var(--shu-font-md); color: var(--shu-fg-muted); }
 		.section-header { display: flex; justify-content: space-between; align-items: baseline; margin: var(--shu-space-5) 0 var(--shu-space-3); }
 		.explanation { margin-bottom: var(--shu-space-5); padding: var(--shu-space-4); background: var(--shu-bg-soft); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); }
+		::slotted([slot="domain-chain"]) { display: block; height: 60vh; }
 		.explanation summary { cursor: pointer; }
 		.explanation-body { padding: var(--shu-space-3) 0; }
 		.explanation-body p { margin: var(--shu-space-2) 0; }
@@ -508,6 +522,14 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 			}
 			${
 				shown
+					? html`<details class="explanation" data-key="chain" data-testid=${SHU_TEST_IDS.AFFORDANCES.CHAIN} @toggle=${this.onChainToggle}>
+							<summary>Domain chain${this.affordances && this.affordances.findings.length > 0 ? ` (${this.affordances.findings.length} findings)` : ""}</summary>
+							<slot name=${CHAIN_SLOT}></slot>
+						</details>`
+					: ""
+			}
+			${
+				shown
 					? html`
 				<div class="section-header"><h3>Goals (${goals.length})</h3><shu-copy-button data-copy-id="goals" label="Copy" title="Copy Goals JSON to clipboard" .source=${goalsCopySource}></shu-copy-button></div>
 				<div data-testid="affordances-goals">${goals.length === 0 ? emptyState({ message: "A goal-producing step isn't loaded.", next: html`The steps actuality declares: ${stepRef(SHOW_STEPS_METHOD)}.` }) : goals.map((g, idx) => this.renderGoalTpl(g, idx, openGoal))}</div>
@@ -515,6 +537,29 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 					: ""
 			}
 		`;
+	}
+
+	/** The domain chain shows while its section is open: the panel holds the chain's view in its light DOM, where the chain's
+	 *  graph presenter reaches the page's camera, gives it the affordances the panel reads, and removes it as the section closes. */
+	private onChainToggle = (e: Event): void => {
+		const held = this.chainView();
+		if (!(e.target as HTMLDetailsElement).open) return held?.remove();
+		if (held !== null) return;
+		const chain = new ShuDomainChainView();
+		chain.slot = CHAIN_SLOT;
+		this.append(chain);
+		this.feedChain();
+	};
+
+	/** The domain chain's view, while its section is open. */
+	private chainView(): ShuDomainChainView | null {
+		return this.querySelector<ShuDomainChainView>(`:scope > ${SHU_TAG.DOMAIN_CHAIN_VIEW}[slot="${CHAIN_SLOT}"]`);
+	}
+
+	/** Gives the domain chain the affordances the panel holds, once for each read of them. */
+	private feedChain(): void {
+		const [chain, offered] = [this.chainView(), this.affordances?.offered];
+		if (chain !== null && offered !== undefined && chain.products !== offered) chain.products = offered;
 	}
 
 	private renderGoalTpl(g: TGoalAffordance, idx: number, openGoal: string | undefined): TemplateResult {
@@ -548,6 +593,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 
 	protected updated(_changedProperties: PropertyValues): void {
 		if (!this.shadowRoot) return;
+		this.feedChain();
 		// Each open goal's paths are projected and drawn by the site's graph presenter, mounted in light DOM in the goal's
 		// slot. A presenter whose goal is no longer open goes with it.
 		this.goalGraphs.clear();

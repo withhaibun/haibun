@@ -182,7 +182,7 @@ function domainDiscoveryInfo(key: string, domain: TRegisteredDomain): TDomainDis
 	};
 }
 
-/** Each stepper, with what it does and each of its steps as its key and its pattern, or its key alone where it doesn't have one: what `show steppers` returns and what
+/** Each stepper, with what it does and each of its steps as its key and its pattern, or its key alone where it doesn't have one: what
  *  the CLI's `--show-steppers` prints. */
 export function listedSteppers(steppers: AStepper[]): TSteppers {
 	const listed = steppers.map((stepper) => ({

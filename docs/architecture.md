@@ -265,8 +265,8 @@ is unknown.
 
 `modules/core/src/lib/records/derivations/owl.ts` derives the ontology as OWL 2: each type's class `hbn:<label>` with its
 declared `@type` IRI and its superclasses as superclasses, and each link relation with the union of the classes that declare it
-as its domain and the union of the classes it reaches as its range. `show ontology` states each term's axioms in DL notation
-(`modules/core/src/lib/records/derivations/axioms.ts`). `individuals of {expression}` returns the records a class
+as its domain and the union of the classes it reaches as its range. `show axioms of {view}` states each term's axioms in DL
+notation (`modules/core/src/lib/records/derivations/axioms.ts`). `individuals of {expression}` returns the records a class
 expression in Manchester syntax entails as its members (`modules/logic/src/pipelines/members.ts`); others may exist.
 
 GraphSourceStepper's `show axioms of {view}` returns the axioms of what a graph view shows under its filters, its limits
@@ -448,13 +448,14 @@ its statement for each item of the list's statement, with the item bound to the 
 
 Combinators compose, such as `limited to 1, ordered by "method", matching "Haibun-show", show steps`. The reads of actuality's
 declarations are plain: `show steps` lists every step actuality declares, each with whether its caller may call it
-(`callable`), `show step definitions` adds their schemas and the registry's predicates, and `show steppers` lists each stepper
-with its steps, as the CLI's `--show-steppers` prints them. The declarations are derived once for each version of the
+(`callable`) and the steppers of its steps, and `show step definitions` adds their schemas and the registry's predicates. The
+declarations are derived once for each version of the
 registry's steps, which changes as actuality emits `STEPS_CHANGED`. A summary links its definition as
 `matching "<method>", show step definitions`. The page reads the definitions once and holds the steps it may call beside every
 step, so shu's step and action views state why a page can't call a step and which steps an action allows without another
-read. shu's `show ontology` lists the classes and the link relations the declarations state, as the class browser draws them,
-and its products open the class browser.
+read. The declarations derive records a reader reads as any other: the ontology's Class and Property records, which the class
+browser draws, and a Domain record for each registered domain (`modules/core/src/lib/records/derivations/domain-records.ts`),
+whose components the views picker lists.
 
 ## Steppers
 
@@ -465,7 +466,7 @@ and its products open the class browser.
 | Haibun | `Backgrounds: name`, `Feature:`, `Scenario:`, `Pending scenario:`, `until statement within duration` |
 | VariablesStepper | `set var to "value"`, `variable var is "value"`, `set of domain is [values]`, `{value} is in {domain}`, `variable var is less than "value"`, `matches {var} with "pattern"`, `increment var` |
 | ActivitiesStepper | `Activity: name`, `waypoint Label with proof`, `ensure outcome`, `for every {x: domain} where body, head`, `after every StepperName, statement` |
-| LogicStepper | `didn't statement`, `where condition, action`, `maybe statement`, `every x in domain is statement`, `some x in domain is statement`, `absent goal`, `"a" is the same as "b"`, `rule formula`, `resolve goal`, `pursue goal`, `walk toward goal`, `show affordances`, `show chain lint` |
+| LogicStepper | `didn't statement`, `where condition, action`, `maybe statement`, `every x in domain is statement`, `some x in domain is statement`, `absent goal`, `"a" is the same as "b"`, `rule formula`, `resolve goal`, `pursue goal`, `walk toward goal`, `show affordances` (with the chain's lint findings) |
 | DebuggerStepper | `debug step by step`; debugger commands: `step`, `continue`, `retry`, `next`, `fail`; `DEBUG_STEPPERS` names the steppers it pauses before as actuality starts |
 
 ### Web Steppers

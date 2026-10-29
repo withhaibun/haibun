@@ -442,7 +442,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		return `<div class="entity-detail" data-testid="entity-details">${link}</div>`;
 	}
 
-	/** Render arrays of objects as tables (e.g. show domains items). Skips `hasBody` (rendered as iframes), JSON-LD keywords, and underscore-projected keys. */
+	/** Render arrays of objects as tables (e.g. a list's items). Skips `hasBody` (rendered as iframes), JSON-LD keywords, and underscore-projected keys. */
 	private renderItemsTable(): string {
 		if (!this.vertex) return "";
 		const { persistedAs } = this.state;

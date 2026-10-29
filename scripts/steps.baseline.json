@@ -1,6 +1,6 @@
 {
 	".": {
-		"declares steps": 221
+		"declares steps": 215
 	},
 	"modules/cli/src/instance-stepper.ts": {
 		"has at most one call site: InstanceStepper.reachInstance": 1,
@@ -55,20 +55,16 @@
 	},
 	"modules/core/src/steps/variables-stepper.ts": {
 		"has at most one call site: VariablesStepper.defineHypermediaDomain": 1,
-		"has at most one call site: VariablesStepper.showDomain": 1,
-		"has at most one call site: VariablesStepper.showDomains": 1,
 		"has at most one call site: VariablesStepper.unset": 1
 	},
 	"modules/logic/src/logic-stepper.ts": {
 		"has at most one call site: LogicStepper.advanceWalk": 1,
-		"has at most one call site: LogicStepper.showDomainChainLint": 1,
 		"has at most one call site: LogicStepper.walkToward": 1,
 		"returns a list of records or a count its domain doesn't declare as a list: LogicStepper.affordancesOnOffer (affordances)": 1,
 		"returns a list of records or a count its domain doesn't declare as a list: LogicStepper.pursue (goal-resolution)": 1,
 		"returns a list of records or a count its domain doesn't declare as a list: LogicStepper.resolve (goal-resolution)": 1,
 		"returns a list of records or a count its domain doesn't declare as a list: LogicStepper.showAffordances (affordances)": 1,
-		"returns a list of records or a count its domain doesn't declare as a list: LogicStepper.showDerivation (derivation)": 1,
-		"returns a list of records or a count its domain doesn't declare as a list: LogicStepper.showDomainChainLint (domain-chain-lint)": 1
+		"returns a list of records or a count its domain doesn't declare as a list: LogicStepper.showDerivation (derivation)": 1
 	},
 	"modules/recorder/src/recorder-stepper.ts": {
 		"has at most one call site: RecorderStepper.startRecording": 1,

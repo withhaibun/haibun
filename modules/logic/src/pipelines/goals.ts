@@ -21,7 +21,6 @@ import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { ACTUALITY_FIELD, SEQ_PATH_FIELD, actualityFeatureOf, factIdOf, producingStepRecord, stepRecordOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import {
 	AffordancesSchema,
-	ChainLintSchema,
 	ChainWalkSchema,
 	GoalResolutionSchema,
 	WALK_STATUS,
@@ -239,15 +238,10 @@ async function snapshotOf(scope: TGoalScope, asOf: readonly number[] | undefined
 export async function affordancesAt(scope: TGoalScope, parent: TFeatureStep, asOf: readonly number[] | undefined): Promise<TActionResult> {
 	const waypointers = asOf === undefined ? scope.ctx.steppers.filter(providesWaypoints) : [];
 	const waypoints = (await Promise.all(waypointers.map((stepper) => stepper.waypointEntries(parent)))).flat();
-	return actionOKWithProducts(AffordancesSchema.parse({ ...(await snapshotOf(scope, asOf)), waypoints }));
+	const findings = lintFindings(scope.engine, scope.ctx.steppers, scope.ctx.world.domains);
+	return actionOKWithProducts(AffordancesSchema.parse({ ...(await snapshotOf(scope, asOf)), waypoints, findings }));
 }
 
 /** The step graph's lint findings, as queries over the steps' signatures and the domains. */
 export const lintFindings = (engine: TLogicEngine, steppers: readonly AStepper[], domains: Record<string, TRegisteredDomain>): TLintFinding[] =>
 	engine.lint(stepGraph(stepSignatures(steppers), domains));
-
-/** The step graph's lint findings with the chain they read. */
-export async function chainLint(scope: TGoalScope): Promise<TActionResult> {
-	const findings = lintFindings(scope.engine, scope.ctx.steppers, scope.ctx.world.domains);
-	return actionOKWithProducts(ChainLintSchema.parse({ ...(await snapshotOf(scope, undefined)), findings }));
-}

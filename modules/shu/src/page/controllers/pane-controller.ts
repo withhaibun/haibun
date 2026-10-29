@@ -38,7 +38,6 @@ export const PANE_ATTACH: Panes.TPaneAttach = {
 	thread: (d, view) => (view as ShuThreadColumn).open(d.persistedAs, d.subject),
 	step: (d, view) => (view as ShuStepDefinition).open(d.method),
 	action: (d, view) => (view as ShuActionColumn).open(d.action),
-	"views-picker": (d, view) => (view as HTMLElement & { setViews(v: unknown[]): void }).setViews(d.views),
 };
 
 /** The names the strip's panes carry. */

@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
 import { parseAffordanceProduct } from "./affordances.js";
-import { SHU_TYPE } from "../../domains/elements.js";
 import { HYPERMEDIA } from "@haibun/core/lib/domains/protocol.js";
 import MonitorStepper from "../../monitor-stepper.js";
 import ShuStepper from "../../shu-stepper.js";
@@ -32,24 +31,6 @@ describe("parseAffordanceProduct", () => {
 			label: "Clustered 3D view",
 			products: product,
 		});
-	});
-
-	it("parses a view-collection product (`show views`)", () => {
-		const product = {
-			[HYPERMEDIA.TYPE]: SHU_TYPE.VIEW_COLLECTION,
-			[HYPERMEDIA.SUMMARY]: "Available Views",
-			view: "views",
-			views: [
-				{ id: "graph", description: "Graph view", component: "shu-polymorphic-graph-view" },
-				{ id: "monitor", description: "Monitor", component: "shu-monitor-column" },
-			],
-		};
-		const action = parseAffordanceProduct(product);
-		expect(action.kind).toBe("show-views");
-		if (action.kind !== "show-views") return;
-		expect(action.label).toBe("Available Views");
-		expect(action.views).toHaveLength(2);
-		expect(action.views[0]).toEqual({ id: "graph", description: "Graph view", component: "shu-polymorphic-graph-view" });
 	});
 
 	it("returns kind:none for a bare individual, since its type and id don't name a view to open", () => {

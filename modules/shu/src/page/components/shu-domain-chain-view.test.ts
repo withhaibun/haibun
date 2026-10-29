@@ -2,8 +2,7 @@
 /**
  * Runtime contract for the domain-chain view.
  *
- * Must reach a terminal display state: the chain drawn by the site's graph presenter when products are supplied, or an
- * actionable empty-state message. A spinner that never disappears is a bug.
+ * The chain drawn by the site's graph presenter from the affordances its host, the affordances panel, gives it.
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuDomainChainView } from "./shu-domain-chain-view.js";
@@ -33,6 +32,7 @@ const mkSnap = (n: number): Record<string, unknown> => ({
 	satisfiedDomains: [],
 	forward: Array.from({ length: n }, (_, i) => ({ stepperName: "S", stepName: `s${i}`, inputDomains: [], outputDomains: [`d${i}`], readyToRun: true })),
 	goals: [],
+	findings: [],
 });
 
 const mount = (): ShuDomainChainView => {
@@ -65,11 +65,10 @@ describe("shu-domain-chain-view", () => {
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
 	});
 
-	it("must NOT show only a spinner forever when mounted without products (regression: reload doesn't show an actionable message)", async () => {
+	it("shows that it waits for the affordances until its host gives them", async () => {
 		const view = mount();
 		await view.updateComplete;
-		const html = view.shadowRoot?.innerHTML ?? "";
-		expect(/no chain data yet/i.test(html) || /shu-spinner/.test(html)).toBe(true);
+		expect(view.shadowRoot?.innerHTML ?? "").toMatch(/shu-spinner/);
 	});
 
 	it("draws the chain in the site's graph presenter, a light-DOM child shown through its slot, with settings of its own", async () => {
@@ -79,6 +78,7 @@ describe("shu-domain-chain-view", () => {
 			satisfiedDomains: [],
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: [], outputDomains: ["vc"], readyToRun: true }],
 			goals: [{ domain: "vc", resolution: { verdict: "unknown" } }],
+			findings: [],
 		};
 		await view.updateComplete;
 		const presenter = await mountedPresenter(view, GRAPH);
@@ -97,6 +97,7 @@ describe("shu-domain-chain-view", () => {
 			satisfiedDomains: [],
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: [], outputDomains: ["vc"], readyToRun: true }],
 			goals: [{ domain: "vc", resolution: { verdict: "unknown" } }],
+			findings: [],
 		};
 		await view.updateComplete;
 		const presenter = await mountedPresenter(view, GRAPH);
@@ -154,7 +155,7 @@ describe("shu-domain-chain-view", () => {
 		expect(presenter.selected).toBeNull();
 	});
 
-	it("lists a lint report's findings, each step and domain a link to its view", async () => {
+	it("lists the affordances' lint findings, each step and domain a link to its view", async () => {
 		const view = mount();
 		view.products = {
 			actuality: ACTUALITY_FEATURE,

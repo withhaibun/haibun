@@ -18,7 +18,7 @@ const openEvent = (id: string, component: string, over: Record<string, unknown> 
 
 describe("the steps that act as view commands", () => {
 	it("a step a reader can see in the log yields one open op", () => {
-		expect([...paneOpsFor([openEvent("ev-1", "shu-affordances-panel")]).values()]).toEqual([expect.objectContaining({ op: "component", tag: "shu-affordances-panel" })]);
+		expect([...paneOpsFor([openEvent("ev-1", "shu-affordances-panel")]).values()]).toEqual([expect.objectContaining({ tag: "shu-affordances-panel" })]);
 	});
 
 	it("a trace-level substep doesn't yield an op, so a view refetching its own data does not reopen itself", () => {

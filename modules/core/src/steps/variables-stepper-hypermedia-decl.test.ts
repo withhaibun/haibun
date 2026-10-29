@@ -3,25 +3,34 @@ import { passWithDefaults } from "../lib/test/lib.js";
 import { LogicStepper } from "../lib/test/logic-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
 import { Access } from "../lib/domains/resources.js";
+import { z } from "zod";
+import { DOMAIN_LABEL, DomainRecordSchema } from "../lib/records/domains/domain-record.js";
 
-type Products = { topology?: { persistedAs?: string; id?: string; edges?: Record<string, { range: string; rel: string }>; sortColumns?: Record<string, string> } };
-const showProducts = (res: Awaited<ReturnType<typeof passWithDefaults>>, line: string): Products =>
-	((res.featureResults?.[0]?.stepResults ?? []).find((s) => s.in === line)?.products ?? {}) as Products;
+/** The topology of the domain `key`, as its Domain record states it. */
+const TopologySchema = z.object({
+	persistedAs: z.string(),
+	id: z.string(),
+	edges: z.record(z.string(), z.object({ range: z.string(), rel: z.string() })),
+	sortColumns: z.record(z.string(), z.string()).optional(),
+});
+async function topologyOf(res: Awaited<ReturnType<typeof passWithDefaults>>, key: string): Promise<z.infer<typeof TopologySchema>> {
+	const record = await res.world.shared.getStore().readRecord({ label: DOMAIN_LABEL, schema: DomainRecordSchema }, key);
+	return TopologySchema.parse(record?.topology);
+}
 
-describe("set of {domain} by, declare a hypermedia domain", () => {
+describe("set of {domain} by, declare a hypermedia domain, which its Domain record states", () => {
 	it("prose form registers a domain with vertex topology", async () => {
 		const res = await passWithDefaults(
 			`set of Recipe by id, with name, stored at private
-set of Ingredient by id, with name, used in Recipe, stored at private
-show domain ingredient`,
+set of Ingredient by id, with name, used in Recipe, stored at private`,
 			[VariablesStepper, LogicStepper],
 		);
 		expect(res.ok).toBe(true);
-		const t = showProducts(res, "show domain ingredient").topology;
-		expect(t?.persistedAs).toBe("Ingredient");
-		expect(t?.id).toBe("id");
-		expect(t?.edges?.usedIn).toEqual({ range: "Recipe", rel: "isPartOf" });
-		expect(t?.sortColumns).toEqual({ name: "TEXT" });
+		const t = await topologyOf(res, "ingredient");
+		expect(t.persistedAs).toBe("Ingredient");
+		expect(t.id).toBe("id");
+		expect(t.edges.usedIn).toEqual({ range: "Recipe", rel: "isPartOf" });
+		expect(t.sortColumns).toEqual({ name: "TEXT" });
 	});
 
 	it("JSON-LD form registers the same topology", async () => {
@@ -32,12 +41,11 @@ show domain ingredient`,
 		});
 		const res = await passWithDefaults(
 			`set of Recipe by id, with name, stored at private
-set of Ingredient by ${jsonld}
-show domain ingredient`,
+set of Ingredient by ${jsonld}`,
 			[VariablesStepper, LogicStepper],
 		);
 		expect(res.ok).toBe(true);
-		expect(showProducts(res, "show domain ingredient").topology?.edges?.usedIn?.range).toBe("Recipe");
+		expect((await topologyOf(res, "ingredient")).edges.usedIn?.range).toBe("Recipe");
 	});
 
 	it("refuses a type that doesn't state the storage level of its records, in either form", async () => {

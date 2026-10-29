@@ -1,6 +1,6 @@
 /**
- * <shu-views-picker>: Lists available views (id, description) and opens one
- * on click through the pane controller. Populated by the host via setViews().
+ * <shu-views-picker>: the views the domains declare, a row each (the domain it shows, and what it shows), as the page's catalog
+ * declares them and actuality's domains describe them. A press on a row opens the view through the pane controller.
  */
 import { SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
@@ -10,9 +10,12 @@ import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { shuBaseStyles } from "./styles.js";
 import { requestPaneFrom } from "../controllers/pane-controller.js";
+import { domainsRead } from "../controllers/registry-controller.js";
+import { componentOfView, declaredViews as catalogViews } from "../controllers/catalog-controller.js";
+import { LoadController } from "../controllers/load-controller.js";
 import { addsToSelection } from "../derivations/pane-kinds.js";
-
-type TView = { id: string; description: string; component: string };
+import { declaredViews, type TDeclaredView } from "../derivations/declared-views.js";
+import { refusalTpl } from "./load-renders.js";
 
 export class ShuViewsPicker extends ShuElement<typeof EmptyStateSchema> {
 	/** A control doesn't contribute to a conversation's context, since it isn't a view of data. */
@@ -35,26 +38,37 @@ export class ShuViewsPicker extends ShuElement<typeof EmptyStateSchema> {
 	`,
 	];
 
-	@property({ attribute: false }) accessor views: TView[] = [];
+	/** The views the picker lists, which the read of actuality's domains sets. */
+	@property({ attribute: false }) accessor views: TDeclaredView[] = [];
+
+	/** The read of actuality's domains, which describe the views the picker lists. */
+	readonly #domains = new LoadController(this, domainsRead);
 
 	constructor() {
 		super(EmptyStateSchema);
 	}
 
-	/** Shows the views a collection lists. Throws for a collection that doesn't list a view, since shu's own collection declares one. */
-	setViews(views: TView[]): void {
-		if (views.length === 0) throw new Error("a view collection doesn't list a view; read actuality's domains again");
-		this.views = views;
+	protected override onConnected(): void {
+		void this.#domains.run().then(() => {
+			const read = this.#domains.page;
+			if (read !== undefined) this.views = declaredViews(catalogViews(), componentOfView, read, SHU_TAG.VIEWS_PICKER);
+		});
 	}
 
 	private onPick =
-		(v: TView) =>
+		(v: TDeclaredView) =>
 		(e: MouseEvent): void => {
-			if (v.component) requestPaneFrom(e, { paneType: "component", tag: v.component, label: v.description }, addsToSelection(e));
+			requestPaneFrom(e, { paneType: "component", tag: v.component, label: v.description }, addsToSelection(e));
 		};
 
 	render(): TemplateResult {
-		return html`<ul class="views-list" data-testid=${SHU_TEST_IDS.VIEWS_PICKER.ROOT}>${this.views.map(
+		const refused = this.#domains.render<TemplateResult | string>({
+			pending: () => "",
+			running: () => "",
+			completed: () => "",
+			failed: (refusal) => refusalTpl(refusal, this.#domains),
+		});
+		return html`${refused}<ul class="views-list" data-testid=${SHU_TEST_IDS.VIEWS_PICKER.ROOT}>${this.views.map(
 			(v) => html`
 			<li class="view-row" data-testid=${`${SHU_TEST_IDS.VIEWS_PICKER.ROW}${v.component}`} data-view-id=${v.id} data-component=${v.component} @click=${this.onPick(v)}>
 				<span class="view-id">${v.id}</span>

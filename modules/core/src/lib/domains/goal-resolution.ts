@@ -14,7 +14,6 @@ import { ACTUALITY_FIELD } from "../actuality/domains/seq-path.js";
 
 export const DOMAIN_GOAL_RESOLUTION = "goal-resolution";
 export const DOMAIN_AFFORDANCES = "affordances";
-export const DOMAIN_CHAIN_LINT = "domain-chain-lint";
 export const DOMAIN_CHAIN_WALK = "chain-walk";
 export const DOMAIN_WALK_ID = "walk-id";
 
@@ -131,9 +130,6 @@ const snapshot = {
 	composites: CompositeRangesSchema,
 	[ACTUALITY_FIELD]: z.string(),
 };
-export const AffordancesSchema = z.object({ ...snapshot, waypoints: z.array(WaypointEntrySchema) }).strict();
-export type TAffordances = z.infer<typeof AffordancesSchema>;
-
 /** The kinds of the step graph's lint findings, each a way the graph is incomplete. */
 export const LINT_FINDING = { UNSUPPLIED_STEP: "unsupplied-step", UNREACHABLE_DOMAIN: "unreachable-domain", UNPRODUCED_DOMAIN: "unproduced-domain" } as const;
 export const LintFindingSchema = z.discriminatedUnion("kind", [
@@ -149,8 +145,9 @@ export const lintFindingLine = (finding: TLintFinding): string =>
 		? `${finding.kind} ${finding.stepperName}.${finding.stepName} consumes ${finding.inputDomain}`
 		: `${finding.kind} ${finding.domain}`;
 
-export const ChainLintSchema = z.object({ ...snapshot, findings: z.array(LintFindingSchema) }).strict();
-export type TChainLint = z.infer<typeof ChainLintSchema>;
+/** The affordances: the snapshot, the waypoints, and the step graph's lint findings, the ways the steps' chain is incomplete. */
+export const AffordancesSchema = z.object({ ...snapshot, waypoints: z.array(WaypointEntrySchema), findings: z.array(LintFindingSchema) }).strict();
+export type TAffordances = z.infer<typeof AffordancesSchema>;
 
 export const goalDomainDefinitions: TDomainDefinition[] = [
 	{ selectors: [DOMAIN_WALK_ID], schema: NameSchema, description: "The id of a walk toward a goal. Each advance of the walk names this id." },
@@ -162,14 +159,8 @@ export const goalDomainDefinitions: TDomainDefinition[] = [
 	{
 		selectors: [DOMAIN_AFFORDANCES],
 		schema: AffordancesSchema,
-		description: "The steps the caller may call next, each with whether its inputs hold, and the resolution of each goal.",
+		description: "The steps the caller may call next, each with whether its inputs hold, the resolution of each goal, and the step graph's lint findings.",
 		ui: { component: "shu-affordances-panel", summary: "Affordances" },
 	},
 	{ selectors: [DOMAIN_CHAIN_WALK], schema: ChainWalkSchema, description: "A walk toward a goal, which calls one step of its plan per advance." },
-	{
-		selectors: [DOMAIN_CHAIN_LINT],
-		schema: ChainLintSchema,
-		description: "The step graph's lint findings: unsupplied steps, unreachable domains and unproduced domains, with the chain they read.",
-		ui: { component: "shu-domain-chain-view" },
-	},
 ];

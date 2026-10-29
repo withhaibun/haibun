@@ -40,7 +40,6 @@ export const DesiredPaneSchema = z.discriminatedUnion("paneType", [
 	z.object({ paneType: z.literal("step"), method: StepMethodSchema, ...PLACEMENT }),
 	/** An action a caller holds, by what it allows. */
 	z.object({ paneType: z.literal("action"), action: ActionSchema, ...PLACEMENT }),
-	z.object({ paneType: z.literal("views-picker"), views: z.array(z.object({ id: z.string(), description: z.string(), component: z.string() })), label: z.string(), ...PLACEMENT }),
 ]);
 
 export type DesiredPane = z.infer<typeof DesiredPaneSchema>;
@@ -194,7 +193,6 @@ export const PANE_KINDS = {
 		column: () => "action",
 		parse: (action) => ({ action }),
 	},
-	"views-picker": { prefix: "", address: () => "views", entry: byId, tag: () => SHU_TAG.VIEWS_PICKER, label: (d) => d.label, column: () => "views-picker" },
 } satisfies { [K in DesiredPaneType]: TPaneKind<K> };
 
 /** A kind's entry, read for any pane, as its method signatures allow. */

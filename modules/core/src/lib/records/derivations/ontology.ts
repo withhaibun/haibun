@@ -15,7 +15,7 @@ export type TStandardTerm = { term: string; iri: string };
 
 /** The time each quad and record of the ontology states. The ontology doesn't change while the declarations hold, so every term states one time. */
 const ONTOLOGY_TS = 0;
-const ONTOLOGY_GENERATED_AT = new Date(ONTOLOGY_TS).toISOString();
+export const ONTOLOGY_GENERATED_AT = new Date(ONTOLOGY_TS).toISOString();
 
 /** Returns a term and every term it reaches through an immediate-parents map. */
 export function ancestorsWith(term: string, supers: Map<string, string[]>): Set<string> {

@@ -7,7 +7,7 @@
 import { LinkRelations, RESOURCE_LABEL, fromActorRels, getPropertyDefinitions, isSubPropertyOf, roleRels, toActorRels } from "@haibun/core/lib/domains/resources.js";
 import type { TConcernCatalog, TTitledBy } from "@haibun/core/lib/domains/hypermedia.js";
 import type { TDomainDiscoveryInfo } from "@haibun/core/lib/step-discovery.js";
-import { ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, SHU_TAG, isMarkerType } from "../../domains/elements.js";
+import { ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, SHU_TAG } from "../../domains/elements.js";
 import { propertyVocabulary } from "../../derivations/ontology-projection.js";
 
 /** What a catalog derives from: the concern catalog and the domains actuality declares, as a read of its steps holds them. */
@@ -229,7 +229,7 @@ export function propertyOrder(catalog: TCatalog, label: string): string[] {
 /** Returns the views the catalog declares: each domain whose UI names an element a column can hold. */
 export const declaredViews = (catalog: TCatalog): string[] =>
 	Object.entries(catalog.ui)
-		.filter(([, ui]) => typeof ui.component === "string" && !isMarkerType(ui.component))
+		.filter(([, ui]) => typeof ui.component === "string")
 		.map(([view]) => view);
 
 /** Returns the element a view is shown in: what its domain declares, else the view's own name, which is an element's. */

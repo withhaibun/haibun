@@ -7,7 +7,10 @@ import { extractSeqPathPrefix, parseSeqPath, seqPathDomainDefinition } from "../
 import { factDomainDefinition } from "../records/domains/facts.js";
 import { variableDomainDefinition } from "../records/domains/variables.js";
 import { classDomainDefinition, propertyDomainDefinition } from "../records/domains/ontology.js";
-import type { TCoercionSite, TDomainDefinition } from "../domains/resources.js";
+import { DOMAIN_FIELD, DOMAIN_LABEL, DOMAIN_RECORD_DOMAIN, DomainRecordSchema } from "../records/domains/domain-record.js";
+import { MEDIA_TYPE } from "../domains/media-types.js";
+import { RDFS_DATATYPE } from "../domains/vocabularies.js";
+import { Access, DOMAIN_PERSISTED_TYPE, HELD_BY, LinkRelations, type TCoercionSite, type TDomainDefinition } from "../domains/resources.js";
 import type { TWorld } from "../actuality/domains/world.js";
 import { TStepValue } from "../domains/protocol.js";
 import { DOMAIN_INDIVIDUAL_ADDRESS, IndividualAddressSchema } from "../domains/typed-links.js";
@@ -97,13 +100,42 @@ const durationSchema = z.preprocess((value, ctx) => {
 	return match ? Number(match[1]) * (match[2] === "s" ? 1000 : 1) : value;
 }, z.number().nonnegative());
 
+/** The Domain type, whose records core derives from the declarations, so the type states `heldBy: declarations`. */
+const domainRecordDefinition: TDomainDefinition = {
+	selectors: [DOMAIN_RECORD_DOMAIN],
+	schema: DomainRecordSchema,
+	description: "A registered domain: its key, what it holds, its values where it is a set, the component that draws it where it is a view, and the type it is persisted as.",
+	topology: {
+		persistedAs: DOMAIN_LABEL,
+		type: RDFS_DATATYPE,
+		id: DOMAIN_FIELD.name,
+		heldBy: HELD_BY.declarations,
+		accessLevel: Access.public,
+		displayLabel: DOMAIN_FIELD.name,
+		properties: {
+			[DOMAIN_FIELD.name]: LinkRelations.IDENTIFIER.rel,
+			[DOMAIN_FIELD.description]: LinkRelations.DESCRIPTION.rel,
+			[DOMAIN_FIELD.values]: LinkRelations.TAG.rel,
+			[DOMAIN_FIELD.component]: LinkRelations.TAG.rel,
+			[DOMAIN_FIELD.persisted]: LinkRelations.TAG.rel,
+			[DOMAIN_FIELD.topology]: { rel: LinkRelations.CONTENT.rel, mediaType: MEDIA_TYPE.json },
+			[DOMAIN_FIELD.generatedAtTime]: LinkRelations.GENERATED_AT_TIME.rel,
+			[DOMAIN_FIELD.accessLevel]: LinkRelations.ACCESS_LEVEL.rel,
+		},
+		// A persisted domain's record names the type it is persisted as, so the record links the type's Class and its records.
+		ranges: { [DOMAIN_FIELD.persisted]: DOMAIN_PERSISTED_TYPE },
+	},
+};
+
 const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
-	// The types of the records core writes or derives: each step's record, the facts and variables actuality holds, and the ontology.
+	// The types of the records core writes or derives: each step's record, the facts and variables actuality holds, the ontology,
+	// and the registered domains.
 	seqPathDomainDefinition,
 	factDomainDefinition,
 	variableDomainDefinition,
 	classDomainDefinition,
 	propertyDomainDefinition,
+	domainRecordDefinition,
 	{ selectors: [DOMAIN_STRING], schema: stringSchema, description: "A plain string literal captured from feature text." },
 	{ selectors: [DOMAIN_TEXT], schema: stringSchema, description: "Free text a person writes: a note, a question, a reason or a passage quoted, read as written." },
 	{

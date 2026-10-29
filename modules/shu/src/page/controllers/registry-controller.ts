@@ -34,6 +34,9 @@ export const getAvailableSteps = async (): Promise<TStepDefinition[]> => (await 
 /** Returns actuality's steps, or the refusal of their read. */
 export const availableStepsRead = (): Promise<TCallOutcome<TStepDefinition[]>> => outcomeOf(getAvailableSteps);
 
+/** Returns the domains actuality declares, each with its description, or the refusal of their read. */
+export const domainsRead = (): Promise<TCallOutcome<Record<string, TDomainDiscoveryInfo>>> => outcomeOf(async () => (await stepList()).domains);
+
 /** Returns the predicates actuality's steps prove, read where the page doesn't hold them. */
 export const getAvailablePredicates = async (): Promise<TPredicate[]> => (await stepList()).predicates;
 

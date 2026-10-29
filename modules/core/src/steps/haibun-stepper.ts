@@ -38,8 +38,7 @@ import { provedList, proveStatements, stepperContext } from "../lib/actuality/pi
 import { QuadStore } from "../lib/steps/pipelines/quad-store.js";
 import { remoteQuadStore } from "./root.js";
 import { requestSigner } from "../lib/domains/session-authority.js";
-import { DOMAIN_STEPPERS, SHOW_STEPPERS_LINE, SteppersSchema } from "../lib/steps/domains/steppers.js";
-import { STEP_DEFINITIONS_LIST, STEP_SUMMARIES_LIST, listedSteppers, stepDefinitions, stepSummaries } from "../lib/steps/pipelines/discover-steps.js";
+import { STEP_DEFINITIONS_LIST, STEP_SUMMARIES_LIST, stepDefinitions, stepSummaries } from "../lib/steps/pipelines/discover-steps.js";
 import { runRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { stepMethodName } from "../lib/steps/domains/step-method.js";
 import {
@@ -59,7 +58,6 @@ import {
 	exactlyItems,
 	itemBindings,
 	limitedItems,
-	listOf,
 	matchingItems,
 	orderedItems,
 	perFieldItems,
@@ -87,8 +85,6 @@ const DOMAIN_STORE_IN_USE = "store-in-use";
 /** What the reads of actuality's declarations do, which their definitions state. */
 const SHOW_STEPS_DESCRIPTION = `Lists every step actuality declares: each step's method, pattern and description, the capability it requires, whether its caller may call it and the link to its definition, with every domain and the steppers of the steps. A method names its stepper and a hyphen first. Narrow the list with the matching combinator, as in \`matching "GraphStepper-", ${SHOW_STEPS_LINE}\`, and read the definition of a step you call with ${SHOW_STEP_DEFINITIONS_LINE}.`;
 const SHOW_STEP_DEFINITIONS_DESCRIPTION = `Lists the definition of every step actuality declares: each step's argument and product schemas, whether its caller may call it and the link to its call, with every domain, the concern catalog and the registry's predicates, which a formula names. Read one step's definition with the matching combinator, as in \`matching "Haibun-showSteps", ${SHOW_STEP_DEFINITIONS_LINE}\`; a narrowed read returns only the domains, concerns and predicates its steps name.`;
-const SHOW_STEPPERS_DESCRIPTION =
-	"Lists each stepper actuality loads, with what it does and each of its steps as its key and its pattern, as the CLI's --show-steppers prints them.";
 
 /** A step's path as its domain reads it: the integers of its place. */
 const StepPathValueSchema = z.array(z.number().int()).min(1);
@@ -120,12 +116,6 @@ class Haibun extends AStepper implements IHasCycles {
 					schema: StepDefinitionsSchema,
 					list: STEP_DEFINITIONS_LIST,
 					description: "The definition of every step, with whether a caller may call it, every domain, the concern catalog and the registry's predicates",
-				},
-				{
-					selectors: [DOMAIN_STEPPERS],
-					schema: SteppersSchema,
-					list: listOf(SteppersSchema, "steppers"),
-					description: "Each stepper actuality loads, with what it does and its steps",
 				},
 				{ selectors: [DOMAIN_STEP_VALIDATION], schema: StepValidationSchema, description: "Whether a line resolves to exactly one step, and which" },
 				{ selectors: [DOMAIN_STORE_IN_USE], schema: StoreInUseSchema, description: "The store `use store at` mounts, and the types routed to it" },
@@ -193,7 +183,6 @@ class Haibun extends AStepper implements IHasCycles {
 		showStepDefinitions: this.declarationRead(SHOW_STEP_DEFINITIONS_LINE, SHOW_STEP_DEFINITIONS_DESCRIPTION, DOMAIN_STEP_DEFINITIONS, () =>
 			stepDefinitions(this.getWorld(), runRegistry(this.getWorld()), shownTo()),
 		),
-		showSteppers: this.declarationRead(SHOW_STEPPERS_LINE, SHOW_STEPPERS_DESCRIPTION, DOMAIN_STEPPERS, () => listedSteppers(this.steppers)),
 		matching: this.listCombinator(
 			`matching {text: ${DOMAIN_TEXT}}, {statement: ${DOMAIN_STATEMENT}}`,
 			"Keeps the items of the statement's list that hold the text in one of their values, compared without regard to case, and counts them.",

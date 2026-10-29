@@ -7,19 +7,17 @@ import { z } from "zod";
 import { AStepper, type TStepperSteps, type IHasOptions } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK, actionOKWithProducts, errorDetail, getFromRuntime, getStepperOption, intOrError } from "@haibun/core/lib/domains/util.js";
 import { RESPONSE_TIMEOUT_MS, type TDeploymentSettings, type TServedHydration } from "./domains/hydration.js";
-import { CountedFields, counted, getJsonLdContext } from "@haibun/core/lib/domains/hypermedia.js";
-import { Access, haibunNsForHost, isPersisted } from "@haibun/core/lib/domains/resources.js";
+import { counted, getJsonLdContext } from "@haibun/core/lib/domains/hypermedia.js";
+import { Access, haibunNsForHost } from "@haibun/core/lib/domains/resources.js";
 import { requestBaseIri } from "@haibun/core/lib/request-context.js";
 import { getAuthority } from "@haibun/core/lib/domains/session-authority.js";
 import { WEBSERVER } from "@haibun/web-server-hono/domains/web-server.js";
 import type { IWebServer, Context } from "@haibun/web-server-hono/defs.js";
-import { CONTEXT_DOCUMENT, SHU_TYPE, SHU_TAG } from "./domains/elements.js";
+import { CONTEXT_DOCUMENT, SHU_TAG } from "./domains/elements.js";
 import { DOMAIN_SHU_APPS, ShuAppsSchema } from "./domains/shu-apps.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { DOMAIN_ROUTE } from "@haibun/core/lib/domains/domains.js";
-import { OntologyReadSchema } from "@haibun/core/lib/records/domains/ontology-read.js";
 import { listOf } from "@haibun/core/lib/domains/lists.js";
-import { ontologyRead } from "@haibun/core/lib/records/pipelines/ontology-records.js";
 import { labelFontResponse, servedBuild, servedPage } from "./pipelines/served-page.js";
 import { LABEL_FONT, LABEL_FONT_FALLBACK_ROUTES, LABEL_FONT_FALLBACKS, PAGE_ASSETS, PAGE_CHUNKS, POLYMORPHIC_VIEW_JS } from "./domains/serving.js";
 import { graphLayout } from "./pipelines/graph-source.js";
@@ -29,13 +27,6 @@ import { BUNDLE_NAMES, bundleFileName } from "./domains/bundle-files.js";
 
 /** The domain of where a graph view placed each node. */
 const DOMAIN_GRAPH_LAYOUT = "graph-layout";
-const DOMAIN_SHU_VIEW_COLLECTION = "shu-view-collection";
-
-const ShuViewCollectionSchema = z.object({
-	view: z.string().optional(),
-	views: z.array(z.object({ id: z.string(), description: z.string(), component: z.string() })),
-	...CountedFields,
-});
 
 // Nodes and edges as pipe-delimited tokens, node `graph|subject|label`, edge `source|predicate|target`:
 // so a feature can match a relationship without parsing the rendered graph (e.g. `matches g.edges with "*|discloses|*"`).
@@ -120,9 +111,8 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 		},
 		getConcerns: () => ({
 			domains: [
-				// Built-in shu views, registering them as domains makes them discoverable
-				// via `show views` (the picker iterates domains with `ui.component`).
-				// External steppers register their own view domains the same way.
+				// shu's views: each domain that declares a component is a view, which its Domain record states and the views
+				// picker lists. External steppers register their own view domains the same way.
 				{
 					selectors: [SHU_TAG.POLYMORPHIC_GRAPH_VIEW],
 					schema: z.object({}),
@@ -139,9 +129,8 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				},
 				{
 					selectors: [SHU_TAG.CLASS_BROWSER],
-					schema: OntologyReadSchema,
-					list: listOf(OntologyReadSchema, "terms"),
-					description: "The ontology the declarations state, its classes and properties, which the class browser draws over the live graph",
+					schema: z.object({}),
+					description: "The class browser: the ontology the declarations state, its Class and Property records, drawn over the live graph",
 					ui: {
 						component: SHU_TAG.CLASS_BROWSER,
 						// Defined in the SAME bundle as the graph view: one served asset registers both.
@@ -157,11 +146,10 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				{ selectors: [DOMAIN_SHU_APPS], schema: ShuAppsSchema, list: listOf(ShuAppsSchema, "apps"), description: "Where an instance serves shu" },
 				{ selectors: [DOMAIN_GRAPH_LAYOUT], schema: GraphLayoutSchema, description: "Where a graph view placed each node" },
 				{
-					selectors: [DOMAIN_SHU_VIEW_COLLECTION],
-					schema: ShuViewCollectionSchema,
-					list: listOf(ShuViewCollectionSchema, "views"),
-					description: "Catalog of registered views",
-					ui: { component: SHU_TYPE.VIEW_COLLECTION, summary: "Available Views" },
+					selectors: [SHU_TAG.VIEWS_PICKER],
+					schema: z.object({}),
+					description: "The views the domains declare, each a Domain record that names the component drawing it, to open one",
+					ui: { component: SHU_TAG.VIEWS_PICKER, summary: "Views" },
 				},
 			],
 		}),
@@ -216,37 +204,6 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			description: "Where this instance serves shu: the path of each app it mounted, which a reader opens under the instance's address.",
 			productsDomain: DOMAIN_SHU_APPS,
 			action: () => actionOKWithProducts({ apps: [...this.appPaths].map((path) => ({ path })), ...counted(this.appPaths.size) }),
-		},
-		showOntology: {
-			read: true,
-			readsAt: Access.public,
-			gwta: "show ontology",
-			description:
-				"Lists the ontology the declarations state, as the class browser draws it and the JSON-LD context serves it: each class, with its superclasses and the link relation of each field and edge its type declares and the classes in an edge's range, and each link relation or standard term, with its IRI, its superproperties and the classes it connects. Narrow it with the matching combinator.",
-			productsDomain: SHU_TAG.CLASS_BROWSER,
-			// The class browser reads the ontology from the live graph, so the event doesn't keep a second copy of every class and property per read.
-			retainProducts: false,
-			action: async () => {
-				const { domains, eventLogger } = this.getWorld();
-				return actionOKWithProducts(await ontologyRead(domains, (message: string) => eventLogger.warn(message)));
-			},
-		},
-		showViews: {
-			gwta: "show views",
-			description:
-				"Lists the views the domains declare a component for: each entry holds the view's id, its description and the component that draws it. The products hold the list with its count, in the shu-view-collection domain.",
-			productsDomain: DOMAIN_SHU_VIEW_COLLECTION,
-			action: () => {
-				const domains = this.getWorld().domains;
-				const views = Object.values(domains)
-					.filter((d) => typeof d.ui?.component === "string")
-					.map((d) => ({
-						id: (isPersisted(d.topology) ? d.topology.persistedAs : undefined) || d.selectors[0],
-						description: d.description || d.selectors[0],
-						component: String(d.ui?.component),
-					}));
-				return actionOKWithProducts({ view: "views", views, ...counted(views.length) });
-			},
 		},
 		showPolymorphicGraphView: {
 			gwta: "show polymorphic graph view",

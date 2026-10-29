@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
- * The list of views a deployment declares. It draws a row per view and opens the one a reader presses; whoever
- * declares the views determines what they are.
+ * The list of views a deployment declares, read from its Domain records. It draws a row per view and opens the one a reader
+ * presses; whoever declares the views determines what they are.
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
@@ -18,8 +18,8 @@ const views = [
 
 const pickerOf = async (offered = views): Promise<ShuViewsPicker> => {
 	const picker = new ShuViewsPicker();
-	picker.setViews(offered);
 	document.body.append(picker);
+	picker.views = offered;
 	await picker.updateComplete;
 	return picker;
 };

@@ -7,7 +7,9 @@ import ShuStepper from "@haibun/shu/shu-stepper.js";
 import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
 import { SHU_TAG } from "@haibun/shu/domains/elements.js";
 import { createStepUI, flattenTestIds } from "@haibun/shu/test/step-ui.js";
-import { COMMENT_LABEL } from "@haibun/core/lib/domains/resources.js";
+import { COMMENT_DOMAIN, COMMENT_LABEL } from "@haibun/core/lib/domains/resources.js";
+import { DOMAIN_PAGE_TEST_ID } from "@haibun/web-playwright/domains.js";
+import { domains } from "@haibun/shu/waypoints/backgrounds/domains.feature.ts";
 import { headingAnchor } from "@haibun/core/lib/domains/document-content.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { ACTIVITIES_STEPPER } from "@haibun/core/steps/activities-actions.js";
@@ -23,6 +25,7 @@ const { enterStepMode, passesStepForm, chooseGraphLabel } = createStepUI(wp);
 
 const host = "http://localhost:8239";
 const IDS = SHU_TEST_IDS;
+const q = (text: string): string => `"${text}"`;
 /** Every open virtualized column has its own rail. This tag scopes a press on a rail to the document column. */
 const DOC_CONTAINER = SHU_TAG.DOCUMENT_COLUMN;
 const MONITOR_CONTAINER = SHU_TAG.MONITOR_COLUMN;
@@ -172,10 +175,12 @@ export const features: TKirejiExport = {
 		waitFor({ target: "greeted-result" }),
 		'variable greeted is "Ada"',
 
-		scenario({ scenario: "Invoke `show chain lint` and verify the domain chain renders as a graph" }),
+		scenario({ scenario: "The affordances hold the domain chain, drawn as a graph" }),
 
-		"The chain-lint step returns the lint findings and the graph data. The findings include unsupplied steps, unreachable domains and unproduced domains. The graph data holds the forward edges and the goal verdicts. The domain chain view draws the graph data with the graph view. The feature waits for the chain view, its graph slot and the canvas in that slot.",
-		...passesStepForm("LogicStepper-showDomainChainLint"),
+		"`show affordances` returns the steps on offer, each goal's verdict and the step graph's lint findings: unsupplied steps, unreachable domains and unproduced domains. The affordances panel holds the domain chain in a section of its own, which the graph view draws from the forward edges and the goal verdicts. The feature opens the section and waits for the chain view, its graph slot and the canvas in that slot.",
+		...passesStepForm("LogicStepper-showAffordances"),
+		waitFor({ target: IDS.AFFORDANCES.ROOT }),
+		click({ target: IDS.AFFORDANCES.CHAIN }),
 		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
 		waitFor({ target: IDS.DOMAIN_CHAIN.GRAPH }),
 		setAs({ what: CHAIN_GRAPH_CANVAS, domain: "page-locator", value: `"${CHAIN_GRAPH_CANVAS_SELECTOR}"` }),
@@ -186,21 +191,22 @@ export const features: TKirejiExport = {
 		"The engine proves a goal over any registered domain key. The registry holds every locator domain, including page-alt-text. A step doesn't return page-alt-text, so the engine refutes the goal and its step fails.",
 		'didn\'t resolve "page-alt-text"',
 
-		scenario({ scenario: "Repeated `show chain lint` invocations must not duplicate the pane" }),
+		scenario({ scenario: "Repeated `show affordances` invocations must not duplicate the pane" }),
 
-		"A view-open product is a request to mount a pane. Later steps don't chain from it as a fact. Running the same show step twice reuses the open pane. Each refresh of the affordances stream would add another pane without that reuse. The step dispatcher doesn't auto-assert the product of a view-only domain. This scenario invokes the step a second time and waits for the chain view's root and graph. Each wait reads the first match, so the scenario doesn't count the panes.",
-		...passesStepForm("LogicStepper-showDomainChainLint"),
+		"A view-open product is a request to mount a pane. Running the same show step twice reuses the open pane, and the pane's open chain section stays open. Each refresh of the affordances stream would add another pane without that reuse. This scenario invokes the step a second time and waits for the chain view's root and graph. Each wait reads the first match, so the scenario doesn't count the panes.",
+		...passesStepForm("LogicStepper-showAffordances"),
 		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
 		waitFor({ target: IDS.DOMAIN_CHAIN.GRAPH }),
 
-		scenario({ scenario: "Reload while affordances and domain-chain panes are open: both must restore" }),
+		scenario({ scenario: "Reload while the affordances pane is open: it must restore, with its domain chain" }),
 
-		"Reloading the page restores the affordances panel and the chain-lint pane from the URL hash. The step calls above opened both panes. The chain-lint view reads the affordances on offer when it mounts without a product, so it draws the chain after the reload. The feature waits for the root of each pane after the reload.",
+		"Reloading the page restores the affordances panel from the URL hash. The panel reads the affordances on offer when it mounts without a product, so its chain section draws the chain after the reload. The feature waits for the panel's root after the reload, opens the chain section and waits for the chain.",
 		reloadPage({}),
 		"The app restores the panes from the URL hash. The reloaded URL still holds the affordances pane in its hash.",
 		"save URI to reloadUri",
 		'matches reloadUri with "*shu-affordances-panel*"',
 		waitFor({ target: IDS.AFFORDANCES.ROOT }),
+		click({ target: IDS.AFFORDANCES.CHAIN }),
 		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
 		"The hash restore also restores the monitor and the graph view. The monitor shows its rail with the cursor's mark.",
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
@@ -253,11 +259,12 @@ export const features: TKirejiExport = {
 		setFromStatement({ what: "varsSnapshot", statement: "show vars" }),
 		exists({ what: "varsSnapshot" }),
 
-		scenario({ scenario: "Domain inspection: `show domains` lists every registered domain" }),
+		scenario({ scenario: "Domain inspection: the Domain records hold every registered domain" }),
 
-		"Each stepper can register domains at boot through its concerns. `show domains` returns the registry. The registry holds the domains this feature depends on: Comment, page-test-id and the show view domains. The feature stores the step's product in a variable and checks that the variable exists.",
-		setFromStatement({ what: "domainsSnapshot", statement: "show domains" }),
-		exists({ what: "domainsSnapshot" }),
+		"Each stepper can register domains at boot through its concerns, and the declarations derive a Domain record for each. The records hold the domains this feature depends on: Comment, page-test-id and the views.",
+		domains.hold(q(COMMENT_DOMAIN)),
+		domains.hold(q(DOMAIN_PAGE_TEST_ID)),
+		domains.viewOf(q(SHU_TAG.MONITOR_COLUMN), q(SHU_TAG.MONITOR_COLUMN)),
 
 		scenario({ scenario: "The domain chain has the graph view's controls" }),
 
@@ -375,8 +382,8 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "The views on offer are read from what the deployment declares" }),
 
-		"A domain that declares a UI component is a view. The show views step reads the views a person can open from the domain declarations, not from a separate list. The views picker shows one row for each view. Each row's test id names the view that the row opens. This scenario doesn't press a row.",
-		"show views",
+		"A domain that declares a UI component is a view. The views picker reads the views a person can open from the Domain records, not from a separate list, and shows one row for each view. Each row's test id names the view that the row opens. The page opens the picker from its address. This scenario doesn't press a row.",
+		gotoPage({ name: `"${host}/haibun#?col=${SHU_TAG.VIEWS_PICKER}"` }),
 		setAs({ what: VIEWS_PICKER, domain: "page-test-id", value: `"${VIEWS_PICKER}"` }),
 		setAs({ what: VIEWS_PICKER_MONITOR, domain: "page-test-id", value: `"${VIEWS_PICKER_MONITOR}"` }),
 		waitFor({ target: VIEWS_PICKER }),

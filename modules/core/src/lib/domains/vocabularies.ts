@@ -66,6 +66,8 @@ export const ODRL = /* @__PURE__ */ termsIn("odrl", ["action", "target", "assign
 export const RDF_STATEMENT = "rdf:Statement";
 export const RDF_PROPERTY = "rdf:Property";
 export const RDFS_CLASS = "rdfs:Class";
+/** A set of values, which a registered domain is. */
+export const RDFS_DATATYPE = "rdfs:Datatype";
 export const XSD_INTEGER = "xsd:integer";
 export const XSD_DECIMAL = "xsd:decimal";
 export const XSD_DOUBLE = "xsd:double";

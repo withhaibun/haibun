@@ -164,8 +164,7 @@ A function declaration `function {name}({parts}) → D` registers a domain-typed
 ✓ any of "A, B, C"
 ✓ maybe {statement}
 
-✓ show affordances
-✓ show chain lint
+✓ show affordances (with the chain's lint findings)
   show derivation of "{statement}"
 
 ✓ show steps                                           (returns steps + ConcernCatalog)

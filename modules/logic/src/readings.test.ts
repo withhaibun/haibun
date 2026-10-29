@@ -116,7 +116,7 @@ const READINGS: [string, string, boolean][] = [
 	],
 	["ensure of a line that isn't a waypoint", "didn't ensure passes", true],
 	["an alternative whose quoted term holds a comma", 'set pair to "a,b"\nany of variable pair is "a,b", fails', true],
-	["an alternative that quotes a combinator holding a comma", 'any of fails, "at least 1, show steppers"', true],
+	["an alternative that quotes a combinator holding a comma", 'any of fails, "at least 1, show steps"', true],
 	["a waypoint applied below itself with the same arguments is unknown", "Activity: Loop\nensure Looped\nwaypoint Looped with fails\nensure Looped", false],
 ];
 
@@ -194,6 +194,6 @@ describe("a list of statements", () => {
 			"`x,y`",
 			'set j to {"a": 1, "b": [2, 3]}',
 		]);
-		expect(statementList('"at least 1, show steppers", passes')).toEqual(['"at least 1, show steppers"', "passes"]);
+		expect(statementList('"at least 1, show steps", passes')).toEqual(['"at least 1, show steps"', "passes"]);
 	});
 });

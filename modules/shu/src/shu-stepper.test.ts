@@ -8,9 +8,8 @@ import { WEBSERVER } from "@haibun/web-server-hono/domains/web-server.js";
 import { SessionAuthority } from "@haibun/core/lib/pipelines/session-authority.js";
 import { AUTHORITY_KEY } from "@haibun/core/lib/domains/session-authority.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import { COMMENT_LABEL, LinkRelations, commentDomainDefinition } from "@haibun/core/lib/domains/resources.js";
+import { LinkRelations, commentDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import { registerDomains } from "@haibun/core/lib/domains/domains.js";
-import { ONTOLOGY_TERM, OntologyReadSchema } from "@haibun/core/lib/records/domains/ontology-read.js";
 import ShuStepper from "./shu-stepper.js";
 import { buildSpaHtml } from "./derivations/page-html.js";
 import { mayFrame } from "./derivations/content-security-policy.js";
@@ -211,20 +210,9 @@ describe("what a deployment's shu reads of itself", () => {
 		expect((await stepper.steps.showShuApps.action()).products).toEqual({ apps: [{ path: "/spa" }], total: 1, saturated: false });
 	});
 
-	it("lists the ontology the declarations state as a counted list of classes and link relations, which opens the class browser", async () => {
-		const read = await stepper.steps.showOntology.action();
-		const ontology = OntologyReadSchema.parse(read.products);
-		const comment = ontology.terms.find((term) => term.kind === ONTOLOGY_TERM.class && term.name === COMMENT_LABEL);
-		expect(comment, "a declared type is a class, with the link relation of each of its fields").toMatchObject({
-			kind: ONTOLOGY_TERM.class,
-			properties: { author: expect.any(String) },
-		});
-		expect(
-			ontology.terms.some((term) => term.kind === ONTOLOGY_TERM.property && term.name === LinkRelations.NARRATE.rel),
-			"and each link relation is a property",
-		).toBe(true);
-		expect(ontology.total).toBe(ontology.terms.length);
-		expect(world.domains[SHU_TAG.CLASS_BROWSER]?.ui?.component, "its products open in the class browser").toBe(SHU_TAG.CLASS_BROWSER);
+	it("declares the class browser and the views picker as views, which the Domain records list with their components", () => {
+		expect(world.domains[SHU_TAG.CLASS_BROWSER]?.ui?.component).toBe(SHU_TAG.CLASS_BROWSER);
+		expect(world.domains[SHU_TAG.VIEWS_PICKER]?.ui?.component).toBe(SHU_TAG.VIEWS_PICKER);
 	});
 
 	it("states where its graph view placed each node, for the graph the store holds", async () => {

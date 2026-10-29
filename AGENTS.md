@@ -153,8 +153,8 @@ Ordered sets enable state machines and efficient waypoint checks.
 
     variable doc_status is less than "published" ;; true
 
-    show domains ;; show all domains
-    show domain "statuses"
+    graph query {"label":"Domain"} ;; every registered domain, a Domain record each
+    get individual Domain statuses with edges ;; one domain's record
     show vars ;; inspect all variables with domains and values
     show var doc_status ;; inspect a single variable
 
@@ -349,15 +349,15 @@ A step is a general-purpose primitive. A combination of primitives that features
 
 The list combinators compose before a comma, innermost first. A count states how many items a list holds, and fails where it doesn't, so `until` waits for it; a field's value keeps the items that hold a text; and `as of` reads actuality at a step.
 
-    exactly 3, matching "Haibun-show", show steps
+    exactly 2, matching "Haibun-show", show steps
     at least 3, whose "stepperName" matches "Haibun", show steps
     limited to 1, skipping 1, ordered by "method" descending, matching "Haibun-show", show steps
     limited to 1 per "stepperName", show steps
-    as of 0.1, counting show steppers
-    for each stepper of whose "stepper" matches "e", show steppers: matching stepper/stepper, show steppers
+    as of 0.1, counting show steps
+    for each step of whose "method" matches "Haibun-show", show steps: matching step/method, show steps
 
 
-A module holds the waypoints every group uses in a base of backgrounds, which a group names beside its own base. shu's `waypoints` base holds the waypoints of its views, which call web-playwright's steps within a view, so a feature states what a view shows without a step of its own. A graph view's waypoints read its accessible document: the nodes it names, the active, dimmed and pinned states, the group titles and the lifelines. A head every view benefits from is general, and a head for what only the graph draws names the graph (see [architecture](docs/architecture.md#activities-and-waypoints)).
+A module holds the waypoints every group uses in a base of backgrounds, which a group names beside its own base. shu's `waypoints` base holds the waypoints of its views, which call web-playwright's steps within a view, so a feature states what a view shows without a step of its own. Its waypoints over the registered domains state what the Domain records hold as a phrase, `the domains hold {key}` and `domain {key} is a view drawn by {component}`, so a feature doesn't write a graph query. A graph view's waypoints read its accessible document: the nodes it names, the active, dimmed and pinned states, the group titles and the lifelines. A head every view benefits from is general, and a head for what only the graph draws names the graph (see [architecture](docs/architecture.md#activities-and-waypoints)).
 
 NB The ensure pattern guarantees prerequisites, not outcomes. Use ensure to establish the starting state required for a test (e.g. auth or database setup). Avoid using ensure to enforce the primary behavior under test, as it may obscure failure logic by "correcting" it.
 
