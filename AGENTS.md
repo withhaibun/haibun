@@ -153,10 +153,10 @@ Ordered sets enable state machines and efficient waypoint checks.
 
     variable doc_status is less than "published" ;; true
 
-    graph query {"label":"Domain"} ;; every registered domain, a Domain record each
-    get individual Domain statuses with edges ;; one domain's record
     show vars ;; inspect all variables with domains and values
     show var doc_status ;; inspect a single variable
+
+Each registered domain is a Domain record the declarations derive. Where shu's GraphSourceStepper is loaded, `graph query {"label":"Domain"}` lists them and `get individual Domain statuses with edges` reads one.
 
 #### Composing values
 
