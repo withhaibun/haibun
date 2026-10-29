@@ -5,20 +5,20 @@
 			"actuality": {
 				"text": "e2e-tests/capability, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
 				"status": "passed",
-				"tookMs": 700,
+				"tookMs": 1000,
 				"digest": {
 					"e2e-tests/capability": "f60a467b1916bade9b199593dc655ac9b6694b0c489cd1975c9c83bf14918d77",
 					"e2e-tests/src": "dc573cdd7ecddf68fac9a13e4d4fd63eebf115f44b4ce2a5b4db616c5a049e04",
 					"modules/cli/src": "eca8a674ccaab6f8abf4b216ef01ffa5c8da9568f6cad56e50689eb9ce134547",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "acb5688a1e313d111a6cb439383e28b96f86eea851037d044a3b0996bec5dd70",
+					"modules/core/src": "e7375207d96c5970ab6023f975360327e79e46f50603328b36f44c58bf64df14",
 					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
-					"modules/logic/src": "9e0fae5e1e3ea2e31a22f38fa47b3bfa13f7de07c597b6241ba3c8a42321da13",
+					"modules/logic/src": "1c27aaa6f48c0118bff73af9c9abfc070b8b1b52cc063b591b65b8e966228d7f",
 					"modules/monitor-otel/src": "4fbef0f2c78fed7b3e2d03ec4ab094bef11766724e5f5f6efb73491ea1d4dea6",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/out-junit/src": "22d1ca5d4f4449cae6186ff8d84c1f0b182e7591e1ffda9520a38daa3e8681d2",
 					"modules/recorder/src": "079caf826dbcad8943531b3f8f716e79a45d55f1668d29417e2a230978236208",
-					"modules/shu/src": "1f7d6b692b62e4194337588157d80fa6dd2e7272626f1914e1510be9cd11652e",
+					"modules/shu/src": "d17690c1bb075f642ef93fbff2c422f3d2a2964540274df02771e8d43f71d901",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/utils/src": "9799d114ca397313863bfc29604199b02bc9daf1a4bfa26675dbfe7cfc30e36c",
@@ -32,7 +32,7 @@
 				"/features/identity-and-capability.feature.ts": {
 					"text": "Identity and capability authorization",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 900,
 					"steps": 30
 				}
 			}
