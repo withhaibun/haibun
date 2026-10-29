@@ -146,6 +146,9 @@ export function chipGeometry(textBounds: readonly [number, number, number, numbe
 /** Build a chip visual: a solid type-coloured background quad behind an avatar badge and an SDF text label, the node's
  *  exact point at the chip's TOP-LEFT corner (content flows right + down, so the point stays eyeball-able against the
  *  axes). sync() builds the SDF on troika's worker and, when done, sizes the background to the measured content. */
+/** The outline that gives a chip's text a crisp semibold weight without clogging counters at small sizes. */
+const CHIP_OUTLINE = "2%";
+
 export function makeTroikaChip(label: string, bgColor: string, three: ChipThree, d: ChipDeps): NodeVisual {
 	if (!sharedPlane) sharedPlane = new three.PlaneGeometry(1, 1);
 	const group = new three.Group() as Group3D;
@@ -174,7 +177,12 @@ export function makeTroikaChip(label: string, bgColor: string, three: ChipThree,
 		},
 	);
 
-	const makeText = (content: string, color: string, renderOrder: number) => depthlessText(content, { fontSize: d.fontSize, color, renderOrder, anchor: CHIP_ANCHOR });
+	const makeText = (content: string, color: string, renderOrder: number) => {
+		const t = depthlessText(content, { fontSize: d.fontSize, color, renderOrder, anchor: CHIP_ANCHOR });
+		t.outlineWidth = CHIP_OUTLINE;
+		t.outlineColor = color;
+		return t;
+	};
 
 	const text = makeText(label, d.textColor, d.renderOrder + 2);
 
@@ -182,8 +190,9 @@ export function makeTroikaChip(label: string, bgColor: string, three: ChipThree,
 	// the label's own dark colour and don't need a second colour per type.
 	const avatarText = d.avatar ? makeText(d.avatar, AVATAR_TEXT_COLOR, d.renderOrder + 3) : undefined;
 	let avatarBg: Obj3D | undefined;
+	let avatarMaterial: { opacity: number } | undefined;
 	if (avatarText) {
-		const avatarMaterial = new three.MeshBasicMaterial({ color: AVATAR_BG_COLOR, transparent: true, depthTest: false, depthWrite: false });
+		avatarMaterial = new three.MeshBasicMaterial({ color: AVATAR_BG_COLOR, transparent: true, depthTest: false, depthWrite: false });
 		avatarBg = new three.Mesh(sharedPlane, avatarMaterial);
 		avatarBg.renderOrder = d.renderOrder + 1; // over the chip background, under both texts
 	}
@@ -250,6 +259,8 @@ export function makeTroikaChip(label: string, bgColor: string, three: ChipThree,
 		},
 		set opacity(o: number) {
 			borderMaterial.opacity = o;
+			bgMaterial.opacity = o;
+			if (avatarMaterial) avatarMaterial.opacity = o;
 			text.fillOpacity = o;
 			text.outlineOpacity = o; // troika drives the glyph alpha from fill/outline, not the material
 			if (avatarText) {
