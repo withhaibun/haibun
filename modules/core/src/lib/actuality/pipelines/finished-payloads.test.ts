@@ -14,6 +14,7 @@ import { RESULTS_READ_IN_FULL, foldStep } from "../derivations/step-results.js";
 import { releasePayloads } from "./executor.js";
 import type { TFeatureSteps, TStepResult } from "../../domains/protocol.js";
 import { itemAt } from "../../domains/item-at.js";
+import { TEST_STEP } from "../../test/test-step.js";
 
 const LARGE_ANSWER = "test-large-answer";
 
@@ -21,8 +22,17 @@ class ProducingStepper extends AStepper {
 	description = "Produces a large product, and refuses with a large product.";
 	cycles = { getConcerns: () => ({ domains: [{ selectors: [LARGE_ANSWER], schema: z.object({ big: z.string() }), description: "A large product" }] }) };
 	steps = {
-		produces: { gwta: "produce a large answer", productsDomain: LARGE_ANSWER, action: () => Promise.resolve(actionOKWithProducts({ big: "x".repeat(10000) })) },
-		refuses: { gwta: "refuse with a large answer", action: () => Promise.resolve(actionNotOK("it refused", { products: { big: "x".repeat(10000) } } as never)) },
+		produces: {
+			description: TEST_STEP,
+			gwta: "produce a large answer",
+			productsDomain: LARGE_ANSWER,
+			action: () => Promise.resolve(actionOKWithProducts({ big: "x".repeat(10000) })),
+		},
+		refuses: {
+			description: TEST_STEP,
+			gwta: "refuse with a large answer",
+			action: () => Promise.resolve(actionNotOK("it refused", { products: { big: "x".repeat(10000) } } as never)),
+		},
 	};
 }
 

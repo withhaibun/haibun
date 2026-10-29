@@ -213,8 +213,8 @@
 				"tookMs": 100,
 				"digest": {
 					"e2e-tests/policy-test": "926b6ca236fb5c169cbd325b1a019947d5e11622ce559212af1fad0aaa6146d6",
-					"modules/core/src": "f8724f31371cf4f0cdf6647d429780f10157abfdcf9a04e84a20caa193b64b34",
-					"modules/logic/src": "19433b3e8119e1c7ca9845979124a28bee3de6e0d9c379066a77e104382bc6f9"
+					"modules/core/src": "8ef8f2f75e52c480d6e6b3b2c93a91eae36c77b0c3455e113926264b50adad1c",
+					"modules/logic/src": "cc9d585c7f77c2c2b7c13a78de10d0e3bb32569fdbd85c537e23abadf2c90de6"
 				}
 			},
 			"features": {
@@ -240,8 +240,8 @@
 				"tookMs": 100,
 				"digest": {
 					"e2e-tests/policy-test": "926b6ca236fb5c169cbd325b1a019947d5e11622ce559212af1fad0aaa6146d6",
-					"modules/core/src": "f8724f31371cf4f0cdf6647d429780f10157abfdcf9a04e84a20caa193b64b34",
-					"modules/logic/src": "19433b3e8119e1c7ca9845979124a28bee3de6e0d9c379066a77e104382bc6f9"
+					"modules/core/src": "8ef8f2f75e52c480d6e6b3b2c93a91eae36c77b0c3455e113926264b50adad1c",
+					"modules/logic/src": "cc9d585c7f77c2c2b7c13a78de10d0e3bb32569fdbd85c537e23abadf2c90de6"
 				}
 			},
 			"features": {
@@ -264,11 +264,11 @@
 			"actuality": {
 				"text": "e2e-tests/policy-test",
 				"status": "passed",
-				"tookMs": 200,
+				"tookMs": 100,
 				"digest": {
 					"e2e-tests/policy-test": "926b6ca236fb5c169cbd325b1a019947d5e11622ce559212af1fad0aaa6146d6",
-					"modules/core/src": "f8724f31371cf4f0cdf6647d429780f10157abfdcf9a04e84a20caa193b64b34",
-					"modules/logic/src": "19433b3e8119e1c7ca9845979124a28bee3de6e0d9c379066a77e104382bc6f9"
+					"modules/core/src": "8ef8f2f75e52c480d6e6b3b2c93a91eae36c77b0c3455e113926264b50adad1c",
+					"modules/logic/src": "cc9d585c7f77c2c2b7c13a78de10d0e3bb32569fdbd85c537e23abadf2c90de6"
 				}
 			},
 			"features": {
@@ -346,8 +346,8 @@
 				"tookMs": 100,
 				"digest": {
 					"e2e-tests/policy-test": "926b6ca236fb5c169cbd325b1a019947d5e11622ce559212af1fad0aaa6146d6",
-					"modules/core/src": "f8724f31371cf4f0cdf6647d429780f10157abfdcf9a04e84a20caa193b64b34",
-					"modules/logic/src": "19433b3e8119e1c7ca9845979124a28bee3de6e0d9c379066a77e104382bc6f9"
+					"modules/core/src": "8ef8f2f75e52c480d6e6b3b2c93a91eae36c77b0c3455e113926264b50adad1c",
+					"modules/logic/src": "cc9d585c7f77c2c2b7c13a78de10d0e3bb32569fdbd85c537e23abadf2c90de6"
 				}
 			},
 			"features": {

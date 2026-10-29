@@ -1,6 +1,7 @@
 import { AStepper, type IHasCycles, type IHasOptions, type IStepperCycles } from "../steps/domains/stepper.js";
 import { actionOKWithProducts, getStepperOption } from "../domains/util.js";
 import { z } from "zod";
+import { TEST_STEP } from "./test-step.js";
 
 const TestOptionResultSchema = z.object({ summary: z.string() });
 const DOMAIN_TEST_OPTION_RESULT = "test-option-result";
@@ -13,6 +14,7 @@ export const TestStepsWithOptions = class TestStepsWithOptions extends AStepper 
 	description = "Steps that read a stepper option, for tests of how a run passes options to a stepper.";
 	steps = {
 		test: {
+			description: TEST_STEP,
 			exact: "have a stepper option",
 			productsDomain: DOMAIN_TEST_OPTION_RESULT,
 			action: () => {

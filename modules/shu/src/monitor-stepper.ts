@@ -279,8 +279,20 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		// Singleton view openers. Hypermedia markers (`_type` + `_component` + `id` + `view`
 		// + `_summary`) are injected by the dispatcher from each domain's `ui.component`,
 		// so every view-opening step shares the same single mechanism.
-		showMonitor: { gwta: "show monitor", productsDomain: SHU_TAG.MONITOR_COLUMN, action: () => actionOKWithProducts({}) },
-		showDocument: { gwta: "show document", productsDomain: SHU_TAG.DOCUMENT_COLUMN, action: () => actionOKWithProducts({}) },
+		showMonitor: {
+			gwta: "show monitor",
+			description:
+				"Opens the monitor column of the shu app, which draws actuality's monitor and event log. The dispatcher injects the markers that mount the view from the domain's declaration.",
+			productsDomain: SHU_TAG.MONITOR_COLUMN,
+			action: () => actionOKWithProducts({}),
+		},
+		showDocument: {
+			gwta: "show document",
+			description:
+				"Opens the document column of the shu app, the document and artifact viewer. The dispatcher injects the markers that mount the view from the domain's declaration.",
+			productsDomain: SHU_TAG.DOCUMENT_COLUMN,
+			action: () => actionOKWithProducts({}),
+		},
 		logClient: {
 			gwta: `log client {event: ${DOMAIN_LOG_EVENT}}`,
 			description:

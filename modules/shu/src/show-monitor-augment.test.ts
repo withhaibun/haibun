@@ -13,6 +13,7 @@ import { parseAffordanceProduct } from "./page/derivations/affordances.js";
 import { StepMethodSchema } from "@haibun/core/lib/steps/domains/step-method.js";
 import { DomainKeySchema } from "@haibun/core/lib/domains/domains.js";
 import { ActionSchema } from "@haibun/core/lib/domains/actions.js";
+import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
 
 describe("show monitor markers → parser", () => {
 	it("a markers-only product (the shape augmentViewHypermedia produces for show monitor) parses to open-component", () => {
@@ -31,7 +32,7 @@ describe("show monitor markers → parser", () => {
 	});
 
 	it("buildFeatureStepForTransport carries the real stepDef through (regression: RPC dispatch dropped productsDomain, augment never fired)", () => {
-		const stepDef = { gwta: "show monitor", productsDomain: "shu-monitor-column", action: () => ({ ok: true as const }) };
+		const stepDef = { description: TEST_STEP, gwta: "show monitor", productsDomain: "shu-monitor-column", action: () => ({ ok: true as const }) };
 		const tool: StepTool = {
 			descriptor: {
 				method: StepMethodSchema.parse("MonitorStepper-showMonitor"),
@@ -39,6 +40,7 @@ describe("show monitor markers → parser", () => {
 				stepperDescription: "Shows actuality's monitor.",
 				stepName: "showMonitor",
 				pattern: "show monitor",
+				description: TEST_STEP,
 				paramDomains: {},
 				productsDomain: DomainKeySchema.parse("shu-monitor-column"),
 				capability: ActionSchema.parse("MonitorStepper:showMonitor"),

@@ -16,6 +16,7 @@ import { atom, factsTerm } from "../derivations/terms.js";
 import { logicEngine } from "../root.js";
 import { lintFindings } from "./goals.js";
 import { proved } from "./prove.js";
+import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
 
 const action = async () => OK;
 const value = (selector: string) => ({ selectors: [selector], schema: z.object({ id: z.string() }), description: selector });
@@ -31,12 +32,12 @@ const domains = mapDefinitionsToDomains([value("cart"), value("order"), value("r
 class Shop extends AStepper {
 	description = "Fills a cart, places an order from it, and prints its receipt.";
 	steps: TStepperSteps = {
-		fillCart: { gwta: "fill a cart", productsDomain: "cart", action },
-		placeOrder: { gwta: "place an order from {cart: cart}", productsDomain: "order", action },
-		printReceipt: { gwta: "print a receipt for {order: order}", productsDomain: "receipt", action },
-		loopA: { gwta: "turn {b: loop-b} to a", productsDomain: "loop-a", action },
-		loopB: { gwta: "turn {a: loop-a} to b", productsDomain: "loop-b", action },
-		audit: { gwta: "audit {ledger: ledger}", action },
+		fillCart: { description: TEST_STEP, gwta: "fill a cart", productsDomain: "cart", action },
+		placeOrder: { description: TEST_STEP, gwta: "place an order from {cart: cart}", productsDomain: "order", action },
+		printReceipt: { description: TEST_STEP, gwta: "print a receipt for {order: order}", productsDomain: "receipt", action },
+		loopA: { description: TEST_STEP, gwta: "turn {b: loop-b} to a", productsDomain: "loop-a", action },
+		loopB: { description: TEST_STEP, gwta: "turn {a: loop-a} to b", productsDomain: "loop-b", action },
+		audit: { description: TEST_STEP, gwta: "audit {ledger: ledger}", action },
 	};
 }
 

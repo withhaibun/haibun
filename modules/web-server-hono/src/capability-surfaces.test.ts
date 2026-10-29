@@ -22,6 +22,7 @@ import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import McpStepper from "./mcp-stepper.js";
 import WebServerStepper from "./web-server-stepper.js";
+import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
 
 const MCP_HEADERS = { "content-type": "application/json", accept: "application/json, text/event-stream" };
 
@@ -52,6 +53,7 @@ class SurfacesStepper extends AStepper {
 	}
 	steps = {
 		everyStepRefused: {
+			description: TEST_STEP,
 			gwta: `every registered step is refused without a capability in process, over rpc and over mcp on port {port: ${DOMAIN_NUMBER}}`,
 			action: async ({ port }: { port: number }) => {
 				const world = this.getWorld();

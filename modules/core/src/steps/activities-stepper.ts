@@ -175,6 +175,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		},
 		activity: {
 			gwta: `Activity: {activity: ${DOMAIN_TITLE}}`,
+			description: "Marks an activity heading. Its lines define the activity of each waypoint it states, and don't run where the feature reaches the heading.",
 			action: () => OK,
 			// An activity's lines are the activity of each waypoint it states, and don't run where the feature reaches them.
 			resolveFeatureLine: (line: string, path: string, _stepper: AStepper, _backgrounds: unknown, allLines?: string[], lineIndex?: number, actualSourcePath?: string) => {

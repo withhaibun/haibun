@@ -7,6 +7,7 @@ import { LogicStepper } from "../test/logic-stepper.js";
 import { asFeatures } from "../test/resolver-features.js";
 import { itemAt } from "./item-at.js";
 import VariablesStepper from "../../steps/variables-stepper.js";
+import { TEST_STEP } from "../test/test-step.js";
 
 const varsStepper = [VariablesStepper, LogicStepper];
 
@@ -126,7 +127,11 @@ describe("a resolved feature as data", () => {
 			base: "/",
 			name: "f",
 			featureSteps: [
-				{ in: "reads json", seqPath: [0, 1, 1], action: { stepperName: "JsonSteps", actionName: "readsJson", step: { exact: "reads json", action: () => OK }, stepValuesMap: {} } },
+				{
+					in: "reads json",
+					seqPath: [0, 1, 1],
+					action: { stepperName: "JsonSteps", actionName: "readsJson", step: { description: TEST_STEP, exact: "reads json", action: () => OK }, stepValuesMap: {} },
+				},
 			],
 		};
 		expect(JSON.parse(JSON.stringify(steps.featureAsData(feature))).featureSteps[0].action).toEqual({ stepperName: "JsonSteps", actionName: "readsJson", stepValuesMap: {} });

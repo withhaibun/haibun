@@ -20,16 +20,26 @@ import { addStepperConcerns } from "../lib/actuality/pipelines/executor.js";
 import { DOMAIN_TEXT } from "../lib/domains/domains.js";
 import { readAction } from "../lib/domains/actions.js";
 import { Access } from "../lib/domains/resources.js";
+import { TEST_STEP } from "../lib/test/test-step.js";
 
 const READS_PUBLIC = readAction(Access.public);
 
 class PingStepper extends AStepper {
 	description = "Provides the steps that these tests run.";
 	steps = {
-		protectedPing: { exact: "protected ping", capability: "Ping:protected", action: () => Promise.resolve(OK) },
-		readsPublicOnly: { exact: "reads public only", action: () => Promise.resolve(readingAt() === "public" ? OK : actionNotOK(`reads at ${readingAt() ?? "every level"}`)) },
-		repeats: { gwta: `repeats {said: ${DOMAIN_TEXT}}`, action: ({ said }: { said: string }) => Promise.resolve(said === KEPT ? OK : actionNotOK(`was given ${said}`)) },
+		protectedPing: { description: TEST_STEP, exact: "protected ping", capability: "Ping:protected", action: () => Promise.resolve(OK) },
+		readsPublicOnly: {
+			description: TEST_STEP,
+			exact: "reads public only",
+			action: () => Promise.resolve(readingAt() === "public" ? OK : actionNotOK(`reads at ${readingAt() ?? "every level"}`)),
+		},
+		repeats: {
+			description: TEST_STEP,
+			gwta: `repeats {said: ${DOMAIN_TEXT}}`,
+			action: ({ said }: { said: string }) => Promise.resolve(said === KEPT ? OK : actionNotOK(`was given ${said}`)),
+		},
 		holdsACall: {
+			description: TEST_STEP,
 			exact: "holds a call",
 			action: () => {
 				const authority = getAuthority(this.getWorld().runtime);
@@ -39,6 +49,7 @@ class PingStepper extends AStepper {
 			},
 		},
 		readsKept: {
+			description: TEST_STEP,
 			exact: "reads kept",
 			action: async () => ((await this.getWorld().shared.get(KEPT_NAME)) === undefined ? OK : actionNotOK("read actuality's variable above its ceiling")),
 		},

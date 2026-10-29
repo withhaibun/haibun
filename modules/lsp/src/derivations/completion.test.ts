@@ -5,14 +5,15 @@ import { buildStepRegistry } from "@haibun/core/lib/step-registry.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { completionItems, patternToSnippet } from "./completion.js";
+import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
 
 class SampleStepper extends AStepper {
 	description = "Steps that navigate, set variables and click, for completion tests.";
 	steps = {
-		navigateTo: { gwta: "navigate to {url}", action: async () => OK },
-		setVariable: { gwta: "set {name} to {value}", action: async () => OK },
-		waitSeconds: { gwta: "wait {seconds: number} seconds", action: async () => OK },
-		clickButton: { exact: "click the submit button", action: async () => OK },
+		navigateTo: { description: TEST_STEP, gwta: "navigate to {url}", action: async () => OK },
+		setVariable: { description: TEST_STEP, gwta: "set {name} to {value}", action: async () => OK },
+		waitSeconds: { description: TEST_STEP, gwta: "wait {seconds: number} seconds", action: async () => OK },
+		clickButton: { description: TEST_STEP, exact: "click the submit button", action: async () => OK },
 	};
 }
 
@@ -21,7 +22,7 @@ class RuleStepper extends AStepper {
 	constructor(private readonly held: TWaypointRule[]) {
 		super();
 	}
-	steps = { apply: { rules: () => this.held, reading: READING.apply } };
+	steps = { apply: { description: TEST_STEP, rules: () => this.held, reading: READING.apply } };
 }
 
 const completions = () => [...buildStepRegistry([new SampleStepper()], getDefaultWorld()).values()].flatMap((tool) => completionItems(tool.descriptor, tool.stepDef));

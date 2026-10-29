@@ -26,6 +26,7 @@ import { RelayConnection } from "./relay-client/root.js";
 import { openRelayChannel } from "./relay-client/adapters/relay-channel.js";
 import type { TProveRequest } from "@haibun/core/lib/transport/ports.js";
 import { DOMAIN_LINK, DOMAIN_TEXT } from "@haibun/core/lib/domains/domains.js";
+import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
 
 const PAGE = `<title>attached</title><button onclick="this.textContent='pressed'">press me</button><input aria-label="note" oninput="document.getElementById('echo').textContent=this.value"><p id="echo"></p>`;
 
@@ -48,6 +49,7 @@ class PersonsExtension extends AStepper {
 	private ended?: Promise<string>;
 	steps = {
 		attaches: {
+			description: TEST_STEP,
 			gwta: `person's extension attaches their tab at {base: ${DOMAIN_LINK}}, signed by {holder: ${DOMAIN_FAKE_HOLDER}}`,
 			action: async ({ base, holder }: TStepArgs) => {
 				const channel = await openRelayChannel({ base: String(base), sign: signedAs(String(holder)) });
@@ -61,6 +63,7 @@ class PersonsExtension extends AStepper {
 			},
 		},
 		refused: {
+			description: TEST_STEP,
 			gwta: `extension attaching at {base: ${DOMAIN_LINK}}, signed by {holder: ${DOMAIN_FAKE_HOLDER}}, is refused for {why: ${DOMAIN_TEXT}}`,
 			action: async ({ base, holder, why }: TStepArgs) => {
 				try {
@@ -72,6 +75,7 @@ class PersonsExtension extends AStepper {
 			},
 		},
 		ends: {
+			description: TEST_STEP,
 			gwta: "person's extension ends its attachment",
 			action: () => {
 				this.connection?.close("the person detached");
@@ -79,6 +83,7 @@ class PersonsExtension extends AStepper {
 			},
 		},
 		toldEnded: {
+			description: TEST_STEP,
 			gwta: `person's extension is told its attachment ended because {why: ${DOMAIN_TEXT}}`,
 			action: async ({ why }: TStepArgs) => {
 				if (!this.ended) return actionNotOK("the extension didn't attach a tab");

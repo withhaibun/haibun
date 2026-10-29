@@ -50,6 +50,8 @@ export class RecorderStepper extends AStepper implements IHasOptions, IHasCycles
 	steps = {
 		startRecording: {
 			gwta: `record interactions to {file: ${DOMAIN_FILE_PATH}}`,
+			description:
+				"Starts a recording of the page's interactions to the feature file at the path, with the title the TITLE option states. Each interaction is logged and appended to the file as the step that reproduces it, and a navigation to the address the page is at, or to an about: page, isn't recorded.",
 			action: async ({ file }: { file: string }): Promise<TActionResult> => {
 				const title = getStepperOption(this, TITLE_OPTION, this.getWorld().moduleOptions) ?? RECORDED_TITLE;
 				this.recording = await startRecording(recordingPorts(this.getWorld().eventLogger), String(file), title);
@@ -60,6 +62,7 @@ export class RecorderStepper extends AStepper implements IHasOptions, IHasCycles
 
 		stopRecording: {
 			gwta: "stop recording",
+			description: "Ends the recording, clearing its captured steps, and logs the count of the steps the recording captured.",
 			action: (): Promise<TActionResult> => {
 				const count = this.recording ? this.recording.steps.length : 0;
 				this.recording = undefined;

@@ -85,6 +85,8 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 	steps = {
 		nameConnectingSite: {
 			exact: "name a connecting site",
+			description:
+				"Assigns a connecting site a unique principal, did:site:<mine>.<n>, under this site's own principal, and writes this site's and the assigned principals to the store as Principal individuals. It returns the assigned principal as the site product, and refuses where a store isn't available or the store's principal list saturates.",
 			capability: AUTHORITY_CAPABILITIES.name,
 			productsDomains: { site: DOMAIN_PRINCIPAL_REF },
 			// Site principals are unique within a federation. An instance with the default identity (did:site:0) requests a

@@ -129,6 +129,8 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			read: true,
 			readsAt: Access.public,
 			gwta: `get individual {label: ${DOMAIN_PERSISTED_TYPE}} {id: ${DOMAIN_RECORD_ID}} with edges`,
+			description:
+				"Returns the record of the given type and id, the edges either way, and how many edges point at it, from the store this instance holds. Fails where the record isn't held, stating the collection that lists the records the instance holds.",
 			recordIds: { id: "label" },
 			fallback: true,
 			productsDomain: DOMAIN_INDIVIDUAL_WITH_EDGES,
@@ -146,6 +148,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			read: true,
 			readsAt: Access.public,
 			gwta: `get select values for {label: ${DOMAIN_PERSISTED_TYPE}}`,
+			description: "Returns, for each field of the type, the values a filter selects. Fails where a filter topology isn't registered for the type.",
 			productsDomain: DOMAIN_SELECT_VALUES,
 			action: async ({ label }: { label: string }) => {
 				const values = await selectValues(this.getWorld(), label);
@@ -156,6 +159,8 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			read: true,
 			readsAt: Access.public,
 			gwta: "get clustered quads",
+			description:
+				"Returns the clustered sample a graph view draws: the quads, and per type what was sampled and what was left out, with the site that serves each sampled subject. Fails, stating the fields the ask must hold, where the ask is malformed, or stating why the read failed, where the read throws.",
 			productsDomain: DOMAIN_CLUSTERED_QUADS,
 			// The sampled graph is the RPC response; keeping it on the event too holds a second copy of it per call.
 			retainProducts: false,
@@ -182,6 +187,8 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 		},
 		clusteredGraphHoldsFromSite: {
 			gwta: `clustered graph holds {type: ${DOMAIN_PERSISTED_TYPE}} {subject: ${DOMAIN_RECORD_ID}} from site {site: ${DOMAIN_PRINCIPAL_REF}}`,
+			description:
+				"Checks that this instance's merged view holds the individual of the given type and subject, served by the given site, over the same clustered surface a graph view draws, and returns the subject with the site that serves it. Fails where the view doesn't hold the subject, or where the subject is served by a different site.",
 			recordIds: { subject: "type" },
 			productsDomain: DOMAIN_SUBJECT_SERVED,
 			// Federation-health inspection: does this instance's merged view hold {subject} (a {type} individual)
@@ -196,6 +203,8 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 		},
 		federateGraphReads: {
 			gwta: `federate graph reads from {where: ${DOMAIN_LINK}}`,
+			description:
+				"Merges the peer instance at the link into this instance's view, stamping each of the peer's subjects with its site principal so the view groups by site, and returns the site of the federated reads. Fails, stating why, where the reads weren't federated.",
 			productsDomain: DOMAIN_SITE_FEDERATED,
 			// Reads-first federation: a peer instance's clustered reads merge into this one's view, each of the peer's subjects
 			// stamped with its site principal, so the view groups by site.
@@ -211,6 +220,8 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			read: true,
 			readsAt: Access.public,
 			gwta: `run shape {query: ${DOMAIN_DENSITY_QUERY}}`,
+			description:
+				"Returns how many records fall in each division of the span the query states. The step computes the same counts a page computes over its own copy of the graph, so the two never drift.",
 			fallback: true,
 			productsDomain: DOMAIN_DENSITY,
 			// The counts are the products; keeping them on the event too is the per-read bloat.
@@ -223,6 +234,8 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			read: true,
 			readsAt: Access.public,
 			gwta: `graph query {query: ${DOMAIN_GRAPH_QUERY}}`,
+			description:
+				"Returns the rows the graph query matched, with the count of them. The step reads the same records a page reads from its own copy of the graph, so the two never drift.",
 			fallback: true,
 			productsDomain: DOMAIN_GRAPH_ROWS,
 			takesListQuery: ({ query }: { query: TGraphQuery }, listQuery: TListQuery) => queriedList(query, listQuery),

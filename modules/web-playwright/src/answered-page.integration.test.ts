@@ -17,6 +17,7 @@ import StorageMem from "@haibun/storage-mem/storage-mem-stepper.js";
 import WebPlaywright from "./web-playwright-stepper.js";
 import { BrowserFactory } from "./adapters/browser-factory.js";
 import { READS_THE_PAGE } from "./domains/actions.js";
+import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
 
 afterAll(async () => {
 	await BrowserFactory.closeBrowsers();
@@ -34,6 +35,7 @@ class CallerProbe extends AStepper {
 	description = "Calls WebPlaywright's steps by name, as a model's tool call does.";
 	steps = {
 		callsThePage: {
+			description: TEST_STEP,
 			gwta: CALLS_THE_PAGE,
 			action: async () => {
 				const world = this.getWorld();

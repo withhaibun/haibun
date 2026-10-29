@@ -24,6 +24,7 @@ import { getAvailableSteps, onStepsChanged } from "../controllers/registry-contr
 import { serveThePageFrom } from "../../test/setup.js";
 import { DOMAIN_LINK } from "@haibun/core/lib/domains/domains.js";
 import { endPage } from "../adapters/page-held.js";
+import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
 
 /** The step another host adds, named as actuality names that host's steps. */
 const ADDED = hostScopedMethodName(9, "Haibun-validateStep");
@@ -35,6 +36,7 @@ class StepsPage extends AStepper {
 	description = "Opens a page on the actuality that follows actuality's steps, adds a step as a transport does, and checks what the page holds.";
 	steps = {
 		opens: {
+			description: TEST_STEP,
 			gwta: `page at {base: ${DOMAIN_LINK}} reads actuality's steps`,
 			action: async ({ base }: { base: string }) => {
 				endPage();
@@ -60,6 +62,7 @@ class StepsPage extends AStepper {
 			},
 		},
 		adds: {
+			description: TEST_STEP,
 			gwta: "run adds another host's step",
 			action: () => {
 				const registry = runRegistry(this.getWorld());
@@ -70,6 +73,7 @@ class StepsPage extends AStepper {
 			},
 		},
 		holds: {
+			description: TEST_STEP,
 			gwta: "page holds the added step",
 			action: async () => {
 				if (!holdsAdded) throw new Error("a page doesn't follow actuality's steps: a scenario opens one with `page at {base} reads actuality's steps` first");

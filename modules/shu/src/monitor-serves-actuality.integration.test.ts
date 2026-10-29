@@ -21,6 +21,7 @@ import { MONITOR_OPENS_AT } from "./pipelines/monitor-report.js";
 import GraphSourceStepper from "./graph-source-stepper.js";
 import ShuStepper from "./shu-stepper.js";
 import { RPC_METHOD } from "./domains/elements.js";
+import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
 
 const PORT = await freePort();
 const MONITOR = localOrigin(PORT);
@@ -40,6 +41,7 @@ class ReadsTheMonitorStepper extends AStepper {
 	}
 	steps = {
 		readTheMonitor: {
+			description: TEST_STEP,
 			gwta: "read the monitor",
 			action: async () => {
 				const response = await fetch(`${MONITOR}${MONITOR_PATH}`);

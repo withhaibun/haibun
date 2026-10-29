@@ -19,6 +19,7 @@ import { readStepDefinitions, readStepSummaries, SHOW_STEPS_LINE, SHOW_STEPS_MET
 import type { TStepResult } from "../lib/domains/protocol.js";
 import { validateStep } from "../lib/pipelines/step-validation.js";
 import { RUN_AUTHORITY, readingAsOf, runAuthorizedWith, runShowing } from "../lib/domains/capability-context.js";
+import { TEST_STEP } from "../lib/test/test-step.js";
 
 describe("until", () => {
 	it("passes once its statements pass", async () => {
@@ -130,6 +131,7 @@ describe("the steps actuality holds", () => {
 			cycles = { onEvent: (event: THaibunEvent) => void (event.kind === "control" && signals.push(event.signal)) };
 			steps = {
 				addsAStep: {
+					description: TEST_STEP,
 					gwta: "transport adds a step",
 					action: () => {
 						const registry = runRegistry(this.getWorld());
@@ -243,7 +245,7 @@ describe("show steps", () => {
 		const read: Array<readonly number[] | undefined> = [];
 		class ReadsAsOf extends AStepper {
 			description = "Records the step whose actuality a read reads.";
-			steps = { readsAsOf: { gwta: "read as of the step", action: () => (read.push(readingAsOf()), Promise.resolve(actionOK())) } };
+			steps = { readsAsOf: { description: TEST_STEP, gwta: "read as of the step", action: () => (read.push(readingAsOf()), Promise.resolve(actionOK())) } };
 		}
 		const result = await passWithDefaults("as of 0.1, read as of the step\nread as of the step", [Haibun, ReadsAsOf, LogicStepper]);
 		expect(result.ok, JSON.stringify(result.failure)).toBe(true);
@@ -254,7 +256,7 @@ describe("show steps", () => {
 		const noted: string[] = [];
 		class Notes extends AStepper {
 			description = "Records what a statement notes.";
-			steps = { note: { gwta: "note {value: text}", action: ({ value }: { value: string }) => (noted.push(value), Promise.resolve(actionOK())) } };
+			steps = { note: { description: TEST_STEP, gwta: "note {value: text}", action: ({ value }: { value: string }) => (noted.push(value), Promise.resolve(actionOK())) } };
 		}
 		const result = await passWithDefaults('for each stepper of whose "stepper" matches "s", show steppers: note stepper/stepper', [Haibun, TestSteps, Notes, LogicStepper]);
 		expect(result.ok, JSON.stringify(result.failure)).toBe(true);
@@ -271,6 +273,7 @@ describe("show steps", () => {
 			description = "Lists steps as a caller holding only a public read, alone and acting for one holding every action.";
 			steps = {
 				actsForAnother: {
+					description: TEST_STEP,
 					gwta: "list steps for another",
 					action: async () => {
 						const haibun = this.getWorld().runtime.steppers?.find((stepper) => stepper instanceof Haibun) as Haibun;

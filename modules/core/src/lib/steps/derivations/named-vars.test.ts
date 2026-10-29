@@ -11,6 +11,7 @@ import { withName } from "../../domains/features.js";
 import { populateActionArgs } from "../pipelines/populate-action-args.js";
 import { DOMAIN_STRING } from "../../domains/domains.js";
 import { itemAt } from "../../domains/item-at.js";
+import { TEST_STEP } from "../../test/test-step.js";
 
 describe("namedMatches", () => {
 	it("gets named matches", () => {
@@ -45,7 +46,7 @@ describe("namedInterpolation regexes", () => {
 describe("getNamedWithVars", () => {
 	class TestStepper extends AStepper {
 		description = "A step taking an interpolated value.";
-		steps = { gwtaInterpolated: { gwta: "is {what}", action: async () => Promise.resolve(OK) } };
+		steps = { gwtaInterpolated: { description: TEST_STEP, gwta: "is {what}", action: async () => Promise.resolve(OK) } };
 	}
 	const world = getDefaultWorld();
 	test("gets var", async () => {

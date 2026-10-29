@@ -15,6 +15,7 @@ import { StepRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { addStepperConcerns } from "../lib/actuality/pipelines/executor.js";
 import { DOMAIN_TEXT } from "../lib/domains/domains.js";
 import { itemAt } from "../lib/domains/item-at.js";
+import { TEST_STEP } from "../lib/test/test-step.js";
 
 class TestPrompter implements IPrompter {
 	prompt = (_p: TPrompt) => Promise.resolve("continue");
@@ -188,7 +189,7 @@ describe("DebuggerStepper RPC dispatch", () => {
 	it("does not prompt on actionNotOK when dispatched via RPC transport", async () => {
 		const failing = new (class FailingStepper extends AStepper {
 			description = "A step that always fails.";
-			steps = { alwaysFails: { gwta: "always fails", action: async () => actionNotOK("intentional failure") } };
+			steps = { alwaysFails: { description: TEST_STEP, gwta: "always fails", action: async () => actionNotOK("intentional failure") } };
 		})();
 
 		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
@@ -220,7 +221,7 @@ describe("DebuggerStepper RPC dispatch", () => {
 	it("does not prompt before step-by-step RPC dispatch", async () => {
 		const echo = new (class EchoStepper extends AStepper {
 			description = "A step that echoes a text.";
-			steps = { echo: { gwta: `echo {what: ${DOMAIN_TEXT}}`, action: async () => OK } };
+			steps = { echo: { description: TEST_STEP, gwta: `echo {what: ${DOMAIN_TEXT}}`, action: async () => OK } };
 		})();
 
 		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);

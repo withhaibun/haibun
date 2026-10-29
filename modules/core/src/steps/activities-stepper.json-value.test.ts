@@ -14,6 +14,7 @@ import { actionOK } from "../lib/domains/util.js";
 import { fromJsonText } from "../lib/domains/json-text.js";
 import { passWithDefaults } from "../lib/test/lib.js";
 import { LogicStepper } from "../lib/test/logic-stepper.js";
+import { TEST_STEP } from "../lib/test/test-step.js";
 
 const PersonSchema = z.object({ did: z.url(), name: z.string() }).strict();
 
@@ -26,6 +27,7 @@ class PersonStepper extends AStepper {
 	};
 	steps: TStepperSteps = {
 		registerPerson: {
+			description: TEST_STEP,
 			gwta: "register person {person: person-input}",
 			action: ({ person }: { person: { did: string; name: string } }) => {
 				lastReceived = person;

@@ -19,6 +19,7 @@ import VariablesStepper from "./variables-stepper.js";
 import { readEvery } from "../lib/records/pipelines/record-reads.js";
 import { QuadStore, newStoreChain } from "../lib/steps/pipelines/quad-store.js";
 import { readDeclarationsOf } from "../lib/records/derivations/read-records.js";
+import { TEST_STEP } from "../lib/test/test-step.js";
 
 const OUTCOME = "Knock twice";
 const KNOCK_LINE = 'set knocks to "2"';
@@ -35,6 +36,7 @@ class SavedWaypointProbe extends AStepper {
 	description = "Resolves a saved waypoint's head as a line and proves it.";
 	steps = {
 		applyTheSavedWaypoint: {
+			description: TEST_STEP,
 			gwta: "apply the saved waypoint",
 			action: async (_: unknown, featureStep: TFeatureStep) => {
 				const world = this.getWorld();

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { codeKindFindings, kindOf, UNPOSITIONED } from "./code-kinds.js";
+import { adapterAssertionFindings, ASSERTS_A_TYPE, codeKindFindings, kindOf, UNPOSITIONED } from "./code-kinds.js";
 import { parsedSources } from "./repository-files.js";
 
 const PIPELINE = "src/area/pipelines/read.ts";
@@ -196,5 +196,21 @@ describe("a file's findings against the kinds", () => {
 			"export const c = (fetch: () => void) => fetch();",
 		].join("\n");
 		expect(findingsOf(PIPELINE, { [PIPELINE]: source })).toEqual(["performs I/O through setTimeout"]);
+	});
+});
+
+describe("an adapter's type assertions", () => {
+	const assertionsOf = (file: string, source: string): string[] => {
+		const repository = mkdtempSync(join(tmpdir(), "haibun-code-kinds-"));
+		made.push(repository);
+		mkdirSync(join(repository, dirname(file)), { recursive: true });
+		writeFileSync(join(repository, file), source);
+		return adapterAssertionFindings(parsedSources(repository, [file])).map(({ finding }) => finding);
+	};
+
+	it("finds each type an adapter asserts, a chain through unknown once, and leaves `as const` and other kinds alone", () => {
+		const source = "const a = JSON.parse('1') as number;\nconst b = JSON.parse('2') as unknown as string;\nconst c = [1] as const;\n";
+		expect(assertionsOf(ADAPTER, source)).toEqual([ASSERTS_A_TYPE, ASSERTS_A_TYPE]);
+		expect(assertionsOf(PIPELINE, source)).toEqual([]);
 	});
 });

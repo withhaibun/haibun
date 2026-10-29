@@ -148,7 +148,15 @@ export class Resolver {
 					source: { path: actualSourcePath || feature.path, lineNumber: featureLine.lineNumber },
 					in: featureLine.line,
 					seqPath: [seq],
-					action: { stepperName: "Directive", actionName: "directive", step: { exact: actionable, action: async () => ({ ok: true }) } },
+					action: {
+						stepperName: "Directive",
+						actionName: "directive",
+						step: {
+							exact: actionable,
+							description: "A placeholder for a line a stepper's resolveFeatureLine hook consumes, such as an Activity or a Backgrounds line; it passes without running an action.",
+							action: async () => ({ ok: true }),
+						},
+					},
 				});
 				continue;
 			}

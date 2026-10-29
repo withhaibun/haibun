@@ -6,6 +6,7 @@ import { Origin, type TOrigin } from "../../domains/protocol.js";
 import { AStepper, type TFeatureStep } from "../domains/stepper.js";
 import { DOMAIN_NUMBER, DOMAIN_STRING, DOMAIN_TITLE, DOMAIN_VARIABLE_NAME, individualRefDomain, registerDomains } from "../../domains/domains.js";
 import { fromJsonText } from "../../domains/json-text.js";
+import { TEST_STEP } from "../../test/test-step.js";
 
 function makeStep(name: string, label: string, domain: string, origin: TOrigin): TFeatureStep {
 	return {
@@ -16,6 +17,7 @@ function makeStep(name: string, label: string, domain: string, origin: TOrigin):
 			actionName: "test",
 			stepperName: "test",
 			step: {
+				description: TEST_STEP,
 				action: () => {
 					return Promise.resolve({ ok: true });
 				},

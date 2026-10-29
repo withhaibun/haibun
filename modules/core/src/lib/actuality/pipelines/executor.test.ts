@@ -18,6 +18,7 @@ import { actionNotOK, actionOK } from "../../domains/util.js";
 import { DOMAIN_TEXT } from "../../domains/domains.js";
 import { itemAt } from "../../domains/item-at.js";
 import Haibun from "../../../steps/haibun-stepper.js";
+import { TEST_STEP } from "../../test/test-step.js";
 
 describe("the path allocated under a parent step", () => {
 	const aWorld = () => ({ runtime: { seqPaths: new Map<string, number>() } }) as unknown as Parameters<typeof nextSeqPath>[0];
@@ -143,9 +144,9 @@ describe("the digest of a scenario's declared lines", () => {
 	class NotingStepper extends AStepper {
 		description = "Starts a scenario, notes a text, and refuses.";
 		steps = {
-			scenario: { gwta: `Scenario: {what: ${DOMAIN_TEXT}}`, action: () => Promise.resolve(actionOK()) },
-			note: { gwta: `note {what: ${DOMAIN_TEXT}}`, action: () => Promise.resolve(actionOK()) },
-			refuse: { gwta: "refuse here", action: () => Promise.resolve(actionNotOK("refused")) },
+			scenario: { description: TEST_STEP, gwta: `Scenario: {what: ${DOMAIN_TEXT}}`, action: () => Promise.resolve(actionOK()) },
+			note: { description: TEST_STEP, gwta: `note {what: ${DOMAIN_TEXT}}`, action: () => Promise.resolve(actionOK()) },
+			refuse: { description: TEST_STEP, gwta: "refuse here", action: () => Promise.resolve(actionNotOK("refused")) },
 		};
 	}
 	/** The digests each scenario's record states, in order. */
@@ -174,10 +175,10 @@ describe("the actuality the Executor moves", () => {
 	class SceneStepper extends AStepper {
 		description = "Starts a feature or a scenario, notes a text, and refuses.";
 		steps = {
-			feature: { gwta: `Feature: {what: ${DOMAIN_TEXT}}`, action: () => Promise.resolve(actionOK()) },
-			scenario: { gwta: `Scenario: {what: ${DOMAIN_TEXT}}`, action: () => Promise.resolve(actionOK()) },
-			note: { gwta: `note {what: ${DOMAIN_TEXT}}`, action: () => Promise.resolve(actionOK()) },
-			refuse: { gwta: "refuse here", action: () => Promise.resolve(actionNotOK("refused")) },
+			feature: { description: TEST_STEP, gwta: `Feature: {what: ${DOMAIN_TEXT}}`, action: () => Promise.resolve(actionOK()) },
+			scenario: { description: TEST_STEP, gwta: `Scenario: {what: ${DOMAIN_TEXT}}`, action: () => Promise.resolve(actionOK()) },
+			note: { description: TEST_STEP, gwta: `note {what: ${DOMAIN_TEXT}}`, action: () => Promise.resolve(actionOK()) },
+			refuse: { description: TEST_STEP, gwta: "refuse here", action: () => Promise.resolve(actionNotOK("refused")) },
 		};
 	}
 
@@ -242,7 +243,7 @@ describe("the actuality the Executor moves", () => {
 describe("a pending scenario", () => {
 	class CountingStepper extends AStepper {
 		description = "Passes.";
-		steps = { passes: { exact: "passes", action: () => Promise.resolve(actionOK()) } };
+		steps = { passes: { description: TEST_STEP, exact: "passes", action: () => Promise.resolve(actionOK()) } };
 	}
 
 	it("doesn't resolve or run its lines, and the feature's result names it as pending", async () => {

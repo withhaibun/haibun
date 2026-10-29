@@ -10,7 +10,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { expectWithinBaseline, REPOSITORY_SCAN_MS } from "./baseline.js";
-import { codeKindFindings, UNPOSITIONED } from "./code-kinds.js";
+import { adapterAssertionFindings, codeKindFindings, UNPOSITIONED } from "./code-kinds.js";
 import { composeFiles, defaultFindings } from "./default-rules.js";
 import { brokenPaths, linksAndParentPaths, optionAssignments, trackedFiles, untrackedRecords } from "./group-rules.js";
 import { proseFindings } from "./prose-baseline.js";
@@ -82,6 +82,11 @@ export function describeRepositoryRules(rules: TRepositoryRules): void {
 			it("places each file in a kind position that imports only its row's kinds, apart from what code-kinds.baseline.json records (CR1)", async () => {
 				const fix = `move a file that ${UNPOSITIONED} into its kind's directory, and import only the kinds its row of haibun's docs/architecture.md lists`;
 				await expectWithinBaseline({ baselineFile: baseline("code-kinds"), found: codeKindFindings(repository, { sources, packages: rules.packages }), testFile, fix });
+			});
+
+			it("parses what an adapter reads with its domain's schema, and doesn't assert a type with `as`, apart from what adapter-assertions.baseline.json records", async () => {
+				const fix = "parse the value with its domain's schema, as core's json-text.ts parses a stored record, and use the parsed value";
+				await expectWithinBaseline({ baselineFile: baseline("adapter-assertions"), found: adapterAssertionFindings(sources), testFile, fix });
 			});
 
 			it("states each refusal's cause and carries a remedy a caller can act on, apart from what refusals.baseline.json records (CR5)", async () => {

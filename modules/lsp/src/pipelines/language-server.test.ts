@@ -19,10 +19,14 @@ import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { OUTSIDE_A_WORKSPACE } from "../domains/lsp.js";
 import type { TLspConnection, TLspHandlers, TLspLog, TWorkspace, TWorkspaces } from "../ports.js";
 import { LanguageServer } from "./language-server.js";
+import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
 
 class SampleStepper extends AStepper {
 	description = "Steps that set a variable and take one argument, for the language server to resolve.";
-	steps = { set: { gwta: "set {name} to {value}", action: async () => OK }, testStep: { gwta: "test step with {param}", action: async () => OK } };
+	steps = {
+		set: { description: TEST_STEP, gwta: "set {name} to {value}", action: async () => OK },
+		testStep: { description: TEST_STEP, gwta: "test step with {param}", action: async () => OK },
+	};
 }
 
 /** A connection that records what the server sends and the handlers it registers. */

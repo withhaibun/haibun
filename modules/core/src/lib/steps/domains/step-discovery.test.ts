@@ -6,14 +6,15 @@ import { getDefaultWorld } from "../../test/lib.js";
 import { createStepTool } from "../pipelines/step-registry.js";
 import { StepDescriptorSchema } from "./step-discovery.js";
 import { toolDefinition } from "./step-discovery.js";
+import { TEST_STEP } from "../../test/test-step.js";
 
 class DescribedSteps extends AStepper {
 	description = "Steps of each kind a stepper declares.";
 	steps = {
-		exactStep: { exact: "do something", action: async () => OK },
+		exactStep: { description: TEST_STEP, exact: "do something", action: async () => OK },
 		gwtaStep: { gwta: "set {name} to {value}", description: "Sets a value.", read: true, readsAt: Access.private, action: async () => OK },
-		numberStep: { gwta: "wait {seconds: number} seconds", capability: "DescribedSteps:wait", action: async () => OK },
-		fallbackStep: { gwta: "do {what} with {how}", fallback: true, action: async () => OK },
+		numberStep: { description: TEST_STEP, gwta: "wait {seconds: number} seconds", capability: "DescribedSteps:wait", action: async () => OK },
+		fallbackStep: { description: TEST_STEP, gwta: "do {what} with {how}", fallback: true, action: async () => OK },
 	};
 }
 
@@ -59,7 +60,7 @@ describe("a step as a tool", () => {
 		const step = describedAs("numberStep");
 		expect(toolDefinition(step)).toEqual({
 			name: "DescribedSteps-numberStep",
-			description: "wait {seconds: number} seconds\n\nRequires capability DescribedSteps:wait.",
+			description: `wait {seconds: number} seconds\n\n${TEST_STEP}\n\nRequires capability DescribedSteps:wait.`,
 			inputSchema: step.inputSchema,
 		});
 		expect(toolDefinition(describedAs("gwtaStep")).description, "a read that doesn't state its level requires a private read").toBe(

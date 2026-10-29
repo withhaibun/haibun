@@ -134,7 +134,7 @@ type TStepValuesMap = Record<string, TStepValue>;
 // ============================================================================
 
 type TStepperStepBase = TStepReads & {
-	description?: string;
+	description: string;
 	precludes?: string[];
 	unique?: boolean;
 	fallback?: boolean;

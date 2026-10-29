@@ -7,6 +7,7 @@ import LogicStepper from "@haibun/logic/logic-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import { locatorDomainOf, pickLocatorDomain } from "./locators.js";
 import { DOMAIN_PAGE_LOCATOR, DOMAIN_PAGE_TARGET, DOMAIN_PAGE_TEST_ID, DOMAIN_PAGE_TEXT, WebPlaywrightDomains } from "../domains/web-playwright.js";
+import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
 
 const aimed: unknown[] = [];
 
@@ -15,6 +16,7 @@ class Targets extends AStepper implements IHasCycles {
 	cycles: IStepperCycles = { getConcerns: () => ({ domains: WebPlaywrightDomains }) };
 	steps: TStepperSteps = {
 		aim: {
+			description: TEST_STEP,
 			gwta: `aim at {target: ${DOMAIN_PAGE_TARGET}}`,
 			action: async ({ target }: { target: TStepValue }) => {
 				await Promise.resolve();

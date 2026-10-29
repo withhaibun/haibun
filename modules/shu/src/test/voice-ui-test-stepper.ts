@@ -16,6 +16,7 @@ import { AStepper, IHasCycles, type IStepperCycles } from "@haibun/core/lib/aste
 import { actionOK, getFromRuntime } from "@haibun/core/lib/domains/util.js";
 import { WEBSERVER } from "@haibun/web-server-hono/domains/web-server.js";
 import type { IWebServer, Context } from "@haibun/web-server-hono/defs.js";
+import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
 
 const TEST_COMPONENT_URL = "/assets/voice-ui-test-component.js";
 
@@ -64,6 +65,7 @@ export default class VoiceUITestStepper extends AStepper implements IHasCycles {
 
 	steps = {
 		serveTestComponent: {
+			description: TEST_STEP,
 			gwta: "serve voice ui test component",
 			action: () => {
 				this.serveTestComponentRoute();

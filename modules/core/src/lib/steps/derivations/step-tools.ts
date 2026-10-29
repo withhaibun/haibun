@@ -40,6 +40,7 @@ export function stepDeclaration(stepper: AStepper, stepName: string, stepDef: TS
 	if (stepDef.transformsList !== undefined && stepDef.productsOf === undefined)
 		throw new Error(`${step}: transformsList makes something of its statement's list, so state the statement in productsOf`);
 	assertRecordPairings(step, stepDef, paramDomainKeys);
+	if (stepDef.description.trim() === "") throw new Error(`${step} has an empty description. State what the step does in its description.`);
 	const outputSchema = resolveOutputSchema(stepperName, stepName, stepDef, world);
 	const descriptor: TStepDescriptor = {
 		method: stepMethodName(stepperName, stepName),

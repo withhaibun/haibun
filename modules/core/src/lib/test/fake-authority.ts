@@ -18,6 +18,7 @@ import { OK } from "../domains/protocol.js";
 import { getAuthority, heldAuthority } from "../domains/session-authority.js";
 import { capabilityAllows } from "../domains/actions.js";
 import type { IAuthorityInvoker, IAuthorityVerifier, TActingFor, TAuthorityAct, TAuthorityEvidence, TDelegations, TOutgoingRequest, TVerdict } from "../domains/authority-types.js";
+import { TEST_STEP } from "./test-step.js";
 
 const HOLDER_HEADER = "fake-holder";
 /** The domain of a holder's name. The stand-in invoker presents the name on each request it signs, and a test grants actions to it. */
@@ -107,10 +108,12 @@ export default class FakeAuthorityStepper extends AStepper {
 
 	steps = {
 		presentAuthorityAs: {
+			description: TEST_STEP,
 			gwta: `present authority as {holder: ${DOMAIN_FAKE_HOLDER}}`,
 			action: ({ holder }: { holder: string }) => this.withAuthority((authority) => authority.registerInvoker(new FakeInvoker(holder))),
 		},
 		acceptAuthority: {
+			description: TEST_STEP,
 			gwta: `accept authority from {holder: ${DOMAIN_FAKE_HOLDER}} for {actions: ${DOMAIN_ACTIONS}}`,
 			action: ({ holder, actions }: { holder: string; actions: string[] }) =>
 				this.withAuthority((authority) => {
@@ -119,6 +122,7 @@ export default class FakeAuthorityStepper extends AStepper {
 				}),
 		},
 		withdrawAuthority: {
+			description: TEST_STEP,
 			gwta: `withdraw authority from {holder: ${DOMAIN_FAKE_HOLDER}}`,
 			action: ({ holder }: { holder: string }) =>
 				this.withAuthority((authority) => {

@@ -33,6 +33,7 @@ import { ACTUALITIES_FILE } from "@haibun/core/lib/adapters/dependency-state.js"
 import { RUN_AUTHORITY, runAuthorizedWith } from "@haibun/core/lib/domains/capability-context.js";
 import { RUN_DOMAIN, SUPERVISOR_CAPABILITIES, runDomainDefinitions } from "./domains/run.js";
 import { DomainKeySchema } from "@haibun/core/lib/domains/domains.js";
+import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
 
 type TResult = { ok: boolean; errorMessage?: string; products?: { run: string; status: string; record: string } };
 
@@ -58,6 +59,7 @@ class InstanceStepper extends AStepper implements IHasCycles {
 	refusal: string | undefined;
 	steps = {
 		startRun: {
+			description: TEST_STEP,
 			gwta: `start a haibun run of {where} matching {filter} from {from} on port {port: number} as run {run} host {hostId: number}`,
 			capability: SUPERVISOR_CAPABILITIES.run,
 			productsDomain: RUN_DOMAIN.started,
@@ -68,6 +70,7 @@ class InstanceStepper extends AStepper implements IHasCycles {
 			},
 		},
 		readRun: {
+			description: TEST_STEP,
 			gwta: `read the haibun run {run} since {cursor: number}`,
 			capability: SUPERVISOR_CAPABILITIES.read,
 			productsDomain: RUN_DOMAIN.read,
@@ -94,6 +97,7 @@ class InstanceStepper extends AStepper implements IHasCycles {
 			},
 		},
 		waitRun: {
+			description: TEST_STEP,
 			gwta: `wait for the haibun run {run} to end within {seconds: number} seconds`,
 			capability: SUPERVISOR_CAPABILITIES.read,
 			productsDomain: RUN_DOMAIN.read,
@@ -103,6 +107,7 @@ class InstanceStepper extends AStepper implements IHasCycles {
 			},
 		},
 		stopRun: {
+			description: TEST_STEP,
 			gwta: `stop the haibun run {run}`,
 			capability: SUPERVISOR_CAPABILITIES.stop,
 			productsDomain: RUN_DOMAIN.stopped,
@@ -445,6 +450,7 @@ describe("examining a finished test run", () => {
 						stepperDescription: "the test run's own steps",
 						stepName: "endsWith",
 						pattern: "ends with {result: ending}",
+						description: TEST_STEP,
 						paramDomains: { result: DomainKeySchema.parse("ending") },
 						capability: readAction(Access.private),
 						read: true,

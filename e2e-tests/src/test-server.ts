@@ -254,14 +254,27 @@ class TestServer extends AStepper {
 	steps: TStepperSteps = {
 		protectedRpcPing: {
 			gwta: "protected rpc ping",
+			description: "Returns a pong of true to a caller that holds the TestServer:protected capability.",
 			capability: "TestServer:protected",
 			productsDomain: TEST_DOMAIN.pong,
 			action: async () => actionOKWithProducts({ pong: true }),
 		},
-		protectedAdminRpcPing: { gwta: "protected admin rpc ping", capability: "TestServer:admin", action: async () => OK },
-		rpcPing: { gwta: "rpc ping", productsDomain: TEST_DOMAIN.pong, action: async () => actionOKWithProducts({ pong: true }) },
+		protectedAdminRpcPing: {
+			gwta: "protected admin rpc ping",
+			description: "Passes a call from a caller that holds the TestServer:admin capability.",
+			capability: "TestServer:admin",
+			action: async () => OK,
+		},
+		rpcPing: {
+			gwta: "rpc ping",
+			description: "Returns a pong of true to a caller over RPC.",
+			productsDomain: TEST_DOMAIN.pong,
+			action: async () => actionOKWithProducts({ pong: true }),
+		},
 		mcpShownStepsInclude: {
 			gwta: `mcp steps shown at {url: ${DOMAIN_LINK}} to {holder: ${DOMAIN_FAKE_HOLDER}} matching {text: ${DOMAIN_TEXT}} include {toolName: ${DOMAIN_STEP_METHOD}}`,
+			description:
+				"Lists the tools the MCP endpoint at the URL holds, and reads the steps the endpoint shows to the holder for the text. The methods of the steps the holder may call include the one named, and the step fails where they don't.",
 			action: async ({ url, holder, text, toolName }: TStepArgs) => {
 				await mcpListTools(String(url));
 				const shown = await mcpShownSteps(String(url), String(text), String(holder));
@@ -270,6 +283,8 @@ class TestServer extends AStepper {
 		},
 		mcpRefused: {
 			gwta: `mcp call to {url: ${DOMAIN_LINK}} with tool {toolName: ${DOMAIN_STEP_METHOD}} without a capability invocation is refused`,
+			description:
+				"Calls the tool of the MCP endpoint at the URL without a capability invocation, and proves that the response's tool result is an error that holds the refusal's error text.",
 			action: async ({ url, toolName }: TStepArgs) => {
 				const response = await mcpCallTool(String(url), String(toolName));
 				const expected = refusal(String(toolName), undefined, undefined).error;
@@ -278,6 +293,8 @@ class TestServer extends AStepper {
 		},
 		mcpDeniedSigned: {
 			gwta: `mcp call to {url: ${DOMAIN_LINK}} with tool {toolName: ${DOMAIN_STEP_METHOD}} is denied for capability {capability: ${TEST_DOMAIN.action}} when signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}}`,
+			description:
+				"Calls the tool of the MCP endpoint at the URL, signed by the holder for the action, and proves that the response's tool result is an error that denies the call for the capability named.",
 			action: async ({ url, toolName, capability, holder, action }: TStepArgs) => {
 				const response = await mcpCallTool(String(url), String(toolName), { holder: String(holder), action: String(action) });
 				return mcpToolResult(response).isError
@@ -287,6 +304,8 @@ class TestServer extends AStepper {
 		},
 		mcpAllowedSigned: {
 			gwta: `mcp call to {url: ${DOMAIN_LINK}} with tool {toolName: ${DOMAIN_STEP_METHOD}} succeeds when signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}}`,
+			description:
+				"Calls the tool of the MCP endpoint at the URL, signed by the holder for the action, and proves that the response's tool result succeeds and holds a pong of true.",
 			action: async ({ url, toolName, holder, action }: TStepArgs) => {
 				const response = await mcpCallTool(String(url), String(toolName), { holder: String(holder), action: String(action) });
 				if (mcpToolResult(response).isError) return actionNotOK(`Expected MCP success, got ${JSON.stringify(response)}`);
@@ -296,6 +315,8 @@ class TestServer extends AStepper {
 		},
 		rpcRefused: {
 			gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} without a capability invocation is refused`,
+			description:
+				"Calls the method over RPC at the URL without a capability invocation, and proves that the response refuses the call with the refused call's status and the refusal's error.",
 			action: async ({ url, method }: TStepArgs) => {
 				const response = await post(String(url), await rpcCall(String(url), "rpc-refused", String(method)), undefined);
 				const error = ((await response.json()) as { error?: unknown }).error;
@@ -307,6 +328,7 @@ class TestServer extends AStepper {
 		},
 		rpcAllowedSigned: {
 			gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} succeeds when signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}}`,
+			description: "Calls the method over RPC at the URL, signed by the holder for the action, and proves that the response is successful and its error field is unset.",
 			action: async ({ url, method, holder, action }: TStepArgs) => {
 				const response = await post(String(url), await rpcCall(String(url), "rpc-allowed", String(method)), { holder: String(holder), action: String(action) });
 				if (!response.ok) return actionNotOK(`HTTP ${response.status}: ${await response.text()}`);
@@ -316,6 +338,7 @@ class TestServer extends AStepper {
 		},
 		readLeavesNoRecord: {
 			gwta: `read of {method: ${DOMAIN_STEP_METHOD}} with {params: ${DOMAIN_JSON}} over RPC at {url: ${DOMAIN_LINK}} leaves no record`,
+			description: "Reads the method over RPC at the URL with the params, and proves that the records of the method hold the same count before and after the read.",
 			action: async ({ method, params, url }: TStepArgs) => {
 				const world = this.getWorld();
 				const { stepperName, stepName } = runRegistry(world).named(String(method)).descriptor;
@@ -329,6 +352,8 @@ class TestServer extends AStepper {
 		},
 		twoCallersProve: {
 			gwta: `two callers prove {statement: ${DOMAIN_STATEMENT}} at once`,
+			description:
+				"Proves the statement with two callers at once, and proves that the two callers' records overlap in time. A caller's failed proof, or a call that starts after the other ends, fails the step.",
 			action: async ({ statement }: { statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				const world = this.getWorld();
 				const ctx = stepperContext(world, this.steppers);
@@ -344,6 +369,8 @@ class TestServer extends AStepper {
 		},
 		stoppedCall: {
 			gwta: `call to {statement: ${DOMAIN_STATEMENT}} that its caller stops ends as stopped`,
+			description:
+				"Proves the statement through a stream that its caller ends, and proves that the call's record holds the stopped status. A call that ends as the other status fails the step.",
 			action: async ({ statement }: { statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				const world = this.getWorld();
 				const stopping = new AbortController();
@@ -357,6 +384,8 @@ class TestServer extends AStepper {
 		},
 		rpcDeniedSigned: {
 			gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} is denied for capability {capability: ${TEST_DOMAIN.action}} when signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}}`,
+			description:
+				"Calls the method over RPC at the URL, signed by the holder for the action, and proves that the response denies the call for the capability named, with its status and error.",
 			action: async ({ url, method, capability, holder, action }: TStepArgs) => {
 				const response = await post(String(url), await rpcCall(String(url), "rpc-denied", String(method)), { holder: String(holder), action: String(action) });
 				return deniedFor(response.status, ((await response.json()) as { error?: unknown }).error, String(capability));
@@ -364,6 +393,8 @@ class TestServer extends AStepper {
 		},
 		rpcRefusedSigned: {
 			gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} is refused when signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}}`,
+			description:
+				"Calls the method over RPC at the URL, signed by the holder for the action, and proves that the response refuses the call with the status of a refused invocation.",
 			action: async ({ url, method, holder, action }: TStepArgs) => {
 				const response = await post(String(url), await rpcCall(String(url), "rpc-refused", String(method)), { holder: String(holder), action: String(action) });
 				const data = (await response.json()) as { error?: unknown };
@@ -372,9 +403,15 @@ class TestServer extends AStepper {
 					: actionNotOK(`Expected the server to refuse the call with status ${REFUSED_INVOCATION}, got ${response.status} ${JSON.stringify(data)}`);
 			},
 		},
-		addTallyRoute: { gwta: `start tally route at {loc: ${DOMAIN_ROUTE}}`, action: this.addRoute(this.tally) },
+		addTallyRoute: {
+			gwta: `start tally route at {loc: ${DOMAIN_ROUTE}}`,
+			description: "Adds the tally route at the location, which tallies each request it receives into a variable and responds with the tally and the username its query holds.",
+			action: this.addRoute(this.tally),
+		},
 		addUploadRoute: {
 			gwta: `start upload route at {loc: ${DOMAIN_ROUTE}}`,
+			description:
+				"Adds the upload route at the location, which saves the file its request holds in the upload field to a temporary file, and responds with a link to the download route. A request without the file receives the status 400.",
 			action: (args: TStepArgs, vstep: TFeatureStep) => {
 				const { loc } = args as { loc: string };
 				try {
@@ -388,11 +425,25 @@ class TestServer extends AStepper {
 				}
 			},
 		},
-		addQrcanvasRoute: { gwta: `serve the qrcanvas script at {loc: ${DOMAIN_ROUTE}}`, action: this.addRoute(this.qrcanvasScript) },
-		addDownloadRoute: { gwta: `start download route at {loc: ${DOMAIN_ROUTE}}`, action: this.addRoute(this.download) },
-		addCreateAuthTokenRoute: { gwta: `start create auth token route at {loc: ${DOMAIN_ROUTE}}`, action: this.addRoute(restRoutes(this).createAuthToken) },
+		addQrcanvasRoute: {
+			gwta: `serve the qrcanvas script at {loc: ${DOMAIN_ROUTE}}`,
+			description: "Adds a route at the location, which serves the drawing library of the installed qrcanvas package, so a page that draws a QR code doesn't reach a CDN.",
+			action: this.addRoute(this.qrcanvasScript),
+		},
+		addDownloadRoute: {
+			gwta: `start download route at {loc: ${DOMAIN_ROUTE}}`,
+			description:
+				"Adds the download route at the location, which sends the file an upload saved as an attachment named for it, and responds to a call before an upload with the status 404.",
+			action: this.addRoute(this.download),
+		},
+		addCreateAuthTokenRoute: {
+			gwta: `start create auth token route at {loc: ${DOMAIN_ROUTE}}`,
+			description: "Adds a route at the location, which responds with an access token, and sets the server's auth token to it.",
+			action: this.addRoute(restRoutes(this).createAuthToken),
+		},
 		changeServerAuthToken: {
 			gwta: `change server auth token to {token: ${DOMAIN_BEARER_TOKEN}}`,
+			description: "Changes the server's auth token to the one named.",
 			action: (args: TStepArgs, _vstep: TFeatureStep) => {
 				const { token } = args as { token: string };
 				this.authToken = token;
@@ -400,14 +451,44 @@ class TestServer extends AStepper {
 			},
 		},
 		// The check and resource steps apply the dynamic auth middleware to their routes. The login and logout steps don't.
-		addCheckAuthTokenRoute: { gwta: `start check auth route at {loc: ${DOMAIN_ROUTE}}`, action: this.addAuthRoute(restRoutes(this).checkAuth) },
-		addLogin: { gwta: `start auth login route at {loc: ${DOMAIN_ROUTE}}`, action: this.addRoute(restRoutes(this).logIn, "post") },
-		addLogoutRoute: { gwta: `start logout auth route at {loc: ${DOMAIN_ROUTE}}`, action: this.addRoute(restRoutes(this).logOut) },
-		addResources: { gwta: `start auth resources get route at {loc: ${DOMAIN_ROUTE}}`, action: this.addAuthRoute(restRoutes(this).resources) },
-		addResourceGet: { gwta: `start auth resource get route at {loc: ${DOMAIN_ROUTE}}`, action: this.addAuthRoute(restRoutes(this).resourceGet) },
-		addResourceDelete: { gwta: `start auth resource delete route at {loc: ${DOMAIN_ROUTE}}`, action: this.addAuthRoute(restRoutes(this).resourceDelete, "delete") },
+		addCheckAuthTokenRoute: {
+			gwta: `start check auth route at {loc: ${DOMAIN_ROUTE}}`,
+			description: "Adds the check auth route at the location, which responds with a profile, under the dynamic auth middleware.",
+			action: this.addAuthRoute(restRoutes(this).checkAuth),
+		},
+		addLogin: {
+			gwta: `start auth login route at {loc: ${DOMAIN_ROUTE}}`,
+			description:
+				"Adds the login route at the location, which responds to a request with the server's credentials by setting the server's auth token and a cookie for it, and to another with the status 401.",
+			action: this.addRoute(restRoutes(this).logIn, "post"),
+		},
+		addLogoutRoute: {
+			gwta: `start logout auth route at {loc: ${DOMAIN_ROUTE}}`,
+			description: "Adds the logout route at the location, which calls the current auth scheme's logout, and redirects to the URI its query names where it holds one.",
+			action: this.addAuthRoute(restRoutes(this).logOut),
+		},
+		addResources: {
+			gwta: `start auth resources get route at {loc: ${DOMAIN_ROUTE}}`,
+			description:
+				"Adds a route at the location, which responds with the server's resources, under the dynamic auth middleware. A request whose accept header holds another media type receives the status 401.",
+			action: this.addAuthRoute(restRoutes(this).resources),
+		},
+		addResourceGet: {
+			gwta: `start auth resource get route at {loc: ${DOMAIN_ROUTE}}`,
+			description:
+				"Adds a route at the location, which responds with the resource the id in its path names, under the dynamic auth middleware. A request whose id names a resource the server doesn't hold receives the status 404.",
+			action: this.addAuthRoute(restRoutes(this).resourceGet),
+		},
+		addResourceDelete: {
+			gwta: `start auth resource delete route at {loc: ${DOMAIN_ROUTE}}`,
+			description:
+				"Adds a route at the location, which deletes the resource the id in its path names from the server's resources, under the dynamic auth middleware. A request whose id names a resource the server doesn't hold receives the status 404.",
+			action: this.addAuthRoute(restRoutes(this).resourceDelete, "delete"),
+		},
 		setAuthScheme: {
 			gwta: `make auth scheme {scheme: ${DOMAIN_AUTH_SCHEME}}`,
+			description:
+				"Sets the auth scheme the dynamic auth middleware applies to the server's protected routes to the one named, and holds its handler, which the logout route calls.",
 			action: (args: TStepArgs, _vstep: TFeatureStep) => {
 				const { scheme } = args as { scheme: string };
 				this.currentAuthScheme = scheme as TSchemeType;

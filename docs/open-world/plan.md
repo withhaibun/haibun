@@ -86,7 +86,7 @@ Both engines run side by side on the same runtime until stage 7 removes the Prol
 3. Claim forms and the class-expression domain with refusals, name and direction checks, completion and plain-English reading; rule test for positive safety checks.
 4. Typed refusals in the ontology; `not` renamed `didn't` everywhere (37 lines plus docs); expected errors moved to claims where the refusal is typed.
 6. Capabilities and delegation as ODRL claims (attenuation, boundary containment, `holding capability`, `capabilityAllows`), then the remaining knowledge lines (about 70) and knowledge sites (8) moved to claims. Graph reads' own filters replaced by class expressions.
-7. Waypoints' proofs as N3 rules, one library at a time (core, logic, shu), and domain goals over producer rules as N3 rules, with sites #9, #10, #11 and #14; then the Prolog knowledge path removed (goals, waypoint proofs, falsity, sameAs, chain lint), `haibun.pl` reduced to the closed proof of a line (about 341 → 150 lines), `fol-in-haibun.md` removed; docs and architecture.md updated.
+7. Waypoints' proofs as N3 rules, one library at a time (core, logic, shu), and domain goals over producer rules as N3 rules, with sites #9, #10, #11 and #14; then the Prolog knowledge path removed (goals, waypoint proofs, falsity, sameAs, chain lint), `haibun.pl` reduced to the closed proof of a line (about 341 → 150 lines), `fol-in-haibun.md` removed; docs and architecture.md updated. A waypoint's declaration gains a description its type requires, as a step's and a domain's do, so a reader and the step input show what each waypoint establishes.
 Estimated total: about −1,300 / +880 source lines.
 
 ## Later

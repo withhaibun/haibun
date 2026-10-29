@@ -196,6 +196,8 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 	steps = {
 		startInstance: {
 			gwta: `start a haibun instance from {where: ${DOMAIN_FILE_PATH}} on port {port: ${DOMAIN_NUMBER}} as host {hostId: ${DOMAIN_NUMBER}}`,
+			description:
+				"Starts an instance that serves, in a child of this process: it forks the CLI from a config `where` names, on the given port as the given host id, and waits until the instance responds to the action.begin handshake as serving. The products carry the instance's url, its site principal and its host id; the step fails where the config isn't there, the child exits, a step of the child's actuality fails, its features end before the instance serves, or the instance reports a different host id.",
 			capability: SUPERVISOR_CAPABILITIES.launch,
 			productsDomain: DOMAIN_INSTANCE_STARTED,
 			action: async ({ where, port, hostId }: { where: string; port: number; hostId: number }) => {
@@ -290,7 +292,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			gwta: `stop the haibun run {run: ${RUN_DOMAIN.name}}`,
 			capability: SUPERVISOR_CAPABILITIES.stop,
 			description:
-				"End a run this process started, whether or not it has finished. A run left standing holds its port until it is stopped. The records of its levels that hadn't ended state that they stopped.",
+				"Ends a run this process started, whether or not it has finished. A run left standing holds its port until it is stopped. The records of its levels that hadn't ended state that they stopped.",
 			productsDomain: RUN_DOMAIN.stopped,
 			action: async ({ run }: { run: string }) => {
 				const held = this.startedRun("stop run", run);

@@ -4,13 +4,15 @@ import { AStepper, TStepperStep } from "../domains/stepper.js";
 import { passWithDefaults, DEF_PROTO_OPTIONS, failWithDefaults } from "../../test/lib.js";
 import { LogicStepper } from "../../test/logic-stepper.js";
 import { DOMAIN_STATEMENT } from "../../domains/domains.js";
+import { TEST_STEP } from "../../test/test-step.js";
 
 class StatementTestStepper extends AStepper {
 	description = "Steps alpha and beta, and a step taking two statements.";
 	steps: Record<string, TStepperStep> = {
-		alpha: { exact: "alpha", action: () => OK },
-		beta: { exact: "beta", action: () => OK },
+		alpha: { description: TEST_STEP, exact: "alpha", action: () => OK },
+		beta: { description: TEST_STEP, exact: "beta", action: () => OK },
 		compound: {
+			description: TEST_STEP,
 			gwta: `do {thing:${DOMAIN_STATEMENT}} when {cause:${DOMAIN_STATEMENT}}`,
 			// At this stage, successful resolution (Resolver) already validated sub-statements individually.
 			// The action only needs to acknowledge that both resolved.

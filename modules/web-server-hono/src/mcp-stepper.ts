@@ -104,6 +104,8 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 	steps = {
 		serveMcpTools: {
 			gwta: `serve mcp tools at {path: ${DOMAIN_ROUTE}}`,
+			description:
+				"Serves each of actuality's steps the caller holds as a tool on the feature's web server at the path, a tool's call running through the server's dispatch, verified as an `/rpc` call is. The endpoint listens on its own PORT, else on the web server's port, which it then shares, else on its own port.",
 			action: async ({ path }: { path: string }) => {
 				this.path = path;
 				await this.serve();

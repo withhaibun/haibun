@@ -204,3 +204,23 @@ export function codeKindFindings(repository: string, { sources, packages }: TCod
 		return [...kindImports, ...ioImports, ...ioGlobals];
 	});
 }
+
+/** The finding of a type an adapter asserts on a value, which its schema doesn't parse. */
+export const ASSERTS_A_TYPE = "asserts a type with `as` where a schema parses the value";
+
+/** The type assertions of each adapter: an adapter is where data from outside enters, so it parses that data with its domain's
+ *  schema, and a type it asserts with `as` is one the program doesn't check. `as const` states a literal's type, which the rule leaves alone. */
+export function adapterAssertionFindings(sources: TSources): TFound[] {
+	return [...sources].flatMap(([file, source]): TFound[] => {
+		if (kindOf(file, source) !== "adapter") return [];
+		const found: TFound[] = [];
+		const visit = (node: ts.Node): void => {
+			// `x as unknown as T` is one assertion: the outer one is counted.
+			const asserted = (ts.isAsExpression(node) || ts.isTypeAssertionExpression(node)) && !ts.isAsExpression(node.parent);
+			if (asserted && !(ts.isTypeReferenceNode(node.type) && node.type.typeName.getText(source) === "const")) found.push({ file, finding: ASSERTS_A_TYPE, line: lineOf(node) });
+			ts.forEachChild(node, visit);
+		};
+		visit(source);
+		return found;
+	});
+}

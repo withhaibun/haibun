@@ -29,9 +29,10 @@ import {
 	UNEXERCISED,
 	unexercised,
 } from "./step-rules.js";
+import { TEST_STEP } from "./test-step.js";
 
 /** What each demo step needs: an action, which a test doesn't gate. */
-const ACTS = { capability: "DemoStepper:act", action: () => OK };
+const ACTS = { capability: "DemoStepper:act", description: TEST_STEP, action: () => OK };
 const STEPPER_FILE = "modules/demo/src/demo-stepper.ts";
 
 class DemoStepper extends AStepper {
@@ -39,7 +40,7 @@ class DemoStepper extends AStepper {
 	steps = {
 		openStore: { gwta: "open the store", ...ACTS },
 		openKey: { gwta: "open a key", productsDomain: "key", ...ACTS },
-		readStore: { gwta: "show the store", read: true, readsAt: Access.public, action: () => OK },
+		readStore: { description: TEST_STEP, gwta: "show the store", read: true, readsAt: Access.public, action: () => OK },
 		watchEvery: { gwta: "watch every {seconds: number} seconds", ...ACTS },
 		fetchPage: { gwta: "fetch page {page: string}", ...ACTS },
 		fetchPageAgain: { gwta: "fetch page {page: string} again", ...ACTS },
@@ -173,10 +174,10 @@ class ListingStepper extends AStepper {
 		}),
 	};
 	steps = {
-		firstRows: { gwta: "show the first {n: number} rows", read: true, readsAt: Access.public, productsDomain: "rows", action: () => OK },
-		rowsMatching: { gwta: "show rows matching {text: string}", read: true, readsAt: Access.public, productsDomain: "counted", action: () => OK },
-		rowsSince: { gwta: "show rows since {at: date}", read: true, readsAt: Access.public, productsDomain: "listed", action: () => OK },
-		linesFromTo: { gwta: "show lines from {from: number} to {to: number}", read: true, readsAt: Access.public, productsDomain: "names", action: () => OK },
+		firstRows: { description: TEST_STEP, gwta: "show the first {n: number} rows", read: true, readsAt: Access.public, productsDomain: "rows", action: () => OK },
+		rowsMatching: { description: TEST_STEP, gwta: "show rows matching {text: string}", read: true, readsAt: Access.public, productsDomain: "counted", action: () => OK },
+		rowsSince: { description: TEST_STEP, gwta: "show rows since {at: date}", read: true, readsAt: Access.public, productsDomain: "listed", action: () => OK },
+		linesFromTo: { description: TEST_STEP, gwta: "show lines from {from: number} to {to: number}", read: true, readsAt: Access.public, productsDomain: "names", action: () => OK },
 		resize: { gwta: "resize to {width: number}", ...ACTS },
 		delegate: { gwta: "delegate reading until {expires: date}", ...ACTS },
 		combine: { gwta: "limited to {count: number}, {statement: statement}", transformsList: () => (list: TList) => list, ...ACTS },

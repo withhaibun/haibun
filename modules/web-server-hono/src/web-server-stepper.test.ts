@@ -16,6 +16,7 @@ import { REFUSED_INVOCATION } from "@haibun/core/lib/rpc-wire.js";
 import { servedFileRefusal } from "./pipelines/served-folder.js";
 import { ORIGINS_REQUIRED, originList } from "./domains/web-server.js";
 import { PRODUCTION } from "@haibun/core/lib/domains/dev-mode.js";
+import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
 
 // WebServerStepper expects a 'files' directory in cwd
 const FILES_DIR = path.join(process.cwd(), "files");
@@ -39,6 +40,7 @@ class VerifyStepper extends AStepper {
 	description = "Fetches from the web server and checks what it returns.";
 	steps = {
 		fetchFrom: {
+			description: TEST_STEP,
 			gwta: `fetch from {url: ${DOMAIN_LINK}} includes {text: ${DOMAIN_TEXT}}`,
 			action: async ({ url, text }: TStepArgs) => {
 				try {
@@ -57,6 +59,7 @@ class VerifyStepper extends AStepper {
 			},
 		},
 		refusedFrom: {
+			description: TEST_STEP,
 			gwta: `fetch from {url: ${DOMAIN_LINK}} is refused with the read it requires as its remedy`,
 			action: async ({ url }: TStepArgs) => {
 				const res = await fetch(String(url));
@@ -66,6 +69,7 @@ class VerifyStepper extends AStepper {
 			},
 		},
 		policyOf: {
+			description: TEST_STEP,
 			gwta: `fetch from {url: ${DOMAIN_LINK}} carries the policy {policy: ${DOMAIN_TEXT}}`,
 			action: async ({ url, policy }: TStepArgs) => {
 				const carried = String((await fetch(String(url))).headers.get("content-security-policy"));

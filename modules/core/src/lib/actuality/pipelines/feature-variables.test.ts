@@ -9,6 +9,7 @@ import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STRING, registerDomains } from "../.
 import { Access, DOMAIN_PERSISTED_TYPE, SEQ_PATH_LABEL } from "../../domains/resources.js";
 import { STEP_LEVEL, actualityFeatureOf, formatRecordName } from "../domains/seq-path.js";
 import { QuadStore, newStoreChain } from "../../steps/pipelines/quad-store.js";
+import { TEST_STEP } from "../../test/test-step.js";
 
 /** A named graph a backing store holds. */
 const BACKED = "Backed";
@@ -20,7 +21,7 @@ describe("FeatureVariables", () => {
 		source: { path: "/test/feature.ts" },
 		in: "test step",
 		seqPath: [1, 2, 3],
-		action: { actionName: "testAction", stepperName: "TestStepper", step: { gwta: "test", action: () => Promise.resolve({ ok: true }) } },
+		action: { actionName: "testAction", stepperName: "TestStepper", step: { description: TEST_STEP, gwta: "test", action: () => Promise.resolve({ ok: true }) } },
 	};
 
 	beforeEach(() => {

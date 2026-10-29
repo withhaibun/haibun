@@ -1,0 +1,113 @@
+{
+	"modules/core/src/lib/actuality/adapters/feature-files.ts": {
+		"asserts a type with `as` where a schema parses the value": 1
+	},
+	"modules/core/src/lib/adapters/current-version.ts": {
+		"asserts a type with `as` where a schema parses the value": 1
+	},
+	"modules/core/src/lib/adapters/dependency-state.ts": {
+		"asserts a type with `as` where a schema parses the value": 4
+	},
+	"modules/core/src/lib/adapters/module-loader.ts": {
+		"asserts a type with `as` where a schema parses the value": 1
+	},
+	"modules/core/src/lib/adapters/port-occupant.ts": {
+		"asserts a type with `as` where a schema parses the value": 1
+	},
+	"modules/core/src/lib/adapters/workspace-lib.ts": {
+		"asserts a type with `as` where a schema parses the value": 1
+	},
+	"modules/core/src/lib/transport/adapters/remote-quad-store.ts": {
+		"asserts a type with `as` where a schema parses the value": 1
+	},
+	"modules/core/src/lib/transport/adapters/rpc-client.ts": {
+		"asserts a type with `as` where a schema parses the value": 1
+	},
+	"modules/core/src/lib/transport/adapters/sse-subscriber.ts": {
+		"asserts a type with `as` where a schema parses the value": 3
+	},
+	"modules/core/src/steps/adapters/speech.ts": {
+		"asserts a type with `as` where a schema parses the value": 7
+	},
+	"modules/logic/src/adapters/eye.ts": {
+		"asserts a type with `as` where a schema parses the value": 1
+	},
+	"modules/logic/src/adapters/swipl.ts": {
+		"asserts a type with `as` where a schema parses the value": 1
+	},
+	"modules/shu/src/adapters/bundle-file.ts": {
+		"asserts a type with `as` where a schema parses the value": 1
+	},
+	"modules/shu/src/adapters/remote-graph-source.ts": {
+		"asserts a type with `as` where a schema parses the value": 1
+	},
+	"modules/shu/src/page/adapters/embedder-channel.ts": {
+		"asserts a type with `as` where a schema parses the value": 2
+	},
+	"modules/shu/src/page/adapters/live-conduit.ts": {
+		"asserts a type with `as` where a schema parses the value": 1
+	},
+	"modules/shu/src/page/adapters/page-held.ts": {
+		"asserts a type with `as` where a schema parses the value": 2
+	},
+	"modules/shu/src/page/adapters/page-observers.ts": {
+		"asserts a type with `as` where a schema parses the value": 1
+	},
+	"modules/shu/src/page/adapters/pane-strip.ts": {
+		"asserts a type with `as` where a schema parses the value": 3
+	},
+	"modules/shu/src/page/adapters/presenter-mount.ts": {
+		"asserts a type with `as` where a schema parses the value": 1
+	},
+	"modules/shu/src/page/adapters/shared-cell.ts": {
+		"asserts a type with `as` where a schema parses the value": 2
+	},
+	"modules/shu/src/page/authority/adapters/key-store.ts": {
+		"asserts a type with `as` where a schema parses the value": 1
+	},
+	"modules/shu/src/page/client-cache/adapters/device-store.ts": {
+		"asserts a type with `as` where a schema parses the value": 2
+	},
+	"modules/shu/src/page/client-cache/adapters/idb-summary.ts": {
+		"asserts a type with `as` where a schema parses the value": 1
+	},
+	"modules/shu/src/page/client-cache/adapters/quad-store.ts": {
+		"asserts a type with `as` where a schema parses the value": 5
+	},
+	"modules/shu/src/page/graph/adapters/context-document.ts": {
+		"asserts a type with `as` where a schema parses the value": 1
+	},
+	"modules/storage-mem/src/adapters/memory-files.ts": {
+		"asserts a type with `as` where a schema parses the value": 2
+	},
+	"modules/tooling/src/adapters/bundles.ts": {
+		"asserts a type with `as` where a schema parses the value": 2
+	},
+	"modules/utils/src/scaffold/adapters/scaffold.ts": {
+		"asserts a type with `as` where a schema parses the value": 1
+	},
+	"modules/web-playwright/src/adapters/browser-model.ts": {
+		"asserts a type with `as` where a schema parses the value": 3
+	},
+	"modules/web-playwright/src/adapters/cdp-relay-v2.ts": {
+		"asserts a type with `as` where a schema parses the value": 5
+	},
+	"modules/web-playwright/src/adapters/cdp-relay.ts": {
+		"asserts a type with `as` where a schema parses the value": 4
+	},
+	"modules/web-playwright/src/adapters/page-fetch.ts": {
+		"asserts a type with `as` where a schema parses the value": 1
+	},
+	"modules/web-playwright/src/adapters/twin-page.ts": {
+		"asserts a type with `as` where a schema parses the value": 5
+	},
+	"modules/web-playwright/src/relay-client/adapters/relay-channel.ts": {
+		"asserts a type with `as` where a schema parses the value": 2
+	},
+	"modules/web-playwright/src/relay-client/adapters/relay-connection.ts": {
+		"asserts a type with `as` where a schema parses the value": 12
+	},
+	"modules/web-server-hono/src/adapters/server-hono.ts": {
+		"asserts a type with `as` where a schema parses the value": 1
+	}
+}

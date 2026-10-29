@@ -125,6 +125,7 @@ import { fromJsonText } from "@haibun/core/lib/domains/json-text.js";
 import { z } from "zod";
 import { STEPS_CHANGED } from "@haibun/core/lib/domains/protocol.js";
 import { PREFERENCES_COOKIE_PREFIX } from "../page/adapters/prefs-cookie.js";
+import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
 
 type TShuTestConfig = {
 	/** Optional dispatch for in-test RPCs. Default throws on every call, naming the unconfigured method, tests opt in by supplying a function that returns wire results for the methods they exercise. */
@@ -216,6 +217,7 @@ export function stepsShown(
 			stepperName: string;
 			stepName: string;
 			pattern: string;
+			description?: string;
 			fallback?: boolean;
 			answersTheTurn?: boolean;
 			/** Whether the page may call the step, which it may where this isn't stated. */
@@ -230,10 +232,11 @@ export function stepsShown(
 	domains: TStepDefinitions["domains"] = {},
 	concerns: TConcernCatalog = buildConcernCatalog({}),
 ): TStepDefinitions {
-	// A step that doesn't state its input schema takes an empty object.
+	// A step that doesn't state its input schema takes an empty object, and one that doesn't state its description is described as a test's.
 	const described = steps.map(({ callable: _callable, ...step }) =>
 		StepDescriptorSchema.parse({
 			inputSchema: { type: "object" as const, properties: {}, required: [] },
+			description: TEST_STEP,
 			...step,
 			// Each step requires what a step of actuality would: what it declares, a read at its level for a read, and otherwise its name.
 			capability: requiredAction(step.stepperName, step.stepName, step),

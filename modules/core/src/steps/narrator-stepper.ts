@@ -64,15 +64,22 @@ class Narrator extends AStepper implements IHasOptions, IHasCycles {
 	}
 
 	steps = {
-		prose: { prose: true, precludes: [`Haibun.prose`], action: async (_args: Record<string, never>, featureStep: TFeatureStep) => this.maybeSay(featureStep) },
+		prose: {
+			prose: true,
+			description: "Plays the rendered narration of the prose line and emits a speech artifact.",
+			precludes: [`Haibun.prose`],
+			action: async (_args: Record<string, never>, featureStep: TFeatureStep) => this.maybeSay(featureStep),
+		},
 		feature: {
 			precludes: [`Haibun.feature`],
 			gwta: `Feature: {feature: ${DOMAIN_TITLE}}`,
+			description: "Sets the variable feature to the feature's title and narrates the line.",
 			action: async ({ feature }: { feature: string }, featureStep: TFeatureStep) => this.rememberAndSay("feature", feature, featureStep),
 		},
 		scenario: {
 			precludes: [`Haibun.scenario`],
 			gwta: SCENARIO_HEADING,
+			description: "Sets the variable scenario to the scenario's title and narrates the line, and passes where the heading is pending.",
 			action: async ({ scenario }: { scenario: string }, featureStep: TFeatureStep) =>
 				isPendingScenario(featureStep.in) ? OK : this.rememberAndSay("scenario", scenario, featureStep),
 		},

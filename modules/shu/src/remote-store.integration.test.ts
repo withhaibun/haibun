@@ -19,6 +19,7 @@ import StorageFS from "@haibun/storage-fs/storage-fs-stepper.js";
 import InstanceStepper from "@haibun/cli/instance-stepper.js";
 import MonitorStepper from "./monitor-stepper.js";
 import ShuStepper from "./shu-stepper.js";
+import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
 
 /**
  * Live two-instance store delegation, in the federate-graph-reads pattern: a launched main instance
@@ -50,6 +51,7 @@ class StoreDelegationProbeStepper extends AStepper {
 	description = "Probes the delegated store surface of another instance, for the remote store test.";
 	steps = {
 		probeDelegatedStore: {
+			description: TEST_STEP,
 			gwta: "probe the delegated store surface",
 			action: async () => {
 				readBack = await recordOf(this.getWorld().shared.getStore(), PRINCIPAL_LABEL, "did:site:0.1");

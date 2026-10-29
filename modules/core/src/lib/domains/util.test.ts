@@ -10,6 +10,7 @@ import { IHasOptions, StepperKinds, type TStepperSteps } from "../steps/domains/
 import { AStepper } from "../steps/domains/stepper.js";
 import { constructorName } from "../domains/util.js";
 import { itemAt } from "../domains/item-at.js";
+import { TEST_STEP } from "../test/test-step.js";
 
 describe("isLowerCase", () => {
 	it("is lower case", () => {
@@ -23,7 +24,7 @@ describe("findStepperFromOptions", () => {
 	const TestOptionsStepper = class TestOptionsStepper extends AStepper implements IHasOptions {
 		description = "A stepper with options A and B.";
 		options = { A: { desc: "A exists", parse: (input: string) => util.stringOrError(input) }, B: { desc: "B exists", parse: (input: string) => util.stringOrError(input) } };
-		steps = { test: { exact: "have a stepper option", action: async () => await Promise.resolve(OK) } };
+		steps = { test: { description: TEST_STEP, exact: "have a stepper option", action: async () => await Promise.resolve(OK) } };
 	};
 
 	it("finds from single option", async () => {
@@ -60,19 +61,19 @@ describe("findStepperFromOptionOrKind", () => {
 	const StorageStepper = class StorageStepper extends AStepper {
 		description = "A storage stepper.";
 		kind = StepperKinds.STORAGE;
-		steps = { test: { exact: "storage step", action: async () => await Promise.resolve(OK) } };
+		steps = { test: { description: TEST_STEP, exact: "storage step", action: async () => await Promise.resolve(OK) } };
 	};
 
 	const AlternativeStorageStepper = class AlternativeStorageStepper extends AStepper {
 		description = "Another storage stepper.";
 		kind = StepperKinds.STORAGE;
-		steps = { test: { exact: "alt storage step", action: async () => await Promise.resolve(OK) } };
+		steps = { test: { description: TEST_STEP, exact: "alt storage step", action: async () => await Promise.resolve(OK) } };
 	};
 
 	const ConsumerStepper = class ConsumerStepper extends AStepper implements IHasOptions {
 		description = "A stepper whose option names its storage stepper.";
 		options = { [StepperKinds.STORAGE]: { desc: "Storage stepper to use", parse: (input: string) => util.stringOrError(input) } };
-		steps = { test: { exact: "consumer step", action: async () => await Promise.resolve(OK) } };
+		steps = { test: { description: TEST_STEP, exact: "consumer step", action: async () => await Promise.resolve(OK) } };
 	};
 
 	it("finds single stepper by kind when an option isn't specified", async () => {
@@ -121,7 +122,7 @@ describe("verifyRequiredOptions", () => {
 			A: { required: true, altSource: "B", desc: "A is an option", parse: (input: string) => util.stringOrError(input) },
 			B: { desc: "B is an altsource", parse: (input: string) => util.stringOrError(input) },
 		};
-		steps = { test: { exact: "have a stepper option", action: async () => await Promise.resolve(OK) } };
+		steps = { test: { description: TEST_STEP, exact: "have a stepper option", action: async () => await Promise.resolve(OK) } };
 	}
 	it("has option", () => {
 		const toswq = new TestOptionsStepperWithRequired();
@@ -251,19 +252,23 @@ describe("checkNoPoliteStepPrefixes", () => {
 			steps = steps;
 		})();
 	test("a gwta starting with a stopword throws at creation", () => {
-		expect(() => util.checkNoPoliteStepPrefixes(stepperWith({ bad: { gwta: "the document panel is scrolled", action: async () => OK } }))).toThrow(/could never match/);
+		expect(() => util.checkNoPoliteStepPrefixes(stepperWith({ bad: { description: TEST_STEP, gwta: "the document panel is scrolled", action: async () => OK } }))).toThrow(
+			/could never match/,
+		);
 	});
 	test("an exact starting with a stopword throws at creation", () => {
-		expect(() => util.checkNoPoliteStepPrefixes(stepperWith({ bad: { exact: "a fine mess", action: async () => OK } }))).toThrow(/could never match/);
+		expect(() => util.checkNoPoliteStepPrefixes(stepperWith({ bad: { description: TEST_STEP, exact: "a fine mess", action: async () => OK } }))).toThrow(/could never match/);
 	});
 	test("a stopword-free pattern passes, mid-pattern articles included", () => {
-		expect(() => util.checkNoPoliteStepPrefixes(stepperWith({ ok: { gwta: "document panel is scrolled to the live edge", action: async () => OK } }))).not.toThrow();
+		expect(() =>
+			util.checkNoPoliteStepPrefixes(stepperWith({ ok: { description: TEST_STEP, gwta: "document panel is scrolled to the live edge", action: async () => OK } })),
+		).not.toThrow();
 	});
 	test("createSteppers runs the check on every configured stepper", () => {
 		const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
 		const Bad = class BadStepper extends AStepper {
 			description = "A step whose phrase starts with a stopword.";
-			steps = { bad: { gwta: "and then some", action: async () => OK } };
+			steps = { bad: { description: TEST_STEP, gwta: "and then some", action: async () => OK } };
 		};
 		expect(() => util.createSteppers([Bad])).toThrow(/could never match/);
 		spy.mockRestore();

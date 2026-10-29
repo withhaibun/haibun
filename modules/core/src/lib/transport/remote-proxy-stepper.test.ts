@@ -23,6 +23,7 @@ import { hostHandshake } from "../test/rpc-answer.js";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { actualityClock } from "../actuality/root.js";
+import { TEST_STEP } from "../test/test-step.js";
 
 const ECHOED_LABEL = "test-echoed-label";
 /** Two domains whose union a parameter takes. */
@@ -48,19 +49,28 @@ class EchoStepper extends AStepper {
 	};
 	steps = {
 		echo: {
+			description: TEST_STEP,
 			gwta: `echo {message: ${DOMAIN_TEXT}}`,
 			productsDomain: TEST_DOMAIN.echoed,
 			action: async ({ message }: { message: string }) => actionOKWithProducts({ echoed: message }),
 		},
-		protectedPing: { gwta: "protected ping", capability: "EchoStepper:admin", productsDomain: TEST_DOMAIN.pong, action: async () => actionOKWithProducts({ pong: true }) },
-		acts: { gwta: "act", action: async () => OK },
-		refuses: { gwta: "refuse", action: async () => actionNotOK(REFUSED) },
+		protectedPing: {
+			description: TEST_STEP,
+			gwta: "protected ping",
+			capability: "EchoStepper:admin",
+			productsDomain: TEST_DOMAIN.pong,
+			action: async () => actionOKWithProducts({ pong: true }),
+		},
+		acts: { description: TEST_STEP, gwta: "act", action: async () => OK },
+		refuses: { description: TEST_STEP, gwta: "refuse", action: async () => actionNotOK(REFUSED) },
 		echoPick: {
+			description: TEST_STEP,
 			gwta: `echo the pick {pick: ${DOMAIN_PICK}}`,
 			productsDomain: TEST_DOMAIN.echoed,
 			action: async ({ pick }: { pick: TStepValue }) => actionOKWithProducts({ echoed: String(pick.value) }),
 		},
 		echoLabel: {
+			description: TEST_STEP,
 			gwta: "echo the label of {query: json}",
 			productsDomain: ECHOED_LABEL,
 			action: async ({ query }: { query: { label?: string } }) => actionOKWithProducts({ label: query.label ?? null }),

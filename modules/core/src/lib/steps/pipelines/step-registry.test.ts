@@ -16,13 +16,14 @@ import type { TStepperStep } from "../domains/stepper.js";
 import { MATCHING_METHOD, SHOW_STEP_DEFINITIONS_LINE, SHOW_STEPS_LINE, StepDefinitionsSchema, StepSummariesSchema } from "../domains/step-discovery.js";
 import { RUN_AUTHORITY } from "../../domains/capability-context.js";
 import { ActionSchema } from "../../domains/actions.js";
+import { TEST_STEP } from "../../test/test-step.js";
 
 /** A domain with date fields and a defaulted field. A persisted type's generatedAtTime is a defaulted date field. */
 const RecordSchema = z.object({ subject: z.string(), dateSent: z.coerce.date(), generatedAtTime: z.coerce.date().default(() => new Date()) }).strict();
 
 const worldWith = (schema: z.ZodType): TWorld => ({ domains: { "test-record": { selectors: ["test-record"], schema, description: "A dated test record." } } }) as unknown as TWorld;
 
-const stepDef = { gwta: "create record {data: test-record}", action: async () => actionOK() } as unknown as TStepperStep;
+const stepDef = { description: TEST_STEP, gwta: "create record {data: test-record}", action: async () => actionOK() } as unknown as TStepperStep;
 
 class RecordSteps extends AStepper {
 	description = "steps that create records";
@@ -52,7 +53,7 @@ const emptyRegistryWorld = { domains: {}, runtime: {} } as unknown as TWorld;
 /** A stepper with one plain step. It stands for the steps actuality registers locally. */
 class LocalSteps extends AStepper {
 	description = "a step that passes";
-	steps = { passes: { gwta: "passes", action: async () => actionOK() } };
+	steps = { passes: { description: TEST_STEP, gwta: "passes", action: async () => actionOK() } };
 }
 
 /** A step that another host declares, as its proxy registers it in actuality's registry. */
@@ -63,6 +64,7 @@ const remoteTool = (stepName: string, pattern: string, capability = `RemoteSteps
 		stepperDescription: "steps another host declares",
 		stepName,
 		pattern,
+		description: TEST_STEP,
 		paramDomains: {},
 		capability: ActionSchema.parse(capability),
 		read: false,
@@ -137,7 +139,7 @@ describe("what a read of actuality's declarations shows", () => {
 			description = "steps that read and write records";
 			steps = {
 				readRecord: { gwta: "read record {id: record-key}", description: "Reads one record.", action: async () => actionOK() },
-				writeRecord: { gwta: "write record {id: record-key}", action: async () => actionOK() },
+				writeRecord: { description: TEST_STEP, gwta: "write record {id: record-key}", action: async () => actionOK() },
 			};
 		}
 		const world = {
@@ -195,7 +197,7 @@ describe("what a read of actuality's declarations shows", () => {
 		expect(changes, "and a rebuild of the same steps doesn't either").toBe(1);
 		class MoreSteps extends AStepper {
 			description = "a step that a rebuild adds";
-			steps = { fails: { gwta: "fails", action: async () => actionOK() } };
+			steps = { fails: { description: TEST_STEP, gwta: "fails", action: async () => actionOK() } };
 		}
 		registry.refresh([...steppers, new MoreSteps()], emptyWorld);
 		expect(changes, "a rebuild that adds a step is a change").toBe(2);
@@ -268,8 +270,12 @@ describe("a step's refusal", () => {
 	class RefusingStepper extends AStepper {
 		description = "Refuses with a remedy, and throws a refused call.";
 		steps = {
-			refuses: { exact: "refuses", action: () => actionNotOK("the record isn't held", { remedy: typeCollectionRemedy("Letter") }) },
-			throwsARefusal: { exact: "throws a refusal", action: () => Promise.reject(new RefusedCall({ error: "a call refused", remedy: { do: "request", action: "Pool:drain" } })) },
+			refuses: { description: TEST_STEP, exact: "refuses", action: () => actionNotOK("the record isn't held", { remedy: typeCollectionRemedy("Letter") }) },
+			throwsARefusal: {
+				description: TEST_STEP,
+				exact: "throws a refusal",
+				action: () => Promise.reject(new RefusedCall({ error: "a call refused", remedy: { do: "request", action: "Pool:drain" } })),
+			},
 		};
 	}
 

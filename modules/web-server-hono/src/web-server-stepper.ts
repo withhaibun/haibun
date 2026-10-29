@@ -167,7 +167,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		stopInstance: {
 			gwta: `stop this instance because {reason: ${DOMAIN_TEXT}}`,
 			capability: WEB_SERVER_CAPABILITIES.stop,
-			description: "End this instance's process, stating why, so its log records what stopped it.",
+			description: "Ends this instance's process, stating why, so its log records what stopped it.",
 			action: ({ reason }: { reason: string }) => {
 				this.getWorld().eventLogger.info(`stopping this instance: ${reason}`);
 				stopProcess();
@@ -184,6 +184,8 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		},
 		isListening: {
 			gwta: `webserver is listening for {why: ${DOMAIN_TEXT}}`,
+			description:
+				"Starts the feature's web server listening on its port, and passes where the port is held, since the server already listens. The step records why the server listens, which a call that finds the port held states.",
 			action: async ({ why }: { why: string }) => {
 				await this.listen(why);
 				return OK;
@@ -191,11 +193,15 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		},
 		serveFilesAt: {
 			gwta: `serve files at {where: ${DOMAIN_ROUTE}} from {loc: ${DOMAIN_FILE_PATH}}`,
+			description:
+				"Serves the files of the directory on the feature's web server under the route, with the read each file requires and the artifact policy while the server dispatches `/rpc` calls, as the RPC option states. Fails, stating why the files weren't served, where the mount is refused.",
 			action: ({ where, loc }: { where: string; loc: string }) =>
 				this.mounting(`the files of ${loc} at ${where}`, (server) => server.checkAddStaticFolder(loc, where, filesFrom(loc), ...this.servedFolderGates(server))),
 		},
 		indexFiles: {
 			gwta: `index files from {loc: ${DOMAIN_FILE_PATH}}`,
+			description:
+				"Serves an index of the files in the directory on the feature's web server at the root, with the read each file requires and the artifact policy while the server dispatches `/rpc` calls, as the RPC option states. Fails, stating why the index wasn't served, where the mount is refused.",
 			action: ({ loc }: { loc: string }) =>
 				this.mounting(`an index of ${loc}`, (server) =>
 					server.checkAddIndexFolder(loc, "/", { description: `An index of the files in ${loc}` }, ...this.servedFolderGates(server)),

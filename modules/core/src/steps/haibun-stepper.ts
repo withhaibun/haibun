@@ -164,6 +164,8 @@ class Haibun extends AStepper implements IHasCycles {
 	steps = {
 		useStoreAt: {
 			gwta: `use store at {where: ${DOMAIN_LINK}} for {types: ${DOMAIN_PERSISTED_TYPES}}`,
+			description:
+				"Mounts another instance's store at the link, routing the stated persisted types to it so their records are held there. It returns the store's site and the routed types, and refuses where the world store can't register a backing store.",
 			productsDomain: DOMAIN_STORE_IN_USE,
 			// Mounts another instance's store for the given types. RemoteQuadStore sends writes and reads of those types over
 			// the capability-gated store surface, so the serving site's store holds those records instead of this instance's
@@ -181,6 +183,7 @@ class Haibun extends AStepper implements IHasCycles {
 
 		onHost: {
 			gwta: `on host {hostId: number}, {statement:${DOMAIN_STATEMENT}}`,
+			description: "Proves the statement with its steps routed to the host by the host's id, so they run against that host. It returns the statement's products.",
 			productsOf: "statement",
 			action: ({ hostId, statement }: { hostId: number; statement: TFeatureStep[] }, featureStep: TFeatureStep) =>
 				proveStatements(stepperContext(this.getWorld(), this.steppers), featureStep, statement, hostId),
@@ -320,6 +323,8 @@ class Haibun extends AStepper implements IHasCycles {
 
 		backgrounds: {
 			gwta: `Backgrounds: {names: ${DOMAIN_BACKGROUND_NAMES}}`,
+			description:
+				"Expands the named backgrounds into their lines and proves them, so the backgrounds' steps and waypoints apply in the feature. It refuses where a background name doesn't resolve to a single feature or the lines fail.",
 			resolveFeatureLine: (line: string, _path: string, _stepper: AStepper, backgrounds: TFeatures) => {
 				if (!line.match(/^Backgrounds:\s*/i)) {
 					return false;
@@ -341,11 +346,12 @@ class Haibun extends AStepper implements IHasCycles {
 				return result.ok ? OK : actionNotOK(`backgrounds failed: ${result.errorMessage}`);
 			},
 		},
-		nothing: { exact: "", action: () => OK },
-		prose: { prose: true, action: () => OK },
+		nothing: { exact: "", description: "Matches a blank line or one that holds only a comment, and passes.", action: () => OK },
+		prose: { prose: true, description: "Matches a prose line, a sentence that a step's pattern doesn't match, and passes.", action: () => OK },
 
 		feature: {
 			gwta: `Feature: {feature: ${DOMAIN_TITLE}}`,
+			description: "Heads a feature, setting its title in actuality so the lines that follow are part of it.",
 			action: ({ feature }: { feature: string }) => {
 				this.getWorld().runtime.feature = feature;
 				return OK;
@@ -362,6 +368,7 @@ class Haibun extends AStepper implements IHasCycles {
 		},
 		endsWith: {
 			gwta: `ends with {result: ${DOMAIN_ENDING}}`,
+			description: "Ends the feature with the stated result: it passes where the result is OK and fails where it is not OK.",
 			action: ({ result }: { result: string }) => (result === ENDING.ok ? actionOK() : actionNotOK(`the feature states that it ends with ${result}, so this step fails`)),
 		},
 		pause: {
@@ -372,7 +379,7 @@ class Haibun extends AStepper implements IHasCycles {
 				return OK;
 			},
 		},
-		comment: { gwta: `;;{comment: ${DOMAIN_LINE_COMMENT}}`, action: () => OK },
+		comment: { gwta: `;;{comment: ${DOMAIN_LINE_COMMENT}}`, description: "Matches a line's `;;` comment and passes.", action: () => OK },
 	} as const satisfies TStepperSteps;
 }
 export default Haibun;

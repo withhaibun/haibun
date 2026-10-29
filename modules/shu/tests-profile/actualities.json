@@ -117,44 +117,44 @@
 			"actuality": {
 				"text": "modules/shu/tests-profile, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 17100,
+				"tookMs": 19200,
 				"digest": {
-					"modules/core/src": "f8724f31371cf4f0cdf6647d429780f10157abfdcf9a04e84a20caa193b64b34",
-					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
-					"modules/logic/src": "19433b3e8119e1c7ca9845979124a28bee3de6e0d9c379066a77e104382bc6f9",
+					"modules/core/src": "8ef8f2f75e52c480d6e6b3b2c93a91eae36c77b0c3455e113926264b50adad1c",
+					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
+					"modules/logic/src": "cc9d585c7f77c2c2b7c13a78de10d0e3bb32569fdbd85c537e23abadf2c90de6",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/shu/src": "283471ac5b4e551ed97fd66cfd5116c3df7e884a208c8c503efb7b74bf3bd95d",
+					"modules/shu/src": "74ff5cdb5c0dafe8146d2f70546d740d3a697ef7675939fb17501ce49b2cd4ba",
 					"modules/shu/tests-profile": "e3b3bf7b4fe401d47683e9e42bb954f3620a9b2fc51c214808d39bf06148d8ec",
 					"modules/shu/waypoints": "85c65554dd406b66e361f3a3a5683db72f20656c2f827dff70c53761a388b64b",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
-					"modules/web-playwright/src": "497f4af5bd16f8ab20e92b99a27fd73f60127be42d94ad0653f3c26942e060b4",
-					"modules/web-server-hono/src": "d2999619f8e6e6caae50dab5f3bd8295e324da0a4098f8467cecb7a6d83c2284"
+					"modules/web-playwright/src": "047b3815081e5e903cbbe548816aabf52a1df329e21a0baa0ee2fb6419f88fa9",
+					"modules/web-server-hono/src": "be362fe94e1acfa126c27de042ff4187b775788ad532ea600d03d3d07780de3e"
 				}
 			},
 			"features": {
 				"/features/b-reading-a-cached-actuality.feature.ts": {
 					"text": "Reading an actuality this device holds",
 					"status": "passed",
-					"tookMs": 3600,
+					"tookMs": 3800,
 					"steps": 214
 				},
 				"/features/c-reading-a-report.feature.ts": {
 					"text": "Reading a report of this actuality",
 					"status": "passed",
-					"tookMs": 2800,
+					"tookMs": 3100,
 					"steps": 218
 				},
 				"/features/d-two-origins.feature.ts": {
 					"text": "What a reader holds is held per address",
 					"status": "passed",
-					"tookMs": 2900,
+					"tookMs": 3400,
 					"steps": 209
 				},
 				"/features/e-deleting-an-actuality.feature.ts": {
 					"text": "Deleting an actuality this device holds",
 					"status": "passed",
-					"tookMs": 6400,
+					"tookMs": 7300,
 					"steps": 205
 				}
 			}
@@ -381,26 +381,26 @@
 			"actuality": {
 				"text": "modules/shu/tests-profile, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 3100,
+				"tookMs": 3200,
 				"digest": {
-					"modules/core/src": "f8724f31371cf4f0cdf6647d429780f10157abfdcf9a04e84a20caa193b64b34",
-					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
-					"modules/logic/src": "19433b3e8119e1c7ca9845979124a28bee3de6e0d9c379066a77e104382bc6f9",
+					"modules/core/src": "8ef8f2f75e52c480d6e6b3b2c93a91eae36c77b0c3455e113926264b50adad1c",
+					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
+					"modules/logic/src": "cc9d585c7f77c2c2b7c13a78de10d0e3bb32569fdbd85c537e23abadf2c90de6",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/shu/src": "283471ac5b4e551ed97fd66cfd5116c3df7e884a208c8c503efb7b74bf3bd95d",
+					"modules/shu/src": "74ff5cdb5c0dafe8146d2f70546d740d3a697ef7675939fb17501ce49b2cd4ba",
 					"modules/shu/tests-profile": "e3b3bf7b4fe401d47683e9e42bb954f3620a9b2fc51c214808d39bf06148d8ec",
 					"modules/shu/waypoints": "85c65554dd406b66e361f3a3a5683db72f20656c2f827dff70c53761a388b64b",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
-					"modules/web-playwright/src": "497f4af5bd16f8ab20e92b99a27fd73f60127be42d94ad0653f3c26942e060b4",
-					"modules/web-server-hono/src": "d2999619f8e6e6caae50dab5f3bd8295e324da0a4098f8467cecb7a6d83c2284"
+					"modules/web-playwright/src": "047b3815081e5e903cbbe548816aabf52a1df329e21a0baa0ee2fb6419f88fa9",
+					"modules/web-server-hono/src": "be362fe94e1acfa126c27de042ff4187b775788ad532ea600d03d3d07780de3e"
 				}
 			},
 			"features": {
 				"/features/a-an-actuality-to-come-back-to.feature.ts": {
 					"text": "An actuality to come back to",
 					"status": "passed",
-					"tookMs": 2800,
+					"tookMs": 2900,
 					"steps": 204
 				}
 			}

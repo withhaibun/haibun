@@ -77,24 +77,24 @@
 			"actuality": {
 				"text": "modules/shu/tests-basic-auth",
 				"status": "passed",
-				"tookMs": 2100,
+				"tookMs": 2300,
 				"digest": {
-					"modules/core/src": "f8724f31371cf4f0cdf6647d429780f10157abfdcf9a04e84a20caa193b64b34",
-					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
-					"modules/logic/src": "19433b3e8119e1c7ca9845979124a28bee3de6e0d9c379066a77e104382bc6f9",
-					"modules/shu/src": "283471ac5b4e551ed97fd66cfd5116c3df7e884a208c8c503efb7b74bf3bd95d",
+					"modules/core/src": "8ef8f2f75e52c480d6e6b3b2c93a91eae36c77b0c3455e113926264b50adad1c",
+					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
+					"modules/logic/src": "cc9d585c7f77c2c2b7c13a78de10d0e3bb32569fdbd85c537e23abadf2c90de6",
+					"modules/shu/src": "74ff5cdb5c0dafe8146d2f70546d740d3a697ef7675939fb17501ce49b2cd4ba",
 					"modules/shu/tests-basic-auth": "9cca75b8a1c2cb5e25f1d47bc884cf26c5940a3fcec9dde0934acb925e34ae32",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
-					"modules/web-playwright/src": "497f4af5bd16f8ab20e92b99a27fd73f60127be42d94ad0653f3c26942e060b4",
-					"modules/web-server-hono/src": "d2999619f8e6e6caae50dab5f3bd8295e324da0a4098f8467cecb7a6d83c2284"
+					"modules/web-playwright/src": "047b3815081e5e903cbbe548816aabf52a1df329e21a0baa0ee2fb6419f88fa9",
+					"modules/web-server-hono/src": "be362fe94e1acfa126c27de042ff4187b775788ad532ea600d03d3d07780de3e"
 				}
 			},
 			"features": {
 				"/features/behind-basic-auth.feature.ts": {
 					"text": "A page behind basic auth",
 					"status": "passed",
-					"tookMs": 1900,
+					"tookMs": 2000,
 					"steps": 211
 				}
 			}

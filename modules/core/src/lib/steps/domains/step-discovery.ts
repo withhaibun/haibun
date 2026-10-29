@@ -58,8 +58,8 @@ export const StepDescriptorSchema = z
 		stepName: z.string().min(1),
 		/** The step's line: its gwta, its exact text or its match. */
 		pattern: z.string().min(1),
-		/** What the step does, where its definition states more than its pattern. */
-		description: z.string().optional(),
+		/** What the step does, which every step's declaration states. */
+		description: z.string().min(1),
 		/** The domain of each parameter. */
 		paramDomains: z.record(z.string(), DomainKeySchema),
 		/** The domain of the products the step returns, where it declares one. */

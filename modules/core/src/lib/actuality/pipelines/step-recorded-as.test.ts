@@ -4,6 +4,7 @@ import { OK } from "../../domains/protocol.js";
 import { passWithDefaults } from "../../test/lib.js";
 import { LogicStepper } from "../../test/logic-stepper.js";
 import { DOMAIN_FILE_DATA } from "../../domains/media-object.js";
+import { TEST_STEP } from "../../test/test-step.js";
 
 const NOTE = "hello";
 const NOTE_DATA = `data:text/plain;base64,${Buffer.from(NOTE).toString("base64")}`;
@@ -11,7 +12,7 @@ const NOTE_DATA = `data:text/plain;base64,${Buffer.from(NOTE).toString("base64")
 /** A step that takes a file's data, as a step that keeps a file a person adds does. */
 class KeepsAFile extends AStepper {
 	description = "Keeps a file.";
-	steps: TStepperSteps = { keep: { gwta: `keep {file: ${DOMAIN_FILE_DATA}}`, action: () => OK } };
+	steps: TStepperSteps = { keep: { description: TEST_STEP, gwta: `keep {file: ${DOMAIN_FILE_DATA}}`, action: () => OK } };
 }
 
 describe("a value of a domain that declares what a record states for it", () => {

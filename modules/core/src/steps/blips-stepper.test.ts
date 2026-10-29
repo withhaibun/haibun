@@ -12,6 +12,7 @@ import { LogicStepper } from "../lib/test/logic-stepper.js";
 import type { TWorld } from "../lib/actuality/domains/world.js";
 import { runInStep } from "../lib/domains/capability-context.js";
 import { itemAt } from "../lib/domains/item-at.js";
+import { TEST_STEP } from "../lib/test/test-step.js";
 
 const SCROLL = {
 	name: "haibun.test.view.scroll_adjust",
@@ -135,6 +136,7 @@ class Emitter extends AStepper {
 	description = "Records a scroll blip.";
 	steps = {
 		scrolled: {
+			description: TEST_STEP,
 			gwta: "view scrolls {distance: number}",
 			action: ({ distance }: { distance: number }) => {
 				declareBlips({ ...SCROLL, attributes: z.object({ view: z.string() }) });

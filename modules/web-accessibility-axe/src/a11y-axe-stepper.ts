@@ -28,6 +28,8 @@ class A11yStepper extends AStepper implements IHasOptions, IHasCycles {
 	steps = {
 		checkA11yRuntime: {
 			gwta: `page is accessible accepting serious {serious:number} and moderate {moderate:number}`,
+			description:
+				"Checks the page the runtime holds with axe, records the result of each rule that applies to it as an EARL assertion, saves the report as an HTML artifact where a storage stepper keeps artifacts, and passes when the page's serious and moderate violations are within the given counts. Fails where the runtime doesn't hold a page, and where the page's serious or moderate violations exceed the counts accepted, stating the counts found and the counts accepted.",
 			action: async ({ serious, moderate }: { serious: string; moderate: string }, featureStep: TFeatureStep) => {
 				const page = await this.pageGetter?.getPage();
 				if (!page) {

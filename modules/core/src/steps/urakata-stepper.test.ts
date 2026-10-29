@@ -10,6 +10,7 @@ import { URAKATA, URAKATA_ID_DOMAIN, type IUrakataRegistry, type IUrakataTicker 
 import { getFromRuntime } from "../lib/domains/util.js";
 import type { TStepResult } from "../lib/domains/protocol.js";
 import { itemAt } from "../lib/domains/item-at.js";
+import { TEST_STEP } from "../lib/test/test-step.js";
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -19,6 +20,7 @@ class TickHarnessStepper extends AStepper {
 	tickCount = 0;
 	steps = {
 		startTick: {
+			description: TEST_STEP,
 			gwta: "start tick",
 			productsDomains: { id: URAKATA_ID_DOMAIN },
 			action: () => {

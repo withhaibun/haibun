@@ -7,13 +7,15 @@ import { actionNotOK } from "../../domains/util.js";
 import { proveStatements, stepperContext } from "./step-dispatch.js";
 import { DOMAIN_STATEMENT } from "../../domains/domains.js";
 import Haibun from "../../../steps/haibun-stepper.js";
+import { TEST_STEP } from "../../test/test-step.js";
 
 class StatementTestStepper extends AStepper {
 	description = "Declares the steps alpha and beta and a step that executes its statement argument.";
 	steps = {
-		alpha: { exact: "alpha", action: async () => Promise.resolve(OK) },
-		beta: { exact: "beta", action: async () => Promise.resolve(OK) },
+		alpha: { description: TEST_STEP, exact: "alpha", action: async () => Promise.resolve(OK) },
+		beta: { description: TEST_STEP, exact: "beta", action: async () => Promise.resolve(OK) },
 		do: {
+			description: TEST_STEP,
 			gwta: `do {steps:${DOMAIN_STATEMENT}}`,
 			action: async (args: TStepArgs, featureStep: TFeatureStep) => {
 				try {
