@@ -11,7 +11,7 @@ import { ONTOLOGY_FIELD } from "@haibun/core/lib/records/domains/ontology.js";
 import { SCHEMA_TYPES, UNPREFIXED_VOCABULARY } from "../domains/ontology.js";
 
 /** The edge from an individual to the class it is an instance of, named as JSON-LD's `@type` and Turtle's `a` name it. */
-const INSTANCE_OF = "a";
+export const INSTANCE_OF = "a";
 
 /** Whether a @type is one of the two schema clusters: the ONE predicate every schema-aware surface reuses: the filter
  *  (default-hide), the paint (distinct shape), and the layout (timeless, so pinned to the front z=0 plane, not the age axis). */

@@ -7,10 +7,12 @@
  */
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { ONTOLOGY_FIELD } from "@haibun/core/lib/records/domains/ontology.js";
+import { CLASS_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { FRAME_KIND, type TGraphAxioms, type TFrame } from "@haibun/core/lib/records/domains/axioms.js";
 import { classAxioms, individualAxioms, propertyAxioms, type TIndividualFact } from "@haibun/core/lib/records/derivations/axioms.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import type { GraphEdge, GraphModel, GraphNode } from "../domains/graph-model.js";
+import { INSTANCE_OF } from "./ontology-projection.js";
 
 const BETWEEN_FRAMES = "\n\n";
 
@@ -30,8 +32,19 @@ function literalValue(node: GraphNode, property: string, value: unknown): string
  *  edge's property is the link relation its type declares for it, as `relOf` returns it. */
 export function graphAxioms({ nodes, edges }: GraphModel, ontology: readonly TQuad[], relOf: (type: string, edge: string) => string): TGraphAxioms {
 	const records = new Map(nodes.filter((node) => node.isCluster !== true).map((node) => [node.id, node]));
-	const shownEdges = edges.filter((edge) => records.has(edge.from) && records.has(edge.to));
+	// A record's edge to its Class states the class assertion its individual frame states from its type, so it isn't a property.
+	const shownEdges = edges.filter((edge) => records.has(edge.from) && records.has(edge.to) && edge.predicate !== INSTANCE_OF);
 	const objectsOf = (subject: string, field: string): string[] => ontology.filter((q) => q.subject === subject && q.predicate === field).map((q) => String(q.object));
+	const superclassesOf = (type: string): string[] => [...objectsOf(type, ONTOLOGY_FIELD.classIri).filter((iri) => iri !== type), ...objectsOf(type, ONTOLOGY_FIELD.subClassOf)];
+	/** A type's superclasses and theirs: the types the ontology entails an individual of the type holds. */
+	const entailedOf = (type: string): string[] => {
+		const held = new Set<string>();
+		const visit = (from: string): void => {
+			for (const superclass of superclassesOf(from)) if (!held.has(superclass) && superclass !== type) held.add(superclass), visit(superclass);
+		};
+		visit(type);
+		return [...held];
+	};
 	const individuals = [...records.values()].map((node): TFrame => {
 		const outgoing = shownEdges.filter((edge) => edge.from === node.id);
 		const facts: TIndividualFact[] = [
@@ -42,20 +55,24 @@ export function graphAxioms({ nodes, edges }: GraphModel, ontology: readonly TQu
 			name: `${FRAME_KIND.individual} ${node.id}`,
 			kind: FRAME_KIND.individual,
 			...individualAxioms(node.id, [node.type], facts),
+			entailed: entailedOf(node.type),
 			statement: statementOf(node),
 			assertedBy: { persistedAs: node.type, id: node.id },
 			nodes: [node.id],
 			edges: outgoing.map(({ from, predicate, to }) => ({ from, label: predicate, to })),
 		};
 	});
-	const types = [...new Set([...records.values()].map((node) => node.type))];
-	const classes = types.map(
-		(type): TFrame => ({
-			name: `${FRAME_KIND.class} ${type}`,
+	const types = new Set([...records.values()].map((node) => node.type));
+	// A Class record is a class as well as an individual of Class: its node carries the class's own axioms beside its type's records.
+	const isClassRecord = (node: GraphNode, name: string): boolean => node.type === CLASS_LABEL && node.id === name;
+	const classNames = [...new Set([...types, ...[...records.values()].filter((node) => node.type === CLASS_LABEL).map(({ id }) => id)])];
+	const classes = classNames.map(
+		(name): TFrame => ({
+			name: `${FRAME_KIND.class} ${name}`,
 			kind: FRAME_KIND.class,
-			...classAxioms(type, [...objectsOf(type, ONTOLOGY_FIELD.classIri).filter((iri) => iri !== type), ...objectsOf(type, ONTOLOGY_FIELD.subClassOf)]),
-			statement: `the type ${type}`,
-			nodes: [...records.values()].filter((node) => node.type === type).map(({ id }) => id),
+			...classAxioms(name, superclassesOf(name)),
+			statement: types.has(name) ? `the type ${name}` : `the class ${name}`,
+			nodes: [...records.values()].filter((node) => node.type === name || isClassRecord(node, name)).map(({ id }) => id),
 			edges: [],
 		}),
 	);

@@ -24,6 +24,7 @@ import { isSubPropertyOf } from "@haibun/core/lib/domains/resources.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { type GroupKeyMode, groupKeyOf, groupTitles } from "../derivations/grouping.js";
 import { linkKey, type KindTiers, type TGraphPreview } from "../derivations/focus-policy.js";
+import { withAxioms, type TAxiomOverlay } from "../derivations/axiom-overlay.js";
 import { quadsToGanttModel, cascadeReschedule } from "../derivations/gantt-model.js";
 import { availablePaints } from "../derivations/paint-select.js";
 import { ganttBarSpan, ganttExtentOf, type GanttTarget } from "../derivations/gantt-layout.js";
@@ -68,10 +69,10 @@ import { PaneOpenSchema, addsToSelection, type DesiredPane, type TPaneOpen } fro
  *
  *   setModel(model): the quads/clusters to render (the host's time-filtered slice)
  *   setConfig(patch): the layout choices (view type, flatten, grouping, z basis, label-as-z)
+ *   setAxioms(overlay): the DL view's axioms on the nodes and edges it draws, or null without them
  *   setTimeCursorValue(ms): the depth-basis cursor (a re-style, not a data change)
  *   setSelectedSubject(id): the highlighted node (pins it, dims the rest)
- *   setPreview(preview): a type hovered in a legend, or nodes and edges a host points at (dims the rest)
- *   fitGraphTo(ids): frame the nodes a host points at
+ *   setPreview(preview): a type hovered in a legend, or nodes a host points at (dims the rest)
  *   scopeToType(type): an embedded schema view: fit around one type's node
  *
  * It emits (bubbles, composed) the constants in GRAPH_SCENE_EVENT. The host (a data-feeding wrapper such as
@@ -371,6 +372,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	}
 	private edgeLabelColor = "#555555";
 	private edgeLineColor = "#888888";
+	/** The DL view's axioms on the nodes and edges the scene draws; null outside the DL view. */
+	private axioms: TAxiomOverlay | null = null;
 	private chipTextColor = NODE_TEXT_COLOR; // text ON a node chip (light type-colour bg), dark in both themes (--shu-fg-on-swatch)
 	private sceneTextColor = "#e6e6e6"; // text OFF a chip, on the scene bg (gantt bar labels), follows --shu-fg (white in dark)
 	private glowRamp: readonly string[] = GLOW_RAMP.dark; // which warm ramp the glow cycles through, chosen by theme
@@ -928,7 +931,22 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 
 	/** What a node's chip reads: the value that places its depth where chips are labelled by it, else its mark's label. */
 	private chipLabelOf(n: FGNode, mark: NodeMark): string {
-		return (this.labelAsZ ? this.zFactor(n).chip : undefined) ?? mark.label;
+		const label = (this.labelAsZ ? this.zFactor(n).chip : undefined) ?? mark.label;
+		return withAxioms(label, this.axioms?.nodes.get(n.id));
+	}
+
+	/** What an edge's label reads: its predicate, and the axioms of its property in the DL view. */
+	private edgeLabelOf(l: FGLink): string {
+		return withAxioms(l.predicate, this.axioms?.edges.get(linkKey(l)));
+	}
+
+	/** The DL view's axioms on the nodes and edges the scene draws, or null to draw them without. The chips and the edge
+	 *  labels read them, so the same nodes and edges stay in place and only their text changes. */
+	setAxioms(axioms: TAxiomOverlay | null): void {
+		this.axioms = axioms;
+		for (const l of this.currentLinks) if (l.__label) l.__label.text = this.edgeLabelOf(l);
+		this.nodeRebuildPending = true; // the chip text changes → re-run the shape factory for every node
+		this.scheduleData();
 	}
 
 	/** Whether what the scene shows still changes: something moves or is drawn, a repaint or a relayout is scheduled, the
@@ -972,7 +990,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			.linkDirectionalArrowColor((l) => this.focusCtl.lineRgbaFor(l))
 			.linkThreeObjectExtend(true)
 			.linkThreeObject((l) => {
-				const label = makeTroikaText(l.predicate, {
+				const label = makeTroikaText(this.edgeLabelOf(l), {
 					fontSize: EDGE_LABEL_TEXT_HEIGHT,
 					color: this.edgeLabelColor,
 					renderOrder: EDGE_LABEL_RENDER_ORDER,
@@ -1920,12 +1938,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  frame where the nodes are, not where they stop. Delegates to the camera controller, the sole owner of framing. */
 	fitGraph(): void {
 		this.cameraCtl.fit();
-	}
-
-	/** Frame the nodes a host points at, such as the nodes of the lines a reader chose in a source; a no-op for ids the graph
-	 *  doesn't hold. */
-	fitGraphTo(ids: readonly string[]): void {
-		this.cameraCtl.fitNodes(ids);
 	}
 
 	/** The links the scene draws, by which a host names an edge it points at (linkKey). */

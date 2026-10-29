@@ -244,9 +244,10 @@ export const SHU_TEST_IDS = {
 		FOLLOW: "polymorphic-follow",
 		PRUNE: "polymorphic-prune",
 		READ: "polymorphic-read",
-		/** The head toggle that holds the graph's source open beside the scene, and the source's lines. */
-		SOURCE: "polymorphic-source",
-		SOURCE_LINES: "polymorphic-source-lines",
+		/** The head control that opens the axioms of what the graph shows in a pane of their own. */
+		AXIOMS: "polymorphic-axioms",
+		/** The head toggle of the DL view: the graph's nodes and edges with the axioms that the ontology states of them. */
+		DL: "polymorphic-dl",
 		/** Each settings group's head icon, keyed by the group it opens (see view-head's SETTINGS_GROUPS): the component
 		 *  renders from this map and a driver presses from it, so the two cannot name different controls. */
 		SETTINGS: { layout: "polymorphic-settings-layout", filters: "polymorphic-settings-filters", scenes: "polymorphic-settings-scenes" },
@@ -259,6 +260,8 @@ export const SHU_TEST_IDS = {
 		SCENE_SAVE: "polymorphic-scene-save",
 		SCENE_ERROR: "polymorphic-scene-error",
 	},
+	/** The axioms pane: its lines, a frame each. */
+	GRAPH_SOURCE: { LINES: "graph-source-lines" },
 	AFFORDANCES: { ROOT: "shu-affordances", GOALS_LIST: "affordances-goals", EMPTY: "affordances-empty" },
 	DOMAIN_CHAIN: {
 		ROOT: "shu-domain-chain",

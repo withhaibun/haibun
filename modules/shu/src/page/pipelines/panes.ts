@@ -109,7 +109,9 @@ export function restoreFromAddress(scope: TPanesScope): void {
 export function request(scope: TPanesScope, input: DesiredPane): void {
 	const pane = Kinds.DesiredPaneSchema.parse(input);
 	const id = Kinds.paneIdOf(pane);
-	const view = scope.machine.state.get().desired.has(id) || pane.paneType === "entity" ? scope.held.strip?.view(id) : undefined;
+	// A view the strip holds takes what the request carries, a view a prune of the same request is about to close included: the
+	// request keeps it, so the next pass doesn't open it again and doesn't seed it.
+	const view = scope.held.strip?.view(id);
 	if (view !== undefined) Kinds.updateView(pane, view);
 	move(scope, { type: PANES_EVENT.REQUEST, id, pane, minimizedBefore: scope.minimizedBefore(id) });
 	scheduleReconcile(scope);

@@ -1,11 +1,10 @@
 /**
- * The source pane's lines and the selection that links them to the scene both ways: the line a key moves to, what is behind a
- * line, the summary of kinds, and the frames that state the records and edges a reader chose in the scene.
+ * The axioms pane's lines: the line a key moves to, what is behind a line, the summary of kinds, what the pane states of the
+ * reader's line, and the frames that state the reader's active records.
  */
 import { describe, expect, it } from "vitest";
 import { graphAxioms } from "../../../derivations/graph-axioms.js";
-import { edgeKey } from "./focus-policy.js";
-import { lineAfterKey, linesOfScene, provenanceOf, sceneOfLine, statusOf, summaryOf } from "./source-lines.js";
+import { lineAfterKey, linesOf, provenanceOf, statusOf, summaryOf } from "./source-lines.js";
 
 /** Two emails, the second a reply to the first, whose id holds quotes. */
 const [QUOTED, PLAIN] = ['say "hi"', "m2"];
@@ -21,8 +20,7 @@ const axioms = graphAxioms(
 	[],
 	(_type, edge) => edge,
 );
-const RECORDS = { nodes: [QUOTED, PLAIN], edges: [{ from: PLAIN, predicate: REPLY, to: QUOTED }] };
-const [CLASS, PROPERTY, QUOTED_LINE, PLAIN_LINE] = ["Class Email", `ObjectProperty ${REPLY}`, `Individual ${QUOTED}`, `Individual ${PLAIN}`];
+const [CLASS, QUOTED_LINE] = ["Class Email", `Individual ${QUOTED}`];
 
 describe("lineAfterKey", () => {
 	const names = ["n1", "p1", "e1"];
@@ -49,20 +47,17 @@ describe("what a line states to a reader", () => {
 	it("summarises the axioms' kinds with their counts", () => {
 		expect(summaryOf(axioms.summary)).toBe("classes 1 · properties 1 · individuals 2");
 	});
-	it("states what a reader's line lights in the scene, or how many lines state the scene's selection", () => {
-		expect(statusOf("e1", { nodes: ["a", "b"], edges: ["k"] }, new Set())).toBe("e1 lights 2 nodes and 1 edge");
-		expect(statusOf(null, null, new Set(["n1"]))).toBe("the selection lights 1 line");
-		expect(statusOf(null, null, new Set())).toBe("");
+	it("states the reader's line as its hover does, or how many lines state the record the reader is on", () => {
+		const line = axioms.frames.find(({ name }) => name === QUOTED_LINE);
+		expect(statusOf(line, new Set())).toBe(line && provenanceOf(line));
+		expect(statusOf(undefined, new Set(["n1"]))).toBe("the selection lights 1 line");
+		expect(statusOf(undefined, new Set())).toBe("");
 	});
 });
 
-describe("the selection between the scene and the lines", () => {
-	it("lights the lines that state a record or an edge a reader chose", () => {
-		expect(linesOfScene(axioms, { nodes: [QUOTED], edges: [] })).toEqual([CLASS, QUOTED_LINE]);
-		expect(linesOfScene(axioms, { nodes: [], edges: RECORDS.edges }), "an edge lights the lines that state it").toEqual([PROPERTY, PLAIN_LINE]);
-	});
-	it("lights the records and the edges a line states, among those the scene draws", () => {
-		expect(sceneOfLine(axioms, PLAIN_LINE, RECORDS)).toEqual({ nodes: [PLAIN], edges: [edgeKey(PLAIN, REPLY, QUOTED)] });
-		expect(sceneOfLine(axioms, CLASS, RECORDS), "a class lights its records").toEqual({ nodes: [QUOTED, PLAIN], edges: [] });
+describe("the lines that state the record a reader is on", () => {
+	it("lights the record's own line and its class's", () => {
+		expect(linesOf(axioms, [QUOTED])).toEqual([CLASS, QUOTED_LINE]);
+		expect(linesOf(axioms, [])).toEqual([]);
 	});
 });

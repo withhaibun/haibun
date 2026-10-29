@@ -276,6 +276,17 @@ describe("the page's panes", () => {
 		expect(child.products).toEqual({ satisfiedDomains: [], forward: [], goals: [] });
 	});
 
+	it("a pane requested again from the pane before it keeps its place and takes the data the request carries", async () => {
+		requestPane({ paneType: "component", tag: "shu-polymorphic-graph-view", label: "G" });
+		requestPane({ paneType: "component", tag: "shu-affordances-panel", label: "A", data: { goals: ["first"] } });
+		await flush();
+		const graphPane = document.querySelector('shu-column-pane[data-column-key="shu-polymorphic-graph-view"]') as HTMLElement;
+		requestPaneFrom(graphPane, { paneType: "component", tag: "shu-affordances-panel", label: "A", data: { goals: ["second"] } }, false);
+		await flush();
+		const child = document.querySelector('shu-column-pane[data-column-key="shu-affordances-panel"] > *') as HTMLElement & { products?: Record<string, unknown> };
+		expect(child.products).toEqual({ goals: ["second"] });
+	});
+
 	it("malformed col= entries are skipped, not crashed-on", async () => {
 		ShuElement.pushHash("#?col=Bad+Tag&col=shu-polymorphic-graph-view");
 		restorePanes();

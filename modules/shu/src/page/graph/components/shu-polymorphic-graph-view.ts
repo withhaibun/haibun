@@ -27,16 +27,17 @@ const POLYMORPHIC_IDS = SHU_TEST_IDS.POLYMORPHIC_VIEW;
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { VIEW, VIEW_TYPES } from "../domains/views.js";
 import type { TPolymorphicOptionChange } from "./shu-polymorphic-settings.js";
-import type { TGraphAxioms } from "@haibun/core/lib/records/domains/axioms.js";
-import type { TGraphView } from "../../../pipelines/graph-source.js";
+import { ViewAxiomsProductsSchema, type TGraphView, type TViewAxioms } from "../../../domains/graph-view.js";
 import { LoadController } from "../../controllers/load-controller.js";
 import { callStep } from "../../controllers/read-controller.js";
 import { appAccessLevel } from "../../controllers/view-query-controller.js";
 import { ClockController } from "../../controllers/clock-controller.js";
-import { SOURCE_FORMATS, SOURCE_FORMAT_IDS, sourceFormat } from "../domains/sources.js";
-import { linesOfScene, sceneOfLine, type TDrawn, type TDrawnEdge, type TSceneSelection } from "../derivations/source-lines.js";
+import { SOURCE_FORMATS } from "../domains/sources.js";
+import type { TDrawn } from "../derivations/source-lines.js";
+import { axiomOverlay, sameOverlay, type TAxiomOverlay, type TCarried } from "../derivations/axiom-overlay.js";
 import { linkEndId } from "../domains/graph-types.js";
 import "./shu-graph-source.js";
+import type { TGraphSourcePane } from "./shu-graph-source.js";
 import "../../components/shu-refusal.js";
 import type { TViewForces } from "./render-type.js";
 import "./shu-polymorphic-settings.js";
@@ -45,18 +46,20 @@ import type { TSettingsGroup } from "../../../domains/elements.js";
 
 import { type GraphSceneConfig, type GraphSceneModel, type GraphSceneChangedDetail, type RescheduleUpdate, type ShuGraphScene } from "./scene.js";
 import { GRAPH_SCENE_EVENT } from "../domains/graph-types.js";
-import { type TPaneOpen } from "../../derivations/pane-kinds.js";
+import { PaneOpenSchema, addsToSelection, type TPaneOpen } from "../../derivations/pane-kinds.js";
 import { persistScopeOf } from "./shu-graph-filter.js";
 import "./scene.js";
 
 // A cursor move re-styles (depth re-place, positions pinned), fast, so it paints promptly. NOT the streamed-data
 // window (which would stack to ~1s); the base coalesces continuous scrubbing to this before it reaches onTimeCursorPaint.
 const CURSOR_COALESCE_MS = 100;
-/** A change of what the graph shows reads its source again once per this window, so a stream of batches or a scrub reads it
- *  once rather than once a batch. A reader's own choice reads it at once. */
-const SOURCE_COALESCE_MS = 500;
-/** The name the coalesced read of the source is held under. */
-const SOURCE_READ = "source-read";
+/** A change of what the graph shows reads its axioms again once per this window, so a stream of batches or a scrub reads them
+ *  once rather than once a batch. A reader's own choice reads them at once. */
+const AXIOMS_COALESCE_MS = 500;
+/** The name the coalesced read of the axioms is held under. */
+const AXIOMS_READ = "axioms-read";
+/** The format the DL view and the axioms pane read the graph's axioms in first. */
+const [AXIOMS_FORMAT] = SOURCE_FORMATS;
 
 // Composed statically and rendered via unsafeHTML: lit leaves bindings inside a <style> element uninterpolated,
 // so the shared view-head rules cannot be interpolated in the template itself. The view is positioned, so the scene's canvas
@@ -72,9 +75,6 @@ const FISHEYE_CSS = `
 	shu-polymorphic-graph-view .view-status > * { overflow: hidden; text-overflow: ellipsis; }
 	shu-polymorphic-graph-view #polymorphic-counts { color: var(--shu-fg-muted); }
 	shu-polymorphic-graph-view #polymorphic-step { max-width: 30ch; background: var(--shu-fg); color: var(--shu-bg); padding: var(--shu-space-1) var(--shu-space-3); border-radius: var(--shu-radius); font-weight: 600; }
-	shu-polymorphic-graph-view shu-graph-source { flex: 0 0 38%; }
-	shu-polymorphic-graph-view .source-note { margin: 0; padding: var(--shu-space-2) var(--shu-space-3); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); background: var(--shu-bg); }
-	shu-polymorphic-graph-view .graph-area .source-note { position: absolute; inset: 0 0 auto; }
 `;
 
 const PolymorphicStateSchema = z.object({
@@ -95,10 +95,8 @@ const PolymorphicStateSchema = z.object({
 	prune: z.boolean(),
 	/** Hold the accessible reading of the graph open beside the scene. */
 	readAsDocument: z.boolean(),
-	/** Hold the graph's source open beside the scene. */
-	source: z.boolean(),
-	/** The format the source reads the graph as. */
-	sourceFormat: z.enum(SOURCE_FORMAT_IDS),
+	/** The DL view: the graph's nodes and edges with the axioms that the ontology states of them. */
+	dl: z.boolean(),
 	/** Which settings group's row is open under the head, exclusive; null keeps the head to one row. Transient
 	 *  disclosure: not persisted, a reload starts with the head alone. */
 	openSettings: z.enum(SETTINGS_GROUP_NAMES).nullable(),
@@ -117,8 +115,7 @@ const POLYMORPHIC_INITIAL_STATE: z.input<typeof PolymorphicStateSchema> = {
 	follow: false,
 	prune: false,
 	readAsDocument: false,
-	source: false,
-	sourceFormat: SOURCE_FORMATS[0].id,
+	dl: false,
 	openSettings: null,
 };
 
@@ -135,7 +132,7 @@ const POLYMORPHIC_INITIAL_STATE: z.input<typeof PolymorphicStateSchema> = {
  */
 export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof PolymorphicStateSchema> {
 	/** Layout choices persist across reloads (ShuElement.persistFields; singleton key). */
-	static persistFields = ["viewType", "flatten", "grouped", "groupBy", "zBasis", "labelAsZ", "pins", "follow", "prune", "readAsDocument", "source", "sourceFormat"] as const;
+	static persistFields = ["viewType", "flatten", "grouped", "groupBy", "zBasis", "labelAsZ", "pins", "follow", "prune", "readAsDocument", "dl"] as const;
 
 	// Control-bar inputs the scene derives from its data/layout (via graph-scene-changed): the axes that vary with the
 	// data. type + role are always offered, so they seed the pre-data render; suppressesGrouping is false in the force view.
@@ -145,20 +142,15 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	private counts: GraphSceneChangedDetail["counts"] | null = null;
 	private latestStep: string | null = null;
 	private sceneConfig!: GraphSceneConfig;
-	/** The page's clock, which holds the coalesced read of the source and cancels it as the view leaves the page. */
+	/** The page's clock, which holds the coalesced read of the axioms and cancels it as the view leaves the page. */
 	readonly #clock = new ClockController(this);
-	/** The graph's source, which the source pane shows: the axioms that the chosen format's step returns of what the graph
-	 *  shows. */
-	readonly #source = new LoadController<TGraphAxioms>(this, () => {
-		const format = sourceFormat(this.state.sourceFormat);
-		return callStep<TGraphAxioms>(format.step, { view: this.shownView() }, `the graph as ${format.label}`);
+	/** The axioms of what the graph shows, which the DL view maps onto the scene and the ¶ control opens in a pane. */
+	readonly #axioms = new LoadController<TViewAxioms>(this, async () => {
+		const outcome = await callStep<unknown>(AXIOMS_FORMAT.step, { view: this.shownView() }, `the graph as ${AXIOMS_FORMAT.label}`);
+		return outcome.ok ? { ok: true, value: ViewAxiomsProductsSchema.parse(outcome.value) } : outcome;
 	});
-	/** What the reader chose in the scene, by the scene's ids, and the lines that state it. */
-	#chosen: { nodes: string[]; edges: TDrawnEdge[] } = { nodes: [], edges: [] };
-	#lit: ReadonlySet<string> = new Set();
-	/** The line the reader is on in the source, and what it lights in the scene. */
-	#line: string | null = null;
-	#lights: TSceneSelection | null = null;
+	/** The axioms the DL view maps onto the nodes and edges the scene draws; null outside the DL view. */
+	#overlay: TAxiomOverlay | null = null;
 	/** The saved scenes offered in the settings, fetched by this host (the settings element doesn't call an RPC of its own). */
 	private sceneNames: string[] = [];
 	/** What went wrong with the last scene a reader asked to save or return to, shown beside the controls; null when the last one succeeded. */
@@ -256,7 +248,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		this.scene?.setUserPins(this.state.pins);
 		this.configureScene();
 		if (cursor) this.setTimeCursor(typeof cursor.timeCursor === "number" ? cursor.timeCursor : null);
-		this.readSource();
+		this.readAxioms();
 		this.pushSceneModel();
 		// A scene records what the graph shows, not where the camera stood: what it shows is about to be laid out afresh,
 		// so the view frames it. The fit is deferred until that layout has come to rest.
@@ -336,23 +328,25 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 								on: this.state.readAsDocument,
 								onToggle: (on) => this.setOption({ readAsDocument: on }),
 							},
-							// A host's own graph doesn't have a source the store projects: only the main graph reads one.
+							// A host's own graph doesn't have axioms the store states: only the main graph reads them.
 							...(this.usesExternalData
 								? []
 								: [
 										{
-											id: POLYMORPHIC_IDS.SOURCE,
-											glyph: "¶",
-											title: "source: the graph as text, each line linked to the nodes and edges it states",
-											on: this.state.source,
-											onToggle: (on: boolean) => this.setOption({ source: on }),
+											id: POLYMORPHIC_IDS.DL,
+											glyph: "⊑",
+											title: "DL: each node and edge with the axioms the ontology states of it, entailed types marked ⊨",
+											on: this.state.dl,
+											onToggle: (on: boolean) => this.setOption({ dl: on }),
 										},
 									]),
 						],
 						settings: { openGroup: open, idFor: (group) => POLYMORPHIC_IDS.SETTINGS[group], onGroup: (group) => this.openGroup(group) },
 					})}
 				</div>
+				${this.usesExternalData ? "" : html`<button type="button" data-testid=${POLYMORPHIC_IDS.AXIOMS} title="axioms: the graph as text, in a pane of its own" @click=${(e: MouseEvent) => void this.openAxioms(undefined, addsToSelection(e))}>¶</button>`}
 				<div class="view-status">
+					${this.#axioms.render<TemplateResult | string>({ pending: () => "", running: () => "", completed: () => "", failed: (refusal) => html`<shu-refusal .refusal=${refusal} .readAgain=${() => this.readAxioms()}></shu-refusal>` })}
 					<span id="polymorphic-counts">${this.counts === null ? "" : countsText(this.counts, this.state.prune)}</span>
 					<span id="polymorphic-step" data-testid=${POLYMORPHIC_IDS.LATEST_STEP} ?hidden=${!this.latestStep}>${this.latestStep}</span>
 				</div>
@@ -360,37 +354,8 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 			${this.renderSettingsRow(open)}
 			<shu-graph-filter data-persist-scope=${this.persistKey}></shu-graph-filter>
 			<div class="graph-area"><shu-graph-scene></shu-graph-scene></div>
-			${this.readsSource ? this.renderSource() : ""}
 			</div>
 		`;
-	}
-
-	/** The source beside the scene: its lines once read, or the note of a read under way or refused. */
-	private renderSource(): TemplateResult | string {
-		const axioms = this.#source.page;
-		if (axioms === undefined) return this.sourceNote();
-		return html`<shu-graph-source
-			.axioms=${axioms}
-			.format=${sourceFormat(this.state.sourceFormat)}
-			.lit=${this.#lit}
-			.line=${this.#line}
-			.lights=${this.#lights}
-			.onLine=${this.chooseLine}
-			.onFormat=${this.chooseFormat}
-		></shu-graph-source>`;
-	}
-
-	/** What the source's read states while it doesn't hold a source: that it reads, or why it was refused with a control that
-	 *  reads it again. Once it holds one, the note is empty. */
-	private sourceNote(): TemplateResult | string {
-		const { label } = sourceFormat(this.state.sourceFormat);
-		const reading = (): TemplateResult => html`<p class="source-note">reading the graph as ${label}…</p>`;
-		return this.#source.render<TemplateResult | string>({
-			pending: reading,
-			running: reading,
-			completed: () => "",
-			failed: (refusal) => html`<div class="source-note"><shu-refusal .refusal=${refusal} .readAgain=${() => this.readSource()}></shu-refusal></div>`,
-		});
 	}
 
 	/** The open group's controls, on their own row under the head. Rendered only while open: what a reader can reach
@@ -459,8 +424,17 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		this.scene?.setUserPins(this.state.pins);
 		// Seed the persisted layout choices; the base's first refetch (below onGraphConnected) then pushes the initial model.
 		this.configureScene();
-		// An edge a reader chooses lights the lines of the source that state it, as a node the reader chooses does.
-		this.autoListen(this, GRAPH_SCENE_EVENT.EDGE_CHOSEN, ((e: CustomEvent<TDrawnEdge>) => this.chooseInScene({ nodes: [], edges: [e.detail] })) as EventListener);
+		// In the DL view a node or an edge a reader chooses opens the frame that states its axioms in the axioms pane.
+		this.autoListen(this, GRAPH_SCENE_EVENT.EDGE_CHOSEN, ((e: CustomEvent<{ key: string }>) => this.openFrameOf(this.#overlay?.edges.get(e.detail.key), false)) as EventListener);
+		if (!this.usesExternalData)
+			this.autoListen(this, SHU_EVENT.PANE_OPEN, ((e: CustomEvent<TPaneOpen>) => {
+				const { pane } = e.detail;
+				const node = pane.paneType === "entity" ? pane.id : pane.paneType === "type" ? pane.persistedAs : undefined;
+				const carried = node === undefined ? undefined : this.#overlay?.nodes.get(node);
+				if (carried === undefined) return;
+				e.stopPropagation();
+				this.openFrameOf(carried, e.detail.addToSelection);
+			}) as EventListener);
 		if (this.usesExternalData) {
 			this.scene?.setSelectedSubject(this.hostSelection);
 			this.previewNodes(this.hostPreview);
@@ -488,6 +462,8 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		this.latestStep = d.latestStep;
 		// Persist the user's drag-pins (a page-wide layout choice) whenever they change: a dragged layout then survives a reload.
 		if (JSON.stringify(d.pins) !== JSON.stringify(this.state.pins)) this.setState({ pins: d.pins });
+		// What the scene draws changed: the DL view maps the axioms it holds onto it.
+		this.mapAxioms();
 		this.requestUpdate();
 	}
 
@@ -535,24 +511,18 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	protected override onGraphData(): void {
 		this.pushSceneModel();
 		this.offerNewScenes();
-		this.scheduleSourceRead();
+		this.scheduleAxiomsRead();
 	}
 
-	/** A cursor move changes what the source states, as a change of the data does. */
+	/** A cursor move changes the axioms of what the graph shows, as a change of the data does. */
 	protected override onTimeCursorPaint(): void {
 		super.onTimeCursorPaint();
-		this.scheduleSourceRead();
+		this.scheduleAxiomsRead();
 	}
 
-	/** The main graph's reader chose a record in a pane or in the scene: the lines that state it light in the source. */
-	protected override onGraphSelection(subject: string | null, label: string | null): void {
-		super.onGraphSelection(subject, label);
-		this.chooseInScene({ nodes: subject === null ? [] : [subject], edges: [] });
-	}
-
-	/** Whether the main graph reads its source, to show it beside the scene. */
-	private get readsSource(): boolean {
-		return !this.usesExternalData && this.state.source;
+	/** Whether the main graph shows its DL view, which reads its axioms. */
+	private get readsAxioms(): boolean {
+		return !this.usesExternalData && this.state.dl;
 	}
 
 	/** What the scene draws, by its ids. */
@@ -574,51 +544,42 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		};
 	}
 
-	/** Reads the source again where the graph reads it, keeping what it shows until the read completes; the lines lit follow
-	 *  the new read. */
-	private readSource(): void {
-		if (!this.readsSource) return;
-		void this.#source.refresh().then(() => this.relight());
+	/** Reads the axioms again where the DL view shows them, keeping what it shows until the read completes, and maps the new
+	 *  read onto the nodes and edges the scene draws. */
+	private readAxioms(): void {
+		if (this.readsAxioms) void this.#axioms.refresh().then(() => this.mapAxioms());
 	}
 
-	/** Reads the source again once per window, for a change of what the graph shows that a stream or a scrub repeats. */
-	private scheduleSourceRead(): void {
-		if (this.readsSource) this.#clock.coalesce(SOURCE_READ, SOURCE_COALESCE_MS, () => this.readSource());
+	/** Reads the axioms again once per window, for a change of what the graph shows that a stream or a scrub repeats. */
+	private scheduleAxiomsRead(): void {
+		if (this.readsAxioms) this.#clock.coalesce(AXIOMS_READ, AXIOMS_COALESCE_MS, () => this.readAxioms());
 	}
 
-	/** The reader chose nodes or an edge in the scene: the lines that state them light in the source, and the reader's line is
-	 *  let go, since the scene shows the reader's choice now. */
-	private chooseInScene(chosen: { nodes: string[]; edges: TDrawnEdge[] }): void {
-		this.#chosen = chosen;
-		this.#line = null;
-		this.relight();
+	/** Maps the axioms read onto the nodes and edges the scene draws, in the DL view; outside it, the scene draws them without. The
+	 *  scene redraws only where the mapping changed, so a redraw's own report of what it draws doesn't redraw it again. */
+	private mapAxioms(): void {
+		const [axioms, scene] = [this.#axioms.page, this.scene];
+		const overlay = this.readsAxioms && axioms !== undefined && scene !== null ? axiomOverlay(this.drawnBy(scene), axioms) : null;
+		if (sameOverlay(overlay, this.#overlay)) return;
+		this.#overlay = overlay;
+		scene?.setAxioms(overlay);
 	}
 
-	/** The reader moved to a line of the source, or let it go: the nodes and edges it states light in the scene, framed, and the
-	 *  rest dims. */
-	private chooseLine = (line: string | null): void => {
-		this.#line = line;
-		this.relight();
-		if (this.#lights !== null) this.scene?.fitGraphTo(this.#lights.nodes);
-	};
-
-	/** The lines that state the reader's choice in the scene, and what the reader's line lights there, read from the source and
-	 *  the scene as they are now. A line the source doesn't hold any longer is let go. */
-	private relight(): void {
-		const axioms = this.#source.page;
-		const scene = this.scene;
-		if (this.#line !== null && !axioms?.frames.some(({ name }) => name === this.#line)) this.#line = null;
-		this.#lit = new Set(axioms === undefined ? [] : linesOfScene(axioms, this.#chosen));
-		const [line, lit] = [this.#line, this.#lights];
-		this.#lights = line === null || axioms === undefined || scene === null ? null : sceneOfLine(axioms, line, this.drawnBy(scene));
-		// The preview is the line's while the reader is on one; a type a reader hovers in the filter previews its own otherwise.
-		if (this.#lights !== null) scene?.setPreview({ subjects: new Set(this.#lights.nodes), edges: new Set(this.#lights.edges) });
-		else if (lit !== null) scene?.setPreview(null);
-		this.requestUpdate();
+	/** Opens the axioms of what the graph shows in a pane of their own, at the frame `line` names, read afresh. This bundle's panes
+	 *  aren't the page's, so the request is an event, as the scene's is. */
+	private async openAxioms(line: string | undefined, addToSelection: boolean): Promise<void> {
+		await this.#axioms.refresh();
+		const axioms = this.#axioms.page;
+		if (axioms === undefined) return;
+		const data: TGraphSourcePane = { ...axioms, ...(line === undefined ? {} : { line }) };
+		const detail: TPaneOpen = PaneOpenSchema.parse({ pane: { paneType: "component", tag: SHU_TAG.GRAPH_SOURCE, label: `axioms (${AXIOMS_FORMAT.label})`, data }, addToSelection });
+		this.dispatchEvent(new CustomEvent(SHU_EVENT.PANE_OPEN, { detail, bubbles: true, composed: true }));
 	}
 
-	/** The reader chose the format the source reads as. */
-	private chooseFormat = (id: string): void => this.setOption({ sourceFormat: sourceFormat(id).id });
+	/** Opens the frame that states what a reader chose in the DL view, as the axioms pane shows it. */
+	private openFrameOf(carried: TCarried | undefined, addToSelection: boolean): void {
+		if (carried !== undefined) void this.openAxioms(carried.frame, addToSelection);
+	}
 
 	/**
 	 * A scene saved anywhere (this view, another column, a step, another session) arrives here as live data, so the
@@ -649,14 +610,15 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	/** ONE path for every layout/view option: the settings element's changes and the head toggles alike: the host holds
 	 *  the (persisted) state and pushes the whole config to the scene. */
 	private setOption(change: Partial<z.infer<typeof PolymorphicStateSchema>>): void {
-		const [read, showed] = [this.readsSource, this.state.source];
+		const read = this.readsAxioms;
 		// A reader who changes an option moves the view away from the scene of its last return.
 		this.removeAttribute(SHU_ATTR.SCENE);
 		this.setState(change);
 		this.configureScene();
-		// A source the graph starts to read is read at once, as is one whose format or prune changes what it states.
-		if (this.readsSource && (!read || "sourceFormat" in change || "prune" in change)) this.readSource();
-		if (showed && !this.state.source) this.chooseLine(null);
+		// The DL view reads its axioms at once as it starts, and again where prune changes what they state; leaving it draws the
+		// scene without them.
+		if (this.readsAxioms && (!read || "prune" in change)) this.readAxioms();
+		if (read && !this.readsAxioms) this.mapAxioms();
 	}
 
 	/** The settings element reports which option the reader touched. */

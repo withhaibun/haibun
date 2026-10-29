@@ -271,13 +271,19 @@ expression in Manchester syntax entails as its members (`modules/logic/src/pipel
 
 GraphSourceStepper's `show axioms of {view}` returns the axioms of what a graph view shows under its filters, its limits
 and its time cursor: an individual frame for each record with its class and facts, a class frame for each type, and a property
-frame for each link relation of its edges, each in Manchester syntax and DL notation. The graph view reads those axioms as
-a source format, which `modules/shu/src/page/graph/domains/sources.ts` declares as data: a step that returns the axioms,
-its label and its file's extension. Its source pane (`modules/shu/src/page/graph/components/shu-graph-source.ts`) shows the
-frames beside the scene, each with its DL notation, the statement and the record behind it on hover, the summary of its kinds,
-a copy and a download of its text, and the arrow keys, Home and End to move through the lines. A line and the scene select each
-other through `modules/shu/src/page/graph/derivations/source-lines.ts`: a line lights and frames the nodes and edges it states,
-and a node or an edge a reader chooses lights the lines that state it.
+frame for each link relation of its edges, each in Manchester syntax and DL notation, beside the view they state
+(`modules/shu/src/domains/graph-view.ts`). A graph view reads those axioms as a source format, which
+`modules/shu/src/page/graph/domains/sources.ts` declares as data: a step that returns the axioms, its label and its file's
+extension. The axioms open in a pane of their own, the component its domain declares
+(`modules/shu/src/page/graph/components/shu-graph-source.ts`), from the graph view's ¶ control or from the step's products:
+each frame with its DL notation, the statement and the record behind it on hover, a link to the record or the class it states,
+the summary of its kinds, a copy and a download of its text, and the arrow keys, Home and End to move through the lines. The
+pane holds the view, so it reads the view again in another format, and the lines that state the record a reader is on light.
+
+The graph view's DL view is one of its view choices: the same scene, nodes and edges, with the axioms mapped onto them
+(`modules/shu/src/page/graph/derivations/axiom-overlay.ts`). A Class record carries its class's axioms, an edge its property's,
+and a record the type it asserts (∈) and the types the ontology entails (⊨ ∈). A node or an edge a reader chooses in it opens the
+frame that states it in the axioms pane.
 
 ## Domains
 

@@ -12,7 +12,7 @@ export type TIndividualFact = { property: string; value: string | number | boole
 
 const WRITTEN_NAME = /^(?:[A-Za-z_][\w.-]*:)?[A-Za-z_][\w.-]*$/;
 const SECTION = "\n    ";
-const BETWEEN_AXIOMS = " · ";
+export const BETWEEN_AXIOMS = " · ";
 const TOP = "⊤";
 
 /** A name as Manchester syntax and DL notation write it. */

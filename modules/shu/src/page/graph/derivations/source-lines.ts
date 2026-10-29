@@ -1,20 +1,15 @@
 /**
- * The lines of a graph's source as the source pane reads them, and the selection that links them to the scene both ways: the
- * line a key moves to, the statement and record behind a line, the summary of the source's kinds, the lines that state the
- * nodes and edges a reader chose in the scene, and the nodes and edges the scene draws that a line states. A line is a frame
- * of the graph's axioms, which names the records and edges it states by the scene's ids.
+ * The lines of a graph's axioms as the axioms pane reads them: the line a key moves to, the statement and record behind a
+ * line, the summary of the source's kinds, what the pane states of the reader's line, and the lines that state the reader's
+ * active records. A line is a frame of the graph's axioms, which names the records and edges it states by the scene's ids.
  */
 import type { TGraphAxioms, TFrame } from "@haibun/core/lib/records/domains/axioms.js";
-import { edgeKey } from "./focus-policy.js";
 
 /** An edge the scene draws: its ends and its predicate, by the scene's ids. */
 export type TDrawnEdge = { from: string; predicate: string; to: string };
 
 /** What a scene draws, by its ids. */
 export type TDrawn = { nodes: readonly string[]; edges: readonly TDrawnEdge[] };
-
-/** The nodes and the edge keys a selection names, by the scene's ids. */
-export type TSceneSelection = { nodes: string[]; edges: string[] };
 
 /** The keys that move a reader through the lines: a step down or up, or to the first or the last. */
 const STEPS: Readonly<Record<string, (at: number, last: number) => number>> = {
@@ -43,28 +38,13 @@ export const summaryOf = (summary: TGraphAxioms["summary"]): string =>
 		.map(([kind, count]) => `${kind} ${count}`)
 		.join(" · ");
 
-/** A count of a noun, which takes an s for any count but one. */
-const counted = (count: number, noun: string): string => `${count} ${noun}${count === 1 ? "" : "s"}`;
-
-/** What the lines state to a reader who isn't looking at the scene: what the reader's line lights there, or how many lines
- *  the reader's choice in the scene lights. */
-export function statusOf(line: string | null, lights: TSceneSelection | null, lit: ReadonlySet<string>): string {
-	if (line !== null && lights !== null) return `${line} lights ${counted(lights.nodes.length, "node")} and ${counted(lights.edges.length, "edge")}`;
-	return lit.size > 0 ? `the selection lights ${counted(lit.size, "line")}` : "";
+/** What the pane states of the reader's line: its axioms, its statement and its record; else how many lines state the
+ *  reader's active record. */
+export function statusOf(line: TFrame | undefined, lit: ReadonlySet<string>): string {
+	if (line !== undefined) return provenanceOf(line);
+	return lit.size === 0 ? "" : `the selection lights ${lit.size} ${lit.size === 1 ? "line" : "lines"}`;
 }
 
-/** The lines that state the nodes and edges a reader chose in the scene. */
-export function linesOfScene({ frames }: TGraphAxioms, chosen: { nodes: readonly string[]; edges: readonly TDrawnEdge[] }): string[] {
-	const [nodes, edges] = [new Set(chosen.nodes), new Set(chosen.edges.map(({ from, predicate, to }) => edgeKey(from, predicate, to)))];
-	return frames
-		.filter((frame) => frame.nodes.some((id) => nodes.has(id)) || frame.edges.some(({ from, label, to }) => edges.has(edgeKey(from, label, to))))
-		.map(({ name }) => name);
-}
-
-/** The nodes and edges the scene draws that a line states, by the scene's ids and its edges' keys. */
-export function sceneOfLine({ frames }: TGraphAxioms, line: string, drawn: TDrawn): TSceneSelection {
-	const frame = frames.find(({ name }) => name === line);
-	if (frame === undefined) throw new Error(`the source doesn't hold the line ${line}, which the reader is on`);
-	const [nodes, edges] = [new Set(frame.nodes), new Set(frame.edges.map(({ from, label, to }) => edgeKey(from, label, to)))];
-	return { nodes: drawn.nodes.filter((id) => nodes.has(id)), edges: drawn.edges.map(({ from, predicate, to }) => edgeKey(from, predicate, to)).filter((key) => edges.has(key)) };
-}
+/** The lines that state the records `nodes` names. */
+export const linesOf = ({ frames }: TGraphAxioms, nodes: readonly string[]): string[] =>
+	frames.filter((frame) => frame.nodes.some((id) => nodes.includes(id))).map(({ name }) => name);

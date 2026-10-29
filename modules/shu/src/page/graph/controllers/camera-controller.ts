@@ -208,16 +208,6 @@ export class CameraController {
 		else this.camera.queueFrame(move);
 	}
 
-	/** Frame the nodes `ids` names that the graph holds and has placed; the camera stays where the graph hasn't placed any of them. */
-	fitNodes(ids: readonly string[]): void {
-		const { nodeMap } = this.deps.world;
-		const positions = ids.flatMap((id) => {
-			const n = nodeMap.get(id);
-			return n !== undefined && isPlaced(n) ? [n] : [];
-		});
-		if (positions.length > 0) this.camera.fitPositions(positions);
-	}
-
 	/** Rotate to a head-on aim: `xy` faces the layout plane, `z` faces the depth axis, so time reads left to right. */
 	rotateTo(aim: "xy" | "z"): void {
 		this.camera.frame(aim === "xy" ? FRAME.front : FRAME.side);

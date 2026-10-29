@@ -23,9 +23,9 @@ import { AUTHORITY_CAPABILITIES } from "@haibun/core/lib/domains/actions.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { visibleGraphModel } from "../page/graph/derivations/scene-data.js";
 import { ontologyToQuads } from "@haibun/core/lib/records/derivations/ontology.js";
-import type { TGraphAxioms } from "@haibun/core/lib/records/domains/axioms.js";
 import { concernCatalogOf } from "@haibun/core/lib/steps/pipelines/discover-steps.js";
 import { graphAxioms } from "../derivations/graph-axioms.js";
+import type { TGraphView, TViewAxioms } from "../domains/graph-view.js";
 import { effectiveHiddenTypes } from "../page/graph/derivations/graph-filter.js";
 
 type TClusters = Awaited<ReturnType<NonNullable<IQuadStore["getClusteredQuads"]>>>["clusters"];
@@ -131,23 +131,11 @@ export async function clusteredQuads(world: TWorld, request: TClusteredRequest):
 	return { ...(await withSchema(world, { quads, clusters: model.snapshot.clusters })), site: activeSitePrincipal(world) };
 }
 
-/** What a graph view shows: the records of each type it reads at a query level, the reader's choice of each type it shows or
- *  hides, the predicates whose edges it hides, whether it prunes the nodes an edge doesn't connect, and the moment its time cursor
- *  stands at where it doesn't show the live edge. */
-export type TGraphView = {
-	perTypeLimit: number;
-	accessLevel: AccessQueryLevel;
-	overrides: Record<string, boolean>;
-	hiddenPredicates: string[];
-	prune: boolean;
-	timeCursor?: number;
-};
-
 /**
  * The axioms of what a graph view shows, in DL notation: a frame for each record it shows, each type and each link relation
  * of its edges. The view hides the types and predicates the reader hid and the types a view hides by default, as the page does.
  */
-export async function graphAxiomsOf(world: TWorld, view: TGraphView): Promise<TGraphAxioms> {
+export async function graphAxiomsOf(world: TWorld, view: TGraphView): Promise<TViewAxioms> {
 	const { quads, clusters } = await clusteredQuads(world, { perTypeLimit: view.perTypeLimit, accessLevel: view.accessLevel });
 	const { timeCursor } = view;
 	const rels = resourceRels(world);
@@ -161,7 +149,7 @@ export async function graphAxiomsOf(world: TWorld, view: TGraphView): Promise<TG
 		if (rel === undefined) throw new Error(`${type} doesn't declare the edge ${edge} that the graph shows. Declare the edge in the type's topology.`);
 		return rel;
 	};
-	return graphAxioms(model, ontologyToQuads(world.domains).quads, relOf);
+	return { ...graphAxioms(model, ontologyToQuads(world.domains).quads, relOf), graphView: view };
 }
 
 /** Whether this instance's merged sample, read at `level`, holds `subject`, and the site it names as serving it. A subject

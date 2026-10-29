@@ -8,7 +8,7 @@ import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import ResourcesStepper from "@haibun/core/steps/resources-stepper.js";
 import type { TStepResult } from "@haibun/core/lib/domains/protocol.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
-import { Access, AccessLevelSchema, FACT_LABEL, LinkRelations, SEQ_PATH_LABEL, commentDomainDefinition } from "@haibun/core/lib/domains/resources.js";
+import { Access, AccessLevelSchema, CLASS_LABEL, FACT_LABEL, LinkRelations, PROPERTY_LABEL, SEQ_PATH_LABEL, commentDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import { RUN_AUTHORITY, runAuthorizedWith } from "@haibun/core/lib/domains/capability-context.js";
 import { FACT_FIELD } from "@haibun/core/lib/records/domains/facts.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
@@ -20,8 +20,8 @@ import { distinctOf } from "@haibun/core/lib/records/derivations/read-records.js
 import { z } from "zod";
 import { callStatedStepFrom } from "@haibun/core/lib/call-step.js";
 import GraphSourceStepper from "./graph-source-stepper.js";
-import type { TGraphView } from "./pipelines/graph-source.js";
-import { GraphAxiomsSchema, type TGraphAxioms } from "@haibun/core/lib/records/domains/axioms.js";
+import { ViewAxiomsProductsSchema, type TGraphView, type TViewAxioms } from "./domains/graph-view.js";
+import { augmentViewHypermedia } from "@haibun/core/lib/steps/derivations/step-hypermedia.js";
 
 function mockQuadStore(overrides: Partial<IQuadStore> = {}): IQuadStore {
 	return {
@@ -193,7 +193,7 @@ describe("the axioms of what a graph view shows", () => {
 		},
 	};
 
-	const axiomsFor = async (view: Pick<TGraphView, "overrides"> & Partial<TGraphView>, quads = QUADS): Promise<TGraphAxioms> => {
+	const axiomsFor = async (view: Pick<TGraphView, "overrides"> & Partial<TGraphView>, quads = QUADS): Promise<TViewAxioms> => {
 		const stepper = new GraphSourceStepper();
 		const world = getDefaultWorld();
 		world.domains = { ...world.domains, ...mapDefinitionsToDomains([EMAIL_TYPE]) };
@@ -204,9 +204,24 @@ describe("the axioms of what a graph view shows", () => {
 			stepper.steps.showAxioms.action({ view: { perTypeLimit: 10, accessLevel: Access.private, hiddenPredicates: [], prune: false, ...view } }),
 		);
 		if (!result.ok) throw new Error(result.errorMessage);
-		return GraphAxiomsSchema.parse(result.products);
+		// The products as a caller receives them, with the markers of the domain that declares the axioms pane.
+		world.domains = { ...world.domains, ...mapDefinitionsToDomains(stepper.cycles.getConcerns?.().domains ?? []) };
+		const answered = augmentViewHypermedia(world, stepper.steps.showAxioms, result, [stepper]);
+		if (!answered.ok) throw new Error(answered.errorMessage);
+		return ViewAxiomsProductsSchema.parse(answered.products);
 	};
 	const named = async (view: Pick<TGraphView, "overrides"> & Partial<TGraphView>): Promise<string[]> => (await axiomsFor(view)).frames.map(({ name }) => name);
+
+	it("states the axioms of a graph that shows the schema: a record's edge to its Class is its class assertion, and the Class record is in its class's frame", async () => {
+		const { frames } = await axiomsFor({ overrides: { [CLASS_LABEL]: true, [PROPERTY_LABEL]: true } });
+		expect(frames.find(({ name }) => name === `Class ${EMAIL}`)?.nodes).toContain(EMAIL);
+		expect(frames.map(({ name }) => name)).not.toContain("ObjectProperty a");
+	});
+
+	it("returns the view its axioms state beside the hypermedia markers of the pane that shows them", async () => {
+		const { graphView } = await axiomsFor({ overrides: { [EMAIL]: true } });
+		expect(graphView.overrides).toEqual({ [EMAIL]: true });
+	});
 
 	it("maps an edge of the shared vocabulary that a type doesn't declare to its relation, as a typed link states it", async () => {
 		const { frames } = await axiomsFor({ overrides: {} }, [...QUADS, quad(A, EMAIL, LinkRelations.AUTHOR.rel, B, EMAIL)]);

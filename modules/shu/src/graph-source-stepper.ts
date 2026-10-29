@@ -27,8 +27,11 @@ import {
 } from "@haibun/core/lib/quad-types.js";
 import { recordWithEdges } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { DOMAIN_RECORD_ID, DOMAIN_LINK, DOMAIN_PRINCIPAL_REF, type TIndividualRef } from "@haibun/core/lib/domains/domains.js";
-import { clusteredQuads, federate, graphAxiomsOf, selectValues, servingSite, type TGraphView } from "./pipelines/graph-source.js";
-import { DOMAIN_GRAPH_AXIOMS, GraphAxiomsSchema } from "@haibun/core/lib/records/domains/axioms.js";
+import { clusteredQuads, federate, graphAxiomsOf, selectValues, servingSite } from "./pipelines/graph-source.js";
+import { DOMAIN_GRAPH_AXIOMS } from "@haibun/core/lib/records/domains/axioms.js";
+import { GraphViewSchema, ViewAxiomsSchema, type TGraphView } from "./domains/graph-view.js";
+import { SHU_TAG } from "./domains/elements.js";
+import { POLYMORPHIC_VIEW_JS } from "./domains/serving.js";
 import { openPeerGraphSource } from "./root.js";
 
 /** The values a filter offers for each field of a type that names one. */
@@ -54,18 +57,6 @@ const ClusteredQuadsSchema = z.object({
 	// The responding instance's site principal: the serving site of every subject for which a cluster doesn't name one.
 	site: z.string().optional(),
 });
-
-/** What a graph view shows, whose axioms `show axioms of {view}` returns: as `TGraphView` states it. */
-const GraphViewSchema = z
-	.object({
-		perTypeLimit: z.number().int(),
-		accessLevel: AccessQueryLevelSchema,
-		overrides: z.record(z.string(), z.boolean()),
-		hiddenPredicates: z.array(z.string()),
-		prune: z.boolean(),
-		timeCursor: z.number().optional(),
-	})
-	.strict() satisfies z.ZodType<TGraphView>;
 
 /** What the graph a page reads returns: core's one shape for each, so a site serving its own store and a page
  *  reading what it holds return the same shape. */
@@ -102,10 +93,13 @@ const GRAPH_SOURCE_DOMAINS: TDomainDefinition[] = [
 	},
 	{
 		selectors: [DOMAIN_GRAPH_AXIOMS],
-		schema: GraphAxiomsSchema,
-		list: listOf(GraphAxiomsSchema, "frames"),
+		schema: ViewAxiomsSchema,
+		list: listOf(ViewAxiomsSchema, "frames"),
+		// The axioms open in a pane of their own, which reads the view they state again in another format. The graph view's
+		// bundle defines the pane, as a graph view opens it.
+		ui: { component: SHU_TAG.GRAPH_SOURCE, js: POLYMORPHIC_VIEW_JS, summary: "Axioms" },
 		description:
-			"The axioms of what a graph shows: a frame for each class, property and individual, in Manchester syntax and DL notation, with the statement and the record behind each",
+			"The axioms of what a graph shows: a frame for each class, property and individual, in Manchester syntax and DL notation, with the statement and the record behind each, beside the view they state",
 	},
 ];
 
@@ -179,7 +173,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			readsAt: Access.public,
 			gwta: `show axioms of {view: ${DOMAIN_GRAPH_VIEW}}`,
 			description:
-				"Returns the axioms of what a graph view shows: an individual frame for each record with its class and facts, a class frame for each type with its superclasses, and a property frame for each link relation with the unions of its domain and range, each in Manchester syntax and DL notation.",
+				"Returns the axioms of what a graph view shows: an individual frame for each record with its class and facts, a class frame for each type with its superclasses, and a property frame for each link relation with the unions of its domain and range, each in Manchester syntax and DL notation, beside the view they state.",
 			productsDomain: DOMAIN_GRAPH_AXIOMS,
 			// The description is the RPC response; keeping it on the event too holds a second copy of it per call.
 			retainProducts: false,

@@ -16,6 +16,8 @@ const PAGE = "the page";
 /** The document column, quoted as a literal container. */
 const DOCUMENT = `"${SHU_TAG.DOCUMENT_COLUMN}"`;
 const GRAPH = SHU_TEST_IDS.POLYMORPHIC_VIEW;
+/** The axioms pane's lines, in the pane of their own. */
+const AXIOM_LINES = `${PANE}[data-column-key*="${SHU_TAG.GRAPH_SOURCE}"] ${testId(SHU_TEST_IDS.GRAPH_SOURCE.LINES)}`;
 /** The graph's reading, and each entry of it, which names the node it opens. */
 const READING = testId(GRAPH.A11Y);
 const ENTRY = `${READING} ol > li > [data-node-id="{id}"]`;
@@ -101,8 +103,11 @@ export const views = {
 	graphChipIsntTicked: (view: string, name: string) => `chip ${name} of graph ${view} isn't ticked`,
 	pointAtGraphChip: (view: string, name: string) => `point at chip ${name} of graph ${view}`,
 	pointAtGraphHead: (view: string) => `point at the head of graph ${view}`,
-	graphShowsAxioms: (view: string) => `graph ${view} shows its axioms beside the scene`,
-	sourceLineLights: (view: string, line: string) => `line ${line} of the source of graph ${view} lights what it states`,
+	openGraphAxioms: (view: string) => `open the axioms of graph ${view} in a pane of their own`,
+	axiomsPaneIsOn: (line: string) => `the axioms pane is on line ${line}`,
+	showGraphDL: (view: string) => `show the DL view of graph ${view}`,
+	putAwayGraphDL: (view: string) => `put away the DL view of graph ${view}`,
+	graphNodeCarries: (view: string, id: string, axiom: string) => `node ${id} of graph ${view} carries ${axiom}`,
 	enterInStepInput: (statement: string) => `enter ${statement} in the actions bar's step input`,
 	runLastStepForm: () => "run the last step form in the actions bar",
 };
@@ -198,19 +203,19 @@ export const backgrounds: TKirejiExport = {
 		"The query lists each individual it matches as a row that carries the individual's type and id.",
 		...within("Read a listed individual", PAGE, `[data-persisted-as="{type}"][data-individual-id="{id}"]`, "wait for", views.queryLists("{type}", "{id}")),
 
-		"A graph view reads the axioms of what it shows beside the scene, in Manchester syntax with their DL notation, a frame of Manchester syntax for each class, property and record, through the step that describes the graph on the server.",
-		"Activity: Read a graph's axioms beside the scene",
-		`in {view}, click "${GRAPH.SOURCE}" by test id`,
-		`compose ${TARGET} as page-locator with ${testId(GRAPH.SOURCE_LINES)} [role="option"] >> nth=0`,
-		`in {view}, wait for ${TARGET}`,
-		`waypoint ${views.graphShowsAxioms(VIEW)}`,
-		"A line of the source lights the nodes and edges it states in the scene and frames them, and states what it lights to a reader who isn't looking at the scene.",
-		"Activity: Press a line of a graph's source",
-		`compose ${TARGET} as page-locator with ${testId(GRAPH.SOURCE_LINES)} [data-name="{line}"]`,
-		`in {view}, click ${TARGET}`,
-		`compose ${TARGET} as page-locator with [role="status"]:text-matches("^{line} lights [1-9]")`,
-		`in {view}, wait for ${TARGET}`,
-		`waypoint ${views.sourceLineLights(VIEW, "{line}")}`,
+		"A graph view opens the axioms of what it shows in a pane of their own, in Manchester syntax with their DL notation, a frame for each class, property and record, through the step that describes the graph on the server. The graph view stays whole beside it.",
+		"Activity: Open a graph's axioms in a pane",
+		`in {view}, click "${GRAPH.AXIOMS}" by test id`,
+		`compose ${TARGET} as page-locator with ${AXIOM_LINES} [role="option"] >> nth=0`,
+		`wait for ${TARGET}`,
+		`compose ${TARGET} as page-locator with ${SHU_TAG.GRAPH_SOURCE}`,
+		`in {view}, wait until ${TARGET} is gone`,
+		`waypoint ${views.openGraphAxioms(VIEW)}`,
+		...within("Read the axioms pane's line", PAGE, `${AXIOM_LINES} [data-name="{line}"][aria-selected="true"]`, "wait for", views.axiomsPaneIsOn("{line}")),
+		"A graph view's DL view draws the same nodes and edges with the axioms the ontology states of them: a class its superclasses, an edge its property's domain and range, and a record the type it asserts (∈) and the types the ontology entails (⊨ ∈). A node or an edge a reader chooses in it opens the frame that states it in the axioms pane.",
+		...toggled("Show a graph's DL view", testId(GRAPH.DL), false, views.showGraphDL(VIEW)),
+		...toggled("Put a graph's DL view away", testId(GRAPH.DL), true, views.putAwayGraphDL(VIEW)),
+		...within("Read a node's axiom", "{view}", `${ENTRY}:has-text("{axiom}")`, "wait for", views.graphNodeCarries(VIEW, "{id}", "{axiom}")),
 
 		"A graph view reads its graph as a document beside the picture: an entry for each node it draws, which names the node as its chip reads, opens it, and states the node active, dimmed or pinned as the picture shows it, the title of each box it draws around a group, and each lifeline a view built on actors draws. The document is busy while what the graph shows still changes.",
 		...within("Read a node of a graph", "{view}", ENTRY, "wait for", views.graphListsNode(VIEW, "{id}")),

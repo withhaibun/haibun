@@ -8,19 +8,17 @@ import { linkEndId, type FGLink } from "../domains/graph-types.js";
 
 export type FocusState = "full" | "dimmed" | "resting";
 
-/** What a preview lights: every node of a type, or a set of nodes with the edges between them, or with the edges it names by
- *  their keys (linkKey). */
-export type TGraphPreview = { type: string } | { subjects: ReadonlySet<string>; edges?: ReadonlySet<string> };
+/** What a preview lights: every node of a type, or a set of nodes, with the edges between them. */
+export type TGraphPreview = { type: string } | { subjects: ReadonlySet<string> };
 
-/** The key of an edge by its ends and its label. A selection, a source's line and a preview name an edge by its key. */
+/** The key of an edge by its ends and its label. A selection and the DL view name an edge by its key. */
 export const edgeKey = (from: string, label: string, to: string): string => JSON.stringify([from, label, to]);
 
 /** The key of a link, by its ends and its predicate, which names an edge as a selection names it. */
 export const linkKey = (l: FGLink): string => edgeKey(linkEndId(l.source), l.predicate, linkEndId(l.target));
 
-/** Whether a preview lights a link: the link it names, or a link between two nodes it lights where it doesn't name links. */
-export const previewLightsLink = (preview: TGraphPreview, l: FGLink, lit: (id: string) => boolean): boolean =>
-	"subjects" in preview && preview.edges !== undefined ? preview.edges.has(linkKey(l)) : lit(linkEndId(l.source)) && lit(linkEndId(l.target));
+/** Whether a preview lights a link: a link between two nodes it lights. */
+export const previewLightsLink = (preview: TGraphPreview, l: FGLink, lit: (id: string) => boolean): boolean => lit(linkEndId(l.source)) && lit(linkEndId(l.target));
 
 /** Whether a preview lights a node. */
 export const previewLights = (preview: TGraphPreview, node: { id: string; type: string }): boolean =>
