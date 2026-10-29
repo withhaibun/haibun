@@ -12,6 +12,7 @@ import type { TIndividualAddress } from "@haibun/core/lib/domains/typed-links.js
 import { ancestorsWith, ontologyToQuads } from "@haibun/core/lib/records/derivations/ontology.js";
 import { iriIn, ontologyOwl } from "@haibun/core/lib/records/derivations/owl.js";
 import { ONTOLOGY_FIELD } from "@haibun/core/lib/records/domains/ontology.js";
+import { DL_SYMBOL, type TClaimWitness } from "@haibun/core/lib/records/domains/axioms.js";
 import { QUERY_NAMESPACE, REASONING_READ_CEILING } from "../domains/reasoning.js";
 import { DataFactory } from "n3";
 import {
@@ -159,8 +160,8 @@ export async function entailedMembers(
 /** The individual that stands for any member of an expression in a subsumption. */
 const FROZEN = DataFactory.namedNode(`${QUERY_NAMESPACE}member`);
 
-/** Returns why the ontology doesn't entail that every member of `sub` is a member of `sup`, with the entailed members of
- *  `sub` that `sup` doesn't hold as the witness, or undefined where it entails it. */
+/** Returns why the ontology doesn't entail that every member of `sub` is a member of `sup`, and its witness as data: the
+ *  subsumption that doesn't hold and the entailed members of `sub` that `sup` doesn't hold. Undefined where it entails it. */
 export async function subsumptionRefusal(
 	reasoner: TReasoner,
 	store: IQuadStore,
@@ -168,15 +169,18 @@ export async function subsumptionRefusal(
 	records: TRecordNamespace,
 	sub: string,
 	sup: string,
-): Promise<string | undefined> {
+): Promise<{ refusal: string; witness: TClaimWitness } | undefined> {
 	if (await subsumes(reasoner, store, domains, records, sub, sup)) return undefined;
 	const basis = queryBasis(domains);
-	const subsumption = `${dlOf(checkedExpression(sub, basis))} ⊑ ${dlOf(checkedExpression(sup, basis))}`;
-	const addressed = async (text: string) => (await entailedMembers(reasoner, store, domains, records, text)).members.map(({ persistedAs, id }) => `${persistedAs}:${id}`);
-	const held = new Set(await addressed(sup));
-	const witness = (await addressed(sub)).filter((address) => !held.has(address));
-	const exceeding = witness.length === 0 ? "the records don't hold a member that exceeds it" : `the witness that exceeds it is ${witness.join(", ")}`;
-	return `${subsumption} isn't entailed by the ontology, and ${exceeding}. State the subsumption in the ontology, or narrow the first expression.`;
+	const subsumption = `${dlOf(checkedExpression(sub, basis))} ${DL_SYMBOL.subsumedBy} ${dlOf(checkedExpression(sup, basis))}`;
+	const addressOf = ({ persistedAs, id }: TIndividualAddress): string => `${persistedAs}:${id}`;
+	const held = new Set((await entailedMembers(reasoner, store, domains, records, sup)).members.map(addressOf));
+	const members = (await entailedMembers(reasoner, store, domains, records, sub)).members.filter((member) => !held.has(addressOf(member)));
+	const exceeding = members.length === 0 ? "the records don't hold a member that exceeds it" : `the witness that exceeds it is ${members.map(addressOf).join(", ")}`;
+	return {
+		refusal: `${subsumption} isn't entailed by the ontology, and ${exceeding}. State the subsumption in the ontology, or narrow the first expression.`,
+		witness: { subsumption, sub, sup, members },
+	};
 }
 
 /** Returns whether the ontology entails that every member of `sub` is a member of `sup`. */

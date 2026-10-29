@@ -110,10 +110,6 @@ const WaypointEntrySchema = z
 	.strict();
 export type TWaypointEntry = z.infer<typeof WaypointEntrySchema>;
 
-/** Whether an event is a step's end, after which the facts the affordances read can differ. A read isn't recorded as
- *  actuality's step, so a view's read of the affordances doesn't end a step. */
-export const isStepEnd = (event: { kind?: unknown; type?: unknown; stage?: unknown }): boolean => event.kind === "lifecycle" && event.type === "step" && event.stage === "end";
-
 /** A stepper that contributes waypoint entries to the affordances. */
 export interface ProvidesWaypoints {
 	waypointEntries(featureStep: TFeatureStep): Promise<TWaypointEntry[]>;

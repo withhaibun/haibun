@@ -1,20 +1,23 @@
 /**
  * The graph's DL view: the axioms of what the graph shows, mapped onto the same nodes and edges the scene draws. An individual
  * carries the type its record asserts (∈) and the types the ontology entails (⊨ ∈), a Class record carries its class's axioms,
- * and an edge carries its property's. A node or an edge the scene doesn't draw doesn't carry an axiom.
+ * and an edge carries its property's. A refused claim's witness marks in place the records that exceed its subsumption (∉) and
+ * the class it names (⋢). A node or an edge the scene doesn't draw doesn't carry an axiom.
  */
-import { DL_SYMBOL, FRAME_KIND, type TGraphAxioms } from "@haibun/core/lib/records/domains/axioms.js";
+import { DL_SYMBOL, FRAME_KIND, type TClaimWitness, type TGraphAxioms } from "@haibun/core/lib/records/domains/axioms.js";
 import { BETWEEN_AXIOMS } from "@haibun/core/lib/records/derivations/axioms.js";
 import { edgeKey } from "./focus-policy.js";
 import type { TDrawn } from "./source-lines.js";
 
 /** The axioms a node or an edge carries, and the frame of the source that states them. */
 export type TCarried = { lines: string[]; frame: string };
-/** The axioms each node and each edge of a graph carries, by node id and by edge key. */
-export type TAxiomOverlay = { nodes: ReadonlyMap<string, TCarried>; edges: ReadonlyMap<string, TCarried> };
+/** The axioms each node and each edge of a graph carries, by node id and by edge key, and the nodes a refused claim's witness
+ *  names, which the scene lights. */
+export type TAxiomOverlay = { nodes: ReadonlyMap<string, TCarried>; edges: ReadonlyMap<string, TCarried>; witnessed: ReadonlySet<string> };
 
-/** Returns the axioms `axioms` states for each node and edge the scene draws, keyed by the scene's ids and edge keys. */
-export function axiomOverlay(drawn: TDrawn, axioms: TGraphAxioms): TAxiomOverlay {
+/** Returns the axioms `axioms` states for each node and edge the scene draws, keyed by the scene's ids and edge keys, with the
+ *  marks of a refused claim's `witness` where there is one. */
+export function axiomOverlay(drawn: TDrawn, axioms: TGraphAxioms, witness: TClaimWitness | undefined): TAxiomOverlay {
 	const drawnNodes = new Set(drawn.nodes);
 	const drawnEdges = new Set(drawn.edges.map(({ from, predicate, to }) => edgeKey(from, predicate, to)));
 	const nodes = new Map<string, TCarried>();
@@ -39,7 +42,17 @@ export function axiomOverlay(drawn: TDrawn, axioms: TGraphAxioms): TAxiomOverlay
 				if (drawnEdges.has(key)) carry(edges, key, frame.dl.split(BETWEEN_AXIOMS), frame.name);
 			}
 	}
-	return { nodes, edges };
+	const witnessed = new Set<string>();
+	const mark = (id: string, line: string, kind: string): void => {
+		if (!drawnNodes.has(id)) return;
+		carry(nodes, id, [line], `${kind} ${id}`);
+		witnessed.add(id);
+	};
+	if (witness !== undefined) {
+		for (const { id } of witness.members) mark(id, `${DL_SYMBOL.notMember} ${witness.sup}`, FRAME_KIND.individual);
+		mark(witness.sub, `${witness.sub} ${DL_SYMBOL.notSubsumedBy} ${witness.sup}`, FRAME_KIND.class);
+	}
+	return { nodes, edges, witnessed };
 }
 
 /** A chip's or an edge's text with the axioms it carries, a line each under it. */
@@ -47,6 +60,6 @@ export const withAxioms = (text: string, carried: TCarried | undefined): string 
 
 /** Whether two overlays carry the same axioms on the same nodes and edges, so a scene that already draws one isn't redrawn. */
 export const sameOverlay = (a: TAxiomOverlay | null, b: TAxiomOverlay | null): boolean => {
-	const key = (overlay: TAxiomOverlay | null): string => (overlay === null ? "" : JSON.stringify([[...overlay.nodes], [...overlay.edges]]));
+	const key = (overlay: TAxiomOverlay | null): string => (overlay === null ? "" : JSON.stringify([[...overlay.nodes], [...overlay.edges], [...overlay.witnessed]]));
 	return key(a) === key(b);
 };

@@ -257,11 +257,11 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			readsAt: Access.public,
 			gwta: `every {sub: ${DOMAIN_CLASS_EXPRESSION}} is a {sup: ${DOMAIN_CLASS_EXPRESSION}}`,
 			description:
-				"Holds where the ontology entails that every member of the first class expression is a member of the second. Fails closed otherwise, with the entailed members of the first that the second doesn't hold as the witness.",
+				"Holds where the ontology entails that every member of the first class expression is a member of the second. Fails closed otherwise, and its products hold the witness as data: the subsumption that doesn't hold and the entailed members of the first that the second doesn't hold.",
 			action: async ({ sub, sup }: { sub: string; sup: string }) => {
 				const world = this.getWorld();
-				const refusal = await subsumptionRefusal(reasoner(), world.shared.getStore(), world.domains, world.runtime.records, sub, sup);
-				return refusal === undefined ? actionOK() : actionUnknown(refusal);
+				const refused = await subsumptionRefusal(reasoner(), world.shared.getStore(), world.domains, world.runtime.records, sub, sup);
+				return refused === undefined ? actionOK() : { ...actionUnknown(refused.refusal), products: { witness: refused.witness } };
 			},
 		},
 		someOf: {

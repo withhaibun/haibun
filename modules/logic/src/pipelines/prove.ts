@@ -5,6 +5,8 @@
  * and closing of a node's record, a read of facts, a waypoint's rule, and a wait of until. A built-in runs once for its
  * position in the proof, which fixes its step, its arguments and the capability it runs under.
  */
+import { z } from "zod";
+import { ClaimWitnessSchema } from "@haibun/core/lib/records/domains/axioms.js";
 import type { DispatchContext } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
 import { dispatchStep, nextSeqPath, runAsDispatched } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
@@ -466,10 +468,20 @@ export async function proved(engine: TLogicEngine, term: string, perform: (need:
 	}
 }
 
-/** Why a statement didn't hold: its failing step's error text and seqPath, and the action the gate refused it for, where it did. */
+/** Why a statement didn't hold: its failing step's error text and seqPath, the action the gate refused it for, where it did, and
+ *  the witness a refused claim's products hold, where they hold one. */
 function refusalOf(failed: TStepResult & { ok: false }): TRefusal {
-	return { refusal: failed.errorMessage, seqPath: formatSeqPath(failed.seqPath), ...(failed.remedy?.do === "request" ? { lacksAction: failed.remedy.action } : {}) };
+	const witness = WitnessProductsSchema.safeParse(failed.products).data?.witness;
+	return {
+		refusal: failed.errorMessage,
+		seqPath: formatSeqPath(failed.seqPath),
+		...(failed.remedy?.do === "request" ? { lacksAction: failed.remedy.action } : {}),
+		...(witness === undefined ? {} : { witness }),
+	};
 }
+
+/** The products of a refused claim of subsumption, which hold its witness. */
+const WitnessProductsSchema = z.object({ witness: ClaimWitnessSchema });
 
 /** The prover of an engine, which proves a permission's containment through the reasoner. */
 export function proverOf(engine: TLogicEngine, reasoner: TReasoner): TProver {

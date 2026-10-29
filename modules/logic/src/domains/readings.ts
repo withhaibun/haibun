@@ -3,6 +3,7 @@
  * alternatives, and the parameters that state statements, in the order the step's phrase names them.
  */
 import { z } from "zod";
+import { ClaimWitnessSchema } from "@haibun/core/lib/records/domains/axioms.js";
 import { DOMAIN_STATEMENT } from "@haibun/core/lib/domains/domains.js";
 import type { TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import type { TStepperStep } from "@haibun/core/lib/steps/domains/stepper.js";
@@ -20,11 +21,13 @@ export const DOMAIN_STATUS = "status";
 /** Why the statement `not` holds over didn't hold, which `not` returns: its failing step's error text and seqPath. */
 export const DOMAIN_REFUSAL = "refusal";
 
-/** Why a statement didn't hold: its failing step's error text, that step's seqPath, and the action a refused call lacked. */
+/** Why a statement didn't hold: its failing step's error text, that step's seqPath, the action a refused call lacked, and a
+ *  refused claim's witness. */
 const RefusalSchema = z.object({
 	refusal: z.string(),
 	seqPath: z.string(),
 	lacksAction: z.string().optional().describe("The action the refused call lacked, where the gate refused it for an action its caller doesn't hold"),
+	witness: ClaimWitnessSchema.optional().describe("The subsumption a refused claim names and the records that exceed it, where a claim of subsumption didn't hold"),
 });
 export type TRefusal = z.infer<typeof RefusalSchema>;
 

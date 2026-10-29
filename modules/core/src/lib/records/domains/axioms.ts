@@ -4,10 +4,16 @@
  * statement behind it, the record that asserted it, and the nodes and edges of the graph it states.
  */
 import { z } from "zod";
+import { IndividualAddressSchema } from "../../domains/typed-links.js";
 
-/** The symbols of DL notation the axioms write, which a graph's labels draw: subsumption, the existential and universal
- *  restrictions, union, intersection, the top class, membership and entailment. */
-export const DL_SYMBOL = { subsumedBy: "⊑", some: "∃", all: "∀", union: "⊔", intersection: "⊓", top: "⊤", member: "∈", entails: "⊨" } as const;
+/** The symbols of DL notation the axioms and a claim's witness write, which a graph's labels draw: subsumption and its failure,
+ *  the existential and universal restrictions, union, intersection, the top class, membership and its failure, and entailment. */
+export const DL_SYMBOL = { subsumedBy: "⊑", notSubsumedBy: "⋢", some: "∃", all: "∀", union: "⊔", intersection: "⊓", top: "⊤", member: "∈", notMember: "∉", entails: "⊨" } as const;
+
+/** What a claim of subsumption the records don't prove names as its witness: the subsumption in DL notation, the narrower and
+ *  the wider class expression as the claim writes them, and the records the narrower holds and the wider doesn't. */
+export const ClaimWitnessSchema = z.object({ subsumption: z.string(), sub: z.string(), sup: z.string(), members: z.array(IndividualAddressSchema) }).strict();
+export type TClaimWitness = z.infer<typeof ClaimWitnessSchema>;
 
 /** The kinds of frame, as Manchester syntax names them. */
 export const FRAME_KIND = { class: "Class", property: "ObjectProperty", individual: "Individual" } as const;

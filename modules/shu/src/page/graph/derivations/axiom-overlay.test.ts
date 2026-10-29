@@ -37,13 +37,13 @@ const AXIOMS: TGraphAxioms = {
 
 describe("the graph's DL view", () => {
 	it("maps the axioms onto the nodes and edges the scene draws, by the same ids, and leaves out what it doesn't draw", () => {
-		const overlay = axiomOverlay(DRAWN, AXIOMS);
+		const overlay = axiomOverlay(DRAWN, AXIOMS, undefined);
 		expect([...overlay.nodes.keys()].sort()).toEqual([...DRAWN.nodes].sort());
 		expect([...overlay.edges.keys()]).toEqual(DRAWN.edges.map(({ from, predicate, to }) => edgeKey(from, predicate, to)));
 	});
 
 	it("marks the types the ontology entails of an individual apart from the type its record asserts, and carries each frame's axioms", () => {
-		const overlay = axiomOverlay(DRAWN, AXIOMS);
+		const overlay = axiomOverlay(DRAWN, AXIOMS, undefined);
 		expect(overlay.nodes.get("e1")).toEqual({ lines: ["∈ Email", "⊨ ∈ prov:Entity"], frame: "Individual e1" });
 		expect(overlay.nodes.get("Email")).toEqual({ lines: ["Email ⊑ prov:Entity"], frame: "Class Email" });
 		expect(overlay.edges.get(edgeKey("e1", "type", "Email"))).toEqual({ lines: ["∃type.⊤ ⊑ Email", "⊤ ⊑ ∀type.Class"], frame: "ObjectProperty type" });
@@ -67,11 +67,31 @@ describe("the DL view of a graph", () => {
 		const overlay = axiomOverlay(
 			drawn,
 			graphAxioms(MODEL, ONTOLOGY, (_type, edge) => edge),
+			undefined,
 		);
 		expect([...overlay.nodes.keys()].sort()).toEqual([...drawn.nodes].sort());
 		expect([...overlay.edges.keys()]).toEqual(drawn.edges.map(({ from, predicate, to }) => edgeKey(from, predicate, to)));
 		expect(overlay.nodes.get("Email")?.lines, "a Class record carries its class's ⊑ axiom and its own type").toEqual(["Email ⊑ prov:Entity", "∈ Class"]);
 		expect(overlay.nodes.get("m1")?.lines, "an individual carries its asserted type and its entailed one").toEqual(["∈ Email", "⊨ ∈ prov:Entity"]);
+	});
+});
+
+describe("a refused claim's witness in the DL view", () => {
+	it("marks in place the records that exceed the subsumption and the class it names, and lights them", () => {
+		const witness = {
+			subsumption: "Email ⊑ Person",
+			sub: "Email",
+			sup: "Person",
+			members: [
+				{ persistedAs: "Email", id: "e1" },
+				{ persistedAs: "Email", id: "e9" },
+			],
+		};
+		const overlay = axiomOverlay(DRAWN, AXIOMS, witness);
+		expect(overlay.nodes.get("e1")?.lines).toContain("∉ Person");
+		expect(overlay.nodes.get("Email")?.lines).toContain("Email ⋢ Person");
+		expect([...overlay.witnessed].sort(), "a member the scene doesn't draw isn't lit").toEqual(["Email", "e1"]);
+		expect(axiomOverlay(DRAWN, AXIOMS, undefined).witnessed.size).toBe(0);
 	});
 });
 
@@ -84,9 +104,9 @@ describe("a chip's text in the DL view", () => {
 
 describe("whether the scene redraws an overlay", () => {
 	it("holds two overlays of the same axioms on the same nodes and edges the same, and any change of them different", () => {
-		expect(sameOverlay(axiomOverlay(DRAWN, AXIOMS), axiomOverlay(DRAWN, AXIOMS))).toBe(true);
+		expect(sameOverlay(axiomOverlay(DRAWN, AXIOMS, undefined), axiomOverlay(DRAWN, AXIOMS, undefined))).toBe(true);
 		expect(sameOverlay(null, null)).toBe(true);
-		expect(sameOverlay(axiomOverlay(DRAWN, AXIOMS), null)).toBe(false);
-		expect(sameOverlay(axiomOverlay(DRAWN, AXIOMS), axiomOverlay({ ...DRAWN, nodes: ["e1"] }, AXIOMS))).toBe(false);
+		expect(sameOverlay(axiomOverlay(DRAWN, AXIOMS, undefined), null)).toBe(false);
+		expect(sameOverlay(axiomOverlay(DRAWN, AXIOMS, undefined), axiomOverlay({ ...DRAWN, nodes: ["e1"] }, AXIOMS, undefined))).toBe(false);
 	});
 });

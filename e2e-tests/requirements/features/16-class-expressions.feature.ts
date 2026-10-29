@@ -21,6 +21,9 @@ export const features: TKirejiExport = {
 		"every SeqPath and isPartOf some SeqPath is a SeqPath",
 		"set comments from maybe every SeqPath is a Comment",
 		'variable comments.verdict is "unknown"',
+		"The refusal holds its witness as data: the subsumption that doesn't hold, and the steps the comments don't hold.",
+		'variable comments.witness.subsumption is "SeqPath ⊑ Comment"',
+		'variable comments.witness.members.0.persistedAs is "SeqPath"',
 
 		scenario({ scenario: "An existence holds where the records entail a member" }),
 		"Essential, for the open world. Source: logic-stepper.ts, someOf.",

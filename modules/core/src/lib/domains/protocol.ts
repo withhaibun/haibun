@@ -363,6 +363,10 @@ export type THypermediaProducts = {
 	[key: string]: unknown;
 };
 
+/** Whether an event is a step's end, after which the facts a view reads can differ. A read isn't recorded as
+ *  actuality's step, so a view's read doesn't end a step. */
+export const isStepEnd = (event: { kind?: unknown; type?: unknown; stage?: unknown }): boolean => event.kind === "lifecycle" && event.type === "step" && event.stage === "end";
+
 /**
  * How the logic engine ended a goal, with its EARL outcome where EARL states one: proved (earl:passed), refuted by what a
  * step returned or a stated falsity (earl:failed), unknown where a step doesn't prove or refute it (earl:cantTell), and a

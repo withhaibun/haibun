@@ -14,7 +14,6 @@ import { affordancesOnOffer } from "../controllers/read-controller.js";
 import { LoadController } from "../controllers/load-controller.js";
 import { loadRenders } from "./load-renders.js";
 import {
-	isStepEnd,
 	LintFindingSchema,
 	type TLintFinding,
 	type TAffordances as TOffered,
@@ -24,7 +23,7 @@ import {
 	type TPlan,
 	type TWaypointEntry,
 } from "@haibun/core/lib/domains/goal-resolution.js";
-import { VERDICT } from "@haibun/core/lib/domains/protocol.js";
+import { VERDICT, isStepEnd } from "@haibun/core/lib/domains/protocol.js";
 import { isPrimitiveDomain, type TDomainKey } from "@haibun/core/lib/domains/domains.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { SHU_EVENT, AFFORDANCE_PARAM, SHU_TAG } from "../../domains/elements.js";

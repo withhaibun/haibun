@@ -24,10 +24,16 @@ function countsText(c: GraphSceneChangedDetail["counts"], prune: boolean): strin
 }
 
 const POLYMORPHIC_IDS = SHU_TEST_IDS.POLYMORPHIC_VIEW;
+/** A step's end whose products hold a refused claim's witness: the claim's own, and those of `didn't` and `maybe` over it. */
+const WitnessCarrierSchema = z.object({ products: z.object({ witness: ClaimWitnessSchema }) });
+const carriesWitness = (event: TEvent): boolean => isStepEnd(event) && WitnessCarrierSchema.safeParse(event).success;
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { VIEW, VIEW_TYPES } from "../domains/views.js";
 import type { TPolymorphicOptionChange } from "./shu-polymorphic-settings.js";
 import { ViewAxiomsProductsSchema, type TGraphView, type TViewAxioms } from "../../../domains/graph-view.js";
+import { ClaimWitnessSchema, type TClaimWitness } from "@haibun/core/lib/records/domains/axioms.js";
+import { isStepEnd } from "@haibun/core/lib/domains/protocol.js";
+import type { TEvent } from "../../ports.js";
 import { LoadController } from "../../controllers/load-controller.js";
 import { callStep } from "../../controllers/read-controller.js";
 import { appAccessLevel } from "../../controllers/view-query-controller.js";
@@ -151,6 +157,8 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	});
 	/** The axioms the DL view maps onto the nodes and edges the scene draws; null outside the DL view. */
 	#overlay: TAxiomOverlay | null = null;
+	/** The witness of the latest claim a step end refused, which the DL view marks in place. */
+	#witness: TClaimWitness | undefined = undefined;
 	/** The saved scenes offered in the settings, fetched by this host (the settings element doesn't call an RPC of its own). */
 	private sceneNames: string[] = [];
 	/** What went wrong with the last scene a reader asked to save or return to, shown beside the controls; null when the last one succeeded. */
@@ -426,6 +434,8 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		this.configureScene();
 		// In the DL view a node or an edge a reader chooses opens the frame that states its axioms in the axioms pane.
 		this.autoListen(this, GRAPH_SCENE_EVENT.EDGE_CHOSEN, ((e: CustomEvent<{ key: string }>) => this.openFrameOf(this.#overlay?.edges.get(e.detail.key), false)) as EventListener);
+		// A claim a step refuses names its witness in its products, and in the products of `didn't` and `maybe` over it.
+		if (!this.usesExternalData) this.autoTeardown(this.subscribeBatched({ onBatch: (events) => this.noteWitness(events), filter: carriesWitness }));
 		if (!this.usesExternalData)
 			this.autoListen(this, SHU_EVENT.PANE_OPEN, ((e: CustomEvent<TPaneOpen>) => {
 				const { pane } = e.detail;
@@ -559,10 +569,20 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	 *  scene redraws only where the mapping changed, so a redraw's own report of what it draws doesn't redraw it again. */
 	private mapAxioms(): void {
 		const [axioms, scene] = [this.#axioms.page, this.scene];
-		const overlay = this.readsAxioms && axioms !== undefined && scene !== null ? axiomOverlay(this.drawnBy(scene), axioms) : null;
+		const overlay = this.readsAxioms && axioms !== undefined && scene !== null ? axiomOverlay(this.drawnBy(scene), axioms, this.#witness) : null;
 		if (sameOverlay(overlay, this.#overlay)) return;
 		this.#overlay = overlay;
 		scene?.setAxioms(overlay);
+		// A refused claim's witness lights in place: its records and its class, with the rest dimmed, as a preview lights its nodes.
+		if (overlay !== null && overlay.witnessed.size > 0) scene?.setPreview({ subjects: overlay.witnessed });
+	}
+
+	/** Holds the witness of the latest claim a step end refused, which the DL view marks in place. */
+	private noteWitness(events: TEvent[]): void {
+		const carrier = WitnessCarrierSchema.safeParse(events.at(-1));
+		if (!carrier.success) return;
+		this.#witness = carrier.data.products.witness;
+		this.mapAxioms();
 	}
 
 	/** Opens the axioms of what the graph shows in a pane of their own, at the frame `line` names, read afresh. This bundle's panes
