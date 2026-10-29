@@ -29,7 +29,7 @@ const COLLIDE_STRENGTH = 0.9;
 export const ALPHA_DECAY = 0.06;
 export const VELOCITY_DECAY = 0.5;
 /** Text and strokes on a node chip, dark on the light type-colour fill, shared with the SVG still so the two media cannot drift. */
-export const NODE_TEXT_COLOR = "#1a1a1a";
+export const NODE_TEXT_COLOR = "#000000";
 
 export type LayoutNode = { name: string; isCluster?: boolean };
 
