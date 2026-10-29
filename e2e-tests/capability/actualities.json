@@ -5,11 +5,11 @@
 			"actuality": {
 				"text": "e2e-tests/capability, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
 				"status": "passed",
-				"tookMs": 600,
+				"tookMs": 700,
 				"digest": {
 					"e2e-tests/capability": "f60a467b1916bade9b199593dc655ac9b6694b0c489cd1975c9c83bf14918d77",
 					"e2e-tests/src": "5b34e8c21088b4dee95e0ae578eb3ee0dace862b62cc83e755cb7f34fb28f804",
-					"modules/cli/src": "b63215ce2af7820bb66e5e42da9bb75189724b99cac21bd99c6224a514b60544",
+					"modules/cli/src": "6982d49c1946c455c96be0323e76bae18edb4d9065a2b1d4013e2c9a711a434f",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
 					"modules/core/src": "cd2d2e44a2804d0ec4438c99ee37171f467baaa918be0163e327b7bd42ae0102",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
@@ -18,7 +18,7 @@
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/out-junit/src": "22d1ca5d4f4449cae6186ff8d84c1f0b182e7591e1ffda9520a38daa3e8681d2",
 					"modules/recorder/src": "4483bd44ae0de4ad4e504b6b398a05042484a83df837a6cfa085869c7e69332d",
-					"modules/shu/src": "9433f477e09db86c5b3cb828555b83e1b55680c4eeb9c5ec2a4d2345b1a2fd6e",
+					"modules/shu/src": "75469862820c6e7a78c055b971bd0c716bab28e49c8921b06c34d029ac1c2c35",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/utils/src": "9799d114ca397313863bfc29604199b02bc9daf1a4bfa26675dbfe7cfc30e36c",
@@ -32,7 +32,7 @@
 				"/features/identity-and-capability.feature.ts": {
 					"text": "Identity and capability authorization",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 600,
 					"steps": 30
 				}
 			}

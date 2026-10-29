@@ -4,6 +4,7 @@
  * The shu frontend receives events via SSE for live updates and fetches history via RPC.
  * At endFeature, writes a standalone HTML file with embedded events, quads, and concerns.
  */
+import { CLIENT_LOG_ACTION } from "./page/domains/page-calls.js";
 import { resolve } from "node:path";
 import { z } from "zod";
 
@@ -282,6 +283,11 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		showDocument: { gwta: "show document", productsDomain: SHU_TAG.DOCUMENT_COLUMN, action: () => actionOKWithProducts({}) },
 		logClient: {
 			gwta: `log client {event: ${DOMAIN_LOG_EVENT}}`,
+			description:
+				"Receive a diagnostic the page states and write it to actuality's event log at the level the page states, its source before its message. A read: a page's diagnostic reaches actuality's event log, and observing the running system isn't actuality's own activity, so the call isn't recorded as a step. A recorded diagnostic would be a step whose events reach the page and prompt the page to log the step it is logging.",
+			read: true,
+			// A page is delegated the report's own action, which a read of what actuality records would widen.
+			capability: CLIENT_LOG_ACTION,
 			action: ({ event }: { event: TLogEvent }) => {
 				const { level, message, source, attributes } = event;
 				const prefix = source ? `[${source}] ` : "";

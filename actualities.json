@@ -5,7 +5,7 @@
 			"actuality": {
 				"text": "AGENTS.md",
 				"status": "passed",
-				"tookMs": 600,
+				"tookMs": 700,
 				"digest": {
 					"AGENTS.md": "3a8a8ffe01afcd8df482d7a7459ccd9e2910778b26d0306fd2e58239d4b842b0",
 					"modules/core/src": "cd2d2e44a2804d0ec4438c99ee37171f467baaa918be0163e327b7bd42ae0102",

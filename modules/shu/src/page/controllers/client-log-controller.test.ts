@@ -39,6 +39,19 @@ describe("the page's reports to actuality", () => {
 		expect(String(warned[0]?.[0])).toContain("since the page's authority failed verification");
 	});
 
+	it("writes a report below the level a page reports to the page's console, and doesn't send it to actuality", async () => {
+		const reported: TReportedToRun[] = [];
+		const toConsole: unknown[][] = [];
+		const debug = vi.spyOn(console, "debug").mockImplementation((...said: unknown[]) => void toConsole.push(said));
+		t = setupShuTest({ dispatch: reportingTo(reported) });
+		await openReportingPage();
+		reportToRun("debug", SOURCE, "below the level a page reports");
+		expect(reported, "actuality doesn't receive it").toEqual([]);
+		expect(toConsole, "the page's console holds it").toHaveLength(1);
+		expect(String(toConsole[0]?.[0])).toBe(`[${SOURCE}] below the level a page reports`);
+		debug.mockRestore();
+	});
+
 	it("doesn't report where the page doesn't have a run to report to, or doesn't hold what reporting requires", async () => {
 		const reported: TReportedToRun[] = [];
 		t = setupShuTest({ dispatch: reportingTo(reported) });

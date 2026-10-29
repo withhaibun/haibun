@@ -2,14 +2,21 @@
 // the way they ask for anything else. The record is the durable copy of a statement the reader was already told over
 // the stream, which is why writing it isn't announced.
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { z } from "zod";
 import { actualityFeatureOf, formatRecordName } from "@haibun/core/lib/seq-path.js";
 import type { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { storeDeclaring } from "@haibun/core/lib/test/declared-types.js";
-import { asDomainKey } from "@haibun/core/lib/domains/domains.js";
+import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
+import { asDomainKey, registerDomains } from "@haibun/core/lib/domains/domains.js";
 import { LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL, logMessageDomainDefinition } from "@haibun/core/lib/domains/log-message.js";
 import { RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL, runArtifactDomainDefinition } from "@haibun/core/lib/domains/run-artifact.js";
-import type { THaibunEvent } from "@haibun/core/lib/domains/protocol.js";
+import type { THaibunEvent, TLogEvent } from "@haibun/core/lib/domains/protocol.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
+import { RUN_AUTHORITY } from "@haibun/core/lib/domains/capability-context.js";
+import { StepRegistry, createStepTool } from "@haibun/core/lib/steps/pipelines/step-registry.js";
+import { buildFeatureStepForTransport } from "@haibun/core/lib/steps/pipelines/call-step.js";
+import { dispatchStep } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
 import MonitorStepper from "./monitor-stepper.js";
 
 const said = (over: Partial<THaibunEvent> = {}): THaibunEvent =>
@@ -194,5 +201,53 @@ describe("what the page logs", () => {
 		(stepper as unknown as { getWorld: () => unknown }).getWorld = () => ({ eventLogger: { warn: at("warn"), error: at("error"), debug: at("debug"), info: at("info") } });
 		for (const level of ["warn", "error", "debug", "info"] as const) stepper.steps.logClient.action({ event: { level, message: "the page said", source: "page" } });
 		expect(logged).toEqual(["warn [page] the page said", "error [page] the page said", "debug [page] the page said", "info [page] the page said"]);
+	});
+});
+
+describe("what a page logs, as a call a transport carries", () => {
+	// The page's diagnostic reaches actuality's event log, and a call of the monitor's step for it is a read: dispatch doesn't
+	// record a programmatic call of a step declared read, so the diagnostic never becomes a record of the steps of actuality.
+	it("reaches the event log without a SeqPath record of the call or a Body holding the event", async () => {
+		const world = getDefaultWorld();
+		registerDomains(world, [
+			[
+				{
+					selectors: ["shu-log-event"],
+					schema: z.object({
+						level: z.enum(["debug", "trace", "info", "warn", "error"]),
+						message: z.string(),
+						source: z.string().optional(),
+						attributes: z.record(z.string(), z.unknown()).optional(),
+					}),
+					description: "Client-side log event forwarded from the SPA",
+				},
+			],
+		]);
+		const monitor = new MonitorStepper();
+		monitor.world = world;
+		const registry = new StepRegistry([], world);
+		registry.inject([createStepTool(monitor, "logClient", monitor.steps.logClient, world)]);
+		const tool = registry.get("MonitorStepper-logClient");
+		if (!tool) throw new Error("Expected the client-log step to be registered");
+		const store = world.shared.getStore();
+		const logged: TLogEvent[] = [];
+		world.eventLogger.subscribe((event) => {
+			if (event.kind === "log") logged.push(event);
+		});
+		const path = [0, -1, 5, 1];
+		const result = await dispatchStep(
+			{ registry, world, steppers: [monitor], grantedCapability: RUN_AUTHORITY },
+			buildFeatureStepForTransport(tool, { event: { level: "info", message: "the page said", source: "the page" } }, path),
+		);
+		expect(result.ok, result.errorMessage).toBe(true);
+		expect(logged, "the event reaches the event log").toEqual([expect.objectContaining({ level: "info", message: "[the page] the page said" })]);
+		expect(
+			await store.query({ subject: formatRecordName({ actuality: actualityFeatureOf(world.tag), path }), namedGraph: SEQ_PATH_LABEL }),
+			"the call doesn't leave a SeqPath record",
+		).toEqual([]);
+		expect(
+			(await store.all()).some((quad) => String(quad.object).includes("the page said")),
+			"and a Body doesn't hold the event",
+		).toBe(false);
 	});
 });

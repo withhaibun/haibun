@@ -101,7 +101,7 @@
 				"/features/mcp-client.feature": {
 					"text": "/features/mcp-client",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 400,
 					"steps": 9
 				}
 			}

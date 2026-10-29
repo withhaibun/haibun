@@ -502,8 +502,9 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 	private async launch({ dir, config, bases, port, hostId }: TLaunch) {
 		// The child inherits this process's environment with its own port, so it can't read the launcher's port from it.
 		// This process passes the launcher's origin as LAUNCHED_FROM in HAIBUN_ENV. A launched instance reads it as
-		// $LAUNCHED_FROM$ to mount the launcher's store and report to the launcher without naming a port in its source.
-		const launcherPort = process.env[INSTANCE_PORT_ENV];
+		// $LAUNCHED_FROM$ to mount the launcher's store and report to the launcher without naming a port in its source. The
+		// launcher's port is its module option, whether its group's config or its environment states it.
+		const launcherPort = this.getWorld().moduleOptions[INSTANCE_PORT_ENV];
 		const passed = [process.env.HAIBUN_ENV, launcherPort ? `${LAUNCHED_FROM}=${localOrigin(Number(launcherPort))}` : ""].filter(Boolean).join(",");
 		// An instance serves, so it stays after its features end, as a standing run does.
 		const env = { ...runEnvironment(process.env, port, true, hostId, perProcessOptionNames(this.steppers)), ...(passed ? { HAIBUN_ENV: passed } : {}) };

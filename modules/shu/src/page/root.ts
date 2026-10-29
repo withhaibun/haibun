@@ -35,6 +35,7 @@ import { authorityFailed, isServerUnreachable, refusalCarried } from "@haibun/co
 import type { TProveRequest } from "@haibun/core/lib/transport/ports.js";
 import { failFastOrLog, isDev } from "@haibun/core/lib/domains/dev-mode.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
+import { HAIBUN_LOG_LEVELS, LOG_LEVEL_INFO, type THaibunLogLevel } from "@haibun/core/lib/domains/protocol.js";
 import { acts } from "./domains/links.js";
 import { CLIENT_LOG_ACTION, CLIENT_LOG_METHOD } from "./domains/page-calls.js";
 import { initialConduitHeld, LiveConduit } from "./adapters/live-conduit.js";
@@ -372,17 +373,23 @@ export const pageHeld = <T>(key: string, make: () => T): T => pagePinned(key, ma
 /** Whether the page is a report that carries actuality's records, rather than a page a site serves. */
 export const pageOffline = (): boolean => pageHydration().carried() !== undefined;
 
+/** The lowest level a page reports to actuality: a report below it is written to the page's console only. */
+const REPORTS_TO_RUN_AT: THaibunLogLevel = LOG_LEVEL_INFO;
+
 /**
  * Reports a diagnostic to actuality: the page's diagnostic channel. A page reports a diagnostic to actuality through the monitor's client-log
- * step. A page doesn't report a diagnostic without a server or a conduit to one. A report is such a page. A page writes the
- * diagnostic to the browser console where it doesn't hold the step's action or its authority fails verification. The call
- * writes a warning to the browser console and returns where the server isn't reachable. Any other failure is an RPC fault.
- * It would hide every later diagnostic, so it throws in development and is logged to the console otherwise.
+ * step. A report below the level a page reports to actuality is written to the page's console only. A page doesn't report a
+ * diagnostic without a server or a conduit to one. A report is such a page. A page writes the diagnostic to the browser
+ * console where it doesn't hold the step's action or its authority fails verification. The call writes a warning to the
+ * browser console and returns where the server isn't reachable. Any other failure is an RPC fault. It would hide every
+ * later diagnostic, so it throws in development and is logged to the console otherwise.
  *
  * A view sends the occurrences it records at their own rate to the blip channel (client-blips.ts). This channel carries
  * the few diagnostics a reader of actuality reads beside actuality's own events.
  */
 export function reportToRun(level: TClientLogLevel, source: string, message: string, attributes?: Record<string, unknown>): void {
+	// A report below the level a page reports to actuality isn't sent to actuality; it is written to the page's console only.
+	if (HAIBUN_LOG_LEVELS.indexOf(level) < HAIBUN_LOG_LEVELS.indexOf(REPORTS_TO_RUN_AT)) return console.debug(`[${source}] ${message}`, attributes);
 	if (pageOffline() || !hasConduit()) return;
 	// A page that doesn't hold the report's action logs the diagnostic to the console, as before its key holds its delegated actions.
 	if (!pageAuthorityPort().may(CLIENT_LOG_ACTION))
