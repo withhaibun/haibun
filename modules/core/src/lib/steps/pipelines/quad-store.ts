@@ -8,9 +8,11 @@
  * store with a query engine behind it reads the same records from an index, and actuality too large to hold in memory
  * reads its records through such a store.
  */
-import { RecordSchema } from "../../domains/json-text.js";
+import { z } from "zod";
+import { unwrapToShape } from "../../domains/zod-unwrap.js";
+import { RecordSchema, recordOf, schemaRecord } from "../../domains/json-text.js";
 import { itemAt } from "../../domains/item-at.js";
-import { assertDeclaredEdge } from "../../domains/hypermedia.js";
+import { assertDeclaredEdge, JSON_LD_KEYWORD } from "../../domains/hypermedia.js";
 import {
 	SHARED_GRAPH,
 	matchesQuadPattern,
@@ -28,7 +30,7 @@ import {
 import type { IQuadStore, TFederatedGraphSource, TStoreLevels } from "../ports.js";
 import { AccessLevelSchema, HELD_BY, LinkRelations, withinAccess, type AccessLevel } from "../../domains/resources.js";
 import { seenAt, writesAtEveryLevel, writtenAt } from "../../domains/actions.js";
-import { distinctOf, readFromRecords, recordsOfQuads, type THeldRecord, type TReadDeclarations } from "../../records/derivations/read-records.js";
+import { distinctOf, readFromRecords, recordsOfQuads, type THeldRecord, type TReadDeclaration, type TReadDeclarations } from "../../records/derivations/read-records.js";
 import { quadsOfRead, readEvery, type TRecordReader } from "../../records/pipelines/record-reads.js";
 import { QuadLayer } from "../../records/machines/quad-layer.js";
 import { bucketOf, sliceQuadsPerType } from "../derivations/quad-sample.js";
@@ -52,6 +54,24 @@ export const newStoreChain = (): TStoreChain => ({ routing: new Map(), federated
 
 /** The field that identifies a record of a type the store's declarations don't name. */
 const UNDECLARED_ID_FIELD = "id";
+
+/** Throws where a fact a write sets on a record of a declared type isn't a field its schema parses or an edge its topology
+ *  declares, so a fact set alone fits the type as a whole record's write does. */
+function declaredField(schema: z.ZodType, { surface }: TReadDeclaration, { namedGraph, predicate, object }: Omit<TQuad, "timestamp">): void {
+	// A JSON-LD keyword, such as the `@id` a page holds a served record by, isn't a field of the type.
+	if (predicate in surface.references || predicate.startsWith(JSON_LD_KEYWORD)) return;
+	const field = unwrapToShape(schema)?.[predicate];
+	if (field === undefined)
+		throw new Error(`${namedGraph} doesn't declare the field ${predicate}, so a ${namedGraph} record doesn't hold it. Declare the field in the type's schema.`);
+	schemaRecord(z.object({ [predicate]: field }), namedGraph, { [predicate]: object }, true);
+}
+
+/** Returns a record of a declared type as a store writes it: the fields its schema parsed, and the edges its topology declares,
+ *  which the schema doesn't state. */
+function declaredRecord(schema: z.ZodType, { surface }: TReadDeclaration, label: string, data: unknown): Record<string, unknown> {
+	const edges = Object.entries(recordOf(data, `a ${label} record`)).filter(([field]) => field in surface.references);
+	return { ...schemaRecord(schema, label, data, true), ...Object.fromEntries(edges) };
+}
 
 export class QuadStore implements IQuadStore {
 	private readonly quads = new QuadLayer();
@@ -195,6 +215,8 @@ export class QuadStore implements IQuadStore {
 		this.refuseDerived(quad.namedGraph);
 		const backing = this.storeFor(quad.namedGraph);
 		if (backing) return await backing.set(quad.subject, quad.predicate, quad.object, quad.namedGraph, quad.properties);
+		const declaration = this.declarations?.().of(quad.namedGraph);
+		if (declaration?.schema !== undefined) declaredField(declaration.schema, declaration, quad);
 		const classified = this.classified(quad);
 		this.quads.removeWhere(this.quads.ofSubject(quad.namedGraph, quad.subject), (q) => q.predicate === quad.predicate);
 		this.quads.add({ ...classified, timestamp: Date.now() });
@@ -344,7 +366,13 @@ export class QuadStore implements IQuadStore {
 		if (!declarations) throw new Error("this store doesn't hold the declarations of its types, so it doesn't read records by type; build it with the declarations it reads");
 		const held = recordsOfQuads(await quadsOfRead(query, (pattern) => Promise.resolve(this.localQuery(pattern))));
 		const elsewhere = query.referencedBy ? await this.referencedElsewhere(held, query) : [];
-		return readFromRecords([...held, ...elsewhere], query, declarations());
+		const declared = declarations();
+		// A held record crosses into code only where its type's schema parses it.
+		for (const { label, fields } of held) {
+			const schema = declared.of(label)?.schema;
+			if (schema !== undefined) schemaRecord(schema, label, fields, false);
+		}
+		return readFromRecords([...held, ...elsewhere], query, declared);
 	}
 
 	/**
@@ -446,7 +474,17 @@ export class QuadStore implements IQuadStore {
 		this.refuseDerived(label);
 		const backing = this.storeFor(label);
 		if (backing) return await backing.upsertIndividual(label, data);
-		const validated = RecordSchema.parse(data);
+		const stated = recordOf(data, `a ${label} record`);
+		// A record states its level, as every persisted type's record does, and each of its quads is held at that level. The store
+		// states the level a record of a declared type doesn't, before the type's schema reads it.
+		const declared = this.levels?.declared(label);
+		const statedLevel = stated.accessLevel === undefined ? undefined : AccessLevelSchema.parse(stated.accessLevel);
+		const accessLevel = this.levels ? writtenAt(statedLevel, declared, this.levels.writeBound()) : statedLevel;
+		const leveled = declared ? { ...stated, accessLevel } : stated;
+		const declaration = this.declarations?.().of(label);
+		// A type that declares its schema writes the fields its schema parsed and the edges its topology declares; a type a store
+		// holds without a declaration, such as a test's own, is a record of fields.
+		const validated = declaration?.schema === undefined ? RecordSchema.parse(leveled) : declaredRecord(declaration.schema, declaration, label, leveled);
 		const idField = this.idFieldOf(label);
 		// The identity is read before it is stringified: String(undefined) is "undefined", which would write the record
 		// under that literal subject, where a read doesn't reach it and the next such record overwrites it.
@@ -454,11 +492,6 @@ export class QuadStore implements IQuadStore {
 		if (identity === undefined || identity === null || String(identity).trim() === "")
 			throw new Error(`a ${label} record is identified by its "${idField}" field, and this record doesn't state it; state the record's ${idField}`);
 		const id = String(identity);
-		// A record states its level, as every persisted type's record does, and each of its quads is held at that level.
-		const declared = this.levels?.declared(label);
-		const stated = validated.accessLevel === undefined ? undefined : AccessLevelSchema.parse(validated.accessLevel);
-		const accessLevel = this.levels ? writtenAt(stated, declared, this.levels.writeBound()) : stated;
-		if (declared) validated.accessLevel = accessLevel;
 		// The code doesn't await between the removal and the additions, so a concurrent write, a carry at a scenario's end or a
 		// backing registration during the write never reads a record that is half written.
 		// A write replaces the record's properties and keeps its edges, as a graph store does.

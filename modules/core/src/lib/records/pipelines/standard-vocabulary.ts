@@ -6,7 +6,7 @@
  */
 import { z } from "zod";
 import { jsonld as jsonldRaw, documentLoader } from "../../domains/jsonld-loader.js";
-import { getJsonLdContext } from "../../domains/hypermedia.js";
+import { getJsonLdContext, JSON_LD_KEYWORD } from "../../domains/hypermedia.js";
 import { errorDetail } from "../../domains/util.js";
 import { isPersisted, type TRegisteredDomain } from "../../domains/resources.js";
 import type { TStandardTerm } from "../derivations/ontology.js";
@@ -54,9 +54,9 @@ function scopedTermsOf(url: string, classLabel: string, base: TActiveContext, wa
 				const beforeKeys = new Set(mapEntries(base.mappings).map(([t]) => t));
 				const active = await jsonld.processContext(base, scoped, { documentLoader });
 				return mapEntries(active.mappings).flatMap(([term, def]) => {
-					if (beforeKeys.has(term) || term.startsWith("@")) return [];
+					if (beforeKeys.has(term) || term.startsWith(JSON_LD_KEYWORD)) return [];
 					const iri = def?.["@id"];
-					return typeof iri === "string" && !iri.startsWith("@") ? [{ term, iri }] : [];
+					return typeof iri === "string" && !iri.startsWith(JSON_LD_KEYWORD) ? [{ term, iri }] : [];
 				});
 			} catch (err) {
 				warn(`The ontology leaves out the terms of ${classLabel} in ${url}, since the scoped context isn't readable: ${errorDetail(err)}`);
@@ -84,7 +84,7 @@ export async function enumerateStandardVocab(domains: Record<string, TRegistered
 		const parts: unknown[] = Array.isArray(typeCtx) ? typeCtx : [typeCtx];
 		const scopedObj = parts.find(isObject);
 		const urls = parts.filter((p): p is string => typeof p === "string");
-		const presentNames = new Set((scopedObj === undefined ? [] : Object.keys(scopedObj)).filter((k) => !k.startsWith("@")));
+		const presentNames = new Set((scopedObj === undefined ? [] : Object.keys(scopedObj)).filter((k) => !k.startsWith(JSON_LD_KEYWORD)));
 		const seen = new Set<string>();
 		const declared: TStandardTerm[] = [];
 		for (const url of urls) {

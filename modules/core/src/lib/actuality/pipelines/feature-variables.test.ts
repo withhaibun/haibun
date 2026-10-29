@@ -3,7 +3,7 @@ import { z } from "zod";
 import { FeatureVariables } from "./feature-variables.js";
 import type { TWorld } from "../domains/world.js";
 import { TFeatureStep } from "../../steps/domains/stepper.js";
-import { TStepValue, Origin } from "../../domains/protocol.js";
+import { LOG_LEVEL_INFO, Origin, RECORDED_STATUS, TStepValue } from "../../domains/protocol.js";
 import { getDefaultWorld } from "../../test/lib.js";
 import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STRING, registerDomains } from "../../domains/domains.js";
 import { Access, DOMAIN_PERSISTED_TYPE, SEQ_PATH_LABEL } from "../../domains/resources.js";
@@ -45,8 +45,9 @@ describe("FeatureVariables", () => {
 		it("removes the variables and keeps the actuality's records, so the store holds every feature's levels and steps", async () => {
 			await variables.set({ term: "foo", value: "bar", domain: DOMAIN_STRING, origin: Origin.var }, { in: "test", seq: [1], when: "test.action" });
 			const store = variables.getStore();
-			await store.upsertIndividual(SEQ_PATH_LABEL, { id: "1-0.1.0", stepText: "a feature", actualityLevel: "feature", accessLevel: Access.public });
-			await store.upsertIndividual(SEQ_PATH_LABEL, { id: "1-0.1.1.1", stepText: "a step", actualityLevel: STEP_LEVEL, accessLevel: Access.public });
+			const recorded = { actionStatus: RECORDED_STATUS.completed, generatedAtTime: new Date().toISOString(), level: LOG_LEVEL_INFO, accessLevel: Access.public };
+			await store.upsertIndividual(SEQ_PATH_LABEL, { id: "1-0.1.0", stepText: "a feature", actualityLevel: "feature", ...recorded });
+			await store.upsertIndividual(SEQ_PATH_LABEL, { id: "1-0.1.1.1", stepText: "a step", actualityLevel: STEP_LEVEL, ...recorded });
 			await variables.clear();
 			expect(await variables.all()).toEqual({});
 			expect(await variables.get("foo")).toBeUndefined();

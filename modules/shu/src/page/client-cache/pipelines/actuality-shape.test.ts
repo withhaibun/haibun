@@ -4,7 +4,7 @@
 import { describe, it, expect } from "vitest";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/domains/log-message.js";
-import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
+import { Access, SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import { DensityQuerySchema, type TDensityQuery } from "@haibun/core/lib/quad-types.js";
 import { MARK_COLOUR } from "../../derivations/status-mark.js";
@@ -25,9 +25,17 @@ const anActuality = async (steps: Array<{ at: number; status: string }> = [], sa
 	const store = actualityStore();
 	const counted: TDensityQuery[] = [];
 	const addStep = async (at: number, status: string, i: number) =>
-		store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.${i}`, actuality: RUN, stepText: `step ${i}`, actionStatus: status, level: "info", generatedAtTime: iso(at) });
+		store.upsertIndividual(SEQ_PATH_LABEL, {
+			id: `${RUN}.0.${i}`,
+			actuality: RUN,
+			stepText: `step ${i}`,
+			actionStatus: status,
+			level: "info",
+			generatedAtTime: iso(at),
+			accessLevel: Access.public,
+		});
 	const addSaid = async (at: number, level: string, i: number) =>
-		store.upsertIndividual(LOG_MESSAGE_LABEL, { id: `${RUN}.0.${i}@${i}`, actuality: RUN, message: `said ${i}`, level, generatedAtTime: iso(at) });
+		store.upsertIndividual(LOG_MESSAGE_LABEL, { id: `${RUN}.0.${i}@${i}`, actuality: RUN, message: `said ${i}`, level, generatedAtTime: iso(at), accessLevel: Access.public });
 	for (const [i, s] of steps.entries()) await addStep(s.at, s.status, i);
 	for (const [i, m] of said.entries()) await addSaid(m.at, m.level, 100 + i);
 	const over = actualityGraphOf(store, () => true);
@@ -125,6 +133,7 @@ describe("the shape of an actuality, by division", () => {
 				actionStatus: "failed",
 				level: "info",
 				generatedAtTime: iso(at),
+				accessLevel: Access.public,
 			});
 		const shape = actualityShape(ofActualityFeature(graph, RUN), { divisions: 3 });
 		await shape.update(3000);

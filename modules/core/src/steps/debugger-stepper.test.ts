@@ -186,7 +186,7 @@ describe("DebuggerStepper RPC dispatch", () => {
 	// Regression for the "fetching forever" symptom of a missing-node RPC.
 
 	it("does not prompt on actionNotOK when dispatched via RPC transport", async () => {
-		const failing = new (class extends AStepper {
+		const failing = new (class FailingStepper extends AStepper {
 			description = "A step that always fails.";
 			steps = { alwaysFails: { gwta: "always fails", action: async () => actionNotOK("intentional failure") } };
 		})();
@@ -218,7 +218,7 @@ describe("DebuggerStepper RPC dispatch", () => {
 	});
 
 	it("does not prompt before step-by-step RPC dispatch", async () => {
-		const echo = new (class extends AStepper {
+		const echo = new (class EchoStepper extends AStepper {
 			description = "A step that echoes a text.";
 			steps = { echo: { gwta: `echo {what: ${DOMAIN_TEXT}}`, action: async () => OK } };
 		})();

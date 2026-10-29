@@ -90,6 +90,8 @@ Both engines run side by side on the same runtime until stage 7 removes the Prol
 Estimated total: about −1,300 / +880 source lines.
 
 ## Later
+- An edge's range is checked at write only when a range can be read with its subclasses. Today a write checks that the source type declares the edge, or that the shared vocabulary holds it; a range names a superclass such as Resource, so checking the target's type against it needs the ontology's subclass axioms, which the write path doesn't read yet.
+- A consumer's features may link a person's record through a Principal's `author` edge, which the shared vocabulary admits. A Person-to-Principal relation, such as `foaf:account`, would state it precisely; it needs a link relation of its own, which waits for the next change to the consumer's person type.
 - W3C Solid and the fediverse (ActivityPub) matter later, as standards, and the model stays compatible with them without adopting either now: records stay RDF with JSON-LD contexts, and the topology stays describable declaratively, for example as Shape Trees for Solid pods.
 
 ## Checklist

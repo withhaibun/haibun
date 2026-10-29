@@ -1,5 +1,5 @@
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
-import { statedTotal, type TCounted } from "@haibun/core/lib/domains/hypermedia.js";
+import { JSON_LD_KEYWORD, statedTotal, type TCounted } from "@haibun/core/lib/domains/hypermedia.js";
 import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { HYPERMEDIA_ROLE_KEY, HYPERMEDIA_ROLE_REL_KEY, SITE_KEY, type GraphEdge, type GraphModel, type GraphNode, type TBuildGraphModelOptions } from "../domains/graph-model.js";
 
@@ -48,7 +48,7 @@ export function buildGraphModelFromQuads(quads: TQuad[], options?: TBuildGraphMo
 		// that the renderer-agnostic edge model would otherwise drop. A literal property has a value and isn't a typed edge
 		// (objectType set), an internal `_` key or a JSON-LD `@` key. The last value of a repeated predicate replaces the
 		// earlier ones.
-		if (q.objectType === undefined && typeof q.object !== "object" && q.object != null && !q.predicate.startsWith("_") && !q.predicate.startsWith("@")) {
+		if (q.objectType === undefined && typeof q.object !== "object" && q.object != null && !q.predicate.startsWith("_") && !q.predicate.startsWith(JSON_LD_KEYWORD)) {
 			node.properties[q.predicate] = q.object;
 		}
 	}

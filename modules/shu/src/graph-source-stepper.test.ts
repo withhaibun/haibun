@@ -113,7 +113,8 @@ describe("one individual with its edges, from the store this instance holds", ()
 		world.domains = { ...world.domains, ...mapDefinitionsToDomains([declared(EMAIL), declared(MESSAGE, { about: { rel: ABOUT, range: EMAIL } })]) };
 		await stepper.setWorld(world, []);
 		const store = world.shared.getStore();
-		await store.set("a@test.com", "address", "a@test.com", EMAIL);
+		await store.upsertIndividual(EMAIL, { id: "a@test.com", address: "a@test.com" });
+		await store.upsertIndividual(MESSAGE, { id: "m1" });
 		await store.add({ subject: "m1", predicate: ABOUT, object: "a@test.com", namedGraph: MESSAGE, objectType: EMAIL });
 		return stepper;
 	};

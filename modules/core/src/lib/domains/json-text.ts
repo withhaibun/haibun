@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { navigateValue } from "./dot-path.js";
 
 /** JSON text's value. Text that isn't JSON is refused through `ctx`, with the parser's reason and the text. */
 export function parseJsonText(text: string, ctx: z.RefinementCtx): unknown {
@@ -46,4 +47,34 @@ export const isRecord = (value: unknown): value is Record<string, unknown> => ty
 export function recordOf(value: unknown, what: string): Record<string, unknown> {
 	if (!isRecord(value)) throw new Error(`${what} isn't an object: ${Array.isArray(value) ? "array" : typeof value}`);
 	return value;
+}
+
+/** Returns a value as a refusal states it: a time as its instant, and any other value as its JSON, cut at 120 characters. */
+function asWritten(value: unknown): string {
+	if (value instanceof Date) return Number.isNaN(value.getTime()) ? "a Date that doesn't hold a time" : value.toISOString();
+	if (value === undefined) return "an absent value";
+	const written = JSON.stringify(value);
+	return written === undefined ? String(value) : written.length > 120 ? `${written.slice(0, 120)}…` : written;
+}
+
+/** Returns each field a schema refused, with the value written for it. */
+export function refusedFields(error: z.ZodError, input: unknown): string {
+	return error.issues
+		.map((issue) => {
+			const at = issue.path.map(String).join(".");
+			const held = navigateValue(input, issue.path.map(String)).value;
+			return `${at === "" ? "the record" : at} is ${asWritten(held)}, and ${issue.message.replace(/^Invalid input: /, "")}`;
+		})
+		.join("; ");
+}
+
+/** Returns a record its type's schema parsed. A record the schema refuses is refused with each field's cause, so a store
+ *  writes, and a read returns, only records that fit their type: `writing` names the write, else the read. */
+export function schemaRecord(schema: z.ZodType, label: string, value: unknown, writing: boolean): Record<string, unknown> {
+	const parsed = schema.safeParse(value);
+	if (parsed.success) return recordOf(parsed.data, `a ${label} record`);
+	const act = writing ? `A write of a ${label} record is refused` : `A stored ${label} record is refused on read`;
+	throw new Error(
+		`${act}: ${refusedFields(parsed.error, value)}. ${writing ? "Write the fields as the type's schema states them" : "Correct the record to the type's schema, or write it again"}.`,
+	);
 }

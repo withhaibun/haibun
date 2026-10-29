@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
-import { Access, HAIBUN_RECORD_NAMESPACE, LinkRelations } from "@haibun/core/lib/domains/resources.js";
+import { Access, GeneratedAtTimeSchema, HAIBUN_RECORD_NAMESPACE, LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { storeOfDomains } from "@haibun/core/lib/test/declared-types.js";
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { reasoner } from "../root.js";
@@ -15,7 +15,7 @@ import { REASONING_READ_CEILING } from "../domains/reasoning.js";
 const [STEP, NOTE] = ["Step", "Note"];
 const typeOf = (persistedAs: string, type: string) => ({
 	selectors: [persistedAs.toLowerCase()],
-	schema: z.object({ id: z.string(), content: z.string().optional(), about: z.string().optional(), generatedAtTime: z.string() }),
+	schema: z.object({ id: z.string(), content: z.string().optional(), about: z.string().optional(), generatedAtTime: GeneratedAtTimeSchema }),
 	description: persistedAs,
 	topology: {
 		persistedAs,

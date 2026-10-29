@@ -7,21 +7,21 @@
 				"status": "passed",
 				"tookMs": 600,
 				"digest": {
-					"AGENTS.md": "2d1d1c2dadfa449c998c77c392df3b4be6f8fc625035f6e4e5b1d384cc57f9cd",
-					"modules/core/src": "41bf9325e40cb56b4b1bc7f5ec80b3041ae0ae4b99b7c46bb5b23613aaa84005",
+					"AGENTS.md": "3a8a8ffe01afcd8df482d7a7459ccd9e2910778b26d0306fd2e58239d4b842b0",
+					"modules/core/src": "cd2d2e44a2804d0ec4438c99ee37171f467baaa918be0163e327b7bd42ae0102",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
-					"modules/logic/src": "dc6840118453a27066bc69f5767198cc5ebb076c8745f26ce4b0e46788d40100",
+					"modules/logic/src": "19433b3e8119e1c7ca9845979124a28bee3de6e0d9c379066a77e104382bc6f9",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
-					"modules/web-playwright/src": "183837582c6745581f805bc27a237802cbe289e8d03346c3f4542012f75925be",
-					"modules/web-server-hono/src": "7b53083f3a54d0d78a7ca90c99dd325f87cd42cfdfe36487284e87d4296d2503"
+					"modules/web-playwright/src": "497f4af5bd16f8ab20e92b99a27fd73f60127be42d94ad0653f3c26942e060b4",
+					"modules/web-server-hono/src": "d2999619f8e6e6caae50dab5f3bd8295e324da0a4098f8467cecb7a6d83c2284"
 				}
 			},
 			"features": {
 				"/AGENTS.md": {
 					"text": "/AGENTS",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 600,
 					"steps": 394
 				}
 			}

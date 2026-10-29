@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
-import { Access, HAIBUN_RECORD_NAMESPACE, LinkRelations, type AccessLevel } from "@haibun/core/lib/domains/resources.js";
+import { Access, GeneratedAtTimeSchema, HAIBUN_RECORD_NAMESPACE, LinkRelations, type AccessLevel } from "@haibun/core/lib/domains/resources.js";
 import { runReadingAt } from "@haibun/core/lib/domains/capability-context.js";
 import { heldRecordIri, storeOfDomains } from "@haibun/core/lib/test/declared-types.js";
 import type { TGraphQuery } from "@haibun/core/lib/steps/domains/quad-types.js";
@@ -21,7 +21,7 @@ import { explain, reason } from "./reason.js";
 const [STEP, NOTE] = ["Step", "Note"];
 const typeOf = (persistedAs: string, complete: boolean) => ({
 	selectors: [persistedAs.toLowerCase()],
-	schema: z.object({ id: z.string(), outcome: z.string().optional(), content: z.string().optional(), about: z.string().optional(), generatedAtTime: z.string() }),
+	schema: z.object({ id: z.string(), outcome: z.string().optional(), content: z.string().optional(), about: z.string().optional(), generatedAtTime: GeneratedAtTimeSchema }),
 	description: persistedAs,
 	topology: {
 		persistedAs,

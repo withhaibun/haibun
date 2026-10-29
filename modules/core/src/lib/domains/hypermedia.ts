@@ -188,6 +188,9 @@ export function querySurface(domain: { schema: z.ZodType | undefined; topology: 
 	return QuerySurfaceSchema.parse({ label: domain.topology.persistedAs, properties, references });
 }
 
+/** The character every JSON-LD keyword begins with, such as `@id` and `@type` (JSON-LD 1.1 §1.7). */
+export const JSON_LD_KEYWORD = "@";
+
 /** Whether an edge is a relation of the shared vocabulary that reaches an IRI, which a record of any type may state, as a typed
  *  link in a text states it. */
 export const isVocabularyEdge = (edge: string): boolean => getRelRange(edge) === "iri";

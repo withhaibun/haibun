@@ -3,6 +3,7 @@
  * read the store doesn't reach, the page's order and the page of a set of held records. Every store reads by these rules,
  * so a page holds the same records in the same order whichever store returns it.
  */
+import type { z } from "zod";
 import {
 	COUNT_CEILING,
 	REACHED_BY,
@@ -41,7 +42,7 @@ export const READ_RECORDS = "readRecords";
 /** What a read of one type reads from its declaration: the field that holds a record's id, the fields and relations a read
  *  reaches, the field a page orders by where the read doesn't name a sort, where core holds the type's records, and the
  *  property or edge that titles a record. */
-export type TReadDeclaration = { id: string; surface: TQuerySurface; defaultSort: string; heldBy?: THeldBy; title?: TTitledBy };
+export type TReadDeclaration = { id: string; surface: TQuerySurface; defaultSort: string; heldBy?: THeldBy; title?: TTitledBy; schema?: z.ZodType };
 
 /** What a store reads by: the types and relations it holds, each type's declaration, and the `@id` a read states for each record
  *  it holds. An instance states the record IRI it derives from the type's label and the record's id; a page states the `@id`
@@ -72,7 +73,7 @@ export function readDeclarationsOf(domains: Record<string, TRegisteredDomain>, r
 		if (!domain) return undefined;
 		const { id, heldBy } = domain.topology;
 		const title = titledByOf(domain.topology);
-		return { id, surface: querySurface(domain), defaultSort: sortFieldOf(domain.topology), ...(heldBy ? { heldBy } : {}), ...(title ? { title } : {}) };
+		return { id, surface: querySurface(domain), defaultSort: sortFieldOf(domain.topology), schema: domain.schema, ...(heldBy ? { heldBy } : {}), ...(title ? { title } : {}) };
 	};
 	const declarations: TReadDeclarations = {
 		types: unique(persisted.map(({ topology }) => topology.persistedAs)),

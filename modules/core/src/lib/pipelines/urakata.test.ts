@@ -7,6 +7,7 @@ import { SessionAuthority } from "./session-authority.js";
 import { AUTHORITY_KEY } from "../domains/session-authority.js";
 import { actionsToReadAndWrite, EVERY_ACTION, readAction, writeAction, writtenAt } from "../domains/actions.js";
 import { Access } from "../domains/resources.js";
+import { RECORDED_STATUS } from "../domains/protocol.js";
 import { itemAt } from "../domains/item-at.js";
 import { recordOf } from "../records/pipelines/record-reads.js";
 import { mapDefinitionsToDomains } from "../domains/domains.js";
@@ -354,6 +355,8 @@ describe("UrakataRegistry persistence of transitions", () => {
 				startedAt: new Date().toISOString(),
 				tickIndex: 5,
 				errorCount: 0,
+				actionStatus: RECORDED_STATUS.running,
+				holds: [],
 				generatedAtTime: new Date(),
 			});
 		const registry = new UrakataRegistry(world, reporting());
