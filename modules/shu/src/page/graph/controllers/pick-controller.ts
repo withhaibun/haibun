@@ -78,6 +78,8 @@ export type TPickControllerDeps = {
 	tweening: () => boolean;
 	/** A click that didn't move past the drag threshold: on the node the press picked, or on empty space. */
 	clicked: (node: FGNode | undefined, e: MouseEvent) => void;
+	/** The pointer moved over a node, or empty space when undefined. */
+	hovered?: (node: FGNode | undefined) => void;
 	/** The pointer left the canvas, so a hover it caused ends. */
 	left: () => void;
 	markDirty: (cause: TWakeCause) => void;
@@ -88,6 +90,7 @@ export class PickController {
 	readonly drag: NodeDrag;
 	/** Whether a pointer is over the canvas: a hover counts only then, since the cursor raycasts its last position. */
 	#pointerOver = false;
+	#hoveredId: string | null = null;
 	#lastCanvasPos: { left: number; top: number; width: number; height: number } | undefined;
 
 	constructor(private readonly deps: TPickControllerDeps) {
@@ -138,6 +141,17 @@ export class PickController {
 		const onMove = (e: PointerEvent) => {
 			this.#pointerOver = true;
 			this.deps.markDirty("pointer");
+			if (!this.drag.dragging && !this.deps.tweening()) {
+				const node = this.#pickNodeAt(e);
+				const id = node?.id ?? null;
+				if (this.#hoveredId !== id) {
+					this.#hoveredId = id;
+					this.deps.hovered?.(node);
+				}
+			} else if (this.#hoveredId !== null) {
+				this.#hoveredId = null;
+				this.deps.hovered?.(undefined);
+			}
 			this.drag.move(e);
 		};
 		const onUp = () => this.drag.up();
@@ -147,6 +161,10 @@ export class PickController {
 		};
 		const onLeave = () => {
 			this.#pointerOver = false;
+			if (this.#hoveredId !== null) {
+				this.#hoveredId = null;
+				this.deps.hovered?.(undefined);
+			}
 			this.deps.markDirty("focus"); // draw the hover magnify easing out after the pointer leaves
 			this.deps.left();
 		};

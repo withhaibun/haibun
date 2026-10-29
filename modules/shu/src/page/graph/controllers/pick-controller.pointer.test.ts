@@ -64,6 +64,7 @@ function attached() {
 		currentLinks: () => [],
 		linkMap: () => new Map(),
 	});
+	let hoveredNode: FGNode | undefined;
 	const pick = new PickController({
 		world,
 		three: hittingThree,
@@ -79,13 +80,18 @@ function attached() {
 		},
 		tweening: () => false,
 		clicked: () => undefined,
-		left: () => undefined,
+		hovered: (n) => {
+			hoveredNode = n;
+		},
+		left: () => {
+			hoveredNode = undefined;
+		},
 		markDirty: () => undefined,
 		teardown: () => undefined,
 	});
 	pick.attach(document.createElement("div") as unknown as TPickScene, canvas);
 	const press = (init: PointerEventInit) => canvas.dispatchEvent(new PointerEvent("pointerdown", { button: 0, clientX: 5, clientY: 5, ...init }));
-	return { pick, node, canvas, press };
+	return { pick, node, canvas, press, getHovered: () => hoveredNode };
 }
 
 describe("a press on a node", () => {
@@ -109,5 +115,13 @@ describe("a pointer moving over the canvas without a press", () => {
 		expect([node.x, node.y, node.z, node.fx]).toEqual([10, 20, 0, undefined]);
 		expect(pick.drag.dragging).toBe(false);
 		expect(pick.pointerOver).toBe(true);
+	});
+
+	it("tracks the hovered node under the pointer", () => {
+		const { node, canvas, getHovered } = attached();
+		canvas.dispatchEvent(new PointerEvent("pointermove", { clientX: 5, clientY: 5 }));
+		expect(getHovered()).toBe(node);
+		canvas.dispatchEvent(new PointerEvent("pointerleave"));
+		expect(getHovered()).toBeUndefined();
 	});
 });

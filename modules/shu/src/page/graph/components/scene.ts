@@ -601,6 +601,14 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// Empty space is the reader not choosing a record on the page; the host relays the active record back through setSelectedSubject.
 			else if (this.selectedSubject) dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: entryOf([], appAccessLevel()) });
 		},
+		hovered: (node) => {
+			if (this.#parts.engine.mode === "settling") return;
+			const id = node?.id ?? null;
+			if (this.hoverSubject === id) return;
+			this.hoverSubject = id;
+			this.updateHoverInfo(node ?? null);
+			this.applyFocus();
+		},
 		left: () => {
 			this.updateHoverInfo(null);
 			if (this.hoverSubject) {
@@ -1039,19 +1047,9 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			.numDimensions(2) // matches the scene's own 2D placement; the lib sim doesn't have forces, so it never sets positions
 			.warmupTicks(0) // the digest doesn't block the main thread synchronously, placement already ran (layoutForFeed)
 			.cooldownTicks(120)
-			// Node clicks are handled by the scene's canvas click listener via pickNodeAt (the same authoritative press-time
-			// pick the drag uses), NOT the lib's onNodeClick: that raycaster fires unreliably (and a stale post-drag
-			// click capture made it miss after several focus switches). One reliable pick, without a capture flag.
-			.onNodeHover((n) => {
-				// Phantom-hover guards: during a layout tween, a drag, or a data-feed SETTLE, nodes pass UNDER the cursor
-				// (the graph is still moving); and when the pointer isn't over the canvas at all, the cursor raycasts a
-				// stale position every frame. All would jump focus to nodes the user never pointed at, honor hover only
-				// from a live pointer over a graph at rest. (The programmatic setHoveredNode test interface is NOT gated.)
-				if (this.#parts.tween.running || this.pick.drag.dragging || !this.pick.pointerOver || this.#parts.engine.mode === "settling") return;
-				this.hoverSubject = n?.id ?? null;
-				this.updateHoverInfo(n ?? null);
-				this.applyFocus();
-			})
+			// Node clicks and hovers are handled by the scene's canvas listeners via pickNodeAt (the same authoritative
+			// press-time and move-time pick the drag uses), NOT the lib's onNodeClick or onNodeHover: that raycaster
+			// fires unreliably (and doesn't sync world matrices of custom chips). One reliable pick, without a capture flag.
 			// An edge under the pointer states what is behind it, under the guards a node's hover takes; choosing one is the
 			// host's to act on, as a host shows the lines that state it.
 			.onLinkHover((l) => {
@@ -1697,9 +1695,9 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.#parts.clock.frame(() => this.enclosureCtl.updateEnclosureGeometry());
 	}
 
-	/** What is focused: the open column's node stays focused while a column is open; hover takes over only when a node isn't selected. */
+	/** What is focused: hover previews the hovered neighbourhood before falling back to the selected node. */
 	private get focusId(): string | null {
-		return this.activeSubject ?? this.hoverSubject;
+		return this.hoverSubject ?? this.activeSubject;
 	}
 
 	/** The selected subject IF it is in the graph. A selection made elsewhere (a reply column, a search) can name a node
