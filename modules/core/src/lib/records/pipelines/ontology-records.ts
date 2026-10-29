@@ -78,6 +78,7 @@ function readOntology(ontology: TClusteredQuads, domains: Record<string, TRegist
 				kind: ONTOLOGY_TERM.class,
 				name: record.id,
 				...(iri === undefined ? {} : { iri }),
+				description: optionalText(record.fields[ONTOLOGY_FIELD.description]),
 				category: String(record.fields[ONTOLOGY_FIELD.category]),
 				subClassOf,
 				properties: concern === undefined ? {} : Object.fromEntries(Object.entries(concern.properties).map(([field, { rel }]) => [field, rel])),

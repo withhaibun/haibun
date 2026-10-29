@@ -10,10 +10,10 @@ import { Access, LinkRelations } from "../../domains/resources.js";
 import { ontologyToQuads } from "./ontology.js";
 import { iriIn, ontologyOwl } from "./owl.js";
 import { DataFactory, Parser, Store } from "n3";
-import type { NamedNode, Term } from "@rdfjs/types";
+import type { NamedNode, Quad_Object, Term } from "@rdfjs/types";
 import { OWL, RDF, RDFS } from "../../domains/vocabularies.js";
 
-const { namedNode, quad } = DataFactory;
+const { namedNode, quad, literal } = DataFactory;
 
 const typeOf = (persistedAs: string, extra: { subClassOf?: string }) => ({
 	selectors: [persistedAs.toLowerCase()],
@@ -33,7 +33,7 @@ const context = getJsonLdContext(domains)["@context"];
 const owl = new Store(new Parser().parse(ontologyOwl(ontologyToQuads(domains), context)));
 const ref = (term: string) => namedNode(iriIn(context, term));
 const [note, memo, entity, agent, content] = [ref("Note"), ref("Memo"), ref("prov:Entity"), ref("prov:Agent"), ref(LinkRelations.CONTENT.uri)];
-const holds = (subject: Term, predicate: string, object: Term): boolean => owl.has(quad(subject as NamedNode, namedNode(predicate), object as NamedNode));
+const holds = (subject: Term, predicate: string, object: Term): boolean => owl.has(quad(subject as NamedNode, namedNode(predicate), object as Quad_Object));
 
 describe("ontologyOwl", () => {
 	it("states the classes that declare a property as the union that is its domain", () => {
@@ -54,5 +54,11 @@ describe("ontologyOwl", () => {
 
 	it("refuses a CURIE whose prefix the context doesn't bind", () => {
 		expect(() => iriIn(context, "cred:Thing")).toThrow(/the prefix cred of cred:Thing isn't bound/);
+	});
+
+	it("writes a class the ontology record states a description for as its rdfs:comment, and leaves an undescribed class uncommented", () => {
+		expect(holds(note, RDFS.comment, literal("Note"))).toBe(true);
+		expect(holds(memo, RDFS.comment, literal("Memo"))).toBe(true);
+		expect(owl.getObjects(entity, namedNode(RDFS.comment), null)).toEqual([]);
 	});
 });

@@ -38,6 +38,13 @@ describe("ontologyToQuads: the schema rendered as a graph", () => {
 		expect(edge(quads, ONTOLOGY_FIELD.subClassOf, "Principal", "prov:Agent")).toBe(true);
 	});
 
+	it("states a declared type's Class record with its domain's description, and leaves a standard-vocabulary superclass undescribed", () => {
+		const { quads } = ontologyToQuads({ p: principalDomainDefinition as unknown as TRegisteredDomain });
+		const descriptionOf = (cls: string): unknown => quads.find((q) => q.subject === cls && q.predicate === ONTOLOGY_FIELD.description && q.namedGraph === CLASS_LABEL)?.object;
+		expect(descriptionOf("Principal")).toBe(principalDomainDefinition.description);
+		expect(descriptionOf("prov:Agent")).toBeUndefined();
+	});
+
 	it("renders the property hierarchy even without domains (LinkRelations alone)", () => {
 		const { clusters } = ontologyToQuads({});
 		expect(clusters.find((c) => c.type === PROPERTY_LABEL)?.sampledCount).toBeGreaterThan(10);

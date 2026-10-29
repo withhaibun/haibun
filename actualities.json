@@ -8,7 +8,7 @@
 				"tookMs": 700,
 				"digest": {
 					"AGENTS.md": "3a8a8ffe01afcd8df482d7a7459ccd9e2910778b26d0306fd2e58239d4b842b0",
-					"modules/core/src": "cd2d2e44a2804d0ec4438c99ee37171f467baaa918be0163e327b7bd42ae0102",
+					"modules/core/src": "f8724f31371cf4f0cdf6647d429780f10157abfdcf9a04e84a20caa193b64b34",
 					"modules/domain-storage/src": "82f8779744e811a523b651cec9b6a971d062be401a2e7eced616fc6735c0061f",
 					"modules/logic/src": "19433b3e8119e1c7ca9845979124a28bee3de6e0d9c379066a77e104382bc6f9",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",

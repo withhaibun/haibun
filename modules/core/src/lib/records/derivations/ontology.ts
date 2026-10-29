@@ -109,13 +109,16 @@ export function ontologyToQuads(domains: Record<string, TRegisteredDomain>): TCl
 	};
 	for (const d of Object.values(domains)) {
 		if (!isPersisted(d.topology)) continue;
-		const t = d.topology;
-		addClass(t.persistedAs);
-		if (t.type) quads.push(quadOf(t.persistedAs, ONTOLOGY_FIELD.classIri, t.type, CLASS_LABEL));
-		const supers = t.subClassOf === undefined ? [] : Array.isArray(t.subClassOf) ? t.subClassOf : [t.subClassOf];
+		const { persistedAs, type, subClassOf } = d.topology;
+		addClass(persistedAs);
+		if (type) quads.push(quadOf(persistedAs, ONTOLOGY_FIELD.classIri, type, CLASS_LABEL));
+		// A class a type declares carries its declaration's description; a class a type names as its superclass from a
+		// standard vocabulary isn't described by a declaration.
+		quads.push(quadOf(persistedAs, ONTOLOGY_FIELD.description, d.description, CLASS_LABEL));
+		const supers = subClassOf === undefined ? [] : Array.isArray(subClassOf) ? subClassOf : [subClassOf];
 		for (const s of supers) {
 			addClass(s);
-			quads.push(quadOf(t.persistedAs, ONTOLOGY_FIELD.subClassOf, s, CLASS_LABEL, CLASS_LABEL));
+			quads.push(quadOf(persistedAs, ONTOLOGY_FIELD.subClassOf, s, CLASS_LABEL, CLASS_LABEL));
 		}
 	}
 

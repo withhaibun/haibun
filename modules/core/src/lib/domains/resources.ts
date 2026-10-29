@@ -379,6 +379,7 @@ export const LinkRelations = {
 	SUB_PROPERTY_OF: { rel: "subPropertyOf", uri: "rdfs:subPropertyOf", range: "iri" },
 	SUB_CLASS_OF: { rel: "subClassOf", uri: "rdfs:subClassOf", range: "iri" },
 	LABEL: { rel: "label", uri: "rdfs:label", range: "literal" },
+	DESCRIPTION: { rel: "description", uri: "rdfs:comment", range: "literal" },
 	// schema.org's domainIncludes and rangeIncludes list the classes a property connects as a union. Several rdfs:domain
 	// statements would state their intersection.
 	DOMAIN: { rel: "domain", uri: "schema:domainIncludes", range: "iri" },

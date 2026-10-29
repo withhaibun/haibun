@@ -16,7 +16,7 @@ import {
 	registeredDomain,
 	toRegisteredDomain,
 } from "./domains.js";
-import { Access, LinkRelations, PersistedVertexSchema, type THypermediaTopology, type TPropertyDef } from "./resources.js";
+import { Access, LinkRelations, PersistedVertexSchema, type THypermediaTopology, type TPropertyDef, type TDomainDefinition } from "./resources.js";
 
 const steppers = [VariablesStepper, Haibun, LogicStepper];
 
@@ -117,6 +117,19 @@ describe("a persisted type's level property", () => {
 
 	it("is added where the type is registered, so a declaration doesn't repeat it", () => {
 		expect((persisted({}).topology as THypermediaTopology).properties.accessLevel).toBe(LinkRelations.ACCESS_LEVEL.rel);
+	});
+});
+
+describe("a domain's description", () => {
+	const definition = (description: string): TDomainDefinition => ({ selectors: ["note"], schema: PersistedVertexSchema.extend({ id: z.string() }), description });
+
+	it("refuses a definition whose description is empty or only whitespace, naming its selectors and the remedy", () => {
+		expect(() => toRegisteredDomain(definition(""))).toThrow(/"note" has an empty description\. State what its values are in its description\./);
+		expect(() => toRegisteredDomain(definition("   "))).toThrow(/"note" has an empty description/);
+	});
+
+	it("registers a definition that states what its values are", () => {
+		expect(toRegisteredDomain(definition("A note.")).description).toBe("A note.");
 	});
 });
 

@@ -9,12 +9,14 @@ import { CountedFields } from "../../domains/hypermedia.js";
 export const ONTOLOGY_TERM = { class: "class", property: "property" } as const;
 /** A class as a read of the ontology states it: its IRI where a type names one, its designation, its superclasses, each
  *  field of the type with the link relation it declares, each edge with its relation and the classes in its range, and its
- *  axioms in DL notation, where its IRI is a superclass. */
+ *  axioms in DL notation, where its IRI is a superclass. Its description where the type's declaration states one. */
 const OntologyClassSchema = z
 	.object({
 		kind: z.literal(ONTOLOGY_TERM.class),
 		name: z.string(),
 		iri: z.string().optional(),
+		/** The declaration's description, where a type declares the class and not names it from a standard vocabulary. */
+		description: z.string().optional(),
 		category: z.string(),
 		subClassOf: z.array(z.string()),
 		properties: z.record(z.string(), z.string()),

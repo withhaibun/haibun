@@ -28,6 +28,8 @@ export const ONTOLOGY_FIELD = {
 	inData: "inData",
 	/** A class's designation: agent, activity, observation or artifact, from its subClassOf chain to a PROV or SOSA class. */
 	category: "category",
+	/** What a declared type's records are, from the declaration that states the type. */
+	description: "description",
 	generatedAtTime: "generatedAtTime",
 	accessLevel: "accessLevel",
 } as const;
@@ -36,6 +38,9 @@ export const ClassSchema = PersistedVertexSchema.extend({
 	[ONTOLOGY_FIELD.name]: z.string(),
 	[ONTOLOGY_FIELD.classIri]: z.string().optional(),
 	[ONTOLOGY_FIELD.category]: z.string(),
+	// A class a type declares carries its declaration's description; a class a type names as its superclass from a standard
+	// vocabulary isn't described by a declaration.
+	[ONTOLOGY_FIELD.description]: z.string().min(1).optional(),
 	[ONTOLOGY_FIELD.generatedAtTime]: z.string(),
 });
 
@@ -63,6 +68,7 @@ export const classDomainDefinition: TDomainDefinition = {
 			[ONTOLOGY_FIELD.classIri]: { rel: LinkRelations.TAG.rel, iri: EXACT_MATCH },
 			// Grouped-as, so a filter reads the classes of one designation.
 			[ONTOLOGY_FIELD.category]: LinkRelations.CONTEXT.rel,
+			[ONTOLOGY_FIELD.description]: LinkRelations.DESCRIPTION.rel,
 			[ONTOLOGY_FIELD.generatedAtTime]: LinkRelations.GENERATED_AT_TIME.rel,
 			[ONTOLOGY_FIELD.accessLevel]: LinkRelations.ACCESS_LEVEL.rel,
 		},

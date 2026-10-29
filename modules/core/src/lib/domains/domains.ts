@@ -289,12 +289,17 @@ function withRecordProperties(topology: TDomainTopology | undefined): TDomainTop
 	return { ...topology, properties: { ...topology.properties, accessLevel: LinkRelations.ACCESS_LEVEL.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel } };
 }
 
-export const toRegisteredDomain = (definition: TDomainDefinition): TRegisteredDomain => ({
-	...definition,
-	selectors: [...definition.selectors],
-	coerce: definition.coerce ?? ((proto) => definition.schema.parse(proto.value)),
-	topology: withRecordProperties(definition.topology),
-});
+export const toRegisteredDomain = (definition: TDomainDefinition): TRegisteredDomain => {
+	// A declaration registers only with a description, which states what its records' values are.
+	if (definition.description.trim() === "")
+		throw new Error(`the domain ${definition.selectors.map((selector) => `"${selector}"`).join(" | ")} has an empty description. State what its values are in its description.`);
+	return {
+		...definition,
+		selectors: [...definition.selectors],
+		coerce: definition.coerce ?? ((proto) => definition.schema.parse(proto.value)),
+		topology: withRecordProperties(definition.topology),
+	};
+};
 
 export const mapDefinitionsToDomains = (definitions: TDomainDefinition[]) => {
 	return definitions.reduce<Record<string, TRegisteredDomain>>((acc, definition) => {

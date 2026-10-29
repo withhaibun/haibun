@@ -30,7 +30,7 @@ export function iriIn(context: Record<string, unknown>, term: string): string {
 
 /** Returns the ontology's axioms in Turtle, written by N3.js, with each term's IRI from the served context. */
 export function ontologyOwl(ontology: TClusteredQuads, context: Record<string, unknown>): string {
-	const { namedNode } = DataFactory;
+	const { namedNode, literal } = DataFactory;
 	const writer = new Writer({ format: MEDIA_TYPE.turtle, prefixes: { owl: NAMESPACE.owl, rdf: NAMESPACE.rdf, rdfs: NAMESPACE.rdfs } });
 	const ref = (term: string): NamedNode => namedNode(iriIn(context, term));
 	const stated = (label: string, field: string): TQuad[] => ontology.quads.filter((q) => q.namedGraph === label && q.predicate === field);
@@ -55,6 +55,8 @@ export function ontologyOwl(ontology: TClusteredQuads, context: Record<string, u
 		writer.addQuad(subject, namedNode(predicate), object);
 	};
 	for (const { subject } of stated(CLASS_LABEL, ONTOLOGY_FIELD.name)) axiom(ref(subject), RDF.type, namedNode(OWL.Class));
+	// A class the ontology states a description for states it as its rdfs:comment.
+	for (const { subject, object } of stated(CLASS_LABEL, ONTOLOGY_FIELD.description)) axiom(ref(subject), RDFS.comment, literal(String(object)));
 	for (const field of [ONTOLOGY_FIELD.classIri, ONTOLOGY_FIELD.subClassOf])
 		for (const { subject, object } of stated(CLASS_LABEL, field)) if (!ref(subject).equals(ref(String(object)))) axiom(ref(subject), RDFS.subClassOf, ref(String(object)));
 	const [domains, ranges] = [objectsBySubject(PROPERTY_LABEL, ONTOLOGY_FIELD.domain), objectsBySubject(PROPERTY_LABEL, ONTOLOGY_FIELD.range)];
