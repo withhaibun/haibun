@@ -2,10 +2,12 @@
  * The graph of one actuality's records the device holds, as an `IQuadStore`: its quads, read as records. A view reads what
  * the page holds by the reads it sends the site, so a view offline reads the records the site already served this reader.
  */
+import type { z } from "zod";
 import { RecordSchema } from "@haibun/core/lib/domains/json-text.js";
 import { storeScopeFor, withinAccess, type AccessQueryLevel } from "@haibun/core/lib/domains/resources.js";
-import type { TClusteredQuads, TDensityQuery, TDensityResult, TDistinctValues, TGraphQuery, TQuad, TQuadPattern, TRecordsPage } from "@haibun/core/lib/quad-types.js";
+import type { TClusteredQuads, TDensityQuery, TDensityResult, TDistinctValues, TGraphQuery, TQuad, TQuadPattern, TRecordsPage, TRecordType } from "@haibun/core/lib/quad-types.js";
 import { distinctOf, type TReadDeclarations } from "@haibun/core/lib/records/derivations/read-records.js";
+import { assertRegisteredSchema, typedRecord } from "@haibun/core/lib/quad-types.js";
 import { readQuadRecords } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { densityOverQuadStore } from "@haibun/core/lib/quad-store.js";
 import { sliceQuadsPerType } from "@haibun/core/lib/steps/derivations/quad-sample.js";
@@ -72,6 +74,12 @@ export class DeviceGraph implements TDeviceGraph {
 	/** Reads a page of the records the device holds, without a search of their text. */
 	readRecords(query: TGraphQuery): Promise<TRecordsPage> {
 		return readQuadRecords(query, (pattern) => this.quads.query(pattern), this.declarations());
+	}
+
+	/** Reads a record the device holds, parsed once by its type's schema, which the device's declaration of the type registers. */
+	readRecord<S extends z.ZodType>(type: TRecordType<S>, id: string, accessLevel?: AccessQueryLevel): Promise<z.output<S> | undefined> {
+		assertRegisteredSchema(this.declarations(), type);
+		return typedRecord(type, id, accessLevel, (query) => this.readRecords(query));
 	}
 
 	density(query: TDensityQuery): Promise<TDensityResult> {

@@ -6,7 +6,11 @@
  * Without IndexedDB (a standalone report, a context without it) a transaction resolves undefined: every read returns
  * empty and every write drops. It uses raw IndexedDB, promisified, without a dependency.
  */
+import { z } from "zod";
 import { CACHE_SHAPE, DEVICE_STORES, META_KEY, QUAD_INDEX, type TDeviceDatabase, type TDeviceReport, type TDeviceStore, type TStoredRegistry } from "../ports.js";
+
+/** The site's registry as the device holds it, parsed as it is read back. */
+const StoredRegistrySchema = z.object({ savedAt: z.number(), response: z.unknown() }) satisfies z.ZodType<TStoredRegistry>;
 
 /** The device keeps each actuality's records in a database of its own, so a page never reads one actuality's records as another's. */
 const DB_PREFIX = "shu-client-cache/";
@@ -40,7 +44,8 @@ function openDb(name: string, connections: TDeviceConnections): Promise<IDBDatab
 		// Additive: a version that adds a store or an index creates what is missing and keeps what a reader holds.
 		req.onupgradeneeded = () => {
 			const db = req.result;
-			const tx = req.transaction as IDBTransaction;
+			const tx = req.transaction;
+			if (tx === null) throw new Error(`the upgrade of ${name} doesn't carry a transaction, which IndexedDB states for every upgrade; open the database again`);
 			const store = (storeName: string, options?: IDBObjectStoreParameters): IDBObjectStore =>
 				db.objectStoreNames.contains(storeName) ? tx.objectStore(storeName) : db.createObjectStore(storeName, options);
 			const index = (on: IDBObjectStore, indexName: string, keyPath: string): void => {
@@ -129,7 +134,7 @@ export class IndexedDbDeviceStore implements TDeviceStore {
 
 	async registry(): Promise<TStoredRegistry | undefined> {
 		const found = await this.database.within("readonly", [DEVICE_STORES.META], (tx) => done(tx.objectStore(DEVICE_STORES.META).get(META_KEY.REGISTRY)));
-		return found !== undefined && found !== null && typeof found === "object" ? (found as TStoredRegistry) : undefined;
+		return found === undefined ? undefined : StoredRegistrySchema.parse(found);
 	}
 
 	async setRegistry(response: unknown): Promise<void> {

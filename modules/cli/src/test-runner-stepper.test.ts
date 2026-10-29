@@ -454,6 +454,7 @@ describe("examining a finished test run", () => {
 						paramDomains: { result: DomainKeySchema.parse("ending") },
 						capability: readAction(Access.private),
 						read: true,
+						kaname: false,
 						fallback: false,
 						answersTheTurn: false,
 						remoteOrigin: "http://localhost:8331",

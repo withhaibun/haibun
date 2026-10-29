@@ -57,6 +57,7 @@ export function stepDeclaration(stepper: AStepper, stepName: string, stepDef: TS
 		capability: requiredAction(stepperName, stepName, stepDef),
 		...(stepDef.readsAt ? { readsAt: stepDef.readsAt } : {}),
 		read: stepDef.read === true,
+		kaname: stepDef.kaname === true,
 		fallback: stepDef.fallback === true,
 		answersTheTurn: stepDef.answersTheTurn === true,
 		...(stepDef.answeredBy ? { answeredBy: stepDef.answeredBy } : {}),

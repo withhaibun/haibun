@@ -42,8 +42,11 @@ const ACCEPT_HEADER = "Accept";
  *  verifier of each request's authority, and the path of its endpoint. */
 export type TMcpParts = { world: TWorld; steppers: AStepper[]; registry: () => StepRegistry; webserver: IWebServer; verifier: TCapabilityVerifier; path: string; version: string };
 
-/** The steps the caller holds, as tools, a step another host injected among them. */
-const mcpTools = (registry: StepRegistry): Tool[] => registry.heldBy(shownTo()).map(toolDefinition);
+/** The steps the caller holds, as tools, a step another host injected among them: the kaname steps first. */
+const mcpTools = (registry: StepRegistry): Tool[] => {
+	const held = registry.heldBy(shownTo());
+	return [...held.filter((step) => step.kaname), ...held.filter((step) => !step.kaname)].map(toolDefinition);
+};
 
 /** A tool's result that refuses its call or states why its step failed. */
 const failedTool = (text: string): CallToolResult => ({ isError: true, content: [{ type: "text", text }] });

@@ -12,7 +12,7 @@ import { z } from "zod";
 import { Access, LinkRelations, PersistedVertexSchema, type TDomainDefinition } from "../lib/domains/resources.js";
 import { refDomainKey, type TIndividualRef } from "../lib/domains/domains.js";
 import { ACTIVITIES_ACTIONS, ACTIVITIES_STEPPER } from "./domains/activities-actions.js";
-import { readEvery, recordOf } from "../lib/records/pipelines/record-reads.js";
+import { readEvery } from "../lib/records/pipelines/record-reads.js";
 import { packageOf } from "./root.js";
 
 /** The source path a saved waypoint holds where the step that saves it doesn't have a source path. */
@@ -318,9 +318,8 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		const store = this.getWorld().shared.getStore();
 		// The store holds a record for each saved waypoint. Saving a head again with the same lines returns the existing record.
 		// registerSavedWaypoints throws for every other head that is already a rule's.
-		const kept = await recordOf(store, SAVED_WAYPOINT_LABEL, outcome);
-		if (kept) {
-			const held = SavedWaypointSchema.parse(kept);
+		const held = await store.readRecord({ label: SAVED_WAYPOINT_LABEL, schema: SavedWaypointSchema }, outcome);
+		if (held) {
 			if (held.lines.length === lines.length && held.lines.every((line, at) => line === lines[at])) return held;
 		}
 		const saved: TSavedWaypoint = { id: outcome, lines, source, generatedAtTime: new Date().toISOString() };

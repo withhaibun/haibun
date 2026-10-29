@@ -11,11 +11,11 @@
  * report. Each row of the table holds a cited requirement and the status of the line that contains the citing step.
  */
 import { RDF_STATEMENT } from "../../domains/vocabularies.js";
-import { READING_LABEL, SEQ_PATH_LABEL, StatedRecordSchema } from "../../domains/resources.js";
+import { READING_LABEL, ReadingSchema, SEQ_PATH_LABEL, StatedRecordSchema } from "../../domains/resources.js";
 import { fromJsonText } from "../../domains/json-text.js";
-import { SEQ_PATH_FIELD, formatRecordName, linePathOf, parseRecordName } from "../../actuality/domains/seq-path.js";
+import { SEQ_PATH_FIELD, SeqPathSchema, formatRecordName, linePathOf, parseRecordName } from "../../actuality/domains/seq-path.js";
 import type { IQuadStore } from "../ports.js";
-import { readEvery, recordOf } from "../../records/pipelines/record-reads.js";
+import { readEvery } from "../../records/pipelines/record-reads.js";
 
 /** A JSON-LD reference to an individual: its `@id` and its `@type`. */
 export type TReference = { "@id": string; "@type": string };
@@ -33,7 +33,7 @@ export type TStatementRow = {
 };
 
 /** The store methods this read calls: quads by pattern, and the read of records. */
-type TStatementStore = Pick<IQuadStore, "query" | "readRecords">;
+type TStatementStore = Pick<IQuadStore, "query" | "readRecords" | "readRecord">;
 
 /** Maps the subject, predicate and object of each edge a reading states to that reading. It reads the `stated` records
  *  of each reading. */
@@ -55,7 +55,7 @@ async function lineOf(store: TStatementStore, readingId: string, seqPath: string
 	if (step === undefined)
 		throw new Error(`the reading ${readingId} states the step ${seqPath}, which isn't a step's record name; read its passage again, so its reading states one`);
 	const line = formatRecordName({ ...step, path: linePathOf(step.path) });
-	const status = (await recordOf(store, SEQ_PATH_LABEL, line))?.[SEQ_PATH_FIELD.actionStatus];
+	const status = (await store.readRecord({ label: SEQ_PATH_LABEL, schema: SeqPathSchema }, line))?.[SEQ_PATH_FIELD.actionStatus];
 	return { assertedBy: { "@id": line, "@type": SEQ_PATH_LABEL }, ...(status === undefined ? {} : { outcome: String(status) }) };
 }
 
@@ -82,8 +82,8 @@ export async function statementsWith(store: TStatementStore, predicate: string):
 		const readingId = readings.get(`${quad.subject}\u0000${predicate}\u0000${String(quad.object)}`);
 		if (readingId) {
 			row.reading = { "@id": readingId, "@type": READING_LABEL };
-			const seqPath = (await recordOf(store, READING_LABEL, readingId))?.seqPath;
-			if (typeof seqPath === "string") Object.assign(row, await lineOf(store, readingId, seqPath));
+			const seqPath = (await store.readRecord({ label: READING_LABEL, schema: ReadingSchema }, readingId))?.seqPath;
+			if (seqPath !== undefined) Object.assign(row, await lineOf(store, readingId, seqPath));
 		}
 		rows.push(row);
 	}

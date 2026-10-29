@@ -20,12 +20,11 @@ function countsOf(tx: IDBTransaction, names: string[]): Promise<TIdbStoreSummary
 }
 
 export async function indexedDbSummary(): Promise<TIdbDatabaseSummary[]> {
-	const idb = (globalThis as { indexedDB?: IDBFactory & { databases?: () => Promise<Array<{ name?: string; version?: number }>> } }).indexedDB;
-	if (!idb?.databases) return [];
+	if (typeof indexedDB === "undefined") return [];
 	const out: TIdbDatabaseSummary[] = [];
-	for (const { name } of await idb.databases()) {
+	for (const { name } of await indexedDB.databases()) {
 		if (!name) continue;
-		const db = await request(idb.open(name)); // the current version: an open without a version never upgrades
+		const db = await request(indexedDB.open(name)); // the current version: an open without a version never upgrades
 		try {
 			const names = Array.from(db.objectStoreNames);
 			out.push({ name, version: db.version, stores: names.length === 0 ? [] : await countsOf(db.transaction(names, "readonly"), names) });

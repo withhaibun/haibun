@@ -68,13 +68,17 @@ export function refusedFields(error: z.ZodError, input: unknown): string {
 		.join("; ");
 }
 
-/** Returns a record its type's schema parsed. A record the schema refuses is refused with each field's cause, so a store
- *  writes, and a read returns, only records that fit their type: `writing` names the write, else the read. */
-export function schemaRecord(schema: z.ZodType, label: string, value: unknown, writing: boolean): Record<string, unknown> {
+/** Returns what a type's schema parsed of a record, as the schema's output. A record the schema refuses is refused with each
+ *  field's cause, so a store writes, and a read returns, only records that fit their type: `writing` names the write, else the read. */
+export function parsedRecord<S extends z.ZodType>(schema: S, label: string, value: unknown, writing: boolean): z.output<S> {
 	const parsed = schema.safeParse(value);
-	if (parsed.success) return recordOf(parsed.data, `a ${label} record`);
+	if (parsed.success) return parsed.data;
 	const act = writing ? `A write of a ${label} record is refused` : `A stored ${label} record is refused on read`;
 	throw new Error(
 		`${act}: ${refusedFields(parsed.error, value)}. ${writing ? "Write the fields as the type's schema states them" : "Correct the record to the type's schema, or write it again"}.`,
 	);
 }
+
+/** Returns a record its type's schema parsed, as `parsedRecord` parses it, read by its fields. */
+export const schemaRecord = (schema: z.ZodType, label: string, value: unknown, writing: boolean): Record<string, unknown> =>
+	recordOf(parsedRecord(schema, label, value, writing), `a ${label} record`);

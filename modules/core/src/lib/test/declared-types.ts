@@ -2,6 +2,7 @@
  * Read declarations for a test store's own types. A store of quads reads a type's records only where it holds the type's
  * declaration, so a test that writes records of a type it names declares that type here.
  */
+import type { z } from "zod";
 import { querySurface, REACHED_BY } from "../domains/hypermedia.js";
 import { QuadStore, newStoreChain } from "../steps/pipelines/quad-store.js";
 import type { TStoreLevels } from "../steps/ports.js";
@@ -12,7 +13,7 @@ import { recordIri } from "../records/derivations/record-iri.js";
 
 /** The fields and relations of one test type, and the field that identifies its records where it isn't `id`. A relation
  *  maps to the types at its other end. */
-export type TDeclaredType = { id?: string; filters?: readonly string[]; relations?: Record<string, readonly string[]> };
+export type TDeclaredType = { id?: string; filters?: readonly string[]; relations?: Record<string, readonly string[]>; schema?: z.ZodType };
 
 /** Returns read declarations of the types `types` names. Each type's id field is the one it names or `id`, its filters
  *  compare the fields it names, a page of it orders by `generatedAtTime`, and a read states each record's IRI, derived under
@@ -28,15 +29,16 @@ export function declaredTypes(types: Record<string, TDeclaredType>): TReadDeclar
 			if (!type) return undefined;
 			const properties = Object.fromEntries((type.filters ?? []).map((field) => [field, [REACHED_BY.filter]]));
 			const references = Object.fromEntries((type.relations === undefined ? [] : Object.entries(type.relations)).map(([relation, ranges]) => [relation, [...ranges]]));
-			return { id: type.id === undefined ? "id" : type.id, surface: { label, properties, references }, defaultSort: LinkRelations.GENERATED_AT_TIME.rel };
+			const declared = { id: type.id === undefined ? "id" : type.id, surface: { label, properties, references }, defaultSort: LinkRelations.GENERATED_AT_TIME.rel };
+			return type.schema === undefined ? declared : { ...declared, schema: type.schema };
 		},
 	};
 }
 
-/** Returns the test declaration of a persisted type its definition declares: its id field and the edges its topology declares. */
+/** Returns the test declaration of a persisted type its definition declares: its id field, the edges its topology declares and its schema. */
 export function declaredTypeOf({ schema, topology }: TDomainDefinition): [string, TDeclaredType] {
 	if (!isPersisted(topology)) throw new Error("a test declares a persisted type, and this definition doesn't persist one. Pass a persisted type's definition.");
-	return [topology.persistedAs, { id: topology.id, relations: querySurface({ schema, topology }).references }];
+	return [topology.persistedAs, { id: topology.id, relations: querySurface({ schema, topology }).references, schema }];
 }
 
 /** Returns read declarations of the types `types` names as a page reads them: a read states the `@id` the instance served,

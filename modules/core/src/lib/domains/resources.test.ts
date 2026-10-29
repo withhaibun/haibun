@@ -35,6 +35,8 @@ import { mapDefinitionsToDomains } from "./domains.js";
 import { itemAt } from "./item-at.js";
 import { writeAnnotation } from "../records/pipelines/discourse-writes.js";
 import type { TRecordReader } from "../records/pipelines/record-reads.js";
+import { typedRecord } from "../steps/domains/quad-types.js";
+import type { IQuadStore } from "../steps/ports.js";
 import { ORDER_KEY, type TGraphQuery } from "../steps/domains/quad-types.js";
 
 describe("LinkRelations extensions", () => {
@@ -690,7 +692,7 @@ function memStore() {
 		(p.predicate === undefined || q.predicate === p.predicate) &&
 		(p.object === undefined || q.object === p.object) &&
 		(p.namedGraph === undefined || q.namedGraph === p.namedGraph);
-	const store: TDiscourseStore & TRecordReader = {
+	const store: TDiscourseStore & TRecordReader & Pick<IQuadStore, "readRecord"> = {
 		upsertIndividual: (label, data) => {
 			const d = data as Record<string, unknown>;
 			nodes.set(`${label}:${String(d.id)}`, d);
@@ -701,6 +703,7 @@ function memStore() {
 			const vertices = query.named.flatMap((id) => [nodes.get(`${query.label}:${id}`)].flatMap((node) => (node ? [node] : [])));
 			return Promise.resolve({ vertices, ...counted(vertices.length), order: [{ key: ORDER_KEY.named, order: "asc" }] });
 		},
+		readRecord: (type, id, accessLevel) => typedRecord(type, id, accessLevel, store.readRecords),
 		deleteIndividual: (label, id) => {
 			nodes.delete(`${label}:${id}`);
 			return Promise.resolve();

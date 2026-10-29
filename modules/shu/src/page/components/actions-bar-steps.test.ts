@@ -11,7 +11,7 @@ import { SHOW_STEP_DEFINITIONS_METHOD, VALIDATE_STEP_METHOD, type TPredicate, ty
 import { html, render } from "lit";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { CHAT_DECLARED, CHAT_DOMAINS, CHAT_STEP, CHAT_STEPPER } from "../ask/components/chat-pane.test-fake.js";
-import { ActionsBarSteps, stepDetails, stepOptions, stepSecondary, waypointOptions } from "./actions-bar-steps.js";
+import { ActionsBarSteps, stepDetails, stepOptions, stepSecondary, UNDERSTANDING_STEPS, waypointOptions } from "./actions-bar-steps.js";
 import type { ShuStepCaller } from "./shu-step-caller.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
 import { aControllerHost } from "./controller-host.test-fake.js";
@@ -38,6 +38,7 @@ const step = (
 		stepperName,
 		stepName,
 		pattern,
+		description: `what ${pattern} does`,
 		paramDomains: Object.fromEntries(Object.entries(paramDomains).map(([name, key]) => [name, DomainKeySchema.parse(key)])),
 		...(productsDomain === undefined ? {} : { productsDomain: DomainKeySchema.parse(productsDomain) }),
 		...rest,
@@ -107,7 +108,7 @@ describe("the actions bar's step mode", () => {
 	it("states what a step takes and gives, by domain", () => {
 		expect(stepSecondary(SHOW)).toBe("string → graph");
 		expect(stepSecondary(LIST)).toBe("");
-		expect(stepDetails(SHOW)).toBe("inputs:\n  name: string\noutputs: graph");
+		expect(stepDetails(SHOW)).toBe("what show graph {name} does\ninputs:\n  name: string\noutputs: graph");
 	});
 
 	it("offers the steps for the selected type first and marked, then every other step once, each by its method", () => {
@@ -116,6 +117,13 @@ describe("the actions bar's step mode", () => {
 			[LIST.method, "● list types"],
 			[SHOW.method, "show graph {name}"],
 		]);
+	});
+
+	it("offers the understanding commands first, then the selected type's kaname steps, its other steps and every other step", () => {
+		const AXIOMS = step(itemAt(UNDERSTANDING_STEPS, 0), "show axioms of {view}");
+		const KANAME = step("GraphStepper-revokeIt", "revoke it", { kaname: true });
+		const options = stepOptions([SHOW, LIST, KANAME, AXIOMS], [LIST, KANAME]);
+		expect(options.map((o) => o.value)).toEqual([AXIOMS.method, KANAME.method, LIST.method, SHOW.method]);
 	});
 
 	it("offers the ask mode only where actuality offers the step an ask runs", async () => {

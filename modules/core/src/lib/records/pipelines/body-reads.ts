@@ -9,7 +9,8 @@ import { MEDIA_TYPE } from "../../domains/media-types.js";
 import { BodyTextSchema, LinkedBodySchema, type TLinkedBody } from "../domains/body.js";
 import { formIn } from "../derivations/bodies.js";
 import { maximalText } from "../derivations/body-text.js";
-import { levelOf, OUTGOING_EDGE_LIMIT, readEvery, recordOf, type TRecordReader } from "./record-reads.js";
+import { OUTGOING_EDGE_LIMIT, readEvery, recordOf, type TRecordReader } from "./record-reads.js";
+import { levelOf } from "../../steps/domains/quad-types.js";
 
 /** Reads the bodies of one record with their text, in two reads: the bodies its edges reach, and those bodies by id. A page
  *  of bodies doesn't hold their text, and a read of named bodies holds it. */

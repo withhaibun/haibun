@@ -15,7 +15,9 @@ import { itemAt } from "../../domains/item-at.js";
 import { assertDeclaredEdge, JSON_LD_KEYWORD } from "../../domains/hypermedia.js";
 import {
 	SHARED_GRAPH,
+	assertRegisteredSchema,
 	matchesQuadPattern,
+	typedRecord,
 	type TCluster,
 	type TClusteredQuads,
 	type TClusteredQuadsOpts,
@@ -26,9 +28,10 @@ import {
 	type TQuad,
 	type TQuadPattern,
 	type TRecordsPage,
+	type TRecordType,
 } from "../domains/quad-types.js";
 import type { IQuadStore, TFederatedGraphSource, TStoreLevels } from "../ports.js";
-import { AccessLevelSchema, HELD_BY, LinkRelations, withinAccess, type AccessLevel } from "../../domains/resources.js";
+import { AccessLevelSchema, HELD_BY, LinkRelations, withinAccess, type AccessLevel, type AccessQueryLevel } from "../../domains/resources.js";
 import { seenAt, writesAtEveryLevel, writtenAt } from "../../domains/actions.js";
 import { distinctOf, readFromRecords, recordsOfQuads, type THeldRecord, type TReadDeclaration, type TReadDeclarations } from "../../records/derivations/read-records.js";
 import { quadsOfRead, readEvery, type TRecordReader } from "../../records/pipelines/record-reads.js";
@@ -362,17 +365,31 @@ export class QuadStore implements IQuadStore {
 	async readRecords(query: TGraphQuery): Promise<TRecordsPage> {
 		const routed = this.routeOf(query);
 		if (routed) return await routed.readRecords(query);
+		return this.ownRecords(query, true);
+	}
+
+	/** Reads a page of this store's own layer. A held record crosses into code only where its type's schema parses it: here, where
+	 *  `parsed` holds, and in a typed read, which parses the record it returns, so a record is parsed once. */
+	private async ownRecords(query: TGraphQuery, parsed: boolean): Promise<TRecordsPage> {
 		const declarations = this.declarations;
 		if (!declarations) throw new Error("this store doesn't hold the declarations of its types, so it doesn't read records by type; build it with the declarations it reads");
 		const held = recordsOfQuads(await quadsOfRead(query, (pattern) => Promise.resolve(this.localQuery(pattern))));
 		const elsewhere = query.referencedBy ? await this.referencedElsewhere(held, query) : [];
 		const declared = declarations();
-		// A held record crosses into code only where its type's schema parses it.
-		for (const { label, fields } of held) {
-			const schema = declared.of(label)?.schema;
-			if (schema !== undefined) schemaRecord(schema, label, fields, false);
-		}
+		if (parsed)
+			for (const { label, fields } of held) {
+				const schema = declared.of(label)?.schema;
+				if (schema !== undefined) schemaRecord(schema, label, fields, false);
+			}
 		return readFromRecords([...held, ...elsewhere], query, declared);
+	}
+
+	async readRecord<S extends z.ZodType>(type: TRecordType<S>, id: string, accessLevel?: AccessQueryLevel): Promise<z.output<S> | undefined> {
+		const backing = this.storeFor(type.label);
+		if (backing) return await backing.readRecord(type, id, accessLevel);
+		assertRegisteredSchema(this.declarations?.(), type);
+		const derived = this.derivedReaderOf(type.label);
+		return typedRecord(type, id, accessLevel, (query) => (derived ? derived.readRecords(query) : this.ownRecords(query, false)));
 	}
 
 	/**

@@ -4,9 +4,21 @@
  */
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TEventKind } from "../domains/protocol.js";
 import type { TAccessBound } from "../domains/actions.js";
-import type { AccessLevel } from "../domains/resources.js";
+import type { z } from "zod";
+import type { AccessLevel, AccessQueryLevel } from "../domains/resources.js";
 import type { TFeatureStep } from "./domains/stepper.js";
-import type { TClusteredQuads, TClusteredQuadsOpts, TDensityQuery, TDensityResult, TDistinctValues, TGraphQuery, TQuad, TQuadPattern, TRecordsPage } from "./domains/quad-types.js";
+import type {
+	TClusteredQuads,
+	TClusteredQuadsOpts,
+	TDensityQuery,
+	TDensityResult,
+	TDistinctValues,
+	TGraphQuery,
+	TQuad,
+	TQuadPattern,
+	TRecordsPage,
+	TRecordType,
+} from "./domains/quad-types.js";
 
 /** A subscriber of the events hub. It receives each event once the hub has obscured its secrets and stated its level. */
 export type TEventSubscriber = (event: THaibunEvent) => void;
@@ -76,6 +88,12 @@ export interface IQuadStore {
 	/** Reads a page of records. Rejects a page outside 1 to `MAX_PAGE_ROWS` records, a count ceiling above `COUNT_CEILING`,
 	 *  and a read the store doesn't reach, with the text of `readRefusal`. Counts to the ceiling and states the page's order. */
 	readRecords(query: TGraphQuery): Promise<TRecordsPage>;
+
+	/** Reads one record of a type by its id, at the level `accessLevel` states or every level the reader holds, parsed once by the
+	 *  schema the type's domain registers, which `type` names beside the type's label; returns undefined where the store doesn't
+	 *  hold the record. A store refuses a schema its declaration of the label doesn't register. A store over a transport sends the
+	 *  label and parses what it receives with the schema. */
+	readRecord<S extends z.ZodType>(type: TRecordType<S>, id: string, accessLevel?: AccessQueryLevel): Promise<z.output<S> | undefined>;
 
 	/** Writes and deletes one record. The named graph is the record's persisted type. */
 	upsertIndividual(label: string, data: unknown): Promise<string>;

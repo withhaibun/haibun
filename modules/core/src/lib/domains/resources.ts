@@ -23,6 +23,7 @@ import { MEDIA_TYPE } from "./media-types.js";
 import { FragmentSchema, isFragment } from "./media-fragments.js";
 import { fromJsonText } from "./json-text.js";
 import type { TListDeclaration } from "./lists.js";
+import type { TRecordType } from "../steps/domains/quad-types.js";
 
 // ============================================================================
 // Resource identity
@@ -986,6 +987,8 @@ const PrincipalSchema = PersistedVertexSchema.extend({
 });
 
 export type TPrincipal = z.infer<typeof PrincipalSchema>;
+/** A Principal record as a typed read reads it: its type, and the schema its domain registers. */
+export const PrincipalRecord = { label: PRINCIPAL_LABEL, schema: PrincipalSchema } satisfies TRecordType<z.ZodType>;
 
 /** A principal as a row reads it: its DID, and the key it signs with where it declares one. */
 export type TPrincipalRow = { id: string; publicKey?: string };
@@ -1211,7 +1214,7 @@ export const specificResourceDomainDefinition: TDomainDefinition = {
 // ============================================================================
 
 /** One reading: what it read, when, in which step, and the statements it made. */
-const ReadingSchema = PersistedVertexSchema.extend({
+export const ReadingSchema = PersistedVertexSchema.extend({
 	id: z.string(),
 	generatedAtTime: z.string(),
 	seqPath: z.string().optional(),

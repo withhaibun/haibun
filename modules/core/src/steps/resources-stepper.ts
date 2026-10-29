@@ -37,13 +37,13 @@ import {
 	writeEdge,
 	conversationRoot,
 	assertCommentGrounded,
-	QuoteAnchorSchema,
+	TextQuoteSelectorSchema,
 	AnnotationListSchema,
 	type TQuoteAnchor,
 	Access,
 } from "../lib/domains/resources.js";
 import { MEDIA_TYPE } from "../lib/domains/media-types.js";
-import { readEvery, recordOf } from "../lib/records/pipelines/record-reads.js";
+import { readEvery } from "../lib/records/pipelines/record-reads.js";
 import { bodiesByMediaType, markdownOf } from "../lib/records/pipelines/body-reads.js";
 import { createComment, readProseLinks, writeAnnotation } from "../lib/records/pipelines/discourse-writes.js";
 import { DOMAIN_LINK_REL, DOMAIN_RECORD_ID, DOMAIN_TEXT, linkVocabularyFor } from "../lib/domains/domains.js";
@@ -178,9 +178,8 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 					const sourceQuad = quads.find((q) => q.predicate === LinkRelations.HAS_SOURCE.rel);
 					const selectorId = quads.find((q) => q.predicate === LinkRelations.HAS_SELECTOR.rel)?.object;
 					if (!sourceQuad || !selectorId) continue;
-					const held = await recordOf(store, TEXT_QUOTE_SELECTOR_LABEL, String(selectorId));
-					if (!held) continue;
-					const selector = QuoteAnchorSchema.parse(held);
+					const selector = await store.readRecord({ label: TEXT_QUOTE_SELECTOR_LABEL, schema: TextQuoteSelectorSchema }, String(selectorId));
+					if (!selector) continue;
 					checked++;
 					const sourceLabel = (sourceQuad as { objectType?: string }).objectType;
 					if (!sourceLabel) return actionNotOK(`anchor ${anchor.id}: its hasSource edge doesn't name a type for "${String(sourceQuad.object)}"`);
@@ -209,6 +208,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 		},
 		comment: {
 			gwta: `comment on {label: ${DOMAIN_PERSISTED_TYPE}} {id: ${DOMAIN_RECORD_ID}} with {text: ${DOMAIN_TEXT}}`,
+			kaname: true,
 			description:
 				"Writes a comment holding the text on the record, authored by the instance's principal, and links it to the record with a narrate edge. It returns the comment's id and the record's conversation root.",
 			recordIds: { id: "label" },
@@ -226,6 +226,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 		},
 		annotate: {
 			gwta: `annotate {label: ${DOMAIN_PERSISTED_TYPE}} {id: ${DOMAIN_RECORD_ID}} quoting {exact: ${DOMAIN_TEXT}} with {text: ${DOMAIN_TEXT}}`,
+			kaname: true,
 			description:
 				"Writes an annotation that quotes the passage in the record and holds the note as its body, resolving the quote to one occurrence by an optional prefix and suffix. It returns the comment's id, the anchor's specific resource, and the record's conversation root.",
 			recordIds: { id: "label" },
@@ -260,6 +261,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			read: true,
 			readsAt: Access.public,
 			gwta: `get annotations for {label: ${DOMAIN_PERSISTED_TYPE}} {id: ${DOMAIN_RECORD_ID}}`,
+			kaname: true,
 			description: "Returns the annotations anchored in the record, each with the comment's body, its author and times, and the passages it cross-references.",
 			recordIds: { id: "label" },
 			productsDomain: DOMAIN_ANNOTATIONS,

@@ -68,6 +68,7 @@ const remoteTool = (stepName: string, pattern: string, capability = `RemoteSteps
 		paramDomains: {},
 		capability: ActionSchema.parse(capability),
 		read: false,
+		kaname: false,
 		fallback: false,
 		answersTheTurn: false,
 		remoteOrigin: "http://localhost:8331",

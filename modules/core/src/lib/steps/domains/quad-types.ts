@@ -6,7 +6,8 @@
 import { MEDIA_TYPE } from "../../domains/media-types.js";
 import { z } from "zod";
 import type { TListQuery } from "../../domains/lists.js";
-import { AccessLevelSchema, AccessQueryLevelSchema, type AccessLevel } from "../../domains/resources.js";
+import { AccessLevelSchema, AccessQueryLevelSchema, type AccessLevel, type AccessQueryLevel } from "../../domains/resources.js";
+import { parsedRecord } from "../../domains/json-text.js";
 import { CountedFields, CountedSchema } from "../../domains/hypermedia.js";
 import type { TJsonArtifact } from "../../domains/protocol.js";
 import { ellipsize } from "../../domains/util.js";
@@ -89,6 +90,9 @@ export const GraphQuerySchema = z
 	})
 	.strict();
 export type TGraphQuery = z.infer<typeof GraphQuerySchema>;
+
+/** A type a typed read names: its label, and the schema its domain registers, whose output the read returns. */
+export type TRecordType<S extends z.ZodType> = { label: string; schema: S };
 /** A graph query as a caller states it, before the schema parses it. */
 export type TGraphQueryInput = z.input<typeof GraphQuerySchema>;
 
@@ -395,4 +399,26 @@ export function queriedList(query: TGraphQuery, { filters, order, skip, limit }:
 	const sorted = order === undefined ? {} : { sortBy: order.field, sortOrder: order.descending ? SortOrderSchema.enum.desc : SortOrderSchema.enum.asc };
 	const filtered = filters === undefined ? {} : { filters: query.filters === undefined ? filters : [...query.filters, ...filters] };
 	return { query: { ...query, ...filtered, ...sorted, ...(skip === undefined ? {} : { offset: skip }), ...(limit === undefined ? {} : { limit }) } };
+}
+
+/** The level a read states, where it states one. */
+export const levelOf = (accessLevel: AccessQueryLevel | undefined) => (accessLevel === undefined ? {} : { accessLevel });
+
+/** Refuses a typed read whose schema isn't the one the store's declaration of the type registers: the read parses with the label's
+ *  domain schema alone. */
+export function assertRegisteredSchema(declarations: { of(label: string): { schema?: z.ZodType } | undefined } | undefined, { label, schema }: TRecordType<z.ZodType>): void {
+	if (declarations?.of(label)?.schema !== schema)
+		throw new Error(`a typed read of ${label} parses with the schema ${label}'s domain registers, and this read names another schema; name the domain's schema`);
+}
+
+/** Reads one record of `type` by its id through `read`, which doesn't parse it, and returns what the type's schema parses of it:
+ *  the one parse of a typed read. Returns undefined where the read doesn't return the record. */
+export async function typedRecord<S extends z.ZodType>(
+	type: TRecordType<S>,
+	id: string,
+	accessLevel: AccessQueryLevel | undefined,
+	read: (query: TGraphQuery) => Promise<TRecordsPage>,
+): Promise<z.output<S> | undefined> {
+	const [record] = (await read(GraphQuerySchema.parse({ label: type.label, named: [id], limit: 1, skipCount: true, ...levelOf(accessLevel) }))).vertices;
+	return record === undefined ? undefined : parsedRecord(type.schema, type.label, record, false);
 }

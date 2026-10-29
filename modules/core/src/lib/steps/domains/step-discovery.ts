@@ -77,6 +77,8 @@ export const StepDescriptorSchema = z
 		/** Whether the step is a read. A call that requests a read must name such a step, and actuality returns the result of
 		 *  a read over a transport without recording a step. */
 		read: z.boolean(),
+		/** Whether the step is a kaname step of the types it takes, shown and listed first. */
+		kaname: z.boolean(),
 		/** Whether the resolver drops the step from a line's candidates where a step that isn't a fallback also matches the line. */
 		fallback: z.boolean(),
 		/** Whether the step's result is the response to the turn that called it. That turn ends with the result and doesn't
@@ -173,7 +175,7 @@ export type TStepSummaries = z.infer<typeof StepSummariesSchema>;
 export type TStepDefinitions = z.infer<typeof StepDefinitionsSchema>;
 
 /** A tool as MCP defines it. A model provider sends the same fields under its own field names. */
-export type TToolDefinition = { name: string; description: string; inputSchema: TInputSchema };
+export type TToolDefinition = { name: string; description: string; inputSchema: TInputSchema; annotations: { title: string; readOnlyHint: boolean; destructiveHint: boolean } };
 
 /** The read of the summaries of a stepper's steps, by the stepper's name and the hyphen that separates a method's
  *  stepper from its step. */
@@ -214,8 +216,17 @@ export const readStepDefinitions = shownIn(StepDefinitionsSchema);
  *  of the instance that runs it, and the schema of its arguments. */
 export function toolDefinition(step: TStepDescriptor): TToolDefinition {
 	const parts = [step.pattern, step.description, `Requires capability ${step.capability}.`, step.remoteOrigin === undefined ? undefined : `Runs at ${step.remoteOrigin}.`];
-	return { name: step.method, description: parts.filter((part) => part !== undefined).join("\n\n"), inputSchema: step.inputSchema };
+	// A read leaves the records as they are, and MCP takes a tool that doesn't state it reads as one that may destroy, so an act states it may.
+	const annotations = { title: prettifyGwta(step.pattern), readOnlyHint: step.read, destructiveHint: !step.read };
+	return { name: step.method, description: parts.filter((part) => part !== undefined).join("\n\n"), inputSchema: step.inputSchema, annotations };
 }
+
+/** Returns a step's pattern as a reader reads it, without its optional groups (`set( empty)? {what}`). */
+export const prettifyGwta = (gwta: string): string =>
+	gwta
+		.replace(/\(\s*[^()]*?\s*\)\?/g, "")
+		.replace(/ {2,}/g, " ")
+		.trim();
 
 /** The instructions a caller receives before its first request. They name the step that reads actuality's declarations.
  *  They list each stepper of the steps the caller holds, with its name, what it does and how many of its steps the caller

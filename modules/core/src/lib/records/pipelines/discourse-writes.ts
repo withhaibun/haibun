@@ -10,6 +10,7 @@ import {
 	COMMENT_TOPOLOGY,
 	LinkRelations,
 	READING_LABEL,
+	ReadingSchema,
 	SPECIFIC_RESOURCE_LABEL,
 	StatedRecordSchema,
 	anchorPart,
@@ -27,9 +28,10 @@ import { DEFAULT_BODY_KIND, bodyIdOf, bodyKindsOf } from "../derivations/bodies.
 import { typedLinkFacts } from "../derivations/typed-link-facts.js";
 import type { TLinkVocabulary, TTypedLinkFact } from "../../domains/typed-links.js";
 import { recordOf, type TRecordReader } from "./record-reads.js";
+import type { IQuadStore } from "../../steps/ports.js";
 
 /** The store a reading writes and reads: the discourse writes and the read of records. */
-type TReadingStore = TDiscourseStore & TRecordReader;
+type TReadingStore = TDiscourseStore & TRecordReader & Pick<IQuadStore, "readRecord">;
 
 /** Returns a stable reading id per source, so reading the source again replaces the previous reading and doesn't add one per run. */
 export function readingIdFor(sourceLabel: string, sourceId: string): string {
@@ -38,14 +40,9 @@ export function readingIdFor(sourceLabel: string, sourceId: string): string {
 
 /** Undoes the previous reading of this source. It retracts the reading's statements, deletes the anchors it wrote and removes the reading. */
 async function retractReading(store: TReadingStore, readingId: string): Promise<void> {
-	const prior = await recordOf(store, READING_LABEL, readingId);
+	const prior = await store.readRecord({ label: READING_LABEL, schema: ReadingSchema }, readingId);
 	if (!prior) return;
-	const entries = prior.stated;
-	if (!Array.isArray(entries))
-		throw new Error(
-			`${READING_LABEL} "${readingId}" records what it stated as ${typeof entries}, not a list, so the record cannot be undone. Write the reading again, so that it records what it stated`,
-		);
-	for (const entry of entries as string[]) {
+	for (const entry of prior.stated) {
 		const record = fromJsonText(StatedRecordSchema).parse(entry);
 		if (record.kind === "edge") await store.remove({ subject: record.s, predicate: record.rel, object: record.o, namedGraph: record.sLabel });
 		else await store.deleteIndividual(record.label, record.id);

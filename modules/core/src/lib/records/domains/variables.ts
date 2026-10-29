@@ -31,6 +31,8 @@ export const VariableSchema = PersistedVertexSchema.extend({
 	[VARIABLE_FIELD.generatedAtTime]: z.string(),
 });
 
+export type TVariable = z.infer<typeof VariableSchema>;
+
 export const variableDomainDefinition: TDomainDefinition = {
 	selectors: [VARIABLE_DOMAIN],
 	schema: VariableSchema,

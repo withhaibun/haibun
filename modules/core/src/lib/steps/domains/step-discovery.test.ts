@@ -62,6 +62,12 @@ describe("a step as a tool", () => {
 			name: "DescribedSteps-numberStep",
 			description: `wait {seconds: number} seconds\n\n${TEST_STEP}\n\nRequires capability DescribedSteps:wait.`,
 			inputSchema: step.inputSchema,
+			annotations: { title: "wait {seconds: number} seconds", readOnlyHint: false, destructiveHint: true },
+		});
+		expect(toolDefinition(describedAs("gwtaStep")).annotations, "a read states that it reads, and that it doesn't destroy").toEqual({
+			title: "set {name} to {value}",
+			readOnlyHint: true,
+			destructiveHint: false,
 		});
 		expect(toolDefinition(describedAs("gwtaStep")).description, "a read that doesn't state its level requires a private read").toBe(
 			"set {name} to {value}\n\nSets a value.\n\nRequires capability Read:private.",

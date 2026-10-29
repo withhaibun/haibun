@@ -219,6 +219,7 @@ export function stepsShown(
 			pattern: string;
 			description?: string;
 			fallback?: boolean;
+			kaname?: boolean;
 			answersTheTurn?: boolean;
 			/** Whether the page may call the step, which it may where this isn't stated. */
 			callable?: boolean;
@@ -243,6 +244,7 @@ export function stepsShown(
 			stepperDescription: `the steps of ${step.stepperName}`,
 			paramDomains: step.paramDomains ?? {},
 			read: step.read === true,
+			kaname: step.kaname === true,
 			fallback: step.fallback === true,
 			answersTheTurn: step.answersTheTurn === true,
 		}),

@@ -16,7 +16,8 @@ const REPORT = "FieldReport";
 /** A line's record, and the record of a statement of it, by their record names. */
 const LINE = "1-1.0.1.1.2";
 const STEP = `${LINE}.1`;
-import { SEQ_PATH_FIELD } from "../../actuality/domains/seq-path.js";
+import { Access } from "../../domains/resources.js";
+import { SEQ_PATH_FIELD, seqPathDomainDefinition } from "../../actuality/domains/seq-path.js";
 import { statementsWith } from "./statements.js";
 import { itemAt } from "../../domains/item-at.js";
 import type { TLinkVocabulary } from "../../domains/typed-links.js";
@@ -28,17 +29,29 @@ const vocab: TLinkVocabulary = {
 
 describe("statementsWith", () => {
 	let store: QuadStore;
+	/** What every SeqPath record states beside its line: when it was written, its log level and its access level. */
+	const SEQ_PATH_STATED = { [SEQ_PATH_FIELD.generatedAtTime]: "2026-07-01T00:00:00.000Z", [SEQ_PATH_FIELD.level]: "info", accessLevel: Access.private };
 
 	beforeEach(async () => {
 		store = storeDeclaring(
 			Object.fromEntries([
-				...[REPORT, SEQ_PATH_LABEL].map((label) => [label, {}]),
-				...[readingDomainDefinition, specificResourceDomainDefinition, textQuoteSelectorDomainDefinition].map(declaredTypeOf),
+				[REPORT, {}],
+				...[seqPathDomainDefinition, readingDomainDefinition, specificResourceDomainDefinition, textQuoteSelectorDomainDefinition].map(declaredTypeOf),
 			]),
 		);
 		// A feature of an actuality: the line `1-1.0.1.1.2` passed, and its statement `1-1.0.1.1.2.1` is running.
-		await store.upsertIndividual(SEQ_PATH_LABEL, { [SEQ_PATH_FIELD.id]: LINE, [SEQ_PATH_FIELD.actionStatus]: RECORDED_STATUS.completed, [SEQ_PATH_FIELD.stepText]: "a line" });
-		await store.upsertIndividual(SEQ_PATH_LABEL, { [SEQ_PATH_FIELD.id]: STEP, [SEQ_PATH_FIELD.actionStatus]: RECORDED_STATUS.running, [SEQ_PATH_FIELD.stepText]: "prose" });
+		await store.upsertIndividual(SEQ_PATH_LABEL, {
+			[SEQ_PATH_FIELD.id]: LINE,
+			[SEQ_PATH_FIELD.actionStatus]: RECORDED_STATUS.completed,
+			[SEQ_PATH_FIELD.stepText]: "a line",
+			...SEQ_PATH_STATED,
+		});
+		await store.upsertIndividual(SEQ_PATH_LABEL, {
+			[SEQ_PATH_FIELD.id]: STEP,
+			[SEQ_PATH_FIELD.actionStatus]: RECORDED_STATUS.running,
+			[SEQ_PATH_FIELD.stepText]: "prose",
+			...SEQ_PATH_STATED,
+		});
 		// The cited document. The statement references a record that exists.
 		await store.upsertIndividual(REPORT, { id: "spec-1", generatedAtTime: "2026-07-01T00:00:00.000Z" });
 		await readTypedLinks(

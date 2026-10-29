@@ -4,6 +4,8 @@ import { AStepper, type TStepperStep } from "../domains/stepper.js";
 import type { TWorld } from "../../actuality/domains/world.js";
 import type { TActionResult } from "../../domains/protocol.js";
 import { HYPERMEDIA } from "../../domains/protocol.js";
+import { stepLinkOf, type TStepLink } from "../../domains/hypermedia.js";
+import { requiredAction } from "../../domains/actions.js";
 import { stepParts } from "../domains/phrase.js";
 import { stepMethodName } from "../domains/step-method.js";
 import { declaredSteps } from "./predicate-registry.js";
@@ -63,7 +65,7 @@ export function augmentViewHypermedia(world: TWorld, step: TStepperStep, actionR
 		markers.id = productsDomain;
 		markers.view = productsDomain;
 	}
-	// Next-action affordances: every step whose parameter domains take this product's domain. The SPA row menu, a model or an agent reads `_links` to find follow-on steps without calling show steps. Each entry has the `{method, params?}` shape of every other `_links` entry. Each rel is the step name without its stepper prefix, so it names the action rather than the method address.
+	// Next-action affordances: every step whose parameter domains take this product's domain. A model or an agent reads `_links` to find follow-on steps without calling show steps. Each entry is a step link: the method and the record as its params, the step's description as its summary, whether it reads or acts, the action it requires, and whether it is a kaname step. Each rel is the step name without its stepper prefix, so it names the action rather than the method address.
 	const links = deriveActionLinks(productsDomain, products, steppers, world);
 	if (Object.keys(links).length > 0) markers[HYPERMEDIA.LINKS] = links;
 	return { ...actionResult, products: { ...products, ...markers } };
@@ -86,13 +88,8 @@ export function augmentViewHypermedia(world: TWorld, step: TStepperStep, actionR
  *
  * H1: one derivation serves every step, and a step doesn't declare its own links.
  */
-function deriveActionLinks(
-	productsDomain: string,
-	products: Record<string, unknown>,
-	steppers: AStepper[],
-	world: TWorld,
-): Record<string, { method: string; params?: Record<string, unknown> }> {
-	const out: Record<string, { method: string; params?: Record<string, unknown> }> = {};
+function deriveActionLinks(productsDomain: string, products: Record<string, unknown>, steppers: AStepper[], world: TWorld): Record<string, TStepLink> {
+	const out: Record<string, TStepLink> = {};
 	const productId = typeof products.id === "string" ? products.id : undefined;
 	// A part's domain key states a union's parts in order, and a union domain doesn't declare a single-domain topology, so it
 	// doesn't match.
@@ -100,7 +97,8 @@ function deriveActionLinks(
 	for (const { stepperName, actionName, step } of declaredSteps(steppers)) {
 		const matching = stepParts(step).flatMap(({ name, domain }) => (matchesProduct(domain) ? [name] : []));
 		const method = stepMethodName(stepperName, actionName);
-		if (matching.length > 0) out[actionName] = productId === undefined ? { method } : { method, params: Object.fromEntries(matching.map((name) => [name, { id: productId }])) };
+		const link = { method, description: step.description, read: step.read === true, capability: requiredAction(stepperName, actionName, step), kaname: step.kaname === true };
+		if (matching.length > 0) out[actionName] = stepLinkOf(link, productId === undefined ? undefined : Object.fromEntries(matching.map((name) => [name, { id: productId }])));
 	}
 	return out;
 }

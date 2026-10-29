@@ -1,12 +1,13 @@
 /**
  * The actions bar's step mode: the steps actuality offers, the step input line, and a caller for the step a reader picks,
- * opened in the bar's history. The steps for the selected type come first, marked. A reader who picks another step
+ * opened in the bar's history. The understanding commands come first, then the selected type's kaname steps and its other
+ * steps, marked, then every other step; each shows its description. A reader who picks another step
  * before running the last caller replaces that caller rather than adding a second, and each caller is numbered among
  * the callers of its method, so its test ids stay unique across repeated calls.
  */
 import { html, nothing, type ReactiveController, type TemplateResult } from "lit";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
-import { VALIDATE_STEP_METHOD, waypointMark, type TPredicate, type TStepDefinition, type TStepValidation } from "@haibun/core/lib/step-discovery.js";
+import { prettifyGwta, VALIDATE_STEP_METHOD, waypointMark, type TPredicate, type TStepDefinition, type TStepValidation } from "@haibun/core/lib/step-discovery.js";
 import { callStep } from "../controllers/read-controller.js";
 import type { TPageRefusal } from "../domains/refusal.js";
 import type { ShuRefusal } from "./shu-refusal.js";
@@ -17,7 +18,7 @@ import type { ShuActivityHistory } from "./shu-activity-history.js";
 import type { ShuCombobox } from "./shu-combobox.js";
 import type { ShuStepCaller } from "./shu-step-caller.js";
 import "./shu-step-caller.js";
-import { prettifyGwta } from "../derivations/steps.js";
+
 import "./shu-combobox.js";
 
 /** What opens a step's caller: fixed arguments, whether it runs at once, and the starting values its inputs show. */
@@ -37,10 +38,10 @@ export function stepSecondary(step: TStepDefinition): string {
 	return "";
 }
 
-/** What an option reveals when focused: each input's domain, the output's, and the capability it requires. The label
- *  already shows the pattern, so this does not repeat it. */
+/** What an option reveals when focused: what the step does, each input's domain, the output's, and the capability it requires.
+ *  The label already shows the pattern, so this does not repeat it. */
 export function stepDetails(step: TStepDefinition): string {
-	const lines: string[] = [];
+	const lines: string[] = [step.description];
 	if (Object.keys(step.paramDomains).length > 0) {
 		lines.push("inputs:");
 		for (const [name, domain] of Object.entries(step.paramDomains)) lines.push(`  ${name}: ${domain}`);
@@ -50,17 +51,33 @@ export function stepDetails(step: TStepDefinition): string {
 	return lines.join("\n");
 }
 
-/** The step options: the steps offered for the selected type first, marked, then every other step. Each option's value
- *  is the step's full method, since a step's own name can repeat across steppers. */
+/** The understanding commands, which work on anything a reader is shown: what it is (its axioms), why it is so (its
+ *  derivation), what can be done with it (the applicable steps) and where it fits (the graph view). */
+export const UNDERSTANDING_STEPS: readonly string[] = [
+	"GraphSourceStepper-showAxioms",
+	"LogicStepper-showDerivation",
+	"LogicStepper-showAffordances",
+	"ShuStepper-showPolymorphicGraphView",
+];
+
+/** The step options: the understanding commands, then the selected type's kaname steps and its other steps, marked, then every
+ *  other step, each with its description. Each option's value is the step's full method, since a step's own name can repeat
+ *  across steppers. */
 export function stepOptions(steps: readonly TStepDefinition[], forTheType: readonly TStepDefinition[]): TComboboxOption[] {
-	const typeMethods = new Set(forTheType.map((step) => step.method));
 	const option = (step: TStepDefinition, marked: boolean): TComboboxOption => ({
 		value: step.method,
 		label: `${marked ? FOR_THE_TYPE : ""}${prettifyGwta(step.pattern)}`,
 		secondary: stepSecondary(step),
 		details: stepDetails(step),
 	});
-	return [...forTheType.map((step) => option(step, true)), ...steps.filter((step) => !typeMethods.has(step.method)).map((step) => option(step, false))];
+	const understanding = UNDERSTANDING_STEPS.flatMap((method) => steps.filter((step) => step.method === method));
+	const typeSteps = [...forTheType.filter((step) => step.kaname), ...forTheType.filter((step) => !step.kaname)].filter((step) => !UNDERSTANDING_STEPS.includes(step.method));
+	const placed = new Set([...understanding, ...typeSteps].map((step) => step.method));
+	return [
+		...understanding.map((step) => option(step, false)),
+		...typeSteps.map((step) => option(step, true)),
+		...steps.filter((step) => !placed.has(step.method)).map((step) => option(step, false)),
+	];
 }
 
 /** The step that ensures a waypoint, which a pick of a waypoint's head opens with the head as its statement. */

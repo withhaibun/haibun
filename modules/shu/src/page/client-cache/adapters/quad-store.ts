@@ -9,13 +9,17 @@
  * requested as fast as facts arrive queued work that outlasted the page: a page opened again after a reload waited behind
  * it for its key, which the browser keeps in another database of the same origin, and stood blank until the queue drained.
  */
-import { matchesQuadPattern, type TQuad, type TQuadPattern } from "@haibun/core/lib/quad-types.js";
+import { z } from "zod";
+import { matchesQuadPattern, QuadSchema, type TQuad, type TQuadPattern } from "@haibun/core/lib/quad-types.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { DEVICE_STORES, META_KEY, QUAD_INDEX, type TDeviceDatabase, type TDeviceQuads, type TGraphSaturation } from "../ports.js";
 import { done } from "./device-store.js";
 
 /** A stored quad carries a derived `spg` (namedGraph|subject|predicate) key so `set`/`get` can upsert without a scan. */
 type StoredQuad = TQuad & { spg: string };
+/** The rows a read returns, parsed as the quads they are held as. */
+const StoredQuadsSchema = z.array(QuadSchema.extend({ spg: z.string() }));
+const storedQuads = (rows: unknown): StoredQuad[] => StoredQuadsSchema.parse(rows);
 const spgKey = ({ namedGraph, subject, predicate }: Pick<TQuad, "namedGraph" | "subject" | "predicate">): string => `${namedGraph}|${subject}|${predicate}`;
 const strip = ({ spg, ...quad }: StoredQuad): TQuad => quad;
 
@@ -86,7 +90,7 @@ export class IndexedDbQuads implements TDeviceQuads {
 					const index = store.index(QUAD_INDEX.SPG);
 					const spg = spgKey(quad);
 					const [keys, rows] = await Promise.all([done(index.getAllKeys(spg)), done(index.getAll(spg))]);
-					return { keys, rows: rows as StoredQuad[] };
+					return { keys, rows: storedQuads(rows) };
 				}),
 			),
 		);
@@ -158,17 +162,19 @@ export class IndexedDbQuads implements TDeviceQuads {
 		const rows = await this.read(async (store) => {
 			// Narrow with the most selective index the pattern names, then filter the remaining fields. An object is an
 			// index key where it names an individual (an id); any other value is matched after the widest read.
-			const keyed = typeof pattern.object === "string" || typeof pattern.object === "number";
+			const keyed = typeof pattern.object === "string" || typeof pattern.object === "number" ? pattern.object : undefined;
 			const by: [string, IDBValidKey] | undefined =
 				pattern.subject !== undefined
 					? [QUAD_INDEX.SUBJECT, pattern.subject]
-					: keyed
-						? [QUAD_INDEX.OBJECT, pattern.object as IDBValidKey]
+					: keyed !== undefined
+						? [QUAD_INDEX.OBJECT, keyed]
 						: pattern.namedGraph !== undefined
 							? [QUAD_INDEX.NAMED_GRAPH, pattern.namedGraph]
 							: undefined;
 			const indexed = by ? await done(store.index(by[0]).getAll(by[1])) : await done(store.getAll());
-			return (indexed as StoredQuad[]).filter((q) => matchesQuadPattern(q, pattern)).map(strip);
+			return storedQuads(indexed)
+				.filter((q) => matchesQuadPattern(q, pattern))
+				.map(strip);
 		});
 		return heldOrEmpty(rows);
 	}
@@ -185,14 +191,15 @@ export class IndexedDbQuads implements TDeviceQuads {
 		return this.inTurn(async () => {
 			const matching = await this.read(async (store) => {
 				const [keys, rows] = await Promise.all([done(store.getAllKeys()), done(store.getAll())]);
-				return keys.filter((_, at) => matchesQuadPattern(itemAt(rows as StoredQuad[], at), pattern));
+				const held = storedQuads(rows);
+				return keys.filter((_, at) => matchesQuadPattern(itemAt(held, at), pattern));
 			});
 			if (matching !== undefined) await this.write((store) => matching.forEach((key) => store.delete(key)));
 		});
 	}
 
 	async all(): Promise<TQuad[]> {
-		const rows = await this.read(async (store) => ((await done(store.getAll())) as StoredQuad[]).map(strip));
+		const rows = await this.read(async (store) => storedQuads(await done(store.getAll())).map(strip));
 		return heldOrEmpty(rows);
 	}
 

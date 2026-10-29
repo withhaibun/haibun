@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { QuadStore, newStoreChain } from "./quad-store.js";
 import { heldRecordIri } from "../../test/declared-types.js";
 import { bucketOf } from "../derivations/quad-sample.js";
@@ -329,5 +330,25 @@ describe("the edges a store of quads writes", () => {
 		await store.createEdge("Step", "a", "isPartOf", "Step", "b");
 		expect((await store.query({ subject: "a", predicate: "isPartOf" })).map(({ object }) => object)).toEqual(["b"]);
 		await expect(store.createEdge("Step", "a", "wroteBy", "Step", "b")).rejects.toThrow("Step doesn't declare the edge wroteBy");
+	});
+});
+
+describe("a typed read of one record", () => {
+	const NoteSchema = z.object({ id: z.string(), text: z.string(), generatedAtTime: z.string() });
+	const NOTE = { label: "Note", schema: NoteSchema };
+	const store = (): QuadStore => storeDeclaring({ [NOTE.label]: { schema: NoteSchema } });
+
+	it("returns the record as its type's schema parses it, and undefined where the store doesn't hold it", async () => {
+		const notes = store();
+		await notes.upsertIndividual(NOTE.label, { id: "n1", text: "a note", generatedAtTime: "2026-07-01T00:00:00.000Z" });
+		const read: z.output<typeof NoteSchema> | undefined = await notes.readRecord(NOTE, "n1");
+		expect(read).toEqual({ id: "n1", text: "a note", generatedAtTime: "2026-07-01T00:00:00.000Z" });
+		expect(await notes.readRecord(NOTE, "n2")).toBeUndefined();
+	});
+
+	it("refuses a schema other than the one the type's declaration registers", async () => {
+		await expect(store().readRecord({ label: NOTE.label, schema: NoteSchema.extend({}) }, "n1")).rejects.toThrow(
+			/a typed read of Note parses with the schema Note's domain registers/,
+		);
 	});
 });

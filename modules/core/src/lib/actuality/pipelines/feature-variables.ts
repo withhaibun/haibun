@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { AStepper, TFeatureStep, coercionSite } from "../../steps/domains/stepper.js";
-import { fromJsonText } from "../../domains/json-text.js";
+import { fromJsonText, parsedRecord } from "../../domains/json-text.js";
 import { parseDotPath, navigateValue } from "../../domains/dot-path.js";
 import { itemAt } from "../../domains/item-at.js";
 import { runEnvEntries, runEnvVariable, type TWorld } from "../domains/world.js";
@@ -18,9 +18,9 @@ import {
 	registeredDomain,
 } from "../../domains/domains.js";
 import { readDeclarationsOf } from "../../records/derivations/read-records.js";
-import { readEvery, recordOf } from "../../records/pipelines/record-reads.js";
+import { readEvery } from "../../records/pipelines/record-reads.js";
 import { ontologyReader } from "../../records/pipelines/ontology-records.js";
-import { VARIABLE_FIELD } from "../../records/domains/variables.js";
+import { VARIABLE_FIELD, VariableSchema, type TVariable } from "../../records/domains/variables.js";
 import { QuadStore, newStoreChain } from "../../steps/pipelines/quad-store.js";
 import { OBSCURED_VALUE, isSecretName } from "../../steps/domains/secrets.js";
 import type { TSecrets } from "../../steps/ports.js";
@@ -46,13 +46,13 @@ const isOrigin = (value: unknown): value is TOrigin => typeof value === "string"
 
 /** A variable as its record states it. A secret's record holds the obscured value. Throws where the record states an
  *  origin that isn't one of `Origin`. */
-function variableOf(record: Record<string, unknown>): TStepValue {
-	const term = String(record[VARIABLE_FIELD.name]);
+function variableOf(record: TVariable): TStepValue {
+	const term = record[VARIABLE_FIELD.name];
 	const origin = record[VARIABLE_FIELD.origin];
-	if (!isOrigin(origin)) throw new Error(`the variable ${term} states the origin ${String(origin)}, which isn't one of ${Object.keys(Origin).join(", ")}`);
+	if (!isOrigin(origin)) throw new Error(`the variable ${term} states the origin ${origin}, which isn't one of ${Object.keys(Origin).join(", ")}`);
 	return {
 		term,
-		domain: String(record[VARIABLE_FIELD.domain]),
+		domain: record[VARIABLE_FIELD.domain],
 		value: record[VARIABLE_FIELD.value],
 		origin,
 		...(record[VARIABLE_FIELD.readonly] === true ? { readonly: true } : {}),
@@ -112,7 +112,7 @@ export class FeatureVariables {
 
 	/** The variables as the graph holds them, so a secret's value is obscured. */
 	async all(): Promise<{ [name: string]: TStepValue }> {
-		return Object.fromEntries((await this.variableRecords()).map((record) => [String(record[VARIABLE_FIELD.name]), variableOf(record)]));
+		return Object.fromEntries((await this.variableRecords()).map((record) => [record[VARIABLE_FIELD.name], variableOf(record)]));
 	}
 
 	/** The variables that start a next scope. Each holds its value and the steps that set it, and a secret holds its value
@@ -312,7 +312,7 @@ export class FeatureVariables {
 
 	/** Reads a variable's record, with a secret's value from `secretValues`. */
 	private async getStoredEntry(name: string): Promise<(TStepValue & { value: unknown }) | undefined> {
-		const record = await recordOf(this.store, SHARED_GRAPH, name);
+		const record = await this.store.readRecord({ label: SHARED_GRAPH, schema: VariableSchema }, name);
 		if (!record) return undefined;
 		const variable = variableOf(record);
 		return { ...variable, value: this.valueOf(variable) };
@@ -325,8 +325,8 @@ export class FeatureVariables {
 		return this.secretValues.get(variable.term);
 	}
 
-	private variableRecords(): Promise<Record<string, unknown>[]> {
-		return readEvery(this.store, { label: SHARED_GRAPH });
+	private async variableRecords(): Promise<TVariable[]> {
+		return (await readEvery(this.store, { label: SHARED_GRAPH })).map((record) => parsedRecord(VariableSchema, SHARED_GRAPH, record, false));
 	}
 
 	/** Returns the record names of the steps that set each named variable: an empty list for a variable that a step didn't

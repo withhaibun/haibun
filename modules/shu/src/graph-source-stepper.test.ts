@@ -35,6 +35,7 @@ function mockQuadStore(overrides: Partial<IQuadStore> = {}): IQuadStore {
 		upsertIndividual: vi.fn(async () => ""),
 		deleteIndividual: vi.fn(async () => undefined),
 		readRecords: vi.fn(async () => ({ vertices: [], total: 0, saturated: false, order: [] })),
+		readRecord: vi.fn(async () => undefined),
 		distinctPropertyValues: vi.fn(async () => distinctOf([])),
 		density: vi.fn(async () => ({ buckets: [] })),
 		getClusteredQuads: vi.fn(async () => ({ quads: [], clusters: [] })),

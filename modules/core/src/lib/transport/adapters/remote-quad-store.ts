@@ -9,7 +9,9 @@
 import { RemoteInstance } from "./rpc-client.js";
 import { STORE_METHOD_PREFIX, requiredStoreCapability } from "../../domains/store-protocol.js";
 import type { TRequestSigner } from "../../domains/authority-types.js";
-import type { AccessLevel } from "../../domains/resources.js";
+import type { z } from "zod";
+import type { AccessLevel, AccessQueryLevel } from "../../domains/resources.js";
+import { typedRecord } from "../../steps/domains/quad-types.js";
 import type { IQuadStore } from "../../steps/ports.js";
 import type {
 	TClusteredQuads,
@@ -21,6 +23,7 @@ import type {
 	TQuad,
 	TQuadPattern,
 	TRecordsPage,
+	TRecordType,
 } from "../../steps/domains/quad-types.js";
 
 export type TRemoteQuadStoreConfig = { url: string; sign: TRequestSigner; graphs: string[]; fetchImpl?: typeof fetch };
@@ -83,6 +86,11 @@ export class RemoteQuadStore implements IQuadStore {
 
 	readRecords(query: TGraphQuery): Promise<TRecordsPage> {
 		return this.call("readRecords", { query });
+	}
+
+	/** The far side reads the record by its label, and this side parses what it returns with the type's schema. */
+	readRecord<S extends z.ZodType>(type: TRecordType<S>, id: string, accessLevel?: AccessQueryLevel): Promise<z.output<S> | undefined> {
+		return typedRecord(type, id, accessLevel, (query) => this.readRecords(query));
 	}
 
 	upsertIndividual(label: string, data: unknown): Promise<string> {

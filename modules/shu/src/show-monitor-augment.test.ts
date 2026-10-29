@@ -45,6 +45,7 @@ describe("show monitor markers → parser", () => {
 				productsDomain: DomainKeySchema.parse("shu-monitor-column"),
 				capability: ActionSchema.parse("MonitorStepper:showMonitor"),
 				read: false,
+				kaname: false,
 				fallback: false,
 				answersTheTurn: false,
 				inputSchema: { type: "object", properties: {}, required: [] },

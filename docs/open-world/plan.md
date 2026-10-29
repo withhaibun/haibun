@@ -77,6 +77,7 @@ Approved by the operator; stage 7 applies the renames as part of its rewrite. Ea
 - **kireji**: the builder that writes features as code (Japanese: the cutting word of a haiku).
 - **taiwa**: a conversation between people and a model, as an actuality (Japanese: dialogue).
 - **shu**: haibun's page: the hypermedia app that shows an actuality and calls its steps.
+- **kaname**: a step a record's column shows first among its type's applicable steps, and that the actions bar and MCP list first; a type has a few (Japanese: the rivet at the pivot of a fan, the vital point).
 
 ## Stages
 Both engines run side by side on the same runtime until stage 7 removes the Prolog knowledge path. Stage 5 is an application's, and its plan holds it. Each stage reports steps and special cases removed, net source lines, and the feature lines whose meaning changed.

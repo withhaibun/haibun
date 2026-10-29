@@ -59,6 +59,9 @@ import { refusalTpl } from "./load-renders.js";
 import "./shu-spinner.js";
 import { ObserverController } from "../controllers/observer-controller.js";
 import { saveFile, showFile } from "../controllers/file-controller.js";
+import type { TStepLink } from "@haibun/core/lib/domains/hypermedia.js";
+import { pageMay } from "../controllers/authority-controller.js";
+import { typeStepLinks } from "../controllers/registry-controller.js";
 
 /** The name of the delay after which the copy button reads Copy again. */
 const COPY_RESULT = "copy-result";
@@ -113,6 +116,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		css`
 		:host { display: flex; flex-direction: column; height: 100%; overflow: auto; padding: var(--shu-space-3) var(--shu-space-4); font-family: inherit; color: var(--shu-fg); }
 		.entity-content { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+		.entity-steps { display: flex; flex-wrap: wrap; gap: var(--shu-space-1); }
+		.entity-step .needs { opacity: 0.7; }
 		.entity-header { padding: var(--shu-space-2) 0; }
 		.entity-from-store { align-self: flex-start; margin-bottom: var(--shu-space-1); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
 		.body-reading { padding: var(--shu-space-3); color: var(--shu-fg-muted); font-style: italic; }
@@ -359,7 +364,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			contentHtml = `${typeLine}${summaryHtml}${this.renderRoles()}${fieldsHtml}${this.renderItemsTable()}${this.renderReferences()}${governance}${bodyLiterals}`;
 		}
 
-		return html`${unsafeHTML(this.emitHypermediaScript(this.products))}${this.renderColumnSettings()}<div class="entity-content ${this.#isFuture() ? TIME_SYNC_CLASS.FUTURE : ""}">${this.renderFromStore()}${this.renderOffers()}${unsafeHTML(`${contentHtml}${recordJson(this.vertex, false)}`)}${this.renderBodyArea(contentIframe)}</div>`;
+		return html`${unsafeHTML(this.emitHypermediaScript(this.products))}${this.renderColumnSettings()}<div class="entity-content ${this.#isFuture() ? TIME_SYNC_CLASS.FUTURE : ""}">${this.renderFromStore()}${this.renderOffers()}${this.renderTypeSteps()}${unsafeHTML(`${contentHtml}${recordJson(this.vertex, false)}`)}${this.renderBodyArea(contentIframe)}</div>`;
 	}
 
 	protected updated(): void {
@@ -374,6 +379,24 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			([rel, link]) =>
 				html`<button type="button" class="entity-offer" data-testid=${this.#paneActive ? `${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_OFFER}-${rel}` : ""} @click=${() => this.followOffer(link)}>${link.summary}${this.fragment ? ` at ${this.fragment.value}` : ""}</button>`,
 		)}`;
+	}
+
+	/** The steps the record's type takes, as controls: its kaname steps first, then its acts, then its reads, each stating what it
+	 *  does. A step this page's authority doesn't allow is shown unavailable, naming the action it requires. A control opens the
+	 *  step's caller in the actions bar with the record as its argument. */
+	private renderTypeSteps(): TemplateResult {
+		const { persistedAs, individualId } = this.state;
+		if (!individualId || persistedAs === PRODUCTS_LABEL) return html``;
+		return html`<div class="entity-steps">${typeStepLinks(persistedAs, individualId).map((link) => {
+			const allowed = pageMay(link.capability);
+			const testId = this.#paneActive ? `${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_STEP}-${link.method}` : "";
+			return html`<button type="button" class="entity-step ${link.asks}" data-testid=${testId} ?disabled=${!allowed} title=${link.summary} @click=${() => this.chooseStep(link)}>${link.summary}${allowed ? "" : html` <span class="needs">needs ${link.capability}</span>`}</button>`;
+		})}</div>`;
+	}
+
+	/** Opens a step's caller in the actions bar, with the record as its argument. */
+	private chooseStep(link: TStepLink): void {
+		this.dispatchEvent(new CustomEvent(SHU_EVENT.STEP_CHOOSE, { detail: { method: link.method, args: link.params }, bubbles: true, composed: true }));
 	}
 
 	/** Follow a call the record offers. A call that returns a file of a type a browser shows as it is

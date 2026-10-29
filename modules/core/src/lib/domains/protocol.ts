@@ -355,7 +355,10 @@ export type THypermediaProducts = {
 	[HYPERMEDIA.SUMMARY]?: string;
 	[HYPERMEDIA.DESCRIPTION]?: string;
 	[HYPERMEDIA.COMPONENT]?: string;
-	[HYPERMEDIA.LINKS]?: Record<string, { method: string; params?: Record<string, unknown>; schema?: Record<string, unknown> }>;
+	[HYPERMEDIA.LINKS]?: Record<
+		string,
+		{ method: string; params?: Record<string, unknown>; schema?: Record<string, unknown>; summary?: string; asks?: "read" | "act"; capability?: string; kaname?: true }
+	>;
 	[HYPERMEDIA.UNDO]?: { condition: string; apply: string };
 	[key: string]: unknown;
 };

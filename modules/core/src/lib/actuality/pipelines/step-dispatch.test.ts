@@ -86,6 +86,7 @@ const carrierTool = (stepperName: string, stepName: string, pattern: string, par
 		paramDomains: Object.fromEntries(Object.entries(paramDomains).map(([name, key]) => [name, DomainKeySchema.parse(key)])),
 		capability: ActionSchema.parse(`${stepperName}:${stepName}`),
 		read: false,
+		kaname: false,
 		fallback: false,
 		answersTheTurn: false,
 		inputSchema: { type: "object", properties: {}, required: [] },
@@ -1091,8 +1092,20 @@ describe("step-dispatch", () => {
 			// Two steps take demo-permit as input: revoke and suspend. The issue step doesn't take demo-permit as input, so `_links` doesn't list it.
 			expect(Object.keys(links ?? {}).sort()).toEqual(["revokeDemo", "suspendDemo"]);
 			// The method is the full dispatch address. The params skeleton holds the product's `id`.
-			expect(links?.revokeDemo).toEqual({ method: "IssuerStepper-revokeDemo", params: { permit: { id: "permit-1" } } });
-			expect(links?.suspendDemo).toEqual({ method: "IssuerStepper-suspendDemo", params: { permit: { id: "permit-1" } } });
+			expect(links?.revokeDemo).toEqual({
+				method: "IssuerStepper-revokeDemo",
+				params: { permit: { id: "permit-1" } },
+				summary: TEST_STEP,
+				asks: "act",
+				capability: "IssuerStepper:revokeDemo",
+			});
+			expect(links?.suspendDemo).toEqual({
+				method: "IssuerStepper-suspendDemo",
+				params: { permit: { id: "permit-1" } },
+				summary: TEST_STEP,
+				asks: "act",
+				capability: "IssuerStepper:suspendDemo",
+			});
 		});
 
 		it("doesn't emit `_links` when the other steps don't accept this product's domain", async () => {
@@ -1146,7 +1159,13 @@ describe("step-dispatch", () => {
 			const links = products._links as Record<string, { method: string; params?: Record<string, unknown> }> | undefined;
 			expect(links).toBeDefined();
 			// revokePermit takes `permit-ref`, and the topology.ranges.id of `permit-ref` is "permit-vertex". The derivation follows that range and links revokePermit with the product's id as the ref's `{id}`.
-			expect(links?.revokePermit).toEqual({ method: "VertexRefStepper-revokePermit", params: { permit: { id: "permit-1" } } });
+			expect(links?.revokePermit).toEqual({
+				method: "VertexRefStepper-revokePermit",
+				params: { permit: { id: "permit-1" } },
+				summary: TEST_STEP,
+				asks: "act",
+				capability: "VertexRefStepper:revokePermit",
+			});
 		});
 
 		it("omits params skeleton when the product doesn't have an `id`: the consumer fills params from the step's shown schema", async () => {
@@ -1171,7 +1190,7 @@ describe("step-dispatch", () => {
 			const products = result.products as Record<string, unknown>;
 			const links = products._links as Record<string, { method: string; params?: Record<string, unknown> }> | undefined;
 			expect(links).toBeDefined();
-			expect(links?.consume).toEqual({ method: "IdlessStepper-consume" });
+			expect(links?.consume).toEqual({ method: "IdlessStepper-consume", summary: TEST_STEP, asks: "act", capability: "IdlessStepper:consume" });
 		});
 	});
 });

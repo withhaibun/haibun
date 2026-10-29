@@ -466,6 +466,21 @@ export const CallLinkSchema = z.object({
 });
 export type TCallLink = z.infer<typeof CallLinkSchema>;
 
+/** A link to a step that takes a record: the step's description as its summary, whether it reads or acts, the action a caller
+ *  holds to call it, and whether it is a kaname step of the record's type, which a viewport shows first. */
+export const StepLinkSchema = CallLinkSchema.extend({ summary: z.string(), asks: z.enum(["read", "act"]), capability: z.string(), kaname: z.literal(true).optional() });
+export type TStepLink = z.infer<typeof StepLinkSchema>;
+
+/** Returns the link to a step, from what its declaration states, with `params` naming the record it takes. */
+export const stepLinkOf = (step: { method: string; description: string; read: boolean; capability: string; kaname: boolean }, params?: Record<string, unknown>): TStepLink => ({
+	method: step.method,
+	...(params === undefined ? {} : { params }),
+	summary: step.description,
+	asks: step.read ? "read" : "act",
+	capability: step.capability,
+	...(step.kaname ? { kaname: true } : {}),
+});
+
 /**
  * The fields that hold a read's count: how many records it found, and whether it stopped at a ceiling rather than
  * reaching the end.

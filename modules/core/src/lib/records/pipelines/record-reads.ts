@@ -7,6 +7,7 @@ import { z } from "zod";
 import { MAX_PAGE_ROWS, readInPages, type TCounted } from "../../domains/hypermedia.js";
 import {
 	GraphQuerySchema,
+	levelOf,
 	statedQuery,
 	VIA_FIELD,
 	type TGraphQuery,
@@ -76,8 +77,6 @@ export async function quadsOfRead(query: TGraphQuery, read: TPatternRead): Promi
 export async function readQuadRecords(query: TGraphQuery, read: TPatternRead, declarations: TReadDeclarations): Promise<TRecordsPage> {
 	return readFromRecords(recordsOfQuads(await quadsOfRead(query, read)), query, declarations);
 }
-
-export const levelOf = (accessLevel: AccessQueryLevel | undefined) => (accessLevel === undefined ? {} : { accessLevel });
 
 /** Returns a condition for each field that compares the field's value for equality. */
 export function equalTo(fields: Record<string, string>): TSearchCondition[] {

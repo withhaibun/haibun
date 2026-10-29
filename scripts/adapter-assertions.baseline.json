@@ -62,18 +62,6 @@
 	"modules/shu/src/page/adapters/shared-cell.ts": {
 		"asserts a type with `as` where a schema parses the value": 2
 	},
-	"modules/shu/src/page/authority/adapters/key-store.ts": {
-		"asserts a type with `as` where a schema parses the value": 1
-	},
-	"modules/shu/src/page/client-cache/adapters/device-store.ts": {
-		"asserts a type with `as` where a schema parses the value": 2
-	},
-	"modules/shu/src/page/client-cache/adapters/idb-summary.ts": {
-		"asserts a type with `as` where a schema parses the value": 1
-	},
-	"modules/shu/src/page/client-cache/adapters/quad-store.ts": {
-		"asserts a type with `as` where a schema parses the value": 5
-	},
 	"modules/shu/src/page/graph/adapters/context-document.ts": {
 		"asserts a type with `as` where a schema parses the value": 1
 	},

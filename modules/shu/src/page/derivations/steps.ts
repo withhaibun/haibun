@@ -5,7 +5,7 @@
 import { domainParts } from "@haibun/core/lib/domains/domains.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { capabilityAllows } from "@haibun/core/lib/domains/actions.js";
-import type { TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
+import { stepLinkOf, type TConcernCatalog, type TStepLink } from "@haibun/core/lib/domains/hypermedia.js";
 import type { TDomainDiscoveryInfo, TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import type { TStepList } from "../machines/registry.js";
 import { acts, reads, type TLink } from "../domains/links.js";
@@ -65,6 +65,23 @@ export function stepsForContext(list: TStepList, label: string): TStepDefinition
 	return list.steps.filter((step) => Object.values(step.paramDomains).some((domain) => contextDomains.has(domain)) || step.pattern.toLowerCase().includes(lc));
 }
 
+/**
+ * Returns the links to the steps a record of type `label` takes, as a viewport shows them: the type's kaname steps first, then
+ * its acts, then its reads, each with its description, whether it reads or acts, and the action it requires. A step that takes
+ * the record names it by its id in each parameter of the type; a step whose pattern names the type alone takes its inputs from
+ * the reader.
+ */
+export function typeStepLinks(list: TStepList, label: string, id: string): TStepLink[] {
+	const lc = label.toLowerCase();
+	const ofType = (domain: string): boolean => list.domains[domain]?.persistedAs === label || domain.toLowerCase().includes(lc);
+	const links = stepsForContext(list, label).map((step) => {
+		const taking = Object.entries(step.paramDomains).filter(([, domain]) => ofType(domain));
+		return stepLinkOf(step, taking.length === 0 ? undefined : Object.fromEntries(taking.map(([name]) => [name, { id }])));
+	});
+	const rank = (link: TStepLink): number => (link.kaname ? 0 : link.asks === "act" ? 1 : 2);
+	return links.sort((a, b) => rank(a) - rank(b));
+}
+
 /** A domain a selector offers: its key, the type it queries, its description and stepper, and the group it shows under. */
 export type TDomainOption = { key: string; queryLabel: string; description: string | undefined; stepperName: string | undefined; selectable: true; group: string };
 
@@ -101,13 +118,6 @@ export function normalizeStepKey(input: string): string {
 /** A step's label: its pattern, or its stepper and step names where it doesn't state a pattern. */
 export const stepLabelOf = (step: { gwta?: string; stepperName: string; stepName: string }): string =>
 	step.gwta === undefined ? `${step.stepperName}.${step.stepName}` : step.gwta;
-
-/** Returns a step's pattern as a reader reads it, without its optional groups (`set( empty)? {what}`). */
-export const prettifyGwta = (gwta: string): string =>
-	gwta
-		.replace(/\(\s*[^()]*?\s*\)\?/g, "")
-		.replace(/ {2,}/g, " ")
-		.trim();
 
 /** Returns the path of the step an event of actuality names: the path it carries, or the path its id states. */
 export function stepPathOfEvent(event: Record<string, unknown>): number[] | undefined {
