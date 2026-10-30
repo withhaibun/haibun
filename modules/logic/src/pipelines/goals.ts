@@ -33,6 +33,8 @@ import { goalFacts, goalProofsOf, type TGoalFacts } from "../derivations/goal-ru
 import { lintFacts, lintFindingsOf } from "../derivations/lint-rules.js";
 import { neededBy, RULE_SET, type TRuleSet } from "../domains/reasoning.js";
 import { quadsOf } from "../derivations/n3.js";
+import type { Quad } from "@rdfjs/types";
+import type { StepRegistry } from "@haibun/core/lib/steps/pipelines/step-registry.js";
 import type { TGoalProof } from "../domains/logic.js";
 import type { TReasoner } from "../ports.js";
 import { readerOf, writeFacts } from "./reads.js";
@@ -41,20 +43,46 @@ import { readerOf, writeFacts } from "./reads.js";
  *  what the caller holds, and the name of the logic engine's stepper, whose steps a proof calls. */
 export type TGoalScope = { ctx: DispatchContext; reasoner: TReasoner; held: string | string[] | undefined; stepper: string };
 
+/** The most sessions of goals and lint a registry's version holds the results of, the oldest dropped first. */
+const MAX_HELD_DERIVATIONS = 64;
+/** What the goals and lint sessions of a registry derived, by the text each read, for the registry's version: the declarations
+ *  are fixed between changes of its steps, which STEPS_CHANGED marks, so a session over the same facts derives the same again. */
+export type THeldDerivations = Map<string, Promise<Quad[]>>;
+const heldByRegistry = new WeakMap<Pick<StepRegistry, "version">, { version: number; derived: THeldDerivations }>();
+
+/** The derivations a registry holds for its current version, emptied as its version changes. */
+export function heldDerivations(registry: Pick<StepRegistry, "version">): THeldDerivations {
+	const held = heldByRegistry.get(registry);
+	if (held !== undefined && held.version === registry.version) return held.derived;
+	const derived: THeldDerivations = new Map();
+	heldByRegistry.set(registry, { version: registry.version, derived });
+	return derived;
+}
+
 /** Returns what a session of the reasoner derives of `facts` under the rule set `rules` and its query, as quads, where it reads
- *  only its own facts. */
-async function derivedOf(reasoner: TReasoner, [rules, query]: [TRuleSet, TRuleSet], facts: string, what: string): Promise<ReturnType<typeof quadsOf>> {
-	const derived = await reasoner.session(async (session) => {
-		const state = await session.start(`${reasoner.rules(rules)}\n${facts}`, reasoner.rules(query), false);
-		if ("need" in state) throw new Error(`${what} reads only its own facts, and its rules reached ${neededBy(state)}. Check its rules.`);
-		return state.derived;
-	});
-	return quadsOf(derived);
+ *  only its own facts; a registry's held derivations return a session's result again for the same text. */
+function derivedOf(reasoner: TReasoner, [rules, query]: [TRuleSet, TRuleSet], facts: string, what: string, held?: THeldDerivations): Promise<Quad[]> {
+	const key = `${rules}\n${facts}`;
+	const found = held?.get(key);
+	if (found !== undefined) return found;
+	const deriving = reasoner
+		.session(async (session) => {
+			const state = await session.start(`${reasoner.rules(rules)}\n${facts}`, reasoner.rules(query), false);
+			if ("need" in state) throw new Error(`${what} reads only its own facts, and its rules reached ${neededBy(state)}. Check its rules.`);
+			return state.derived;
+		})
+		.then(quadsOf);
+	if (held === undefined) return deriving;
+	held.set(key, deriving);
+	deriving.catch(() => held.delete(key));
+	const [oldest] = held.keys();
+	if (held.size > MAX_HELD_DERIVATIONS && oldest !== undefined) held.delete(oldest);
+	return deriving;
 }
 
 /** Returns each goal's proof over the producer rules `facts` state: its fact, its plans and its gap. */
-export const goalProofs = async (reasoner: TReasoner, facts: TGoalFacts): Promise<TGoalProof[]> =>
-	goalProofsOf(await derivedOf(reasoner, [RULE_SET.goals, RULE_SET.goalsQuery], goalFacts(facts), "a proof of goals"), facts.goals);
+export const goalProofs = async (reasoner: TReasoner, facts: TGoalFacts, held?: THeldDerivations): Promise<TGoalProof[]> =>
+	goalProofsOf(await derivedOf(reasoner, [RULE_SET.goals, RULE_SET.goalsQuery], goalFacts(facts), "a proof of goals", held), facts.goals);
 
 const storeOf = ({ ctx }: TGoalScope): IQuadStore => ctx.world.shared.getStore();
 
@@ -65,7 +93,7 @@ async function resolutions(scope: TGoalScope, goals: readonly string[], facts: r
 	const byMethod = new Map(signatures.map((one) => [one.method, one]));
 	const byDomain = Map.groupBy(facts, (fact) => fact.domain);
 	const latest = new Map(facts.toReversed().map((fact) => [fact.domain, fact.id]));
-	const proofs = await goalProofs(scope.reasoner, goalFactsOf(signatures, world.domains, scope.held, facts, goals));
+	const proofs = await goalProofs(scope.reasoner, goalFactsOf(signatures, world.domains, scope.held, facts, goals), heldDerivations(scope.ctx.registry));
 	return proofs.map((proof) => {
 		const plans = proof.plans.map((plan) => planOf(plan, byMethod, latest));
 		const verdict = proof.held ? VERDICT.proved : VERDICT.unknown;
@@ -228,10 +256,15 @@ async function snapshotOf(scope: TGoalScope, asOf: readonly number[] | undefined
 export async function affordancesAt(scope: TGoalScope, parent: TFeatureStep, asOf: readonly number[] | undefined): Promise<TActionResult> {
 	const waypointers = asOf === undefined ? scope.ctx.steppers.filter(providesWaypoints) : [];
 	const waypoints = (await Promise.all(waypointers.map((stepper) => stepper.waypointEntries(parent)))).flat();
-	const findings = await lintFindings(scope.reasoner, scope.ctx.steppers, scope.ctx.world.domains);
+	const findings = await lintFindings(scope.reasoner, scope.ctx.steppers, scope.ctx.world.domains, heldDerivations(scope.ctx.registry));
 	return actionOKWithProducts(AffordancesSchema.parse({ ...(await snapshotOf(scope, asOf)), waypoints, findings }));
 }
 
 /** The step graph's lint findings, as the reasoner derives them from the steps' signatures and the domains. */
-export const lintFindings = async (reasoner: TReasoner, steppers: readonly AStepper[], domains: Record<string, TRegisteredDomain>): Promise<TLintFinding[]> =>
-	lintFindingsOf(await derivedOf(reasoner, [RULE_SET.lint, RULE_SET.lintQuery], lintFacts(stepGraph(stepSignatures(steppers), domains)), "the step graph's lint"));
+export const lintFindings = async (
+	reasoner: TReasoner,
+	steppers: readonly AStepper[],
+	domains: Record<string, TRegisteredDomain>,
+	held?: THeldDerivations,
+): Promise<TLintFinding[]> =>
+	lintFindingsOf(await derivedOf(reasoner, [RULE_SET.lint, RULE_SET.lintQuery], lintFacts(stepGraph(stepSignatures(steppers), domains)), "the step graph's lint", held));

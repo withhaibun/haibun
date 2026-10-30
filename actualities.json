@@ -10,7 +10,7 @@
 					"AGENTS.md": "d899f8deba456d940bbea92e180be25095ba63034aa237362317951664218d1a",
 					"modules/core/src": "2373277db1ea11e50972b33271836787478b090da4a009c5c69dcbe063fe55df",
 					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
-					"modules/logic/src": "01b4ce4b86179491e81ba0a942994dd482244270ba6f1d9c3961a87e2b39d36c",
+					"modules/logic/src": "d723d4ab661bc21b90b64dfe781115639b8d4cce89eac4ce26ef6c929cbe8df4",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/web-playwright/src": "3f49c90fabe4b75a66b30ffdec7639c32a9fbc92a6badfe716962cf99ebdcd9b",

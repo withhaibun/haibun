@@ -80,7 +80,7 @@ async function reasoned(
 		while ("need" in state) {
 			if (state.need === "effect") throw new Error(`a reasoning reads the store, and its rules reached ${neededBy(state)}. Check its rules.`);
 			const facts = await reader.facts(terms.patternOf(state.subject, state.predicate));
-			state = session.resume(facts.map(terms.objectOf));
+			state = await session.resume(facts.map(terms.objectOf));
 		}
 		return state.derived;
 	});

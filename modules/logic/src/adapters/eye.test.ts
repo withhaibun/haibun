@@ -2,6 +2,7 @@
  * One EYE runtime serves successive sessions: each session's outcome is the one a runtime of its own gives, a session doesn't see
  * what an earlier one stated or left part-way, and a session on the reused runtime takes a fraction of a runtime's start.
  */
+import { createServer } from "node:http";
 import { describe, expect, it, vi } from "vitest";
 import { DataFactory } from "n3";
 import { REASONER_BUILTIN, RULE_SET } from "../domains/reasoning.js";
@@ -53,7 +54,7 @@ async function outcomeOf(reasoner: Pick<TReasoner, "session">, { sources, query,
 			let state = await session.start(sources, query, false);
 			while ("need" in state) {
 				if (reads !== "post") throw new Error(HOST_FAILURE);
-				state = session.resume(ROWS);
+				state = await session.resume(ROWS);
 			}
 			return { derived: state.derived };
 		});
@@ -108,6 +109,28 @@ describe("a reused EYE runtime", () => {
 			expect(reasoner.runtimes(), "the outer depth's runtime alone").toBe(1);
 		} finally {
 			vi.useRealTimers();
+		}
+	});
+
+	it("leaves the process responding to a request while a large session computes in the worker", { timeout: 120_000 }, async () => {
+		const LINKS = 80;
+		const chain = Array.from({ length: LINKS }, (_, at) => `:n${at} :next :n${at + 1} .`).join("\n");
+		const sources = `${PREFIXES}${chain}\n{ ?a :next ?b } => { ?a :reaches ?b } .\n{ ?a :reaches ?b . ?b :next ?c } => { ?a :reaches ?c } .`;
+		const server = createServer((_, response) => response.end("responded"));
+		await new Promise<void>((listening) => server.listen(0, "127.0.0.1", listening));
+		const address = server.address();
+		try {
+			if (address === null || typeof address === "string") throw new Error("the test's server doesn't state its port");
+			let sessionEnded = false;
+			const computing = outcomeOf(eyeReasoner(), { name: "a closure of 80 links", sources, query: select(":n0 :reaches ?o") }).finally(() => {
+				sessionEnded = true;
+			});
+			const responded = await (await fetch(`http://127.0.0.1:${address.port}/`)).text();
+			expect({ responded, sessionEnded }, "the server responds before the session ends").toEqual({ responded: "responded", sessionEnded: false });
+			const closure = await computing;
+			expect("derived" in closure ? closure.derived.split("\n") : closure).toHaveLength(LINKS);
+		} finally {
+			server.close();
 		}
 	});
 });

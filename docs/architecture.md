@@ -257,7 +257,8 @@ ends each record it opened, and the features after it run as `HAIBUN_CONTINUE_AF
 
 Knowledge is open world: OWL 2 at the RL profile states it, and N3 rules run by EYE evaluate it
 (`modules/logic/src/adapters/eye.ts`, `modules/logic/src/pipelines/reason.ts`). EYE runs on the swipl-wasm runtime the step
-program uses, one session at a time, in one runtime that a reset returns to what it held before its first session; a session
+program uses, in a worker thread (`modules/logic/src/adapters/eye-worker.ts`) so a session's computation doesn't hold the
+process's event loop, one session at a time, in one runtime that a reset returns to what it held before its first session; a session
 started within an effect of a session runs at once on a runtime of the next depth, which is dropped once it is idle. A rule
 reads the store through the `h:read` built-in, which yields the read effect a proof's read yields, and performs one of a
 proof's effects through `h:effect`. A type declares its named graph complete with `complete: true`, and a rule's

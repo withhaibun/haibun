@@ -23,7 +23,7 @@ export type TReasonerSession = {
 	/** Starts the session over its sources and query. An explained session's derived text is the proof of what the query selects. */
 	start: (sources: string, query: string, explained: boolean) => Promise<TReasonerState>;
 	/** Resumes with the objects the read found. */
-	resume: (rows: readonly TReasonerValue[]) => TReasonerState;
+	resume: (rows: readonly TReasonerValue[]) => Promise<TReasonerState>;
 };
 
 /** The reasoner: it runs each session once the sessions before it ended, and a session started while a session waits on an

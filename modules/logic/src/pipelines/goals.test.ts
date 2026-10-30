@@ -13,7 +13,8 @@ import { RUN_AUTHORITY } from "@haibun/core/lib/domains/capability-context.js";
 import { LINT_FINDING } from "@haibun/core/lib/domains/goal-resolution.js";
 import { goalFactsOf, planOf, stepSignatures, unmetReason } from "../derivations/goals.js";
 import { reasoner } from "../root.js";
-import { goalProofs, lintFindings } from "./goals.js";
+import { goalProofs, heldDerivations, lintFindings } from "./goals.js";
+import type { TReasoner } from "../ports.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
 
 const action = async () => OK;
@@ -119,5 +120,18 @@ describe("goals over producer rules", () => {
 			]),
 		);
 		expect(found.filter((finding) => "domain" in finding && finding.domain === "cart")).toEqual([]);
+	});
+
+	it("holds a session's result for a registry's version, and runs the session again once the registry's steps change", async () => {
+		const base = reasoner();
+		let sessions = 0;
+		const counted: TReasoner = { ...base, session: (run) => ((sessions += 1), base.session(run)) };
+		const registry = { version: 0 };
+		const first = await lintFindings(counted, [new Shop()], domains, heldDerivations(registry));
+		expect(await lintFindings(counted, [new Shop()], domains, heldDerivations(registry))).toEqual(first);
+		expect(sessions, "the same declarations read the held result").toBe(1);
+		registry.version = 1;
+		await lintFindings(counted, [new Shop()], domains, heldDerivations(registry));
+		expect(sessions, "a changed registry runs the session again").toBe(2);
 	});
 });

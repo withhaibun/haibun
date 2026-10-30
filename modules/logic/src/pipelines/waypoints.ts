@@ -188,7 +188,7 @@ export async function waypointProof(reasoner: TReasoner, host: TWaypointHost, pa
 		while ("need" in state) {
 			if (state.need === "read")
 				throw new Error(`a waypoint's proof reads through its effects, and its rules reached a read of ${state.predicate.value}. Check src/rules/waypoints.n3.`);
-			state = session.resume([await perform(state.request)]);
+			state = await session.resume([await perform(state.request)]);
 		}
 		return state.derived;
 	});
