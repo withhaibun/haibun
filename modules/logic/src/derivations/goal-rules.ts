@@ -35,7 +35,15 @@ export const UNMET_WHY = { cycle: "cycle", noProducer: "no_producer" } as const;
 /** The IRI of a domain and of a step, by its key and its method. */
 const DOMAIN_PREFIX = `${REASONER_NAMESPACE}domain/`;
 const STEP_PREFIX = `${REASONER_NAMESPACE}step/`;
-export const domainIri = (key: string): NamedNode => namedNode(`${DOMAIN_PREFIX}${encodeURIComponent(key)}`);
+/** Each domain's IRI, made once for each key, since a proof of goals names each domain in each of its facts. */
+const domainIris = new Map<string, NamedNode>();
+export function domainIri(key: string): NamedNode {
+	const held = domainIris.get(key);
+	if (held !== undefined) return held;
+	const iri = namedNode(`${DOMAIN_PREFIX}${encodeURIComponent(key)}`);
+	domainIris.set(key, iri);
+	return iri;
+}
 export const stepIri = (method: string): NamedNode => namedNode(`${STEP_PREFIX}${encodeURIComponent(method)}`);
 
 /** A list of parts, as N3 writes it in parentheses. */

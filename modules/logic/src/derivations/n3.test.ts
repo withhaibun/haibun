@@ -13,7 +13,7 @@ import { recordIri } from "@haibun/core/lib/records/derivations/record-iri.js";
 import { DataFactory } from "n3";
 import { LOG } from "@haibun/core/lib/domains/vocabularies.js";
 import { reasoner } from "../root.js";
-import { pattern, patternText, quadsOf, quadsText, recordTerms, ruleText } from "./n3.js";
+import { listItems, pattern, patternText, quadsOf, quadsText, recordTerms, ruleText } from "./n3.js";
 
 const typeOf = (persistedAs: string) => ({
 	selectors: [persistedAs],
@@ -62,5 +62,19 @@ describe("the formula writer", () => {
 			return state.derived;
 		});
 		expect(quadsOf(text).map(({ object }) => object.value)).toEqual([awkward]);
+	});
+});
+
+describe("a list the reasoner's output states", () => {
+	it("reads each item in order, in time that grows with the list's length", () => {
+		const ITEMS = 20_000;
+		const quads = quadsOf(`<urn:x:s> <urn:x:p> (${Array.from({ length: ITEMS }, (_, at) => `"${at}"`).join(" ")}) .`);
+		const head = quads.find(({ predicate }) => predicate.value === "urn:x:p")?.object;
+		if (head === undefined) throw new Error("the test's list doesn't parse");
+		const start = performance.now();
+		const items = listItems(quads, head).map(({ value }) => value);
+		const took = performance.now() - start;
+		expect(items).toEqual(Array.from({ length: ITEMS }, (_, at) => String(at)));
+		expect(took, `${ITEMS} items took ${took.toFixed(0)} ms`).toBeLessThan(1_000);
 	});
 });

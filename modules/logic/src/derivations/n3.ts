@@ -72,13 +72,36 @@ export const formulaText = ({ formula }: TN3Formula): string => `{ ${formula.map
 export const ruleText = (body: readonly TN3Pattern[], head: readonly TN3Pattern[]): string =>
 	patternText({ subject: { formula: body }, predicate: namedNode(LOG.implies), object: { formula: head } });
 
-/** Returns the items of the list whose head is `node`, as quads N3.js read state it through `rdf:first` and `rdf:rest`. */
+/** Each list cell of a reading's quads, by its node: its first item and the rest, held once for each array of quads. */
+const cellsByQuads = new WeakMap<readonly Quad[], Map<string, { first?: Term; rest?: Term }>>();
+const nodeKey = (node: Term): string => `${node.termType}:${node.value}`;
+function cellsOf(quads: readonly Quad[]): Map<string, { first?: Term; rest?: Term }> {
+	const held = cellsByQuads.get(quads);
+	if (held !== undefined) return held;
+	const cells = new Map<string, { first?: Term; rest?: Term }>();
+	for (const { subject, predicate, object } of quads) {
+		if (predicate.value !== RDF.first && predicate.value !== RDF.rest) continue;
+		const key = nodeKey(subject);
+		const cell = { ...cells.get(key), [predicate.value === RDF.first ? "first" : "rest"]: object };
+		cells.set(key, cell);
+	}
+	cellsByQuads.set(quads, cells);
+	return cells;
+}
+
+/** Returns the items of the list whose head is `node`, as quads N3.js read state it through `rdf:first` and `rdf:rest`. The quads'
+ *  cells are indexed once, so reading a list takes time in its length. */
 export function listItems(quads: readonly Quad[], node: Term): Term[] {
-	if (node.value === RDF.nil) return [];
-	const first = quads.find(({ subject, predicate }) => subject.equals(node) && predicate.value === RDF.first);
-	const rest = quads.find(({ subject, predicate }) => subject.equals(node) && predicate.value === RDF.rest);
-	if (first === undefined || rest === undefined) throw new Error(`the reasoner's output names a list ${node.value} its quads don't state. Check the rules that derive it.`);
-	return [first.object, ...listItems(quads, rest.object)];
+	const cells = cellsOf(quads);
+	const items: Term[] = [];
+	for (let at: Term = node; at.value !== RDF.nil; ) {
+		const cell = cells.get(nodeKey(at));
+		if (cell?.first === undefined || cell.rest === undefined)
+			throw new Error(`the reasoner's output names a list ${at.value} its quads don't state. Check the rules that derive it.`);
+		items.push(cell.first);
+		at = cell.rest;
+	}
+	return items;
 }
 
 /** Returns quads as N3, each a triple N3.js writes. */

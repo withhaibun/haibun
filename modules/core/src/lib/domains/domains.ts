@@ -423,10 +423,28 @@ export function getPersistedDomains(domains: Record<string, TRegisteredDomain>):
 	return Object.values(domains).filter((d): d is TRegisteredDomain & { topology: THypermediaTopology } => isPersisted(d.topology));
 }
 
+type TPersistedDomain = TRegisteredDomain & { topology: THypermediaTopology };
+/** Each domains record's persisted domains by the type each persists as, and how many domains the record held when they were
+ *  read: domains are only added to a record, so a record that holds as many holds the same. */
+const persistedByLabel = new WeakMap<Record<string, TRegisteredDomain>, { held: number; byLabel: Map<string, TPersistedDomain> }>();
+
 /** Returns the persisted domain whose records persist as `label`, or undefined where a domain doesn't persist as it. A
- *  domain's key differs from the type it persists as, so a store that holds records by type finds the domain this way. */
-export function persistedDomainOf(domains: Record<string, TRegisteredDomain>, label: string): (TRegisteredDomain & { topology: THypermediaTopology }) | undefined {
-	return getPersistedDomains(domains).find(({ topology }) => topology.persistedAs === label);
+ *  domain's key differs from the type it persists as, so a store that holds records by type finds the domain this way. The
+ *  domains are indexed by type once for each set of domains, since a store finds the domain of each record it reads. */
+export function persistedDomainOf(domains: Record<string, TRegisteredDomain>, label: string): TPersistedDomain | undefined {
+	const indexed = persistedByLabel.get(domains);
+	const found = indexed?.byLabel.get(label);
+	if (found !== undefined) return found;
+	const held = Object.keys(domains).length;
+	if (indexed !== undefined && indexed.held === held) return undefined;
+	// The first domain that persists as a type is the type's, as a search in order finds it.
+	const byLabel = new Map(
+		getPersistedDomains(domains)
+			.toReversed()
+			.map((domain) => [domain.topology.persistedAs, domain]),
+	);
+	persistedByLabel.set(domains, { held, byLabel });
+	return byLabel.get(label);
 }
 
 /** Returns the persisted domains a backing store registers: each one whose topology doesn't state `heldBy`. Core holds or

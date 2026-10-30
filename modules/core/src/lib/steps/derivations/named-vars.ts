@@ -107,10 +107,13 @@ export const namedInterpolation = (inp: string): TInterpolation => {
 	return stepValuesMap === undefined ? { regexPattern } : { regexPattern, stepValuesMap: copiedValues(stepValuesMap) };
 };
 
-/** The step action a line resolves to under a phrase, or undefined where the line doesn't match it. */
+/** The step action a line resolves to under a phrase, or undefined where the line doesn't match it. The phrase's placeholders are
+ *  copied only for a line that matches, since resolution tries each phrase against each line. */
 export const matchGwtaToAction = (gwta: string, actionable: string, actionName: string, stepperName: string, step: TStepperStep) => {
 	const { anchored, stepValuesMap } = compiledOf(gwta);
-	return getMatch(actionable, anchored, actionName, stepperName, step, stepValuesMap === undefined ? undefined : copiedValues(stepValuesMap));
+	const matched = anchored.exec(actionable);
+	if (matched === null) return undefined;
+	return matchedAction(matched, actionName, stepperName, step, stepValuesMap === undefined ? undefined : copiedValues(stepValuesMap));
 };
 
 export function getNamedMatches(regexp: RegExp, what: string) {
@@ -145,7 +148,11 @@ export const getMatch = (
 	stepValuesMap?: Record<string, TStepValue>,
 ): TStepAction | undefined => {
 	const matched = r.exec(actionable);
-	if (matched === null) return undefined;
+	return matched === null ? undefined : matchedAction(matched, actionName, stepperName, step, stepValuesMap);
+};
+
+/** The step action of a line an expression matched, with each placeholder given the term and the origin its capture states. */
+function matchedAction(matched: RegExpExecArray, actionName: string, stepperName: string, step: TStepperStep, stepValuesMap?: Record<string, TStepValue>): TStepAction {
 	const { groups } = matched;
 	if (groups !== undefined && stepValuesMap !== undefined) {
 		for (const [i, ph] of Object.values(stepValuesMap).entries()) {
@@ -165,7 +172,7 @@ export const getMatch = (
 		}
 	}
 	return { actionName, stepperName, step, stepValuesMap: stepValuesMap === undefined ? {} : stepValuesMap };
-};
+}
 
 /** A step's line with each placeholder given its term, as a feature line states it: the step's optional wording is left
  *  out, and a character its pattern escapes is stated as itself. The one renderer of a step's line, for a feature written

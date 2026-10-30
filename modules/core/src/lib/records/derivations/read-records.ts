@@ -33,6 +33,7 @@ import {
 	type TStatedQuery,
 } from "../../steps/domains/quad-types.js";
 import { AccessQuery, LinkRelations, isPersisted, sortFieldOf, statedLevel, type THeldBy, type TRecordNamespace, type TRegisteredDomain } from "../../domains/resources.js";
+import { persistedDomainOf } from "../../domains/domains.js";
 import { recordIri } from "./record-iri.js";
 import { itemAt } from "../../domains/item-at.js";
 import type { TFilterable } from "./compiled-expression.js";
@@ -70,7 +71,7 @@ export function readDeclarationsOf(domains: Record<string, TRegisteredDomain>, r
 	const persisted = Object.values(domains).flatMap(({ schema, topology }) => (isPersisted(topology) ? [{ schema, topology }] : []));
 	const derived = new Map<string, TReadDeclaration | undefined>();
 	const declarationOf = (label: string): TReadDeclaration | undefined => {
-		const domain = persisted.find(({ topology }) => topology.persistedAs === label);
+		const domain = persistedDomainOf(domains, label);
 		if (!domain) return undefined;
 		const { id, heldBy } = domain.topology;
 		const title = titledByOf(domain.topology);
