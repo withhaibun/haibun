@@ -1,0 +1,5 @@
+# The rules of OWL 2 RL a query of members reads: a member of a class is a member of each superclass, and a fact of a property
+# is a fact of each superproperty.
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+{ ?x a ?c . ?c rdfs:subClassOf ?d } => { ?x a ?d } .
+{ ?s ?p ?o . ?p rdfs:subPropertyOf ?q } => { ?s ?q ?o } .

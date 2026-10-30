@@ -14,7 +14,6 @@ export const NAMESPACE = {
 	odrl: "http://www.w3.org/ns/odrl/2/",
 	cred: "https://www.w3.org/2018/credentials#",
 	log: "http://www.w3.org/2000/10/swap/log#",
-	list: "http://www.w3.org/2000/10/swap/list#",
 	math: "http://www.w3.org/2000/10/swap/math#",
 	string: "http://www.w3.org/2000/10/swap/string#",
 	r: "http://www.w3.org/2000/10/swap/reason#",
@@ -42,9 +41,7 @@ export const RDF = /* @__PURE__ */ termsIn("rdf", ["type", "Property", "first", 
 export const RDFS = /* @__PURE__ */ termsIn("rdfs", ["Class", "subClassOf", "subPropertyOf", "domain", "range", "comment"]);
 export const OWL = /* @__PURE__ */ termsIn("owl", ["Class", "ObjectProperty", "unionOf", "sameAs", "equivalentProperty"]);
 export const XSD = /* @__PURE__ */ termsIn("xsd", ["string", "dateTime", "date", "integer", "decimal", "boolean"]);
-export const LOG = /* @__PURE__ */ termsIn("log", ["includes", "notIncludes", "implies", "equalTo", "collectAllIn"]);
-/** The list built-ins of N3, with which a rule reads a list. */
-export const LIST = /* @__PURE__ */ termsIn("list", ["first", "firstRest", "member", "notMember", "append"]);
+export const LOG = /* @__PURE__ */ termsIn("log", ["includes", "notIncludes", "implies", "equalTo"]);
 export const MATH = /* @__PURE__ */ termsIn("math", ["greaterThan", "lessThan", "notLessThan", "notGreaterThan"]);
 export const STRING = /* @__PURE__ */ termsIn("string", [
 	"matches",

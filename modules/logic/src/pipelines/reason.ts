@@ -51,7 +51,7 @@ async function reasoned(
 	store: IQuadStore,
 	domains: Record<string, TRegisteredDomain>,
 	records: TRecordNamespace,
-	{ rules, query, closedOver }: TReasoning,
+	{ ruleSets, rules, query, closedOver }: TReasoning,
 	explained: boolean,
 ): Promise<{ derived: string; open: TOpenGraph[] }> {
 	const declared = Object.values(domains).flatMap(({ topology }) => (isPersisted(topology) ? [topology] : []));
@@ -76,7 +76,7 @@ async function reasoned(
 		...reads.flatMap(({ graph, truncated }) => (truncated ? [{ graph, readCeiling: REASONING_READ_CEILING }] : [])),
 	];
 	const derived = await reasoner.session(async (session) => {
-		let state = await session.start([rules, ...formulas].join("\n"), query, explained);
+		let state = await session.start([...ruleSets.map(reasoner.rules), rules, ...formulas].join("\n"), query, explained);
 		while ("need" in state) {
 			const facts = await reader.facts(terms.patternOf(state.subject, state.predicate));
 			state = session.resume(facts.map(terms.objectOf));

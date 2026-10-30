@@ -20,7 +20,7 @@ const RULE_OPENING = "{";
 const keyOf = ({ subject, predicate, object }: Quad): string => `${subject.value} ${predicate.value} ${object.value}`;
 
 /** Runs EYE over N3 text, and returns each triple its query selects, by its terms. */
-const eyeDerives = (reasoner: TReasoner, n3: string): Promise<string[]> =>
+const eyeDerives = (reasoner: Pick<TReasoner, "session">, n3: string): Promise<string[]> =>
 	reasoner.session(async (session) => {
 		const state = await session.start(n3, PROVED_QUERY, false);
 		if ("need" in state) throw new Error(`the export doesn't read the store, and EYE requested a read of ${state.subject.value}`);
@@ -70,7 +70,7 @@ const PROOFS: [string, string, Record<string, string>][] = [
 
 describe("the engine's readings in N3", () => {
 	let engine: TLogicEngine;
-	let reasoner: TReasoner;
+	let reasoner: Pick<TReasoner, "session">;
 	beforeAll(async () => {
 		engine = await startSwipl();
 		reasoner = eyeReasoner();

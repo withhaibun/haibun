@@ -1,0 +1,26 @@
+# The step graph's lint over its declarations: a step that takes a domain that steps don't supply and its caller doesn't write, a
+# domain that steps don't take or return, and a domain a step takes that steps don't return. A domain is supplied where a step
+# returns it, or where it is persisted and a step returns an individual's address; a reference produces its target and the domain
+# from which it refers. The declarations are complete, so a finding reads an absence among them through scoped negation.
+@prefix h: <urn:haibun:> .
+@prefix log: <http://www.w3.org/2000/10/swap/log#> .
+
+{ ?s h:output ?d } => { ?d h:returned true } .
+{ ?d h:returned true } => { ?d h:supplied true } .
+{ h:graph h:addressDomain ?a . ?a h:returned true . ?d h:persisted true } => { ?d h:supplied true } .
+{ ?d h:supplied true } => { ?d h:produced true } .
+{ ?d h:refersTo ?t . ?t h:supplied true } => { ?d h:produced true } .
+{ ?r h:refersTo ?d . ?r h:supplied true } => { ?d h:produced true } .
+{ ?s h:input ?d } => { ?d h:taken true } .
+{ ?s h:input ?u . ?u h:part ?d } => { ?d h:taken true } .
+{ ?d h:taken true } => { ?d h:named true } .
+{ ?c h:taken true . ?c h:fieldRange ?d } => { ?d h:named true } .
+{ ?d h:named true } => { ?d h:consumed true } .
+{ ?r h:named true . ?r h:refersTo ?d } => { ?d h:consumed true } .
+
+{ ?s h:input ?d ; h:stepper ?S ; h:stepName ?N . ?scope log:notIncludes { ?d h:produced true } . ?scope log:notIncludes { ?d h:written true } }
+  => { ("unsupplied-step" ?S ?N ?d) a h:Finding } .
+{ ?d h:node true . ?scope log:notIncludes { ?d h:beyond true } . ?scope log:notIncludes { ?d h:consumed true } . ?scope log:notIncludes { ?d h:produced true } }
+  => { ("unreachable-domain" ?d) a h:Finding } .
+{ ?d h:node true ; h:consumed true . ?scope log:notIncludes { ?d h:written true } . ?scope log:notIncludes { ?d h:produced true } }
+  => { ("unproduced-domain" ?d) a h:Finding } .

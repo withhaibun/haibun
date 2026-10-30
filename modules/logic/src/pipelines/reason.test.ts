@@ -74,20 +74,25 @@ async function storeWith(): Promise<IQuadStore> {
 
 describe("reason", () => {
 	it("closes over a complete graph with scoped negation", { timeout: 30_000 }, async () => {
-		const derived = await reason(reasoner(), await storeWith(), domains, HAIBUN_RECORD_NAMESPACE, { rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] });
+		const derived = await reason(reasoner(), await storeWith(), domains, HAIBUN_RECORD_NAMESPACE, { ruleSets: [], rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] });
 		expect(valuesOf(derived)).toEqual([missingOf("s2", "outcome")]);
 	});
 
 	it("closes over a complete graph for a reader at its type's access level, and leaves it open for a reader below it", { timeout: 30_000 }, async () => {
 		const store = await storeWith();
 		const closed = (level: AccessLevel) =>
-			runReadingAt(level, () => reason(reasoner(), store, domains, HAIBUN_RECORD_NAMESPACE, { rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] }));
+			runReadingAt(level, () => reason(reasoner(), store, domains, HAIBUN_RECORD_NAMESPACE, { ruleSets: [], rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] }));
 		expect(valuesOf(await closed(Access.private))).toEqual([missingOf("s2", "outcome")]);
 		expect(await closed(Access.public), "s3's outcome is private, so a public reader reads the graph as open and the rules don't derive a missing outcome").toEqual([]);
 	});
 
 	it("explains a proved claim by its inference chain, down to the complete graph and the rule it rests on", { timeout: 30_000 }, async () => {
-		const { proof, open } = await explain(reasoner(), await storeWith(), domains, HAIBUN_RECORD_NAMESPACE, { rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] });
+		const { proof, open } = await explain(reasoner(), await storeWith(), domains, HAIBUN_RECORD_NAMESPACE, {
+			ruleSets: [],
+			rules: WITHOUT_OUTCOME,
+			query: QUERY,
+			closedOver: [STEP],
+		});
 		expect(valuesOf(proof.gives)).toEqual([missingOf("s2", "outcome")]);
 		expect(open).toEqual([]);
 		const byName = new Map(proof.steps.map((held) => [held.step.value, held]));
@@ -112,7 +117,7 @@ describe("reason", () => {
 	it("explains an unknown claim by the graph that stayed open to the reader, and its type's access level", { timeout: 30_000 }, async () => {
 		const store = await storeWith();
 		const explained = await runReadingAt(Access.public, () =>
-			explain(reasoner(), store, domains, HAIBUN_RECORD_NAMESPACE, { rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] }),
+			explain(reasoner(), store, domains, HAIBUN_RECORD_NAMESPACE, { ruleSets: [], rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] }),
 		);
 		expect(explained).toEqual({ proof: { gives: [], steps: [], text: "" }, open: [{ graph: STEP, accessLevel: Access.private }] });
 	});
@@ -132,26 +137,28 @@ describe("reason", () => {
 						}
 					: Reflect.get(target, property, receiver),
 		});
-		const explained = await explain(reasoner(), many, domains, HAIBUN_RECORD_NAMESPACE, { rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] });
+		const explained = await explain(reasoner(), many, domains, HAIBUN_RECORD_NAMESPACE, { ruleSets: [], rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] });
 		expect(explained).toEqual({ proof: { gives: [], steps: [], text: "" }, open: [{ graph: STEP, readCeiling: REASONING_READ_CEILING }] });
 	});
 
 	it("refuses to close over an open graph", async () => {
-		await expect(reason(reasoner(), await storeWith(), domains, HAIBUN_RECORD_NAMESPACE, { rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [NOTE] })).rejects.toThrow(
-			/Note, whose type doesn't declare its graph complete/,
-		);
+		await expect(
+			reason(reasoner(), await storeWith(), domains, HAIBUN_RECORD_NAMESPACE, { ruleSets: [], rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [NOTE] }),
+		).rejects.toThrow(/Note, whose type doesn't declare its graph complete/);
 	});
 
 	it("reads an open fact through the read built-in, with an edge's value as the record it reaches", { timeout: 30_000 }, async () => {
 		const note = individual(NOTE, "n1");
 		const rules = `{ (${note} <${about}>) <${REASONER_BUILTIN.read}> ?s . (${note} <${content}>) <${REASONER_BUILTIN.read}> ?c } => { ?s <${MISSING}> ?c } .`;
-		const derived = await reason(reasoner(), await storeWith(), domains, HAIBUN_RECORD_NAMESPACE, { rules, query: QUERY, closedOver: [] });
+		const derived = await reason(reasoner(), await storeWith(), domains, HAIBUN_RECORD_NAMESPACE, { ruleSets: [], rules, query: QUERY, closedOver: [] });
 		expect(valuesOf(derived)).toEqual([missingOf("s2", "checked")]);
 	});
 
 	it("runs sessions that start together one after the other", { timeout: 30_000 }, async () => {
 		const [held, store] = [reasoner(), await storeWith()];
-		const both = await Promise.all([STEP, STEP].map(() => reason(held, store, domains, HAIBUN_RECORD_NAMESPACE, { rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] })));
+		const both = await Promise.all(
+			[STEP, STEP].map(() => reason(held, store, domains, HAIBUN_RECORD_NAMESPACE, { ruleSets: [], rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] })),
+		);
 		expect(both[0]).toEqual(both[1]);
 	});
 });

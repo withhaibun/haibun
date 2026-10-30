@@ -1,0 +1,5 @@
+# What the candidate holds beyond its bound, or its containment.
+@prefix h: <urn:haibun:> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+{ h:candidate ?p ?w . ?p rdfs:subPropertyOf h:exceeds } => { h:candidate ?p ?w } .
+{ h:candidate h:containedIn h:bound } => { h:candidate h:containedIn h:bound } .

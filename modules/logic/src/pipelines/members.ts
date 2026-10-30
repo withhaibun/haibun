@@ -14,18 +14,18 @@ import { ancestorsWith, ontologyToQuads } from "@haibun/core/lib/records/derivat
 import { iriIn, ontologyOwl } from "@haibun/core/lib/records/derivations/owl.js";
 import { ONTOLOGY_FIELD } from "@haibun/core/lib/records/domains/ontology.js";
 import { DL_SYMBOL, type TClaimWitness } from "@haibun/core/lib/records/domains/axioms.js";
-import { QUERY_NAMESPACE, REASONING_READ_CEILING } from "../domains/reasoning.js";
+import { QUERY_NAMESPACE, REASONING_READ_CEILING, RULE_SET } from "../domains/reasoning.js";
 import { DataFactory } from "n3";
 import { dlOf, nameRefusal, namesOf, parseClassExpression, readingOf, resolvedExpression, type TVocabulary } from "@haibun/core/lib/records/derivations/class-expression.js";
 import type { TClassExpression } from "@haibun/core/lib/records/domains/class-expression.js";
 import { expressionRules, frozenMembers, type TExpressionIris } from "../derivations/class-expression.js";
-import { OWL_RL_RULES, patternText, quadsText, recordTerms, type TRecordTerms } from "../derivations/n3.js";
+import { patternText, quadsText, recordTerms, type TRecordTerms } from "../derivations/n3.js";
 import type { TReasoner } from "../ports.js";
 import { readerOf } from "./reads.js";
 import { reason } from "./reason.js";
 
 /** What a query over the declarations reads: the IRIs of its classes and properties, the records' N3 terms under the records'
- *  namespace, the ontology as OWL 2 with the rules of OWL 2 RL, the vocabulary its names are checked against, and the types
+ *  namespace, the ontology as OWL 2, the vocabulary its names are checked against, and the types
  *  each class subsumes. */
 type TQueryBasis = {
 	iris: Omit<TExpressionIris, "individualIri">;
@@ -89,7 +89,7 @@ function derivedBasis(domains: Record<string, TRegisteredDomain>): TQueryBasis {
 	return {
 		iris: { classIri: (name) => DataFactory.namedNode(iriIn(context, name)), propertyIri },
 		termsOf: (records) => recordTerms(catalog, getJsonLdContext(domains, undefined, records)["@context"], records),
-		axioms: [ontologyOwl(ontology, context), OWL_RL_RULES].join("\n"),
+		axioms: ontologyOwl(ontology, context),
 		vocabulary,
 		typesReached,
 	};
@@ -150,7 +150,7 @@ export async function entailedMembers(
 	const reads = await Promise.all(basis.typesReached(expression).map(async (label) => ({ label, ...(await reader.records(label)) })));
 	const { rules, query } = expressionRules(expression, QUERY_NAMESPACE, irisOf(basis, terms));
 	const facts = reads.map(({ label, facts: read }) => quadsText(terms.statements(label, read)));
-	const derived = await reason(reasoner, store, domains, records, { rules: [basis.axioms, rules, ...facts].join("\n"), query, closedOver: [] });
+	const derived = await reason(reasoner, store, domains, records, { ruleSets: [RULE_SET.owlRl], rules: [basis.axioms, rules, ...facts].join("\n"), query, closedOver: [] });
 	const members = [...new Map(derived.map(({ subject }) => [subject, terms.addressOf(subject)])).values()];
 	return { members, truncated: reads.flatMap(({ label, truncated }) => (truncated ? [label] : [])) };
 }
@@ -195,7 +195,12 @@ export async function subsumes(
 	const [narrower, wider] = [checkedExpression(sub, basis), checkedExpression(sup, basis)];
 	const { rules, query } = expressionRules(wider, QUERY_NAMESPACE, iris);
 	for (const facts of frozenMembers(narrower, FROZEN, QUERY_NAMESPACE, iris)) {
-		const derived = await reason(reasoner, store, domains, records, { rules: [basis.axioms, rules, ...facts.map(patternText)].join("\n"), query, closedOver: [] });
+		const derived = await reason(reasoner, store, domains, records, {
+			ruleSets: [RULE_SET.owlRl],
+			rules: [basis.axioms, rules, ...facts.map(patternText)].join("\n"),
+			query,
+			closedOver: [],
+		});
 		if (!derived.some(({ subject }) => subject.equals(FROZEN))) return false;
 	}
 	return true;

@@ -1,0 +1,3 @@
+# Each finding of the step graph's lint.
+@prefix h: <urn:haibun:> .
+{ ?f a h:Finding } => { ?f a h:Finding } .

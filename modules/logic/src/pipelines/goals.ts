@@ -29,8 +29,9 @@ import {
 	type TLintFinding,
 } from "@haibun/core/lib/domains/goal-resolution.js";
 import { argumentsOf, compositeRanges, forwardOf, goalFactsOf, isTrivial, planOf, stepGraph, stepSignatures, unmetReason, type THeldFact } from "../derivations/goals.js";
-import { GOAL_QUERY, GOAL_RULES, goalFacts, goalProofsOf, type TGoalFacts } from "../derivations/goal-rules.js";
-import { LINT_QUERY, LINT_RULES, lintFacts, lintFindingsOf } from "../derivations/lint-rules.js";
+import { goalFacts, goalProofsOf, type TGoalFacts } from "../derivations/goal-rules.js";
+import { lintFacts, lintFindingsOf } from "../derivations/lint-rules.js";
+import { RULE_SET, type TRuleSet } from "../domains/reasoning.js";
 import { quadsOf } from "../derivations/n3.js";
 import type { TGoalProof } from "../domains/logic.js";
 import type { TReasoner } from "../ports.js";
@@ -40,10 +41,11 @@ import { readerOf, writeFacts } from "./reads.js";
  *  what the caller holds, and the name of the logic engine's stepper, whose steps a proof calls. */
 export type TGoalScope = { ctx: DispatchContext; reasoner: TReasoner; held: string | string[] | undefined; stepper: string };
 
-/** Returns what a session of the reasoner derives of `facts` under `rules`, as quads, where it reads only its own facts. */
-async function derivedOf(reasoner: TReasoner, rules: string, facts: string, query: string, what: string): Promise<ReturnType<typeof quadsOf>> {
+/** Returns what a session of the reasoner derives of `facts` under the rule set `rules` and its query, as quads, where it reads
+ *  only its own facts. */
+async function derivedOf(reasoner: TReasoner, [rules, query]: [TRuleSet, TRuleSet], facts: string, what: string): Promise<ReturnType<typeof quadsOf>> {
 	const derived = await reasoner.session(async (session) => {
-		const state = await session.start(`${rules}\n${facts}`, query, false);
+		const state = await session.start(`${reasoner.rules(rules)}\n${facts}`, reasoner.rules(query), false);
 		if ("need" in state) throw new Error(`${what} reads only its own facts, and its rules reached a read of ${state.predicate.value} of ${state.subject.value}. Check its rules.`);
 		return state.derived;
 	});
@@ -52,7 +54,7 @@ async function derivedOf(reasoner: TReasoner, rules: string, facts: string, quer
 
 /** Returns each goal's proof over the producer rules `facts` state: its fact, its plans and its gap. */
 export const goalProofs = async (reasoner: TReasoner, facts: TGoalFacts): Promise<TGoalProof[]> =>
-	goalProofsOf(await derivedOf(reasoner, GOAL_RULES, goalFacts(facts), GOAL_QUERY, "a proof of goals"), facts.goals);
+	goalProofsOf(await derivedOf(reasoner, [RULE_SET.goals, RULE_SET.goalsQuery], goalFacts(facts), "a proof of goals"), facts.goals);
 
 const storeOf = ({ ctx }: TGoalScope): IQuadStore => ctx.world.shared.getStore();
 
@@ -233,4 +235,4 @@ export async function affordancesAt(scope: TGoalScope, parent: TFeatureStep, asO
 
 /** The step graph's lint findings, as the reasoner derives them from the steps' signatures and the domains. */
 export const lintFindings = async (reasoner: TReasoner, steppers: readonly AStepper[], domains: Record<string, TRegisteredDomain>): Promise<TLintFinding[]> =>
-	lintFindingsOf(await derivedOf(reasoner, LINT_RULES, lintFacts(stepGraph(stepSignatures(steppers), domains)), LINT_QUERY, "the step graph's lint"));
+	lintFindingsOf(await derivedOf(reasoner, [RULE_SET.lint, RULE_SET.lintQuery], lintFacts(stepGraph(stepSignatures(steppers), domains)), "the step graph's lint"));

@@ -5,7 +5,7 @@
  */
 import type { TProofState } from "./domains/logic.js";
 import type { Term } from "@rdfjs/types";
-import type { TReasonerState } from "./domains/reasoning.js";
+import type { TReasonerState, TRuleSet } from "./domains/reasoning.js";
 
 export type TLogicEngine = {
 	/** Starts the proof of a line's term. Returns how it ended, or the effect it needs. */
@@ -26,5 +26,6 @@ export type TReasonerSession = {
 	resume: (rows: readonly Term[]) => TReasonerState;
 };
 
-/** The reasoner: it runs each session once the sessions before it ended. */
-export type TReasoner = { session: <T>(run: (session: TReasonerSession) => Promise<T>) => Promise<T> };
+/** The reasoner: it runs each session once the sessions before it ended, and holds the rule sets a session reads, each N3 text
+ *  that parsed when it was read. */
+export type TReasoner = { session: <T>(run: (session: TReasonerSession) => Promise<T>) => Promise<T>; rules: (set: TRuleSet) => string };

@@ -6,9 +6,9 @@
  * The formula writer is the one exception to writing N3 through N3.js: N3.js writes Turtle, TriG and N-Quads, while N3 states
  * a formula as `{ … }` and a rule with `=>` (W3C Notation3 Language, Community Group report, the grammar's `formula`
  * production and the `=>` of its `verb` production), which N3.js doesn't write. EYE reads N3 only, so each triple pattern of a
- * formula is written by N3.js, which encodes and escapes every term, and the writer adds only the braces and the rule's arrow.
- * A formula that stands as a pattern's subject or object is written in place of a blank node at that position, by position,
- * so a literal's text never reads as a formula.
+ * formula is written by N3.js, which encodes and escapes every term, and the writer adds only the braces, a list's parentheses
+ * and the rule's arrow, so a literal's text never reads as a formula or a list. A rule set that doesn't vary with the
+ * declarations is an N3 file of its own under `src/rules`.
  */
 import { DataFactory, Parser, Writer } from "n3";
 import type { Literal, NamedNode, Quad, Quad_Object, Quad_Predicate, Quad_Subject, Term, Variable } from "@rdfjs/types";
@@ -16,7 +16,7 @@ import type { TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import type { TRecordNamespace } from "@haibun/core/lib/domains/resources.js";
-import { LOG, RDF, RDFS, XSD } from "@haibun/core/lib/domains/vocabularies.js";
+import { LOG, RDF, XSD } from "@haibun/core/lib/domains/vocabularies.js";
 import { iriIn } from "@haibun/core/lib/records/derivations/owl.js";
 import { recordIri, recordOfIri } from "@haibun/core/lib/records/derivations/record-iri.js";
 import type { TFact } from "../domains/logic.js";
@@ -72,10 +72,6 @@ export const formulaText = ({ formula }: TN3Formula): string => `{ ${formula.map
 export const ruleText = (body: readonly TN3Pattern[], head: readonly TN3Pattern[]): string =>
 	patternText({ subject: { formula: body }, predicate: namedNode(LOG.implies), object: { formula: head } });
 
-/** Returns a backward rule as N3: its head holds where its body does, proved as a goal reaches it. EYE reads a backward rule by
- *  N3's `<=` (the grammar's `verb` production), which N3.js doesn't write, so the writer adds it between the two formulas. */
-export const backwardRuleText = (head: readonly TN3Pattern[], body: readonly TN3Pattern[]): string => `${formulaText({ formula: head })} <= ${formulaText({ formula: body })} .`;
-
 /** Returns the items of the list whose head is `node`, as quads N3.js read state it through `rdf:first` and `rdf:rest`. */
 export function listItems(quads: readonly Quad[], node: Term): Term[] {
 	if (node.value === RDF.nil) return [];
@@ -100,13 +96,6 @@ export const pattern = (
 });
 /** A variable written `?name`, or else a named node. */
 const termNamed = (name: string): NamedNode | Variable => (name.startsWith("?") ? DataFactory.variable(name.slice(1)) : namedNode(name));
-
-/** The rules of OWL 2 RL a query of members reads: a member of a class is a member of each superclass, and a fact of a property
- *  is a fact of each superproperty. */
-export const OWL_RL_RULES = [
-	ruleText([pattern("?x", RDF.type, "?c"), pattern("?c", RDFS.subClassOf, "?d")], [pattern("?x", RDF.type, "?d")]),
-	ruleText([pattern("?s", "?p", "?o"), pattern("?p", RDFS.subPropertyOf, "?q")], [pattern("?s", "?q", "?o")]),
-].join("\n");
 
 /** Returns the quads of N3 text, read by N3.js's parser in N3 mode, which reads formulas and rules. */
 export const quadsOf = (text: string): Quad[] => new Parser({ format: MEDIA_TYPE.n3 }).parse(text);

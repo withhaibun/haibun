@@ -1,0 +1,61 @@
+# Goals over producer rules. A step the caller may call states the rule fact(D) <- fact(D1) and ... and do(s), where s returns D
+# and takes D1 .... A domain holds by a fact of it, by the first producer whose inputs hold, by the fields of a composite domain
+# that steps don't return, or as an argument its caller supplies where steps don't return it. The ancestors a proof passes down
+# refuse a domain taken again below its own proof. A goal's plan is each producer whose inputs hold; where it lacks both a fact
+# and a plan, its gap is the chain of sub-goals down to the first it couldn't prove. The declarations a proof reads are
+# complete, so a rule reads an absence among them as an empty collection of its own facts.
+@prefix h: <urn:haibun:> .
+@prefix list: <http://www.w3.org/2000/10/swap/list#> .
+@prefix log: <http://www.w3.org/2000/10/swap/log#> .
+
+# The proof of a domain under its ancestors: the first way it holds.
+{ (?D ?A) h:proof ?P } <= { (?Q { (?D ?A) h:way ?Q } ?Qs) log:collectAllIn ?scope . ?Qs list:first ?P } .
+{ (?D ?A) h:way ("fact" ?D) } <= { ?D h:held true } .
+{ (?D ?A) h:way ("do" ?M ?D ?Ps) } <= {
+    (h:found { ?D h:held ?held } ()) log:collectAllIn ?unheld .
+    ?A list:notMember ?D . ?D a h:Produced . ?D h:producers ?Ms . ?Ms list:member ?M . ?M h:takes ?Ins .
+    ((?D) ?A) list:append ?A2 . (?Ins ?A2) h:proofs ?Ps } .
+{ (?D ?A) h:way ("composite" ?D ?Fs) } <= {
+    (h:found { ?D h:held ?held } ()) log:collectAllIn ?unheld . (h:found { ?D a h:Produced } ()) log:collectAllIn ?unproduced .
+    ?D h:fields ?F . ((?D) ?A) list:append ?A2 . (?F ?A2) h:fieldProofs ?Fs } .
+# A composite whose required field doesn't hold is left to its caller as an argument.
+{ (?D ?A) h:way ("argument" ?D) } <= {
+    (h:found { ?D h:held ?held } ()) log:collectAllIn ?unheld . (h:found { ?D a h:Produced } ()) log:collectAllIn ?unproduced .
+    ?D h:fields ?F . ((?D) ?A) list:append ?A2 . (h:found { (?F ?A2) h:fieldProofs ?any } ()) log:collectAllIn ?unfielded } .
+# A domain that steps don't return, and whose schema doesn't state fields, is supplied by its caller.
+{ (?D ?A) h:way ("argument" ?D) } <= {
+    (h:found { ?D h:held ?held } ()) log:collectAllIn ?unheld . (h:found { ?D a h:Produced } ()) log:collectAllIn ?unproduced .
+    (h:found { ?D h:fields ?any } ()) log:collectAllIn ?unfielded } .
+{ (() ?A) h:proofs () } <= {} .
+{ (?Ins ?A) h:proofs ?Ps } <= { ?Ins list:firstRest (?I ?R) . (?I ?A) h:proof ?P . (?R ?A) h:proofs ?Qs . ((?P) ?Qs) list:append ?Ps } .
+
+# A composite's fields: one without a range is its caller's argument by its name, and one with a range holds by its domain's
+# proof. An optional field that doesn't hold is left out, and a required one leaves the composite without its fields.
+{ (() ?A) h:fieldProofs () } <= {} .
+{ (?Fs ?A) h:fieldProofs ?Out } <= {
+    ?Fs list:firstRest (?F ?R) . (?F ?A) h:fieldProof ?Node . (?R ?A) h:fieldProofs ?More . ((?Node) ?More) list:append ?Out } .
+{ (?Fs ?A) h:fieldProofs ?Out } <= {
+    ?Fs list:firstRest (?F ?R) . ?F h:optional true . (h:found { (?F ?A) h:fieldProof ?any } ()) log:collectAllIn ?unproved .
+    (?R ?A) h:fieldProofs ?Out } .
+{ (?F ?A) h:fieldProof ("field" ?N "" ?Y ?O ("argument" ?N)) } <= {
+    ?F h:name ?N ; h:type ?Y ; h:optional ?O . (h:found { ?F h:range ?any } ()) log:collectAllIn ?unranged } .
+{ (?F ?A) h:fieldProof ("field" ?N ?Rg ?Y ?O ?P) } <= { ?F h:name ?N ; h:range ?Rg ; h:type ?Y ; h:optional ?O . (?Rg ?A) h:proof ?P } .
+
+# A sub-goal's gap: the chain from it down to the first sub-goal its first producer couldn't prove.
+{ (?D ?A) h:gap (("unmet" ?D "cycle")) } <= { (h:found { ?D h:held ?held } ()) log:collectAllIn ?unheld . ?A list:member ?D } .
+{ (?D ?A) h:gap (("unmet" ?D "no_producer")) } <= {
+    (h:found { ?D h:held ?held } ()) log:collectAllIn ?unheld . ?A list:notMember ?D . ?D a h:Produced . ?D h:producers () } .
+{ (?D ?A) h:gap ?C } <= {
+    (h:found { ?D h:held ?held } ()) log:collectAllIn ?unheld . ?A list:notMember ?D . ?D a h:Produced . ?D h:producers ?Ms .
+    ?Ms list:first ?M . ?M h:takes ?Ins . ((?D) ?A) list:append ?A2 . (?Ins ?A2) h:firstGap ?R . ((("step" ?D ?M)) ?R) list:append ?C } .
+{ (?Ins ?A) h:firstGap ?C } <= { ?Ins list:firstRest (?I ?R) . (?X { (?I ?A) h:gap ?X } ?Xs) log:collectAllIn ?scope . ?Xs list:first ?C } .
+{ (?Ins ?A) h:firstGap ?C } <= {
+    ?Ins list:firstRest (?I ?R) . (h:found { (?I ?A) h:gap ?any } ()) log:collectAllIn ?ungapped . (?R ?A) h:firstGap ?C } .
+
+# Each producer of a goal whose inputs hold is a plan. A goal that lacks both a fact and a plan states its gap: where the caller
+# may not call any of its producers, the goal itself, and else its first producer's gap.
+{ ?G h:goal true . ?G h:producers ?Ms . ?Ms list:member ?M . ?M h:takes ?Ins . (?Ins (?G)) h:proofs ?Ps } => { ?G h:plan ("do" ?M ?G ?Ps) } .
+{ ?G h:goal true . (h:found { ?G h:held ?held } ()) log:collectAllIn ?unheld . (h:found { ?G h:plan ?plan } ()) log:collectAllIn ?unplanned .
+  ?G h:producers () } => { ?G h:unmet (("unmet" ?G "no_producer")) } .
+{ ?G h:goal true . (h:found { ?G h:held ?held } ()) log:collectAllIn ?unheld . (h:found { ?G h:plan ?plan } ()) log:collectAllIn ?unplanned .
+  ?G h:producers ?Ms . ?Ms list:first ?M . ?M h:takes ?Ins . (?Ins (?G)) h:firstGap ?R . ((("step" ?G ?M)) ?R) list:append ?C } => { ?G h:unmet ?C } .

@@ -70,7 +70,7 @@ async function started(program: Uint8Array, sources: string, query: string, expl
 }
 
 /** Returns the reasoner. EYE's program is read on its first session, and each session runs once the sessions before it ended. */
-export function eyeReasoner(): TReasoner {
+export function eyeReasoner(): Pick<TReasoner, "session"> {
 	let program: Uint8Array | undefined;
 	let turn: Promise<unknown> = Promise.resolve();
 	const session = async <T>(run: (held: TReasonerSession) => Promise<T>): Promise<T> => {

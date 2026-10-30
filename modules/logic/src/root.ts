@@ -4,6 +4,7 @@
  * process waits its turn at the same reasoner.
  */
 import { eyeReasoner } from "./adapters/eye.js";
+import { ruleLibrary } from "./adapters/rule-library.js";
 import { startSwipl } from "./adapters/swipl.js";
 import type { TLogicEngine, TReasoner } from "./ports.js";
 
@@ -18,6 +19,6 @@ export const logicEngine = (): Promise<TLogicEngine> => {
 
 /** Returns the process's reasoner, making it on the first request. */
 export const reasoner = (): TReasoner => {
-	if (reasoning === undefined) reasoning = eyeReasoner();
+	if (reasoning === undefined) reasoning = { ...eyeReasoner(), rules: ruleLibrary() };
 	return reasoning;
 };

@@ -162,5 +162,6 @@ Estimated total: about −1,300 / +880 source lines.
     - A goal that lacks both a fact and a plan is unknown, with the chain of sub-goals to the first it couldn't prove (sites #10 and #14): `resolve` returns unknown for it, the affordances mark it as unplanned, and the domain chain draws it unreachable.
     - `derivations/lint-rules.ts` derives the step graph's lint by forward rules with scoped negation over the declarations (site #12).
     - `haibun.pl` loses goals/3, its plans and chains, and lint/2 (−94 lines), and the engine's port loses `lint` and the goals state.
-    - The N3 writer writes lists, a formula inside a list, and a backward rule, by N3's `<=`, which EYE reads and N3.js doesn't write.
+    - The N3 writer writes lists, and a formula inside a list.
+    - At the operator's request, each rule set that doesn't vary with the declarations is an N3 file of the logic module under `src/rules`: goals and their query, the lint and its query, containment and its query, and OWL 2 RL. The reasoner's port reads each set by its name, and N3.js parses it as it loads, so an error in a rule fails there; the helpers bind only the facts of each declaration. Net source lines of that change: −146 (TypeScript +105, −399; N3 +148, of which 89 are rules).
     - Feature lines whose meaning changed: shu's self-test reads `resolve "page-alt-text"` as unknown through `maybe`, where it was refuted.

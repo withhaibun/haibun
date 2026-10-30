@@ -1,0 +1,5 @@
+# Each goal's fact, each of its plans, and its gap.
+@prefix h: <urn:haibun:> .
+{ ?G h:goal true . ?G h:held true } => { ?G h:held true } .
+{ ?G h:plan ?P } => { ?G h:plan ?P } .
+{ ?G h:unmet ?C } => { ?G h:unmet ?C } .

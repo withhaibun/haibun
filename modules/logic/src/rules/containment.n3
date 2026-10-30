@@ -1,0 +1,43 @@
+# A permission's containment in its bound, as ODRL 2.2 reads a ZCAP-LD capability. Alignment axioms give a capability's terms
+# their ODRL meaning: sec:invocationTarget is odrl:target, sec:allowedAction is odrl:action, sec:controller is odrl:assignee, the
+# parent's controller is the assigner, and sec:expires is a constraint on the dateTime of a use. A candidate is contained in its
+# bound where the bound allows each of its actions, covers its target, and ends at or after the candidate's end, or after its
+# use. An entry allows an action where it is the action, or a prefix ending in `*` that begins it, so `*` allows every action; a
+# read at a level allows each narrower level, which the facts state. A target covers itself and each path under it. A candidate
+# that exceeds its bound has a witness: each action, target and expiry the bound doesn't allow. The facts state the expiry that
+# stands for a candidate that doesn't state one.
+@prefix h: <urn:haibun:> .
+@prefix log: <http://www.w3.org/2000/10/swap/log#> .
+@prefix math: <http://www.w3.org/2000/10/swap/math#> .
+@prefix string: <http://www.w3.org/2000/10/swap/string#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sec: <https://w3id.org/security#> .
+@prefix odrl: <http://www.w3.org/ns/odrl/2/> .
+
+sec:invocationTarget owl:equivalentProperty odrl:target .
+sec:allowedAction owl:equivalentProperty odrl:action .
+sec:controller owl:equivalentProperty odrl:assignee .
+h:exceedsAction rdfs:subPropertyOf h:exceeds .
+h:exceedsTarget rdfs:subPropertyOf h:exceeds .
+h:exceedsExpiry rdfs:subPropertyOf h:exceeds .
+
+{ ?p owl:equivalentProperty ?q . ?s ?p ?o } => { ?s ?q ?o } .
+{ ?c sec:parentCapability ?p . ?p odrl:assignee ?a } => { ?c odrl:assigner ?a } .
+{ ?c sec:parentCapability ?p } => { ?c h:boundedBy ?p } .
+{ ?c sec:expires ?e } => { ?c odrl:constraint _:constraint . _:constraint odrl:leftOperand odrl:dateTime ; odrl:operator odrl:lt ; odrl:rightOperand ?e } .
+
+{ ?c h:boundedBy ?b . ?b odrl:action ?held . ?c odrl:action ?a . ?held log:equalTo ?a } => { ?held h:allows ?a } .
+{ ?c h:boundedBy ?b . ?b odrl:action ?held . (?held "^(.*)\\*$") string:scrape ?prefix . ?c odrl:action ?a . ?a string:startsWith ?prefix } => { ?held h:allows ?a } .
+{ ?c h:boundedBy ?b . ?b odrl:action ?held . ?held h:allowsRead ?a . ?c odrl:action ?a } => { ?held h:allows ?a } .
+{ ?c h:boundedBy ?b . ?b odrl:target ?o . ?c odrl:target ?t . ?o log:equalTo ?t } => { ?t h:within ?o } .
+{ ?c h:boundedBy ?b . ?b odrl:target ?o . ?c odrl:target ?t . (?o "/") string:concatenation ?under . ?t string:startsWith ?under } => { ?t h:within ?o } .
+{ ?c h:boundedBy ?b . ?b odrl:target ?o . ?o string:endsWith "/" . ?c odrl:target ?t . ?t string:startsWith ?o } => { ?t h:within ?o } .
+
+{ ?c h:boundedBy ?b . ?c odrl:action ?a . ?scope log:notIncludes { ?b odrl:action ?held . ?held h:allows ?a } } => { ?c h:exceedsAction ?a } .
+{ ?c h:boundedBy ?b . ?c odrl:target ?t . ?scope log:notIncludes { ?b odrl:target ?o . ?t h:within ?o } } => { ?c h:exceedsTarget ?t } .
+{ ?c h:boundedBy ?b . ?c odrl:constraint ?k . ?k odrl:rightOperand ?e . ?b odrl:constraint ?l . ?l odrl:rightOperand ?f . ?e math:greaterThan ?f } => { ?c h:exceedsExpiry ?e } .
+{ ?c h:boundedBy ?b . ?c h:usedAt ?t . ?b odrl:constraint ?l . ?l odrl:rightOperand ?f . ?t math:notLessThan ?f } => { ?c h:exceedsExpiry ?t } .
+{ ?c h:boundedBy ?b . ?b odrl:constraint ?l . ?scope log:notIncludes { ?c odrl:constraint ?k } . ?scope log:notIncludes { ?c h:usedAt ?t } . h:unstatedExpiry h:expiry ?never } => { ?c h:exceedsExpiry ?never } .
+{ ?p rdfs:subPropertyOf h:exceeds . ?c ?p ?w } => { ?c h:exceeds ?w } .
+{ ?c h:boundedBy ?b . ?scope log:notIncludes { ?c h:exceeds ?w } } => { ?c h:containedIn ?b } .

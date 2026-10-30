@@ -5,14 +5,15 @@
  */
 import type { TExceeding, TPermission } from "@haibun/core/lib/domains/actions.js";
 import type { TProof } from "../domains/reasoning.js";
-import { CONTAINMENT_QUERY, CONTAINMENT_RULES, containmentFacts, exceedingOf } from "../derivations/containment.js";
+import { containmentFacts, exceedingOf } from "../derivations/containment.js";
+import { RULE_SET } from "../domains/reasoning.js";
 import { proofOf } from "../derivations/proof.js";
 import type { TReasoner } from "../ports.js";
 
 /** Returns what `candidate` holds beyond `bound`, which is empty where the bound contains it, and the proof of either. */
 export async function containment(reasoner: TReasoner, candidate: TPermission, bound: TPermission): Promise<{ exceeds: TExceeding[]; proof: TProof }> {
 	const derived = await reasoner.session(async (session) => {
-		const state = await session.start(`${CONTAINMENT_RULES}\n${containmentFacts(candidate, bound)}`, CONTAINMENT_QUERY, true);
+		const state = await session.start(`${reasoner.rules(RULE_SET.containment)}\n${containmentFacts(candidate, bound)}`, reasoner.rules(RULE_SET.containmentQuery), true);
 		if ("need" in state)
 			throw new Error(`a containment reads only its own facts, and its rules reached a read of ${state.predicate.value} of ${state.subject.value}. Check the containment rules.`);
 		return state.derived;

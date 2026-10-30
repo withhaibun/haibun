@@ -16,15 +16,27 @@ import type { TFact } from "./logic.js";
 export const REASONER_NAMESPACE = "urn:haibun:";
 /** The built-ins a rule calls, by name: `(subject predicate) h:read object` reads the store through a read effect. */
 export const REASONER_BUILTIN = { read: `${REASONER_NAMESPACE}read` } as const;
+/** The rule sets the logic module holds as N3 files, each read by its name: goals over producer rules and their query, the step
+ *  graph's lint and its query, a permission's containment and its query, and the rules of OWL 2 RL a query of members reads. */
+export const RULE_SET = {
+	goals: "goals",
+	goalsQuery: "goals-query",
+	lint: "lint",
+	lintQuery: "lint-query",
+	containment: "containment",
+	containmentQuery: "containment-query",
+	owlRl: "owl-rl",
+} as const;
+export type TRuleSet = (typeof RULE_SET)[keyof typeof RULE_SET];
 /** `<class> h:complete { … }` states a complete graph's contents as one formula. Only a graph its type declares complete is stated so. */
 export const COMPLETE_GRAPH = `${REASONER_NAMESPACE}complete`;
 /** The effect a session needs: a read of the facts of a subject and a predicate, each an IRI. */
 export type TReasonerRead = { need: "read"; subject: NamedNode; predicate: NamedNode };
 /** How a session step ended: the effect it needs, or the N3 text of what the query derived. */
 export type TReasonerState = TReasonerRead | { derived: string };
-/** What a reasoning reads: its N3 rules and facts, the query that selects what it returns, and the types whose complete graphs
- *  its rules close over. */
-export type TReasoning = { rules: string; query: string; closedOver: readonly string[] };
+/** What a reasoning reads: the logic module's rule sets it reads, its own N3 rules and facts, the query that selects what it
+ *  returns, and the types whose complete graphs its rules close over. */
+export type TReasoning = { ruleSets: readonly TRuleSet[]; rules: string; query: string; closedOver: readonly string[] };
 /** The records of a type a reasoning reads at most. A read stops there and states that it stopped, so a graph read in part
  *  stays open and a claim its records don't prove stays unknown. */
 export const REASONING_READ_CEILING = MAX_PAGE_ROWS;

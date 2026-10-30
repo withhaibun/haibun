@@ -1,21 +1,18 @@
 /**
- * The step graph's lint as N3 rules over its declarations: a step that takes a domain that steps don't supply and its caller
- * doesn't write, a domain that steps don't take or return, and a domain a step takes that steps don't return. A domain is supplied where a step
- * returns it, or where it is persisted and a step returns an individual's address; a reference produces its target and the
- * domain from which it refers. The declarations are complete, so a finding reads an absence among them through scoped negation.
+ * The facts of the step graph's lint, which `src/rules/lint.n3` reads, and the findings the query's quads state.
  */
 import { DataFactory } from "n3";
 import type { Quad } from "@rdfjs/types";
-import { LOG, RDF, XSD } from "@haibun/core/lib/domains/vocabularies.js";
+import { RDF, XSD } from "@haibun/core/lib/domains/vocabularies.js";
 import { LINT_FINDING, LintFindingSchema, type TLintFinding } from "@haibun/core/lib/domains/goal-resolution.js";
 import { REASONER_NAMESPACE } from "../domains/reasoning.js";
 import { DIFFERENT_BUILDS } from "../domains/logic.js";
 import { domainIri, domainOf, stepIri } from "./goal-rules.js";
-import { listItems, pattern, patternText, ruleText, type TN3List, type TN3Pattern } from "./n3.js";
+import { listItems, pattern, patternText } from "./n3.js";
 
-const { namedNode, literal, variable } = DataFactory;
+const { namedNode, literal } = DataFactory;
 const h = (name: string) => namedNode(`${REASONER_NAMESPACE}${name}`);
-/** The terms of the step graph's facts and of what the rules derive of them. */
+/** The terms of the step graph's facts and of a finding, as `src/rules/lint.n3` names them. */
 const LINT_TERM = {
 	stepper: h("stepper"),
 	stepName: h("stepName"),
@@ -30,44 +27,10 @@ const LINT_TERM = {
 	fieldRange: h("fieldRange"),
 	graph: h("graph"),
 	addressDomain: h("addressDomain"),
-	returned: h("returned"),
-	supplied: h("supplied"),
-	produced: h("produced"),
-	taken: h("taken"),
-	named: h("named"),
-	consumed: h("consumed"),
 	finding: h("Finding"),
 };
 const L = LINT_TERM;
 const yes = literal("true", namedNode(XSD.boolean));
-const holds = (subject: string, predicate: (typeof L)[keyof typeof L]): TN3Pattern => pattern(subject, predicate, yes);
-const lacks = (subject: string, predicate: (typeof L)[keyof typeof L]): TN3Pattern => pattern("?scope", LOG.notIncludes, { formula: [holds(subject, predicate)] });
-const finding = (...items: TN3List["list"]): TN3Pattern => pattern({ list: items }, RDF.type, L.finding);
-
-/** The rules that derive what supplies, produces, takes and consumes each domain, and the findings. */
-export const LINT_RULES = [
-	ruleText([pattern("?s", L.output, "?d")], [holds("?d", L.returned)]),
-	ruleText([holds("?d", L.returned)], [holds("?d", L.supplied)]),
-	ruleText([pattern(L.graph, L.addressDomain, "?a"), holds("?a", L.returned), holds("?d", L.persisted)], [holds("?d", L.supplied)]),
-	ruleText([holds("?d", L.supplied)], [holds("?d", L.produced)]),
-	ruleText([pattern("?d", L.refersTo, "?t"), holds("?t", L.supplied)], [holds("?d", L.produced)]),
-	ruleText([pattern("?r", L.refersTo, "?d"), holds("?r", L.supplied)], [holds("?d", L.produced)]),
-	ruleText([pattern("?s", L.input, "?d")], [holds("?d", L.taken)]),
-	ruleText([pattern("?s", L.input, "?u"), pattern("?u", L.part, "?d")], [holds("?d", L.taken)]),
-	ruleText([holds("?d", L.taken)], [holds("?d", L.named)]),
-	ruleText([holds("?c", L.taken), pattern("?c", L.fieldRange, "?d")], [holds("?d", L.named)]),
-	ruleText([holds("?d", L.named)], [holds("?d", L.consumed)]),
-	ruleText([holds("?r", L.named), pattern("?r", L.refersTo, "?d")], [holds("?d", L.consumed)]),
-	ruleText(
-		[pattern("?s", L.input, "?d"), pattern("?s", L.stepper, "?S"), pattern("?s", L.stepName, "?N"), lacks("?d", L.produced), lacks("?d", L.written)],
-		[finding(literal(LINT_FINDING.UNSUPPLIED_STEP), variable("S"), variable("N"), variable("d"))],
-	),
-	ruleText([holds("?d", L.node), lacks("?d", L.beyond), lacks("?d", L.consumed), lacks("?d", L.produced)], [finding(literal(LINT_FINDING.UNREACHABLE_DOMAIN), variable("d"))]),
-	ruleText([holds("?d", L.node), lacks("?d", L.written), holds("?d", L.consumed), lacks("?d", L.produced)], [finding(literal(LINT_FINDING.UNPRODUCED_DOMAIN), variable("d"))]),
-].join("\n");
-
-/** The query: each finding. */
-export const LINT_QUERY = ruleText([pattern("?f", RDF.type, L.finding)], [pattern("?f", RDF.type, L.finding)]);
 
 /** A step as the lint reads it: its stepper, its name, its method, and the domains it takes and returns. */
 export type TLintStep = { stepperName: string; stepName: string; method: string; inputs: readonly string[]; outputs: readonly string[] };
