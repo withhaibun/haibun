@@ -62,7 +62,7 @@ Counts are of lines in `*.feature` and `*.feature.ts`, by pattern, excluding pro
 | `every x in D …` | 1 | 1 | K, or closed where D is declared closed | requirements 04:24, and one line of an application |
 | `some x in D …` | 7 | 0 | K, or closed as above | |
 | `where …, …` | 17 | 25 | A | |
-| `resolve`, `pursue`, `walk toward` | 13 | 13 | K | goal planning |
+| `resolve`, `pursue`, `plan` | 13 | 13 | K | goal planning |
 | affordances | 25 | 6 | K over facts, O over steps | |
 
 Totals: engine and pipeline sites 20: A 6, K 8, O 2, and 4 split (rows 4 to 6 are A or K by source; row 15 is K over facts and O over steps). Step lines 167: A 95, K 70, O 2. The `every`/`some x in D` lines and the affordance lines count as K.
@@ -117,7 +117,7 @@ Actuality's records of a run are one named graph. A check is scoped negation ove
 | `is the same as` | `owl:sameAs` |
 | `absent {goal}` | a stated falsity; N3 `t:falsity`, or `owl:NegativePropertyAssertion` |
 | a waypoint's proof (the waypoint's head, activity, library and record stay haibun's) | N3 backward rule `{head} <= {proof}`. A proof's step call is the built-in `h:call` and a read is `h:read`, both yielding modules/logic's effects |
-| `resolve`, `pursue`, `walk toward`, affordances | N3 backward rules over producer signatures. A missing proof is `unknown` |
+| `resolve`, `pursue`, `plan`, affordances | N3 backward rules over producer signatures. A missing proof is `unknown` |
 | chain lint | N3 scoped negation over the step-graph formula |
 | `every … observed`, `some … observed`, `not`, `where`, `whenever`, `until` | stay in `haibun.pl` as the proof of a line over actuality; already exported as N3 with scoped negation |
 | `every x in D`, `some x in D` | K: `unknown` unless D is closed (`owl:oneOf`) |
@@ -169,7 +169,7 @@ Each stage keeps both repos' suites green and is one commit pair. Line counts ar
 | 2 | EYE as a runtime: `eye.qlf` moves from `fixtures/` to the module, with its own swipl-wasm instance started on first use. A query queue, because EYE's `main` isn't re-entrant: a second run in one runtime failed on its temporary file, and a user built-in is called during scoped negation, so built-ins check `engine_self/1`. `h:read` and `h:call` yield the existing effects of `pipelines/prove.ts` | 0 | 160 |
 | 3 | The OWL export of the ontology records: union domain and range, `@type` as superclass, typed blank expressions. Served beside `@context`, and read by `show ontology` | 0 | 90 |
 | 4 | Capabilities: the alignment axioms and containment rules as an N3 library of `@haibun/core`. The gate's `capabilityAllows`, `actionUnder` and `narrowing` return through it, and a refusal returns the witness. Pages send the query to the instance rather than loading EYE, so bundle budgets don't grow | 110 | 70 (N3) + 40 |
-| 5 | Goals and affordances as N3 backward rules over producer signatures; `resolve`, `pursue`, `walk toward` and affordances read them | 55 (Prolog, `haibun.pl:208-262`) + 90 (`goals.ts`, `derivations/goals.ts`) | 60 (N3) + 50 |
+| 5 | Goals and affordances as N3 backward rules over producer signatures; `resolve`, `pursue`, `plan` and affordances read them | 55 (Prolog, `haibun.pl:208-262`) + 90 (`goals.ts`, `derivations/goals.ts`) | 60 (N3) + 50 |
 | 6 | Waypoints' proofs as N3 backward rules with `h:call`; `absent` as a stated falsity; `is the same as` as `owl:sameAs`; the chain lint as scoped negation over the step-graph formula. Removes `applied`, `stated`, `plan` and `lint` from `haibun.pl`, and `canonicalOf` | 120 (Prolog) + 70 | 70 (N3) + 40 |
 | 7 | The DL view (section 5) replaces the TPTP projection | 840 | 290 |
 | 8 | Removes `docs/planning/fol-in-haibun.md`, `formula.test.ts` and `term-graph.test.ts` (238 test lines), and the `rule {formula}` step | 12 | 0 |

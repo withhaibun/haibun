@@ -314,12 +314,12 @@
 			"actuality": {
 				"text": "modules/shu/tests, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 35900,
+				"tookMs": 31900,
 				"digest": {
 					"modules/cli/src": "58a55b398fc5d77fac9bfc1fc86683c7614b8c54c1dcbe17325ab55c6b867363",
-					"modules/core/src": "a354d7063d5abcd28d665cac955a6af4820e0d1248fcbc5c06154c2f7ebfaaa9",
+					"modules/core/src": "f1d85318abeff46e5896d93bc94cd15b30d0b8a33555c210f76001f03823e41b",
 					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
-					"modules/logic/src": "e69b2797688d0d2862eb89a6c54955df354eee14d656407b004ed9f912c47674",
+					"modules/logic/src": "31f422b111c9492a38d2e693e894cefa0b22e216dc720d228729abccd0bf89e2",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/shu/src": "b4ca1569b33829571ca451483e6a413ea615771cc052609bbb114e0006310257",
 					"modules/shu/tests": "bfa5d3deca17ae1ca587de4465ac995be8ee1d8798fcab8393d2ee3dd5c7d1bc",
@@ -334,37 +334,37 @@
 				"/features/address.feature.ts": {
 					"text": "An address names a type",
 					"status": "passed",
-					"tookMs": 1100,
+					"tookMs": 1000,
 					"steps": 199
 				},
 				"/features/federate.feature.ts": {
 					"text": "Federated graph reads from a sibling instance",
 					"status": "passed",
-					"tookMs": 1600,
+					"tookMs": 1300,
 					"steps": 6
 				},
 				"/features/monitor-serves.feature.ts": {
 					"text": "The monitor serves shu on a port of its own",
 					"status": "passed",
-					"tookMs": 1700,
+					"tookMs": 1400,
 					"steps": 190
 				},
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
-					"tookMs": 21300,
-					"steps": 667
+					"tookMs": 19300,
+					"steps": 670
 				},
 				"/features/remote-store.feature.ts": {
 					"text": "A satellite instance keeps its records in the main instance's store",
 					"status": "passed",
-					"tookMs": 1700,
+					"tookMs": 1400,
 					"steps": 8
 				},
 				"/features/voice-ui.feature.ts": {
 					"text": "UI extension propagation: domain ui → concern catalog → SPA actions bar",
 					"status": "passed",
-					"tookMs": 2000,
+					"tookMs": 1800,
 					"steps": 204
 				}
 			}

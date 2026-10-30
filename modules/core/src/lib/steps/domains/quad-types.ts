@@ -200,7 +200,7 @@ export const GraphQueryResultSchema = z.object({
 	vertices: z.array(z.record(z.string(), z.unknown())),
 	...CountedFields,
 	cypher: z.string().optional(),
-	queryPlan: z.string().optional(),
+	queryExplain: z.string().optional(),
 	sort: z
 		.object({
 			fields: z.array(z.string()).describe("The fields this label accepts as `sortBy`. A view renders a sort control for these fields only."),

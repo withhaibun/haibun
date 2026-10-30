@@ -1,6 +1,6 @@
 /**
  * The declarations of goals that the logic engine proves over producer rules and that views read: a goal's resolution and
- * its plans, a walk toward a goal, the affordances on offer, the step graph's lint findings, and the waypoint entries a
+ * its plans, a plan's progress toward a goal, the affordances on offer, the step graph's lint findings, and the waypoint entries a
  * stepper contributes to the affordances.
  */
 import { z } from "zod";
@@ -14,8 +14,8 @@ import { ACTUALITY_FIELD } from "../actuality/domains/seq-path.js";
 
 export const DOMAIN_GOAL_RESOLUTION = "goal-resolution";
 export const DOMAIN_AFFORDANCES = "affordances";
-export const DOMAIN_CHAIN_WALK = "chain-walk";
-export const DOMAIN_WALK_ID = "walk-id";
+export const DOMAIN_PLAN_PROGRESS = "plan-progress";
+export const DOMAIN_PLAN_ID = "plan-id";
 
 /** The source of a step that doesn't take a domain, which the chain view draws as the origin of its edge. */
 export const SOURCE_DOMAIN = "∅";
@@ -65,15 +65,15 @@ export const GoalResolutionSchema = z
 	.strict();
 export type TGoalResolution = z.infer<typeof GoalResolutionSchema>;
 
-/** A walk's statuses: its goal isn't proved yet, or a fact of its goal holds. */
-export const WALK_STATUS = { running: "running", ended: "ended" } as const;
+/** A plan's statuses: its goal isn't proved yet, or a fact of its goal holds. */
+export const PLAN_STATUS = { running: "running", ended: "ended" } as const;
 
-/** A walk toward a goal, which calls one step of the goal's plan per advance: the step it calls next, the parameters that step
+/** A plan toward a goal, which calls one of its steps per advance: the step it calls next, the parameters that step
  *  takes from the caller, and the facts its calls asserted. */
-export const ChainWalkSchema = z
-	.object({ walk: z.string(), goal: z.string(), status: z.enum(WALK_STATUS), next: z.string().optional(), needs: z.array(z.string()), factIds: z.array(z.string()) })
+export const PlanProgressSchema = z
+	.object({ plan: z.string(), goal: z.string(), status: z.enum(PLAN_STATUS), next: z.string().optional(), needs: z.array(z.string()), factIds: z.array(z.string()) })
 	.strict();
-export type TChainWalk = z.infer<typeof ChainWalkSchema>;
+export type TPlanProgress = z.infer<typeof PlanProgressSchema>;
 
 /** A step the caller may call that takes or returns a domain, with whether each domain it takes holds. */
 const ForwardSchema = z
@@ -146,7 +146,7 @@ export const AffordancesSchema = z.object({ ...snapshot, waypoints: z.array(Wayp
 export type TAffordances = z.infer<typeof AffordancesSchema>;
 
 export const goalDomainDefinitions: TDomainDefinition[] = [
-	{ selectors: [DOMAIN_WALK_ID], schema: NameSchema, description: "The id of a walk toward a goal. Each advance of the walk names this id." },
+	{ selectors: [DOMAIN_PLAN_ID], schema: NameSchema, description: "The id of a plan toward a goal. Each advance of the plan names this id." },
 	{
 		selectors: [DOMAIN_GOAL_RESOLUTION],
 		schema: GoalResolutionSchema,
@@ -158,5 +158,5 @@ export const goalDomainDefinitions: TDomainDefinition[] = [
 		description: "The steps the caller may call next, each with whether its inputs hold, the resolution of each goal, and the step graph's lint findings.",
 		ui: { component: "shu-affordances-panel", summary: "Affordances" },
 	},
-	{ selectors: [DOMAIN_CHAIN_WALK], schema: ChainWalkSchema, description: "A walk toward a goal, which calls one step of its plan per advance." },
+	{ selectors: [DOMAIN_PLAN_PROGRESS], schema: PlanProgressSchema, description: "A plan toward a goal, which calls one of its steps per advance." },
 ];

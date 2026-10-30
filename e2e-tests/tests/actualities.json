@@ -407,15 +407,15 @@
 			"actuality": {
 				"text": "e2e-tests/tests, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
 				"status": "passed",
-				"tookMs": 24100,
+				"tookMs": 24700,
 				"digest": {
 					"e2e-tests/src": "dc573cdd7ecddf68fac9a13e4d4fd63eebf115f44b4ce2a5b4db616c5a049e04",
 					"e2e-tests/tests": "37ff6ea7c41d9236a6361aff24039bd09aa16cfd4153f33086f4cee7a33f278a",
 					"modules/cli/src": "58a55b398fc5d77fac9bfc1fc86683c7614b8c54c1dcbe17325ab55c6b867363",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "a354d7063d5abcd28d665cac955a6af4820e0d1248fcbc5c06154c2f7ebfaaa9",
+					"modules/core/src": "f1d85318abeff46e5896d93bc94cd15b30d0b8a33555c210f76001f03823e41b",
 					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
-					"modules/logic/src": "e69b2797688d0d2862eb89a6c54955df354eee14d656407b004ed9f912c47674",
+					"modules/logic/src": "31f422b111c9492a38d2e693e894cefa0b22e216dc720d228729abccd0bf89e2",
 					"modules/monitor-otel/src": "4fbef0f2c78fed7b3e2d03ec4ab094bef11766724e5f5f6efb73491ea1d4dea6",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/out-junit/src": "22d1ca5d4f4449cae6186ff8d84c1f0b182e7591e1ffda9520a38daa3e8681d2",
@@ -440,7 +440,7 @@
 				"/features/a11y-pass.feature": {
 					"text": "/features/a11y-pass",
 					"status": "passed",
-					"tookMs": 800,
+					"tookMs": 700,
 					"steps": 13
 				},
 				"/features/after-every.feature": {
@@ -464,19 +464,19 @@
 				"/features/auth-form.feature": {
 					"text": "/features/auth-form",
 					"status": "passed",
-					"tookMs": 1000,
+					"tookMs": 900,
 					"steps": 24
 				},
 				"/features/counter.feature": {
 					"text": "/features/counter",
 					"status": "passed",
-					"tookMs": 1000,
+					"tookMs": 2300,
 					"steps": 20
 				},
 				"/features/counter.feature.ts": {
 					"text": "Counts feature",
 					"status": "passed",
-					"tookMs": 1200,
+					"tookMs": 1800,
 					"steps": 20
 				},
 				"/features/counts.feature.ts": {
@@ -488,13 +488,13 @@
 				"/features/elements.feature": {
 					"text": "/features/elements",
 					"status": "passed",
-					"tookMs": 900,
+					"tookMs": 800,
 					"steps": 17
 				},
 				"/features/executor-rpc.feature.ts": {
 					"text": "Executor RPC dispatch",
 					"status": "passed",
-					"tookMs": 100,
+					"tookMs": 0,
 					"steps": 8
 				},
 				"/features/feature-variables.feature": {
@@ -518,13 +518,13 @@
 				"/features/once.feature.ts": {
 					"text": "A group of features runs once per state of what it depends on",
 					"status": "passed",
-					"tookMs": 2000,
+					"tookMs": 1900,
 					"steps": 20
 				},
 				"/features/page-visits.feature.ts": {
 					"text": "Visit pages",
 					"status": "passed",
-					"tookMs": 4200,
+					"tookMs": 3900,
 					"steps": 65
 				},
 				"/features/popup.feature": {
@@ -548,19 +548,19 @@
 				"/features/run-policy-refusals.feature.ts": {
 					"text": "A run refuses a run policy its config doesn't allow",
 					"status": "passed",
-					"tookMs": 2000,
+					"tookMs": 1800,
 					"steps": 16
 				},
 				"/features/trauma_center.feature": {
 					"text": "/features/trauma_center",
 					"status": "passed",
-					"tookMs": 300,
+					"tookMs": 200,
 					"steps": 93
 				},
 				"/features/upload-verify.feature": {
 					"text": "/features/upload-verify",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 500,
 					"steps": 20
 				},
 				"/features/visited-pages.feature": {

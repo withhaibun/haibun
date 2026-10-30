@@ -27,8 +27,8 @@ import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { Access, SEQ_PATH_LABEL, type TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_FIELD, calledParts, actualityFeatureOf, stepRecordOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { callerHolds, readingAsOf } from "@haibun/core/lib/domains/capability-context.js";
-import { DOMAIN_AFFORDANCES, DOMAIN_CHAIN_WALK, DOMAIN_GOAL_RESOLUTION, DOMAIN_WALK_ID, goalDomainDefinitions } from "@haibun/core/lib/domains/goal-resolution.js";
-import { affordancesAt, pursued, resolved, walkAdvanced, walkBegun, type TGoalScope } from "./pipelines/goals.js";
+import { DOMAIN_AFFORDANCES, DOMAIN_GOAL_RESOLUTION, DOMAIN_PLAN_ID, DOMAIN_PLAN_PROGRESS, goalDomainDefinitions } from "@haibun/core/lib/domains/goal-resolution.js";
+import { affordancesAt, planAdvanced, planBegun, pursued, resolved, type TGoalScope } from "./pipelines/goals.js";
 import { stepperContext } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
 import { proverOf } from "./pipelines/prove.js";
 import { canonicalOf, readerOf, recordsWhere, writeFacts } from "./pipelines/reads.js";
@@ -178,30 +178,30 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 		resolve: {
 			gwta: RESOLVE_STATEMENT,
 			description:
-				"Proves a goal over the producer rules that the steps' signatures state, without calling a step. Returns its verdict, the facts that prove it, the plans that would prove it, and a proved goal's proof as statements. A goal that a fact doesn't prove and a plan doesn't prove is refuted, and the first sub-goal it couldn't prove is refuted under it.",
+				"Proves a goal over the producer rules that the steps' signatures state, without calling a step. Returns its verdict, the facts that prove it, the plans that would prove it, and a proved goal's proof as statements. A goal that lacks both a fact and a plan is unknown, and the first sub-goal it couldn't prove is proved under it.",
 			productsDomain: DOMAIN_GOAL_RESOLUTION,
 			action: ({ goal }: { goal: string }, featureStep: TFeatureStep) => resolved(this.goalScope(), featureStep, goal, RESOLVE_STATEMENT),
 		},
 		pursue: {
 			gwta: `pursue {goal: ${DOMAIN_DOMAIN_KEY}}`,
 			description:
-				"Proves a goal, and where only its plan would prove it, calls each step of its first plan under this step and proves the goal again. A plan whose steps take a value from the caller is walked with walk toward.",
+				"Proves a goal, and where only its plan would prove it, calls each step of its first plan under this step and proves the goal again. A plan whose steps take a value from the caller is advanced one step at a time with plan.",
 			productsDomain: DOMAIN_GOAL_RESOLUTION,
 			action: ({ goal }: { goal: string }, featureStep: TFeatureStep) => pursued(this.goalScope(), featureStep, goal),
 		},
-		walkToward: {
-			gwta: `walk toward {goal: ${DOMAIN_DOMAIN_KEY}}`,
+		plan: {
+			gwta: `plan {goal: ${DOMAIN_DOMAIN_KEY}}`,
 			description:
-				"Begins a walk toward a goal that isn't proved, held as facts of the walk's graph under the principal that begins it. Returns the step its next advance calls and the parameters that step takes.",
-			productsDomain: DOMAIN_CHAIN_WALK,
-			action: ({ goal }: { goal: string }, featureStep: TFeatureStep) => walkBegun(this.goalScope(), featureStep, goal),
+				"Writes a plan toward a goal that isn't proved, the steps that would make it hold, held as facts of the plan's graph under the principal that begins it. Returns the step its next advance calls and the parameters that step takes.",
+			productsDomain: DOMAIN_PLAN_PROGRESS,
+			action: ({ goal }: { goal: string }, featureStep: TFeatureStep) => planBegun(this.goalScope(), featureStep, goal),
 		},
-		advanceWalk: {
-			gwta: `advance the walk {walk: ${DOMAIN_WALK_ID}} with {args: ${DOMAIN_JSON_OBJECT}}`,
+		advancePlan: {
+			gwta: `advance plan {plan: ${DOMAIN_PLAN_ID}} with {args: ${DOMAIN_JSON_OBJECT}}`,
 			description:
-				"Calls the next step of a walk's plan, as it holds now, under this step with the values given, and holds the fact it asserted. Only the principal that began the walk advances it, since the values are that principal's.",
-			productsDomain: DOMAIN_CHAIN_WALK,
-			action: ({ walk, args }: { walk: string; args: Record<string, unknown> }, featureStep: TFeatureStep) => walkAdvanced(this.goalScope(), featureStep, walk, args),
+				"Calls the next step of a plan, as it holds now, under this step with the values given, and holds the fact it asserted. Only the principal that began the plan advances it, since the values are that principal's.",
+			productsDomain: DOMAIN_PLAN_PROGRESS,
+			action: ({ plan, args }: { plan: string; args: Record<string, unknown> }, featureStep: TFeatureStep) => planAdvanced(this.goalScope(), featureStep, plan, args),
 		},
 		showAffordances: {
 			gwta: "show affordances",
