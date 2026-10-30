@@ -253,6 +253,16 @@ A line that reads as until states how long it proves its statements again, or it
 exception, such as a wait for a node that isn't the until open at its position, fails its line with the line and the cause,
 ends each record it opened, and the features after it run as `HAIBUN_CONTINUE_AFTER_ERROR` states.
 
+### Work off the event loop
+
+Core's worker pool (`IWorkerPool`, `modules/core/src/lib/workers`) runs CPU-bound work that would hold a process's event loop as
+named tasks: a task module exports `runTask(schema, run)`, its input and output are parsed on each side, and each effect it
+requests of its process crosses its own port. The pool holds at most 8 workers of 512 MB heap, one task each at a time, releases a
+worker idle for 30 s, and sets `--no-wasm-code-gc`, a workaround for a V8 defect that aborts a process when workers share
+WebAssembly code. I/O runs asynchronously instead: git through `execFile`, gzip through zlib's threads. The cli watches the event
+loop of each process it starts (`watchEventLoop`), warns where a stretch holds it past 500 ms, and states the delay's summary as
+the process ends.
+
 ### Description logic and the reasoner
 
 Knowledge is open world: OWL 2 at the RL profile states it, and N3 rules run by EYE evaluate it
