@@ -142,9 +142,9 @@ export function createStepUI(wp: WebPlaywright) {
 		waitFor({ target: marker }),
 	];
 
-	/** Show the search's filters: the values each field holds, the conditions a reader adds, and the control that runs
+	/** Show the search's filters: the values each field holds, and the class expression a reader writes, which runs
 	 *  them. */
-	const showSearchFilters: TKirejiStep[] = [...enterSearchMode, ...showPaneSettings(IDS.APP.ADD_FILTER)];
+	const showSearchFilters: TKirejiStep[] = [...enterSearchMode, ...showPaneSettings(IDS.APP.EXPRESSION)];
 
 	/** Expand the actions-bar and switch to Ask mode. Symmetric to enterStepMode. */
 	const enterAskMode: TKirejiStep[] = [...expandActionsBar, selectionOption({ option: '"Ask"', field: IDS.APP.MODE_SELECT }), waitFor({ target: IDS.APP.CHAT_INPUT })];

@@ -99,19 +99,40 @@ describe("the app a deployment serves", () => {
 		expect(served(), "a verifier registered after the app was served").toContain('"verifiesDelegations":true');
 	});
 
-	it("serves the JSON-LD context of the domains as they stand, so a type declared after the app was served is in it", async () => {
+	it("serves the JSON-LD context of the domains as they stand, under an ETag of its content, so an unchanged context is 304", async () => {
 		await stepper.steps.serveShuApp.action({ path: "/spa" });
 		const route = addRoute.mock.calls.find(([, path]) => path === CONTEXT_DOCUMENT.wellKnown);
 		if (!route) throw new Error("the stepper didn't serve the JSON-LD context");
-		const served = () => JSON.stringify((route[3] as (c: unknown) => unknown)({ req: { header: () => ({ host: "site.test" }) }, json: (body: unknown) => body }));
-		expect(served()).not.toContain("exv:Declared");
+		/** One request of the context, revalidating `etag` where it states one: the response's status, headers and body. */
+		const request = (etag?: string) => {
+			const headers: Record<string, string> = {};
+			const asked: Record<string, string> = { host: "site.test", ...(etag === undefined ? {} : { "if-none-match": etag }) };
+			const req = { header: (name?: string) => (name === undefined ? asked : asked[name]) };
+			const body = (content: unknown, status?: number) => ({ status: status === undefined ? 200 : status, content: typeof content === "string" ? content : "" });
+			const { status, content } = (route[3] as (c: unknown) => { status: number; content: string })({
+				req,
+				header: (name: string, value: string) => (headers[name] = value),
+				body,
+			});
+			return { status, headers, content };
+		};
+		const first = request();
+		expect(first.status).toBe(200);
+		expect(first.headers["Cache-Control"], "a page revalidates it").toBe("no-cache");
+		expect(first.content).not.toContain("exv:Declared");
+		const tag = first.headers.ETag;
+		expect(tag, "a strong ETag of its content's hash").toMatch(/^"[0-9a-f]{64}"$/);
+		expect(request(tag), "an unchanged context isn't sent again").toMatchObject({ status: 304, content: "" });
 		world.domains = {
 			...world.domains,
 			declared: {
 				topology: { persistedAs: "Declared", type: "exv:Declared", id: "id", namespaces: { exv: "https://vocab.example/ns#" }, properties: { id: LinkRelations.IDENTIFIER.rel } },
 			},
 		} as unknown as TWorld["domains"];
-		expect(served()).toContain("exv:Declared");
+		const changed = request(tag);
+		expect(changed.status, "a type declared after the app was served changes the context, and its tag").toBe(200);
+		expect(changed.content).toContain("exv:Declared");
+		expect(changed.headers.ETag).not.toBe(tag);
 	});
 
 	it("lets only this site frame the page, and the embedding page's origin where the deployment names one", async () => {

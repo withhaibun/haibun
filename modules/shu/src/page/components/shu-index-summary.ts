@@ -1,7 +1,7 @@
 /**
  * <shu-index-summary>: what the index is showing, in one line, for the spine to which it collapses.
  *
- * The index is a search: a type, some text, some conditions, an access level, and a number of results. Collapsed,
+ * The index is a search: a type, some text, a class expression, an access level, and a number of results. Collapsed,
  * the strip doesn't have room for the results, but there is room to state which search they came from and how many there are, so
  * the strip still states what is behind it.
  *

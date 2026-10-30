@@ -1,22 +1,22 @@
 /**
- * The actions bar's search mode: the type the query surface reads, a text search, filter conditions, the distinct values a
- * type's fields take and a filter by one of them, and the searches recorded in the bar's history. Every change a reader
+ * The actions bar's search mode: the type the query surface reads, a text search, a class expression a reader writes, the
+ * distinct values a type's fields take and a `value` restriction to one of them, and the searches recorded in the bar's history. Every change a reader
  * makes announces the search the bar now describes as a filter change, which the query runs. The trail label names what
  * the search is about, for the bar's breadcrumb.
  */
 import type { AccessQueryLevel } from "@haibun/core/lib/domains/resources.js";
-import { html, nothing, type ReactiveController, type TemplateResult } from "lit";
+import { html, type ReactiveController, type TemplateResult } from "lit";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/steps/derivations/quad-events.js";
-import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
+import { allOf, manchesterOf, hasValue } from "@haibun/core/lib/records/domains/class-expression.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import type { TEvent } from "../ports.js";
 import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
-import { addObservedSelectValues, getQueryableFields, getSelectValues, hasSelectValues, hasUsableSelectValues, setSelectValues } from "../controllers/catalog-controller.js";
+import { addObservedSelectValues, getSelectValues, hasSelectValues, hasUsableSelectValues, setSelectValues } from "../controllers/catalog-controller.js";
 import { domainOptions, StepsChangedController } from "../controllers/registry-controller.js";
 import type { TDomainOption } from "../derivations/steps.js";
 import { pageTypes } from "../controllers/page-cell-controller.js";
-import { NOTHING_SELECTED_LABEL, SEARCH_OPERATORS, type TComboboxOption } from "../../domains/schemas.js";
+import { NOTHING_SELECTED_LABEL, type TComboboxOption } from "../../domains/schemas.js";
 import type { TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { getHash } from "../controllers/hash-controller.js";
 import { typeNotHeld, viewQuery, appAccessLevel } from "../controllers/view-query-controller.js";
@@ -26,7 +26,6 @@ import type { TControllerHost } from "./controller-host.js";
 import type { ShuActivityHistory } from "./shu-activity-history.js";
 import { ShuSearchSummary } from "./shu-search-summary.js";
 import { readSlashCommand } from "../derivations/step-input.js";
-import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { ClockController } from "../controllers/clock-controller.js";
 import { selectValuesFor } from "../controllers/read-controller.js";
 import "./shu-combobox.js";
@@ -38,16 +37,16 @@ const TYPED_SEARCH = "typed-search";
 export const SEARCH_DEBOUNCE_MS = 300;
 
 /** What a view states about the context it offers the bar: its total, the label the query surface can use, and the
- *  conditions with which it was opened. */
-type TQueryContextExtra = TContextExtra & { textQuery?: string; conditions?: TSearchCondition[] };
+ *  expression with which it was opened. */
+type TQueryContextExtra = TContextExtra & { textQuery?: string; expression?: string };
 
-/** The conditions a search runs: each select filter with a value, then each filter row that names a field. A row without a
- *  chosen field doesn't name what to match, so it stays in the bar being edited and out of the query. */
-export function searchConditions(selectFilters: Record<string, string>, rows: readonly TSearchCondition[]): TSearchCondition[] {
-	const selected = Object.entries(selectFilters)
-		.filter(([, value]) => value)
-		.map(([predicate, value]): TSearchCondition => ({ predicate, operator: "eq", value }));
-	return [...selected, ...rows.filter((row) => row.predicate.length > 0)];
+/** The class expression a search runs, in Manchester syntax: the expression a reader wrote, and a `value` restriction for each
+ *  select filter with a value; undefined where both are empty. */
+export function searchExpression(selectFilters: Record<string, string>, written: string): string | undefined {
+	const selected = Object.entries(selectFilters).flatMap(([field, value]) => (value ? [hasValue(field, value)] : []));
+	const parts = [...(written.trim() ? [written.trim()] : []), ...(selected.length === 0 ? [] : [manchesterOf(allOf(selected))])];
+	if (parts.length < 2) return parts[0];
+	return parts.map((part) => `(${part})`).join(" and ");
 }
 
 /** What the query reads from the bar: its test-id prefix, the history searches are recorded in, the status it reports
@@ -62,9 +61,10 @@ export class ActionsBarQuery implements ReactiveController {
 	 *  cannot open at different levels. */
 	#readLevel = appAccessLevel();
 	#trailLabel = NOTHING_SELECTED_LABEL;
-	#conditions: TSearchCondition[] = [];
-	/** The fields of the selected type a condition can name, as the condition's field selector offers them. */
-	#propertyOptions: TComboboxOption[] = [];
+	/** The class expression a reader wrote, which the search runs with the select filters. */
+	#written = "";
+	/** The expression the bar last announced, so a view stating it back doesn't replace what the reader chose. */
+	#announced: string | undefined = undefined;
 	#domainOptions: TDomainOption[] = [];
 	/** Whether the types the query surface offers have been read, so a selected label can be checked against them. */
 	#typesRead = false;
@@ -111,7 +111,7 @@ export class ActionsBarQuery implements ReactiveController {
 		return this.#trailLabel;
 	}
 
-	/** Take the context a view offers: its patterns, the access it reads at, and the label and conditions with which it opened. A
+	/** Take the context a view offers: its patterns, the access it reads at, and the label and expression with which it opened. A
 	 *  view offers a label only when the query surface can use one, so a schema view leaves the label as it is. */
 	setContext(patterns: TContextPattern[], readLevel: AccessQueryLevel, extra?: TQueryContextExtra): void {
 		this.#contextPatterns = patterns;
@@ -119,12 +119,12 @@ export class ActionsBarQuery implements ReactiveController {
 		if (extra?.label !== undefined && extra.label !== this.#selectedLabel) {
 			this.#selectedLabel = extra.label || "";
 			this.#syncSelectedDomainKey();
-			this.loadProperties();
 			this.#loadSelectValuesReported();
 		}
-		if (extra?.conditions && this.#selectedLabel && hasSelectValues(this.#selectedLabel)) {
-			const fields = getSelectValues(this.#selectedLabel);
-			for (const c of extra.conditions) if (c.operator === "eq" && c.predicate in fields) this.#selectFilters[c.predicate] = c.value;
+		// A view that opened at an expression the bar didn't announce states it as written, and the select filters don't narrow it.
+		if (extra?.expression !== undefined && extra.expression !== this.#announced) {
+			this.#written = extra.expression;
+			this.#selectFilters = {};
 		}
 		if (!isEntitySelection(patterns)) this.#trailLabel = contextLabel(patterns, extra);
 		this.#deps.onTrailChange();
@@ -137,14 +137,14 @@ export class ActionsBarQuery implements ReactiveController {
 	}
 
 	/**
-	 * Read the types the query surface offers and settle on one: the label and field filters the address names, else the
+	 * Read the types the query surface offers and settle on one: the label and expression the address names, else the
 	 * first type. The search it describes is announced as not requested, since the bar restoring itself isn't a reader
 	 * looking for results.
 	 */
 	async loadDomains(): Promise<void> {
-		const { label, f } = parseViewQuery(getHash());
+		const { label, x } = parseViewQuery(getHash());
 		if (!this.#selectedLabel) this.#selectedLabel = label ?? "";
-		for (const c of f) if (c.predicate && c.operator === "eq" && c.value) this.#selectFilters[c.predicate] = c.value;
+		if (x !== null) this.#written = x;
 		await this.readTypes();
 		this.#loadSelectValuesReported();
 		this.#announce(false);
@@ -158,14 +158,7 @@ export class ActionsBarQuery implements ReactiveController {
 		this.#typesRead = true;
 		this.#typeOptions = this.#domainOptions.map((o) => ({ value: o.key, label: o.queryLabel, group: o.group }));
 		this.#syncSelectedDomainKey();
-		this.loadProperties();
 		this.#host.requestUpdate();
-	}
-
-	/** Read the fields of the selected type a condition can name. Before the types are read, reading them settles the fields. */
-	loadProperties(): void {
-		if (!this.#typesRead) return;
-		this.#propertyOptions = (this.#selectedLabel ? getQueryableFields(this.#selectedLabel) : []).map((field) => ({ value: field, label: field }));
 	}
 
 	/** Read the distinct values the selected type's fields take. Values the bar already holds are kept, unless `force`: a
@@ -193,8 +186,8 @@ export class ActionsBarQuery implements ReactiveController {
 		</div>`;
 	}
 
-	/** The search's filters, which the pane's settings control shows: the values each field of the type holds, the
-	 *  conditions a reader adds, and the control that runs them. */
+	/** The search's filters, which the pane's settings control shows: the values each field of the type holds, and the class
+	 *  expression a reader writes, which the instance reads. */
 	settingsTemplate(): TemplateResult {
 		const prefix = this.#deps.testIdPrefix();
 		const label = this.#selectedLabel;
@@ -209,30 +202,9 @@ export class ActionsBarQuery implements ReactiveController {
 						${values.map((v) => html`<option value=${v} ?selected=${v === current} data-testid=${`${prefix}select-${field}-option-${v}`}>${v}</option>`)}
 					</select>`;
 				})}
-			<div class="compound-filters">${this.#conditions.map((c, i) => this.#conditionTemplate(c, i))}</div>
-			<button class="add-filter" data-testid=${`${prefix}add-filter`} @click=${this.#onAddCondition}>+</button>
-			${this.#conditions.length > 0 ? html`<button class="search-go" data-testid=${`${prefix}search-go`} @click=${this.#onSearchGo}>Go</button>` : nothing}
+			<input type="text" class="expression" data-testid=${`${prefix}expression`} .value=${this.#written} placeholder="class expression, such as folder value &quot;Drafts&quot;"
+				@change=${this.#onExpressionChange} />
 		</div>`;
-	}
-
-	#conditionTemplate(c: TSearchCondition, i: number): TemplateResult {
-		const prefix = this.#deps.testIdPrefix();
-		return html`<span class="filter-group" data-index=${i}>
-			<shu-combobox class="cond-property" data-index=${i} testid=${`${prefix}cond-property-${i}`} placeholder="property..." .options=${this.#propertyOptions}
-				.value=${c.predicate} @combo-change=${(e: CustomEvent) => this.#onConditionProperty(i, e)}></shu-combobox>
-			<select class="cond-operator" data-index=${i} data-testid=${`${prefix}cond-operator-${i}`} @change=${(e: Event) => this.#onConditionOperator(i, e)}>
-				${SEARCH_OPERATORS.map((o) => html`<option value=${o.value} ?selected=${o.value === c.operator}>${o.label}</option>`)}
-			</select>
-			<input type="text" class="cond-value" data-index=${i} data-testid=${`${prefix}cond-value-${i}`} .value=${c.value} placeholder="value"
-				@input=${(e: Event) => this.#onConditionValue(i, "value", e)} />
-			${
-				c.operator === "between"
-					? html`<input type="text" class="cond-value2" data-index=${i} data-testid=${`${prefix}cond-value2-${i}`} .value=${c.value2 || ""} placeholder="to"
-						@input=${(e: Event) => this.#onConditionValue(i, "value2", e)} />`
-					: nothing
-			}
-			<button class="remove-filter" data-index=${i} data-testid=${`${prefix}remove-filter-${i}`} @click=${() => this.#onRemoveCondition(i)}>x</button>
-		</span>`;
 	}
 
 	/** The selected type's key, from its label, or the first type where a type isn't selected. A label the types don't carry stays
@@ -272,7 +244,8 @@ export class ActionsBarQuery implements ReactiveController {
 	#announce(asked = true): void {
 		this.#trailLabel = contextLabel(this.#contextPatterns, { label: this.#selectedLabel, ...this.#selectFilters });
 		this.#deps.onTrailChange();
-		const detail = { asked, readLevel: this.#readLevel, label: this.#selectedLabel, conditions: searchConditions(this.#selectFilters, this.#conditions) };
+		this.#announced = searchExpression(this.#selectFilters, this.#written);
+		const detail = { asked, readLevel: this.#readLevel, label: this.#selectedLabel, expression: this.#announced === undefined ? "" : this.#announced };
 		this.#host.dispatchEvent(new CustomEvent(SHU_EVENT.FILTER_CHANGE, { detail, bubbles: true, composed: true }));
 	}
 
@@ -298,7 +271,7 @@ export class ActionsBarQuery implements ReactiveController {
 	 */
 	#recordSearch(): void {
 		const query = viewQuery.current;
-		if (!query.q && !query.f.some((c) => c.predicate && c.value)) return;
+		if (!query.q && !query.x) return;
 		const history = this.#deps.history;
 		const newest = Array.from(history.querySelectorAll<ShuSearchSummary>(SHU_TAG.SEARCH_SUMMARY)).at(-1);
 		if (newest?.query && serializeViewQuery(newest.query) === serializeViewQuery(query)) return;
@@ -313,8 +286,9 @@ export class ActionsBarQuery implements ReactiveController {
 	chooseType(key: string): void {
 		this.#selectedDomainKey = key;
 		this.#selectedLabel = this.#domainOptions.find((option) => option.key === key)?.queryLabel ?? "";
+		// A field restriction names the fields of the type it was written for, so a new type starts from all its records.
 		this.#selectFilters = {};
-		this.loadProperties();
+		this.#written = "";
 		this.#loadSelectValuesReported(true);
 		this.#statePageTypes();
 		this.#announce();
@@ -359,38 +333,12 @@ export class ActionsBarQuery implements ReactiveController {
 		this.#recordSearch();
 	}
 
-	#onSearchGo = (): void => {
-		this.#cancelPendingSearch();
-		this.#commitSearch(this.#searchBox()?.value || "");
+	/** A reader's expression runs as they leave it or press Enter, and is recorded. */
+	#onExpressionChange = (e: Event): void => {
+		this.#written = (e.target as HTMLInputElement).value;
+		this.#announce();
 		this.#recordSearch();
 	};
-
-	#onAddCondition = (): void => {
-		this.#conditions.push({ predicate: "", operator: "eq", value: "" });
-		this.#host.requestUpdate();
-	};
-
-	#onRemoveCondition(index: number): void {
-		this.#conditions.splice(index, 1);
-		this.#host.requestUpdate();
-		this.#announce();
-	}
-
-	#onConditionProperty(index: number, e: CustomEvent): void {
-		itemAt(this.#conditions, index).predicate = e.detail?.value || "";
-	}
-
-	/** A change to or from `between` adds or removes the second value, so it renders again. */
-	#onConditionOperator(index: number, e: Event): void {
-		const condition = itemAt(this.#conditions, index);
-		const wasBetween = condition.operator === "between";
-		condition.operator = (e.target as HTMLSelectElement).value as TSearchCondition["operator"];
-		if (wasBetween !== (condition.operator === "between")) this.#host.requestUpdate();
-	}
-
-	#onConditionValue(index: number, field: "value" | "value2", e: Event): void {
-		itemAt(this.#conditions, index)[field] = (e.target as HTMLInputElement).value;
-	}
 }
 
 /** The text that a search box's value searches. A value opening with a slash command is a command until Enter runs it, and

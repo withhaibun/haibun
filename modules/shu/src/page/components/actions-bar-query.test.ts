@@ -1,18 +1,17 @@
 // @vitest-environment jsdom
 /**
- * The actions bar's search mode, held apart from the bar: the conditions a search runs, the search a type read from the
+ * The actions bar's search mode, held apart from the bar: the class expression a search runs, the search a type read from the
  * address describes, a picked type announced once with its filters cleared, typed text committed once typing rests, a
  * search recorded once while it is the newest entry, and the distinct values a batch of events adds for the type.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { html, render } from "lit";
-import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { QuadStore, newStoreChain } from "@haibun/core/lib/quad-store.js";
 import { buildConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { pageTypes } from "../controllers/page-cell-controller.js";
-import { ActionsBarQuery, SEARCH_DEBOUNCE_MS, searchConditions } from "./actions-bar-query.js";
+import { ActionsBarQuery, SEARCH_DEBOUNCE_MS, searchExpression } from "./actions-bar-query.js";
 import { aControllerHost } from "./controller-host.test-fake.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { getSelectValues } from "../controllers/catalog-controller.js";
@@ -33,7 +32,7 @@ const CACHED = [{ subject: "m0", predicate: "folder", object: "INBOX", namedGrap
 /** A type the address names that actuality doesn't hold. */
 const NOT_HELD = "Nothing";
 
-type TFilterChange = { asked: boolean; label: string; readLevel: string; conditions: TSearchCondition[] };
+type TFilterChange = { asked: boolean; label: string; readLevel: string; expression: string };
 
 async function aQueryPage(hash = "") {
 	history.replaceState(null, "", hash || location.pathname);
@@ -75,12 +74,11 @@ describe("the actions bar's search mode", () => {
 		vi.useRealTimers();
 	});
 
-	it("runs each select filter with a value and each filter row that names a field, and doesn't run a row still unnamed", () => {
-		const rows: TSearchCondition[] = [
-			{ predicate: "subject", operator: "contains", value: "crumb" },
-			{ predicate: "", operator: "eq", value: "left unnamed" },
-		];
-		expect(searchConditions({ folder: "INBOX", account: "" }, rows)).toEqual([{ predicate: "folder", operator: "eq", value: "INBOX" }, rows[0]]);
+	it("runs the expression a reader wrote with a value restriction for each select filter with a value", () => {
+		expect(searchExpression({ folder: "INBOX", account: "" }, "")).toBe('folder value "INBOX"');
+		expect(searchExpression({}, ' subject some xsd:string[pattern "crumb"] ')).toBe('subject some xsd:string[pattern "crumb"]');
+		expect(searchExpression({ folder: "INBOX" }, 'subject some xsd:string[pattern "crumb"]')).toBe('(subject some xsd:string[pattern "crumb"]) and (folder value "INBOX")');
+		expect(searchExpression({ folder: "" }, "")).toBeUndefined();
 	});
 
 	it("states the types actuality declares once the page has read actuality's steps again, and doesn't announce a search", async () => {
@@ -102,10 +100,10 @@ describe("the actions bar's search mode", () => {
 		declaredTypes.pop();
 	});
 
-	it("reads the type and field filters the address names, and announces that search as not requested", async () => {
-		const { query, changes } = await aQueryPage("#?label=File&f=folder|eq|Drafts");
+	it("reads the type and the expression the address names, and announces that search as not requested", async () => {
+		const { query, changes } = await aQueryPage(`#?label=File&x=${encodeURIComponent('folder value "Drafts"')}`);
 		expect(query.selectedLabel).toBe("File");
-		expect(changes).toEqual([{ asked: false, readLevel: query.readLevel, label: "File", conditions: [{ predicate: "folder", operator: "eq", value: "Drafts" }] }]);
+		expect(changes).toEqual([{ asked: false, readLevel: query.readLevel, label: "File", expression: 'folder value "Drafts"' }]);
 	});
 
 	it("reads the first type where the address doesn't name one, and keeps a label that the types don't carry, stating that actuality doesn't hold such a type", async () => {
@@ -118,12 +116,12 @@ describe("the actions bar's search mode", () => {
 		expect(statuses).toContain(typeNotHeld(NOT_HELD, []).error);
 	});
 
-	it("announces a type the strip states once, as requested, with its select filters cleared, and states it as the type read", async () => {
-		const { query, changes } = await aQueryPage("#?f=folder|eq|Drafts");
+	it("announces a type the strip states once, as requested, with its expression cleared, and states it as the type read", async () => {
+		const { query, changes } = await aQueryPage(`#?x=${encodeURIComponent('folder value "Drafts"')}`);
 		changes.length = 0;
 		query.chooseType("file-domain");
 		expect(query.selectedLabel).toBe("File");
-		expect(changes).toEqual([{ asked: true, readLevel: query.readLevel, label: "File", conditions: [] }]);
+		expect(changes).toEqual([{ asked: true, readLevel: query.readLevel, label: "File", expression: "" }]);
 		expect(pageTypes.get().selected, "the strip shows the type the search reads").toBe("file-domain");
 	});
 

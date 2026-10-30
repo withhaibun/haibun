@@ -6,13 +6,13 @@ import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/domains/log-message.js";
 import { Access, SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
-import { DensityQuerySchema, type TDensityQuery } from "@haibun/core/lib/quad-types.js";
+import type { TPageDensity } from "../../pipelines/read-records.js";
 import { MARK_COLOUR } from "../../derivations/status-mark.js";
-import { ofActualityFeature, actualityGraphOf } from "../derivations/actuality-graph.js";
+import { ofActualityFeature } from "../derivations/actuality-graph.js";
 import type { TActualityGraph } from "../ports.js";
 import { actualityShape as shapeOver } from "./actuality-shape.js";
 import { ACTUALITY_TYPES } from "../derivations/actuality-rows.js";
-import { actualityStore } from "../actuality-store.test-fake.js";
+import { actualityGraphOver, actualityStore } from "../actuality-store.test-fake.js";
 
 /** The shape of an actuality at the level a step reports at, in `divisions`. */
 const actualityShape = (graph: TActualityGraph, { divisions }: { divisions: number }) => shapeOver(graph, { minLevel: "info", divisions });
@@ -23,7 +23,7 @@ const iso = (n: number): string => new Date(n).toISOString();
 /** An actuality of the steps and messages given, and what was counted of it: the store is added to as an actuality adds to itself. */
 const anActuality = async (steps: Array<{ at: number; status: string }> = [], said: Array<{ at: number; level: string }> = []) => {
 	const store = actualityStore();
-	const counted: TDensityQuery[] = [];
+	const counted: TPageDensity[] = [];
 	const addStep = async (at: number, status: string, i: number) =>
 		store.upsertIndividual(SEQ_PATH_LABEL, {
 			id: `${RUN}.0.${i}`,
@@ -38,7 +38,7 @@ const anActuality = async (steps: Array<{ at: number; status: string }> = [], sa
 		store.upsertIndividual(LOG_MESSAGE_LABEL, { id: `${RUN}.0.${i}@${i}`, actuality: RUN, message: `said ${i}`, level, generatedAtTime: iso(at), accessLevel: Access.public });
 	for (const [i, s] of steps.entries()) await addStep(s.at, s.status, i);
 	for (const [i, m] of said.entries()) await addSaid(m.at, m.level, 100 + i);
-	const over = actualityGraphOf(store, () => true);
+	const over = actualityGraphOver(store);
 	const graph: TActualityGraph = { ...over, density: (query) => (counted.push(query), over.density(query)) };
 	let more = steps.length;
 	return { graph, store, counted, step: (at: number, status: string) => addStep(at, status, more++) };
@@ -162,7 +162,7 @@ describe("the shape of an actuality, by division", () => {
 		await new Promise((ran) => setImmediate(ran));
 		answer();
 		await Promise.all([earlier, later]);
-		for (const query of counted) expect(DensityQuerySchema.safeParse(query).success, `a count reads one division or more, and one read ${query.buckets}`).toBe(true);
+		for (const query of counted) expect(query.buckets, "a count reads one division or more").toBeGreaterThan(0);
 		expect(shape.marks.at(-1)?.color, "the failure the later count reached is marked").toBe(MARK_COLOUR.fault);
 	});
 

@@ -1,6 +1,7 @@
 import type { ReactiveController, ReactiveControllerHost } from "lit";
 import type { TGraphQueryResult } from "@haibun/core/lib/quad-types.js";
 import { queryGraph } from "./read-controller.js";
+import type { TPageQuery } from "../pipelines/read-records.js";
 
 /**
  * QueryController: the per-view handle to the graph-query data path. A view that runs queries HOLDS one
@@ -18,7 +19,7 @@ export class QueryController implements ReactiveController {
 
 	/** Run the `graphQuery` step: a graph store's rich query where present, else the inherent one, and without a server
 	 *  the same query over the graph the page caches. */
-	run(query: Record<string, unknown>): Promise<TGraphQueryResult> {
+	run(query: TPageQuery): Promise<TGraphQueryResult> {
 		return queryGraph(query);
 	}
 }

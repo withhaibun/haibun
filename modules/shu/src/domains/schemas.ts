@@ -2,7 +2,7 @@
  * SPA-side schemas for graph query results and shared UI components.
  */
 import { z } from "zod";
-import { SearchConditionSchema, SortOrderSchema, type TSearchCondition } from "@haibun/core/lib/quad-types.js";
+import { SortOrderSchema } from "@haibun/core/lib/quad-types.js";
 import { AccessQueryLevelSchema } from "@haibun/core/lib/domains/resources.js";
 import { CountedSchema } from "@haibun/core/lib/domains/hypermedia.js";
 import { ChatStatusSchema, ContextQuerySchema } from "@haibun/core/lib/conversation/domains/conversation.js";
@@ -54,27 +54,6 @@ export const ComboboxSchema = z.object({
 	/** Whether the control takes text that doesn't name an option as a value of its own, offered first as a new entry. */
 	accepts: z.boolean(),
 });
-
-// --- Search conditions ---
-
-/** The operator options a filter UI offers, each with its display label. Values come from the condition schema, so the menu cannot offer an operator the query rejects. */
-export const SEARCH_OPERATORS: ReadonlyArray<{ value: TSearchCondition["operator"]; label: string }> = SearchConditionSchema.shape.operator.options.map((value) => ({
-	value,
-	label: { eq: "equals", contains: "contains", gt: "greater than", lt: "less than", gte: "at least", lte: "at most", between: "between", in: "any of" }[value],
-}));
-
-/** Parse a pipe-delimited filter string (predicate|operator|value[|value2]) into a SearchCondition. */
-export function parseFilterParam(f: string): TSearchCondition {
-	const parts = f.split("|");
-	return { predicate: parts[0] || "", operator: (parts[1] || "eq") as TSearchCondition["operator"], value: parts[2] || "", ...(parts[3] ? { value2: parts[3] } : {}) };
-}
-
-/** Serialize a SearchCondition to a pipe-delimited filter string. */
-export function serializeFilterParam(c: TSearchCondition): string {
-	const parts = [c.predicate, c.operator, c.value];
-	if (c.operator === "between" && c.value2) parts.push(c.value2);
-	return parts.join("|");
-}
 
 // --- Query view schema (for shu-graph-query component state) ---
 
@@ -165,7 +144,7 @@ export const PageContextSchema = z.object({
 	total: CountedSchema.optional(),
 	folder: z.string().optional(),
 	textQuery: z.string().optional(),
-	conditions: z.array(SearchConditionSchema).optional(),
+	expression: z.string().optional(),
 });
 export type TPageContext = z.infer<typeof PageContextSchema>;
 

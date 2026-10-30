@@ -3,7 +3,8 @@
  * view's rows of actuality.
  */
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
-import type { TDensityQuery, TDensityResult, TGraphQuery, TGraphQueryResult, TQuad } from "@haibun/core/lib/quad-types.js";
+import type { TDensityResult, TGraphQueryResult, TQuad } from "@haibun/core/lib/quad-types.js";
+import type { TPageDensity, TPageQuery } from "../pipelines/read-records.js";
 import type { THaibunLogLevel } from "@haibun/core/lib/domains/protocol.js";
 import type { WindowedSource } from "../derivations/windowed-source.js";
 import type { Range } from "../derivations/rail.js";
@@ -15,9 +16,9 @@ import type { Range } from "../derivations/rail.js";
  */
 export type TActualityGraph = {
 	/** The records of one type the query names. */
-	query(query: TGraphQuery): Promise<TGraphQueryResult>;
+	query(query: TPageQuery): Promise<TGraphQueryResult>;
 	/** How many records of one type fall in each division of a span, by how each turned out. */
-	density(query: TDensityQuery): Promise<TDensityResult>;
+	density(query: TPageDensity): Promise<TDensityResult>;
 	/** Whether the graph carries this type. A type it doesn't carry doesn't hold a record to read. */
 	declares(label: string): boolean;
 };

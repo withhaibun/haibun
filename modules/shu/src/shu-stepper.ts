@@ -55,15 +55,15 @@ const GZIP = /\bgzip\b/;
 /** The media type of a served bundle file, by its name's extension. */
 const assetType = (path: string): string => (path.endsWith(".map") ? MEDIA_TYPE.json : MEDIA_TYPE.javascript);
 
-/** A served bundle file's response. The file is read on each request, so a rebuilt one is served after `npm run build`
- *  without a restart. `no-cache` revalidates it, so an unchanged file returns 304 and a rebuilt one gets a fresh ETag and a full
- *  body, gzipped where the request accepts gzip. */
-function assetResponse(c: Context, asset: TServedAsset, path: string): Response {
+/** A served asset's response: a bundle file, read on each request so a rebuilt one is served after `npm run build` without a
+ *  restart, or text a server derives. `no-cache` revalidates it, so an unchanged asset returns 304 and a changed one gets a fresh
+ *  ETag and a full body, gzipped where the request accepts gzip. */
+function assetResponse(c: Context, asset: TServedAsset, contentType: string): Response {
 	c.header("ETag", asset.etag);
 	c.header("Cache-Control", "no-cache");
 	c.header("Vary", "Accept-Encoding");
 	if (c.req.header("if-none-match") === asset.etag) return c.body(null, 304);
-	c.header("Content-Type", assetType(path));
+	c.header("Content-Type", contentType);
 	const accepted = c.req.header("accept-encoding");
 	if (accepted === undefined || !GZIP.test(accepted)) return c.body(asset.content);
 	c.header("Content-Encoding", "gzip");
@@ -249,10 +249,12 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 		});
 		webserver.addRoute("get", path, { description: `Shu SPA mounted at ${path}` }, createSpaHandler(path, hydration));
 		// The context is built from the domains as they stand, so a type declared after the page was served is in it, and for
-		// the origin the request arrived on, so the handler doesn't keep anything per host.
+		// the origin the request arrived on, so the handler doesn't keep anything per host. Its ETag is its content's hash, so a page
+		// revalidates it and fetches it again only once the domains change it.
 		const jsonLdHandler = (c: Context) => {
 			const world = this.getWorld();
-			return c.json(getJsonLdContext(world.domains, haibunNsForHost(requestBaseIri(c.req.header(), webserver.origins)), world.runtime.records));
+			const context = getJsonLdContext(world.domains, haibunNsForHost(requestBaseIri(c.req.header(), webserver.origins)), world.runtime.records);
+			return assetResponse(c, servedBundles.derived(JSON.stringify(context)), MEDIA_TYPE.json);
 		};
 		// What every app of a server shares is served once per server, however many apps it mounts: the page's bundles with their
 		// chunks and source maps, and the JSON-LD context.
@@ -261,7 +263,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				const path = c.req.path.slice(PAGE_ASSETS.length + 1);
 				const asset = servedBundles.pageFile(path);
 				if (asset === undefined) return c.body(`${path} isn't a file of the page's present build. Reload the page, which names the present build's files.`, 404);
-				return assetResponse(c, asset, path);
+				return assetResponse(c, asset, assetType(path));
 			});
 		webserver.addRouteIfAbsent("get", LABEL_FONT, { description: "The font of the graph's labels" }, (c: Context) => {
 			c.header("Content-Type", "font/woff");

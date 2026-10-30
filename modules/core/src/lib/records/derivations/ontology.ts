@@ -5,7 +5,21 @@
  * the ontology's records reads the records.
  */
 import { PROV_ACTIVITY, PROV_AGENT, PROV_ENTITY, SOSA_OBSERVATION } from "../../domains/vocabularies.js";
-import { Access, CLASS_LABEL, edgeRanges, edgeRel, isPersisted, LinkRelations, PROPERTY_LABEL, type TRegisteredDomain } from "../../domains/resources.js";
+import {
+	Access,
+	CLASS_LABEL,
+	edgeRanges,
+	edgeRel,
+	fieldIri,
+	fieldPropertyId,
+	isPersisted,
+	LinkRelations,
+	PROPERTY_LABEL,
+	propertyIriOf,
+	REL_CONTEXT,
+	type TRegisteredDomain,
+} from "../../domains/resources.js";
+import { relOf } from "../../domains/hypermedia.js";
 import type { TCluster, TClusteredQuads, TQuad } from "../../steps/domains/quad-types.js";
 import { ONTOLOGY_FIELD } from "../domains/ontology.js";
 import { recordsOfQuads, type THeldRecord } from "./read-records.js";
@@ -141,6 +155,33 @@ export function ontologyToQuads(domains: Record<string, TRegisteredDomain>): TCl
 		for (const p of parents) {
 			addProp(p);
 			quads.push(quadOf(rel, ONTOLOGY_FIELD.subPropertyOf, p, PROPERTY_LABEL, PROPERTY_LABEL));
+		}
+	}
+
+	// Each field and edge of a type is a property of its own, named by the field within its type, a subproperty of its rel, so
+	// fields that share a rel stay apart and a read of the rel reaches each.
+	for (const d of Object.values(domains)) {
+		const { topology } = d;
+		if (!isPersisted(topology)) continue;
+		const { persistedAs, properties, edges } = topology;
+		const fields = [
+			...Object.entries(properties).map(([field, def]) => ({ field, rel: relOf(def), iri: fieldIri(topology, field, relOf(def), propertyIriOf(def)), ranges: [] as string[] })),
+			...Object.entries(edges === undefined ? {} : edges).flatMap(([edge, def]) => {
+				const rel = def.rel ?? edgeRel(edge);
+				return rel === undefined ? [] : [{ field: edge, rel, iri: fieldIri(topology, edge, rel, def.iri), ranges: edgeRanges(def) }];
+			}),
+		];
+		// A field named for its rel carries the rel's own term, so the rel's property is the field's.
+		for (const { field, rel, iri, ranges } of fields.filter(({ rel, iri }) => iri !== REL_CONTEXT[rel])) {
+			const id = fieldPropertyId(persistedAs, field);
+			addProp(id);
+			quads.push(
+				quadOf(id, ONTOLOGY_FIELD.uri, iri, PROPERTY_LABEL),
+				quadOf(id, ONTOLOGY_FIELD.field, field, PROPERTY_LABEL),
+				quadOf(id, ONTOLOGY_FIELD.domain, persistedAs, PROPERTY_LABEL, CLASS_LABEL),
+				quadOf(id, ONTOLOGY_FIELD.subPropertyOf, rel, PROPERTY_LABEL, PROPERTY_LABEL),
+				...ranges.map((range) => quadOf(id, ONTOLOGY_FIELD.range, range, PROPERTY_LABEL, CLASS_LABEL)),
+			);
 		}
 	}
 

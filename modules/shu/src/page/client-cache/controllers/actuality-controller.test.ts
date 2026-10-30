@@ -12,7 +12,7 @@ import { clearStoredFields, setupShuTest, storeFields, type TShuTestHandle } fro
 import { SHU_TAG } from "../../../domains/elements.js";
 import { PAGE_SETTING_KEY } from "../../domains/settings.js";
 import "../../components/shu-window-size.js";
-import { actualityStore } from "../actuality-store.test-fake.js";
+import { ACTUALITY_RELS, actualityStore } from "../actuality-store.test-fake.js";
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { installGraph } from "./device-controller.js";
 import { graphActualitySource as readingAt, readActualityAt, ActualityController, actualityReadingAt, actualitySourceScope, type ActualitySource } from "./actuality-controller.js";
@@ -51,7 +51,7 @@ describe("the actuality a view reads, over the records it wrote", () => {
 				throw new ServerUnreachable(`/rpc/${method}`, new Error("this test reads the records, not a server"));
 			},
 		});
-		declareGraphSpec({ types: [SEQ_PATH_LABEL, LOG_MESSAGE_LABEL, RUN_ARTIFACT_LABEL] });
+		declareGraphSpec({ types: [SEQ_PATH_LABEL, LOG_MESSAGE_LABEL, RUN_ARTIFACT_LABEL], rels: ACTUALITY_RELS });
 		store = actualityStore();
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
 			actuality: RUN,

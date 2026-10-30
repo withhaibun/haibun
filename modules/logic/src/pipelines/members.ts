@@ -8,6 +8,7 @@
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { buildConcernCatalog, getJsonLdContext } from "@haibun/core/lib/domains/hypermedia.js";
 import { CLASS_LABEL, PROPERTY_LABEL, isPersisted, type TRecordNamespace, type TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
+import type { TEntailed } from "@haibun/core/lib/actuality/ports.js";
 import type { TIndividualAddress } from "@haibun/core/lib/domains/typed-links.js";
 import { ancestorsWith, ontologyToQuads } from "@haibun/core/lib/records/derivations/ontology.js";
 import { iriIn, ontologyOwl } from "@haibun/core/lib/records/derivations/owl.js";
@@ -15,18 +16,9 @@ import { ONTOLOGY_FIELD } from "@haibun/core/lib/records/domains/ontology.js";
 import { DL_SYMBOL, type TClaimWitness } from "@haibun/core/lib/records/domains/axioms.js";
 import { QUERY_NAMESPACE, REASONING_READ_CEILING } from "../domains/reasoning.js";
 import { DataFactory } from "n3";
-import {
-	dlOf,
-	expressionRules,
-	frozenMembers,
-	nameRefusal,
-	namesOf,
-	parseClassExpression,
-	readingOf,
-	type TClassExpression,
-	type TExpressionIris,
-	type TVocabulary,
-} from "../derivations/class-expression.js";
+import { dlOf, nameRefusal, namesOf, parseClassExpression, readingOf, resolvedExpression, type TVocabulary } from "@haibun/core/lib/records/derivations/class-expression.js";
+import type { TClassExpression } from "@haibun/core/lib/records/domains/class-expression.js";
+import { expressionRules, frozenMembers, type TExpressionIris } from "../derivations/class-expression.js";
 import { OWL_RL_RULES, patternText, quadsText, recordTerms, type TRecordTerms } from "../derivations/n3.js";
 import type { TReasoner } from "../ports.js";
 import { readerOf } from "./reads.js";
@@ -78,9 +70,13 @@ function derivedBasis(domains: Record<string, TRegisteredDomain>): TQueryBasis {
 	const parents = [...stated(CLASS_LABEL, ONTOLOGY_FIELD.classIri), ...stated(CLASS_LABEL, ONTOLOGY_FIELD.subClassOf)];
 	const supers = new Map([...Map.groupBy(parents, (q) => q.subject)].map(([subject, held]) => [subject, held.map((q) => String(q.object))]));
 	const classes = [...new Set([...stated(CLASS_LABEL, ONTOLOGY_FIELD.name).map(({ subject }) => subject), ...parents.map((q) => String(q.object))])];
+	const fieldOf = new Map(stated(PROPERTY_LABEL, ONTOLOGY_FIELD.field).map((q) => [q.subject, String(q.object)]));
 	const vocabulary: TVocabulary = {
 		classes,
-		properties: [...propertyUri.keys()].map((name) => ({ name, domain: declared(ONTOLOGY_FIELD.domain, name), range: declared(ONTOLOGY_FIELD.range, name) })),
+		properties: [...propertyUri.keys()].map((name) => {
+			const field = fieldOf.get(name);
+			return { name, domain: declared(ONTOLOGY_FIELD.domain, name), range: declared(ONTOLOGY_FIELD.range, name), ...(field === undefined ? {} : { field }) };
+		}),
 		ancestors: (cls) => ancestorsWith(cls, supers),
 	};
 	const labels = Object.values(domains).flatMap(({ topology }) => (isPersisted(topology) ? [topology.persistedAs] : []));
@@ -99,13 +95,15 @@ function derivedBasis(domains: Record<string, TRegisteredDomain>): TQueryBasis {
 	};
 }
 
-/** Returns an expression's parts, refusing one whose names the vocabulary doesn't hold or whose restriction reads against its
- *  property's direction. */
+/** Returns an expression's parts with each property resolved to the vocabulary's, refusing one whose names the vocabulary
+ *  doesn't hold or whose restriction reads against its property's direction. */
 export function checkedExpression(text: string, basis: TQueryBasis): TClassExpression {
 	const expression = parseClassExpression(text);
 	const refusal = nameRefusal(expression, basis.vocabulary);
 	if (refusal !== undefined) throw new Error(`the class expression \`${text}\`: ${refusal}`);
-	return expression;
+	const resolved = resolvedExpression(expression, basis.vocabulary);
+	if ("refused" in resolved) throw new Error(`the class expression \`${text}\`: ${resolved.refused}`);
+	return resolved;
 }
 
 /** Returns the expressions that complete `text`: its last word replaced by each class or property name of the ontology that
@@ -114,7 +112,11 @@ export function expressionCompletions(text: string, domains: Record<string, TReg
 	const { vocabulary } = queryBasis(domains);
 	const last = text.split(/[\s()]+/).at(-1);
 	if (last === undefined || last.length === 0) return [];
-	const names = [...vocabulary.classes, ...vocabulary.properties.map(({ name }) => name)];
+	// A field is offered by its name within a class the text names; a relation and a class by their own names.
+	const named = vocabulary.classes.filter((cls) => text.split(/[\s()]+/).includes(cls));
+	const fields = vocabulary.properties.flatMap(({ field, domain }) => (field !== undefined && domain.some((cls) => named.includes(cls)) ? [field] : []));
+	const relations = vocabulary.properties.flatMap(({ name, field }) => (field === undefined ? [name] : []));
+	const names = [...vocabulary.classes, ...relations, ...fields];
 	const head = text.slice(0, text.length - last.length);
 	return [...new Set(names)].filter((name) => name.startsWith(last) && name !== last).map((name) => `${head}${name}`);
 }
@@ -124,10 +126,6 @@ export function expressionReading(text: string, domains: Record<string, TRegiste
 	const expression = checkedExpression(text, queryBasis(domains));
 	return `${dlOf(expression)} · ${readingOf(expression)}`;
 }
-
-/** The members a class expression entails, and the types whose reads stopped at the reasoning's ceiling, whose further
- *  records may hold more members. */
-export type TEntailed = { members: TIndividualAddress[]; truncated: string[] };
 
 /** The members as a counted list: a count of what the reads entail, which is a floor where a read stopped at its ceiling. */
 export const countedMembers = ({ members, truncated }: TEntailed) => ({ members, total: members.length, saturated: truncated.length > 0 });

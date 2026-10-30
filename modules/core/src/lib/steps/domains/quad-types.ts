@@ -11,6 +11,7 @@ import { parsedRecord } from "../../domains/json-text.js";
 import { CountedFields, CountedSchema } from "../../domains/hypermedia.js";
 import type { TJsonArtifact } from "../../domains/protocol.js";
 import { ellipsize } from "../../domains/util.js";
+import { conditionExpression, KEYWORD, manchesterOf } from "../../records/domains/class-expression.js";
 
 /**
  * The named graph of the variables actuality holds. The quad store reads it here, so it doesn't import feature-variables.
@@ -91,6 +92,19 @@ export const GraphQuerySchema = z
 	.strict();
 export type TGraphQuery = z.infer<typeof GraphQuerySchema>;
 
+/** A read as a caller states it: the records a class expression in Manchester syntax states, within the type `label` names where
+ *  it names one, and the rest of a graph query's page. The instance compiles the expression to the filters a store's index runs,
+ *  and the reasoner reads the part that needs entailment, so a caller doesn't write a filter. */
+export const RecordQuerySchema = /* @__PURE__ */ GraphQuerySchema.omit({ filters: true })
+	.extend({ expression: z.string().min(1).optional().describe("The class expression the records are members of, in Manchester syntax.") })
+	.strict();
+export type TRecordQuery = z.infer<typeof RecordQuerySchema>;
+
+/** Where each part of a read's expression ran: the store's index, and the reasoner, each in Manchester syntax. A part that
+ *  doesn't run there isn't stated. */
+export const RanSchema = z.object({ index: z.string().optional(), reasoner: z.string().optional() }).strict();
+export type TRan = z.infer<typeof RanSchema>;
+
 /** A type a typed read names: its label, and the schema its domain registers, whose output the read returns. */
 export type TRecordType<S extends z.ZodType> = { label: string; schema: S };
 /** A graph query as a caller states it, before the schema parses it. */
@@ -150,6 +164,13 @@ export const DensityQuerySchema = z
 	.strict();
 export type TDensityQuery = z.infer<typeof DensityQuerySchema>;
 
+/** A count as a caller states it: the records a class expression in Manchester syntax states, counted in each division of a
+ *  span. The instance compiles the expression to the filters that select what a store's index counts. */
+export const DensityRequestSchema = /* @__PURE__ */ DensityQuerySchema.omit({ filters: true })
+	.extend({ expression: z.string().min(1).optional().describe("The class expression each counted record is a member of, in Manchester syntax.") })
+	.strict();
+export type TDensityRequest = z.infer<typeof DensityRequestSchema>;
+
 /** One entry per bucket, oldest first, each counting its records by group. A bucket that doesn't hold a record is an empty
  *  entry, so the result's length is the bucket count the read states and a view draws the gaps. A bucket's own span is the
  *  span divided by the count, which every reader derives the same way, so the result doesn't state it per bucket. */
@@ -191,6 +212,7 @@ export const GraphQueryResultSchema = z.object({
 		.optional(),
 	order: z.array(OrderKeySchema).optional().describe("The keys that order the page. The last key is `@id`, so each record holds one position."),
 	perType: z.record(z.string(), CountedSchema).optional().describe("The count of each type, on a page of the first records of each type."),
+	ran: RanSchema.optional(),
 });
 export type TGraphQueryResult = z.infer<typeof GraphQueryResultSchema>;
 
@@ -390,15 +412,19 @@ export function compareByOrder<T>(keys: readonly TOrderKey[], keyValue: (key: st
  * it pages its rows before the filters would narrow them, where a named, term or reference read orders its rows by its own
  * keys, or where the limit is below a page's least.
  */
-export function queriedList(query: TGraphQuery, { filters, order, skip, limit }: TListQuery): { query: TGraphQuery } | undefined {
+export function queriedList(query: TRecordQuery, { filters, order, skip, limit }: TListQuery): { query: TRecordQuery } | undefined {
 	const ordersOwn = query.named !== undefined || query.textQuery !== undefined || query.references !== undefined || query.referencedBy !== undefined;
 	if (order !== undefined && (ordersOwn || query.sortBy !== undefined || query.sortOrder !== undefined)) return undefined;
 	const pagesOwn = query.limit !== undefined || query.offset !== undefined || query.perType !== undefined;
 	if ((filters !== undefined || skip !== undefined || limit !== undefined) && pagesOwn) return undefined;
 	if (limit !== undefined && limit < 1) return undefined;
+	// A list's filter narrows the read's expression, each a conjunct of it; a comparison of text doesn't compile, so the list applies it.
+	const conjuncts = (filters === undefined ? [] : filters).map(conditionExpression);
+	if (conjuncts.some((conjunct) => conjunct === undefined)) return undefined;
+	const written = [...(query.expression === undefined ? [] : [query.expression]), ...conjuncts.flatMap((conjunct) => (conjunct === undefined ? [] : [manchesterOf(conjunct)]))];
+	const narrowed = filters === undefined ? {} : { expression: written.map((text) => `(${text})`).join(` ${KEYWORD.and} `) };
 	const sorted = order === undefined ? {} : { sortBy: order.field, sortOrder: order.descending ? SortOrderSchema.enum.desc : SortOrderSchema.enum.asc };
-	const filtered = filters === undefined ? {} : { filters: query.filters === undefined ? filters : [...query.filters, ...filters] };
-	return { query: { ...query, ...filtered, ...sorted, ...(skip === undefined ? {} : { offset: skip }), ...(limit === undefined ? {} : { limit }) } };
+	return { query: { ...query, ...narrowed, ...sorted, ...(skip === undefined ? {} : { offset: skip }), ...(limit === undefined ? {} : { limit }) } };
 }
 
 /** The level a read states, where it states one. */

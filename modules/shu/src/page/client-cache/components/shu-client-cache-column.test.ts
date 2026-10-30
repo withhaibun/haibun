@@ -14,7 +14,7 @@ import { ShuClientCacheColumn } from "./shu-client-cache-column.js";
 import "../../components/shu-monitor-column.js";
 import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
 import { setupShuTest, stepsShown, type TShuTestHandle } from "../../../test/setup.js";
-import { ACTUALITY_DOMAIN_DEFINITIONS, actualityStore } from "../actuality-store.test-fake.js";
+import { ACTUALITY_DOMAIN_DEFINITIONS, ACTUALITY_RELS, actualityStore } from "../actuality-store.test-fake.js";
 import { timeCursor } from "../../controllers/page-cell-controller.js";
 import { currentActualityFeature, deviceGraph, installGraph } from "../controllers/device-controller.js";
 import { servedDatabase } from "../root.js";
@@ -68,7 +68,7 @@ describe("the client cache view", () => {
 	/** A view reading actuality at info, which is what this view reports on: the source, not whoever opened it. The view
 	 *  reads after the page reads actuality's steps. */
 	const readingTheActuality = async (): Promise<void> => {
-		declareGraphSpec({ types: [SEQ_PATH_LABEL] });
+		declareGraphSpec({ types: [SEQ_PATH_LABEL], rels: ACTUALITY_RELS });
 		await graphActualitySource("info", false).ready();
 		await flush();
 	};

@@ -20,7 +20,7 @@ import { REF_DENOTES, markdownRef } from "@haibun/core/lib/domains/typed-links.j
 import { ICON_STEP_COMPLETED, RETURNED_TO_CALLER } from "@haibun/core/lib/domains/protocol.js";
 import { followPaneRequests } from "../../../test/pane-requests.js";
 
-const BUNDLE = { patterns: [anIndividual("Email", "a@test.com"), aType("Email", [])], accessLevel: "private" };
+const BUNDLE = { patterns: [anIndividual("Email", "a@test.com"), aType("Email")], accessLevel: "private" };
 
 /** A message's fields that a case doesn't vary: a settled message without text, context or calls, that carries an empty bundle. */
 const SETTLED = {

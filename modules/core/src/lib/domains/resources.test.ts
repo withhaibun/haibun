@@ -247,17 +247,34 @@ describe("getJsonLdContext prefix declarations", () => {
 });
 
 describe("getJsonLdContext top-level term fallback", () => {
-	const persistedDomain = (persistedAs: string, type: string, properties: Record<string, string>) => ({
+	const persistedDomain = (persistedAs: string, type: string, properties: Record<string, string | { rel: string; iri: string }>) => ({
 		topology: { persistedAs, type, id: "id", concerns: { persisted: true }, properties: { id: LinkRelations.IDENTIFIER.rel, ...properties } },
 		schema: { parse: (v: unknown) => v },
 	});
 
 	it("emits a top-level term when every domain maps it to the same @id", () => {
-		const domains = {
-			a: persistedDomain("A", "ex:A", { name: LinkRelations.NAME.rel }),
-			b: persistedDomain("B", "ex:B", { name: LinkRelations.NAME.rel }),
-		} as unknown as Parameters<typeof getJsonLdContext>[0];
-		expect(getJsonLdContext(domains)["@context"].name).toMatchObject({ "@id": LinkRelations.NAME.uri });
+		const name = { rel: LinkRelations.NAME.rel, iri: "schema:name" };
+		const domains = { a: persistedDomain("A", "ex:A", { name }), b: persistedDomain("B", "ex:B", { name }) } as unknown as Parameters<typeof getJsonLdContext>[0];
+		expect(getJsonLdContext(domains)["@context"].name).toMatchObject({ "@id": "schema:name" });
+	});
+
+	it("gives each type's field its own term, a subproperty of its rel, so two fields that share a rel stay apart", () => {
+		const domains = { a: persistedDomain("Email", "ex:Email", { folder: LinkRelations.CONTEXT.rel, account: LinkRelations.CONTEXT.rel }) } as unknown as Parameters<
+			typeof getJsonLdContext
+		>[0];
+		const out = getJsonLdContext(domains) as { "@context": Record<string, { "@context"?: Record<string, Record<string, unknown>> }>; "@graph": Array<Record<string, unknown>> };
+		expect(out["@context"].Email?.["@context"]?.folder).toEqual({ "@id": "hbn:Email.folder" });
+		expect(out["@context"].Email?.["@context"]?.account).toEqual({ "@id": "hbn:Email.account" });
+		expect(out["@graph"].find((n) => n["@id"] === "hbn:Email.folder")?.["rdfs:subPropertyOf"]).toEqual({ "@id": REL_CONTEXT[LinkRelations.CONTEXT.rel] });
+	});
+
+	it("names an application type's own field in the vocabulary the type defines its terms in, and refuses one its namespaces don't bind", () => {
+		const topology = { persistedAs: "Email", type: "app:Email", id: "id", vocabulary: "app", properties: { id: LinkRelations.IDENTIFIER.rel, folder: LinkRelations.CONTEXT.rel } };
+		const bound = { a: { topology: { ...topology, namespaces: { app: "urn:app#" } }, schema: { parse: (v: unknown) => v } } } as unknown as Parameters<typeof getJsonLdContext>[0];
+		const out = getJsonLdContext(bound) as { "@context": Record<string, { "@context"?: Record<string, Record<string, unknown>> }> };
+		expect(out["@context"].Email?.["@context"]?.folder).toEqual({ "@id": "app:Email.folder" });
+		const unbound = { a: { topology, schema: { parse: (v: unknown) => v } } } as unknown as Parameters<typeof getJsonLdContext>[0];
+		expect(() => getJsonLdContext(unbound)).toThrow(/defines its terms in the vocabulary "app", which its namespaces don't bind/);
 	});
 
 	it("omits a top-level term that maps to differing @ids across domains", () => {
@@ -268,8 +285,8 @@ describe("getJsonLdContext top-level term fallback", () => {
 		const ctx = (getJsonLdContext(domains) as { "@context": Record<string, unknown> })["@context"];
 		expect(ctx.author).toBeUndefined();
 		// each type's scoped @context still resolves it
-		expect(ctx.Article).toMatchObject({ "@context": { author: { "@id": LinkRelations.AUTHOR.uri } } });
-		expect(ctx.TrustedList).toMatchObject({ "@context": { author: { "@id": LinkRelations.TAG.uri } } });
+		expect(ctx.Article).toMatchObject({ "@context": { author: { "@id": "schema:author" } } });
+		expect(ctx.TrustedList).toMatchObject({ "@context": { author: { "@id": "hbn:TrustedList.author" } } });
 	});
 });
 

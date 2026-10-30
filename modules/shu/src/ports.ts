@@ -22,6 +22,9 @@ export type TBundleFile = {
 	pageBuiltAt(file: string): string;
 	/** A bundle as one script without imports, which a report inlines. */
 	whole(file: string): string;
+	/** Text a server derives, served under a strong ETag of its content's hash, so a reader revalidates it and fetches it again
+	 *  only once its content changes. */
+	derived(content: string): TServedAsset;
 	/** The font of the graph's labels. */
 	labelFont(): ArrayBuffer;
 	/** The font of the DL symbols the graph's labels draw, which the label font lacks. */

@@ -25,27 +25,7 @@ const STYLES = css`
 	}
 	.filter-bar .select-filter { width: auto; flex: 0 0 auto; }
 	.filter-bar .text-search { flex: 1 1 20ch; min-width: 16ch; }
-	.compound-filters { display: flex; gap: var(--shu-space-1); flex-wrap: wrap; margin-left: auto; }
-	.filter-group {
-		display: inline-flex; gap: var(--shu-space-1); align-items: center;
-		background: var(--shu-bg-input); border-radius: var(--shu-radius);
-		padding: var(--shu-space-1) var(--shu-space-2);
-		flex: 0 0 auto;
-	}
-	.filter-group select, .filter-group input { width: auto; }
-	.filter-group .cond-property { max-width: 10em; }
-	.filter-group .cond-operator { max-width: 5em; }
-	.filter-group .cond-value, .filter-group .cond-value2 { max-width: 8em; }
-	.filter-group .remove-filter { border: none; background: none; color: var(--shu-fg-faded); padding: 0 var(--shu-space-1); cursor: pointer; }
-	.filter-group .remove-filter:hover { color: var(--shu-error); }
-	.filter-bar .add-filter, .filter-bar .search-go {
-		font: inherit; padding: var(--shu-space-1) var(--shu-space-4); border: var(--shu-border-w) solid var(--shu-border);
-		background: var(--shu-bg-elevated); color: var(--shu-fg); cursor: pointer; flex: 0 0 auto;
-		border-radius: var(--shu-radius);
-		min-height: var(--shu-input-h);
-	}
-	.filter-bar .add-filter:hover, .filter-bar .search-go:hover { background: var(--shu-bg-hover); }
-	.filter-bar .search-go { background: var(--shu-accent); color: var(--shu-accent-fg); border-color: var(--shu-accent); }
+	.filter-bar .expression { flex: 1 1 30ch; min-width: 20ch; }
 	shu-step-caller {
 		display: block; padding: var(--shu-space-3); margin: var(--shu-space-2) var(--shu-space-4);
 		background: var(--shu-bg-elevated); border-radius: var(--shu-radius); border: var(--shu-border-w) solid var(--shu-border);

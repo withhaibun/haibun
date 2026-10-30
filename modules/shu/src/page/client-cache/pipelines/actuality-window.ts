@@ -11,7 +11,7 @@
  * side runs short the other side makes up the difference, so a window is always the size requested where the graph
  * holds that many.
  */
-import { GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
+import { allOf, anyOf, DATATYPE, FACET, rangeOf, hasValue } from "@haibun/core/lib/records/domains/class-expression.js";
 import { MAX_PAGE_ROWS, readInPages } from "@haibun/core/lib/domains/hypermedia.js";
 import { SUBSTEP_LEVEL, type THaibunLogLevel } from "@haibun/core/lib/domains/protocol.js";
 import { RECORDED_AT_TIME_FIELD } from "@haibun/core/lib/seq-path.js";
@@ -68,15 +68,18 @@ async function side(
 	const { label, timeField } = type;
 	// A graph that does not carry a type doesn't hold a record of it, so its side is empty.
 	if (!graph.declares(label)) return [];
-	const when = at === undefined ? [] : [{ predicate: timeField, operator: direction === "before" ? "lt" : "gte", value: new Date(at).toISOString() }];
+	const when =
+		at === undefined
+			? []
+			: [rangeOf(timeField, DATATYPE.dateTime, [{ facet: direction === "before" ? FACET.below : FACET.atLeast, literal: { lexical: new Date(at).toISOString() } }])];
 	// The levels this type is read at, which the type states: every read of it comes through here, so the window, the
 	// extent and the counting cannot read one type differently.
 	const read = type.widensBySubsteps && substeps && !levels.includes(SUBSTEP_LEVEL) ? [...levels, SUBSTEP_LEVEL] : levels;
-	const shown = type.atEveryLevel ? [] : [{ predicate: LEVEL, operator: "in", value: read[0], values: [...read] }];
+	const shown = type.atEveryLevel ? [] : [anyOf(read.map((level) => hasValue(LEVEL, level)))];
 	const sortOrder = direction === "before" ? "desc" : "asc";
-	const filters = [...when, ...shown];
-	const readPage = (from: number, to: number) =>
-		graph.query(GraphQuerySchema.parse({ label, filters, sortBy: timeField, sortOrder, offset: from, limit: to - from, skipCount: true }));
+	const parts = [...when, ...shown];
+	const expression = parts.length === 0 ? {} : { expression: allOf(parts) };
+	const readPage = (from: number, to: number) => graph.query({ label, ...expression, sortBy: timeField, sortOrder, offset: from, limit: to - from, skipCount: true });
 	return (await readInPages(readPage, 0, limit, MAX_PAGE_ROWS)).vertices;
 }
 

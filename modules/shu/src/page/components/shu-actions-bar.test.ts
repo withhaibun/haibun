@@ -138,7 +138,7 @@ describe("the actions bar reads the page's state", () => {
 	});
 
 	it("describes to the page strip the context a view stated before the bar connected, and settles its type once the types are read", async () => {
-		pageContext.set({ patterns: [aType("Email", [])], readLevel: Access.private, label: "Email" });
+		pageContext.set({ patterns: [aType("Email")], readLevel: Access.private, label: "Email" });
 		await mountBar();
 		expect(pageTrail.get(), "the search names the stated type").toContain("Email");
 	});
@@ -165,7 +165,7 @@ describe("the actions bar reads the page's state", () => {
 		await bar.updateComplete;
 		const regions = Array.from(bar.shadowRoot?.querySelector(".actions-bar")?.children ?? []).map((c) => c.className.split(" ")[0] || c.tagName.toLowerCase());
 		expect(regions, "the filters stand above the transcript, and the search line below it").toEqual(["filter-bar", SHU_TAG.ACTIVITY_HISTORY, "filter-bar"]);
-		expect(bar.shadowRoot?.querySelector(".add-filter"), "the control that adds a condition").not.toBeNull();
+		expect(bar.shadowRoot?.querySelector(".expression"), "the class expression a reader writes").not.toBeNull();
 	});
 
 	it("holds the transcript inside the ask, with the settings its pane's control states, so the settings stand above it", async () => {

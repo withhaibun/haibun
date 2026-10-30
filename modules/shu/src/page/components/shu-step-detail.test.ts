@@ -7,7 +7,7 @@
 import { declareGraphSpec } from "../../test/catalog-fixture.js";
 import { requiredActionOf } from "../controllers/registry-controller.js";
 import { serveThePage, newPage } from "../../test/setup.js";
-import { actualityStore } from "../client-cache/actuality-store.test-fake.js";
+import { ACTUALITY_RELS, actualityStore } from "../client-cache/actuality-store.test-fake.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import "./shu-step-detail.js"; // the module defines the element
 import { SHU_TAG } from "../../domains/elements.js";
@@ -50,7 +50,7 @@ describe("shu-step-detail", () => {
 			endedAtTime: new Date(1005).toISOString(),
 		});
 		installGraph(store);
-		declareGraphSpec({ types: [SEQ_PATH_LABEL], ui: { [SEQ_PATH_LABEL]: { component: SHU_TAG.STEP_DETAIL } } });
+		declareGraphSpec({ types: [SEQ_PATH_LABEL], rels: ACTUALITY_RELS, ui: { [SEQ_PATH_LABEL]: { component: SHU_TAG.STEP_DETAIL } } });
 		noteActualityFeature(ACTUALITY_FEATURE);
 		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;

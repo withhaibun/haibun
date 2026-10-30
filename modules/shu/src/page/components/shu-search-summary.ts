@@ -2,7 +2,7 @@
  * <shu-search-summary>: one committed search, recorded into the shared activity history. It holds the exact
  * `viewQuery` snapshot that produced the results; clicking it dispatches SEARCH_RESTORE and the app re-applies
  * that snapshot through shu-graph-query's `restoreSearch`, restoring the search exactly (type, text,
- * filters, sort, access), the same round-trip the URL hash already proves out.
+ * expression, sort, access), the same round-trip the URL hash already proves out.
  *
  * Light DOM (an activity-history entry must be visible to test-id walks and text capture).
  */
@@ -13,12 +13,12 @@ import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import type { TViewQuery } from "../domains/view-query.js";
 
-/** The human-readable one-line description of a search: type, text, per-field conditions, non-default access. */
+/** The human-readable one-line description of a search: type, text, the class expression, non-default access. */
 export function describeSearch(q: TViewQuery): string {
 	const parts: string[] = [];
 	if (q.label) parts.push(q.label);
 	if (q.q) parts.push(`"${q.q}"`);
-	for (const c of q.f) if (c.predicate && c.value) parts.push(`${c.predicate} ${c.operator} ${c.value}${c.operator === "between" && c.value2 ? `..${c.value2}` : ""}`);
+	if (q.x) parts.push(q.x);
 	if (q.access !== AccessQuery.all) parts.push(q.access);
 	return parts.join(" · ");
 }

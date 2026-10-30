@@ -24,6 +24,8 @@ export const ONTOLOGY_FIELD = {
 	domain: "domain",
 	/** The classes an edge reaches, whose union is its range. With `domain` it relates each property to the classes it connects. */
 	range: "range",
+	/** The field a property names within its type, where the property is a type's field or edge. */
+	field: "field",
 	/** Whether a type's data holds a property. A term of a standard vocabulary that a type doesn't model states false. */
 	inData: "inData",
 	/** A class's designation: agent, activity, observation or artifact, from its subClassOf chain to a PROV or SOSA class. */
@@ -48,6 +50,7 @@ export const PropertySchema = PersistedVertexSchema.extend({
 	[ONTOLOGY_FIELD.name]: z.string(),
 	[ONTOLOGY_FIELD.uri]: z.string().optional(),
 	[ONTOLOGY_FIELD.abstract]: z.boolean().optional(),
+	[ONTOLOGY_FIELD.field]: z.string().optional(),
 	[ONTOLOGY_FIELD.inData]: z.boolean(),
 	[ONTOLOGY_FIELD.generatedAtTime]: z.string(),
 });
@@ -81,7 +84,7 @@ export const classDomainDefinition: TDomainDefinition = {
 export const propertyDomainDefinition: TDomainDefinition = {
 	selectors: [PROPERTY_DOMAIN],
 	schema: PropertySchema,
-	description: "A link relation or a standard vocabulary's term. It links its superproperties and the classes it connects.",
+	description: "A link relation, a type's field, or a standard vocabulary's term. It links its superproperties and the classes it connects.",
 	topology: {
 		persistedAs: PROPERTY_LABEL,
 		type: RDF_PROPERTY,
@@ -93,6 +96,7 @@ export const propertyDomainDefinition: TDomainDefinition = {
 			[ONTOLOGY_FIELD.name]: LinkRelations.IDENTIFIER.rel,
 			[ONTOLOGY_FIELD.uri]: { rel: LinkRelations.TAG.rel, iri: EXACT_MATCH },
 			[ONTOLOGY_FIELD.abstract]: LinkRelations.TAG.rel,
+			[ONTOLOGY_FIELD.field]: LinkRelations.TAG.rel,
 			[ONTOLOGY_FIELD.inData]: LinkRelations.TAG.rel,
 			[ONTOLOGY_FIELD.generatedAtTime]: LinkRelations.GENERATED_AT_TIME.rel,
 			[ONTOLOGY_FIELD.accessLevel]: LinkRelations.ACCESS_LEVEL.rel,

@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
-import { Access, GeneratedAtTimeSchema, HAIBUN_RECORD_NAMESPACE, LinkRelations, type AccessLevel } from "@haibun/core/lib/domains/resources.js";
+import { Access, fieldIri, GeneratedAtTimeSchema, HAIBUN_RECORD_NAMESPACE, LinkRelations, type AccessLevel } from "@haibun/core/lib/domains/resources.js";
 import { runReadingAt } from "@haibun/core/lib/domains/capability-context.js";
 import { heldRecordIri, storeOfDomains } from "@haibun/core/lib/test/declared-types.js";
 import type { TGraphQuery } from "@haibun/core/lib/steps/domains/quad-types.js";
@@ -36,7 +36,12 @@ const definitions = [typeOf(STEP, true), typeOf(NOTE, false)];
 const domains = mapDefinitionsToDomains(definitions);
 const context = getJsonLdContext(domains)["@context"];
 const iri = (term: string): string => iriIn(context, term);
-const [stepClass, outcome, content, about] = [iri(STEP), iri(LinkRelations.OUTCOME.uri), iri(LinkRelations.CONTENT.uri), iri(LinkRelations.PART_OF.uri)];
+const [stepClass, outcome, content, about] = [
+	iri(STEP),
+	iri(fieldIri({ persistedAs: STEP }, "outcome", LinkRelations.OUTCOME.rel, undefined)),
+	iri(fieldIri({ persistedAs: NOTE }, "content", LinkRelations.CONTENT.rel, undefined)),
+	iri(fieldIri({ persistedAs: NOTE }, "about", LinkRelations.PART_OF.rel, undefined)),
+];
 const individual = (label: string, id: string) => `<${iriIn(context, recordIri(HAIBUN_RECORD_NAMESPACE.prefix, label, id))}>`;
 const step = (id: string) => individual(STEP, id);
 /** A derived quad's subject, predicate and object, each by its value. */

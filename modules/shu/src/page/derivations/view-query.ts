@@ -3,8 +3,6 @@
  * round-trip is canonical.
  */
 import { AccessQuery } from "@haibun/core/lib/domains/resources.js";
-import { SearchConditionSchema } from "@haibun/core/lib/quad-types.js";
-import { parseFilterParam, serializeFilterParam } from "../../domains/schemas.js";
 import { ViewQuerySchema, type TViewQuery } from "../domains/view-query.js";
 import * as Address from "./address.js";
 
@@ -19,7 +17,7 @@ export function parseViewQuery(hash: string): TViewQuery {
 		order: p.get("order") ?? undefined,
 		offset: offsetRaw === null ? undefined : Number(offsetRaw),
 		access: p.get("access") ?? undefined,
-		f: p.getAll("f").map((s) => SearchConditionSchema.parse(parseFilterParam(s))),
+		x: p.get("x") || null,
 	});
 }
 
@@ -34,7 +32,7 @@ export function queryParams(q: TViewQuery): URLSearchParams {
 	// Omitted at the level a reader opens on, which util's appAccessLevel states: written for `private` and read back
 	// as `all`, a reader's choice of one level was replaced by every level on the next reload.
 	if (q.access !== AccessQuery.all) p.set("access", q.access);
-	for (const c of q.f) if (c.predicate && c.value) p.append("f", serializeFilterParam(c));
+	if (q.x) p.set("x", q.x);
 	return p;
 }
 

@@ -24,12 +24,14 @@ import { appAccessLevel } from "../controllers/view-query-controller.js";
 import { queryGraph, queryRead, incomingEdges, incomingRead } from "../controllers/read-controller.js";
 import { LoadController } from "../controllers/load-controller.js";
 import type { TCallOutcome } from "../pipelines/call-step.js";
+import type { TPageQuery } from "../pipelines/read-records.js";
+import { hasValue } from "@haibun/core/lib/records/domains/class-expression.js";
 import { loadRenders } from "./load-renders.js";
 import "./shu-spinner.js";
 import "./shu-result-table.js";
 
 /** A graph query a filter column reads: its window is stated, so each later window reads from it. */
-type TFilterQuery = Record<string, unknown> & { limit: number; offset: number };
+type TFilterQuery = TPageQuery & { limit: number; offset: number };
 
 type VertexData = Record<string, unknown>;
 
@@ -66,7 +68,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 			return;
 		}
 		this.setState({ property, value, persistedAs: label, incoming: undefined });
-		await this.fetchResults({ label, filters: [{ predicate: property, operator: "eq", value }], sortOrder: "desc", limit: 50, offset: 0, accessLevel: appAccessLevel() });
+		await this.fetchResults({ label, expression: hasValue(property, value), sortOrder: "desc", limit: 50, offset: 0, accessLevel: appAccessLevel() });
 	}
 
 	async openProperty(property: string, label: string = firstDeclaredType()): Promise<void> {
@@ -75,7 +77,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		// not in sortColumns, e.g. a SeqPath's id) fall back to the default sort so browsing all of this type still works
 		// instead of the store rejecting an undeclared sortBy.
 		const sorted = getQueryableFields(label).includes(property) ? { sortBy: property } : {};
-		await this.fetchResults({ label, filters: [], ...sorted, sortOrder: "asc", limit: 50, offset: 0, accessLevel: appAccessLevel() });
+		await this.fetchResults({ label, ...sorted, sortOrder: "asc", limit: 50, offset: 0, accessLevel: appAccessLevel() });
 	}
 
 	async openIncoming(targetId: string, targetLabel: string): Promise<void> {
@@ -155,7 +157,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 
 	/** A filtered list shows records of one type, so an ask or a graph from here is about that type. */
 	override paneSubject(): TContextPattern[] | null {
-		return this.state.persistedAs ? [aType(this.state.persistedAs, [])] : null;
+		return this.state.persistedAs ? [aType(this.state.persistedAs)] : null;
 	}
 
 	render(): TemplateResult {

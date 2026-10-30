@@ -6,13 +6,24 @@
  * catalog declares, and otherwise the site's failure is what the read throws.
  */
 import { z } from "zod";
-import { GraphQuerySchema, type TDensityQuery, type TDensityResult, type TGraphQueryResult, type TIncomingEdges, type TIndividualWithEdges } from "@haibun/core/lib/quad-types.js";
+import {
+	DensityQuerySchema,
+	GraphQuerySchema,
+	type TRecordQuery,
+	type TDensityRequest,
+	type TDensityResult,
+	type TGraphQueryResult,
+	type TIncomingEdges,
+	type TIndividualWithEdges,
+} from "@haibun/core/lib/quad-types.js";
 import { type IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { incomingEdges as incomingEdgesHeld, recordWithEdges } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { LIMITED_TO_METHOD, SKIPPING_METHOD } from "@haibun/core/lib/step-discovery.js";
 import * as Steps from "../derivations/steps.js";
 import { selectFields, type TCatalog } from "../derivations/catalog.js";
+import { manchesterOf, type TClassExpression } from "@haibun/core/lib/records/domains/class-expression.js";
+import type { TCompiledExpression, TFilterable } from "@haibun/core/lib/records/derivations/compiled-expression.js";
 import { reads } from "../domains/links.js";
 import type { TStepList } from "../machines/registry.js";
 import type { TConduit } from "../ports.js";
@@ -50,15 +61,48 @@ async function askElseHeld<T>(scope: TReadScope, ask: (list: TStepList) => Promi
 /** Whether the catalog declares the type `label`, whose records the page reads where the site doesn't respond. */
 const declares = (scope: TReadScope, label: string): boolean => scope.catalog().rels[label] !== undefined;
 
-/** Returns the rows a graph query names. */
-export function queryGraph(scope: TReadScope, query: Record<string, unknown>): Promise<TGraphQueryResult> {
-	const label = typeof query.label === "string" ? query.label : undefined;
+/** A count as the page states it: a count whose expression the page builds as its parts. */
+export type TPageDensity = Omit<TDensityRequest, "expression"> & { expression?: TClassExpression };
+
+/** A read as the page states it: a record query whose expression the page builds as its parts, or a reader typed as text. */
+export type TPageQuery = Omit<TRecordQuery, "expression"> & { expression?: TClassExpression | string };
+
+/** Returns a page-built expression compiled within `label` by what the catalog declares. The graph the page holds is read only
+ *  where the site doesn't respond, so its compiler loads on that path. */
+async function heldCompiled(scope: TReadScope, expression: TClassExpression, label: string | undefined): Promise<TCompiledExpression> {
+	const { indexCompiled } = await import("@haibun/core/lib/records/derivations/compiled-expression.js");
+	return indexCompiled(expression, label, heldFilterable(scope.catalog()), "the graph the page holds");
+}
+
+/** Returns an expression as the site reads it, in Manchester syntax. */
+const writtenFor = (expression: TClassExpression | string): string => (typeof expression === "string" ? expression : manchesterOf(expression));
+
+/** The types the page holds and each one's fields and edges, as the catalog declares them. The store the page holds refuses a
+ *  filter of a field it doesn't compare, as the site's does. */
+const heldFilterable = (catalog: TCatalog): TFilterable => ({
+	types: catalog.types,
+	fieldsOf: (label) => Object.keys(catalog.fieldRels[label] === undefined ? {} : catalog.fieldRels[label]),
+});
+
+/** Returns the rows a graph query names. The site reads its expression in Manchester syntax. The graph the page holds reads an
+ *  expression the page built, whose parts its index runs: it doesn't read a reader's text, or a part the reasoner entails. */
+export function queryGraph(scope: TReadScope, query: TPageQuery): Promise<TGraphQueryResult> {
+	const { expression, ...stated } = query;
+	const { label } = stated;
 	return askElseHeld(
 		scope,
-		(list) => scope.conduit().follow<TGraphQueryResult>(reads(Steps.methodOf(list, "graphQuery"), { query }), `query: ${label === undefined ? "(any)" : label}`),
+		(list) => {
+			const read = expression === undefined ? stated : { ...stated, expression: writtenFor(expression) };
+			return scope.conduit().follow<TGraphQueryResult>(reads(Steps.methodOf(list, "graphQuery"), { query: read }), `query: ${label === undefined ? "(any)" : label}`);
+		},
 		async () => {
-			const parsed = GraphQuerySchema.safeParse(query);
-			return parsed.success && parsed.data.label !== undefined && declares(scope, parsed.data.label) ? await scope.held().readRecords(parsed.data) : undefined;
+			if (typeof expression === "string") return undefined;
+			const compiled = expression === undefined ? undefined : await heldCompiled(scope, expression, label);
+			const read = label === undefined ? compiled?.label : label;
+			const parsed = GraphQuerySchema.safeParse({ ...stated, label: read, ...(compiled === undefined ? {} : { filters: compiled.filters }) });
+			return parsed.success && read !== undefined && declares(scope, read)
+				? { ...(await scope.held().readRecords(parsed.data)), ...(compiled === undefined ? {} : { ran: compiled.ran }) }
+				: undefined;
 		},
 	);
 }
@@ -104,9 +148,18 @@ export const selectValuesFor = (scope: TReadScope, label: string): Promise<Recor
 
 /** Returns how many records fall in each division of a span, by how each turned out. The site counts over the whole of
  *  actuality it holds, and a page without a site counts over what it has read. */
-export const densityOf = (scope: TReadScope, query: TDensityQuery): Promise<TDensityResult> =>
-	askElseHeld(
+export function densityOf(scope: TReadScope, query: TPageDensity): Promise<TDensityResult> {
+	const { expression, ...stated } = query;
+	return askElseHeld(
 		scope,
-		(list) => scope.conduit().follow<TDensityResult>(reads(Steps.methodOf(list, "density"), { query }), `the shape of ${query.label}`),
-		async () => (declares(scope, query.label) ? await scope.held().density(query) : undefined),
+		(list) => {
+			const count = expression === undefined ? stated : { ...stated, expression: writtenFor(expression) };
+			return scope.conduit().follow<TDensityResult>(reads(Steps.methodOf(list, "density"), { query: count }), `the shape of ${query.label}`);
+		},
+		async () => {
+			if (!declares(scope, query.label)) return undefined;
+			const compiled = expression === undefined ? undefined : await heldCompiled(scope, expression, query.label);
+			return await scope.held().density(DensityQuerySchema.parse({ ...stated, ...(compiled === undefined ? {} : { filters: compiled.filters }) }));
+		},
 	);
+}

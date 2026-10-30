@@ -7,7 +7,6 @@ import { ViewQuerySchema, QUERY_PARAMS, type TAccessQueryLevel, type TTypeNotHel
 import { parseViewQuery, queryParams } from "../derivations/view-query.js";
 import * as Address from "../derivations/address.js";
 import { Signal } from "@lit-labs/signals";
-import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { pageHeld } from "../root.js";
 import * as PageHash from "./hash-controller.js";
 
@@ -22,7 +21,7 @@ type TViewQueryStore = {
 	order: Signal.State<"asc" | "desc">;
 	offset: Signal.State<number>;
 	access: Signal.State<TAccessQueryLevel>;
-	f: Signal.State<TSearchCondition[]>;
+	x: Signal.State<string | null>;
 	lastWrittenHash: string;
 };
 
@@ -37,7 +36,7 @@ const store = (): TViewQueryStore =>
 			order: new Signal.State(d.order),
 			offset: new Signal.State(d.offset),
 			access: new Signal.State<TAccessQueryLevel>(d.access),
-			f: new Signal.State(d.f),
+			x: new Signal.State(d.x),
 			lastWrittenHash: "",
 		};
 	});
@@ -52,7 +51,7 @@ export function typeNotHeld(label: string, held: readonly string[]): TTypeNotHel
 
 function snapshot(): TViewQuery {
 	const s = store();
-	return { label: s.label.get(), q: s.q.get(), sort: s.sort.get(), order: s.order.get(), offset: s.offset.get(), access: s.access.get(), f: s.f.get() };
+	return { label: s.label.get(), q: s.q.get(), sort: s.sort.get(), order: s.order.get(), offset: s.offset.get(), access: s.access.get(), x: s.x.get() };
 }
 
 function assign(q: TViewQuery): void {
@@ -63,7 +62,7 @@ function assign(q: TViewQuery): void {
 	s.order.set(q.order);
 	s.offset.set(q.offset);
 	s.access.set(q.access);
-	s.f.set(q.f);
+	s.x.set(q.x);
 }
 
 /** Returns the current hash with its query params replaced by `next`'s. The pane and affordance params stay. */

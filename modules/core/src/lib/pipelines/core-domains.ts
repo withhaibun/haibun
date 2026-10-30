@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DOMAIN_GRAPH_QUERY, GraphQuerySchema, DOMAIN_DENSITY_QUERY, DensityQuerySchema } from "../steps/domains/quad-types.js";
+import { DOMAIN_GRAPH_QUERY, RecordQuerySchema, DOMAIN_DENSITY_QUERY, DensityRequestSchema } from "../steps/domains/quad-types.js";
 import { fromJsonText, JsonObjectTextSchema } from "../domains/json-text.js";
 import { fieldComparisonSchema } from "../domains/lists.js";
 import { DOMAIN_FILE_DATA, DOMAIN_IMAGE_REFERENCE, FileDataSchema, ImageReferenceSchema, recordedFileData } from "../domains/media-object.js";
@@ -230,15 +230,15 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		comparator: (value, baseline) => (value as Date).getTime() - (baseline as Date).getTime(),
 	},
 	{
-		// Core declares this domain once, with GraphQuerySchema, so every step that takes a graph query validates it with one
+		// Core declares this domain once, with RecordQuerySchema, so every step that takes a graph query validates it with one
 		// schema. registerDomains keeps the first declaration of a domain key and skips later ones.
 		selectors: [DOMAIN_GRAPH_QUERY],
-		schema: fromJsonText(GraphQuerySchema),
-		description: "A request for records of one type from the graph, with optional filters, sort order, and a result limit.",
+		schema: fromJsonText(RecordQuerySchema),
+		description: "A request for records from the graph: the class expression they are members of, in Manchester syntax, with sort order and a result limit.",
 	},
 	{
 		selectors: [DOMAIN_DENSITY_QUERY],
-		schema: fromJsonText(DensityQuerySchema),
+		schema: fromJsonText(DensityRequestSchema),
 		description: "A request for the number of records of one type in each division of a span of time, grouped by a field that states each record's outcome.",
 	},
 	{

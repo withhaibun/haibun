@@ -30,9 +30,9 @@ describe("viewQuery serialize/parse", () => {
 			{ ...DEFAULTS, sort: "dateSent", order: "asc" },
 			{ ...DEFAULTS, offset: 40 },
 			{ ...DEFAULTS, access: "public" },
-			{ ...DEFAULTS, label: "Email", f: [{ predicate: "folder", operator: "eq", value: "INBOX" }] },
-			{ ...DEFAULTS, f: [{ predicate: "size", operator: "between", value: "1", value2: "9" }] },
-			{ label: "Person", q: "ada", sort: "name", order: "asc", offset: 10, access: "opened", f: [{ predicate: "city", operator: "contains", value: "lon" }] },
+			{ ...DEFAULTS, label: "Email", x: 'folder value "INBOX"' },
+			{ ...DEFAULTS, x: 'size some xsd:integer[>= "1"^^xsd:integer, <= "9"^^xsd:integer]' },
+			{ label: "Person", q: "ada", sort: "name", order: "asc", offset: 10, access: "opened", x: 'city some xsd:string[pattern "lon"]' },
 		];
 		for (const q of queries) expect(parseViewQuery(serializeViewQuery(q))).toEqual(q);
 	});
@@ -54,7 +54,6 @@ describe("viewQuery serialize/parse", () => {
 		expect(() => parseViewQuery("#?offset=abc")).toThrow();
 		expect(() => parseViewQuery("#?offset=-3")).toThrow();
 		expect(() => parseViewQuery("#?access=root")).toThrow();
-		expect(() => parseViewQuery("#?f=folder|bogusop|x")).toThrow();
 	});
 });
 

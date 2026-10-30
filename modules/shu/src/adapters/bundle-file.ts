@@ -7,6 +7,7 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
+import { sha256 } from "@haibun/core/lib/domains/digest.js";
 import { BUNDLE_DIRS, type TBundleFile, type TServedAsset } from "../ports.js";
 
 /** The package root, so one path resolves from `src/` and from `build/`. */
@@ -50,16 +51,20 @@ const servedAsset = (path: string): TServedAsset => {
 	const etag = `"${mtimeMs}-${size}"`;
 	const held = served.get(path);
 	if (held?.etag === etag) return held;
-	const content = text(path);
+	const asset = taggedAsset(text(path), etag);
+	served.set(path, asset);
+	return asset;
+};
+
+/** Text served under `etag`, gzipped at its first gzipped response. */
+function taggedAsset(content: string, etag: string): TServedAsset {
 	let gzipped: Uint8Array<ArrayBuffer> | undefined;
 	const gzip = (): Uint8Array<ArrayBuffer> => {
 		if (gzipped === undefined) gzipped = new Uint8Array(gzipSync(content));
 		return gzipped;
 	};
-	const asset = { content, etag, gzipped: gzip };
-	served.set(path, asset);
-	return asset;
-};
+	return { content, etag, gzipped: gzip };
+}
 
 /** The bytes of the font file at `path`. */
 function fontBytes(path: string): ArrayBuffer {
@@ -76,6 +81,7 @@ export function bundleFile(): TBundleFile {
 		},
 		pageBuiltAt: (file) => built(join(PAGE_DIR, file), `the page's bundle ${file}`, writtenAt).toISOString(),
 		whole: (file) => built(join(WHOLE_DIR, file), `the bundle ${file}`, servedAsset).content,
+		derived: (content) => taggedAsset(content, `"${sha256(content)}"`),
 		labelFont: () => fontBytes(LABEL_FONT_FILE),
 		mathFont: () => fontBytes(MATH_FONT_FILE),
 		labelFontRanges: () => {

@@ -9,18 +9,13 @@ import { newPage } from "../../test/setup.js";
 const query = (over: Partial<TViewQuery>): TViewQuery => ViewQuerySchema.parse(over);
 
 describe("describeSearch", () => {
-	it("names the type, quoted text, field conditions, and non-default access", () => {
-		const q = query({ label: "Email", q: "INBOX", f: [{ predicate: "folder", operator: "eq", value: "INBOX" }], access: "public" });
-		expect(describeSearch(q)).toBe('Email · "INBOX" · folder eq INBOX · public');
+	it("names the type, quoted text, the class expression, and non-default access", () => {
+		const q = query({ label: "Email", q: "INBOX", x: 'folder value "INBOX"', access: "public" });
+		expect(describeSearch(q)).toBe('Email · "INBOX" · folder value "INBOX" · public');
 	});
 
 	it("omits absent parts: a text-only search reads as just its text; default access is not stated", () => {
 		expect(describeSearch(query({ q: "hydration" }))).toBe('"hydration"');
-	});
-
-	it("a between condition shows both bounds", () => {
-		const q = query({ f: [{ predicate: "uid", operator: "between", value: "1", value2: "9" }] });
-		expect(describeSearch(q)).toBe("uid between 1..9");
 	});
 });
 

@@ -11,18 +11,20 @@ import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { reasoner } from "../root.js";
 import { countedMembers, entailedMembers, expressionCompletions, subsumes, truncationOf } from "./members.js";
 import { REASONING_READ_CEILING } from "../domains/reasoning.js";
+import type { TWorld } from "@haibun/core/lib/actuality/domains/world.js";
+import { readRecordQuery } from "@haibun/core/lib/records/pipelines/record-query.js";
 
 const [STEP, NOTE] = ["Step", "Note"];
 const typeOf = (persistedAs: string, type: string) => ({
 	selectors: [persistedAs.toLowerCase()],
-	schema: z.object({ id: z.string(), content: z.string().optional(), about: z.string().optional(), generatedAtTime: GeneratedAtTimeSchema }),
+	schema: z.object({ id: z.string(), content: z.string().optional(), kind: z.string().optional(), about: z.string().optional(), generatedAtTime: GeneratedAtTimeSchema }),
 	description: persistedAs,
 	topology: {
 		persistedAs,
 		type,
 		id: "id",
 		accessLevel: Access.private,
-		properties: { id: LinkRelations.IDENTIFIER.rel, content: LinkRelations.CONTENT.rel },
+		properties: { id: LinkRelations.IDENTIFIER.rel, content: LinkRelations.CONTENT.rel, kind: LinkRelations.CONTEXT.rel },
 		edges: { about: { rel: LinkRelations.PART_OF.rel, range: STEP } },
 	},
 });
@@ -100,5 +102,30 @@ describe("expressionCompletions", () => {
 		expect(expressionCompletions("Not", domains)).toEqual(["Note"]);
 		expect(expressionCompletions("Note and St", domains)).toEqual(["Note and Step"]);
 		expect(expressionCompletions("Note and ", domains), "a word isn't begun").toEqual([]);
+	});
+});
+
+describe("a record query's expression", () => {
+	/** A world whose prover entails members through the reasoner, over the store a test writes. */
+	const worldOver = (store: IQuadStore) =>
+		({
+			domains,
+			runtime: {
+				records: HAIBUN_RECORD_NAMESPACE,
+				prover: { entailed: (_world: unknown, text: string) => entailedMembers(reasoner(), store, domains, HAIBUN_RECORD_NAMESPACE, text) },
+			},
+		}) as unknown as TWorld;
+
+	it("runs a field's value on the store's index, and the part that needs entailment through the reasoner, stating where each ran", { timeout: 30_000 }, async () => {
+		const store = await storeWith();
+		for (const [predicate, object] of [
+			["id", "n2"],
+			["kind", "kept"],
+		] as const)
+			await store.add({ subject: "n2", predicate, object, namedGraph: NOTE, accessLevel: Access.private });
+		const read = (text: string) => readRecordQuery(worldOver(store), { label: NOTE, expression: text }, (query) => store.readRecords(query));
+		expect(await read('kind value "kept"')).toMatchObject({ vertices: [{ id: "n2" }], ran: { index: 'kind value "kept"' } });
+		expect(await read("about some Step")).toMatchObject({ vertices: [{ id: "n1" }], ran: { reasoner: "about some Step" } });
+		expect(await read("about only Step")).toMatchObject({ refused: expect.stringMatching(/uses `only`/) });
 	});
 });

@@ -8,7 +8,6 @@
  */
 import { z } from "zod";
 import { CountedFields } from "../../domains/hypermedia.js";
-import { SearchConditionSchema, type TSearchCondition } from "../../steps/domains/quad-types.js";
 import { DENOTES, IndividualAddressSchema } from "../../domains/typed-links.js";
 import { STATUS } from "../../domains/protocol.js";
 
@@ -77,7 +76,7 @@ const ContextIndividualSchema = IndividualAddressSchema.extend({ kind: z.literal
 const ContextTypeSchema = z.object({
 	kind: z.literal(DENOTES.type),
 	persistedAs: z.string().describe("The type whose members the question concerns."),
-	conditions: z.array(SearchConditionSchema).describe("What every member must match, in the same conditions the query surface and the store take."),
+	expression: z.string().min(1).optional().describe("The class expression its members are members of, in Manchester syntax."),
 });
 export const ContextPatternSchema = z.discriminatedUnion("kind", [ContextIndividualSchema, ContextTypeSchema]);
 export type TContextIndividual = z.infer<typeof ContextIndividualSchema>;
@@ -87,13 +86,8 @@ export const ContextQuerySchema = z.array(ContextPatternSchema);
 /** The ask is about one individual. */
 export const anIndividual = (persistedAs: string, id: string): TContextIndividual => ({ kind: DENOTES.individual, persistedAs, id });
 
-/** The ask is about a type: its members, narrowed by whichever conditions carry both a field and a value. The conditions
- *  travel as they were stated, so an operator the reader chose reaches the store that reads it. */
-export const aType = (persistedAs: string, conditions: readonly TSearchCondition[]): TContextPattern => ({
-	kind: DENOTES.type,
-	persistedAs,
-	conditions: conditions.filter((c) => c.predicate && c.value),
-});
+/** The ask is about a type: its members, narrowed by the class expression given, where one is given. */
+export const aType = (persistedAs: string, expression?: string): TContextPattern => ({ kind: DENOTES.type, persistedAs, ...(expression === undefined ? {} : { expression }) });
 
 /**
  * A turn of a session as the store reads it back. A turn is named by its question's record, which is what a page reads

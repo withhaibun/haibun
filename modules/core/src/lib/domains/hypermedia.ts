@@ -215,7 +215,7 @@ function subPropertyOfRel(rel: string): string | string[] | undefined {
 	return undefined;
 }
 import { NAMESPACE, RDFS_CLASS, RDF_PROPERTY, XSD_BOOLEAN, XSD_DATE, XSD_DATE_TIME, XSD_DECIMAL, XSD_DOUBLE, XSD_INTEGER } from "./vocabularies.js";
-import { AccessLevelSchema, DOMAIN_PERSISTED_TYPE, GeneratedAtTimeTextSchema, HAIBUN_NS, type TRecordNamespace, type TRegisteredDomain } from "./resources.js";
+import { AccessLevelSchema, DOMAIN_PERSISTED_TYPE, GeneratedAtTimeTextSchema, HAIBUN_NS, fieldIri, type TRecordNamespace, type TRegisteredDomain } from "./resources.js";
 import { DOMAIN_UNION, hypermediaDomainMap, refTargetOf } from "./domains.js";
 import { jsonSchemaFor } from "./json-schema-of.js";
 import { unwrap, unwrapToShape, zodTypeLabel } from "./zod-unwrap.js";
@@ -342,7 +342,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 		for (const [field, propDef] of Object.entries(topology.properties)) {
 			const rel = relOf(propDef);
 			if (!REL_CONTEXT[rel]) throw new Error(`persisted domain "${label}" property "${field}" has unknown rel "${rel}"`);
-			properties[field] = { term: propertyIriOf(propDef) ?? REL_CONTEXT[rel], rel };
+			properties[field] = { term: fieldIri(topology, field, rel, propertyIriOf(propDef)), rel };
 		}
 
 		const edges: Record<string, TEdgeConcern> = {};
@@ -351,7 +351,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 			if (!rel) throw new Error(`persisted domain "${label}" edge "${edgeField}" doesn't have a rel: add it to EdgePredicates or give an explicit rel`);
 			if (!REL_CONTEXT[rel]) throw new Error(`persisted domain "${label}" edge "${edgeField}" has unknown rel "${rel}"`);
 			edges[edgeField] = {
-				term: edgeDef.iri ?? REL_CONTEXT[rel],
+				term: fieldIri(topology, edgeField, rel, edgeDef.iri),
 				rel,
 				targets: edgeRanges(edgeDef),
 				...(edgeDef.rolePriority !== undefined ? { rolePriority: edgeDef.rolePriority } : {}),
@@ -1091,6 +1091,14 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, hai
 		if (sp === undefined) return undefined;
 		return Array.isArray(sp) ? sp.map((p) => REL_CONTEXT[p as TRel] ?? `hbn:${p}`) : (REL_CONTEXT[sp as TRel] ?? `hbn:${sp}`);
 	};
+	// A field's own term is a subproperty of its rel's term, which states the rel's own axiom; a field that carries its rel's
+	// term states that axiom itself. A declared parent stands in place of the rel.
+	const declareField = (uri: string, hbnRel: string, rel: TRel | undefined, declared: string | string[] | undefined): void => {
+		const relIri = rel === undefined ? undefined : REL_CONTEXT[rel];
+		if (relIri === undefined || relIri === uri) return declareProp(uri, hbnRel, declared === undefined ? subPropertyAxiom(rel) : declared);
+		declareProp(uri, hbnRel, declared === undefined ? relIri : declared);
+		declareProp(relIri, hbnRel, subPropertyAxiom(rel));
+	};
 	const classNodes: Array<Record<string, unknown>> = [];
 	for (const domain of Object.values(domains)) {
 		if (!isPersisted(domain.topology)) continue;
@@ -1111,23 +1119,22 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, hai
 		};
 		for (const [prop, def] of Object.entries(topology.properties)) {
 			const rel = relOf(def);
-			// A property's genuine vocabulary IRI wins over its rel's default, so a standards field carries its real term
-			// (a consumer-declared iri) rather than the placeholder a catch-all rel (CONTEXT/TAG) would give it.
-			const uri = propertyIriOf(def) ?? REL_CONTEXT[rel] ?? `hbn:${prop}`;
+			// A field carries the standard term it declares, or else its own term, a subproperty of its rel, so two fields that
+			// share a rel stay apart.
+			const uri = fieldIri(topology, prop, rel, propertyIriOf(def));
 			const linkRel = linkRelFromSemantic(rel);
 			const node: Record<string, string> = { "@id": uri };
 			if (linkRel === "item") node["@type"] = "@id";
 			put(prop, node);
-			declareProp(uri, linkRel, subPropertyAxiom(rel));
+			declareField(uri, linkRel, rel, undefined);
 		}
 		for (const [edge, edgeDef] of topology.edges === undefined ? [] : Object.entries(topology.edges)) {
 			const rel = edgeDef.rel ?? edgeRel(edge);
-			const uri = edgeDef.iri ?? (rel && REL_CONTEXT[rel]) ?? `hbn:${edge}`;
+			const uri = fieldIri(topology, edge, rel, edgeDef.iri);
 			put(edge, { "@id": uri, "@type": "@id" });
-			// The edge's subPropertyOf: the topology may declare it per-edge (the discourse rels do, subPropertyOf inReplyTo)
-			// OR the rel itself declares it in LinkRelations (the role rels, subPropertyOf inRoleOf). Either is a genuine axiom.
-			const declared = (edgeDef as { subPropertyOf?: string | string[] }).subPropertyOf ?? subPropertyAxiom(rel);
-			declareProp(uri, "item", declared);
+			// The edge's subPropertyOf: the topology may declare it per-edge (the discourse rels do, subPropertyOf inReplyTo),
+			// else an edge's own term is a subproperty of its rel, and a rel's own term states the rel's axiom in LinkRelations.
+			declareField(uri, "item", rel, (edgeDef as { subPropertyOf?: string | string[] }).subPropertyOf);
 		}
 		// The bare type label maps to its class PLUS the type-scoped @context above (so `@type: "Person"` resolves to
 		// `hbn:Person` and activates Person's term scope). A type conforming to published standard context(s) references

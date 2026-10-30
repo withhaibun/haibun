@@ -9,17 +9,12 @@ import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/domains/log-message.js";
 import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/domains/run-artifact.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import type { THaibunLogLevel } from "@haibun/core/lib/domains/protocol.js";
-import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { actualityWindow } from "./actuality-window.js";
 import { producedUnderSteps, type TActualityRow } from "../derivations/actuality-rows.js";
-import { actualityGraphOf as graphOver } from "../derivations/actuality-graph.js";
 import type { TActualityGraph } from "../ports.js";
-import { actualityStore } from "../actuality-store.test-fake.js";
+import { actualityGraphOver, actualityStore } from "../actuality-store.test-fake.js";
 
 const RUN = "1700000000000-1";
-
-/** A graph over a store that declares every type an actuality writes. */
-const actualityGraphOf = (store: IQuadStore): TActualityGraph => graphOver(store, () => true);
 
 /** A window of `size` rows at the level a step reports at, without the steps run to carry other steps out, unless named. */
 const windowOn = (graph: TActualityGraph, options: { size: number; at?: number; since?: number; minLevel?: THaibunLogLevel; substeps?: boolean }) =>
@@ -54,7 +49,7 @@ async function anActualityOf(steps: number, saying: string = "info"): Promise<Qu
 
 describe("the window of an actuality a reader is looking at", () => {
 	it("holds the steps and what they logged, oldest first, and reports what it spans", async () => {
-		const graph = actualityGraphOf(await anActualityOf(3));
+		const graph = actualityGraphOver(await anActualityOf(3));
 		const window = await windowOn(graph, { size: 10 });
 		expect(window.rows.map((r) => r.text)).toEqual(["step 0", "said 0", "step 1", "said 1", "step 2", "said 2"]);
 		expect(window.from).toBe(1000);
@@ -64,13 +59,13 @@ describe("the window of an actuality a reader is looking at", () => {
 	});
 
 	it("holds the newest records when a moment isn't named, and doesn't hold a record before them", async () => {
-		const graph = actualityGraphOf(await anActualityOf(20));
+		const graph = actualityGraphOver(await anActualityOf(20));
 		const window = await windowOn(graph, { size: 4 });
 		expect(window.rows.map((r) => r.text)).toEqual(["step 18", "said 18", "step 19", "said 19"]);
 	});
 
 	it("around a moment, holds half before it and half after", async () => {
-		const graph = actualityGraphOf(await anActualityOf(20));
+		const graph = actualityGraphOver(await anActualityOf(20));
 		const window = await windowOn(graph, { at: 1020, size: 4 });
 		expect(window.rows.every((r) => r.at >= 1016 && r.at <= 1023)).toBe(true);
 		expect(window.rows.filter((r) => r.at < 1020)).toHaveLength(2);
@@ -78,7 +73,7 @@ describe("the window of an actuality a reader is looking at", () => {
 	});
 
 	it("makes a short side up from the other, so a window is the size requested", async () => {
-		const graph = actualityGraphOf(await anActualityOf(20));
+		const graph = actualityGraphOver(await anActualityOf(20));
 		const atTheStart = await windowOn(graph, { at: 1000, size: 6 });
 		expect(atTheStart.rows, "the window doesn't hold a row before the first record, so six after it").toHaveLength(6);
 		expect(itemAt(atTheStart.rows, 0).at).toBe(1000);
@@ -87,19 +82,19 @@ describe("the window of an actuality a reader is looking at", () => {
 	});
 
 	it("tops up a window larger than one page by reading pages, as a store rejects a page past its maximum", async () => {
-		const graph = actualityGraphOf(await anActualityOf(3));
+		const graph = actualityGraphOver(await anActualityOf(3));
 		const atTheStart = await windowOn(graph, { at: 1000, size: MAX_PAGE_ROWS });
 		expect(atTheStart.rows.map((r) => r.text)).toEqual(["step 0", "said 0", "step 1", "said 1", "step 2", "said 2"]);
 	});
 
 	it("doesn't hold more than actuality does", async () => {
-		const graph = actualityGraphOf(await anActualityOf(2));
+		const graph = actualityGraphOver(await anActualityOf(2));
 		expect((await windowOn(graph, { size: 100 })).rows).toHaveLength(4);
 		expect((await windowOn(graph, { at: 1002, size: 100 })).rows).toHaveLength(4);
 	});
 
 	it("narrows to the levels at or above the one requested, since a reader reading warnings is not shown everything under them", async () => {
-		const graph = actualityGraphOf(await anActualityOf(3, "debug"));
+		const graph = actualityGraphOver(await anActualityOf(3, "debug"));
 		const everything = await windowOn(graph, { size: 10, minLevel: "debug" });
 		expect(everything.rows).toHaveLength(6);
 		const stepsOnly = await windowOn(graph, { size: 10, minLevel: "info" });
@@ -110,7 +105,7 @@ describe("the window of an actuality a reader is looking at", () => {
 	});
 
 	it("is empty when actuality hasn't written a record, rather than failing", async () => {
-		const graph = actualityGraphOf(actualityStore());
+		const graph = actualityGraphOver(actualityStore());
 		expect(await windowOn(graph, { size: 10 })).toEqual({ rows: [] });
 	});
 });
@@ -130,7 +125,7 @@ describe("the order an actuality put its records in", () => {
 				level: "info",
 				generatedAtTime: iso(1000),
 			});
-		const graph = actualityGraphOf(store);
+		const graph = actualityGraphOver(store);
 		const window = await windowOn(graph, { size: 10 });
 		expect(
 			window.rows.map((r) => r.text),
@@ -160,7 +155,7 @@ describe("what an actuality reports outside every step", () => {
 			level: "error",
 			generatedAtTime: iso(1010),
 		});
-		const graph = actualityGraphOf(store);
+		const graph = actualityGraphOver(store);
 		const window = await windowOn(graph, { size: 10 });
 		expect(
 			window.rows.map((r) => r.text),
@@ -179,7 +174,7 @@ describe("what an actuality reports outside every step", () => {
 			generatedAtTime: iso(1000),
 		});
 		await store.upsertIndividual(LOG_MESSAGE_LABEL, { id: "log.1700000009999", message: "said by nothing in particular", level: "warn", generatedAtTime: iso(1010) });
-		const graph = actualityGraphOf(store);
+		const graph = actualityGraphOver(store);
 		const window = await windowOn(graph, { size: 10 });
 		expect(window.rows.map((r) => r.text)).toEqual(["a step", "said by nothing in particular"]);
 	});
@@ -204,7 +199,7 @@ describe("following an actuality that is still happening", () => {
 	it("reads what was recorded since the last read, and doesn't read a record from before it", async () => {
 		const store = actualityStore();
 		for (const i of [1, 2, 3]) await step(store, i, 1000 + i, 1000 + i);
-		const graph = actualityGraphOf(store);
+		const graph = actualityGraphOver(store);
 		const first = await windowOn(graph, { size: 10 });
 		expect(first.rows.map((r) => r.text)).toEqual(["step 1", "step 2", "step 3"]);
 		for (const i of [4, 5]) await step(store, i, 1000 + i, 1000 + i);
@@ -222,7 +217,7 @@ describe("following an actuality that is still happening", () => {
 		const store = actualityStore();
 		await step(store, 1, 1000, 1000);
 		await step(store, 2, 1004, 1004);
-		const graph = actualityGraphOf(store);
+		const graph = actualityGraphOver(store);
 		const first = await windowOn(graph, { size: 10 });
 		expect(first.rows.map((r) => r.text)).toEqual(["step 1", "step 2"]);
 		await store.upsertIndividual(LOG_MESSAGE_LABEL, {
@@ -242,7 +237,7 @@ describe("following an actuality that is still happening", () => {
 		await step(store, 1, 1000, 1000, { stepText: "the feature", actionStatus: "running" });
 		await step(store, 2, 1001, 1002, { stepText: "a step that ended", endedAtTime: iso(1002) });
 		await step(store, 3, 1003, 1003, { stepText: "the step now running", actionStatus: "running" });
-		const graph = actualityGraphOf(store);
+		const graph = actualityGraphOver(store);
 		const first = await windowOn(graph, { size: 10 });
 		await step(store, 3, 1003, 1004, { stepText: "the step now running", actionStatus: "failed", endedAtTime: iso(1004) });
 		const since = await windowOn(graph, { size: 10, since: newestRecording(first.rows) });
@@ -275,7 +270,7 @@ describe("following an actuality that is still happening", () => {
 			recordedAtTime: iso(1001),
 		});
 		// The claim is made where a window is assembled from what more than one read returned, so this reads a window.
-		const window = await windowOn(actualityGraphOf(store), { size: 10 });
+		const window = await windowOn(actualityGraphOver(store), { size: 10 });
 		producedUnderSteps(window.rows);
 		const carried = window.rows.find((r) => r.kind === "produced");
 		expect(carried?.carriedBy, "the step a reader is shown claims the shot the machinery under it took").toBe(`${RUN}.0.1`);
@@ -298,7 +293,7 @@ describe("following an actuality that is still happening", () => {
 			generatedAtTime: iso(1001),
 			recordedAtTime: iso(1001),
 		});
-		const graph = actualityGraphOf(store);
+		const graph = actualityGraphOver(store);
 		expect(
 			(await windowOn(graph, { size: 10 })).rows.map((r) => r.text),
 			"a reader reading what the feature did",
@@ -315,7 +310,7 @@ describe("following an actuality that is still happening", () => {
 	it("doesn't return a new record when a record wasn't added since the last read", async () => {
 		const store = actualityStore();
 		await step(store, 1, 1000, 1000, { stepText: "a step" });
-		const graph = actualityGraphOf(store);
+		const graph = actualityGraphOver(store);
 		const first = await windowOn(graph, { size: 10 });
 		const since = await windowOn(graph, { size: 10, since: newestRecording(first.rows) });
 		expect(

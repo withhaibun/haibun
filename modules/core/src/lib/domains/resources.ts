@@ -615,6 +615,28 @@ export function propertyIriOf(def: TPropertyDef | undefined): string | undefined
 	return typeof def === "object" && def !== null && "iri" in def ? def.iri : undefined;
 }
 
+/** The IRI of a type's field or edge: the standard term it declares, its relation's term where the field is named for its
+ *  relation, or else its own in the vocabulary that defines the type's terms, unique to the type and the field. A field's own
+ *  property is a subproperty of its relation, so a field that shares a relation with another stays apart from it, and a read of
+ *  the relation reaches both. */
+export function fieldIri(
+	topology: Pick<THypermediaTopology, "persistedAs" | "vocabulary" | "namespaces">,
+	field: string,
+	rel: TRel | undefined,
+	declared: string | undefined,
+): string {
+	if (declared !== undefined) return declared;
+	if (rel !== undefined && field === rel) return REL_CONTEXT[rel];
+	const { persistedAs, vocabulary, namespaces } = topology;
+	if (vocabulary === undefined) return `${HAIBUN_PREFIX}:${persistedAs}.${field}`;
+	if (namespaces?.[vocabulary] === undefined)
+		throw new Error(`persisted domain "${persistedAs}" defines its terms in the vocabulary "${vocabulary}", which its namespaces don't bind: add it to namespaces`);
+	return `${vocabulary}:${persistedAs}.${field}`;
+}
+
+/** The ontology's name of a type's field or edge as a property: the type and the field. */
+export const fieldPropertyId = (persistedAs: string, field: string): string => `${persistedAs}.${field}`;
+
 /** Returns the types an edge's range lists. */
 export const edgeRanges = (edge: { range: string | string[] }): string[] => (Array.isArray(edge.range) ? edge.range : [edge.range]);
 
@@ -665,6 +687,12 @@ export type THypermediaTopology = {
 	 * the served context.
 	 */
 	namespaces?: Record<string, string>;
+	/**
+	 * The prefix of the vocabulary that defines this type's own terms, such as an application's, which `namespaces` binds. A
+	 * field that doesn't declare a standard term is a property of its own in it. haibun's types define theirs in haibun's
+	 * vocabulary, so they don't state it. The records' namespace names individuals, so it isn't one.
+	 */
+	vocabulary?: string;
 	/**
 	 * The published standard @context documents this type conforms to, as absolute URLs. The served type-scoped
 	 * @context references them as a JSON-LD 1.1 array. The URLs come first and this type's own field terms last, so

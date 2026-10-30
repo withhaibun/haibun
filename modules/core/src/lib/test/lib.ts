@@ -106,6 +106,7 @@ function testProver(): TProver {
 		prove: async (ctx, featureStep) => (await prover()).prove(ctx, featureStep),
 		proveStatements: async (ctx, parent, statements, targetHostId) => (await prover()).proveStatements(ctx, parent, statements, targetHostId),
 		exceeding: async (candidate, bound) => (await prover()).exceeding(candidate, bound),
+		entailed: async (world, expression) => (await prover()).entailed(world, expression),
 	};
 }
 

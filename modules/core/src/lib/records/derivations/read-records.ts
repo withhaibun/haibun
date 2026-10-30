@@ -35,6 +35,7 @@ import {
 import { AccessQuery, LinkRelations, isPersisted, sortFieldOf, statedLevel, type THeldBy, type TRecordNamespace, type TRegisteredDomain } from "../../domains/resources.js";
 import { recordIri } from "./record-iri.js";
 import { itemAt } from "../../domains/item-at.js";
+import type { TFilterable } from "./compiled-expression.js";
 
 /** The name a refusal and a rejected bound state for the read function. */
 export const READ_RECORDS = "readRecords";
@@ -168,6 +169,20 @@ export function unheldRelationRefusal(unheld: readonly string[], held: readonly 
 	const holds = held.length > 0 ? `The relations it holds: ${[...held].sort().join(", ")}` : "It doesn't hold a relation.";
 	return `a relation named ${unheld.map((relation) => `"${relation}"`).join(", ")} doesn't reach a record in this graph. ${holds}`;
 }
+
+/** Returns the types a store holds and, for each, the fields a filter compares and the relations it names, from each type's
+ *  query surface. */
+export const surfaceFilterable = (types: readonly string[], surfaceOf: (label: string) => TQuerySurface | undefined): TFilterable => ({
+	types,
+	fieldsOf: (label) => {
+		const surface = surfaceOf(label);
+		return surface === undefined ? [] : [...reachedBy(surface, REACHED_BY.filter), ...Object.keys(surface.references)];
+	},
+});
+
+/** Returns the types the declarations hold and, for each, the fields a filter compares and the relations it names. */
+export const filterableOf = (declarations: Pick<TReadDeclarations, "types" | "of">): TFilterable =>
+	surfaceFilterable(declarations.types, (label) => declarations.of(label)?.surface);
 
 /** Returns the text that refuses a comparison other than `eq` or `in` on a relation. */
 export const relationOperatorRefusal = (label: string, relation: string, operator: string): string =>

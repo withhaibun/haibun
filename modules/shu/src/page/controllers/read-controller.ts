@@ -3,7 +3,7 @@
  * (`page/pipelines/read-records.ts`), as a view and a read take them: a read calls the site, and reads the graph the page
  * holds where the site doesn't respond.
  */
-import type { TDensityQuery, TDensityResult, TGraphQueryResult, TIncomingEdges, TIndividualWithEdges, TQuad } from "@haibun/core/lib/quad-types.js";
+import type { TDensityResult, TGraphQueryResult, TIncomingEdges, TIndividualWithEdges, TQuad } from "@haibun/core/lib/quad-types.js";
 import { pageConduit, pageHydration, pageRegistry, registryScope } from "../root.js";
 import { readSteps } from "../pipelines/read-steps.js";
 import { heldCatalog } from "../pipelines/held-catalog.js";
@@ -54,7 +54,7 @@ const RELATED_STEP = "getRelated";
 const LIST_LIMIT = 100;
 
 /** Returns the rows a graph query names. */
-export const queryGraph = (query: Record<string, unknown>): Promise<TGraphQueryResult> => Reads.queryGraph(scope(), query);
+export const queryGraph = (query: Reads.TPageQuery): Promise<TGraphQueryResult> => Reads.queryGraph(scope(), query);
 
 /** Returns a record with its edges, at `accessLevel`. */
 export const readIndividual = (label: string, id: string, accessLevel: string): Promise<TIndividualWithEdges> => Reads.readIndividual(scope(), label, id, accessLevel);
@@ -67,7 +67,7 @@ export const recordReadAt = (label: string, id: string, accessLevel: string): Pr
 export const recordRead = (label: string, id: string): Promise<CallStep.TCallOutcome<TIndividualWithEdges>> => recordReadAt(label, id, appAccessLevel());
 
 /** Returns the rows a graph query names, or the refusal. */
-export const queryRead = (query: Record<string, unknown>): Promise<CallStep.TCallOutcome<TGraphQueryResult>> => CallStep.outcomeOf(() => queryGraph(query));
+export const queryRead = (query: Reads.TPageQuery): Promise<CallStep.TCallOutcome<TGraphQueryResult>> => CallStep.outcomeOf(() => queryGraph(query));
 
 /** Returns the edges that reach a record, in `window`, at the page's access level, or the refusal. */
 export const incomingRead = (label: string, id: string, window: Reads.TEdgeWindow): Promise<CallStep.TCallOutcome<TIncomingEdges>> =>
@@ -80,7 +80,7 @@ export const incomingEdges = (label: string, id: string, window: Reads.TEdgeWind
 export const selectValuesFor = (label: string): Promise<Record<string, string[]>> => Reads.selectValuesFor(scope(), label);
 
 /** Returns how many records fall in each division of a span, by how each turned out. */
-export const densityOf = (query: TDensityQuery): Promise<TDensityResult> => Reads.densityOf(scope(), query);
+export const densityOf = (query: Reads.TPageDensity): Promise<TDensityResult> => Reads.densityOf(scope(), query);
 
 /** Returns a bounded list of a type's records at the page's access level, or the refusal. `why` states the read. */
 export async function listRecords(label: string, why: string): Promise<CallStep.TCallOutcome<TGraphQueryResult>> {

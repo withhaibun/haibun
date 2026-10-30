@@ -52,7 +52,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	/** The shared output region: one node for the bar's lifetime, so accumulated activity survives mode switches
 	 *  and collapse/expand. */
 	private _history = new ShuActivityHistory();
-	/** Search mode: the type, text search, conditions and select filters, and the searches recorded in the history. */
+	/** Search mode: the type, text search, class expression and select filters, and the searches recorded in the history. */
 	#query = new ActionsBarQuery(this, {
 		testIdPrefix: () => this.testIdPrefix,
 		history: this._history,
@@ -155,7 +155,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	protected override onConnected(): void {
 		// The shared output region carries the one output test id that every mode's assertions read.
 		this._history.setAttribute("data-testid", `${this.testIdPrefix}chat-output`);
-		this.#query.loadProperties();
 		this.followConversationAddress();
 		this.autoTeardown(onHashChanged(this.followConversationAddress));
 		// A view raises a step choice wherever it is placed, and the bar is not its ancestor, so the bar listens for it on the document.

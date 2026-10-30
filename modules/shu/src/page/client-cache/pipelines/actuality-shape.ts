@@ -13,7 +13,8 @@
  */
 import type { THaibunLogLevel } from "@haibun/core/lib/domains/protocol.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
-import type { TDensityQuery } from "@haibun/core/lib/quad-types.js";
+import type { TPageDensity } from "../../pipelines/read-records.js";
+import { anyOf, hasValue } from "@haibun/core/lib/records/domains/class-expression.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import type { TActualityGraph } from "../ports.js";
 import { COUNTED, marksOf, type TActualityMark } from "../derivations/actuality-marks.js";
@@ -64,14 +65,14 @@ export function actualityCounts(
 		COUNTED.map(async (type) => {
 			// A graph that does not carry a type doesn't hold a record of it, so its divisions are empty.
 			if (!graph.declares(type.label)) return uncounted(divisions);
-			const query: TDensityQuery = {
+			const query: TPageDensity = {
 				label: type.label,
 				timeField: type.timeField,
 				groupBy: type.groupBy,
 				from: new Date(from).toISOString(),
 				to: new Date(to).toISOString(),
 				buckets: divisions,
-				filters: [{ predicate: SEQ_PATH_FIELD.level, operator: "in", value: itemAt(levels, 0), values: levels }],
+				expression: anyOf(levels.map((level) => hasValue(SEQ_PATH_FIELD.level, level))),
 			};
 			const { buckets } = await graph.density(query);
 			return buckets;

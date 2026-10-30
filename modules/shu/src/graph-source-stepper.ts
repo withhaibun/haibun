@@ -18,14 +18,15 @@ import { typeCollectionRemedy } from "@haibun/core/lib/domains/typed-links.js";
 import {
 	DOMAIN_GRAPH_QUERY,
 	GraphQueryResultSchema,
-	type TGraphQuery,
+	type TRecordQuery,
 	queriedList,
 	DOMAIN_DENSITY_QUERY,
 	DensityResultSchema,
-	type TDensityQuery,
+	type TDensityRequest,
 	IndividualWithEdgesSchema,
 } from "@haibun/core/lib/quad-types.js";
 import { recordWithEdges } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { compiledDensity, readRecordQuery } from "@haibun/core/lib/records/pipelines/record-query.js";
 import { DOMAIN_RECORD_ID, DOMAIN_LINK, DOMAIN_PRINCIPAL_REF, type TIndividualRef } from "@haibun/core/lib/domains/domains.js";
 import { clusteredQuads, federate, graphAxiomsOf, selectValues, servingSite } from "./pipelines/graph-source.js";
 import { DOMAIN_GRAPH_AXIOMS } from "@haibun/core/lib/records/domains/axioms.js";
@@ -221,7 +222,10 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			// The counts are the products; keeping them on the event too is the per-read bloat.
 			retainProducts: false,
 			// The same counts a page computes over its own copy of the graph, so the two never drift.
-			action: async ({ query }: { query: TDensityQuery }) => actionOKWithProducts(await this.getWorld().shared.getStore().density(query)),
+			action: async ({ query }: { query: TDensityRequest }) => {
+				const compiled = compiledDensity(this.getWorld(), query);
+				return "refused" in compiled ? actionNotOK(compiled.refused) : actionOKWithProducts(await this.getWorld().shared.getStore().density(compiled));
+			},
 		},
 
 		graphQuery: {
@@ -232,9 +236,13 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 				"Returns the rows the graph query matched, with the count of them. The step reads the same records a page reads from its own copy of the graph, so the two never drift.",
 			fallback: true,
 			productsDomain: DOMAIN_GRAPH_ROWS,
-			takesListQuery: ({ query }: { query: TGraphQuery }, listQuery: TListQuery) => queriedList(query, listQuery),
+			takesListQuery: ({ query }: { query: TRecordQuery }, listQuery: TListQuery) => queriedList(query, listQuery),
 			// The same records a page reads from its own copy of the graph, so the two never drift.
-			action: async ({ query }: { query: TGraphQuery }) => actionOKWithProducts(await this.getWorld().shared.getStore().readRecords(query)),
+			action: async ({ query }: { query: TRecordQuery }) => {
+				const store = this.getWorld().shared.getStore();
+				const page = await readRecordQuery(this.getWorld(), query, (compiled) => store.readRecords(compiled));
+				return "refused" in page ? actionNotOK(page.refused) : actionOKWithProducts(page);
+			},
 		},
 	} as const satisfies TStepperSteps;
 }

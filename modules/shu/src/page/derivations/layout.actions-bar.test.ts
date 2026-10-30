@@ -15,17 +15,15 @@ describe("what the bar calls the current context", () => {
 	});
 
 	it("names a type by what the view behind it holds", () => {
-		expect(contextLabel([aType("Email", [{ predicate: "subject", operator: "contains", value: "invoice" }])], { label: "Email", total: counted(12), folder: "INBOX" })).toBe(
-			"Email: 12 in INBOX",
-		);
+		expect(contextLabel([aType("Email", 'subject some xsd:string[pattern "invoice"]')], { label: "Email", total: counted(12), folder: "INBOX" })).toBe("Email: 12 in INBOX");
 	});
 
 	it("labels a count that stopped at its ceiling as a floor", () => {
-		expect(contextLabel([aType("Email", [])], { label: "Email", total: countedTo(CEILING, CEILING) })).toBe(`Email: ${statedTotal(countedTo(CEILING, CEILING))}`);
+		expect(contextLabel([aType("Email")], { label: "Email", total: countedTo(CEILING, CEILING) })).toBe(`Email: ${statedTotal(countedTo(CEILING, CEILING))}`);
 	});
 
 	it("names a type by the type itself where the view doesn't offer a summary; a schema view doesn't offer one", () => {
-		expect(contextLabel([aType("Email", [])])).toBe("Email:");
+		expect(contextLabel([aType("Email")])).toBe("Email:");
 	});
 
 	it("is All without a selection, since the bar then acts on everything", () => {
@@ -34,7 +32,7 @@ describe("what the bar calls the current context", () => {
 
 	it("distinguishes a selection of records from a type to query", () => {
 		expect(isEntitySelection([anIndividual("Email", "msg-1"), anIndividual("Email", "msg-2")])).toBe(true);
-		expect(isEntitySelection([aType("Email", [])])).toBe(false);
+		expect(isEntitySelection([aType("Email")])).toBe(false);
 		expect(isEntitySelection([])).toBe(false);
 	});
 });

@@ -46,6 +46,7 @@ import { quantifierOf, statementList, statementParams, UNTIL_RETRY_MS, type TRef
 import { atom, factsTerm, list, whyText } from "../derivations/terms.js";
 import type { TLogicEngine, TReasoner } from "../ports.js";
 import { containment } from "./containment.js";
+import { entailedMembers } from "./members.js";
 import { canonicalOf, readerOf } from "./reads.js";
 
 /** A node of a line's proof: the step it states, and the variable a quantifier binds. */
@@ -487,6 +488,7 @@ const WitnessProductsSchema = z.object({ witness: ClaimWitnessSchema });
 export function proverOf(engine: TLogicEngine, reasoner: TReasoner): TProver {
 	return {
 		exceeding: async (candidate, bound) => (await containment(reasoner, candidate, bound)).exceeds,
+		entailed: (world, expression) => entailedMembers(reasoner, world.shared.getStore(), world.domains, world.runtime.records, expression),
 		prove: async (ctx, line) => {
 			const proof = new Proof(ctx, line);
 			let term: string;

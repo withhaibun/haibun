@@ -16,7 +16,7 @@ import { html } from "lit";
 import { timeCursor } from "../controllers/page-cell-controller.js";
 import { setupShuTest, storeFields, type TShuTestHandle } from "../../test/setup.js";
 import { PAGE_SETTING_KEY } from "../domains/settings.js";
-import { actualityStore } from "../client-cache/actuality-store.test-fake.js";
+import { ACTUALITY_RELS, actualityStore } from "../client-cache/actuality-store.test-fake.js";
 import { SHU_TAG } from "../../domains/elements.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/domains/log-message.js";
@@ -68,7 +68,7 @@ async function anActuality(records: Array<Record<string, unknown>>, said: Array<
 	for (const record of said) await store.upsertIndividual(LOG_MESSAGE_LABEL, record);
 	for (const record of produced) await store.upsertIndividual(RUN_ARTIFACT_LABEL, record);
 	installGraph(store);
-	declareGraphSpec({ types: [SEQ_PATH_LABEL, LOG_MESSAGE_LABEL, RUN_ARTIFACT_LABEL], ui: SEQ_PATH_OPENS });
+	declareGraphSpec({ types: [SEQ_PATH_LABEL, LOG_MESSAGE_LABEL, RUN_ARTIFACT_LABEL], rels: ACTUALITY_RELS, ui: SEQ_PATH_OPENS });
 }
 
 describe("the views of a run, over the records it wrote", () => {
@@ -226,7 +226,7 @@ describe("the views of a run, over the records it wrote", () => {
 
 	it("records the step that showed a view, and doesn't open a copy of that view in the manual", async () => {
 		await anActuality([stepRecord(1), stepRecord(2, { stepText: "show the graph", called: "TestStepper.showGraph", showed: "test-view" })]);
-		declareGraphSpec({ types: [SEQ_PATH_LABEL], ui: { ...SEQ_PATH_OPENS, "test-view": { component: "test-view-element" } } });
+		declareGraphSpec({ types: [SEQ_PATH_LABEL], rels: ACTUALITY_RELS, ui: { ...SEQ_PATH_OPENS, "test-view": { component: "test-view-element" } } });
 		const doc = await open(ShuDocumentColumn);
 		expect(doc.shadowRoot?.textContent).toContain("show the graph");
 		expect(doc.shadowRoot?.querySelector("shu-product-view"), "a manual records what a step showed; what that view looked like is actuality's own screenshot").toBeNull();

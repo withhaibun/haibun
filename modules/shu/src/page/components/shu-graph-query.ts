@@ -13,9 +13,8 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { CountedSchema, MAX_PAGE_ROWS, counted, viewCollection, type TCounted } from "@haibun/core/lib/domains/hypermedia.js";
 import { QueryViewSchema } from "../../domains/schemas.js";
 import { anIndividual, aType, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
-import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { typeNotHeld, viewQuery } from "../controllers/view-query-controller.js";
-import type { THeldTypeLink, TViewQuery } from "../domains/view-query.js";
+import type { TAccessQueryLevel, THeldTypeLink, TViewQuery } from "../domains/view-query.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { shuBaseStyles } from "./styles.js";
 import type { ShuResultTable } from "./shu-result-table.js";
@@ -92,7 +91,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	/** The links a refusal offers: the query of each type actuality holds, where the address names a type it doesn't hold. */
 	#remedies: THeldTypeLink[] = [];
 
-	// The query (type, search, sort, page, access, filters) IS the hash-backed viewQuery store: the single,
+	// The query (type, search, sort, page, access, expression) IS the hash-backed viewQuery store: the single,
 	// schema-validated, reload-safe source of truth. These getters read it; writes call viewQuery.set().
 	private get qLabel(): string | undefined {
 		return viewQuery.signals.label.get() ?? undefined;
@@ -106,10 +105,10 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	private get qOrder(): "asc" | "desc" {
 		return viewQuery.signals.order.get();
 	}
-	private get qConditions(): TSearchCondition[] {
-		return viewQuery.signals.f.get();
+	private get qExpression(): string | undefined {
+		return viewQuery.signals.x.get() ?? undefined;
 	}
-	private get qAccess(): string {
+	private get qAccess(): TAccessQueryLevel {
 		return viewQuery.signals.access.get();
 	}
 	private get qOffset(): number {
@@ -163,7 +162,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	}
 
 	/** Apply filters from the actions bar and re-execute the query. */
-	setFilters(filters: { readLevel?: string; label?: string; textQuery?: string; conditions?: TSearchCondition[] }): void {
+	setFilters(filters: { readLevel?: string; label?: string; textQuery?: string; expression?: string }): void {
 		const patch: Partial<TViewQuery> = { offset: 0 }; // any filter change resets pagination
 		if (filters.readLevel !== undefined) patch.access = filters.readLevel as TViewQuery["access"];
 		if (filters.label !== undefined) {
@@ -173,7 +172,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			if ((filters.label || null) !== (this.qLabel ?? null)) patch.sort = null;
 		}
 		if (filters.textQuery !== undefined) patch.q = filters.textQuery || null;
-		if (filters.conditions) patch.f = filters.conditions;
+		if (filters.expression !== undefined) patch.x = filters.expression || null;
 		viewQuery.set(patch);
 		void this.executeQuery();
 	}
@@ -192,22 +191,22 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		this.dispatchContextChange();
 	}
 
-	/** What this view shows: the selected rows as records of the queried type, else the type narrowed by its conditions. */
+	/** What this view shows: the selected rows as records of the queried type, else the type narrowed by its expression. */
 	override paneSubject(): TContextPattern[] | null {
 		const label = this.qLabel;
 		if (!label) return null;
-		return this.selectedIds.size > 0 ? [...this.selectedIds].map((id) => anIndividual(label, id)) : [aType(label, this.qConditions)];
+		return this.selectedIds.size > 0 ? [...this.selectedIds].map((id) => anIndividual(label, id)) : [aType(label, this.qExpression)];
 	}
 
 	private dispatchContextChange(): void {
 		// Selected rows are records of the label this query ran under, so each is named by that pair; where a row isn't selected,
-		// the ask is about the queried type itself, narrowed by whatever the filter rows carry.
-		const conditions = this.qConditions.filter((c) => c.predicate && c.value);
+		// the ask is about the queried type itself, narrowed by the search's expression.
+		const expression = this.qExpression;
 		const patterns: TContextPattern[] = this.paneSubject() ?? [];
 
 		this.dispatchEvent(
 			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
-				detail: { patterns, readLevel: this.qAccess, total: this.#counted, label: this.qLabel, textQuery: this.qText, labels: this.labels, conditions },
+				detail: { patterns, readLevel: this.qAccess, total: this.#counted, label: this.qLabel, textQuery: this.qText, labels: this.labels, expression },
 				bubbles: true,
 				composed: true,
 			}),
@@ -255,11 +254,8 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		const sortBy = this.qSort;
 		const sortOrder = this.qOrder;
 
-		const validConditions = this.qConditions
-			.filter((c) => c.predicate && c.value)
-			.map((c) => ({ predicate: c.predicate, operator: c.operator, value: c.value, ...(c.operator === "between" && c.value2 ? { value2: c.value2 } : {}) }));
-
-		const queryKey = JSON.stringify({ label, textQuery, conditions: validConditions, sortBy: sortBy || "", sortOrder, offset: this.qOffset, limit: this.limit });
+		const expression = this.qExpression;
+		const queryKey = JSON.stringify({ label, textQuery, expression, sortBy: sortBy || "", sortOrder, offset: this.qOffset, limit: this.limit });
 		// Coalesce concurrent identical fires (e.g. hashchange + initial connect).
 		if (this.inflightPromise && this.lastQueryKey === queryKey) return this.inflightPromise;
 		const resultsChanged = queryKey !== this.lastQueryKey;
@@ -283,7 +279,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 				const payload = {
 					accessLevel: this.qAccess,
 					label,
-					filters: validConditions,
+					...(expression === undefined ? {} : { expression }),
 					textQuery: textQuery || undefined,
 					...(sortBy ? { sortBy } : {}),
 					sortOrder,

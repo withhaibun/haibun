@@ -267,7 +267,20 @@ is unknown.
 declared `@type` IRI and its superclasses as superclasses, and each link relation with the union of the classes that declare it
 as its domain and the union of the classes it reaches as its range. `show axioms of {view}` states each term's axioms in DL
 notation (`modules/core/src/lib/records/derivations/axioms.ts`). `individuals of {expression}` returns the records a class
-expression in Manchester syntax entails as its members (`modules/logic/src/pipelines/members.ts`); others may exist.
+expression in Manchester syntax entails as its members (`modules/logic/src/pipelines/members.ts`); others may exist. Each field
+and edge of a type is a property of its own, `<vocabulary>:<label>.<field>`, a subproperty of its relation, in the vocabulary
+that defines the type's terms (haibun's, or the one a type names as its `vocabulary`), unless it declares a standard term or is
+named for its relation; so two fields that share a relation stay apart, and a read of the relation reaches both.
+
+A class expression is the one filter language of records. Core reads it (`modules/core/src/lib/records/derivations/class-expression.ts`,
+each reader citing its production of the W3C OWL 2 Manchester Syntax grammar) and compiles the part a store's index runs to the
+store's filters (`compiled-expression.ts`): a named type, a field's or a relation's `value`, an `or` of one property's values,
+the facets `>=`, `>`, `<=` and `<`, and a `pattern` of plain text as `contains`. The reasoner reads the rest: a subclass, `some`
+over a relation, `inverse`, a field the type doesn't compare, a pattern that isn't plain text. A caller states a graph query's
+records as an expression (`RecordQuerySchema`), never as filters; `readRecordQuery` compiles it, narrows a read to the members
+the reasoner entails where a part needs entailment, and the page states where each part ran (`ran`). The page sends an
+expression's text, and builds the expressions of its own reads as parts, which the graph it holds compiles where the site
+doesn't respond. A list combinator's filter reaches a graph query's read as a conjunct of its expression.
 
 GraphSourceStepper's `show axioms of {view}` returns the axioms of what a graph view shows under its filters, its limits
 and its time cursor: an individual frame for each record with its class and facts, a class frame for each type, and a property

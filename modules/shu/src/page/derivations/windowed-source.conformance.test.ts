@@ -12,7 +12,7 @@ import { arrayWindowedSource, lazyWindowedSource, MAX_RESIDENT_PAGES, readWindow
 import { describeWindowedSource, CONFORMANCE_ROWS } from "../../test/windowed-source-conformance.js";
 import { installGraph } from "../client-cache/controllers/device-controller.js";
 import { setupShuTest } from "../../test/setup.js";
-import { actualityStore } from "../client-cache/actuality-store.test-fake.js";
+import { ACTUALITY_RELS, actualityStore } from "../client-cache/actuality-store.test-fake.js";
 import { graphActualitySource } from "../client-cache/controllers/actuality-controller.js";
 import { endPage } from "../adapters/page-held.js";
 
@@ -66,7 +66,7 @@ describeWindowedSource("the window of a run", async () => {
 			throw new ServerUnreachable("/rpc", new Error("this specification reads the records, not a server"));
 		},
 	});
-	declareGraphSpec({ types: [SEQ_PATH_LABEL, LOG_MESSAGE_LABEL, RUN_ARTIFACT_LABEL] });
+	declareGraphSpec({ types: [SEQ_PATH_LABEL, LOG_MESSAGE_LABEL, RUN_ARTIFACT_LABEL], rels: ACTUALITY_RELS });
 	const store = actualityStore();
 	for (let i = 0; i < CONFORMANCE_ROWS; i++) {
 		await store.upsertIndividual(SEQ_PATH_LABEL, {

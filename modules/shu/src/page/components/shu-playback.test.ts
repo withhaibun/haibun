@@ -12,7 +12,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ShuPlayback } from "./shu-playback.js";
 import { timeCursor } from "../controllers/page-cell-controller.js";
 import { setupShuTest, type TShuTestHandle } from "../../test/setup.js";
-import { actualityStore } from "../client-cache/actuality-store.test-fake.js";
+import { ACTUALITY_RELS, actualityStore } from "../client-cache/actuality-store.test-fake.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { currentActualityFeature, installGraph, readActualityFeature } from "../client-cache/controllers/device-controller.js";
 import { graphActualitySource } from "../client-cache/controllers/actuality-controller.js";
@@ -37,7 +37,7 @@ async function anActuality(): Promise<void> {
 			generatedAtTime: new Date(at).toISOString(),
 		});
 	installGraph(store);
-	declareGraphSpec({ types: [SEQ_PATH_LABEL] });
+	declareGraphSpec({ types: [SEQ_PATH_LABEL], rels: ACTUALITY_RELS });
 }
 
 let shu: TShuTestHandle;
