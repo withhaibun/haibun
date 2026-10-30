@@ -3,11 +3,13 @@
  * what an earlier one stated or left part-way, and a session on the reused runtime takes a fraction of a runtime's start.
  */
 import { createServer } from "node:http";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { DataFactory } from "n3";
 import { REASONER_BUILTIN, RULE_SET } from "../domains/reasoning.js";
 import type { TReasoner } from "../ports.js";
 import { eyeReasoner } from "./eye.js";
+import { piscinaPool } from "@haibun/core/lib/workers/adapters/piscina-pool.js";
+import type { IWorkerPool } from "@haibun/core/lib/workers/ports.js";
 import { ruleLibrary } from "./rule-library.js";
 
 const PREFIXES = `@prefix : <urn:x:> . @prefix h: <urn:haibun:> . @prefix log: <http://www.w3.org/2000/10/swap/log#> .\n`;
@@ -63,53 +65,68 @@ async function outcomeOf(reasoner: Pick<TReasoner, "session">, { sources, query,
 	}
 }
 
+/** How long a test's pool holds an idle worker. */
+const TEST_IDLE_MS = 100;
+/** A reasoner over a worker pool of its own, whose worker starts a runtime of its own, and the pool, which the test closes. */
+async function withFreshRuntime<T>(use: (reasoner: Pick<TReasoner, "session">, pool: IWorkerPool) => Promise<T>): Promise<T> {
+	const pool = piscinaPool(TEST_IDLE_MS);
+	try {
+		return await use(eyeReasoner(pool), pool);
+	} finally {
+		await pool.close();
+	}
+}
+const freshOutcomeOf = (session: TSession) => withFreshRuntime((reasoner) => outcomeOf(reasoner, session));
+
 describe("a reused EYE runtime", () => {
 	it("gives each session the outcome a runtime of its own gives, over sessions that fail and throw part-way", { timeout: 120_000 }, async () => {
-		const reused = eyeReasoner();
-		for (const session of SESSIONS) expect(await outcomeOf(reused, session), session.name).toEqual(await outcomeOf(eyeReasoner(), session));
+		await withFreshRuntime(async (reused) => {
+			for (const session of SESSIONS) expect(await outcomeOf(reused, session), session.name).toEqual(await freshOutcomeOf(session));
+		});
 	});
 
 	it("doesn't show a session what an earlier session stated, read or named", { timeout: 60_000 }, async () => {
-		const reused = eyeReasoner();
-		const forward = await outcomeOf(reused, FORWARD);
-		await outcomeOf(reused, OTHER);
-		expect(await outcomeOf(reused, FORWARD)).toEqual(forward);
-		expect(await outcomeOf(reused, ABSENCE)).toEqual({ derived: "<urn:x:a> <urn:x:unheld> true." });
-		const read = await outcomeOf(reused, READ);
-		await outcomeOf(reused, THROWN);
-		expect(await outcomeOf(reused, READ)).toEqual(read);
-		expect(await outcomeOf(reused, OTHER), "a blank node a session names starts from the same label").toEqual(await outcomeOf(eyeReasoner(), OTHER));
+		await withFreshRuntime(async (reused) => {
+			const forward = await outcomeOf(reused, FORWARD);
+			await outcomeOf(reused, OTHER);
+			expect(await outcomeOf(reused, FORWARD)).toEqual(forward);
+			expect(await outcomeOf(reused, ABSENCE)).toEqual({ derived: "<urn:x:a> <urn:x:unheld> true." });
+			const read = await outcomeOf(reused, READ);
+			await outcomeOf(reused, THROWN);
+			expect(await outcomeOf(reused, READ)).toEqual(read);
+			expect(await outcomeOf(reused, OTHER), "a blank node a session names starts from the same label").toEqual(await freshOutcomeOf(OTHER));
+		});
 	});
 
 	it("serves a session in a fraction of a runtime's start", { timeout: 120_000 }, async () => {
-		const reused = eyeReasoner();
-		await outcomeOf(reused, FORWARD);
-		const timed = async (reasonerOf: () => Pick<TReasoner, "session">): Promise<number> => {
-			const start = performance.now();
-			for (let at = 0; at < 5; at++) await outcomeOf(reasonerOf(), FORWARD);
-			return performance.now() - start;
-		};
-		const fresh = await timed(eyeReasoner);
-		const onReused = await timed(() => reused);
-		expect(onReused * 3, `5 sessions took ${onReused.toFixed(0)} ms on the reused runtime and ${fresh.toFixed(0)} ms on fresh runtimes`).toBeLessThan(fresh);
+		await withFreshRuntime(async (reused) => {
+			await outcomeOf(reused, FORWARD);
+			const timed = async (outcome: () => Promise<unknown>): Promise<number> => {
+				const start = performance.now();
+				for (let at = 0; at < 5; at++) await outcome();
+				return performance.now() - start;
+			};
+			const fresh = await timed(() => freshOutcomeOf(FORWARD));
+			const onReused = await timed(() => outcomeOf(reused, FORWARD));
+			expect(onReused * 3, `5 sessions took ${onReused.toFixed(0)} ms on the reused runtime and ${fresh.toFixed(0)} ms on fresh runtimes`).toBeLessThan(fresh);
+		});
 	});
 
-	it("runs a session started within a session at once on a runtime of the next depth, and drops that runtime once it is idle", { timeout: 60_000 }, async () => {
-		vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-		try {
-			const reasoner = eyeReasoner();
+	it("runs a session started within a session at once in another worker, and releases that worker once it is idle", { timeout: 60_000 }, async () => {
+		await withFreshRuntime(async (reasoner, pool) => {
+			// The outer session waits on its read while the nested session runs.
 			const outer = await reasoner.session(async (session) => {
-				await session.start(FORWARD.sources, FORWARD.query, false);
+				await session.start(READ.sources, READ.query, false);
 				const nested = await outcomeOf(reasoner, OTHER);
-				return { nested, held: reasoner.runtimes() };
+				const held = pool.threads();
+				await session.resume(ROWS);
+				return { nested, held };
 			});
-			expect(outer.nested).toEqual(await outcomeOf(eyeReasoner(), OTHER));
-			expect(outer.held, "the outer depth's runtime and the nested depth's").toBe(2);
-			await vi.runAllTimersAsync();
-			expect(reasoner.runtimes(), "the outer depth's runtime alone").toBe(1);
-		} finally {
-			vi.useRealTimers();
-		}
+			expect(outer.nested).toEqual(await freshOutcomeOf(OTHER));
+			expect(outer.held, "the outer session's worker and the nested session's").toBe(2);
+			await new Promise((idled) => setTimeout(idled, TEST_IDLE_MS * 10));
+			expect(pool.threads(), "the pool releases its idle workers").toBe(0);
+		});
 	});
 
 	it("leaves the process responding to a request while a large session computes in the worker", { timeout: 120_000 }, async () => {
@@ -122,7 +139,7 @@ describe("a reused EYE runtime", () => {
 		try {
 			if (address === null || typeof address === "string") throw new Error("the test's server doesn't state its port");
 			let sessionEnded = false;
-			const computing = outcomeOf(eyeReasoner(), { name: "a closure of 80 links", sources, query: select(":n0 :reaches ?o") }).finally(() => {
+			const computing = freshOutcomeOf({ name: "a closure of 80 links", sources, query: select(":n0 :reaches ?o") }).finally(() => {
 				sessionEnded = true;
 			});
 			const responded = await (await fetch(`http://127.0.0.1:${address.port}/`)).text();

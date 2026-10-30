@@ -4,6 +4,7 @@
  * process waits its turn at the same reasoner, whose one runtime serves each session.
  */
 import { eyeReasoner } from "./adapters/eye.js";
+import { workerPool } from "@haibun/core/lib/workers/adapters/piscina-pool.js";
 import { ruleLibrary } from "./adapters/rule-library.js";
 import { startSwipl } from "./adapters/swipl.js";
 import type { TLogicEngine, TReasoner } from "./ports.js";
@@ -19,6 +20,6 @@ export const logicEngine = (): Promise<TLogicEngine> => {
 
 /** Returns the process's reasoner, making it on the first request. */
 export const reasoner = (): TReasoner => {
-	if (reasoning === undefined) reasoning = { ...eyeReasoner(), rules: ruleLibrary() };
+	if (reasoning === undefined) reasoning = { ...eyeReasoner(workerPool()), rules: ruleLibrary() };
 	return reasoning;
 };

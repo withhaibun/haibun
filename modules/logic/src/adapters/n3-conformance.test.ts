@@ -10,6 +10,7 @@ import { quadsOf } from "../derivations/n3.js";
 import { neededBy } from "../domains/reasoning.js";
 import type { TLogicEngine, TReasoner } from "../ports.js";
 import { eyeReasoner } from "./eye.js";
+import { workerPool } from "@haibun/core/lib/workers/adapters/piscina-pool.js";
 import { startSwipl } from "./swipl.js";
 
 /** The query that selects every triple that states a node or a call proved. */
@@ -80,7 +81,7 @@ describe("the engine's readings in N3", () => {
 	let reasoner: Pick<TReasoner, "session">;
 	beforeAll(async () => {
 		engine = await startSwipl();
-		reasoner = eyeReasoner();
+		reasoner = eyeReasoner(workerPool());
 	});
 
 	it.each(PROOFS)("EYE derives the nodes the engine proves: %s", { timeout: 30_000 }, async (_, term, calls) => {

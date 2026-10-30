@@ -28,6 +28,7 @@ import { PhaseRunner, PhaseBailError } from "@haibun/core/lib/PhaseRunner.js";
 import { withName } from "@haibun/core/lib/domains/features.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { configFileFrom, DOTENV, getConfigFromBase, readsDotenv } from "./specl.js";
+import { LOOP_BLOCK_WARN_MS, type TLoopWatch } from "@haibun/core/lib/domains/event-loop.js";
 import type { TCliPorts, TConfigFiles } from "../ports.js";
 import { GROUP_OPTIONS } from "../domains/groups.js";
 import { runGroups } from "./groups.js";
@@ -59,6 +60,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv, ports: TCli
 	let world: TWorld | undefined;
 	let protoOptions: TProtoOptions | undefined;
 	let verification: ReturnType<TCliPorts["actualities"]["verificationOf"]>;
+	let loop: TLoopWatch | undefined;
 
 	try {
 		const pr = new PhaseRunner();
@@ -67,6 +69,12 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv, ports: TCli
 
 		world = getCliWorld(protoOptions, bases, ports);
 		pr.world = world;
+		const warnedWorld = world;
+		loop = ports.eventLoop((heldMs) =>
+			warnedWorld.eventLogger.warn(
+				`the event loop was held for ${heldMs} ms, past ${LOOP_BLOCK_WARN_MS} ms, so the process didn't respond meanwhile: a synchronous path ran on it`,
+			),
+		);
 		const policyConfig = resolveRunPolicy(parsed.policyConfig, protoOptions, specl, ports.fs);
 		const featureFilter = parsed.params[1] ? parsed.params[1].split(",") : undefined;
 
@@ -116,7 +124,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv, ports: TCli
 		if (verification && result.featureResults.length === 0) ports.actualities.forgetOutcome(verification);
 		else if (verification) ports.actualities.recordActuality(verification, result, world.runtime.levels);
 
-		await reportAndExit(result, world, protoOptions, ports);
+		await reportAndExit(result, world, protoOptions, ports, loop);
 	} catch (error) {
 		// A PhaseBailError carries a result to report. Any other error ends the process with exit code 1.
 		if (error instanceof PhaseBailError) {
@@ -128,7 +136,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv, ports: TCli
 				if (failure?.error.details) console.error("Additional details:", failure.error.details);
 				process.exit(1);
 			}
-			return await reportAndExit(error.result, world, protoOptions, ports);
+			return await reportAndExit(error.result, world, protoOptions, ports, loop);
 		}
 
 		const message = PhaseRunner.formatError(error);
@@ -194,8 +202,12 @@ function dryRunExit(featuresBackgrounds: TFeaturesBackgrounds, policyConfig?: TR
 	process.exit(0);
 }
 
-async function reportAndExit(executorResult: TExecutorResult, world: TWorld, protoOptions: TProtoOptions, ports: TCliPorts): Promise<never> {
+async function reportAndExit(executorResult: TExecutorResult, world: TWorld, protoOptions: TProtoOptions, ports: TCliPorts, loop: TLoopWatch | undefined): Promise<never> {
 	const showSummary = world.eventLogger.suppressConsole;
+	if (loop !== undefined) {
+		const { maxMs, p99Ms, blocked } = loop.summary();
+		world.eventLogger.info(`the event loop's delay: ${maxMs} ms at most, ${p99Ms} ms at the 99th percentile, and ${blocked} stretches past ${LOOP_BLOCK_WARN_MS} ms`);
+	}
 
 	const { featureResults } = executorResult;
 	const failed = featureResults.filter(({ ok }) => !ok).length;

@@ -1,30 +1,36 @@
 /**
- * The reasoner's adapter: EYE (MIT) compiled for swipl-wasm 8.2.3, whose runtimes run in a worker thread (`eye-worker.ts`), so a
- * session's computation doesn't hold this process's event loop. One runtime serves every session at a depth, and the reset after
- * each session returns it to what it held before its first session: each predicate and its clauses, the gensym counters that name
- * blank nodes, the tables, the Prolog flags and the files. A runtime whose reset fails is dropped, so the next session starts a
- * runtime of its own. `snapshot/1` would discard the clauses `main` changes, but an engine doesn't yield inside it, so the read
+ * The reasoner's adapter: EYE (MIT) compiled for swipl-wasm 8.2.3, whose sessions run as tasks of core's worker pool
+ * (`eye-task.ts`), so a session's computation doesn't hold this process's event loop. A worker's runtime serves each session the
+ * worker runs, and the reset after each session returns it to what it held before its first session: each predicate and its
+ * clauses, the gensym counters that name blank nodes, the tables, the Prolog flags and the files. A runtime whose reset fails is
+ * dropped, so the worker's next session starts a runtime of its own. `snapshot/1` would discard the clauses `main` changes, but an engine doesn't yield inside it, so the read
  * built-in couldn't run. Sessions run one at a time in the order they start, which bounds the memory and the processor time
  * reasoning takes. A session runs EYE in a Prolog engine. The read and effect built-ins yield their request from the engine, which
  * crosses to this process as a message, and continue with the rows the host posts. A built-in also runs during scoped negation,
  * outside the engine, where it fails. A session started within an effect of a session, such as a waypoint's proof that reaches a
- * step whose statements apply a waypoint, runs at once on a runtime of the next depth, since the engines of one runtime share its
- * clauses; a runtime of a nested depth is started on demand and dropped once it is idle.
+ * step whose statements apply a waypoint, runs at once in another worker, since the engines of one runtime share its clauses; the
+ * pool releases a worker once it is idle.
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createRequire } from "node:module";
-import { Worker } from "node:worker_threads";
 import { DataFactory } from "n3";
 import { z } from "zod";
 import type { Term } from "@rdfjs/types";
 import { XSD } from "@haibun/core/lib/domains/vocabularies.js";
 import { REASONER_BUILTIN, type TReasonerState, type TReasonerValue } from "../domains/reasoning.js";
 import type { TReasoner, TReasonerSession } from "../ports.js";
-import type { TEyeReply, TEyeRequest } from "./eye-worker.js";
+import type { IWorkerPool } from "@haibun/core/lib/workers/ports.js";
+import { siblingModule, type TWorkerTask } from "@haibun/core/lib/workers/domains/worker-task.js";
+import { EyeSessionSchema, EyeSteppedSchema } from "./eye-task.js";
 
 const EYE_SOURCE = "@haibun/logic/eye.qlf";
-/** The worker's module beside this one: its source where this module runs as its source, and else its build. */
-const WORKER = new URL(import.meta.url.endsWith(".ts") ? "./eye-worker.ts" : "./eye-worker.js", import.meta.url);
+/** A session of EYE as a task of the worker pool. */
+const EYE_TASK: TWorkerTask<z.infer<typeof EyeSessionSchema>, TStepped> = {
+	name: "an EYE session",
+	module: siblingModule(import.meta.url, "eye-task"),
+	input: EyeSessionSchema,
+	output: EyeSteppedSchema,
+};
 /** The read built-in, which yields the subject and the predicate and binds its object to each row the host posts; the effect
  *  built-in, which yields its request and binds its outcome to the row the host posts; the record of
  *  each predicate, its clauses and each Prolog flag a runtime holds before its first session; and the reset to that record. EYE's
@@ -44,8 +50,6 @@ restore(H, Cs, Refs) :- retractall(user:H), forall(member(H-B, Cs), assertz(user
 reset_runtime :- forall((current_predicate(user:N/A), \\+ held_predicate(N/A)), abolish(user:N/A)), forall(held_clauses(H, Cs, Refs), restore(H, Cs, Refs)),
 \treset_gensym, abolish_all_tables, forall((held_flag(F, V), current_prolog_flag(F, W), W \\== V), set_prolog_flag(F, V)).
 `;
-/** How long a runtime of a nested depth is held after its last session, for the next session at its depth. */
-const NESTED_IDLE_MS = 30_000;
 /** The depth of the session whose effect runs now, where one does. */
 const nesting = new AsyncLocalStorage<number>();
 /** The datatypes EYE holds as Prolog numbers and booleans, in place of `literal/2`. */
@@ -90,56 +94,11 @@ function reasonerValueOf(term: TProlog): TReasonerValue {
 	throw new Error(`EYE yielded ${JSON.stringify(term)}, which isn't an IRI, a literal, a number or a list. Check the rules of the session.`);
 }
 
-/** A depth's runtime: its key in the worker, whether it started, the turn its next session waits for, how many sessions wait or
- *  run, and the timer that drops a nested depth's runtime once it is idle. */
-type TDepth = { key: string; started: boolean; turn: Promise<unknown>; waiting: number; idle?: ReturnType<typeof setTimeout> };
-/** What a step of EYE's engine returned in the worker, with what EYE printed and reported. */
-type TStepped = Extract<TEyeReply, { answer: unknown }>;
-type TRequest = TEyeRequest extends infer R ? (R extends TEyeRequest ? Omit<R, "id"> : never) : never;
-
-/** The worker that holds every reasoner's runtimes, started on the first request; it holds the process open only while a
- *  request waits for its reply. */
-const eyeWorker = (() => {
-	let worker: Worker | undefined;
-	let next = 0;
-	const pending = new Map<number, { resolve: (reply: TEyeReply) => void; reject: (err: Error) => void }>();
-	const started = (): Worker => {
-		if (worker !== undefined) return worker;
-		const workerData = { program: createRequire(import.meta.url).resolve(EYE_SOURCE), builtins: BUILTINS };
-		const opened = new Worker(WORKER, { workerData });
-		opened.unref();
-		opened.on("message", (reply: TEyeReply) => {
-			const waiting = pending.get(reply.id);
-			pending.delete(reply.id);
-			if (pending.size === 0) opened.unref();
-			if ("failed" in reply) waiting?.reject(new Error(reply.failed));
-			else waiting?.resolve(reply);
-		});
-		// A worker that stops ends each request it held, and the next request starts a worker of its own.
-		const stopped = (err: Error) => {
-			worker = undefined;
-			for (const { reject } of pending.values()) reject(err);
-			pending.clear();
-		};
-		opened.on("error", stopped);
-		opened.on("exit", (code) => stopped(new Error(`EYE's worker stopped with ${code}. A session that held a request was ended; the next session starts a worker of its own.`)));
-		worker = opened;
-		return opened;
-	};
-	return (body: TRequest): Promise<TEyeReply> =>
-		new Promise((resolve, reject) => {
-			const running = started();
-			next += 1;
-			pending.set(next, { resolve, reject });
-			running.ref();
-			running.postMessage({ ...body, id: next });
-		});
-})();
+/** What a step of EYE's engine returned in a worker, with what EYE printed and reported. */
+type TStepped = z.infer<typeof EyeSteppedSchema>;
 
 /** The state an engine step returned: the read or the effect it needs, or the text EYE printed once it ended. */
-function stateOf(reply: TEyeReply): TReasonerState {
-	if (!("answer" in reply)) throw new Error(`EYE's worker ended a session where a step of its engine was requested. Check the adapter of the reasoner.`);
-	const { answer, printed, errors }: TStepped = reply;
+function stateOf({ answer, printed, errors }: TStepped): TReasonerState {
 	if (answer === "done") return { derived: printed.join("\n") };
 	const need = NeedSchema.safeParse(answer);
 	const [kind, ...request] = need.success ? need.data.need[0] : [];
@@ -151,80 +110,66 @@ function stateOf(reply: TEyeReply): TReasonerState {
 	throw new Error(`EYE ended with ${JSON.stringify(answer)}: ${errors.join("\n")}. Check the rules and the query of the session.`);
 }
 
-/** How many reasoners this process started, which names each one's runtimes in the worker. */
-let reasoners = 0;
+/** The rows of a need its caller doesn't read, as Prolog's text. */
+const EMPTY_ROWS = "[]";
+/** A value its holder settles once, from outside the promise. */
+const settled = <T>() => Promise.withResolvers<T>();
 
-/** Returns the reasoner, with how many runtimes it holds. A depth's runtime starts on its first session, and each session runs
- *  once the sessions before it at its depth ended. */
-export function eyeReasoner(): Pick<TReasoner, "session"> & { runtimes: () => number } {
-	reasoners += 1;
-	const named = reasoners;
-	const depths = new Map<number, TDepth>();
-	const depthAt = (depth: number): TDepth => {
-		const held = depths.get(depth);
-		if (held !== undefined) return held;
-		const started: TDepth = { key: `${named}:${depth}`, started: false, turn: Promise.resolve(), waiting: 0 };
-		depths.set(depth, started);
-		return started;
-	};
-	/** Counts a session's end, and drops a nested depth's runtime once it is idle for `NESTED_IDLE_MS`. */
-	const ended = (at: TDepth, depth: number): void => {
-		at.waiting -= 1;
-		if (depth === 0 || at.waiting > 0) return;
-		at.idle = setTimeout(() => {
-			if (at.waiting !== 0 || depths.get(depth) !== at) return;
-			depths.delete(depth);
-			void eyeWorker({ op: "drop", runtime: at.key });
-		}, NESTED_IDLE_MS);
-		at.idle.unref();
-	};
-	const session = async <T>(at: TDepth, depth: number, run: (held: TReasonerSession) => Promise<T>): Promise<T> => {
-		const runtime = at.key;
-		let started = false;
-		/** Ends a started session; the worker drops a runtime whose reset failed, so the next session starts one of its own. */
-		const reset = async (): Promise<unknown> => {
-			if (!started) return undefined;
-			try {
-				await eyeWorker({ op: "end", runtime });
-				return undefined;
-			} catch (err) {
-				return err;
-			}
-		};
-		let result: T;
-		try {
-			result = await nesting.run(depth, () =>
-				run({
-					start: async (sources, query, explained) => {
-						const stepped = await eyeWorker({ op: "start", runtime, sources, query, explained });
-						started = true;
-						at.started = true;
-						return stateOf(stepped);
-					},
-					resume: async (rows) => {
-						if (!started) throw new Error("a session resumed before it started. Start the session with its sources and query first.");
-						return stateOf(await eyeWorker({ op: "resume", runtime, rows: `[${rows.map(prologOf).join(", ")}]` }));
-					},
-				}),
-			);
-		} catch (err) {
-			const failure = await reset();
-			throw failure === undefined ? err : new AggregateError([err, failure], "a session threw, and EYE's runtime wasn't reset after it");
-		}
-		const failure = await reset();
-		if (failure !== undefined) throw failure;
-		return result;
-	};
+/** Runs a session as a task of the worker pool, which its caller steps through: the start returns the state of the engine's first
+ *  step, and each resume posts the rows of the need before it and returns the state of the next. */
+async function pooledSession<T>(pool: IWorkerPool, run: (held: TReasonerSession) => Promise<T>): Promise<T> {
+	const program = createRequire(import.meta.url).resolve(EYE_SOURCE);
+	let next = settled<TReasonerState>();
+	let rows: PromiseWithResolvers<string> | undefined;
+	let task: Promise<unknown> | undefined;
+	/** Whether the caller returned or threw: the session's further needs then read empty rows, so its task ends. */
+	let abandoned = false;
+	try {
+		return await run({
+			start: (sources, query, explained) => {
+				if (task !== undefined) throw new Error("a session started twice. Start a session of its own for each query.");
+				task = pool
+					.run(EYE_TASK, { program, builtins: BUILTINS, sources, query, explained }, (stepped) => {
+						if (abandoned) return Promise.resolve(EMPTY_ROWS);
+						next.resolve(stateOf(EyeSteppedSchema.parse(stepped)));
+						rows = settled<string>();
+						return rows.promise;
+					})
+					.then(
+						(stepped) => next.resolve(stateOf(stepped)),
+						(err: unknown) => next.reject(err),
+					);
+				return next.promise;
+			},
+			resume: (posted) => {
+				if (rows === undefined) throw new Error("a session resumed where it doesn't need a read or an effect. Resume a session only after the need it returned.");
+				const replying = rows;
+				rows = undefined;
+				next = settled<TReasonerState>();
+				replying.resolve(`[${posted.map(prologOf).join(", ")}]`);
+				return next.promise;
+			},
+		});
+	} finally {
+		// A caller that returns or throws before the session ends, on a need it refuses, ends the task with empty replies.
+		abandoned = true;
+		rows?.resolve(EMPTY_ROWS);
+		await task?.catch(() => undefined);
+	}
+}
+
+/** Returns the reasoner over the worker pool `pool`. Each session runs once the sessions before it ended, and a session started
+ *  within an effect of a session runs at once beside it. */
+export function eyeReasoner(pool: IWorkerPool): Pick<TReasoner, "session"> {
+	let turn: Promise<unknown> = Promise.resolve();
 	return {
-		runtimes: () => [...depths.values()].filter(({ started }) => started).length,
 		session: <T>(run: (held: TReasonerSession) => Promise<T>): Promise<T> => {
 			const enclosing = nesting.getStore();
 			const depth = enclosing === undefined ? 0 : enclosing + 1;
-			const at = depthAt(depth);
-			clearTimeout(at.idle);
-			at.waiting += 1;
-			const ran = at.turn.then(() => session(at, depth, run)).finally(() => ended(at, depth));
-			at.turn = ran.catch(() => undefined);
+			const inSession = () => nesting.run(depth, () => pooledSession(pool, run));
+			if (depth > 0) return inSession();
+			const ran = turn.then(inSession);
+			turn = ran.catch(() => undefined);
 			return ran;
 		},
 	};

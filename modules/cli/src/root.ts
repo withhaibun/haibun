@@ -11,6 +11,7 @@ import { getSteppers } from "@haibun/core/lib/adapters/workspace-lib.js";
 import { actualityClock, featureSource } from "@haibun/core/lib/actuality/root.js";
 import { consolePrompter } from "@haibun/core/lib/prompts/root.js";
 import { eventSink } from "@haibun/core/lib/steps/root.js";
+import { watchEventLoop } from "@haibun/core/lib/adapters/event-loop-watch.js";
 import * as actualities from "./adapters/actualities.js";
 import { fileSystem, processes } from "./adapters/processes.js";
 import { groupPorts } from "./adapters/groups.js";
@@ -24,7 +25,8 @@ const BEGIN_TIMEOUT_MS = 1_500;
 /** The sign-in each call to an instance's origin carries, held until the instance stops. */
 export const instanceSignIns = { hold: (origin: string, user: TBasicAuthUser): void => holdSignIn(origin, user), release: (origin: string): void => releaseSignIn(origin) };
 
-/** What a run of the cli reads and writes through: this process's file system, features, steppers, clock, console and events. */
+/** What a run of the cli reads and writes through: this process's file system, features, steppers, clock, console, events and
+ *  event loop. */
 export const cliPorts = (): TCliPorts => ({
 	fs: fileSystem,
 	features: featureSource(),
@@ -34,6 +36,7 @@ export const cliPorts = (): TCliPorts => ({
 	prompter: consolePrompter(),
 	events: eventSink(),
 	groups: groupPorts(process.cwd()),
+	eventLoop: watchEventLoop,
 });
 
 /** One handshake attempt with an instance, and the steps of a host. */
