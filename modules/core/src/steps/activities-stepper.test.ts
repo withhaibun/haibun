@@ -23,13 +23,14 @@ describe("ActivitiesStepper", () => {
 	});
 
 	describe("a waypoint's rule", () => {
-		it("holds its head, its pattern, in which each placeholder that doesn't name a domain takes a waypoint argument, its proof, its activity and its line", async () => {
+		it("holds its head, its description, its pattern, in which each placeholder that doesn't name a domain takes a waypoint argument, its proof, its activity and its line", async () => {
 			const stepper = await activities();
 			new Resolver([stepper], [background(["Activity: Log in", 'set loggedIn to "true"', 'waypoint Is logged in as {user} with variable loggedIn is "true"'])]);
 			const source = { path: "/backgrounds/login.feature" };
 			expect(stepper.steps.apply.rules()).toEqual([
 				{
 					head: "Is logged in as {user}",
+					description: "Log in",
 					library: "/backgrounds/login.feature",
 					pattern: `Is logged in as {user: ${DOMAIN_WAYPOINT_ARGUMENT}}`,
 					proof: [{ in: 'variable loggedIn is "true"', source }],
@@ -43,6 +44,13 @@ describe("ActivitiesStepper", () => {
 			const feature = (path: string) => ({ path, content: ["Activity: Set it", 'set it to "yes"', 'waypoint It is set with variable it is "yes"', "ensure It is set"].join("\n") });
 			const result = await passWithDefaults([feature("/features/a.feature"), feature("/features/b.feature")], [VariablesStepper, ActivitiesStepper, LogicStepper]);
 			expect(result.ok, result.failure?.error?.message).toBe(true);
+		});
+
+		it("is refused where its activity's title, which is its description, is empty", async () => {
+			const stepper = await activities();
+			expect(() => new Resolver([stepper], [background(["Activity:", "waypoint Logged in"])])).toThrow(
+				'the waypoint "Logged in" at /backgrounds/login.feature:2 is under an activity without a title, which is its description. Title the activity',
+			);
 		});
 
 		it("is refused where two lines state its head", async () => {

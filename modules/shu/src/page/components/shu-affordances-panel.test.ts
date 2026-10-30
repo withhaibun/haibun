@@ -394,14 +394,23 @@ describe("shu-affordances-panel", () => {
 	});
 
 	it("waypoints carried by `show affordances` products render the waypoint section: the ONE verb brings the whole snapshot", async () => {
-		const wp = { outcome: "deliver-report", kind: "declarative", ensured: false, method: "Acts-ensure", resolvesDomain: "report", paramSlots: [], proofStatements: [] };
+		const wp = {
+			outcome: "deliver-report",
+			description: "Deliver the report",
+			kind: "declarative",
+			ensured: false,
+			method: "Acts-ensure",
+			resolvesDomain: "report",
+			paramSlots: [],
+			proofStatements: [],
+		};
 		installConduit(new TestConduit(async () => ({})));
 		const panel = new ShuAffordancesPanel();
 		panel.products = { actuality: ACTUALITY_FEATURE, findings: [], satisfiedDomains: [], forward: [], goals: [], waypoints: [wp] };
 		document.body.appendChild(panel);
 		await applied(panel);
 		expect(panel.shadowRoot?.querySelector('[data-testid="affordances-waypoints"]')).toBeTruthy();
-		expect(panel.shadowRoot?.querySelector('[data-testid="waypoint-deliver-report"]')).toBeTruthy();
+		expect(panel.shadowRoot?.querySelector('[data-testid="waypoint-deliver-report"] .wp-description')?.textContent, "its description").toBe("Deliver the report");
 	});
 
 	it("a burst of step ends coalesces to ONE snapshot refetch (without a spurious-RPC flood)", async () => {

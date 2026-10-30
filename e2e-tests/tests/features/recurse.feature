@@ -1,4 +1,4 @@
-Activity: recursion
+Activity: Prove recursion through itself
 waypoint recursion with recursion
 
 set recursed from maybe recursion

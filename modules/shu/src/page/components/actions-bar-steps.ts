@@ -83,10 +83,12 @@ export function stepOptions(steps: readonly TStepDefinition[], forTheType: reado
 /** The step that ensures a waypoint, which a pick of a waypoint's head opens with the head as its statement. */
 const ENSURE = "ensure";
 
-/** The options of the waypoints actuality holds: each head as a sentence, marked as a waypoint with the library that states
- *  its rule. Each option's value is the head, which a pick opens as the statement of the step that ensures it. */
+/** The options of the waypoints actuality holds: each head as a sentence, marked with its description as a waypoint with the
+ *  library that states its rule. Each option's value is the head, which a pick opens as the statement of the step that ensures it. */
 export const waypointOptions = (predicates: readonly TPredicate[]): TComboboxOption[] =>
-	predicates.flatMap(({ name, waypoint }) => (waypoint === undefined ? [] : [{ value: name, label: prettifyGwta(name), secondary: waypointMark(waypoint) }]));
+	predicates.flatMap(({ name, waypoint, description }) =>
+		waypoint === undefined || description === undefined ? [] : [{ value: name, label: prettifyGwta(name), secondary: waypointMark(description, waypoint) }],
+	);
 
 /** What the steps read from the bar: its test-id prefix, the selected type, and the history in which callers open. */
 type TActionsBarStepsDeps = { testIdPrefix: () => string; selectedLabel: () => string; history: ShuActivityHistory };

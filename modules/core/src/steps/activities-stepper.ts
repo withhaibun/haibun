@@ -14,6 +14,7 @@ import { refDomainKey, type TIndividualRef } from "../lib/domains/domains.js";
 import { ACTIVITIES_ACTIONS, ACTIVITIES_STEPPER } from "./domains/activities-actions.js";
 import { readEvery } from "../lib/records/pipelines/record-reads.js";
 import { packageOf } from "./root.js";
+import { itemAt } from "../lib/domains/item-at.js";
 
 /** The source path a saved waypoint holds where the step that saves it doesn't have a source path. */
 const SAVED_WAYPOINT_SOURCE = "a saved waypoint";
@@ -23,7 +24,7 @@ const SAVED = "saved";
 const BACKGROUNDS = "backgrounds/";
 /** The line that opens an activity, the line that states a waypoint with its head and its proof, and a heading, which ends
  *  an activity. */
-const ACTIVITY_LINE = /^Activity:/i;
+const ACTIVITY_LINE = /^Activity:\s*(.*)$/i;
 const WAYPOINT_LINE = /^waypoint\s+(.+?)(?:\s+with\s+(.+))?$/i;
 /** The line that states a universal rule. */
 const UNIVERSAL_LINE = new RegExp(`^for every ${UNIVERSAL.source.slice(1)}`);
@@ -203,7 +204,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					UNIVERSAL_LINE,
 					(_, x: string, domain: string, body: string, head: string) => `waypoint ${head.replaceAll(`{${x}}`, `{${x}: ${domain}}`)} with ${body}`,
 				);
-				if (rule !== line && at !== undefined) this.state(this.ruleOf(rule, path, [], at, at, actualSourcePath));
+				if (rule !== line && at !== undefined) this.state(this.ruleOf(rule, path, [], at, at, actualSourcePath, line));
 				return false;
 			},
 		},
@@ -217,6 +218,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				const source = featureStep.source === undefined ? { path: this.feature } : featureStep.source;
 				this.state({
 					head: `after every ${stepperName}`,
+					description: featureStep.in,
 					pattern: "",
 					proof: [{ in: statement, source }],
 					activity: [],
@@ -256,10 +258,11 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			const proof = rule.proof.flatMap((line) => findFeatureStepsFromStatement(line.in, this.steppers, world, line.source?.path, [0]));
 			const proved = proof.length > 0 && paramSlots.length === 0 ? await proveStatements(stepperContext(world, this.steppers), featureStep, proof) : undefined;
 			const error = proved === undefined || proved.ok ? {} : { error: proved.errorMessage };
-			const { head, source } = rule;
+			const { head, description, source } = rule;
 			const proofStatements = rule.proof.map((line) => line.in);
 			waypoints.push({
 				outcome: head,
+				description,
 				method: ENSURE,
 				args: { outcome: head },
 				paramSlots,
@@ -292,21 +295,34 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			throw new Error(`the waypoint "${rule.head}" is stated at ${ruleStatedAt(held)} and at ${ruleStatedAt(rule)}; state each waypoint once`);
 	}
 
-	/** The rule a waypoint line of an activity states: its head, its proof, and the activity's lines before it that don't state
-	 *  a waypoint. A background's rule applies in every feature, and a feature's in that feature. */
-	private ruleOf(line: string, path: string, lines: readonly string[], start: number, at: number, actualSourcePath: string | undefined): TWaypointRule {
+	/** The rule a waypoint line of an activity states: its head, its proof, the activity's lines before it that don't state a
+	 *  waypoint, and its description, the activity's title, or `stating`, the line of a universal rule. A background's rule
+	 *  applies in every feature, and a feature's in that feature. Throws where the activity's title is empty. */
+	private ruleOf(line: string, path: string, lines: readonly string[], start: number, at: number, actualSourcePath: string | undefined, stating?: string): TWaypointRule {
 		const stated = WAYPOINT_LINE.exec(line);
 		const written = stated?.[1];
 		if (written === undefined) throw new Error(`"${line}" doesn't state a waypoint; state it as waypoint {head} with {proof}`);
 		const proof = stated?.[2];
 		const source = actualSourcePath === undefined ? path : actualSourcePath;
+		const titled = stating === undefined ? ACTIVITY_LINE.exec(getActionable(itemAt(lines, start)))?.[1]?.trim() : stating;
+		if (titled === undefined || titled === "")
+			throw new Error(
+				`the waypoint "${written}" at ${source}:${at + 1} is under an activity without a title, which is its description. Title the activity's line, as Activity: {what the activity does}.`,
+			);
 		const activity = lines.slice(start + 1, at).flatMap((raw, offset) => {
 			const statement = getActionable(raw);
 			return statement === "" || WAYPOINT_LINE.test(statement) ? [] : [{ in: statement, source: { lineNumber: start + offset + 2, path: source } }];
 		});
 		// A background's rule is the library's whose package holds it, or its file's where a package doesn't hold it.
 		const where = path.includes(BACKGROUNDS) ? { library: packageOf(source) ?? source } : { library: path, scope: path };
-		return { ...headOf(written), proof: proof === undefined ? [] : [{ in: proof, source: { path: source } }], activity, source: { path: source, lineNumber: at + 1 }, ...where };
+		return {
+			...headOf(written),
+			description: titled,
+			proof: proof === undefined ? [] : [{ in: proof, source: { path: source } }],
+			activity,
+			source: { path: source, lineNumber: at + 1 },
+			...where,
+		};
 	}
 
 	/**
@@ -346,7 +362,15 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		]);
 		if (refused.length > 0) throw new Error(refused.join("; "));
 		for (const { id, lines, source } of saved)
-			this.state({ ...headOf(id), proof: [], activity: lines.map((line) => ({ in: line, source: { path: source } })), source: { path: source }, library: SAVED, saved: true });
+			this.state({
+				...headOf(id),
+				description: id,
+				proof: [],
+				activity: lines.map((line) => ({ in: line, source: { path: source } })),
+				source: { path: source },
+				library: SAVED,
+				saved: true,
+			});
 	}
 }
 

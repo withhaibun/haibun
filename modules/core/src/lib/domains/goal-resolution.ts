@@ -94,10 +94,12 @@ export type TForwardAffordance = z.infer<typeof ForwardSchema>;
 const CompositeRangesSchema = z.record(z.string(), z.record(z.string(), z.string()));
 export type TCompositeRanges = z.infer<typeof CompositeRangesSchema>;
 
-/** A waypoint a stepper offers, ensured where its proof holds now, with the step that ensures it and the arguments it takes. */
+/** A waypoint a stepper offers, ensured where its proof holds now, with its description, the step that ensures it and the
+ *  arguments it takes. */
 const WaypointEntrySchema = z
 	.object({
 		outcome: z.string(),
+		description: z.string(),
 		method: z.string(),
 		args: z.record(z.string(), z.string()),
 		paramSlots: z.array(z.string()),

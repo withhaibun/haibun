@@ -392,6 +392,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				<span class="wp-outcome">${w.outcome}</span>
 				<span class="wp-state">${stateLabel}</span>
 			</div>
+			<div class="wp-description">${w.description}</div>
 			${w.paramSlots.length > 0 ? html`<div class="wp-slots">slots: ${w.paramSlots.map((s, i) => html`${i > 0 ? ", " : ""}<code>${s}</code>`)}</div>` : ""}
 			${w.proofStatements.length > 0 ? html`<div class="wp-proof">proof: ${w.proofStatements.map((p, i) => html`${i > 0 ? " · " : ""}<code>${p}</code>`)}</div>` : ""}
 			${w.error ? html`<div class="wp-error">${w.error}</div>` : ""}
@@ -465,15 +466,15 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		.as-of-banner { padding: var(--shu-space-3) var(--shu-space-4); background: var(--shu-bg-warn-soft); border: var(--shu-border-w) solid var(--shu-border-warn); border-radius: var(--shu-radius); margin: var(--shu-space-2) 0; display: flex; align-items: center; gap: var(--shu-space-4); }
 		.as-of-banner code { background: var(--shu-bg); }
 		.as-of-clear { background: var(--shu-bg); border: var(--shu-border-w) solid var(--shu-border-warn); }
-		.waypoint { padding: var(--shu-space-4) var(--shu-space-5); margin: var(--shu-space-2) 0; border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); background: var(--shu-bg-soft); }
-		.waypoint.wp-ensured { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-success); }
-		.waypoint.wp-pending { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-warn); }
+		.waypoint { padding: var(--shu-space-4) var(--shu-space-5); margin: var(--shu-space-2) 0; border: var(--shu-border-w) solid var(--shu-border); border-left-width: calc(var(--shu-border-w) * 4); border-radius: var(--shu-radius); background: var(--shu-bg-soft); }
+		.wp-ensured { border-left-color: var(--shu-success); }
+		.wp-pending { border-left-color: var(--shu-warn); }
 		.wp-header { display: flex; gap: var(--shu-space-4); align-items: baseline; }
 		.wp-outcome { flex: 1; }
 		.wp-state { font-size: var(--shu-font-sm); padding: 0 var(--shu-space-3); border-radius: var(--shu-radius); background: var(--shu-bg-elevated); color: var(--shu-fg-muted); }
 		.wp-ensured .wp-state { background: var(--shu-bg-success-soft); color: var(--shu-success); }
 		.wp-pending .wp-state { background: var(--shu-bg-warn-soft); color: var(--shu-warn); }
-		.wp-slots, .wp-proof { color: var(--shu-fg-muted); margin-top: var(--shu-space-2); }
+		.wp-description, .wp-slots, .wp-proof { color: var(--shu-fg-muted); margin-top: var(--shu-space-2); }
 		.wp-error { color: var(--shu-error); margin-top: var(--shu-space-2); }
 		.wp-run { margin-top: var(--shu-space-3); background: var(--shu-info); color: var(--shu-info-fg); border: 0; }
 		.wp-run:hover { filter: brightness(1.1); }

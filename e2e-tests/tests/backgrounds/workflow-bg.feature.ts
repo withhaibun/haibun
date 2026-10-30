@@ -13,11 +13,11 @@ const { showVar } = withAction(new VariablesStepper());
 
 export const features: TKirejiExport = {
 	"Workflow backgrounds": [
-		activity({ activity: "works on the phase" }),
+		activity({ activity: "Work through the phases" }),
 		"Advance the release phase by one step when it is before the requested phase.",
 		showVar({ what: "phase" }),
 
-		"Activity: works on the phase",
+		"Activity: Work through the phases",
 		"Calling a waypoint without ensure will always run the activity body once.",
 		`until whenever variable ${phase} is less than requested, Do work within "5s"`,
 		`waypoint ${Release_at} {requested} with didn't variable ${phase} is less than requested`,

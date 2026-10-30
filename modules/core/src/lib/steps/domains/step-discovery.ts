@@ -46,6 +46,8 @@ export const DOMAIN_STEP_SUMMARIES = "step-summaries";
 export const DOMAIN_STEP_DEFINITIONS = "step-definitions";
 
 /** The JSON Schema of a step's arguments. It is an object with a property for each argument, and every property is required. */
+/** A text a field may leave out, which each optional text field of these schemas shares. */
+const OptionalText = z.string().optional();
 const InputSchemaSchema = z.looseObject({ type: z.literal("object"), properties: z.record(z.string(), z.record(z.string(), z.unknown())), required: z.array(z.string()) });
 export type TInputSchema = z.infer<typeof InputSchemaSchema>;
 
@@ -65,7 +67,7 @@ export const StepDescriptorSchema = z
 		/** The domain of the products the step returns, where it declares one. */
 		productsDomain: DomainKeySchema.optional(),
 		/** The statement parameter whose products the step returns as its own, where the step returns a statement's products. */
-		productsOf: z.string().optional(),
+		productsOf: OptionalText,
 		/** Each parameter naming a record by its id, with the parameter naming the record's type. */
 		recordIds: z.record(z.string(), z.string()).optional(),
 		/** Each parameter taking a record's fields, with the parameter naming the record's type. */
@@ -86,10 +88,10 @@ export const StepDescriptorSchema = z
 		answersTheTurn: z.boolean(),
 		/** The read step that returns what the step changed, where the step names one. answeredFor calls it after the step,
 		 *  whether the step passed or failed. */
-		answeredBy: z.string().optional(),
+		answeredBy: OptionalText,
 		/** The origin of the instance that runs the step, where another instance runs it. A transport calls the step at
 		 *  this origin. */
-		remoteOrigin: z.string().optional(),
+		remoteOrigin: OptionalText,
 		inputSchema: InputSchemaSchema,
 		/** The JSON Schema of the products the step returns, where it declares them. */
 		outputSchema: z.record(z.string(), z.unknown()).optional(),
@@ -100,10 +102,10 @@ export type TStepDescriptor = z.infer<typeof StepDescriptorSchema>;
 /** A domain as a read of actuality's declarations states it. */
 const DomainDiscoveryInfoSchema = z
 	.object({
-		description: z.string().optional(),
+		description: OptionalText,
 		values: z.array(z.string()).optional(),
-		stepperName: z.string().optional(),
-		persistedAs: z.string().optional(),
+		stepperName: OptionalText,
+		persistedAs: OptionalText,
 		/** The domain's presentation: the component that renders it, the URL of the component's source, and its labels. It
 		 *  doesn't contain the component's source. A client loads the source from the URL. */
 		ui: z.record(z.string(), z.unknown()).optional(),
@@ -134,27 +136,28 @@ const StepSummarySchema = StepDescriptorSchema.pick({ method: true, stepperName:
 	[HYPERMEDIA.LINKS]: definitionLinksSchema,
 });
 /** A domain as a summary states it, linking its definition. */
-const DomainSummarySchema = z.object({ description: z.string().optional(), [HYPERMEDIA.LINKS]: definitionLinksSchema }).strict();
+const DomainSummarySchema = z.object({ description: OptionalText, [HYPERMEDIA.LINKS]: definitionLinksSchema }).strict();
 /** A step as a definition states it, linking its call. */
 const StepDefinitionSchema = StepDescriptorSchema.extend({ ...CallableFields, [HYPERMEDIA.LINKS]: z.object({ call: z.object({ method: z.string() }).strict() }).strict() });
 export type TStepDefinition = z.infer<typeof StepDefinitionSchema>;
 
 /** A predicate of the registry as a definition states it: its name, its parts with their domains, and, where a line states it,
- *  the line and the step whose method proves it. A waypoint's head names the library that states its rule. A formula names a
- *  predicate by its name, with its parts in order. */
+ *  the line and the step whose method proves it. A waypoint's head names the library that states its rule and its description.
+ *  A formula names a predicate by its name, with its parts in order. */
 const PredicateSchema = z
 	.object({
 		name: z.string(),
 		parts: z.array(z.object({ name: z.string(), domain: z.string() }).strict()).readonly(),
-		line: z.string().optional(),
-		method: z.string().optional(),
-		waypoint: z.string().optional(),
+		line: OptionalText,
+		method: OptionalText,
+		waypoint: OptionalText,
+		description: OptionalText,
 	})
 	.strict();
 export type TPredicate = z.infer<typeof PredicateSchema>;
 
-/** How an offer of a waypoint's head marks it: as a waypoint, with the library that states its rule. */
-export const waypointMark = (library: string): string => `waypoint · ${library}`;
+/** How an offer of a waypoint's head marks it: its description, then as a waypoint with the library that states its rule. */
+export const waypointMark = (description: string, library: string): string => `${description} · waypoint · ${library}`;
 
 /** What a read of actuality's declarations returns: a counted list of every step actuality declares, as a summary or as a
  *  definition, each with whether its caller may call it. Both key their domains by name. */

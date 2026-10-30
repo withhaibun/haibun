@@ -12,7 +12,15 @@ import { declaredSteps, predicatesOf } from "./predicate-registry.js";
 import { TEST_STEP } from "../../test/test-step.js";
 
 const action = () => actionOK();
-const RULE: TWaypointRule = { head: "{m: meal} is ready", pattern: "{m: meal} is ready", proof: [], activity: [], source: { path: "kitchen.feature" }, library: "kitchen.feature" };
+const RULE: TWaypointRule = {
+	head: "{m: meal} is ready",
+	description: "Cook a meal",
+	pattern: "{m: meal} is ready",
+	proof: [],
+	activity: [],
+	source: { path: "kitchen.feature" },
+	library: "kitchen.feature",
+};
 
 class Kitchen extends AStepper {
 	description = "Declares the steps the registry reads.";
@@ -39,7 +47,7 @@ describe("the predicate registry", () => {
 	it("names a step that declares its predicate by that predicate, proved by the step's method, and each rule a step holds by its head", () => {
 		expect(named(PREDICATE.memberOf)).toMatchObject({ method: "Kitchen-among", line: "{dish: meal} is among {menu: domain-key}" });
 		expect(partsOf(RULE.head)).toEqual(["m: meal"]);
-		expect(named(RULE.head)).toMatchObject({ line: RULE.head, method: "Kitchen-cook", waypoint: RULE.library });
+		expect(named(RULE.head)).toMatchObject({ line: RULE.head, method: "Kitchen-cook", waypoint: RULE.library, description: RULE.description });
 	});
 
 	it("holds precedes without a line, and a prose step doesn't prove a predicate", () => {

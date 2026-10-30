@@ -17,11 +17,11 @@ function completionItem(phrase: string, detail: string, documentation: string): 
 
 /**
  * The completion items of a step. A step that holds rules completes as the head of each rule, read from the rules the resolver
- * unifies a line with, marked as a waypoint with the library that states it, as the actions bar's step input marks it, and its
+ * unifies a line with, marked with its description as a waypoint with the library that states it, as the actions bar's step input marks it, and its
  * documentation names where the waypoint is stated. Any other step completes as its pattern, its detail names its stepper and
  * its documentation names the step.
  */
 export function completionItems(descriptor: TStepDescriptor, stepDef: TStepperStep | undefined): CompletionItem[] {
 	if (stepDef?.rules === undefined) return [completionItem(descriptor.pattern, `From ${descriptor.stepperName}`, `Internal Name: ${descriptor.stepName}`)];
-	return stepDef.rules().map((rule) => completionItem(rule.head, waypointMark(rule.library), `Waypoint stated at ${ruleStatedAt(rule)}`));
+	return stepDef.rules().map((rule) => completionItem(rule.head, waypointMark(rule.description, rule.library), `Waypoint stated at ${ruleStatedAt(rule)}`));
 }

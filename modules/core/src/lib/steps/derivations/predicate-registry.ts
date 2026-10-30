@@ -30,7 +30,8 @@ export const predicateOf = (declared: TStepAction): string => (declared.step.pre
 function stepPredicates(declared: TStepAction): TPredicate[] {
 	const { step } = declared;
 	const method = methodOf(declared);
-	if (step.rules !== undefined) return step.rules().map(({ head, pattern, library }) => ({ name: head, parts: phraseParts(pattern), line: head, method, waypoint: library }));
+	if (step.rules !== undefined)
+		return step.rules().map(({ head, pattern, library, description }) => ({ name: head, parts: phraseParts(pattern), line: head, method, waypoint: library, description }));
 	const line = step.gwta === undefined ? step.exact : step.gwta;
 	return line === undefined ? [] : [{ name: predicateOf(declared), parts: stepParts(step), line, method }];
 }

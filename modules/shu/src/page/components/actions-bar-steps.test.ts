@@ -212,7 +212,14 @@ describe("a statement typed in step mode", () => {
 describe("a waypoint's head in step mode", () => {
 	const ENSURE = step("ActivitiesStepper-ensure", "ensure {outcome}", { paramDomains: { outcome: "statement" } });
 	const HEAD = "view {view} is scrolled to its end";
-	const RULE: TPredicate = { name: HEAD, parts: [{ name: "view", domain: "waypoint-argument" }], line: HEAD, method: "ActivitiesStepper-apply", waypoint: "@haibun/shu" };
+	const RULE: TPredicate = {
+		name: HEAD,
+		parts: [{ name: "view", domain: "waypoint-argument" }],
+		line: HEAD,
+		method: "ActivitiesStepper-apply",
+		waypoint: "@haibun/shu",
+		description: "Open a view",
+	};
 	const STEP: TPredicate = { name: SHOW.method, parts: [{ name: "name", domain: "string" }], line: SHOW.pattern, method: SHOW.method };
 	let t: TShuTestHandle;
 	beforeEach(() => {
@@ -223,14 +230,14 @@ describe("a waypoint's head in step mode", () => {
 	afterEach(() => t.teardown());
 
 	it("offers each waypoint's head as a sentence, marked as a waypoint with the library that states it, and not a step's predicate", () => {
-		expect(waypointOptions([STEP, RULE])).toEqual([{ value: HEAD, label: HEAD, secondary: "waypoint · @haibun/shu" }]);
+		expect(waypointOptions([STEP, RULE])).toEqual([{ value: HEAD, label: HEAD, secondary: "Open a view · waypoint · @haibun/shu" }]);
 	});
 
 	it("offers the heads beside the steps, and opens a pick of one as the statement of the step that ensures it", async () => {
 		const page = await aStepsPage();
 		render(page.steps.template(html``), page.host);
 		const selector = page.host.querySelector(".step-combo") as HTMLElement & { options: { value: string; secondary?: string }[] };
-		expect(selector.options.map((o) => [o.value, o.secondary])).toContainEqual([HEAD, "waypoint · @haibun/shu"]);
+		expect(selector.options.map((o) => [o.value, o.secondary])).toContainEqual([HEAD, "Open a view · waypoint · @haibun/shu"]);
 		selector.dispatchEvent(new CustomEvent("combo-change", { detail: { value: HEAD } }));
 		const caller = itemAt(callers(page.history), 0);
 		expect(caller.getAttribute("method")).toBe(ENSURE.method);
