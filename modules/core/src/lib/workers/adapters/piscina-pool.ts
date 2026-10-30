@@ -4,6 +4,7 @@
  * holds at most `MAX_WORKERS` workers, each within `MAX_WORKER_HEAP_MB` of heap, runs one task at a time in each, so a task's
  * worker state is its own while it runs, and releases a worker idle for `WORKER_IDLE_MS`.
  */
+import { setFlagsFromString } from "node:v8";
 import { MessageChannel } from "node:worker_threads";
 import { Piscina } from "piscina";
 import { EffectRequestSchema, type TEffectReply, type TPerformEffect, type TWorkerTask } from "../domains/worker-task.js";
@@ -30,8 +31,17 @@ function workerArguments(argv: readonly string[]): string[] {
 	return kept;
 }
 
-/** Returns a worker pool that releases a worker idle for `idleMs`. */
+/**
+ * The V8 flag that keeps WebAssembly code until its module is collected. Workers share a module's compiled code, as PGlite's and
+ * EYE's runtimes do, and V8 24's collection of code one worker no longer runs, while another worker runs the same module, fails
+ * its check `jit_page_->allocations_.erase(addr) == 1` in `ThreadIsolation::UnregisterWasmAllocation` and aborts the process.
+ */
+const KEEP_WASM_CODE = "--no-wasm-code-gc";
+
+/** Returns a worker pool that releases a worker idle for `idleMs`. V8's flags are the process's, so the pool sets its flag for
+ *  every isolate before its first worker starts. */
 export function piscinaPool(idleMs: number): IWorkerPool {
+	setFlagsFromString(KEEP_WASM_CODE);
 	const pool = new Piscina({
 		maxThreads: MAX_WORKERS,
 		minThreads: 0,
