@@ -146,8 +146,8 @@ export function chipGeometry(textBounds: readonly [number, number, number, numbe
 /** Build a chip visual: a solid type-coloured background quad behind an avatar badge and an SDF text label, the node's
  *  exact point at the chip's TOP-LEFT corner (content flows right + down, so the point stays eyeball-able against the
  *  axes). sync() builds the SDF on troika's worker and, when done, sizes the background to the measured content. */
-/** The outline that gives a chip's text a crisp semibold weight without clogging counters at small sizes. */
-const CHIP_OUTLINE = "2%";
+/** The outline that gives a chip's text a crisp medium weight without clogging counters at small sizes. */
+const CHIP_OUTLINE = "1%";
 
 export function makeTroikaChip(label: string, bgColor: string, three: ChipThree, d: ChipDeps): NodeVisual {
 	if (!sharedPlane) sharedPlane = new three.PlaneGeometry(1, 1);
