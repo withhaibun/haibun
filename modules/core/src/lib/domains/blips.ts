@@ -48,9 +48,9 @@ type THeldBlipDeclaration = TBlipDeclaration & { declaredAt?: string };
 
 const declarations = new Map<string, THeldBlipDeclaration>();
 
-/** `path:line` of the first stack frame outside this module. Under a build this names the built file. */
-function declaringSite(): string | undefined {
-	const frames = (new Error().stack ?? "").split("\n").slice(1);
+/** `path:line` of the first frame of `captured`'s stack outside this module. Under a build this names the built file. */
+function declaringSite(captured: Error): string | undefined {
+	const frames = (captured.stack ?? "").split("\n").slice(1);
 	for (const frame of frames) {
 		if (/\/blips\.[jt]s:/.test(frame)) continue;
 		const held = frame.match(/\(?(file:\/\/)?([^()\s]+):(\d+):\d+\)?$/);
@@ -84,14 +84,20 @@ function sameAttributes(held: z.ZodType | undefined, incoming: z.ZodType | undef
  * or make its recordings throw at a correct call site. Zod drops keys a schema doesn't declare.
  */
 export function declareBlips(...decls: TBlipDeclaration[]): void {
-	// One stack read per call: declarations in one call come from one module.
-	const declaredAt = decls.some((d) => d.origin) ? declaringSite() : undefined;
+	// One stack captured per call: declarations in one call come from one module. V8 writes a stack's text, which reads source maps
+	// where they are installed, only as it is read, so the site is read where a declaration's `declaredAt` is.
+	const captured = decls.some((d) => d.origin) ? new Error() : undefined;
+	let site: { at: string | undefined } | undefined;
+	const siteOf = (from: Error): string | undefined => {
+		if (site === undefined) site = { at: declaringSite(from) };
+		return site.at;
+	};
 	for (const d of decls) {
 		const held = declarations.get(d.name);
 		if (held && (shapeOf(held) !== shapeOf(d) || !sameAttributes(held.attributes, d.attributes)))
 			throw new Error(`declareBlips: "${d.name}" is already declared with a different shape. Record under a different name, or make the two declarations the same.`);
 		// Declaring the same declaration again keeps the held declaration and its `declaredAt`.
-		if (!held) declarations.set(d.name, d.origin ? { ...d, declaredAt } : d);
+		if (!held) declarations.set(d.name, d.origin && captured !== undefined ? Object.defineProperty({ ...d }, "declaredAt", { get: () => siteOf(captured), enumerable: true }) : d);
 	}
 }
 

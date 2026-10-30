@@ -6,7 +6,7 @@ import type { TRequestSigner } from "@haibun/core/lib/domains/authority-types.js
 import type { TFederatedGraphSource } from "@haibun/core/lib/steps/ports.js";
 
 /** A served asset's text, the same gzipped, and the tag through which a browser revalidates it. */
-export type TServedAsset = { content: string; gzipped(): Uint8Array<ArrayBuffer>; etag: string };
+export type TServedAsset = { content: string; gzipped(): Promise<Uint8Array<ArrayBuffer>>; etag: string };
 
 /** The folders shu's build writes its bundles in, from the package root, under `build/assets/`, so the per-file emit of `tsc`
  *  doesn't overwrite them: the page's bundles with their chunks, and the bundles a report inlines whole. */

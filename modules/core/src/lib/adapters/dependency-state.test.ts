@@ -20,88 +20,88 @@ function aRepository(files: Record<string, string>): string {
 }
 
 describe("the state of a group's dependencies", () => {
-	it("is the same for the same content, and differs when a file's content changes", () => {
+	it("is the same for the same content, and differs when a file's content changes", async () => {
 		const repo = aRepository({ "features/a.feature": "Feature: a\n", ".gitignore": "capture\n" });
-		const before = dependencyState([repo]);
-		expect(dependencyState([repo])).toEqual(before);
+		const before = await dependencyState([repo]);
+		expect(await dependencyState([repo])).toEqual(before);
 		nodeFS.writeFileSync(path.join(repo, "features/a.feature"), "Feature: a, changed\n");
-		expect(dependencyState([repo])).not.toEqual(before);
+		expect(await dependencyState([repo])).not.toEqual(before);
 	});
 
-	it("is the same for the same repositories checked out at other directories, in either order of their roots", () => {
+	it("is the same for the same repositories checked out at other directories, in either order of their roots", async () => {
 		const files = (name: string) => ({ [`${name}/features/a.feature`]: `Feature: ${name}\n` });
 		const [first, second] = [aRepository({ ...files("one"), ...files("two") }), aRepository({ ...files("one"), ...files("two") })];
 		const roots = (repo: string) => [path.join(repo, "one"), path.join(repo, "two")];
-		expect(dependencyState(roots(first))).toEqual(dependencyState(roots(second)));
-		expect(dependencyState(roots(first)), "the roots in another order").toEqual(dependencyState(roots(second).reverse()));
+		expect(await dependencyState(roots(first))).toEqual(await dependencyState(roots(second)));
+		expect(await dependencyState(roots(first)), "the roots in another order").toEqual(await dependencyState(roots(second).reverse()));
 	});
 
-	it("throws where two roots have one path in their repositories, since one digest would replace the other", () => {
+	it("throws where two roots have one path in their repositories, since one digest would replace the other", async () => {
 		const [first, second] = [aRepository({ "a.feature": "Feature: a\n" }), aRepository({ "b.feature": "Feature: b\n" })];
-		expect(() => dependencyState([first, second])).toThrow("two dependency roots are at . in their repositories, and one digest would replace the other");
+		await expect(dependencyState([first, second])).rejects.toThrow("two dependency roots are at . in their repositories, and one digest would replace the other");
 	});
 
-	it("includes a file the repository would track, whether or not it is committed", () => {
+	it("includes a file the repository would track, whether or not it is committed", async () => {
 		const repo = aRepository({ "features/a.feature": "Feature: a\n" });
-		const before = dependencyState([repo]);
+		const before = await dependencyState([repo]);
 		nodeFS.writeFileSync(path.join(repo, "features/b.feature"), "Feature: b\n");
-		expect(dependencyState([repo])).not.toEqual(before);
+		expect(await dependencyState([repo])).not.toEqual(before);
 	});
 
-	it("excludes the files the repository ignores, because they are derived output", () => {
+	it("excludes the files the repository ignores, because they are derived output", async () => {
 		const repo = aRepository({ "features/a.feature": "Feature: a\n", ".gitignore": "capture\nbuild\n" });
-		const before = dependencyState([repo]);
+		const before = await dependencyState([repo]);
 		nodeFS.mkdirSync(path.join(repo, "capture"));
 		nodeFS.writeFileSync(path.join(repo, "capture/run.log"), "a run's output");
 		nodeFS.mkdirSync(path.join(repo, "build"));
 		nodeFS.writeFileSync(path.join(repo, "build/a.js"), "compiled");
-		expect(dependencyState([repo])).toEqual(before);
+		expect(await dependencyState([repo])).toEqual(before);
 	});
 
-	it("excludes the file an actuality writes about itself, so recording an outcome or a duration doesn't change the state", () => {
+	it("excludes the file an actuality writes about itself, so recording an outcome or a duration doesn't change the state", async () => {
 		const repo = aRepository({ "features/a.feature": "Feature: a\n" });
-		const before = dependencyState([repo]);
+		const before = await dependencyState([repo]);
 		nodeFS.writeFileSync(path.join(repo, ACTUALITIES_FILE), "{}\n");
-		expect(dependencyState([repo])).toEqual(before);
+		expect(await dependencyState([repo])).toEqual(before);
 	});
 
-	it("is undefined for a directory that isn't in a repository, rather than the empty state", () => {
+	it("is undefined for a directory that isn't in a repository, rather than the empty state", async () => {
 		const dir = testTempDir("haibun-norepo-");
 		nodeFS.writeFileSync(path.join(dir, "a.feature"), "Feature: a\n");
-		expect(dependencyState([dir])).toBeUndefined();
+		expect(await dependencyState([dir])).toBeUndefined();
 	});
 
-	it("is undefined for an installed module whose files the repository ignores, rather than the state of an empty root", () => {
+	it("is undefined for an installed module whose files the repository ignores, rather than the state of an empty root", async () => {
 		const repo = aRepository({ ".gitignore": "node_modules\n", "node_modules/@x/m/package.json": "{}", "node_modules/@x/m/index.js": "1" });
-		expect(dependencyState([path.join(repo, "node_modules/@x/m")])).toBeUndefined();
+		expect(await dependencyState([path.join(repo, "node_modules/@x/m")])).toBeUndefined();
 	});
 
-	it("includes a symbolic link by its target path, so a link to a directory adds to the state rather than throwing", () => {
+	it("includes a symbolic link by its target path, so a link to a directory adds to the state rather than throwing", async () => {
 		const repo = aRepository({ "features/a.feature": "Feature: a\n" });
 		nodeFS.mkdirSync(path.join(repo, "elsewhere"));
 		nodeFS.symlinkSync("elsewhere", path.join(repo, "there"));
-		const before = dependencyState([repo]);
+		const before = await dependencyState([repo]);
 		expect(before).toBeDefined();
 		nodeFS.unlinkSync(path.join(repo, "there"));
 		nodeFS.symlinkSync("features", path.join(repo, "there"));
-		expect(dependencyState([repo]), "a link with another target changes the state").not.toEqual(before);
+		expect(await dependencyState([repo]), "a link with another target changes the state").not.toEqual(before);
 	});
 
-	it("reads a root that is a file alone, so a change beside it doesn't change its state", () => {
+	it("reads a root that is a file alone, so a change beside it doesn't change its state", async () => {
 		const repo = aRepository({ "GUIDE.md": "# A guide\n", "other.md": "# Another\n" });
 		const guide = path.join(repo, "GUIDE.md");
-		const before = dependencyState([guide]);
+		const before = await dependencyState([guide]);
 		expect(Object.keys({ ...before })).toEqual(["GUIDE.md"]);
 		nodeFS.writeFileSync(path.join(repo, "other.md"), "changed");
-		expect(dependencyState([guide])).toEqual(before);
+		expect(await dependencyState([guide])).toEqual(before);
 		nodeFS.writeFileSync(guide, "changed");
-		expect(dependencyState([guide])).not.toEqual(before);
+		expect(await dependencyState([guide])).not.toEqual(before);
 	});
 
-	it("throws when git can't run in a directory, rather than treating the failure as a missing repository", () => {
+	it("throws when git can't run in a directory, rather than treating the failure as a missing repository", async () => {
 		const repo = aRepository({ "a.feature": "Feature: a\n" });
 		const gone = path.join(repo, "gone");
-		expect(() => dependencyState([gone])).toThrow(/git rev-parse --show-toplevel failed in/);
+		await expect(dependencyState([gone])).rejects.toThrow(/git rev-parse --show-toplevel failed in/);
 	});
 });
 
@@ -160,7 +160,7 @@ describe("the dependency roots of a group", () => {
 		expect(fromTests).toContain(repo);
 	});
 
-	it("returns the rootDir a module's tsconfig.json declares, so a change to a document outside it doesn't change the state", () => {
+	it("returns the rootDir a module's tsconfig.json declares, so a change to a document outside it doesn't change the state", async () => {
 		const repo = aRepository({
 			"package.json": "{}",
 			"tsconfig.json": JSON.stringify({ compilerOptions: { rootDir: "src", outDir: "build" } }),
@@ -175,11 +175,11 @@ describe("the dependency roots of a group", () => {
 		const roots = dependencyRoots({ steppers: ["../build/x-stepper"] }, [configDir], configDir, configDir);
 		expect(roots).toContain(path.join(repo, "src"));
 		expect(roots, "the whole module isn't a root").not.toContain(repo);
-		const before = dependencyState(roots);
+		const before = await dependencyState(roots);
 		nodeFS.writeFileSync(path.join(repo, "docs/readme.md"), "changed");
-		expect(dependencyState(roots), "a document outside rootDir doesn't change the state").toEqual(before);
+		expect(await dependencyState(roots), "a document outside rootDir doesn't change the state").toEqual(before);
 		nodeFS.writeFileSync(path.join(repo, "src/x-stepper.ts"), "changed");
-		expect(dependencyState(roots), "a source under rootDir changes the state").not.toEqual(before);
+		expect(await dependencyState(roots), "a source under rootDir changes the state").not.toEqual(before);
 	});
 
 	it("throws when a module's tsconfig.json can't be read as JSON, rather than depending on the whole module", () => {

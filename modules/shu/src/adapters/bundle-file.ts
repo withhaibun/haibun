@@ -6,7 +6,8 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { gzipSync } from "node:zlib";
+import { gzip } from "node:zlib";
+import { promisify } from "node:util";
 import { sha256 } from "@haibun/core/lib/domains/digest.js";
 import { BUNDLE_DIRS, type TBundleFile, type TServedAsset } from "../ports.js";
 
@@ -56,14 +57,16 @@ const servedAsset = (path: string): TServedAsset => {
 	return asset;
 };
 
-/** Text served under `etag`, gzipped at its first gzipped response. */
+const gzipped = promisify(gzip);
+
+/** Text served under `etag`, gzipped at its first gzipped response by zlib's threads, off the event loop, and held from then. */
 function taggedAsset(content: string, etag: string): TServedAsset {
-	let gzipped: Uint8Array<ArrayBuffer> | undefined;
-	const gzip = (): Uint8Array<ArrayBuffer> => {
-		if (gzipped === undefined) gzipped = new Uint8Array(gzipSync(content));
-		return gzipped;
+	let held: Promise<Uint8Array<ArrayBuffer>> | undefined;
+	const zipped = (): Promise<Uint8Array<ArrayBuffer>> => {
+		if (held === undefined) held = gzipped(content).then((bytes) => new Uint8Array(bytes));
+		return held;
 	};
-	return { content, etag, gzipped: gzip };
+	return { content, etag, gzipped: zipped };
 }
 
 /** The bytes of the font file at `path`. */

@@ -347,7 +347,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		// uses this process's directory.
 		const cwd = from ? locatedBase(from, process.cwd()) : process.cwd();
 		if (!supervisorPorts.fs.existsSync(cwd)) return actionNotOK(`start run: the starting directory ${cwd} doesn't exist. Pass an existing starting directory`);
-		const ran = verifiedRun(supervisorPorts, config, bases, filter, cwd, env);
+		const ran = await verifiedRun(supervisorPorts, config, bases, filter, cwd, env);
 		if (ran)
 			return actionNotOK(
 				`start run: ${filter || "every feature"} in ${dir} ${ran} against its present dependencies. A new run would repeat that outcome. Change a dependency to run it again, or note that the group has changed.`,

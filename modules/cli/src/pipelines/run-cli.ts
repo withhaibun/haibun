@@ -59,7 +59,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv, ports: TCli
 
 	let world: TWorld | undefined;
 	let protoOptions: TProtoOptions | undefined;
-	let verification: ReturnType<TCliPorts["actualities"]["verificationOf"]>;
+	let verification: Awaited<ReturnType<TCliPorts["actualities"]["verificationOf"]>>;
 	let loop: TLoopWatch | undefined;
 
 	try {
@@ -82,7 +82,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv, ports: TCli
 		// actuality's record states. It is undefined for a run of statements, a rehearsal, or a run whose dependencies can't be read.
 		verification =
 			parsed.statements.length === 0 && !parsed.dryRun
-				? ports.actualities.verificationOf({
+				? await ports.actualities.verificationOf({
 						configPath: configFileFrom(configBases, ports.fs),
 						specl,
 						bases,

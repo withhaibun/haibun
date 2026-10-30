@@ -24,10 +24,10 @@ function environmentIn({ fs }: TSupervisorPorts, cwd: string, env: NodeJS.Proces
  *  It computes those conditions as a run does: from `cwd`, with the environment a run reads there.
  *  Returns undefined when the features haven't executed against that state, and throws where the configuration doesn't read.
  *  startRun forks the child where it returns undefined. */
-export function verifiedRun(ports: TSupervisorPorts, config: string, bases: string[], filter: string, cwd: string, env: NodeJS.ProcessEnv): TGroupEnded | undefined {
+export async function verifiedRun(ports: TSupervisorPorts, config: string, bases: string[], filter: string, cwd: string, env: NodeJS.ProcessEnv): Promise<TGroupEnded | undefined> {
 	const specl = getConfigFromBase(bases, ports.fs);
 	const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(environmentIn(ports, cwd, env, specl), specl);
-	const v = ports.actualities.verificationOf({ configPath: config, specl, bases, cwd, filter: filter ? filter.split(",") : [], options, moduleOptions });
+	const v = await ports.actualities.verificationOf({ configPath: config, specl, bases, cwd, filter: filter ? filter.split(",") : [], options, moduleOptions });
 	return v === undefined ? undefined : ports.actualities.outcomeAgainst(v);
 }
 

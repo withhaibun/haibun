@@ -32,8 +32,8 @@ const conditions = (dir: string, config: string, more: Partial<Parameters<typeof
 	moduleOptions: {},
 	...more,
 });
-const verified = (dir: string, config: string, more: Partial<Parameters<typeof verificationOf>[0]> = {}) => {
-	const v = verificationOf(conditions(dir, config, more));
+const verified = async (dir: string, config: string, more: Partial<Parameters<typeof verificationOf>[0]> = {}) => {
+	const v = await verificationOf(conditions(dir, config, more));
 	if (!v) throw new Error(`${dir} doesn't have a readable state`);
 	return v;
 };
@@ -51,7 +51,7 @@ const level = (actualityLevel: string, id: string, stepText: string, status: str
 	...stated,
 });
 /** Records an actuality of features, each by its path and how long it took, whose own record states the digests `v` read. */
-function recordFeatures(v: ReturnType<typeof verified>, status: string, features: Record<string, number>) {
+function recordFeatures(v: Awaited<ReturnType<typeof verified>>, status: string, features: Record<string, number>) {
 	const levels = new Map<string, Record<string, unknown>>([["actuality", level("actuality", "1-0", "tests", status, 9000, digestFields(v.digest))]]);
 	const featureResults = Object.entries(features).map(([featurePath, ms], at) => {
 		levels.set(`feat-${at + 1}`, level("feature", `1-${at + 1}.0.${at + 1}.0`, featurePath, status, ms, { path: featurePath }));
@@ -62,28 +62,28 @@ function recordFeatures(v: ReturnType<typeof verified>, status: string, features
 const actualitiesIn = (dir: string) => JSON.parse(nodeFS.readFileSync(path.join(dir, ACTUALITIES_FILE), "utf-8"));
 
 describe("how a group last ran against its state", () => {
-	it("doesn't return an actuality until one is recorded, returns it while every dependency holds its digest, and doesn't return it once any changes", () => {
+	it("doesn't return an actuality until one is recorded, returns it while every dependency holds its digest, and doesn't return it once any changes", async () => {
 		const { dir, config } = aGroup();
 		const twoRoots = { specl: { steppers: [], dependsOn: ["lib"] }, bases: [path.join(dir, "features")] };
-		const before = verified(dir, config, twoRoots);
+		const before = await verified(dir, config, twoRoots);
 		expect(outcomeAgainst(before)).toBeUndefined();
 		recordFeatures(before, RECORDED_STATUS.completed, { "/features/a.feature": 1000 });
-		expect(outcomeAgainst(verified(dir, config, twoRoots)), "every dependency holds the digest it held, so --once skips the group").toBe(RECORDED_STATUS.completed);
+		expect(outcomeAgainst(await verified(dir, config, twoRoots)), "every dependency holds the digest it held, so --once skips the group").toBe(RECORDED_STATUS.completed);
 		nodeFS.appendFileSync(path.join(dir, "lib/a.ts"), "// changed\n");
-		const now = verified(dir, config, twoRoots);
+		const now = await verified(dir, config, twoRoots);
 		expect(now.digest.features, "the features hold their digest").toBe(before.digest.features);
 		expect(outcomeAgainst(now), "a change to the library alone reruns the group").toBeUndefined();
 	});
 
-	it("records a failure as an actuality against the state, so InstanceStepper refuses a second run over unchanged features", () => {
+	it("records a failure as an actuality against the state, so InstanceStepper refuses a second run over unchanged features", async () => {
 		const { dir, config } = aGroup();
-		recordFeatures(verified(dir, config), RECORDED_STATUS.failed, { "/features/a.feature": 1000 });
-		expect(outcomeAgainst(verified(dir, config))).toBe(RECORDED_STATUS.failed);
+		recordFeatures(await verified(dir, config), RECORDED_STATUS.failed, { "/features/a.feature": 1000 });
+		expect(outcomeAgainst(await verified(dir, config))).toBe(RECORDED_STATUS.failed);
 	});
 
-	it("keeps a separate actuality for each way of running the group: other module options, another filter, a policy or added steppers each key a separate actuality", () => {
+	it("keeps a separate actuality for each way of running the group: other module options, another filter, a policy or added steppers each key a separate actuality", async () => {
 		const { dir, config } = aGroup();
-		const plain = verified(dir, config);
+		const plain = await verified(dir, config);
 		const others = [
 			{ moduleOptions: { WEBSERVER_PORT: "8300" } },
 			{ filter: ["a"] },
@@ -91,7 +91,7 @@ describe("how a group last ran against its state", () => {
 			{ withSteppers: ["debugger-stepper"] },
 		];
 		recordFeatures(plain, RECORDED_STATUS.completed, { "/features/a.feature": 1000 });
-		for (const other of others) expect(outcomeAgainst(verified(dir, config, other))).toBeUndefined();
+		for (const other of others) expect(outcomeAgainst(await verified(dir, config, other))).toBeUndefined();
 		expect(outcomeAgainst(plain)).toBe(RECORDED_STATUS.completed);
 	});
 
@@ -101,9 +101,9 @@ describe("how a group last ran against its state", () => {
 		expect(c({ DEST: "d" })).not.toBe(c({ DEST: "e" }));
 	});
 
-	it("clears the actualities of the named features and of the whole group that includes them, and an actuality that didn't reach its features, and keeps their durations", () => {
+	it("clears the actualities of the named features and of the whole group that includes them, and an actuality that didn't reach its features, and keeps their durations", async () => {
 		const { dir, config } = aGroup();
-		const [whole, a, b] = [verified(dir, config), verified(dir, config, { filter: ["a"] }), verified(dir, config, { filter: ["b"] })];
+		const [whole, a, b] = [await verified(dir, config), await verified(dir, config, { filter: ["a"] }), await verified(dir, config, { filter: ["b"] })];
 		for (const v of [whole, a, b]) recordFeatures(v, RECORDED_STATUS.completed, { "/features/a.feature": 1000 });
 		forgetOutcomes(dir, "a");
 		expect([outcomeAgainst(a), outcomeAgainst(whole), outcomeAgainst(b)], "the whole group includes a, and b wasn't named").toEqual([
@@ -116,17 +116,17 @@ describe("how a group last ran against its state", () => {
 		expect(actualitiesIn(dir)[machineKey()][b.conditions].features["/features/a.feature"].tookMs).toBe(1000);
 	});
 
-	it("doesn't verify a group outside a git repository against a state", () => {
+	it("doesn't verify a group outside a git repository against a state", async () => {
 		const dir = testTempDir("haibun-norepo-");
 		nodeFS.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ steppers: [] }));
-		expect(verificationOf(conditions(dir, path.join(dir, "config.json")))).toBeUndefined();
+		expect(await verificationOf(conditions(dir, path.join(dir, "config.json")))).toBeUndefined();
 	});
 });
 
 describe("how long a group's features took", () => {
-	it("holds the lines of an actuality's own record with its digests and of its features with their steps under this machine, each duration in tenths of a second", () => {
+	it("holds the lines of an actuality's own record with its digests and of its features with their steps under this machine, each duration in tenths of a second", async () => {
 		const { dir, config } = aGroup();
-		const v = verified(dir, config);
+		const v = await verified(dir, config);
 		recordFeatures(v, RECORDED_STATUS.completed, { "/features/a.feature": 1234 });
 		expect(actualitiesIn(dir)[machineKey()][v.conditions]).toEqual({
 			filter: "",
@@ -135,9 +135,9 @@ describe("how long a group's features took", () => {
 		});
 	});
 
-	it("is the same file for the same group checked out at another directory, its paths relative to the repository's top", () => {
+	it("is the same file for the same group checked out at another directory, its paths relative to the repository's top", async () => {
 		const [one, other] = [aGroup(), aGroup()];
-		const [first, second] = [verified(one.dir, one.config), verified(other.dir, other.config, { cwd: path.dirname(other.dir), bases: [path.basename(other.dir)] })];
+		const [first, second] = [await verified(one.dir, one.config), await verified(other.dir, other.config, { cwd: path.dirname(other.dir), bases: [path.basename(other.dir)] })];
 		for (const v of [first, second]) recordFeatures(v, RECORDED_STATUS.completed, { "/features/a.feature": 1000 });
 		expect(nodeFS.readFileSync(path.join(other.dir, ACTUALITIES_FILE), "utf-8")).toBe(nodeFS.readFileSync(path.join(one.dir, ACTUALITIES_FILE), "utf-8"));
 	});
@@ -152,10 +152,10 @@ describe("how long a group's features took", () => {
 		]);
 	});
 
-	it("is read whole while it is written, and a write that stops partway leaves it as it was", () => {
+	it("is read whole while it is written, and a write that stops partway leaves it as it was", async () => {
 		// Runs of one group read and write the file at once, and a run that read it while another wrote it read it half written.
 		const { dir, config } = aGroup();
-		const v = verified(dir, config);
+		const v = await verified(dir, config);
 		recordFeatures(v, RECORDED_STATUS.completed, { "/features/a.feature": 1000 });
 		const before = nodeFS.readFileSync(path.join(dir, ACTUALITIES_FILE), "utf-8");
 		const write = nodeFS.writeFileSync;
@@ -168,9 +168,10 @@ describe("how long a group's features took", () => {
 		expect(nodeFS.readFileSync(path.join(dir, ACTUALITIES_FILE), "utf-8")).toBe(before);
 	});
 
-	it("refuses an actualities file that doesn't hold actualities by machine and conditions, since replacing it would lose them", () => {
+	it("refuses an actualities file that doesn't hold actualities by machine and conditions, since replacing it would lose them", async () => {
 		const { dir, config } = aGroup();
 		nodeFS.writeFileSync(path.join(dir, ACTUALITIES_FILE), JSON.stringify({ [machineKey()]: { features: {} } }));
-		expect(() => recordFeatures(verified(dir, config), RECORDED_STATUS.completed, { "/a.feature": 100 })).toThrow("doesn't hold actualities by machine and conditions");
+		const v = await verified(dir, config);
+		expect(() => recordFeatures(v, RECORDED_STATUS.completed, { "/a.feature": 100 })).toThrow("doesn't hold actualities by machine and conditions");
 	});
 });

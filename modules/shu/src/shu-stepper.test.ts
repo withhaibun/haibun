@@ -104,32 +104,32 @@ describe("the app a deployment serves", () => {
 		const route = addRoute.mock.calls.find(([, path]) => path === CONTEXT_DOCUMENT.wellKnown);
 		if (!route) throw new Error("the stepper didn't serve the JSON-LD context");
 		/** One request of the context, revalidating `etag` where it states one: the response's status, headers and body. */
-		const request = (etag?: string) => {
+		const request = async (etag?: string) => {
 			const headers: Record<string, string> = {};
 			const asked: Record<string, string> = { host: "site.test", ...(etag === undefined ? {} : { "if-none-match": etag }) };
 			const req = { header: (name?: string) => (name === undefined ? asked : asked[name]) };
 			const body = (content: unknown, status?: number) => ({ status: status === undefined ? 200 : status, content: typeof content === "string" ? content : "" });
-			const { status, content } = (route[3] as (c: unknown) => { status: number; content: string })({
+			const { status, content } = await (route[3] as (c: unknown) => Promise<{ status: number; content: string }>)({
 				req,
 				header: (name: string, value: string) => (headers[name] = value),
 				body,
 			});
 			return { status, headers, content };
 		};
-		const first = request();
+		const first = await request();
 		expect(first.status).toBe(200);
 		expect(first.headers["Cache-Control"], "a page revalidates it").toBe("no-cache");
 		expect(first.content).not.toContain("exv:Declared");
 		const tag = first.headers.ETag;
 		expect(tag, "a strong ETag of its content's hash").toMatch(/^"[0-9a-f]{64}"$/);
-		expect(request(tag), "an unchanged context isn't sent again").toMatchObject({ status: 304, content: "" });
+		expect(await request(tag), "an unchanged context isn't sent again").toMatchObject({ status: 304, content: "" });
 		world.domains = {
 			...world.domains,
 			declared: {
 				topology: { persistedAs: "Declared", type: "exv:Declared", id: "id", namespaces: { exv: "https://vocab.example/ns#" }, properties: { id: LinkRelations.IDENTIFIER.rel } },
 			},
 		} as unknown as TWorld["domains"];
-		const changed = request(tag);
+		const changed = await request(tag);
 		expect(changed.status, "a type declared after the app was served changes the context, and its tag").toBe(200);
 		expect(changed.content).toContain("exv:Declared");
 		expect(changed.headers.ETag).not.toBe(tag);
@@ -163,22 +163,22 @@ describe("the app a deployment serves", () => {
 
 	it("serves the page's bundle with an ETag, gzipped where the request accepts gzip, a 304 for an unchanged one, and a 404 for a file the build didn't write", async () => {
 		await stepper.steps.serveShuApp.action({ path: "/spa" });
-		const serve = addRoute.mock.calls.find(([, path]) => path === `${PAGE_ASSETS}/:file`)?.[3] as (c: unknown) => Response;
-		const request = (file: string, headers: Record<string, string>) => {
+		const serve = addRoute.mock.calls.find(([, path]) => path === `${PAGE_ASSETS}/:file`)?.[3] as (c: unknown) => Promise<Response>;
+		const request = async (file: string, headers: Record<string, string>) => {
 			const sent: Record<string, string> = {};
 			const c = {
 				req: { path: `${PAGE_ASSETS}/${file}`, header: (name: string) => headers[name] },
 				header: (name: string, value: string) => (sent[name] = value),
 				body: (body: unknown, status = 200) => ({ body, status }),
 			};
-			return { answer: serve(c) as unknown as { body: unknown; status: number }, sent };
+			return { answer: (await serve(c)) as unknown as { body: unknown; status: number }, sent };
 		};
 		const bundle = PAGE_BUNDLE_JS.slice(PAGE_ASSETS.length + 1);
-		const gzipped = request(bundle, { "accept-encoding": "gzip, deflate" });
+		const gzipped = await request(bundle, { "accept-encoding": "gzip, deflate" });
 		expect(gzipped.sent["Content-Encoding"]).toBe("gzip");
-		expect(gunzipSync(gzipped.answer.body as Uint8Array).toString("utf-8")).toBe(request(bundle, {}).answer.body);
-		expect(request(bundle, { "if-none-match": gzipped.sent.ETag ?? "" }).answer.status).toBe(304);
-		expect(request("absent.js", {}).answer.status).toBe(404);
+		expect(gunzipSync(gzipped.answer.body as Uint8Array).toString("utf-8")).toBe((await request(bundle, {})).answer.body);
+		expect((await request(bundle, { "if-none-match": gzipped.sent.ETag ?? "" })).answer.status).toBe(304);
+		expect((await request("absent.js", {})).answer.status).toBe(404);
 	});
 
 	it("runs the script it serves with the response's nonce, which the response's policy names, and a nonce of its own for each response", async () => {

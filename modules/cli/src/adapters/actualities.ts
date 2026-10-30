@@ -105,10 +105,10 @@ type TVerification = { file: string; machine: string; conditions: string; filter
 /** Returns the present state of a group's dependencies with an actuality's place in the actualities file. Returns undefined where the
  *  state can't be read. A caller then runs the group without consulting the file and doesn't record it. Every path the
  *  file records is relative to the top of the configuration's repository, so the file is the same in every checkout. */
-export function verificationOf(c: TActualityConditions): TVerification | undefined {
+export async function verificationOf(c: TActualityConditions): Promise<TVerification | undefined> {
 	const configDir = path.dirname(path.resolve(c.configPath));
-	const top = repositoryTop(configDir);
-	const digest = dependencyState(dependencyRoots(c.specl, c.bases, configDir, c.cwd));
+	const top = await repositoryTop(configDir);
+	const digest = await dependencyState(dependencyRoots(c.specl, c.bases, configDir, c.cwd));
 	if (top === undefined || digest === undefined) return undefined;
 	const fromTop = (at: string) => path.join(".", path.relative(top, path.resolve(c.cwd, at)));
 	const conditions = actualityConditions({ ...c, configPath: fromTop(c.configPath) });

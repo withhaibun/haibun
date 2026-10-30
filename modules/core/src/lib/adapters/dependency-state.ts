@@ -13,7 +13,8 @@
  * track. It excludes ignored files. An ignored file is derived output. The state is read from the working tree, so it
  * includes changes that aren't committed.
  */
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import nodeFS from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -127,17 +128,24 @@ export function dependencyRoots(specl: TSpecl, bases: readonly string[], configD
 	return [...roots].sort();
 }
 
-/** Runs git with the given arguments in a directory and returns its standard output. Standard error is piped rather
- *  than inherited, so a caller reads it from the thrown error. */
-const git = (dir: string, args: string[], input?: string): string =>
-	execFileSync("git", args, { cwd: dir, encoding: "utf-8", maxBuffer: 64 * 1024 * 1024, stdio: ["pipe", "pipe", "pipe"], ...(input === undefined ? {} : { input }) });
+const execGit = promisify(execFile);
+/** The most output git returns at once. */
+const GIT_OUTPUT_BYTES = 64 * 1024 * 1024;
+
+/** Runs git with the given arguments in a directory, off the event loop, and returns its standard output, writing `input` to its
+ *  standard input where it is given. Standard error is piped rather than inherited, so a caller reads it from the thrown error. */
+async function git(dir: string, args: string[], input?: string): Promise<string> {
+	const running = execGit("git", args, { cwd: dir, encoding: "utf-8", maxBuffer: GIT_OUTPUT_BYTES });
+	if (input !== undefined) running.child.stdin?.end(input);
+	return (await running).stdout;
+}
 
 /** Returns the top-level directory of the repository that contains a directory. Returns undefined where the directory
  *  isn't in a repository. Throws on any other git failure. An undefined result for that failure would make every group
  *  run without consulting its record and wouldn't report the failure. */
-export function repositoryTop(dir: string): string | undefined {
+export async function repositoryTop(dir: string): Promise<string | undefined> {
 	try {
-		return git(dir, ["rev-parse", "--show-toplevel"]).trim();
+		return (await git(dir, ["rev-parse", "--show-toplevel"])).trim();
 	} catch (err: unknown) {
 		const said = String((err as { stderr?: string }).stderr ?? "").trim();
 		if (said.includes("not a git repository")) return undefined;
@@ -157,14 +165,14 @@ const unnameable = (file: string): boolean => file.includes("\n") || file.starts
  *  at or under the root, a file or a directory, that its repository tracks or would track. A symbolic link's digest is its target path. A listed directory is a nested repository or a submodule.
  *  The result skips it, because that directory's own repository holds its content. The result excludes the files an actuality
  *  writes about itself. Returns undefined where the root isn't in a repository. */
-function repositoryFiles(root: string): { rel: string; files: TRepositoryFile[] } | undefined {
+async function repositoryFiles(root: string): Promise<{ rel: string; files: TRepositoryFile[] } | undefined> {
 	const dir = nodeFS.existsSync(root) && !nodeFS.statSync(root).isDirectory() ? path.dirname(root) : root;
-	const top = repositoryTop(dir);
+	const top = await repositoryTop(dir);
 	if (top === undefined) return undefined;
 	const rel = path.relative(top, root);
 	const files: string[] = [];
 	const links: TRepositoryFile[] = [];
-	for (const listed of git(dir, ["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", dir === root ? "." : path.basename(root)]).split("\0")) {
+	for (const listed of (await git(dir, ["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", dir === root ? "." : path.basename(root)])).split("\0")) {
 		if (listed.length === 0 || path.basename(listed) === ACTUALITIES_FILE) continue;
 		const file = path.join(path.relative(top, dir), listed);
 		let stat: nodeFS.Stats;
@@ -177,11 +185,7 @@ function repositoryFiles(root: string): { rel: string; files: TRepositoryFile[] 
 		else if (stat.isFile()) files.push(file);
 	}
 	const plain = files.filter((f) => !unnameable(f));
-	const digests = plain.length
-		? git(top, ["hash-object", "--stdin-paths"], `${plain.join("\n")}\n`)
-				.trim()
-				.split("\n")
-		: [];
+	const digests = plain.length ? (await git(top, ["hash-object", "--stdin-paths"], `${plain.join("\n")}\n`)).trim().split("\n") : [];
 	const out = plain.map((file, i) => ({ file, digest: itemAt(digests, i) }));
 	for (const file of files.filter(unnameable)) out.push({ file, digest: sha256(nodeFS.readFileSync(path.join(top, file))) });
 	return { rel, files: [...out, ...links].sort((a, b) => (a.file < b.file ? -1 : 1)) };
@@ -197,10 +201,10 @@ function repositoryFiles(root: string): { rel: string; files: TRepositoryFile[] 
  * would track. An installed module that the repository ignores is such a root. A group that depends on such a root
  * runs every time, rather than never.
  */
-export function dependencyState(roots: readonly string[]): TDigest | undefined {
+export async function dependencyState(roots: readonly string[]): Promise<TDigest | undefined> {
 	const digests: TDigest = {};
 	for (const root of roots) {
-		const held = repositoryFiles(root);
+		const held = await repositoryFiles(root);
 		if (held === undefined || held.files.length === 0) return undefined;
 		const at = path.join(".", held.rel);
 		if (digests[at] !== undefined) throw new Error(`two dependency roots are at ${at} in their repositories, and one digest would replace the other. Move one root.`);

@@ -250,42 +250,48 @@ describe("whether a run would repeat the outcome of an earlier run", () => {
 		return { dir, config };
 	};
 
-	it("starts features that haven't run against their present state, and refuses features that have, whether they passed or failed", () => {
+	it("starts features that haven't run against their present state, and refuses features that have, whether they passed or failed", async () => {
 		const { dir, config } = aGroup();
 		const env = runEnvironment({}, 0, false, undefined, []);
-		expect(verifiedRun(supervisorPorts, config, [dir], "", dir, env)).toBeUndefined();
+		expect(await verifiedRun(supervisorPorts, config, [dir], "", dir, env)).toBeUndefined();
 		// v() computes the verification that the child would record from the same environment.
 		const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env, getConfigFromBase([dir], fileSystem));
-		const v = () => verificationOf({ configPath: config, specl: getConfigFromBase([dir], fileSystem), bases: [dir], cwd: dir, filter: [], options, moduleOptions }) as never;
-		recordOutcome(v(), "failed");
-		expect(verifiedRun(supervisorPorts, config, [dir], "", dir, env), "a run that failed against this state would fail the same way").toBe("failed");
-		recordOutcome(v(), "passed");
-		expect(verifiedRun(supervisorPorts, config, [dir], "", dir, env), "verifiedRun returns the recorded pass for the same features, state and conditions").toBe("passed");
-		expect(verifiedRun(supervisorPorts, config, [dir], "a", dir, env), "a run narrowed to some of the features is a different run").toBeUndefined();
+		const v = async () =>
+			(await verificationOf({ configPath: config, specl: getConfigFromBase([dir], fileSystem), bases: [dir], cwd: dir, filter: [], options, moduleOptions })) as never;
+		recordOutcome(await v(), "failed");
+		expect(await verifiedRun(supervisorPorts, config, [dir], "", dir, env), "a run that failed against this state would fail the same way").toBe("failed");
+		recordOutcome(await v(), "passed");
+		expect(await verifiedRun(supervisorPorts, config, [dir], "", dir, env), "verifiedRun returns the recorded pass for the same features, state and conditions").toBe("passed");
+		expect(await verifiedRun(supervisorPorts, config, [dir], "a", dir, env), "a run narrowed to some of the features is a different run").toBeUndefined();
 		nodeFS.writeFileSync(path.join(dir, "features/a.feature"), "Feature: a, changed\n");
-		expect(verifiedRun(supervisorPorts, config, [dir], "", dir, env), "a changed dependency makes a new state that doesn't have a recorded outcome").toBeUndefined();
+		expect(await verifiedRun(supervisorPorts, config, [dir], "", dir, env), "a changed dependency makes a new state that doesn't have a recorded outcome").toBeUndefined();
 	});
 
-	it("reads the .env file in a run's starting directory where its config declares an environment, as the child does", () => {
+	it("reads the .env file in a run's starting directory where its config declares an environment, as the child does", async () => {
 		const { dir, config } = aGroup();
 		const env = runEnvironment({}, 0, false, undefined, []);
-		const passed = () => {
+		const passed = async () => {
 			const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env, getConfigFromBase([dir], fileSystem));
 			recordOutcome(
-				verificationOf({ configPath: config, specl: getConfigFromBase([dir], fileSystem), bases: [dir], cwd: dir, filter: [], options, moduleOptions }) as never,
+				(await verificationOf({ configPath: config, specl: getConfigFromBase([dir], fileSystem), bases: [dir], cwd: dir, filter: [], options, moduleOptions })) as never,
 				"passed",
 			);
 		};
 		const dotenv = path.join(dir, ".env");
-		passed();
+		await passed();
 		nodeFS.writeFileSync(dotenv, "HAIBUN_O_WEBSERVERSTEPPER_PORT=8399\n");
-		expect(verifiedRun(supervisorPorts, config, [dir], "", dir, env), "a config without an environment doesn't read the file, so its conditions stay the same").toBe("passed");
+		expect(await verifiedRun(supervisorPorts, config, [dir], "", dir, env), "a config without an environment doesn't read the file, so its conditions stay the same").toBe(
+			"passed",
+		);
 		nodeFS.rmSync(dotenv);
 		nodeFS.writeFileSync(config, JSON.stringify({ steppers: [], environments: ["mail"] }));
-		passed();
-		expect(verifiedRun(supervisorPorts, config, [dir], "", dir, env)).toBe("passed");
+		await passed();
+		expect(await verifiedRun(supervisorPorts, config, [dir], "", dir, env)).toBe("passed");
 		nodeFS.writeFileSync(dotenv, "HAIBUN_O_WEBSERVERSTEPPER_PORT=8399\n");
-		expect(verifiedRun(supervisorPorts, config, [dir], "", dir, env), "the child would read that file, so its conditions differ from the recorded conditions").toBeUndefined();
+		expect(
+			await verifiedRun(supervisorPorts, config, [dir], "", dir, env),
+			"the child would read that file, so its conditions differ from the recorded conditions",
+		).toBeUndefined();
 	});
 });
 

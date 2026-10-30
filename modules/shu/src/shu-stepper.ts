@@ -58,7 +58,7 @@ const assetType = (path: string): string => (path.endsWith(".map") ? MEDIA_TYPE.
 /** A served asset's response: a bundle file, read on each request so a rebuilt one is served after `npm run build` without a
  *  restart, or text a server derives. `no-cache` revalidates it, so an unchanged asset returns 304 and a changed one gets a fresh
  *  ETag and a full body, gzipped where the request accepts gzip. */
-function assetResponse(c: Context, asset: TServedAsset, contentType: string): Response {
+async function assetResponse(c: Context, asset: TServedAsset, contentType: string): Promise<Response> {
 	c.header("ETag", asset.etag);
 	c.header("Cache-Control", "no-cache");
 	c.header("Vary", "Accept-Encoding");
@@ -67,7 +67,7 @@ function assetResponse(c: Context, asset: TServedAsset, contentType: string): Re
 	const accepted = c.req.header("accept-encoding");
 	if (accepted === undefined || !GZIP.test(accepted)) return c.body(asset.content);
 	c.header("Content-Encoding", "gzip");
-	return c.body(asset.gzipped());
+	return c.body(await asset.gzipped());
 }
 
 /** An origin as a page states it: a scheme and a host, such as `https://example.com` or `chrome-extension://<id>`. */
