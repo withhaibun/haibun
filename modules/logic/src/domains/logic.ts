@@ -21,9 +21,11 @@ const BindingSchema = z.union([
 	z.object({ node: z.string(), within: z.array(z.number()) }),
 ]);
 export type TBinding = z.infer<typeof BindingSchema>;
+/** A waypoint's arguments as a binding of its node. */
+export type TArgsBinding = Extract<TBinding, { args: unknown }>;
 
 /** The effects a proof requests, by kind. */
-export const EFFECT = { call: "call", open: "open", close: "close", read: "read", rule: "rule", wait: "wait" } as const;
+export const EFFECT = { call: "call", open: "open", close: "close", read: "read", rule: "rule", waypoint: "waypoint", wait: "wait" } as const;
 /** The remedy where a proof reaches a request or a result the TypeScript prover doesn't hold, which a step program from another
  *  build of haibun makes. */
 export const DIFFERENT_BUILDS = "The step program and the TypeScript prover are from different builds; run `npm run build` in haibun.";
@@ -45,6 +47,21 @@ const ReadRequestSchema = z.object({ patterns: z.array(PatternSchema), bindings:
 /** A node's close: its verdict and what determined it, the position of a part, the reason the engine states, or the record that stated its falsity. */
 const CloseRequestSchema = z.object({ node: z.string(), verdict: VerdictSchema, why: z.union([z.array(z.number()), z.string(), z.object({ falsity: z.string() })]) });
 
+/** What a proof requests of a waypoint's head: `prove`, its record with its proof and falsity; `judge`, the proof and falsity of an
+ *  application the line opened; `check`, that application's proof alone; and `state`, its falsity over a verdict the line's
+ *  proof gave. */
+export const WAYPOINT_MODE = { prove: "prove", judge: "judge", check: "check", state: "state" } as const;
+/** A waypoint effect: what it requests of the head a node applies, the node's bindings, the position its lines start after, the group
+ *  they take, and, for `state`, the verdict and why the line's proof gave, as its term. */
+const WaypointEffectSchema = z.object({
+	mode: z.enum(WAYPOINT_MODE),
+	node: z.string(),
+	bindings: z.array(BindingSchema),
+	base: z.number(),
+	group: z.string(),
+	given: z.object({ verdict: VerdictSchema, why: z.string() }).optional(),
+});
+export type TWaypointEffect = z.infer<typeof WaypointEffectSchema>;
 export type TNodeRequest = z.infer<typeof NodeRequestSchema>;
 export type TReadRequest = z.infer<typeof ReadRequestSchema>;
 export type TCloseRequest = z.infer<typeof CloseRequestSchema>;
@@ -66,7 +83,15 @@ export const ProofStateSchema = z.union([
 	z.object({
 		need: z.string(),
 		path: z.array(z.number()),
-		request: z.union([NodeRequestSchema, ReadRequestSchema, CloseRequestSchema, z.object({ rule: z.string() }), z.object({ node: z.string(), attempt: z.number() })]),
+		// A waypoint effect holds a node and its bindings as a node's request does, so it is read first.
+		request: z.union([
+			WaypointEffectSchema,
+			NodeRequestSchema,
+			ReadRequestSchema,
+			CloseRequestSchema,
+			z.object({ rule: z.string() }),
+			z.object({ node: z.string(), attempt: z.number() }),
+		]),
 	}),
 ]);
 export type TProofState = z.infer<typeof ProofStateSchema>;

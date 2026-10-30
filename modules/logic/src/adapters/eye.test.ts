@@ -2,7 +2,7 @@
  * One EYE runtime serves successive sessions: each session's outcome is the one a runtime of its own gives, a session doesn't see
  * what an earlier one stated or left part-way, and a session on the reused runtime takes a fraction of a runtime's start.
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DataFactory } from "n3";
 import { REASONER_BUILTIN, RULE_SET } from "../domains/reasoning.js";
 import type { TReasoner } from "../ports.js";
@@ -91,5 +91,23 @@ describe("a reused EYE runtime", () => {
 		const fresh = await timed(eyeReasoner);
 		const onReused = await timed(() => reused);
 		expect(onReused * 3, `5 sessions took ${onReused.toFixed(0)} ms on the reused runtime and ${fresh.toFixed(0)} ms on fresh runtimes`).toBeLessThan(fresh);
+	});
+
+	it("runs a session started within a session at once on a runtime of the next depth, and drops that runtime once it is idle", { timeout: 60_000 }, async () => {
+		vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+		try {
+			const reasoner = eyeReasoner();
+			const outer = await reasoner.session(async (session) => {
+				await session.start(FORWARD.sources, FORWARD.query, false);
+				const nested = await outcomeOf(reasoner, OTHER);
+				return { nested, held: reasoner.runtimes() };
+			});
+			expect(outer.nested).toEqual(await outcomeOf(eyeReasoner(), OTHER));
+			expect(outer.held, "the outer depth's runtime and the nested depth's").toBe(2);
+			await vi.runAllTimersAsync();
+			expect(reasoner.runtimes(), "the outer depth's runtime alone").toBe(1);
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 });

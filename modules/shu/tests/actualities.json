@@ -314,12 +314,12 @@
 			"actuality": {
 				"text": "modules/shu/tests, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 35100,
+				"tookMs": 35800,
 				"digest": {
 					"modules/cli/src": "58a55b398fc5d77fac9bfc1fc86683c7614b8c54c1dcbe17325ab55c6b867363",
 					"modules/core/src": "2373277db1ea11e50972b33271836787478b090da4a009c5c69dcbe063fe55df",
 					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
-					"modules/logic/src": "0a8fb5c1135bf101ca840dce2dc3213645564117640ade493da245eb55a96fa8",
+					"modules/logic/src": "01b4ce4b86179491e81ba0a942994dd482244270ba6f1d9c3961a87e2b39d36c",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/shu/src": "eba65a5aac2430921efdb8671095f1f27d2b2587b5c515c16792b767cb785417",
 					"modules/shu/tests": "bfa5d3deca17ae1ca587de4465ac995be8ee1d8798fcab8393d2ee3dd5c7d1bc",
@@ -334,7 +334,7 @@
 				"/features/address.feature.ts": {
 					"text": "An address names a type",
 					"status": "passed",
-					"tookMs": 1300,
+					"tookMs": 1100,
 					"steps": 199
 				},
 				"/features/federate.feature.ts": {
@@ -346,19 +346,19 @@
 				"/features/monitor-serves.feature.ts": {
 					"text": "The monitor serves shu on a port of its own",
 					"status": "passed",
-					"tookMs": 1600,
+					"tookMs": 1700,
 					"steps": 190
 				},
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
-					"tookMs": 21500,
-					"steps": 670
+					"tookMs": 22000,
+					"steps": 668
 				},
 				"/features/remote-store.feature.ts": {
 					"text": "A satellite instance keeps its records in the main instance's store",
 					"status": "passed",
-					"tookMs": 1400,
+					"tookMs": 1700,
 					"steps": 8
 				},
 				"/features/voice-ui.feature.ts": {

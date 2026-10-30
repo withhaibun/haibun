@@ -1,0 +1,52 @@
+# Waypoints' proofs as backward rules. A waypoint's head holds where each line of its proof holds; its activity, which makes the
+# proof hold, and ensure, which runs it, stay haibun's. Each waypoint states its proof as `h:proof`, a list of its lines in
+# order: "call", a step haibun calls, or "apply", a waypoint's head applied beneath it. An application's record opens with the
+# arguments it read and closes with its verdict, a step's call and a stated falsity are read through `h:effect`, and an
+# application's key, its head with its arguments, joins the ancestors its proof passes down, which refuse it again below itself.
+# A verdict is a list of its value and why: "none", a reason the engine states, the position of the line that gave it, or
+# ("falsity" record).
+@prefix h: <urn:haibun:> .
+@prefix list: <http://www.w3.org/2000/10/swap/list#> .
+@prefix log: <http://www.w3.org/2000/10/swap/log#> .
+@prefix math: <http://www.w3.org/2000/10/swap/math#> .
+
+# A head applied at a position under its parent: its record opens, or the open is refused and the head is unknown.
+{ (?Parent ?At ?Ancestors) h:applied ?Result } <= { (h:open ?Parent ?At) h:effect ?Opened . (?Opened ?Ancestors) h:opened ?Result } .
+{ ("refused" ?Ancestors) h:opened ("unknown" "refused") } <= {} .
+{ ((?App ?Key ?Head) ?Ancestors) h:opened ?Result } <= { (?App ?Key ?Head ?Ancestors) h:verdict ?Result . (h:close ?App ?Result) h:effect ?closed } .
+
+# A head applied again with the same arguments below itself is unknown, and so is one past the bound of nested applications.
+{ (?Key ?Ancestors) h:bound ("unknown" "cycle") } <= { ?Ancestors list:member ?Key } .
+{ (?Key ?Ancestors) h:bound ("unknown" "depth") } <= {
+    ?Ancestors list:notMember ?Key . ?Ancestors list:length ?Depth . h:session h:maxDepth ?Max . ?Depth math:notLessThan ?Max } .
+
+# An application's verdict: its proof, refuted by a stated falsity of its head and arguments, a contradiction where its proof holds
+# as well, and unknown where its proof doesn't hold without one. Its check is its proof alone, as a line run alone reads it.
+{ (?App ?Key ?Head ?Ancestors) h:verdict ?Result } <= { (?Key ?Ancestors) h:bound ?Result } .
+{ (?App ?Key ?Head ?Ancestors) h:verdict ?Result } <= {
+    (h:found { (?Key ?Ancestors) h:bound ?any } ()) log:collectAllIn ?within . (?App ?Key ?Head ?Ancestors) h:proved ?Proved .
+    (h:falsity ?App) h:effect ?Falsities . (?Falsities ?Proved) h:stated ?Result } .
+{ (?App ?Key ?Head ?Ancestors) h:checked ?Result } <= { (?Key ?Ancestors) h:bound ?Result } .
+{ (?App ?Key ?Head ?Ancestors) h:checked ?Result } <= {
+    (h:found { (?Key ?Ancestors) h:bound ?any } ()) log:collectAllIn ?within . (?App ?Key ?Head ?Ancestors) h:proved ?Result } .
+{ (?App ?Key ?Head ?Ancestors) h:proved ?Result } <= { ?Head h:proof ?Lines . ((?Key) ?Ancestors) list:append ?Below . (?App ?Lines ?Below) h:lines ?Result } .
+{ (?App () ?Ancestors) h:lines ("refuted" "no_proof") } <= {} .
+{ (?App ?Lines ?Ancestors) h:lines ?Result } <= { ?Lines list:firstRest (?Line ?Rest) . (?App ?Lines 1 ?Ancestors) h:conj ?Result } .
+
+# A proof's lines in order: the first that isn't proved gives the verdict and its position, and the lines after it don't run.
+{ (?App () ?At ?Ancestors) h:conj ("proved" "none") } <= {} .
+{ (?App ?Lines ?At ?Ancestors) h:conj ?Result } <= {
+    ?Lines list:firstRest (?Line ?Rest) . (?App ?Line ?At ?Ancestors) h:line ?First . ?First list:first ?Value .
+    (?Value ?First ?App ?Rest ?At ?Ancestors) h:rest ?Result } .
+{ ("proved" ?First ?App ?Rest ?At ?Ancestors) h:rest ?Result } <= { (?At 1) math:sum ?Next . (?App ?Rest ?Next ?Ancestors) h:conj ?Result } .
+{ (?Value ?First ?App ?Rest ?At ?Ancestors) h:rest ?First } <= { ?Value log:notEqualTo "proved" } .
+
+# A line is a step haibun calls, or a head applied beneath this application.
+{ (?App "call" ?At ?Ancestors) h:line (?Value ?At) } <= { (h:call ?App ?At) h:effect ?Value } .
+{ (?App "apply" ?At ?Ancestors) h:line (?Value ?At) } <= { (?App ?At ?Ancestors) h:applied ?Applied . ?Applied list:first ?Value } .
+
+# A stated falsity refutes a head whose proof doesn't hold, and contradicts one whose proof holds.
+{ (() ?Proved) h:stated ("unknown" ?Why) } <= { ?Proved list:firstRest ("refuted" (?Why)) } .
+{ (() ?Proved) h:stated ?Proved } <= { ?Proved list:first ?Value . ?Value log:notEqualTo "refuted" } .
+{ (?Falsities ?Proved) h:stated ("contradiction" ("falsity" ?Record)) } <= { ?Falsities list:first ?Record . ?Proved list:first "proved" } .
+{ (?Falsities ?Proved) h:stated ("refuted" ("falsity" ?Record)) } <= { ?Falsities list:first ?Record . ?Proved list:first ?Value . ?Value log:notEqualTo "proved" } .

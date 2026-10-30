@@ -29,9 +29,6 @@
 	"modules/core/src/steps/adapters/speech.ts": {
 		"asserts a type with `as` where a schema parses the value": 7
 	},
-	"modules/logic/src/adapters/eye.ts": {
-		"asserts a type with `as` where a schema parses the value": 1
-	},
 	"modules/logic/src/adapters/swipl.ts": {
 		"asserts a type with `as` where a schema parses the value": 1
 	},

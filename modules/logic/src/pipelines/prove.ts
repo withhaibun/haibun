@@ -2,18 +2,21 @@
  * Proves a step through the logic engine. A line's term is the formula its step reads as: a built-in call, or a reading
  * over the terms of the statements it states. One query starts the line's proof. Where the proof reaches an effect, this
  * pipeline performs the effect and resumes the proof with its outcome: a built-in call through step dispatch, the opening
- * and closing of a node's record, a read of facts, a waypoint's rule, and a wait of until. A built-in runs once for its
- * position in the proof, which fixes its step, its arguments and the capability it runs under.
+ * and closing of a node's record, a read of facts, a waypoint's rule, a waypoint's proof on the reasoner, and a wait of until. A
+ * built-in runs once for its position in the proof, which fixes its step, its arguments and the capability it runs under. A call
+ * runs in the waypoint scope of its position: the keys of the applications above it, across the proofs that nest it, and how many
+ * waypoint sessions enclose it.
  */
+import { AsyncLocalStorage } from "node:async_hooks";
 import { z } from "zod";
 import { ClaimWitnessSchema } from "@haibun/core/lib/records/domains/axioms.js";
 import type { DispatchContext } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
-import { dispatchStep, nextSeqPath, runAsDispatched } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
+import { dispatchStep, nextSeqPath, proveStep, runAsDispatched } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import type { TProver } from "@haibun/core/lib/actuality/ports.js";
 import { findFeatureStepsFromStatement } from "@haibun/core/lib/actuality/pipelines/resolver.js";
 import { argumentsOf } from "@haibun/core/lib/steps/pipelines/populate-action-args.js";
-import { VERDICT, verdictOf, type TActionResult, type TStepArgs, type TStepResult } from "@haibun/core/lib/domains/protocol.js";
+import { VERDICT, verdictOf, type TActionResult, type TStepArgs, type TStepResult, type TVerdict } from "@haibun/core/lib/domains/protocol.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { refusalCarried, type TRemedy } from "@haibun/core/lib/rpc-wire.js";
 import {
@@ -40,7 +43,9 @@ import {
 	type TBinding,
 	type TCloseRequest,
 	type TNodeRequest,
+	type TArgsBinding,
 	type TReadRequest,
+	type TWaypointEffect,
 } from "../domains/logic.js";
 import { quantifierOf, statementList, statementParams, UNTIL_RETRY_MS, type TRefusal } from "../domains/readings.js";
 import { atom, factsTerm, list, whyText } from "../derivations/terms.js";
@@ -48,6 +53,18 @@ import type { TLogicEngine, TReasoner } from "../ports.js";
 import { containment } from "./containment.js";
 import { entailedMembers } from "./members.js";
 import { canonicalOf, readerOf } from "./reads.js";
+import { waypointProof, type TApplied, type TProofLine, type TWaypointHost, type TWaypointRequest, type TWaypointScope } from "./waypoints.js";
+
+/** The waypoint scope of the code that runs now, which a call of a proof sets for the proofs it nests. */
+const waypointScope = new AsyncLocalStorage<TWaypointScope>();
+/** The scope outside any application. */
+const OUTSIDE: TWaypointScope = { ancestors: [], sessions: 0 };
+/** The verdict of each outcome of a call. */
+const CALL_VERDICT: Record<string, TVerdict | undefined> = {
+	[CALL_OUTCOME.passed]: VERDICT.proved,
+	[CALL_OUTCOME.failed]: VERDICT.refuted,
+	[CALL_OUTCOME.refused]: VERDICT.unknown,
+};
 
 /** A node of a line's proof: the step it states, and the variable a quantifier binds. */
 type TNode = { step: TFeatureStep; what?: string };
@@ -82,14 +99,23 @@ class Proof {
 	private readonly argsAt = new Map<string, TStepArgs>();
 	/** The facts of each quantifier's observation source by their item, by the quantifier's node. */
 	private readonly observed = new Map<string, Map<string, TObserved[]>>();
+	/** The key of each application the proof opened, its head with the arguments it read, by its position. */
+	private readonly keys = new Map<string, string>();
+	/** The lines of each waypoint's proof a session read, by its head. */
+	private readonly proofLines = new Map<string, readonly TProofLine[]>();
+	/** The waypoint scope of the line's proof. */
+	private readonly enclosing: TWaypointScope;
 	private readonly reader;
 
 	constructor(
 		private readonly ctx: DispatchContext,
+		private readonly reasoner: TReasoner,
 		private readonly line: TFeatureStep,
 		private readonly placed?: TPlaced,
 	) {
 		this.reader = readerOf(ctx.world.shared.getStore());
+		const scope = waypointScope.getStore();
+		this.enclosing = scope === undefined ? OUTSIDE : scope;
 	}
 
 	private add(node: TNode): string {
@@ -187,7 +213,8 @@ class Proof {
 		if (need.need === EFFECT.open) return await this.open(path, request as TNodeRequest);
 		if (need.need === EFFECT.close) return await this.close(path, request as TCloseRequest);
 		if (need.need === EFFECT.read) return await this.read(path, request as TReadRequest);
-		if (need.need === EFFECT.rule) return await this.rule((request as { rule: string }).rule);
+		if (need.need === EFFECT.rule) return await this.rule(path, (request as { rule: string }).rule);
+		if (need.need === EFFECT.waypoint) return await this.waypoint(path, request as TWaypointEffect);
 		if (need.need === EFFECT.wait) return await this.wait(path, request as { node: string });
 		throw this.differentBuilds("makes a request the TypeScript prover doesn't handle");
 	}
@@ -197,13 +224,42 @@ class Proof {
 		return new DifferentBuilds(`The proof of \`${this.line.in}\` ${what}. ${DIFFERENT_BUILDS}`);
 	}
 
-	private async call(path: number[], request: TNodeRequest): Promise<string> {
-		const step = this.instance(this.node(request.node), path, request.bindings);
+	private call(path: number[], request: TNodeRequest): Promise<string> {
+		return this.callIn(path, request, this.scopeAt(path), () => dispatchStep(this.ctx, this.instance(this.node(request.node), path, request.bindings)));
+	}
+
+	/** Performs a call in a waypoint scope inside the contexts its bindings name, and holds its result at its position. */
+	private async callIn(path: readonly number[], request: TNodeRequest, scope: TWaypointScope, proving: () => Promise<TStepResult>): Promise<string> {
 		try {
-			return this.held(path, await this.withinContexts(request.bindings, () => dispatchStep(this.ctx, step)));
+			return this.held(path, await waypointScope.run(scope, () => this.withinContexts(request.bindings, proving)));
 		} catch (caught) {
-			return this.refused(path, step, caught);
+			return this.refused(path, this.instance(this.node(request.node), path, request.bindings), caught);
 		}
+	}
+
+	/** The verdict of a line of a waypoint's proof that isn't a head: a built-in's call, or a reading's proof of its own. */
+	private async lineVerdict(path: readonly number[], request: TNodeRequest, scope: TWaypointScope): Promise<TVerdict> {
+		const step = this.instance(this.node(request.node), path, request.bindings);
+		if (step.action.step.reading === undefined) {
+			const verdict = CALL_VERDICT[await this.callIn(path, request, scope, () => dispatchStep(this.ctx, step))];
+			if (verdict === undefined) throw this.differentBuilds("calls a step whose outcome the prover doesn't read");
+			return verdict;
+		}
+		let result: TStepResult | undefined;
+		await this.callIn(path, request, scope, async () => {
+			result = await proveStep(this.ctx, step);
+			return result;
+		});
+		return result === undefined ? VERDICT.unknown : verdictOf(result);
+	}
+
+	/** The waypoint scope at a position: the enclosing scope's ancestors with the keys of the applications above the position. */
+	private scopeAt(path: readonly number[]): TWaypointScope {
+		const above = path.flatMap((_, depth) => {
+			const key = this.keys.get(keyOf(path.slice(0, depth)));
+			return key === undefined ? [] : [key];
+		});
+		return { ancestors: [...this.enclosing.ancestors, ...above], sessions: this.enclosing.sessions };
 	}
 
 	/** Holds a call's refusal as an unknown outcome. A refusal of the line's own call reaches the line's caller, as a transport
@@ -379,11 +435,105 @@ class Proof {
 		return [...byItem.keys()].map((item) => fact(READ_PREDICATE.member, item));
 	}
 
-	private async rule(name: string): Promise<string> {
-		const rule = this.rules.get(name);
-		if (rule === undefined) throw this.differentBuilds(`requests the rule of the waypoint "${name}", which the line doesn't apply`);
-		const { proof, activity } = rule;
-		return `rule(${await this.linesTerm(proof)}, ${await this.linesTerm(activity)})`;
+	/** A waypoint's rule as the line's proof reads it: whether it states a proof, its activity, and `cycle` where its key, its head
+	 *  with the arguments its application read, is the key of an application above it, or `none`. */
+	private async rule(path: readonly number[], name: string): Promise<string> {
+		const rule = this.ruleOf(name);
+		const key = await this.keyOf(path, name);
+		const bound = this.scopeAt(path).ancestors.includes(key) ? "cycle" : "none";
+		return `rule(${rule.proof.length > 0}, ${await this.linesTerm(rule.activity)}, ${bound})`;
+	}
+
+	private ruleOf(head: string): TWaypointRule {
+		const rule = this.rules.get(head);
+		if (rule === undefined) throw this.differentBuilds(`requests the rule of the waypoint "${head}", which the line doesn't apply`);
+		return rule;
+	}
+
+	/** The key of the application at a position, its head with the arguments it read, which the proof then holds by the position. */
+	private async keyOf(path: readonly number[], head: string): Promise<string> {
+		// A key is a string the rules compare, so its JSON is encoded to the characters an N3 string holds without escapes.
+		const key = encodeURIComponent(JSON.stringify([head, await this.openedArgsOf(path)]));
+		this.keys.set(keyOf(path), key);
+		return key;
+	}
+
+	/** The arguments the application at a position read, each as its canonical individual, as a binding of its node. */
+	private async openedArgsOf(path: readonly number[]): Promise<{ name: string; value: string }[]> {
+		const canonical = await canonicalOf(this.reader);
+		return Object.entries(this.openedArgs(path)).map(([name, value]) => ({ name, value: canonical(String(value)) }));
+	}
+
+	/** Proves what a waypoint effect requests on the reasoner, through this proof's effects. */
+	private async waypoint(path: readonly number[], effect: TWaypointEffect): Promise<string> {
+		const { mode, node, bindings, base, group, given } = effect;
+		const { rule } = this.node(node).step.action.step;
+		if (rule === undefined) throw this.differentBuilds("requests the proof of a waypoint that a node doesn't apply");
+		const key = this.keys.get(keyOf(path));
+		const opened: TApplied | undefined = key === undefined ? undefined : { key, binding: { node, args: await this.openedArgsOf(path) } };
+		const request: TWaypointRequest = {
+			mode,
+			node,
+			head: rule.head,
+			bindings,
+			base,
+			group,
+			...(opened === undefined ? {} : { opened }),
+			...(given === undefined ? {} : { given }),
+		};
+		return await waypointProof(this.reasoner, this.waypointHost(), path, request);
+	}
+
+	/** What a waypoint session performs through this proof. */
+	private waypointHost(): TWaypointHost {
+		return {
+			lines: (head) => this.proofLinesOf(head),
+			scope: (path) => this.scopeAt(path),
+			open: async (path, node, bindings) => {
+				if ((await this.open([...path], { node, bindings: [...bindings] })) !== "opened") return "refused";
+				const { rule } = this.node(node).step.action.step;
+				if (rule === undefined) throw this.differentBuilds("opens an application of a node that doesn't apply a waypoint");
+				return { key: await this.keyOf(path, rule.head), binding: { node, args: await this.openedArgsOf(path) } };
+			},
+			call: (path, node, bindings, scope) => this.lineVerdict(path, { node, bindings: [...bindings] }, scope),
+			close: async (path, node, verdict, why) => {
+				await this.close([...path], { node, verdict, why });
+			},
+			falsities: (bindings, head, opened) => this.falsitiesOf(bindings, head, opened),
+		};
+	}
+
+	/** The lines of a waypoint's proof, each a head its application applies or a step it calls, by a node of this proof. */
+	private proofLinesOf(head: string): readonly TProofLine[] {
+		const held = this.proofLines.get(head);
+		if (held !== undefined) return held;
+		const steps = this.ruleOf(head).proof.flatMap((input) =>
+			statedAt(findFeatureStepsFromStatement(input.in, this.ctx.steppers, this.ctx.world, input.source.path, [0]), input.source),
+		);
+		const lines = steps.map((step): TProofLine => {
+			const { rule } = step.action.step;
+			if (step.action.step.reading !== READING.apply || rule === undefined) return { kind: "call", node: this.add({ step }) };
+			this.rules.set(rule.head, rule);
+			return { kind: "apply", node: this.add({ step }), head: rule.head };
+		});
+		this.proofLines.set(head, lines);
+		return lines;
+	}
+
+	/** The records that state the falsity of a head with an application's arguments, read under its bindings' contexts. */
+	private async falsitiesOf(bindings: readonly TBinding[], head: string, { args }: TArgsBinding): Promise<string[]> {
+		const read = (pattern: TQuadPattern) => this.reader.facts({ ...pattern, namedGraph: READ_GRAPH.falsity });
+		return await this.withinContexts([...bindings], () =>
+			runAsDispatched(this.ctx, async () => {
+				const stating = (await read({ predicate: READ_PREDICATE.head, object: head })).map(({ subject }) => subject);
+				const held = await Promise.all(
+					stating.map(async (record) =>
+						(await Promise.all(args.map(async ({ name, value }) => (await read({ subject: record, predicate: name, object: value })).length > 0))).every(Boolean),
+					),
+				);
+				return stating.filter((_, at) => held[at] === true);
+			}),
+		);
 	}
 
 	private async linesTerm(lines: TStepInput[]): Promise<string> {
@@ -490,7 +640,7 @@ export function proverOf(engine: TLogicEngine, reasoner: TReasoner): TProver {
 		exceeding: async (candidate, bound) => (await containment(reasoner, candidate, bound)).exceeds,
 		entailed: (world, expression) => entailedMembers(reasoner, world.shared.getStore(), world.domains, world.runtime.records, expression),
 		prove: async (ctx, line) => {
-			const proof = new Proof(ctx, line);
+			const proof = new Proof(ctx, reasoner, line);
 			let term: string;
 			try {
 				term = await proof.termOf(line);
@@ -512,7 +662,7 @@ export function proverOf(engine: TLogicEngine, reasoner: TReasoner): TProver {
 		proveStatements: async (ctx, parent, statements, targetHostId) => {
 			if (statements.length === 0) return { ok: true };
 			const segments = statements.map(() => itemAt(nextSeqPath(ctx.world, parent.seqPath), parent.seqPath.length));
-			const proof = new Proof(ctx, parent, { segments, ...(targetHostId === undefined ? {} : { targetHostId }) });
+			const proof = new Proof(ctx, reasoner, parent, { segments, ...(targetHostId === undefined ? {} : { targetHostId }) });
 			let terms: string[];
 			try {
 				terms = await Promise.all(statements.map((statement) => proof.termOf(statement)));

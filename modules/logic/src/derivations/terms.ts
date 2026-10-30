@@ -38,6 +38,9 @@ const REASONS: Record<string, string> = {
 export function whyText(line: string, verdict: TVerdict, reason: string): string {
 	const depth = reason.match(/^depth\((\d+)\)$/);
 	if (depth !== null) return `\`${line}\` is ${verdict}: its proof went past ${depth[1]} steps, the bound of a proof`;
+	const nesting = reason.match(/^nesting\((\d+)\)$/);
+	if (nesting !== null)
+		return `\`${line}\` is ${verdict}: its proof nests the proofs of waypoints past ${nesting[1]} sessions, the bound of nesting, since a step in a waypoint's proof applies a waypoint whose proof does so again. State the waypoints its proof reaches as lines of the proof, which the reasoner proves in one session`;
 	const refused = reason.match(/^refused\('?(.*?)'?\)$/s);
 	if (refused !== null) return `\`${line}\` is ${verdict}: ${atomText(String(refused[1]))}`;
 	const known = REASONS[reason];

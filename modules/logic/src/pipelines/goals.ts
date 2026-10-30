@@ -31,7 +31,7 @@ import {
 import { argumentsOf, compositeRanges, forwardOf, goalFactsOf, isTrivial, planOf, stepGraph, stepSignatures, unmetReason, type THeldFact } from "../derivations/goals.js";
 import { goalFacts, goalProofsOf, type TGoalFacts } from "../derivations/goal-rules.js";
 import { lintFacts, lintFindingsOf } from "../derivations/lint-rules.js";
-import { RULE_SET, type TRuleSet } from "../domains/reasoning.js";
+import { neededBy, RULE_SET, type TRuleSet } from "../domains/reasoning.js";
 import { quadsOf } from "../derivations/n3.js";
 import type { TGoalProof } from "../domains/logic.js";
 import type { TReasoner } from "../ports.js";
@@ -46,7 +46,7 @@ export type TGoalScope = { ctx: DispatchContext; reasoner: TReasoner; held: stri
 async function derivedOf(reasoner: TReasoner, [rules, query]: [TRuleSet, TRuleSet], facts: string, what: string): Promise<ReturnType<typeof quadsOf>> {
 	const derived = await reasoner.session(async (session) => {
 		const state = await session.start(`${reasoner.rules(rules)}\n${facts}`, reasoner.rules(query), false);
-		if ("need" in state) throw new Error(`${what} reads only its own facts, and its rules reached a read of ${state.predicate.value} of ${state.subject.value}. Check its rules.`);
+		if ("need" in state) throw new Error(`${what} reads only its own facts, and its rules reached ${neededBy(state)}. Check its rules.`);
 		return state.derived;
 	});
 	return quadsOf(derived);

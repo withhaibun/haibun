@@ -14,10 +14,12 @@ import type { TFact } from "./logic.js";
 
 /** The namespace of the built-ins and terms that haibun's N3 rules name. */
 export const REASONER_NAMESPACE = "urn:haibun:";
-/** The built-ins a rule calls, by name: `(subject predicate) h:read object` reads the store through a read effect. */
-export const REASONER_BUILTIN = { read: `${REASONER_NAMESPACE}read` } as const;
+/** The built-ins a rule calls, by name: `(subject predicate) h:read object` reads the store through a read effect, and
+ *  `(kind argument …) h:effect outcome` performs one of haibun's effects of a proof, whose request is the list. */
+export const REASONER_BUILTIN = { read: `${REASONER_NAMESPACE}read`, effect: `${REASONER_NAMESPACE}effect` } as const;
 /** The rule sets the logic module holds as N3 files, each read by its name: goals over producer rules and their query, the step
- *  graph's lint and its query, a permission's containment and its query, and the rules of OWL 2 RL a query of members reads. */
+ *  graph's lint and its query, a permission's containment and its query, the rules of OWL 2 RL a query of members reads, and
+ *  waypoints' proofs. */
 export const RULE_SET = {
 	goals: "goals",
 	goalsQuery: "goals-query",
@@ -26,14 +28,22 @@ export const RULE_SET = {
 	containment: "containment",
 	containmentQuery: "containment-query",
 	owlRl: "owl-rl",
+	waypoints: "waypoints",
 } as const;
 export type TRuleSet = (typeof RULE_SET)[keyof typeof RULE_SET];
 /** `<class> h:complete { … }` states a complete graph's contents as one formula. Only a graph its type declares complete is stated so. */
 export const COMPLETE_GRAPH = `${REASONER_NAMESPACE}complete`;
-/** The effect a session needs: a read of the facts of a subject and a predicate, each an IRI. */
+/** A value a session passes to the host or the host returns: an IRI or a literal, a string, a number, or a list of values. */
+export type TReasonerValue = Term | string | number | readonly TReasonerValue[];
+/** The effect a session needs: a read of the facts of a subject and a predicate, each an IRI, or one of haibun's effects of a
+ *  proof, whose request is a list that names its kind first. */
 export type TReasonerRead = { need: "read"; subject: NamedNode; predicate: NamedNode };
+export type TReasonerEffect = { need: "effect"; request: readonly TReasonerValue[] };
 /** How a session step ended: the effect it needs, or the N3 text of what the query derived. */
-export type TReasonerState = TReasonerRead | { derived: string };
+export type TReasonerState = TReasonerRead | TReasonerEffect | { derived: string };
+/** What a session needs, as a refusal names it: the predicate and the subject of a read, or the kind of an effect. */
+export const neededBy = (state: TReasonerRead | TReasonerEffect): string =>
+	state.need === "read" ? `a read of ${state.predicate.value} of ${state.subject.value}` : `the effect ${JSON.stringify(state.request[0])}`;
 /** What a reasoning reads: the logic module's rule sets it reads, its own N3 rules and facts, the query that selects what it
  *  returns, and the types whose complete graphs its rules close over. */
 export type TReasoning = { ruleSets: readonly TRuleSet[]; rules: string; query: string; closedOver: readonly string[] };

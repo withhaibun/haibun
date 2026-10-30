@@ -1,6 +1,6 @@
 % The logic engine's program. A line's proof is one query, and each effect it reaches is one more. prove/3 starts a
 % Prolog engine, named by the line, that evaluates the line's term. Where the proof reaches an effect (a built-in call, a
-% record's opening or closing, a read, a waypoint's rule, or a wait), effect/4 yields the request and the query returns it. The pipeline performs the effect, and resume/3 posts its outcome to the line's
+% record's opening or closing, a read, a waypoint's rule or its proof, or a wait), effect/4 yields the request and the query returns it. The pipeline performs the effect, and resume/3 posts its outcome to the line's
 % engine, which continues from the effect. The engine holds its own stacks between queries, so a query never holds the runtime
 % across an await, the proofs of several callers interleave at each effect, and a query evaluates only the part of the
 % proof after the effect it resumes, however many effects its line performed.
@@ -18,7 +18,7 @@
 :- dynamic part/4.
 
 % One bound holds every proof but until's: the depth of nested readings, the repetitions of whenever, and a waypoint's
-% recursion below the ancestor check. until is bounded by its deadline alone.
+% applications in ensure and in a line run alone. until is bounded by its deadline alone.
 max_depth(1000).
 
 % prove(+Top, +TermText, -Outcome): Outcome is _{verdict} where the line's proof ended, or the effect it needs.
@@ -154,54 +154,52 @@ attempts(T, N, Xs, P, B, A, D, K, V, Why) :-
         ( Waited == again -> K1 is K + 1, attempts(T, N, Xs, P, B, A, D, K1, V, Why) ; V = V0, Why = expired )
     ).
 
-% A waypoint's rule: its head holds where its proof holds, and its activity is the plan that makes the proof hold. ensure
-% reads P ∨ (¬P ∧ [A]P), and a waypoint line run alone reads P ∨ [A]. In a proof, a waypoint's head is a goal that starts a
-% sub-proof of its rule's proof, and its activity doesn't run: beneath a proof the ancestors hold `proving`, and beneath an
-% activity they don't. The ancestor check refuses a rule applied again with the same arguments below itself.
+% A waypoint's rule: its head holds where its proof holds, and its activity is the plan that makes the proof hold. The proof of a
+% head is the reasoner's, over the waypoints' rules as N3, which a waypoint effect requests (waypoint/7). In a proof, a head is a
+% goal of the reasoner, which opens and closes its record. ensure reads P ∨ (¬P ∧ [A]P), and a waypoint line run alone reads
+% P ∨ [A], where the activity runs between the reasoner's proofs of P; beneath an activity the ancestors don't hold `proving`.
+% The rule effect states whether the waypoint has a proof, its activity, and `cycle` where the application repeats one above it.
+applied(T, prove, M, _, P, B, _, _, V) :- !, waypoint(T, prove, M, P-c(0), B, proof(1), V-_).
 applied(T, Mode, M, W, P, B, A, D, V) :-
     effect(open, P, open(M, B), Opened),
     (   Opened == refused -> V = unknown
     ;   read(P, B, [q(M, K, X, node)], K-X, Read),
         (   Read = rows(Pairs) ->
-            effect(rule, P, rule(W), rule(Proof, Activity)),
-            Key = W-Pairs,
-            (   memberchk(Key, A) -> V = unknown, Why = cycle
-            ;   D1 is D + 1, max_depth(Max),
-                (   D1 > Max -> V = unknown, Why = depth(Max)
-                ;   plan(Mode, T, Proof, Activity, P-c(0), [M-args(Pairs)|B], [Key|A], D1, V0, Why0), stated(Mode, P, B, Key, V0, Why0, V, Why)
-                )
+            effect(rule, P, rule(W), rule(HasProof, Activity, Bound)),
+            D1 is D + 1, max_depth(Max),
+            (   Bound \== none -> V = unknown, Why = Bound
+            ;   D1 > Max -> V = unknown, Why = depth(Max)
+            ;   exclude(==(proving), A, Acting), plan(Mode, T, M, HasProof, Activity, P-c(0), [M-args(Pairs)|B], Acting, D1, V, Why)
             )
         ;   V = unknown, Why = Read
         ),
         close(P, M, V, Why)
     ).
 
-% stated(+Mode, +Path, +Bindings, +Key, +Verdict, +Why, -Stated, -StatedWhy): a goal is refuted by a falsity stated of its head
-% and arguments, and unknown without one where its proof isn't proved. A goal both proved and refuted is a contradiction,
-% whose reason names the record that stated the falsity. A waypoint's line run alone states an act and not a goal.
-stated(run, _, _, _, V, Why, V, Why) :- !.
-stated(_, P, B, W-Pairs, V0, Why0, V, Why) :-
-    maplist(falsity_of(F), Pairs, Qs), read(P, B, [q(F, head, W, falsity)|Qs], F, Read),
-    (   Read = rows([R|_]) -> Why = falsity(R), ( V0 == proved -> V = contradiction ; V = refuted )
-    ;   V0 == refuted -> V = unknown, Why = Why0
-    ;   V = V0, Why = Why0
+% ensure judges the head's proof with its stated falsities, runs the activity where they don't prove it, and judges them again;
+% a falsity also reads the verdict of an activity that doesn't hold. A line run alone checks the proof, and runs the activity
+% where it doesn't hold.
+plan(ensure, T, M, HasProof, Activity, Q, B, A, D, V, Why) :-
+    waypoint(T, judge, M, Q, B, proof(1), V0-W0),
+    (   ( HasProof == false ; memberchk(V0, [proved, contradiction]) ) -> V = V0, Why = W0
+    ;   conj(T, activity(1), Activity, Q, B, A, D, VA, WA),
+        ( VA == proved -> waypoint(T, judge, M, Q, B, proof(2), V-Why) ; waypoint(T, state(VA, WA), M, Q, B, activity(1), V-Why) )
     ).
-falsity_of(F, K-X, q(F, K, X, falsity)).
-
-plan(Mode, _, [], Activity, _, _, _, _, refuted, no_proof) :- ( Mode \== run ; Activity == [] ), !.
-plan(prove, T, Proof, _, P, B, A, D, V, Why) :- conj(T, proof(1), Proof, P, B, [proving|A], D, V, Why).
-plan(ensure, T, Proof, Activity, P, B, A, D, V, Why) :-
-    conj(T, proof(1), Proof, P, B, [proving|A], D, V0, _),
-    (   V0 == proved -> V = proved, Why = none
-    ;   exclude(==(proving), A, Acting), conj(T, activity(1), Activity, P, B, Acting, D, VA, WA),
-        ( VA == proved -> conj(T, proof(2), Proof, P, B, [proving|A], D, V, Why) ; V = VA, Why = WA )
-    ).
-plan(run, T, Proof, Activity, P, B, A, D, V, Why) :-
-    ( Proof == [] -> V0 = refuted, W0 = none ; conj(T, proof(1), Proof, P, B, [proving|A], D, V0, W0) ),
+plan(run, _, _, false, [], _, _, _, _, refuted, no_proof) :- !.
+plan(run, T, M, HasProof, Activity, Q, B, A, D, V, Why) :-
+    ( HasProof == false -> V0 = refuted, W0 = none ; waypoint(T, check, M, Q, B, proof(1), V0-W0) ),
     (   V0 == proved -> V = proved, Why = none
     ;   Activity == [] -> V = V0, Why = W0
-    ;   conj(T, activity(1), Activity, P, B, A, D, V, Why)
+    ;   conj(T, activity(1), Activity, Q, B, A, D, V, Why)
     ).
+
+% waypoint(+Top, +Mode, +Node, +Parent, +Bindings, +Group, -Verdict-Why): the reasoner's proof of the head a node applies, whose
+% lines take the positions after the parent's counter in the group, and whose parts the N3 export reads.
+waypoint(T, Mode, M, P-Counter, B, G, V-Why) :-
+    arg(1, Counter, N0),
+    effect(waypoint, P, waypoint(Mode, M, B, N0, G), proved(V, Why, Used, Parts)),
+    N is N0 + Used, nb_setarg(1, Counter, N),
+    forall(member(part(C, G1, K), Parts), assertz(part(T, C, G1, K))).
 
 % Requests as JSON-ready dicts.
 request_json(call(N, B), _{node: N, bindings: Bs}) :- bindings_json(B, Bs).
@@ -210,6 +208,9 @@ request_json(read(Ps, B), _{patterns: Js, bindings: Bs}) :- maplist(pattern_json
 request_json(close(N, V, falsity(R)), _{node: N, verdict: V, why: _{falsity: R}}) :- !.
 request_json(close(N, V, Why), _{node: N, verdict: V, why: W}) :- ( is_list(Why) -> W = Why ; term_to_atom(Why, W) ).
 request_json(rule(W), _{rule: W}).
+request_json(waypoint(state(V, Why), N, B, Base, G), _{mode: state, node: N, bindings: Bs, base: Base, group: GA, given: _{verdict: V, why: WA}}) :-
+    !, bindings_json(B, Bs), term_to_atom(G, GA), term_to_atom(Why, WA).
+request_json(waypoint(Mode, N, B, Base, G), _{mode: Mode, node: N, bindings: Bs, base: Base, group: GA}) :- bindings_json(B, Bs), term_to_atom(G, GA).
 request_json(wait(N, K), _{node: N, attempt: K}).
 
 % A pattern states each of its constants, and leaves out each position that is its variable.

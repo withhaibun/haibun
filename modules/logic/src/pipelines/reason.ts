@@ -15,7 +15,7 @@ import { isPersisted, withinAccess, type TRecordNamespace, type TRegisteredDomai
 import { readingAt } from "@haibun/core/lib/domains/capability-context.js";
 import type { Quad } from "@rdfjs/types";
 import { DataFactory } from "n3";
-import { COMPLETE_GRAPH, REASONING_READ_CEILING, type TExplained, type TOpenGraph, type TReasoning } from "../domains/reasoning.js";
+import { COMPLETE_GRAPH, neededBy, REASONING_READ_CEILING, type TExplained, type TOpenGraph, type TReasoning } from "../domains/reasoning.js";
 import { patternText, quadsOf, recordTerms } from "../derivations/n3.js";
 import { proofOf } from "../derivations/proof.js";
 import type { TReasoner } from "../ports.js";
@@ -78,6 +78,7 @@ async function reasoned(
 	const derived = await reasoner.session(async (session) => {
 		let state = await session.start([...ruleSets.map(reasoner.rules), rules, ...formulas].join("\n"), query, explained);
 		while ("need" in state) {
+			if (state.need === "effect") throw new Error(`a reasoning reads the store, and its rules reached ${neededBy(state)}. Check its rules.`);
 			const facts = await reader.facts(terms.patternOf(state.subject, state.predicate));
 			state = session.resume(facts.map(terms.objectOf));
 		}

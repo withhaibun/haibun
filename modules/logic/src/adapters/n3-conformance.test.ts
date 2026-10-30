@@ -4,9 +4,10 @@
  */
 import { beforeAll, describe, expect, it } from "vitest";
 import { VERDICT } from "@haibun/core/lib/domains/protocol.js";
-import { EFFECT, PROOF_NAMESPACE, READ_PREDICATE, type TReadRequest } from "../domains/logic.js";
+import { EFFECT, PROOF_NAMESPACE, READ_PREDICATE, type TReadRequest, type TWaypointEffect } from "../domains/logic.js";
 import type { Quad } from "@rdfjs/types";
 import { quadsOf } from "../derivations/n3.js";
+import { neededBy } from "../domains/reasoning.js";
 import type { TLogicEngine, TReasoner } from "../ports.js";
 import { eyeReasoner } from "./eye.js";
 import { startSwipl } from "./swipl.js";
@@ -23,7 +24,7 @@ const keyOf = ({ subject, predicate, object }: Quad): string => `${subject.value
 const eyeDerives = (reasoner: Pick<TReasoner, "session">, n3: string): Promise<string[]> =>
 	reasoner.session(async (session) => {
 		const state = await session.start(n3, PROVED_QUERY, false);
-		if ("need" in state) throw new Error(`the export doesn't read the store, and EYE requested a read of ${state.subject.value}`);
+		if ("need" in state) throw new Error(`the export doesn't read the store, and EYE requested ${neededBy(state)}`);
 		return quadsOf(state.derived).map(keyOf);
 	});
 
@@ -31,8 +32,12 @@ const eyeDerives = (reasoner: Pick<TReasoner, "session">, n3: string): Promise<s
 const provedTriple = (path: number[]): string => `<${PROOF_NAMESPACE}p${["", ...path].join("_")}> <${PROOF_NAMESPACE}is> <${PROOF_NAMESPACE}proved>.`;
 
 /** The outcome of each effect but a call, which each proof states by position. */
-const EFFECTS: Record<string, string> = { open: "opened", close: "closed", rule: "rule([call(n3)], [call(n4)])" };
-/** A quantifier reads the members a and b, and a waypoint reads that it doesn't take arguments and isn't stated absent. */
+const EFFECTS: Record<string, string> = { open: "opened", close: "closed", rule: "rule(true, [call(n4)], none)" };
+/** The reasoner's proof of a waypoint's head, as the prover returns it: its first proof refutes the head at its first line, and
+ *  its proof after the activity, whose call takes the next position, proves it. */
+const waypointOf = ({ base }: TWaypointEffect): string =>
+	base === 0 ? "proved(unknown, [1, 1], 1, [part([1, 1], proof(1), call(refuted))])" : "proved(proved, none, 1, [part([1, 3], proof(2), call(proved))])";
+/** A quantifier reads the members a and b, and a waypoint reads that it doesn't take arguments. */
 const readOf = (request: TReadRequest): string =>
 	`facts([${request.patterns.map((pattern) => (pattern.predicate === READ_PREDICATE.member ? "[['a'], ['b']]" : "[]")).join(", ")}])`;
 
@@ -44,7 +49,9 @@ function proved(engine: TLogicEngine, top: string, term: string, calls: Record<s
 	while ("need" in outcome) {
 		const { need, path, request } = outcome;
 		if (need === EFFECT.close && "verdict" in request && request.verdict === VERDICT.proved) nodes.push(provedTriple(path));
-		const performed = need === EFFECT.call ? calls[path.join(".")] : need === EFFECT.read ? readOf(request as TReadRequest) : EFFECTS[need];
+		const effectOf = (): string | undefined =>
+			need === EFFECT.read ? readOf(request as TReadRequest) : need === EFFECT.waypoint ? waypointOf(request as TWaypointEffect) : EFFECTS[need];
+		const performed = need === EFFECT.call ? calls[path.join(".")] : effectOf();
 		if (performed === undefined) throw new Error(`the test doesn't state the outcome of ${need} at ${path.join(".")}`);
 		outcome = engine.resume(top, performed);
 	}
@@ -65,7 +72,7 @@ const PROOFS: [string, string, Record<string, string>][] = [
 	["universal over proved members", "every(n1, [call(n2)])", { "1": "passed", "2": "passed" }],
 	["universal over a refuted member", "every(n1, [call(n2)])", { "1": "passed", "2": "failed" }],
 	["maybe", "maybe(n1, [call(n2)])", { "1": "failed" }],
-	["ensure that runs its activity", "ensure(n1, [apply(n2, w)])", { "1.1": "failed", "1.2": "passed", "1.3": "passed" }],
+	["ensure that runs its activity", "ensure(n1, [apply(n2, w)])", { "1.2": "passed" }],
 ];
 
 describe("the engine's readings in N3", () => {
