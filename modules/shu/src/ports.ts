@@ -33,6 +33,9 @@ export type TBundleFile = {
 	labelFontRanges(): string;
 };
 
+/** Gzips text off the event loop, as a served asset and a compressed report carry it. */
+export type TGzipText = (text: string) => Promise<Uint8Array<ArrayBuffer>>;
+
 /** Writes a report at a path. */
 export type TReportFile = { write(path: string, html: string): void };
 

@@ -147,7 +147,7 @@
 					"modules/core/src": "2e751949a2b6ae10890f69c55648eb483168275bc646281a8a3ca665e3c949ab",
 					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
 					"modules/logic/src": "ead0abde840ca9720f25ea57f53e3cd0ccab32c6dcb2a1de5e7128b4645c9400",
-					"modules/shu/src": "f3fbc85fe6b8190d54280b2b80b52dcd422cc9ec225c38fcf4461e82712b3b7c",
+					"modules/shu/src": "82d955daddbd73aa21a4bfb035181c02166e004d263de94c9e8be344fd1d623e",
 					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
@@ -471,7 +471,7 @@
 					"modules/core/src": "2e751949a2b6ae10890f69c55648eb483168275bc646281a8a3ca665e3c949ab",
 					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
 					"modules/logic/src": "ead0abde840ca9720f25ea57f53e3cd0ccab32c6dcb2a1de5e7128b4645c9400",
-					"modules/shu/src": "f3fbc85fe6b8190d54280b2b80b52dcd422cc9ec225c38fcf4461e82712b3b7c",
+					"modules/shu/src": "82d955daddbd73aa21a4bfb035181c02166e004d263de94c9e8be344fd1d623e",
 					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
@@ -544,6 +544,33 @@
 		}
 	},
 	"linux-x64-4x-intel-xeon-processor-2-30ghz": {
+		"43df8567ff310050": {
+			"filter": "",
+			"actuality": {
+				"text": "modules/shu/tests/federate-peer",
+				"status": "passed",
+				"tookMs": 100,
+				"digest": {
+					"modules/core/src": "2e751949a2b6ae10890f69c55648eb483168275bc646281a8a3ca665e3c949ab",
+					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
+					"modules/logic/src": "ead0abde840ca9720f25ea57f53e3cd0ccab32c6dcb2a1de5e7128b4645c9400",
+					"modules/shu/src": "82d955daddbd73aa21a4bfb035181c02166e004d263de94c9e8be344fd1d623e",
+					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
+					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
+					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
+					"modules/web-playwright/src": "3f49c90fabe4b75a66b30ffdec7639c32a9fbc92a6badfe716962cf99ebdcd9b",
+					"modules/web-server-hono/src": "15bc6c19fd5a60098fc0428d37a4fec7f5accc6a9399c2e1cbc0b41c87af7b2d"
+				}
+			},
+			"features": {
+				"/features/serve.feature": {
+					"text": "/features/serve",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 4
+				}
+			}
+		},
 		"4ca66a9d821d2073": {
 			"filter": "",
 			"actuality": {
@@ -598,6 +625,60 @@
 				}
 			}
 		},
+		"60fcd1b0d44b1e2e": {
+			"filter": "",
+			"actuality": {
+				"text": "modules/shu/tests/federate-peer",
+				"status": "passed",
+				"tookMs": 100,
+				"digest": {
+					"modules/core/src": "2e751949a2b6ae10890f69c55648eb483168275bc646281a8a3ca665e3c949ab",
+					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
+					"modules/logic/src": "ead0abde840ca9720f25ea57f53e3cd0ccab32c6dcb2a1de5e7128b4645c9400",
+					"modules/shu/src": "82d955daddbd73aa21a4bfb035181c02166e004d263de94c9e8be344fd1d623e",
+					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
+					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
+					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
+					"modules/web-playwright/src": "3f49c90fabe4b75a66b30ffdec7639c32a9fbc92a6badfe716962cf99ebdcd9b",
+					"modules/web-server-hono/src": "15bc6c19fd5a60098fc0428d37a4fec7f5accc6a9399c2e1cbc0b41c87af7b2d"
+				}
+			},
+			"features": {
+				"/features/serve.feature": {
+					"text": "/features/serve",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 4
+				}
+			}
+		},
+		"769dc627ec8f58d4": {
+			"filter": "",
+			"actuality": {
+				"text": "modules/shu/tests/federate-peer",
+				"status": "passed",
+				"tookMs": 100,
+				"digest": {
+					"modules/core/src": "2e751949a2b6ae10890f69c55648eb483168275bc646281a8a3ca665e3c949ab",
+					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
+					"modules/logic/src": "ead0abde840ca9720f25ea57f53e3cd0ccab32c6dcb2a1de5e7128b4645c9400",
+					"modules/shu/src": "82d955daddbd73aa21a4bfb035181c02166e004d263de94c9e8be344fd1d623e",
+					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
+					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
+					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
+					"modules/web-playwright/src": "3f49c90fabe4b75a66b30ffdec7639c32a9fbc92a6badfe716962cf99ebdcd9b",
+					"modules/web-server-hono/src": "15bc6c19fd5a60098fc0428d37a4fec7f5accc6a9399c2e1cbc0b41c87af7b2d"
+				}
+			},
+			"features": {
+				"/features/serve.feature": {
+					"text": "/features/serve",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 4
+				}
+			}
+		},
 		"910b0431f8f3f6d7": {
 			"filter": "",
 			"actuality": {
@@ -614,6 +695,33 @@
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/web-playwright/src": "183837582c6745581f805bc27a237802cbe289e8d03346c3f4542012f75925be",
 					"modules/web-server-hono/src": "a3d5c2677fbc128a15542bdab445475e4f2d167d51e6e8b38b884d7e535b54d5"
+				}
+			},
+			"features": {
+				"/features/serve.feature": {
+					"text": "/features/serve",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 4
+				}
+			}
+		},
+		"a4947abcc9832875": {
+			"filter": "",
+			"actuality": {
+				"text": "modules/shu/tests/federate-peer",
+				"status": "passed",
+				"tookMs": 100,
+				"digest": {
+					"modules/core/src": "2e751949a2b6ae10890f69c55648eb483168275bc646281a8a3ca665e3c949ab",
+					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
+					"modules/logic/src": "ead0abde840ca9720f25ea57f53e3cd0ccab32c6dcb2a1de5e7128b4645c9400",
+					"modules/shu/src": "82d955daddbd73aa21a4bfb035181c02166e004d263de94c9e8be344fd1d623e",
+					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
+					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
+					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
+					"modules/web-playwright/src": "3f49c90fabe4b75a66b30ffdec7639c32a9fbc92a6badfe716962cf99ebdcd9b",
+					"modules/web-server-hono/src": "15bc6c19fd5a60098fc0428d37a4fec7f5accc6a9399c2e1cbc0b41c87af7b2d"
 				}
 			},
 			"features": {

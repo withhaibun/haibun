@@ -3,7 +3,6 @@
  * bundle and hydration as a payload, and the component scripts a report inlines.
  */
 import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
-import { gzipSync } from "node:zlib";
 import { HYDRATION_ID } from "../domains/elements.js";
 import type { TServedHydration } from "../domains/hydration.js";
 import { PAGE_BUNDLE_JS } from "../domains/serving.js";
@@ -44,16 +43,17 @@ export function buildSpaHtml(basePath: string, hydration: TServedHydration, nonc
 
 /**
  * The standalone report: a `{bundle, hydration, scripts}` payload and a loader that adds the hydration element the bundle
- * reads, the components' scripts, and then the bundle, which starts the page (`entries/shu-app.ts`). A `compressed`
- * payload is gzip in base64, which keeps a shared file small and doesn't need `</` escaped. An uncompressed payload is
- * plain JSON with `</` escaped, so a reader audits its redacted text in the file, as the check of obscured secrets does.
+ * reads, the components' scripts, and then the bundle, which starts the page (`entries/shu-app.ts`). A gzipped payload is
+ * in base64, which keeps a shared file small and doesn't need `</` escaped; its caller gzips it off the event loop. A plain
+ * payload is JSON with `</` escaped, so a reader audits its redacted text in the file, as the check of obscured secrets does.
  */
-export function buildReportHtml(basePath: string, payload: string, compressed: boolean): string {
+export function buildReportHtml(basePath: string, payload: { gzipped: string } | { plain: string }): string {
 	const inject = `const h = document.createElement("script"); h.type = "${MEDIA_TYPE.json}"; h.id = "${HYDRATION_ID}"; h.textContent = hydration; document.body.appendChild(h);
     for (const s of scripts) { const el = document.createElement("script"); el.textContent = s; document.body.appendChild(el); }
     const b = document.createElement("script"); b.textContent = bundle; document.body.appendChild(b);`;
-	const loader = compressed
-		? `  <script type="${MEDIA_TYPE.bytes}" id="shu-payload">${gzipSync(payload).toString("base64")}</script>
+	const loader =
+		"gzipped" in payload
+			? `  <script type="${MEDIA_TYPE.bytes}" id="shu-payload">${payload.gzipped}</script>
   <script>
   (async () => {
     const raw = Uint8Array.from(atob(document.getElementById("shu-payload").textContent), (c) => c.charCodeAt(0));
@@ -61,7 +61,7 @@ export function buildReportHtml(basePath: string, payload: string, compressed: b
     ${inject}
   })();
   </script>`
-		: `  <script type="${MEDIA_TYPE.json}" id="shu-payload">${payload.replaceAll("</", "<\\/")}</script>
+			: `  <script type="${MEDIA_TYPE.json}" id="shu-payload">${payload.plain.replaceAll("</", "<\\/")}</script>
   <script>
   (() => {
     const { bundle, hydration, scripts } = JSON.parse(document.getElementById("shu-payload").textContent);

@@ -6,10 +6,9 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { gzip } from "node:zlib";
-import { promisify } from "node:util";
 import { sha256 } from "@haibun/core/lib/domains/digest.js";
 import { BUNDLE_DIRS, type TBundleFile, type TServedAsset } from "../ports.js";
+import { gzipText } from "./gzip-text.js";
 
 /** The package root, so one path resolves from `src/` and from `build/`. */
 const PACKAGE_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -57,13 +56,11 @@ const servedAsset = (path: string): TServedAsset => {
 	return asset;
 };
 
-const gzipped = promisify(gzip);
-
 /** Text served under `etag`, gzipped at its first gzipped response by zlib's threads, off the event loop, and held from then. */
 function taggedAsset(content: string, etag: string): TServedAsset {
 	let held: Promise<Uint8Array<ArrayBuffer>> | undefined;
 	const zipped = (): Promise<Uint8Array<ArrayBuffer>> => {
-		if (held === undefined) held = gzipped(content).then((bytes) => new Uint8Array(bytes));
+		if (held === undefined) held = gzipText(content);
 		return held;
 	};
 	return { content, etag, gzipped: zipped };

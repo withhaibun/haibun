@@ -38,7 +38,7 @@ import { Access } from "@haibun/core/lib/domains/resources.js";
 import { CLIENT_RING, SHU_TAG } from "./domains/elements.js";
 import { MONITOR_OPENS_AT, reportHtml } from "./pipelines/monitor-report.js";
 import { recordProduced, recordSaid } from "./pipelines/run-records.js";
-import { reportWriter, servedBundles } from "./root.js";
+import { reportGzip, reportWriter, servedBundles } from "./root.js";
 import { READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/domains/actions.js";
 import { requiring } from "@haibun/web-server-hono/capability-auth.js";
 import { sandboxed } from "@haibun/web-server-hono/served-folder.js";
@@ -256,7 +256,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			.filter(([, step]) => !step.gwta.includes("{"))
 			.map(([name, step]): [string, () => unknown] => [name, step.action as () => unknown]);
 		const world = this.getWorld();
-		const html = await reportHtml({ world, viewSteps, queriedLabel: this.queriedLabel, bundles: servedBundles, compressed });
+		const html = await reportHtml({ world, viewSteps, queriedLabel: this.queriedLabel, bundles: servedBundles, gzip: reportGzip, compressed });
 		const written = fixedPath === undefined ? (await this.storage.saveArtifact("shu.html", html)).absolutePath : fixedPath;
 		if (fixedPath !== undefined) reportWriter.write(fixedPath, html);
 		world.eventLogger.info(`shu standalone report: ${actualURI(world.options, written)}`);

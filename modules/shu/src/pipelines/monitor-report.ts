@@ -5,7 +5,6 @@
 import type { AStepper } from "@haibun/core/lib/astepper.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
-import { obscuredText } from "@haibun/core/lib/steps/derivations/obscured.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_FIELD, actualityFeatureOf } from "@haibun/core/lib/seq-path.js";
 import { stepDefinitions } from "@haibun/core/lib/steps/pipelines/discover-steps.js";
@@ -19,10 +18,11 @@ import type { THydration } from "../domains/hydration.js";
 import { hashOf, hashWithColumns } from "../page/derivations/address.js";
 import { carriedActuality } from "../page/client-cache/pipelines/carried-actuality.js";
 import { buildReportHtml, inlineScriptsForView } from "../derivations/page-html.js";
+import { obscuredText } from "@haibun/core/lib/steps/derivations/obscured.js";
 import { NOT_CLUSTERED, clusters, graphSource } from "./graph-source.js";
 import { carriedLabelFont } from "../derivations/carried-label-font.js";
 import { BUNDLE_NAMES, bundleFileName } from "../domains/bundle-files.js";
-import type { TBundleFile } from "../ports.js";
+import type { TBundleFile, TGzipText } from "../ports.js";
 
 /** The hash parameter that names the type a graph query reads. */
 const LABEL_PARAM = "label";
@@ -41,7 +41,7 @@ type TReadStep = () => Promise<unknown> | unknown;
 
 /** What a report is built from: actuality's world, the monitor's view steps by name, the type a graph query read last,
  *  the built bundles, which hold the report bundle and the label font, and whether the payload is compressed. */
-export type TReportScope = { world: TWorld; viewSteps: [string, TReadStep][]; queriedLabel: string | undefined; bundles: TBundleFile; compressed: boolean };
+export type TReportScope = { world: TWorld; viewSteps: [string, TReadStep][]; queriedLabel: string | undefined; bundles: TBundleFile; gzip: TGzipText; compressed: boolean };
 
 /** The steps whose products the report refreshes at its end, under the name through which the affordances panel reads them. */
 const REFRESHED_AT_THE_END = ["affordancesOnOffer"];
@@ -114,5 +114,6 @@ export async function reportHtml(scope: TReportScope): Promise<string> {
 	} satisfies THydration);
 	const bundle = scope.bundles.whole(bundleFileName(BUNDLE_NAMES.report));
 	const payload = JSON.stringify({ bundle, hydration, scripts: inlineScriptsForView(world.domains, components) });
-	return buildReportHtml(".", obscuredText(payload, world.shared.secretTexts()), scope.compressed);
+	const obscured = obscuredText(payload, world.shared.secretTexts());
+	return buildReportHtml(".", scope.compressed ? { gzipped: Buffer.from(await scope.gzip(obscured)).toString("base64") } : { plain: obscured });
 }
