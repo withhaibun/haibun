@@ -97,8 +97,8 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 	}
 
 	/** What a goal's proof reads, under the caller's authority. */
-	private async goalScope(): Promise<TGoalScope> {
-		return { ctx: stepperContext(this.getWorld(), this.steppers), engine: await logicEngine(), held: callerHolds(), stepper: this.constructor.name };
+	private goalScope(): TGoalScope {
+		return { ctx: stepperContext(this.getWorld(), this.steppers), reasoner: reasoner(), held: callerHolds(), stepper: this.constructor.name };
 	}
 
 	steps = {
@@ -180,34 +180,34 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			description:
 				"Proves a goal over the producer rules that the steps' signatures state, without calling a step. Returns its verdict, the facts that prove it, the plans that would prove it, and a proved goal's proof as statements. A goal that a fact doesn't prove and a plan doesn't prove is refuted, and the first sub-goal it couldn't prove is refuted under it.",
 			productsDomain: DOMAIN_GOAL_RESOLUTION,
-			action: async ({ goal }: { goal: string }, featureStep: TFeatureStep) => resolved(await this.goalScope(), featureStep, goal, RESOLVE_STATEMENT),
+			action: ({ goal }: { goal: string }, featureStep: TFeatureStep) => resolved(this.goalScope(), featureStep, goal, RESOLVE_STATEMENT),
 		},
 		pursue: {
 			gwta: `pursue {goal: ${DOMAIN_DOMAIN_KEY}}`,
 			description:
 				"Proves a goal, and where only its plan would prove it, calls each step of its first plan under this step and proves the goal again. A plan whose steps take a value from the caller is walked with walk toward.",
 			productsDomain: DOMAIN_GOAL_RESOLUTION,
-			action: async ({ goal }: { goal: string }, featureStep: TFeatureStep) => pursued(await this.goalScope(), featureStep, goal),
+			action: ({ goal }: { goal: string }, featureStep: TFeatureStep) => pursued(this.goalScope(), featureStep, goal),
 		},
 		walkToward: {
 			gwta: `walk toward {goal: ${DOMAIN_DOMAIN_KEY}}`,
 			description:
 				"Begins a walk toward a goal that isn't proved, held as facts of the walk's graph under the principal that begins it. Returns the step its next advance calls and the parameters that step takes.",
 			productsDomain: DOMAIN_CHAIN_WALK,
-			action: async ({ goal }: { goal: string }, featureStep: TFeatureStep) => walkBegun(await this.goalScope(), featureStep, goal),
+			action: ({ goal }: { goal: string }, featureStep: TFeatureStep) => walkBegun(this.goalScope(), featureStep, goal),
 		},
 		advanceWalk: {
 			gwta: `advance the walk {walk: ${DOMAIN_WALK_ID}} with {args: ${DOMAIN_JSON_OBJECT}}`,
 			description:
 				"Calls the next step of a walk's plan, as it holds now, under this step with the values given, and holds the fact it asserted. Only the principal that began the walk advances it, since the values are that principal's.",
 			productsDomain: DOMAIN_CHAIN_WALK,
-			action: async ({ walk, args }: { walk: string; args: Record<string, unknown> }, featureStep: TFeatureStep) => walkAdvanced(await this.goalScope(), featureStep, walk, args),
+			action: ({ walk, args }: { walk: string; args: Record<string, unknown> }, featureStep: TFeatureStep) => walkAdvanced(this.goalScope(), featureStep, walk, args),
 		},
 		showAffordances: {
 			gwta: "show affordances",
 			description: "Returns the steps the caller may call next and the resolution of each goal a step returns, over the facts that hold now, or, under `as of`, at a step.",
 			productsDomain: DOMAIN_AFFORDANCES,
-			action: async (_args, featureStep: TFeatureStep) => affordancesAt(await this.goalScope(), featureStep, readingAsOf()),
+			action: (_args, featureStep: TFeatureStep) => affordancesAt(this.goalScope(), featureStep, readingAsOf()),
 		},
 		affordancesOnOffer: {
 			gwta: "affordances on offer",
@@ -215,7 +215,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			readsAt: Access.public,
 			description: "Reads the affordances, as a page does after a step, now, or, under `as of`, at a step; a read from outside isn't recorded as actuality's step.",
 			productsDomain: DOMAIN_AFFORDANCES,
-			action: async (_args, featureStep: TFeatureStep) => affordancesAt(await this.goalScope(), featureStep, readingAsOf()),
+			action: (_args, featureStep: TFeatureStep) => affordancesAt(this.goalScope(), featureStep, readingAsOf()),
 		},
 		showDerivation: {
 			gwta: `show derivation of {statement: ${DOMAIN_STATEMENT}}`,

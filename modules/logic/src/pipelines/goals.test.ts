@@ -1,7 +1,7 @@
 /**
- * Goals over producer rules: the engine proves a goal by a fact of its domain, leaves a plan where only steps would prove it,
- * and refutes a goal that a step the caller may call doesn't return or that its own proof takes again. The step graph's lint
- * reads the same signatures.
+ * Goals over producer rules: the reasoner proves a goal by a fact of its domain, leaves a plan where only steps would prove it,
+ * and states the gap of a goal that a step the caller may call doesn't return or that its own proof takes again, which leaves it
+ * unknown. The step graph's lint reads the same signatures.
  */
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
@@ -11,11 +11,9 @@ import { Access, LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { RUN_AUTHORITY } from "@haibun/core/lib/domains/capability-context.js";
 import { LINT_FINDING } from "@haibun/core/lib/domains/goal-resolution.js";
-import { FACTS_HELD, planOf, producerRules, stepSignatures, unmetReason } from "../derivations/goals.js";
-import { atom, factsTerm } from "../derivations/terms.js";
-import { logicEngine } from "../root.js";
-import { lintFindings } from "./goals.js";
-import { proved } from "./prove.js";
+import { goalFactsOf, planOf, stepSignatures, unmetReason } from "../derivations/goals.js";
+import { reasoner } from "../root.js";
+import { goalProofs, lintFindings } from "./goals.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
 
 const action = async () => OK;
@@ -27,7 +25,24 @@ const thing = (selector: string) => ({
 	topology: { persistedAs: selector, id: "id", accessLevel: Access.private, properties: { id: LinkRelations.IDENTIFIER.rel } },
 });
 
-const domains = mapDefinitionsToDomains([value("cart"), value("order"), value("receipt"), value("loop-a"), value("loop-b"), value("orphan"), thing("ledger")]);
+/** A composite that steps don't return: its required field ranges over orders, and its optional note is its caller's. */
+const shipment = {
+	selectors: ["shipment"],
+	schema: z.object({ order: z.string(), note: z.string().optional() }),
+	description: "shipment",
+	topology: { ranges: { order: "order" } },
+};
+const domains = mapDefinitionsToDomains([
+	value("cart"),
+	value("order"),
+	value("receipt"),
+	value("loop-a"),
+	value("loop-b"),
+	value("orphan"),
+	value("delivery"),
+	shipment,
+	thing("ledger"),
+]);
 
 class Shop extends AStepper {
 	description = "Fills a cart, places an order from it, and prints its receipt.";
@@ -38,23 +53,17 @@ class Shop extends AStepper {
 		loopA: { description: TEST_STEP, gwta: "turn {b: loop-b} to a", productsDomain: "loop-a", action },
 		loopB: { description: TEST_STEP, gwta: "turn {a: loop-a} to b", productsDomain: "loop-b", action },
 		audit: { description: TEST_STEP, gwta: "audit {ledger: ledger}", action },
+		ship: { description: TEST_STEP, gwta: "ship {shipment: shipment}", productsDomain: "delivery", action },
 	};
 }
 
 const signatures = stepSignatures([new Shop()]);
 const byMethod = new Map(signatures.map((one) => [one.method, one]));
-/** Proves a goal where a fact holds of each domain given, which the proof reads once. */
+/** Proves a goal where a fact holds of each domain given. */
 const prove = async (goal: string, domainsHeld: string[], held: string[]) => {
-	let reads = 0;
-	const ended = await proved(await logicEngine(), `goals(${producerRules(signatures, domains, held)}, [${atom(goal)}])`, () => {
-		reads += 1;
-		return Promise.resolve(
-			factsTerm([FACTS_HELD], [domainsHeld.map((domain) => ({ subject: `fact-${domain}`, predicate: FACTS_HELD.predicate, object: domain, namedGraph: FACTS_HELD.namedGraph }))]),
-		);
-	});
-	expect(reads).toBe(1);
-	const proof = "goals" in ended ? ended.goals[0] : undefined;
-	if (proof === undefined) throw new Error(`the engine didn't return a proof of ${goal}`);
+	const facts = domainsHeld.map((domain) => ({ id: `fact-${domain}`, domain }));
+	const [proof] = await goalProofs(reasoner(), goalFactsOf(signatures, domains, held, facts, [goal]));
+	if (proof === undefined) throw new Error(`the reasoner didn't return a proof of ${goal}`);
 	return proof;
 };
 const latest = new Map([["order", "o1"]]);
@@ -73,24 +82,35 @@ describe("goals over producer rules", () => {
 		expect(planOf(proof.plans[0] ?? { argument: "" }, byMethod, latest).bindings).toEqual([{ kind: "fact", domain: "order", factId: "o1" }]);
 	});
 
+	it("proves a composite that steps don't return by its fields: a field with a range by its domain's plan, and one without by its caller", async () => {
+		const proof = await prove("delivery", [], RUN_AUTHORITY);
+		expect(stepsOf(proof)).toEqual([["fillCart", "placeOrder", "ship"]]);
+		const [binding] = planOf(proof.plans[0] ?? { argument: "" }, byMethod, latest).bindings;
+		expect(binding).toMatchObject({ kind: "composite", domain: "shipment" });
+		expect(binding?.kind === "composite" ? binding.fields.map(({ fieldName, kind }) => [fieldName, kind]) : []).toEqual([
+			["order", "argument"],
+			["note", "argument"],
+		]);
+	});
+
 	it("proves a goal by a fact of its domain", async () => {
 		expect((await prove("receipt", ["receipt"], RUN_AUTHORITY)).held).toBe(true);
 	});
 
-	it("refutes a goal whose producer the caller may not call, naming the sub-goal", async () => {
+	it("leaves a goal unknown where its producer's input has a producer the caller may not call, naming the sub-goal", async () => {
 		const proof = await prove("receipt", [], ["Shop:printReceipt", "Shop:placeOrder"]);
 		expect(proof.plans).toEqual([]);
 		expect(unmetReason(proof)).toContain("doesn't return cart");
 	});
 
-	it("refutes a goal that its own proof takes again", async () => {
+	it("leaves a goal unknown where its own proof takes it again, naming the chain", async () => {
 		const proof = await prove("loop-a", [], RUN_AUTHORITY);
 		expect(proof.unmet.map((node) => ("do" in node ? node.domain : node.unmet))).toEqual(["loop-a", "loop-b", "loop-a"]);
 		expect(unmetReason(proof)).toContain("is taken again below its own proof");
 	});
 
 	it("lints a record type that a step takes and doesn't return, and a domain that a step doesn't take or return", async () => {
-		const found = lintFindings(await logicEngine(), [new Shop()], domains);
+		const found = await lintFindings(reasoner(), [new Shop()], domains);
 		expect(found).toEqual(
 			expect.arrayContaining([
 				{ kind: LINT_FINDING.UNSUPPLIED_STEP, stepperName: "Shop", stepName: "audit", inputDomain: "ledger" },

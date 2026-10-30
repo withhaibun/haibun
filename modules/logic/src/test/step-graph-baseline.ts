@@ -15,7 +15,7 @@ import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { addStepperConcerns } from "@haibun/core/lib/actuality/pipelines/executor.js";
 import { LINT_FINDING, lintFindingLine, type TLintFinding } from "@haibun/core/lib/domains/goal-resolution.js";
 import { lintFindings } from "../pipelines/goals.js";
-import { logicEngine } from "../root.js";
+import { reasoner } from "../root.js";
 
 /** What fixes each kind of finding. */
 const FIX: Record<TLintFinding["kind"], string> = {
@@ -48,7 +48,7 @@ async function stepGraphFindings({ owned, alongside = [], moduleOptions = {} }: 
 	addStepperConcerns(world, steppers);
 	const names = new Set(owned.map((stepper) => stepper.name));
 	const about = (finding: TLintFinding) => ("stepperName" in finding ? finding.stepperName : world.domains[finding.domain]?.stepperName);
-	return lintFindings(await logicEngine(), steppers, world.domains)
+	return (await lintFindings(reasoner(), steppers, world.domains))
 		.filter((finding) => names.has(about(finding) ?? ""))
 		.map(lintFindingLine)
 		.sort();

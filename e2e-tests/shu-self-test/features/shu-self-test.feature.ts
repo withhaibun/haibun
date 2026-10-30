@@ -191,10 +191,11 @@ export const features: TKirejiExport = {
 		inElement({ container: `"${CHAIN_PANE}"`, what: `click ${IDS.POLYMORPHIC_VIEW.SETTINGS.layout}` }),
 		inElement({ container: `"${CHAIN_PANE}"`, what: `wait for ${IDS.POLYMORPHIC_VIEW.VIEW_TYPE}` }),
 
-		scenario({ scenario: "Goal resolution: `resolve` refutes a registered domain that a step doesn't return" }),
+		scenario({ scenario: "Goal resolution: `resolve` leaves a registered domain that a step doesn't return unknown" }),
 
-		"The engine proves a goal over any registered domain key. The registry holds every locator domain, including page-alt-text. A step doesn't return page-alt-text, so the engine refutes the goal and its step fails.",
-		'didn\'t resolve "page-alt-text"',
+		"The reasoner proves a goal over any registered domain key. The registry holds every locator domain, including page-alt-text. A step doesn't return page-alt-text, so the reasoner lacks both a fact and a plan for it, and the goal is unknown: a fact the records don't hold may hold elsewhere.",
+		'set unresolved from maybe resolve "page-alt-text"',
+		'variable unresolved.verdict is "unknown"',
 
 		scenario({ scenario: "Repeated `show affordances` invocations must not duplicate the pane" }),
 

@@ -14,7 +14,7 @@ import { ACCESS_BROADEST_FIRST, narrowerAccess } from "@haibun/core/lib/domains/
 import { EXCEEDS, NEVER_EXPIRES, readAction, type TExceeding, type TPermission } from "@haibun/core/lib/domains/actions.js";
 import { LOG, MATH, ODRL, OWL, RDFS, SEC, STRING, XSD } from "@haibun/core/lib/domains/vocabularies.js";
 import { REASONER_NAMESPACE } from "../domains/reasoning.js";
-import { listOf, literalSubject, pattern, quadsText, ruleText, type TN3Pattern } from "./n3.js";
+import { literalSubject, pattern, quadsText, ruleText, type TN3Pattern } from "./n3.js";
 
 const { namedNode, literal, blankNode, quad } = DataFactory;
 const h = (name: string): NamedNode => namedNode(`${REASONER_NAMESPACE}${name}`);
@@ -75,7 +75,7 @@ export const CONTAINMENT_RULES = [
 	ruleText(
 		bounded(
 			pattern("?b", ODRL.action, "?held"),
-			pattern(listOf([DataFactory.variable("held"), literal("^(.*)\\*$")]), STRING.scrape, "?prefix"),
+			pattern({ list: [DataFactory.variable("held"), literal("^(.*)\\*$")] }, STRING.scrape, "?prefix"),
 			pattern("?c", ODRL.action, "?a"),
 			pattern("?a", STRING.startsWith, "?prefix"),
 		),
@@ -87,7 +87,7 @@ export const CONTAINMENT_RULES = [
 		bounded(
 			pattern("?b", ODRL.target, "?o"),
 			pattern("?c", ODRL.target, "?t"),
-			pattern(listOf([DataFactory.variable("o"), literal("/")]), STRING.concatenation, "?under"),
+			pattern({ list: [DataFactory.variable("o"), literal("/")] }, STRING.concatenation, "?under"),
 			pattern("?t", STRING.startsWith, "?under"),
 		),
 		[pattern("?t", T.within, "?o")],

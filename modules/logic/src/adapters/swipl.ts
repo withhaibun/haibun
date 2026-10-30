@@ -7,8 +7,6 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import SWIPL from "swipl-wasm";
-import { z } from "zod";
-import { LintFindingSchema } from "@haibun/core/lib/domains/goal-resolution.js";
 import { DIFFERENT_BUILDS, ProofStateSchema } from "../domains/logic.js";
 import type { TLogicEngine } from "../ports.js";
 
@@ -43,6 +41,5 @@ export async function startSwipl(): Promise<TLogicEngine> {
 			once(runtime, "haibun:forget(Top)", { Top: top });
 		},
 		n3: (namespace, top) => String(once(runtime, "haibun:n3_export(Namespace, Top, Text)", { Namespace: namespace, Top: top }).Text),
-		lint: (graph) => z.array(LintFindingSchema).parse(once(runtime, "haibun:lint(Graph, Findings)", { Graph: graph }).Findings),
 	};
 }

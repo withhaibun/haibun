@@ -48,13 +48,13 @@ export const PlanSchema = z
 	.strict();
 export type TPlan = z.infer<typeof PlanSchema>;
 
-/** A goal's resolution: proved where a fact of its domain holds, unknown where only its plans would prove it, and refuted where
- *  a fact doesn't hold and a plan doesn't prove it. A refuted goal states the sub-goals from it down to the first it couldn't
- *  prove, and why that one isn't proved and what proves it. */
+/** A goal's resolution: proved where a fact of its domain holds, and else unknown, since a fact the records don't hold may hold
+ *  elsewhere. A goal without a plan states the sub-goals from it down to the first it couldn't prove, and why that one isn't
+ *  proved and what proves it. */
 export const GoalResolutionSchema = z
 	.object({
 		goal: z.string(),
-		verdict: z.enum([VERDICT.proved, VERDICT.unknown, VERDICT.refuted]),
+		verdict: z.enum([VERDICT.proved, VERDICT.unknown]),
 		factIds: z.array(z.string()),
 		plans: z.array(PlanSchema),
 		unmet: z.string().optional(),

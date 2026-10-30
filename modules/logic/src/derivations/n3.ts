@@ -11,7 +11,7 @@
  * so a literal's text never reads as a formula.
  */
 import { DataFactory, Parser, Writer } from "n3";
-import type { BlankNode, Literal, NamedNode, Quad, Quad_Object, Quad_Predicate, Quad_Subject, Term, Variable } from "@rdfjs/types";
+import type { Literal, NamedNode, Quad, Quad_Object, Quad_Predicate, Quad_Subject, Term, Variable } from "@rdfjs/types";
 import type { TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
@@ -36,25 +36,34 @@ export function termOf(value: unknown): NamedNode | Literal {
 
 /** A formula: the patterns between its braces. */
 export type TN3Formula = { formula: readonly TN3Pattern[] };
-/** A triple pattern of a formula, whose subject or object may be a formula of its own. */
-export type TN3Pattern = { subject: Quad_Subject | TN3Formula; predicate: Quad_Predicate; object: Quad_Object | TN3Formula };
-const isFormula = (part: Term | TN3Formula): part is TN3Formula => "formula" in part;
+/** A list, which N3 writes in parentheses: each item a term, a formula or a list. */
+export type TN3List = { list: readonly TN3Part[] };
+/** A part of a pattern N3 writes: a term, a formula or a list. */
+type TN3Part = Term | TN3Formula | TN3List;
+/** A triple pattern of a formula, whose subject or object may be a formula or a list of its own. */
+export type TN3Pattern = { subject: Quad_Subject | TN3Formula | TN3List; predicate: Quad_Predicate; object: Quad_Object | TN3Formula | TN3List };
 
 /** Returns a literal as a quad's subject. An N3 subject is any expression, a literal among them (W3C Notation3 Language, the grammar's
  *  `subject` production), which RDF/JS's quad doesn't type as a subject; N3.js writes one there as N3 reads it. */
 export const literalSubject = (term: Literal): Quad_Subject => term as unknown as Quad_Subject;
 
-/** Returns a list, which N3 states as a blank node of `rdf:first` and `rdf:rest` and N3.js writes in parentheses. */
-export const listOf = (items: readonly Quad_Object[]): BlankNode => writer.list([...items]) as unknown as BlankNode;
+/** The subject and the predicate N3.js writes a term after, so the term's own text is what follows them. */
+const [HOLDER, HOLDING] = [blankNode("s"), namedNode(LOG.equalTo)];
+const HELD_AFTER = `_:${HOLDER.value} <${HOLDING.value}> `;
 
-/** Returns a pattern as N3: N3.js writes its terms, and a formula stands in place of a blank node at its own position. */
-export function patternText({ subject, predicate, object }: TN3Pattern): string {
-	const [at, of] = [blankNode("s"), blankNode("o")];
-	const text = writer.quadToString(isFormula(subject) ? at : subject, predicate, isFormula(object) ? of : object).trim();
-	const [subjectText, rest] = isFormula(subject) ? [formulaText(subject), text.slice(`_:${at.value}`.length)] : ["", text];
-	const ending = ` _:${of.value} .`;
-	return isFormula(object) ? `${subjectText}${rest.slice(0, -ending.length)} ${formulaText(object)} .` : `${subjectText}${rest}`;
+/** Returns a part of a pattern as N3: N3.js writes a term, braces hold a formula's patterns, and parentheses a list's items, so a
+ *  literal's text never reads as a formula or a list. */
+function partText(part: TN3Part): string {
+	if ("formula" in part) return formulaText(part);
+	if ("list" in part) return `(${part.list.map((item) => ` ${partText(item)}`).join("")} )`;
+	return writer
+		.quadToString(HOLDER, HOLDING, part as Quad_Object)
+		.trim()
+		.slice(HELD_AFTER.length, -" .".length);
 }
+
+/** Returns a pattern as N3: its subject, its predicate and its object, each as `partText` writes it. */
+export const patternText = ({ subject, predicate, object }: TN3Pattern): string => `${partText(subject)} ${partText(predicate)} ${partText(object)} .`;
 
 /** Returns a formula as N3, its patterns between braces. */
 export const formulaText = ({ formula }: TN3Formula): string => `{ ${formula.map(patternText).join(" ")} }`;
@@ -63,11 +72,28 @@ export const formulaText = ({ formula }: TN3Formula): string => `{ ${formula.map
 export const ruleText = (body: readonly TN3Pattern[], head: readonly TN3Pattern[]): string =>
 	patternText({ subject: { formula: body }, predicate: namedNode(LOG.implies), object: { formula: head } });
 
+/** Returns a backward rule as N3: its head holds where its body does, proved as a goal reaches it. EYE reads a backward rule by
+ *  N3's `<=` (the grammar's `verb` production), which N3.js doesn't write, so the writer adds it between the two formulas. */
+export const backwardRuleText = (head: readonly TN3Pattern[], body: readonly TN3Pattern[]): string => `${formulaText({ formula: head })} <= ${formulaText({ formula: body })} .`;
+
+/** Returns the items of the list whose head is `node`, as quads N3.js read state it through `rdf:first` and `rdf:rest`. */
+export function listItems(quads: readonly Quad[], node: Term): Term[] {
+	if (node.value === RDF.nil) return [];
+	const first = quads.find(({ subject, predicate }) => subject.equals(node) && predicate.value === RDF.first);
+	const rest = quads.find(({ subject, predicate }) => subject.equals(node) && predicate.value === RDF.rest);
+	if (first === undefined || rest === undefined) throw new Error(`the reasoner's output names a list ${node.value} its quads don't state. Check the rules that derive it.`);
+	return [first.object, ...listItems(quads, rest.object)];
+}
+
 /** Returns quads as N3, each a triple N3.js writes. */
 export const quadsText = (quads: readonly Quad[]): string => writer.quadsToString([...quads]);
 
 /** A triple pattern of terms, with an IRI where a term is a vocabulary's or a variable's name after `?`. */
-export const pattern = (subject: Quad_Subject | TN3Formula | string, predicate: Quad_Predicate | string, object: Quad_Object | TN3Formula | string): TN3Pattern => ({
+export const pattern = (
+	subject: Quad_Subject | TN3Formula | TN3List | string,
+	predicate: Quad_Predicate | string,
+	object: Quad_Object | TN3Formula | TN3List | string,
+): TN3Pattern => ({
 	subject: typeof subject === "string" ? termNamed(subject) : subject,
 	predicate: typeof predicate === "string" ? termNamed(predicate) : predicate,
 	object: typeof object === "string" ? termNamed(object) : object,

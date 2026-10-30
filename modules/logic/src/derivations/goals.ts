@@ -5,9 +5,8 @@
  */
 import type { AStepper } from "@haibun/core/lib/steps/domains/stepper.js";
 import type { TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
-import { FACT_LABEL, isPersisted } from "@haibun/core/lib/domains/resources.js";
-import { FACT_FIELD, type TFact } from "@haibun/core/lib/records/domains/facts.js";
-import type { TQuadPattern } from "@haibun/core/lib/steps/domains/quad-types.js";
+import { isPersisted } from "@haibun/core/lib/domains/resources.js";
+import type { TFact } from "@haibun/core/lib/records/domains/facts.js";
 import { valueAt } from "@haibun/core/lib/domains/item-at.js";
 import { DomainKeySchema, domainParts, fieldRangesOf, isPrimitiveDomain, isWrittenByCaller, normalizeDomainKey, refTargetOf } from "@haibun/core/lib/domains/domains.js";
 import { mayCall, requiredAction } from "@haibun/core/lib/domains/actions.js";
@@ -19,13 +18,12 @@ import { unwrap, unwrapToShape } from "@haibun/core/lib/domains/zod-unwrap.js";
 import { DOMAIN_INDIVIDUAL_ADDRESS } from "@haibun/core/lib/domains/typed-links.js";
 import { FieldDomainSchema, type TBinding, type TCompositeRanges, type TFieldBinding, type TForwardAffordance, type TPlan } from "@haibun/core/lib/domains/goal-resolution.js";
 import { DIFFERENT_BUILDS, type TGoalProof, type TProofNode } from "../domains/logic.js";
-import { atom, list } from "./terms.js";
+import { UNMET_WHY, type TCompositeField, type TGoalFacts } from "./goal-rules.js";
+import type { TLintGraph } from "./lint-rules.js";
 
 type TDomains = Record<string, TRegisteredDomain>;
 /** A fact as a goal's proof reads it: its id and its domain. */
 export type THeldFact = Pick<TFact, "id" | "domain">;
-/** The read of each fact's domain, which a fact's record states by its property `domain`. */
-export const FACTS_HELD = { predicate: FACT_FIELD.domain, namedGraph: FACT_LABEL } satisfies TQuadPattern;
 
 /** A step's signature: its method, the domains it takes other than primitives, the domains it returns, and the action it requires. */
 export type TStepSignature = Omit<TForwardAffordance, "readyToRun">;
@@ -50,48 +48,62 @@ function signaturesOf(steppers: readonly AStepper[]): TStepSignature[] {
 export const stepSignatures = heldPerEntries((steppers: readonly AStepper[]) => steppers.flatMap((stepper) => [stepper, ...Object.values(stepper.steps)]), signaturesOf);
 
 /** The fields of a domain whose schema is an object, each with the domain `topology.ranges` names for it. */
-function compositeFields(domain: TRegisteredDomain | undefined, domains: TDomains): string[] {
+function compositeFields(domain: TRegisteredDomain | undefined, domains: TDomains): TCompositeField[] {
 	const shape = domain === undefined ? null : unwrapToShape(domain.schema);
 	if (domain === undefined || shape === null) return [];
 	const ranges = domain.topology?.ranges;
 	return Object.entries(shape).map(([name, type]) => {
 		const { inner, optional } = unwrap(type);
 		const range = ranges?.[name];
-		return `f(${[atom(name), atom(range !== undefined && domains[range] !== undefined ? range : ""), atom(inner._zod.def.type), String(optional)].join(", ")})`;
+		return { name, ...(range !== undefined && domains[range] !== undefined ? { range } : {}), type: inner._zod.def.type, optional };
 	});
 }
 
-/** The rules a caller holding `held` may use, with the read of the domains a fact holds of, as the engine's term. A proof reads
- *  the facts once, so the term's size follows the domains, not the facts. */
-export function producerRules(signatures: readonly TStepSignature[], domains: TDomains, held: string | string[] | undefined): string {
-	const producers = signatures
-		.filter((one) => mayCall(held, one))
-		.flatMap((one) => one.outputDomains.map((out) => `p(${atom(one.method)}, ${atom(out)}, ${list(one.inputDomains.map(atom))})`));
-	const produced = [...new Set(signatures.flatMap((one) => one.outputDomains))].map(atom);
-	const composites = Object.keys(domains).flatMap((key) => {
-		const fields = compositeFields(domains[key], domains);
-		return fields.length === 0 ? [] : [`c(${atom(key)}, ${list(fields)})`];
-	});
-	return `r(${[list(producers), list(produced), list(composites), `q(_, ${atom(FACTS_HELD.predicate)}, _, ${atom(FACTS_HELD.namedGraph)})`].join(", ")})`;
+/** What a proof of `goals` reads for a caller holding `held`: the producer rules of the steps it may call, each domain a step
+ *  returns, each composite's fields, and the domains of which `facts` hold. A proof reads the facts once, so its size follows the
+ *  domains, not the facts. */
+export function goalFactsOf(
+	signatures: readonly TStepSignature[],
+	domains: TDomains,
+	held: string | string[] | undefined,
+	facts: readonly THeldFact[],
+	goals: readonly string[],
+): TGoalFacts {
+	const producers = signatures.filter((one) => mayCall(held, one)).flatMap((one) => one.outputDomains.map((output) => ({ method: one.method, output, inputs: one.inputDomains })));
+	const composites = Object.fromEntries(
+		Object.keys(domains).flatMap((key) => {
+			const fields = compositeFields(domains[key], domains);
+			return fields.length === 0 ? [] : [[key, fields]];
+		}),
+	);
+	return { producers, produced: [...new Set(signatures.flatMap((one) => one.outputDomains))], composites, held: [...new Set(facts.map(({ domain }) => domain))], goals };
 }
 
-/** The step graph the lint reads, as the engine's term. */
-export function stepGraph(signatures: readonly TStepSignature[], domains: TDomains): string {
-	const steps = signatures.map((one) => `s(${[atom(one.stepperName), atom(one.stepName), list(one.inputDomains.map(atom)), list(one.outputDomains.map(atom))].join(", ")})`);
+/** The step graph the lint reads: each step's domains, each domain's place in the graph, each reference, each union's parts, each
+ *  composite's field ranges, and the domain of an individual's address. */
+export function stepGraph(signatures: readonly TStepSignature[], domains: TDomains): TLintGraph {
 	const keys = [...new Set([...Object.keys(domains), ...signatures.flatMap((one) => one.inputDomains)])];
-	const described = keys.map((key) => {
-		const domain = domains[key];
-		const node = domain !== undefined && !isPrimitiveDomain(key);
-		const beyond = domain !== undefined && (isPersisted(domain.topology) || typeof domain.ui?.component === "string");
-		return `d(${[atom(key), node, isWrittenByCaller(key, domains), beyond, domain !== undefined && isPersisted(domain.topology)].join(", ")})`;
-	});
-	const refs = Object.entries(domains).flatMap(([key, domain]) => {
-		const target = refTargetOf(domain, domains);
-		return target === undefined ? [] : [`ref(${atom(key)}, ${atom(target)})`];
-	});
-	const parts = keys.flatMap((key) => (domainParts(key).length > 1 ? domainParts(key).map((part) => `part(${atom(key)}, ${atom(part)})`) : []));
-	const ranges = Object.entries(domains).flatMap(([key, domain]) => fieldRangesOf(domain, domains).map((range) => `range(${atom(key)}, ${atom(range)})`));
-	return `g(${[list(steps), list(described), list(refs), list(parts), list(ranges), atom(DOMAIN_INDIVIDUAL_ADDRESS)].join(", ")})`;
+	return {
+		steps: signatures.map(({ stepperName, stepName, method, inputDomains, outputDomains }) => ({ stepperName, stepName, method, inputs: inputDomains, outputs: outputDomains })),
+		domains: keys.map((key) => {
+			const domain = domains[key];
+			const persisted = domain !== undefined && isPersisted(domain.topology);
+			return {
+				key,
+				node: domain !== undefined && !isPrimitiveDomain(key),
+				written: isWrittenByCaller(key, domains),
+				beyond: persisted || typeof domain?.ui?.component === "string",
+				persisted,
+			};
+		}),
+		refs: Object.entries(domains).flatMap(([key, domain]) => {
+			const target = refTargetOf(domain, domains);
+			return target === undefined ? [] : [[key, target] as [string, string]];
+		}),
+		parts: keys.flatMap((key) => (domainParts(key).length > 1 ? domainParts(key).map((part) => [key, part] as [string, string]) : [])),
+		ranges: Object.entries(domains).flatMap(([key, domain]) => fieldRangesOf(domain, domains).map((range) => [key, range] as [string, string])),
+		address: DOMAIN_INDIVIDUAL_ADDRESS,
+	};
 }
 
 /** Each composite domain's fields by the domain each ranges over. A reference names a record of its target, so it is left out. */
@@ -124,7 +136,6 @@ export function planOf(proof: TProofNode, byMethod: ReadonlyMap<string, TStepSig
 				bindings: [{ kind: "fact", domain: DomainKeySchema.parse(node.fact), factId: valueAt(latest, node.fact, "the latest fact of a domain the engine read") }],
 			};
 		if ("argument" in node) return { steps: [], bindings: [{ kind: "argument", domain: DomainKeySchema.parse(node.argument) }] };
-		if ("unmet" in node) throw new Error(`A plan the step program returned holds the unmet goal ${node.unmet}. ${DIFFERENT_BUILDS}`);
 		if ("composite" in node) {
 			const fields = node.fields.map((field) => ({ field, sub: flat(field.proof) }));
 			const bound = fields.map(({ field, sub }): TFieldBinding => {
@@ -163,11 +174,10 @@ export function argumentsOf(plan: TPlan): string[] {
 /** Why a goal's proof failed: the sub-goal it couldn't prove, why the engine couldn't prove it, and what proves it. */
 export function unmetReason(proof: TGoalProof): string {
 	const last = proof.unmet.at(-1);
-	if (last === undefined || !("why" in last)) throw new Error(`The step program refuted the goal ${proof.goal} without the goal it couldn't prove. ${DIFFERENT_BUILDS}`);
+	if (last === undefined || !("why" in last))
+		throw new Error(`The reasoner left the goal ${proof.goal} without a plan and without the goal it couldn't prove. ${DIFFERENT_BUILDS}`);
 	const { unmet: domain, why } = last;
-	if (why === "no_producer") return `a step the caller may call doesn't return ${domain}. Declare a step that returns it, or request the action of a step that does.`;
-	if (why === "cycle") return `${domain} is taken again below its own proof. State a step that returns it from other domains.`;
-	const depth = /^depth\((\d+)\)$/.exec(why)?.[1];
-	if (depth === undefined) throw new Error(`The step program refuted the goal ${proof.goal} for a reason the TypeScript prover doesn't read. ${DIFFERENT_BUILDS}`);
-	return `the proof of ${domain} went past ${depth} steps, the bound of a proof. State a step that returns it from fewer steps.`;
+	if (why === UNMET_WHY.noProducer) return `a step the caller may call doesn't return ${domain}. Declare a step that returns it, or request the action of a step that does.`;
+	if (why === UNMET_WHY.cycle) return `${domain} is taken again below its own proof. State a step that returns it from other domains.`;
+	throw new Error(`The reasoner left the goal ${proof.goal} without a plan for a reason the TypeScript prover doesn't read. ${DIFFERENT_BUILDS}`);
 }

@@ -49,39 +49,20 @@ export type TNodeRequest = z.infer<typeof NodeRequestSchema>;
 export type TReadRequest = z.infer<typeof ReadRequestSchema>;
 export type TCloseRequest = z.infer<typeof CloseRequestSchema>;
 
-/** A node of a goal's proof over producer rules: the domain a fact holds of, a producer whose inputs are its nodes, a
- *  composite's fields, an argument a caller supplies, or the sub-goal it couldn't prove with the reason. */
+/** A node of a goal's proof over producer rules: the domain a fact holds of, a producer whose inputs are its nodes, a composite's
+ *  fields, or an argument a caller supplies. */
 export type TProofNode =
 	| { fact: string }
 	| { argument: string }
 	| { do: string; domain: string; inputs: TProofNode[] }
-	| { composite: string; fields: { name: string; domain: string; type: string; optional: boolean; proof: TProofNode }[] }
-	| { unmet: string; why: string };
-const ProofNodeSchema: z.ZodType<TProofNode> = z.union([
-	z.object({ fact: z.string() }),
-	z.object({ argument: z.string() }),
-	z.object({ do: z.string(), domain: z.string(), inputs: z.array(z.lazy(() => ProofNodeSchema)) }),
-	z.object({
-		composite: z.string(),
-		fields: z.array(z.object({ name: z.string(), domain: z.string(), type: z.string(), optional: z.stringbool(), proof: z.lazy(() => ProofNodeSchema) })),
-	}),
-	z.object({ unmet: z.string(), why: z.string() }),
-]);
+	| { composite: string; fields: { name: string; domain: string; type: string; optional: boolean; proof: TProofNode }[] };
+/** A goal's proof: whether a fact of its domain holds, a proof for each producer whose inputs hold, and, where it doesn't have
+ *  either, the chain of sub-goals down to the first it couldn't prove. */
+export type TGoalProof = { goal: string; held: boolean; plans: TProofNode[]; unmet: ({ domain: string; do: string } | { unmet: string; why: string })[] };
 
-/** A goal's proof: the facts of its domain, a proof for each producer whose inputs hold, and, where it doesn't have either, the
- *  chain of sub-goals down to the first it couldn't prove. */
-export const GoalProofSchema = z.object({
-	goal: z.string(),
-	held: z.stringbool(),
-	plans: z.array(ProofNodeSchema),
-	unmet: z.array(z.union([z.object({ domain: z.string(), do: z.string() }), z.object({ unmet: z.string(), why: z.string() })])),
-});
-export type TGoalProof = z.infer<typeof GoalProofSchema>;
-
-/** The state of a proof after one query: a line's verdict or the proofs of goals where the proof ended, or the effect it needs. */
+/** The state of a proof after one query: a line's verdict where the proof ended, or the effect it needs. */
 export const ProofStateSchema = z.union([
 	z.object({ verdict: VerdictSchema }),
-	z.object({ goals: z.array(GoalProofSchema) }),
 	z.object({
 		need: z.string(),
 		path: z.array(z.number()),

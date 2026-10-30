@@ -12,7 +12,7 @@ import { validatedFeatureStep } from "@haibun/core/lib/steps/pipelines/call-step
 import { literalTerm, renderStepLine } from "@haibun/core/lib/steps/derivations/named-vars.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { VERDICT, type TActionResult, type TStepResult } from "@haibun/core/lib/domains/protocol.js";
-import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
+import { actionNotOK, actionOKWithProducts, actionUnknown } from "@haibun/core/lib/domains/util.js";
 import { itemAt, valueAt } from "@haibun/core/lib/domains/item-at.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { actingAs } from "@haibun/core/lib/domains/capability-context.js";
@@ -28,28 +28,31 @@ import {
 	type TGoalResolution,
 	type TLintFinding,
 } from "@haibun/core/lib/domains/goal-resolution.js";
-import {
-	argumentsOf,
-	compositeRanges,
-	FACTS_HELD,
-	forwardOf,
-	isTrivial,
-	planOf,
-	producerRules,
-	stepGraph,
-	stepSignatures,
-	unmetReason,
-	type THeldFact,
-} from "../derivations/goals.js";
-import { DIFFERENT_BUILDS, EFFECT, type TReadRequest } from "../domains/logic.js";
-import { atom, factsTerm, list } from "../derivations/terms.js";
-import type { TLogicEngine } from "../ports.js";
-import { proved } from "./prove.js";
+import { argumentsOf, compositeRanges, forwardOf, goalFactsOf, isTrivial, planOf, stepGraph, stepSignatures, unmetReason, type THeldFact } from "../derivations/goals.js";
+import { GOAL_QUERY, GOAL_RULES, goalFacts, goalProofsOf, type TGoalFacts } from "../derivations/goal-rules.js";
+import { LINT_QUERY, LINT_RULES, lintFacts, lintFindingsOf } from "../derivations/lint-rules.js";
+import { quadsOf } from "../derivations/n3.js";
+import type { TGoalProof } from "../domains/logic.js";
+import type { TReasoner } from "../ports.js";
 import { readerOf, writeFacts } from "./reads.js";
 
-/** What a goal's proof reads: the context whose steps and domains state the rules and whose store holds the facts, the engine,
+/** What a goal's proof reads: the context whose steps and domains state the rules and whose store holds the facts, the reasoner,
  *  what the caller holds, and the name of the logic engine's stepper, whose steps a proof calls. */
-export type TGoalScope = { ctx: DispatchContext; engine: TLogicEngine; held: string | string[] | undefined; stepper: string };
+export type TGoalScope = { ctx: DispatchContext; reasoner: TReasoner; held: string | string[] | undefined; stepper: string };
+
+/** Returns what a session of the reasoner derives of `facts` under `rules`, as quads, where it reads only its own facts. */
+async function derivedOf(reasoner: TReasoner, rules: string, facts: string, query: string, what: string): Promise<ReturnType<typeof quadsOf>> {
+	const derived = await reasoner.session(async (session) => {
+		const state = await session.start(`${rules}\n${facts}`, query, false);
+		if ("need" in state) throw new Error(`${what} reads only its own facts, and its rules reached a read of ${state.predicate.value} of ${state.subject.value}. Check its rules.`);
+		return state.derived;
+	});
+	return quadsOf(derived);
+}
+
+/** Returns each goal's proof over the producer rules `facts` state: its fact, its plans and its gap. */
+export const goalProofs = async (reasoner: TReasoner, facts: TGoalFacts): Promise<TGoalProof[]> =>
+	goalProofsOf(await derivedOf(reasoner, GOAL_RULES, goalFacts(facts), GOAL_QUERY, "a proof of goals"), facts.goals);
 
 const storeOf = ({ ctx }: TGoalScope): IQuadStore => ctx.world.shared.getStore();
 
@@ -60,25 +63,12 @@ async function resolutions(scope: TGoalScope, goals: readonly string[], facts: r
 	const byMethod = new Map(signatures.map((one) => [one.method, one]));
 	const byDomain = Map.groupBy(facts, (fact) => fact.domain);
 	const latest = new Map(facts.toReversed().map((fact) => [fact.domain, fact.id]));
-	const ended = await proved(scope.engine, `goals(${producerRules(signatures, world.domains, scope.held)}, ${list(goals.map(atom))})`, ({ need, request }) => {
-		if (need !== EFFECT.read) return Promise.reject(new Error(`A proof of goals makes a request besides a read of facts. ${DIFFERENT_BUILDS}`));
-		const { patterns } = request as TReadRequest;
-		// A proof of goals reads the products of steps, which the reader read as records, latest first.
-		if (patterns.some((pattern) => pattern.predicate !== FACTS_HELD.predicate || pattern.namedGraph !== FACTS_HELD.namedGraph))
-			return Promise.reject(new Error(`A proof of goals reads a pattern besides the products of steps. ${DIFFERENT_BUILDS}`));
-		const held = facts.toReversed().map(({ id, domain }) => ({ subject: id, predicate: FACTS_HELD.predicate, object: domain, namedGraph: FACTS_HELD.namedGraph }));
-		return Promise.resolve(
-			factsTerm(
-				patterns,
-				patterns.map(() => held),
-			),
-		);
-	});
-	if (!("goals" in ended)) throw new Error(`A proof of goals ended without the proof of each goal. ${DIFFERENT_BUILDS}`);
-	return ended.goals.map((proof) => {
+	const proofs = await goalProofs(scope.reasoner, goalFactsOf(signatures, world.domains, scope.held, facts, goals));
+	return proofs.map((proof) => {
 		const plans = proof.plans.map((plan) => planOf(plan, byMethod, latest));
-		const verdict = proof.held ? VERDICT.proved : plans.length > 0 ? VERDICT.unknown : VERDICT.refuted;
-		const unmet = verdict === VERDICT.refuted ? { unmet: unmetReason(proof), unmetChain: proof.unmet.map((node) => ("do" in node ? node.domain : node.unmet)) } : {};
+		const verdict = proof.held ? VERDICT.proved : VERDICT.unknown;
+		const unplanned = !proof.held && plans.length === 0;
+		const unmet = unplanned ? { unmet: unmetReason(proof), unmetChain: proof.unmet.map((node) => ("do" in node ? node.domain : node.unmet)) } : {};
 		const factIds = proof.held ? valueAt(byDomain, proof.goal, "the facts of a goal the engine holds").map((fact) => fact.id) : [];
 		return GoalResolutionSchema.parse({ goal: proof.goal, verdict, factIds, plans, ...unmet });
 	});
@@ -104,14 +94,14 @@ async function proveUnder(ctx: DispatchContext, parent: TFeatureStep, method: st
 }
 
 /** Proves a goal under the step `pattern` states. A proved goal returns its proof as statements in proof order: the line that
- *  asserted its fact, then the goal's statement. A refuted goal's first unproved sub-goal is proved under the step, so the
- *  sub-goal's record states why. */
+ *  asserted its fact, then the goal's statement. A goal without a fact or a plan is unknown, and its first unproved sub-goal is
+ *  proved under the step, so the sub-goal's record states why. */
 export async function resolved(scope: TGoalScope, parent: TFeatureStep, goal: string, pattern: string): Promise<TActionResult> {
 	const resolution = await resolutionOf(scope, goal);
-	if (resolution.verdict === VERDICT.refuted) {
+	if (resolution.unmet !== undefined) {
 		const unmet = resolution.unmetChain?.at(-1);
 		if (unmet !== undefined && unmet !== goal) await proveUnder(scope.ctx, parent, stepMethodName(scope.stepper, "resolve"), { goal: unmet });
-		return actionNotOK(`\`${parent.in}\` doesn't hold: ${unmetOf(resolution)}`);
+		return actionUnknown(`\`${parent.in}\` isn't proved: ${unmetOf(resolution)}`);
 	}
 	const [fact] = resolution.factIds;
 	if (fact === undefined) return actionOKWithProducts(resolution);
@@ -169,8 +159,7 @@ async function readWalk(store: IQuadStore, walk: string): Promise<TWalk> {
 async function walkProducts(scope: TGoalScope, line: string, walk: string, goal: string, factIds: string[]): Promise<TActionResult> {
 	const resolution = await resolutionOf(scope, goal);
 	const next = resolution.verdict === VERDICT.proved ? undefined : resolution.plans[0]?.steps[0];
-	if (resolution.verdict === VERDICT.refuted || (resolution.verdict === VERDICT.unknown && next === undefined))
-		return actionNotOK(`\`${line}\` can't reach ${goal}: ${unmetOf(resolution)}`);
+	if (resolution.verdict === VERDICT.unknown && next === undefined) return actionUnknown(`\`${line}\` doesn't have a plan that reaches ${goal}: ${unmetOf(resolution)}`);
 	if (next === undefined) return actionOKWithProducts(ChainWalkSchema.parse({ walk, goal, status: WALK_STATUS.ended, needs: [], factIds }));
 	const method = stepMethodName(next.stepperName, next.stepName);
 	const needs = [...scope.ctx.registry.named(method).paramDomainKeys.keys()];
@@ -217,7 +206,7 @@ async function snapshotOf(scope: TGoalScope, asOf: readonly number[] | undefined
 	const isReference = (domain: string) => world.domains[domain] !== undefined && refTargetOf(world.domains[domain], world.domains) !== undefined;
 	const goals = [...new Set(signatures.flatMap((one) => one.outputDomains))].filter((domain) => !isReference(domain));
 	const goalsOf = (await resolutions(scope, goals, facts)).flatMap((resolution) => {
-		if (resolution.verdict !== VERDICT.refuted && isTrivial(resolution.plans)) return [];
+		if (resolution.unmet === undefined && isTrivial(resolution.plans)) return [];
 		const domain = world.domains[resolution.goal];
 		const description = domain?.description ?? domain?.schema.description;
 		if (description === undefined)
@@ -238,10 +227,10 @@ async function snapshotOf(scope: TGoalScope, asOf: readonly number[] | undefined
 export async function affordancesAt(scope: TGoalScope, parent: TFeatureStep, asOf: readonly number[] | undefined): Promise<TActionResult> {
 	const waypointers = asOf === undefined ? scope.ctx.steppers.filter(providesWaypoints) : [];
 	const waypoints = (await Promise.all(waypointers.map((stepper) => stepper.waypointEntries(parent)))).flat();
-	const findings = lintFindings(scope.engine, scope.ctx.steppers, scope.ctx.world.domains);
+	const findings = await lintFindings(scope.reasoner, scope.ctx.steppers, scope.ctx.world.domains);
 	return actionOKWithProducts(AffordancesSchema.parse({ ...(await snapshotOf(scope, asOf)), waypoints, findings }));
 }
 
-/** The step graph's lint findings, as queries over the steps' signatures and the domains. */
-export const lintFindings = (engine: TLogicEngine, steppers: readonly AStepper[], domains: Record<string, TRegisteredDomain>): TLintFinding[] =>
-	engine.lint(stepGraph(stepSignatures(steppers), domains));
+/** The step graph's lint findings, as the reasoner derives them from the steps' signatures and the domains. */
+export const lintFindings = async (reasoner: TReasoner, steppers: readonly AStepper[], domains: Record<string, TRegisteredDomain>): Promise<TLintFinding[]> =>
+	lintFindingsOf(await derivedOf(reasoner, LINT_RULES, lintFacts(stepGraph(stepSignatures(steppers), domains)), LINT_QUERY, "the step graph's lint"));
