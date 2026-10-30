@@ -257,7 +257,7 @@ ends each record it opened, and the features after it run as `HAIBUN_CONTINUE_AF
 
 Knowledge is open world: OWL 2 at the RL profile states it, and N3 rules run by EYE evaluate it
 (`modules/logic/src/adapters/eye.ts`, `modules/logic/src/pipelines/reason.ts`). EYE runs on the swipl-wasm runtime the step
-program uses, one session at a time, each in a runtime of its own. A rule reads the store through the `h:read` built-in, which
+program uses, one session at a time, in one runtime that a reset returns to what it held before its first session. A rule reads the store through the `h:read` built-in, which
 yields the read effect a proof's read yields. A type declares its named graph complete with `complete: true`, and a rule's
 scoped negation (`log:notIncludes`) applies only over a complete graph, which the pipeline states as one formula. A graph is
 complete only to a reader at or above its type's access level; below it the graph is open, and a claim its records don't prove

@@ -1,9 +1,11 @@
 /**
- * The reasoner's adapter: EYE (MIT) compiled for swipl-wasm 8.2.3. EYE's `main` runs once per process, as its command line
- * runs, and leaves its facts, rules and tables in the runtime, so each session starts a runtime of its own (about 100 ms)
- * from the program read on the first session. Sessions run one at a time in the order they start, which bounds the memory
- * and the processor time reasoning takes. A session runs EYE in a Prolog engine. The read built-in yields its request from
- * the engine and continues with the rows the host posts, as the step program's effects do. A built-in also runs during
+ * The reasoner's adapter: EYE (MIT) compiled for swipl-wasm 8.2.3. One runtime, started on the first session, serves every
+ * session. The reset after each session returns the runtime to what it held before its first session: each predicate and its
+ * clauses, the gensym counters that name blank nodes, the tables, the Prolog flags and the files. A runtime whose reset fails
+ * is dropped, so the next session starts a runtime of its own. `snapshot/1` would discard the clauses `main` changes, but an
+ * engine doesn't yield inside it, so the read built-in couldn't run. Sessions run one at a time in the order they start, which bounds the
+ * memory and the processor time reasoning takes. A session runs EYE in a Prolog engine. The read built-in yields its request
+ * from the engine and continues with the rows the host posts, as the step program's effects do. A built-in also runs during
  * scoped negation, outside the engine, where it fails.
  */
 import { readFileSync } from "node:fs";
@@ -21,8 +23,23 @@ const EYE_SOURCE = "@haibun/logic/eye.qlf";
 const [EYE_FILE, BUILTINS_FILE, SOURCES_FILE, QUERY_FILE] = ["eye.qlf", "builtins.pl", "sources.n3", "query.n3"];
 /** The engine a session runs EYE in, by its alias. */
 const ENGINE = "eye";
-/** The read built-in: it yields the subject and the predicate, and binds its object to each row the host posts. */
-const BUILTINS = `'<${REASONER_BUILTIN.read}>'([S, P], O) :- engine_self(_), engine_yield(need(read, S, P)), engine_fetch(rows(Os)), member(O, Os).`;
+/** The read built-in, which yields the subject and the predicate and binds its object to each row the host posts; the record of
+ *  each predicate, its clauses and each Prolog flag a runtime holds before its first session; and the reset to that record. EYE's
+ *  `main` asserts and retracts clauses, declares predicates, among them its own and the read built-in, and sets flags, and the
+ *  reset removes each predicate `main` declared and restores the clauses of each predicate whose clauses changed. */
+const BUILTINS = `
+:- dynamic('<${REASONER_BUILTIN.read}>'/2), dynamic(held_predicate/1), dynamic(held_clauses/3), dynamic(held_flag/2).
+'<${REASONER_BUILTIN.read}>'([S, P], O) :- engine_self(_), engine_yield(need(read, S, P)), engine_fetch(rows(Os)), member(O, Os).
+holding(H) :- current_predicate(user:N/A), \\+ memberchk(N, [held_predicate, held_clauses, held_flag]), functor(H, N, A), \\+ predicate_property(user:H, imported_from(_)).
+references(H, Refs) :- findall(Ref, clause(user:H, _, Ref), Refs).
+hold_runtime :- forall(current_predicate(user:N/A), assertz(held_predicate(N/A))), forall(current_prolog_flag(F, V), assertz(held_flag(F, V))),
+\tforall(holding(H), (findall(H-B, clause(user:H, B), Cs), references(H, Refs), assertz(held_clauses(H, Cs, Refs)))).
+restore(H, _, Refs) :- references(H, Refs), !.
+restore(H, Cs, Refs) :- retractall(user:H), forall(member(H-B, Cs), assertz(user:(H :- B))), references(H, Now),
+\tretract(held_clauses(H, Cs, Refs)), assertz(held_clauses(H, Cs, Now)).
+reset_runtime :- forall((current_predicate(user:N/A), \\+ held_predicate(N/A)), abolish(user:N/A)), forall(held_clauses(H, Cs, Refs), restore(H, Cs, Refs)),
+\treset_gensym, abolish_all_tables, forall((held_flag(F, V), current_prolog_flag(F, W), W \\== V), set_prolog_flag(F, V)).
+`;
 /** EYE's arguments: without a banner, and with each IRI in full. Unexplained, EYE writes each derived triple as one line; explained,
  *  it writes the proof of what the query selects in the N3 proof vocabulary. */
 const eyeArguments = (explained: boolean): string => `[${explained ? "" : "'--nope', "}'--quiet', '--no-qnames', '${SOURCES_FILE}', '--query', '${QUERY_FILE}']`;
@@ -53,8 +70,11 @@ function once(runtime: TRuntime, goal: string, input?: Record<string, unknown>):
 	return answer;
 }
 
-/** Starts a runtime with EYE and the built-in loaded, writes a session's sources and query, and starts EYE over them. */
-async function started(program: Uint8Array, sources: string, query: string, explained: boolean): Promise<{ runtime: TRuntime; printed: string[]; errors: string[] }> {
+/** A runtime with EYE and the built-ins loaded, and what EYE prints and reports while a session runs. */
+type TEye = { runtime: TRuntime; printed: string[]; errors: string[] };
+
+/** Starts a runtime with EYE and the built-ins loaded, and records the predicates and flags it holds before its first session. */
+async function startedEye(program: Uint8Array): Promise<TEye> {
 	const printed: string[] = [];
 	const errors: string[] = [];
 	const runtime = await SWIPL({ arguments: ["-q"], print: (line: string) => printed.push(line), printErr: (line: string) => errors.push(line) });
@@ -63,43 +83,74 @@ async function started(program: Uint8Array, sources: string, query: string, expl
 	once(runtime, `load_files('${EYE_FILE}', [])`);
 	runtime.FS.writeFile(BUILTINS_FILE, BUILTINS);
 	once(runtime, `consult('${BUILTINS_FILE}')`);
-	runtime.FS.writeFile(SOURCES_FILE, sources);
-	runtime.FS.writeFile(QUERY_FILE, query);
-	once(runtime, `engine_create(done, user:main(${eyeArguments(explained)}), _, [alias(${ENGINE})])`);
+	once(runtime, "hold_runtime");
 	return { runtime, printed, errors };
 }
 
-/** Returns the reasoner. EYE's program is read on its first session, and each session runs once the sessions before it ended. */
+/** Writes a session's sources and query, and starts EYE over them in an engine. */
+function startSession({ runtime, printed, errors }: TEye, sources: string, query: string, explained: boolean): void {
+	printed.length = 0;
+	errors.length = 0;
+	runtime.FS.writeFile(SOURCES_FILE, sources);
+	runtime.FS.writeFile(QUERY_FILE, query);
+	once(runtime, `engine_create(done, user:main(${eyeArguments(explained)}), _, [alias(${ENGINE})])`);
+}
+
+/** Ends a session: destroys its engine where it is held, resets the runtime and removes the session's files. */
+function endSession({ runtime }: TEye): void {
+	once(runtime, `(is_engine(${ENGINE}) -> engine_destroy(${ENGINE}) ; true)`);
+	once(runtime, "reset_runtime");
+	for (const file of [SOURCES_FILE, QUERY_FILE]) runtime.FS.unlink(file);
+}
+
+/** Returns the reasoner. Its runtime starts on its first session, and each session runs once the sessions before it ended. */
 export function eyeReasoner(): Pick<TReasoner, "session"> {
-	let program: Uint8Array | undefined;
+	let eye: Promise<TEye> | undefined;
 	let turn: Promise<unknown> = Promise.resolve();
 	const session = async <T>(run: (held: TReasonerSession) => Promise<T>): Promise<T> => {
-		if (program === undefined) program = readFileSync(createRequire(import.meta.url).resolve(EYE_SOURCE));
-		const held = program;
-		let opened: Awaited<ReturnType<typeof started>> | undefined;
+		if (eye === undefined) eye = startedEye(readFileSync(createRequire(import.meta.url).resolve(EYE_SOURCE)));
+		const held = await eye;
+		let started = false;
 		/** The state an engine step returned: the read it needs, or the text EYE printed once it ended. */
-		const stateOf = ({ runtime, printed, errors }: Awaited<ReturnType<typeof started>>, answer: TAnswer): TReasonerState => {
+		const stateOf = (answer: TAnswer): TReasonerState => {
 			const text = String(answer.S);
 			const need = NEED.exec(text);
 			if (need !== null) return { need: "read", subject: DataFactory.namedNode(String(need[1])), predicate: DataFactory.namedNode(String(need[2])) };
-			once(runtime, `engine_destroy(${ENGINE})`);
-			if (text !== "done") throw new Error(`EYE ended with ${text}: ${errors.join("\n")}. Check the rules and the query of the session.`);
-			return { derived: printed.join("\n") };
+			if (text !== "done") throw new Error(`EYE ended with ${text}: ${held.errors.join("\n")}. Check the rules and the query of the session.`);
+			return { derived: held.printed.join("\n") };
 		};
-		const openedSession = (): Awaited<ReturnType<typeof started>> => {
-			if (opened === undefined) throw new Error("a session resumed before it started. Start the session with its sources and query first.");
-			return opened;
+		/** Ends a started session, and drops a runtime whose reset failed, so the next session starts a runtime of its own. */
+		const reset = (): unknown => {
+			if (!started) return undefined;
+			try {
+				endSession(held);
+				return undefined;
+			} catch (err) {
+				eye = undefined;
+				return err;
+			}
 		};
-		return await run({
-			start: async (sources, query, explained) => {
-				opened = await started(held, sources, query, explained);
-				return stateOf(opened, once(opened.runtime, `engine_next(${ENGINE}, A), term_string(A, S)`));
-			},
-			resume: (rows) => {
-				const at = openedSession();
-				return stateOf(at, once(at.runtime, `term_string(Rows, Text), engine_post(${ENGINE}, rows(Rows), A), term_string(A, S)`, { Text: `[${rows.map(prologOf).join(", ")}]` }));
-			},
-		});
+		let result: T;
+		try {
+			result = await run({
+				start: (sources, query, explained) =>
+					new Promise((resolve) => {
+						startSession(held, sources, query, explained);
+						started = true;
+						resolve(stateOf(once(held.runtime, `engine_next(${ENGINE}, A), term_string(A, S)`)));
+					}),
+				resume: (rows) => {
+					if (!started) throw new Error("a session resumed before it started. Start the session with its sources and query first.");
+					return stateOf(once(held.runtime, `term_string(Rows, Text), engine_post(${ENGINE}, rows(Rows), A), term_string(A, S)`, { Text: `[${rows.map(prologOf).join(", ")}]` }));
+				},
+			});
+		} catch (err) {
+			const failure = reset();
+			throw failure === undefined ? err : new AggregateError([err, failure], "a session threw, and EYE's runtime wasn't reset after it");
+		}
+		const failure = reset();
+		if (failure !== undefined) throw failure;
+		return result;
 	};
 	return {
 		session: <T>(run: (held: TReasonerSession) => Promise<T>): Promise<T> => {

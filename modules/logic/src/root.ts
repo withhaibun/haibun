@@ -1,7 +1,7 @@
 /**
  * The logic area's composition root: the engine port and the reasoner port, each made once per process on its first request.
  * The engine's runtime starts in about 100 ms and every actuality of the process proves through it. Every reasoning of the
- * process waits its turn at the same reasoner.
+ * process waits its turn at the same reasoner, whose one runtime serves each session.
  */
 import { eyeReasoner } from "./adapters/eye.js";
 import { ruleLibrary } from "./adapters/rule-library.js";
