@@ -152,11 +152,11 @@ export const features: TKirejiExport = {
 		waitFor({ target: IDS.QUERY.TABLE }),
 		waitFor({ target: IDS.QUERY.FIRST_ROW }),
 
-		scenario({ scenario: "Invoke `show affordances` from Step mode and inspect the goals section" }),
+		scenario({ scenario: "Invoke `show the applicable steps` from Step mode and inspect the goals section" }),
 
 		"The affordances panel renders the logic engine's verdict for each goal: proved, unknown or refuted. The panel doesn't list forward-reachable steps. The actions bar's step picker lists them. The goals list mounts in the panel.",
 		...enterStepMode,
-		...passesStepForm("LogicStepper-showAffordances"),
+		...passesStepForm("LogicStepper-showApplicableSteps"),
 		waitFor({ target: IDS.AFFORDANCES.ROOT }),
 		waitFor({ target: IDS.AFFORDANCES.GOALS_LIST }),
 
@@ -179,8 +179,8 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "The affordances hold the domain chain, drawn as a graph" }),
 
-		"`show affordances` returns the steps on offer, each goal's verdict and the step graph's lint findings: unsupplied steps, unreachable domains and unproduced domains. The affordances panel holds the domain chain in a section of its own, which the graph view draws from the forward edges and the goal verdicts. The feature opens the section and waits for the chain view, its graph slot and the canvas in that slot.",
-		...passesStepForm("LogicStepper-showAffordances"),
+		"`show the applicable steps` returns the steps on offer, each goal's verdict and the step graph's lint findings: unsupplied steps, unreachable domains and unproduced domains. The affordances panel holds the domain chain in a section of its own, which the graph view draws from the forward edges and the goal verdicts. The feature opens the section and waits for the chain view, its graph slot and the canvas in that slot.",
+		...passesStepForm("LogicStepper-showApplicableSteps"),
 		waitFor({ target: IDS.AFFORDANCES.ROOT }),
 		click({ target: IDS.AFFORDANCES.CHAIN }),
 		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
@@ -197,17 +197,17 @@ export const features: TKirejiExport = {
 		'set unresolved from maybe resolve "page-alt-text"',
 		'variable unresolved.verdict is "unknown"',
 
-		scenario({ scenario: "Repeated `show affordances` invocations must not duplicate the pane" }),
+		scenario({ scenario: "Repeated `show the applicable steps` invocations must not duplicate the pane" }),
 
 		"A view-open product is a request to mount a pane. Running the same show step twice reuses the open pane, and the pane's open chain section stays open. Each refresh of the affordances stream would add another pane without that reuse. This scenario invokes the step a second time and waits for the chain view's root and graph. Each wait reads the first match, so the scenario doesn't count the panes.",
 		...enterStepMode,
-		...passesStepForm("LogicStepper-showAffordances"),
+		...passesStepForm("LogicStepper-showApplicableSteps"),
 		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
 		waitFor({ target: IDS.DOMAIN_CHAIN.GRAPH }),
 
 		scenario({ scenario: "Reload while the affordances pane is open: it must restore, with its domain chain" }),
 
-		"Reloading the page restores the affordances panel from the URL hash. The panel reads the affordances on offer when it mounts without a product, so its chain section draws the chain after the reload. The feature waits for the panel's root after the reload, opens the chain section and waits for the chain.",
+		"Reloading the page restores the affordances panel from the URL hash. The panel reads the applicable steps when it mounts without a product, so its chain section draws the chain after the reload. The feature waits for the panel's root after the reload, opens the chain section and waits for the chain.",
 		reloadPage({}),
 		"The app restores the panes from the URL hash. The reloaded URL still holds the affordances pane in its hash.",
 		"save URI to reloadUri",
@@ -286,9 +286,9 @@ export const features: TKirejiExport = {
 		"The uncompressed copy holds the same content as plain text. A person can check this copy for secrets without unpacking it.",
 		'saves shu uncompressed to "/tmp/shu-audit.html"',
 
-		"The affordances panel has been open since a step showed it. The panel reads the affordances on offer after each step to stay current. Actuality doesn't record a read as an act. Actuality's records name the step that showed the panel and don't name the panel's reads. The report holds actuality's records, so it names showAffordances and doesn't name affordancesOnOffer.",
-		'text at "/tmp/shu-audit.html" contains "LogicStepper.showAffordances"',
-		'didn\'t text at "/tmp/shu-audit.html" contains "LogicStepper.affordancesOnOffer"',
+		"The affordances panel has been open since a step showed it. The panel reads the applicable steps after each step to stay current. Actuality doesn't record a read as an act. Actuality's records name the step that showed the panel and don't name the panel's reads. The report holds actuality's records, so it names showApplicableSteps and doesn't name applicableSteps.",
+		'text at "/tmp/shu-audit.html" contains "LogicStepper.showApplicableSteps"',
+		'didn\'t text at "/tmp/shu-audit.html" contains "LogicStepper.applicableSteps"',
 
 		scenario({ scenario: "A reload with the server unreachable reads actuality from the device" }),
 

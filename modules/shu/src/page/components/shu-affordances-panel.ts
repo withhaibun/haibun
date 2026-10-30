@@ -10,7 +10,7 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
 import { hasConduit } from "../controllers/conduit-controller.js";
-import { affordancesOnOffer } from "../controllers/read-controller.js";
+import { applicableSteps } from "../controllers/read-controller.js";
 import { LoadController } from "../controllers/load-controller.js";
 import { loadRenders } from "./load-renders.js";
 import {
@@ -47,7 +47,7 @@ import { typeShownIn } from "../controllers/catalog-controller.js";
 import "./shu-spinner.js";
 import "./shu-copy-button.js";
 import { ShuDomainChainView } from "./shu-domain-chain-view.js";
-import { SHOW_AFFORDANCES_METHOD } from "../domains/leads-on.js";
+import { SHOW_APPLICABLE_STEPS_METHOD } from "../domains/leads-on.js";
 import { emptyState } from "./empty-state.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 
@@ -130,7 +130,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	/** The affordances the panel shows: read from actuality, or given as a step's products. */
 	readonly #affordances = new LoadController<TAffordances>(this, async () => {
 		const asOf = this.getAttribute("as-of");
-		const read = await affordancesOnOffer(asOf === null ? undefined : asOf);
+		const read = await applicableSteps(asOf === null ? undefined : asOf);
 		return read.ok ? { ok: true, value: this.merged(snapshotOf(read.value)) } : read;
 	});
 
@@ -204,7 +204,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 
 	/**
 	 * View-open contract: `pane-opener` assigns this property with the products
-	 * `show affordances` produced. The forward/goals shape is required, fail fast
+	 * `show the applicable steps` produced. The forward/goals shape is required, fail fast
 	 * if either is missing, without fallbacks.
 	 */
 	set products(p: Record<string, unknown>) {
@@ -239,7 +239,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		return { ...a, waypoints };
 	}
 
-	/** Reads the affordances on offer, or where the panel shows them, reads them again without leaving what it shows. A page
+	/** Reads the applicable steps, or where the panel shows them, reads them again without leaving what it shows. A page
 	 *  without a conduit, a standalone HTML before the page starts, doesn't have a site to read, and the panel stays on its
 	 *  prompt until a snapshot arrives. */
 	private fetchInitial(quiet = false): void {
@@ -515,7 +515,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				empty
 					? emptyState({
 							message: "The panel doesn't hold affordances yet.",
-							next: html`Read them with ${stepRef(SHOW_AFFORDANCES_METHOD)}, or run any step: every step end announces a change this panel follows.`,
+							next: html`Read them with ${stepRef(SHOW_APPLICABLE_STEPS_METHOD)}, or run any step: every step end announces a change this panel follows.`,
 							testId: "affordances-empty",
 						})
 					: ""

@@ -25,7 +25,7 @@ const read = (stepperName: string, stepName: string) => ({ method: `${stepperNam
 
 /** The steps the views read through, and a catalog that declares the type they read. */
 const SHOWN = stepsShown(
-	[read("GraphSourceStepper", "graphQuery"), read("GraphStepper", "getRelated"), read("LogicStepper", "affordancesOnOffer")],
+	[read("GraphSourceStepper", "graphQuery"), read("GraphStepper", "getRelated"), read("LogicStepper", "applicableSteps")],
 	{},
 	catalogOf({ types: ["Email"], rels: { Email: { folder: LinkRelations.CONTEXT.rel } } }),
 );

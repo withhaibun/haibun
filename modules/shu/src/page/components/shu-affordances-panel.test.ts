@@ -24,12 +24,12 @@ import { ShuStepDefinition } from "./shu-step-definition.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { refOf } from "../derivations/markdown.js";
 
-/** The step that reads the affordances on offer, as the show steps step describes it. */
+/** The step that reads the applicable steps, as the show steps step describes it. */
 const AFFORDANCES_STEP = {
-	method: RPC_METHOD.AFFORDANCES_ON_OFFER,
+	method: RPC_METHOD.APPLICABLE_STEPS,
 	stepperName: "LogicStepper",
-	stepName: "affordancesOnOffer",
-	pattern: "affordances on offer",
+	stepName: "applicableSteps",
+	pattern: "applicable steps",
 	read: true,
 	readsAt: Access.public,
 };
@@ -393,7 +393,7 @@ describe("shu-affordances-panel", () => {
 		expect(!!emptyState || !!goalsList || !!waypointsList || !!refusal).toBe(true);
 	});
 
-	it("waypoints carried by `show affordances` products render the waypoint section: the ONE verb brings the whole snapshot", async () => {
+	it("waypoints carried by `show the applicable steps` products render the waypoint section: the ONE verb brings the whole snapshot", async () => {
 		const wp = {
 			outcome: "deliver-report",
 			description: "Deliver the report",
@@ -419,7 +419,7 @@ describe("shu-affordances-panel", () => {
 		let snapshotCalls = 0;
 		installConduit(
 			new TestConduit((method: string) => {
-				if (method === RPC_METHOD.AFFORDANCES_ON_OFFER) snapshotCalls++;
+				if (method === RPC_METHOD.APPLICABLE_STEPS) snapshotCalls++;
 				return { actuality: ACTUALITY_FEATURE, findings: [], waypoints: [], satisfiedDomains: [], forward: [], goals: [] };
 			}),
 		);

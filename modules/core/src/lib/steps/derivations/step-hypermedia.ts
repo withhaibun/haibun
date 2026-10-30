@@ -110,7 +110,7 @@ function deriveActionLinks(productsDomain: string, products: Record<string, unkn
  * accumulate.
  *
  * A domain is view-only if and only if it declares `ui.component` and its registered schema is an object without fields.
- * DOMAIN_AFFORDANCES declares a view, and its schema has fields. It carries data, and its products are asserted.
+ * DOMAIN_APPLICABLE_STEPS declares a view, and its schema has fields. It carries data, and its products are asserted.
  */
 export function isViewOnlyDomain(world: TWorld, domainKey: string): boolean {
 	const domain = world.domains[normalizeDomainKey(domainKey)];

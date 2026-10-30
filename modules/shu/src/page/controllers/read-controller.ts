@@ -33,11 +33,11 @@ export const callStep = <T>(step: string, params: Record<string, unknown>, why: 
 /** Follows a call a record links, and returns what the call returned. Throws the call's failure. */
 export const followCall = <T>(link: TCallLink, why: string): Promise<T> => CallStep.followCall<T>(callScope(), link, why);
 
-/** Returns the affordances on offer, as a read: at the moment `asOf` names, or now. */
-export const affordancesOnOffer = (asOf: string | undefined): Promise<CallStep.TCallOutcome<Record<string, unknown>>> =>
+/** Returns the applicable steps, as a read: at the moment `asOf` names, or now. */
+export const applicableSteps = (asOf: string | undefined): Promise<CallStep.TCallOutcome<Record<string, unknown>>> =>
 	asOf === undefined
-		? callStep(RPC_METHOD.AFFORDANCES_ON_OFFER, {}, "the affordances on offer")
-		: callStep(RPC_METHOD.AS_OF, { asOf, statement: { method: RPC_METHOD.AFFORDANCES_ON_OFFER, params: {} } }, `the affordances on offer as of ${asOf}`);
+		? callStep(RPC_METHOD.APPLICABLE_STEPS, {}, "the applicable steps")
+		: callStep(RPC_METHOD.AS_OF, { asOf, statement: { method: RPC_METHOD.APPLICABLE_STEPS, params: {} } }, `the applicable steps as of ${asOf}`);
 
 /** Returns the records related to a record, `depth` edges away, and the root record of their thread. */
 export const relatedRecords = <V>(label: string, id: string, depth: number): Promise<CallStep.TCallOutcome<{ items: V[]; contextRoot: string }>> =>

@@ -1,6 +1,6 @@
 /**
  * The declarations of goals that the logic engine proves over producer rules and that views read: a goal's resolution and
- * its plans, a plan's progress toward a goal, the affordances on offer, the step graph's lint findings, and the waypoint entries a
+ * its plans, a plan's progress toward a goal, the applicable steps, the step graph's lint findings, and the waypoint entries a
  * stepper contributes to the affordances.
  */
 import { z } from "zod";
@@ -13,7 +13,7 @@ import { StepMethodSchema } from "../steps/domains/step-method.js";
 import { ACTUALITY_FIELD } from "../actuality/domains/seq-path.js";
 
 export const DOMAIN_GOAL_RESOLUTION = "goal-resolution";
-export const DOMAIN_AFFORDANCES = "affordances";
+export const DOMAIN_APPLICABLE_STEPS = "applicable-steps";
 export const DOMAIN_PLAN_PROGRESS = "plan-progress";
 export const DOMAIN_PLAN_ID = "plan-id";
 
@@ -155,7 +155,7 @@ export const goalDomainDefinitions: TDomainDefinition[] = [
 		description: "A goal's verdict over the producer rules, the facts that prove it, the plans that would prove it, and the statements of a failed proof.",
 	},
 	{
-		selectors: [DOMAIN_AFFORDANCES],
+		selectors: [DOMAIN_APPLICABLE_STEPS],
 		schema: AffordancesSchema,
 		description: "The steps the caller may call next, each with whether its inputs hold, the resolution of each goal, and the step graph's lint findings.",
 		ui: { component: "shu-affordances-panel", summary: "Affordances" },

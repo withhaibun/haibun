@@ -44,7 +44,7 @@ type TReadStep = () => Promise<unknown> | unknown;
 export type TReportScope = { world: TWorld; viewSteps: [string, TReadStep][]; queriedLabel: string | undefined; bundles: TBundleFile; gzip: TGzipText; compressed: boolean };
 
 /** The steps whose products the report refreshes at its end, under the name through which the affordances panel reads them. */
-const REFRESHED_AT_THE_END = ["affordancesOnOffer"];
+const REFRESHED_AT_THE_END = ["applicableSteps"];
 
 /** Runs `read` and returns its products, or undefined where it fails or doesn't return products. A failure is a warning:
  *  the report carries what the other views showed. */

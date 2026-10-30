@@ -23,7 +23,7 @@ export const features: TKirejiExport = {
 		The pattern 'Navigate to {page}' is defined once in the background.
 		Each ensure call checks the browser's current URI against its page value first. The calls pass mainUrl and haibunUrl as page values.`,
 
-		"after every ActivitiesStepper, show affordances",
+		"after every ActivitiesStepper, show the applicable steps",
 
 		scenario({ scenario: "Visit pages with parameterized waypoints" }),
 		`serve files at "${PAGES_ROUTE}" from "${PAGES_DIRECTORY}"`,

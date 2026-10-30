@@ -235,8 +235,8 @@ export const CHAT_MESSAGE_MATCH = {
  *  offer. They are named here with every other repeated literal, so a caller doesn't spell them. */
 export const RPC_METHOD = {
 	CLUSTERED_QUADS: "GraphSourceStepper-getClusteredQuads",
-	/** The affordances on offer, as a read. The panel and the chain view request it to stay current. */
-	AFFORDANCES_ON_OFFER: "LogicStepper-affordancesOnOffer",
+	/** The applicable steps, as a read. The panel and the chain view request it to stay current. */
+	APPLICABLE_STEPS: "LogicStepper-applicableSteps",
 	AS_OF: "Haibun-asOf",
 } as const;
 

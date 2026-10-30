@@ -401,7 +401,7 @@ If the proof fails: run the activity, then re-check the proof.
     ensure System is ready
     ensure Database is initialized
 
-    show affordances ;; the snapshot includes all verified waypoints
+    show the applicable steps ;; the snapshot includes all verified waypoints
 
 ## Usage patterns
 

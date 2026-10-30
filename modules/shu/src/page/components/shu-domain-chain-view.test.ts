@@ -9,7 +9,7 @@ import { ShuDomainChainView } from "./shu-domain-chain-view.js";
 import * as PageHash from "../controllers/hash-controller.js";
 import { AFFORDANCE_PARAM, SHU_TAG } from "../../domains/elements.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { DOMAIN_AFFORDANCES, LINT_FINDING } from "@haibun/core/lib/domains/goal-resolution.js";
+import { DOMAIN_APPLICABLE_STEPS, LINT_FINDING } from "@haibun/core/lib/domains/goal-resolution.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { factIdOf } from "@haibun/core/lib/seq-path.js";
 import { readingActualityFeature } from "../client-cache/controllers/device-controller.js";
@@ -59,7 +59,7 @@ describe("shu-domain-chain-view", () => {
 		// The site declares the affordances panel as core does, titled by its summary.
 		// A fact opens the step that produced it, as the record view its type declares.
 		declareFakeGraphPresenter(
-			{ [DOMAIN_AFFORDANCES]: { component: SHU_TAG.AFFORDANCES_PANEL, summary: AFFORDANCES_TITLE }, [SEQ_PATH_LABEL]: { component: SHU_TAG.STEP_DETAIL } },
+			{ [DOMAIN_APPLICABLE_STEPS]: { component: SHU_TAG.AFFORDANCES_PANEL, summary: AFFORDANCES_TITLE }, [SEQ_PATH_LABEL]: { component: SHU_TAG.STEP_DETAIL } },
 			[SEQ_PATH_LABEL],
 		);
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});

@@ -40,7 +40,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "The chain of producers doesn't hold a blocking finding" }),
 		"Essential, for the declarations check at start, which refuses a parameter whose domain is string. The affordances carry the chain's lint findings. Source: declarations.ts and haibun.pl lint/2.",
-		"set offered from show affordances",
+		"set offered from show the applicable steps",
 		"variable offered.findings exists",
 
 		scenario({ scenario: "A goal's proof is a set of records" }),

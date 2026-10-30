@@ -21,12 +21,12 @@ export const features: TKirejiExport = {
 		`mcp steps shown at "${MCP}" to "ranger" matching "TestServer-protected" include "TestServer-protectedRpcPing"`,
 		`mcp call to "${MCP}" with tool "TestServer-protectedRpcPing" succeeds when signed by "ranger" for "TestServer:protected"`,
 
-		scenario({ scenario: "The affordances on offer read the same rules" }),
+		scenario({ scenario: "The applicable steps read the same rules" }),
 		"Essential, for the affordances panel. Source: pipelines/goals.ts, affordancesAt.",
-		"show affordances",
+		"show the applicable steps",
 		"The same affordances read over the facts that held at an earlier step, as a step records them and as a page reads them.",
-		'as of "0.1", show affordances',
-		'as of "0.1", affordances on offer',
+		'as of "0.1", show the applicable steps',
+		'as of "0.1", applicable steps',
 
 		scenario({ scenario: "A model's tool call and a line reach the same term" }),
 		`Essential, for a model and the page. Source: docs/reasoner.md, For a model.

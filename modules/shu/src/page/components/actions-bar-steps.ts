@@ -56,7 +56,7 @@ export function stepDetails(step: TStepDefinition): string {
 export const UNDERSTANDING_STEPS: readonly string[] = [
 	"GraphSourceStepper-showAxioms",
 	"LogicStepper-showDerivation",
-	"LogicStepper-showAffordances",
+	"LogicStepper-showApplicableSteps",
 	"ShuStepper-showPolymorphicGraphView",
 ];
 

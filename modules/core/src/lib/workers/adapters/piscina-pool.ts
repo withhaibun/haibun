@@ -32,9 +32,11 @@ function workerArguments(argv: readonly string[]): string[] {
 }
 
 /**
- * The V8 flag that keeps WebAssembly code until its module is collected. Workers share a module's compiled code, as PGlite's and
- * EYE's runtimes do, and V8 24's collection of code one worker no longer runs, while another worker runs the same module, fails
- * its check `jit_page_->allocations_.erase(addr) == 1` in `ThreadIsolation::UnregisterWasmAllocation` and aborts the process.
+ * The V8 flag that keeps WebAssembly code until its module is collected: a workaround for a V8 defect, to remove once V8 fixes it.
+ * Workers share a module's compiled code, as PGlite's and EYE's runtimes do, and V8's collection of code one worker no longer
+ * runs, while another worker runs the same module, fails its check `jit_page_->allocations_.erase(addr) == 1` in
+ * `ThreadIsolation::UnregisterWasmAllocation` and aborts the process (Node 24.21). The V8 and Node issues found name another check; Node
+ * issue 29767 reports another wasm code collection abort that this flag stops. A module's code is still freed with the module.
  */
 const KEEP_WASM_CODE = "--no-wasm-code-gc";
 
