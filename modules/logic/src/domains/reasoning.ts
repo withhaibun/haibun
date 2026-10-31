@@ -31,6 +31,8 @@ export const RULE_SET = {
 	waypoints: "waypoints",
 } as const;
 export type TRuleSet = (typeof RULE_SET)[keyof typeof RULE_SET];
+/** A rule set a reasoning reads: one of the logic module's by its name, or another module's N3 file by its URL. */
+export type TRuleSource = TRuleSet | URL;
 /** `<class> h:complete { … }` states a complete graph's contents as one formula. Only a graph its type declares complete is stated so. */
 export const COMPLETE_GRAPH = `${REASONER_NAMESPACE}complete`;
 /** A value a session passes to the host or the host returns: an IRI or a literal, a string, a number, or a list of values. */
@@ -46,7 +48,7 @@ export const neededBy = (state: TReasonerRead | TReasonerEffect): string =>
 	state.need === "read" ? `a read of ${state.predicate.value} of ${state.subject.value}` : `the effect ${JSON.stringify(state.request[0])}`;
 /** What a reasoning reads: the logic module's rule sets it reads, its own N3 rules and facts, the query that selects what it
  *  returns, and the types whose complete graphs its rules close over. */
-export type TReasoning = { ruleSets: readonly TRuleSet[]; rules: string; query: string; closedOver: readonly string[] };
+export type TReasoning = { ruleSets: readonly TRuleSource[]; rules: string; query: string; closedOver: readonly string[] };
 /** The records of a type a reasoning reads at most. A read stops there and states that it stopped, so a graph read in part
  *  stays open and a claim its records don't prove stays unknown. */
 export const REASONING_READ_CEILING = MAX_PAGE_ROWS;

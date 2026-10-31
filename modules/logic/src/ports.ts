@@ -4,7 +4,7 @@
  * at a time.
  */
 import type { TProofState } from "./domains/logic.js";
-import type { TReasonerState, TReasonerValue, TRuleSet } from "./domains/reasoning.js";
+import type { TReasonerState, TReasonerValue, TRuleSource } from "./domains/reasoning.js";
 
 export type TLogicEngine = {
 	/** Starts the proof of a line's term. Returns how it ended, or the effect it needs. */
@@ -29,4 +29,4 @@ export type TReasonerSession = {
 /** The reasoner: it runs each session once the sessions before it ended, and a session started while a session waits on an
  *  effect, from within that effect, at once beside it; and it holds the rule sets a session reads, each N3 text that parsed when
  *  it was read. */
-export type TReasoner = { session: <T>(run: (session: TReasonerSession) => Promise<T>) => Promise<T>; rules: (set: TRuleSet) => string };
+export type TReasoner = { session: <T>(run: (session: TReasonerSession) => Promise<T>) => Promise<T>; rules: (set: TRuleSource) => string };
