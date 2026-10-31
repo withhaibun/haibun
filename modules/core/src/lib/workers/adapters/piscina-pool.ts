@@ -19,16 +19,15 @@ export const WORKER_IDLE_MS = 30_000;
 
 const errorText = (err: unknown): string => (err instanceof Error ? err.message : String(err));
 
-/** The process's Node arguments without its export conditions: a task's module imports each package by its build, as a
- *  dependency does, whatever conditions the process that starts the worker resolves its own modules under. */
-function workerArguments(argv: readonly string[]): string[] {
-	const kept: string[] = [];
-	for (let at = 0; at < argv.length; at++) {
-		const arg = argv[at];
-		if (arg === "--conditions" || arg === "-C") at += 1;
-		else if (arg !== undefined && !arg.startsWith("--conditions=")) kept.push(arg);
-	}
-	return kept;
+/** The Node options a worker takes from its process: warnings, source maps and experimental features. A worker refuses V8's
+ *  options, such as `--expose-gc`, and options of the process, and a task's module imports each package by its build, as a
+ *  dependency does, so it doesn't take the export conditions or the loaders its process resolves its own modules under. */
+const WORKER_OPTIONS = ["--experimental-", "--no-experimental-", "--disable-warning=", "--no-warnings", "--no-deprecation", "--enable-source-maps", "--trace-warnings"];
+
+/** The process's Node arguments a worker takes: each option `WORKER_OPTIONS` names, where a family, ending in `-`, and an option
+ *  with its value, ending in `=`, are matched by their prefix. */
+export function workerArguments(argv: readonly string[]): string[] {
+	return argv.filter((arg) => WORKER_OPTIONS.some((option) => (/[-=]$/.test(option) ? arg.startsWith(option) : arg === option)));
 }
 
 /**

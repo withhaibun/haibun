@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import type { TWorkerTask } from "../domains/worker-task.js";
-import { piscinaPool } from "./piscina-pool.js";
+import { piscinaPool, workerArguments } from "./piscina-pool.js";
 
 const IDLE_MS = 100;
 const ECHO: TWorkerTask<{ text: string }, { doubled: string }> = {
@@ -40,5 +40,21 @@ describe("the worker pool", () => {
 		} finally {
 			await pool.close();
 		}
+	});
+
+	it("starts a worker with the process's warning, source map and experimental options, and without V8's, its conditions or its loaders", () => {
+		const argv = [
+			"--expose-gc",
+			"--conditions",
+			"haibun-source",
+			"--conditions=haibun-source",
+			"--import",
+			"tsx",
+			"--no-warnings",
+			"--disable-warning=ExperimentalWarning",
+			"--enable-source-maps",
+			"--experimental-vm-modules",
+		];
+		expect(workerArguments(argv)).toEqual(["--no-warnings", "--disable-warning=ExperimentalWarning", "--enable-source-maps", "--experimental-vm-modules"]);
 	});
 });
