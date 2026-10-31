@@ -19,9 +19,9 @@ describe("the event loop's watch", () => {
 			await new Promise((ticked) => setTimeout(ticked, 50));
 			holdLoop(LOOP_BLOCK_WARN_MS * 1.5);
 			await new Promise((ticked) => setTimeout(ticked, 50));
+			const summary = watch.summary();
 			expect(held).toHaveLength(1);
 			expect(held[0]).toBeGreaterThan(LOOP_BLOCK_WARN_MS);
-			const summary = watch.summary();
 			expect(summary.blocked).toBe(1);
 			expect(summary.maxMs).toBeGreaterThan(LOOP_BLOCK_WARN_MS);
 		} finally {

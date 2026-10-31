@@ -1,35 +1,42 @@
 /**
- * The event loop's delay over a process's run: Node's `monitorEventLoopDelay` histogram, and a timer that finds each stretch the
- * loop was held past `LOOP_BLOCK_WARN_MS`, which a synchronous path held. A run states each such stretch as it ends and the
- * delay's summary once it ends, so a path that holds the loop is found as it lands. The watch doesn't hold the process open.
+ * The event loop's delay over a process's run, from Node's `monitorEventLoopDelay` histograms alone: one over the whole process for its
+ * summary, and one over each window between polls, whose largest delay past `LOOP_BLOCK_WARN_MS` is a stretch a synchronous path
+ * held. A run states each such stretch as its window ends and the delay's summary once it ends, so a path that holds the loop is
+ * found as it lands. The watch doesn't hold the process open.
  */
 import { monitorEventLoopDelay } from "node:perf_hooks";
 import { LOOP_BLOCK_WARN_MS, type TLoopWatch } from "../domains/event-loop.js";
-/** How often the timer reads the loop, which a stretch shorter than it doesn't delay. */
-const TICK_MS = 10;
+/** The histograms' resolution: a stretch shorter than it isn't sampled. */
+const RESOLUTION_MS = 10;
+/** How often the watch reads its window, so stretches within one window state once, as the longest of them. */
+const WINDOW_MS = 1_000;
 
 const milliseconds = (ns: number): number => Math.round(ns / 1e4) / 100;
 
-/** Watches the event loop, calling `onBlock` with how long each stretch held it past `LOOP_BLOCK_WARN_MS`. */
+/** Watches the event loop, calling `onBlock` with how long the longest stretch of each window held it past `LOOP_BLOCK_WARN_MS`. */
 export function watchEventLoop(onBlock: (heldMs: number) => void): TLoopWatch {
-	const histogram = monitorEventLoopDelay({ resolution: TICK_MS });
-	histogram.enable();
+	const [run, window] = [monitorEventLoopDelay({ resolution: RESOLUTION_MS }), monitorEventLoopDelay({ resolution: RESOLUTION_MS })];
+	run.enable();
+	window.enable();
 	let blocked = 0;
-	let last = performance.now();
-	const timer = setInterval(() => {
-		const now = performance.now();
-		const held = Math.round(now - last - TICK_MS);
-		last = now;
+	const read = () => {
+		const held = milliseconds(window.max);
+		window.reset();
 		if (held <= LOOP_BLOCK_WARN_MS) return;
 		blocked += 1;
 		onBlock(held);
-	}, TICK_MS);
+	};
+	const timer = setInterval(read, WINDOW_MS);
 	timer.unref();
 	return {
-		summary: () => ({ maxMs: milliseconds(histogram.max), p99Ms: milliseconds(histogram.percentile(99)), blocked }),
+		summary: () => {
+			read();
+			return { maxMs: milliseconds(run.max), p99Ms: milliseconds(run.percentile(99)), blocked };
+		},
 		stop: () => {
 			clearInterval(timer);
-			histogram.disable();
+			run.disable();
+			window.disable();
 		},
 	};
 }

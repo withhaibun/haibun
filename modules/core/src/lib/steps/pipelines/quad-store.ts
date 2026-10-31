@@ -63,10 +63,27 @@ const UNDECLARED_ID_FIELD = "id";
 function declaredField(schema: z.ZodType, { surface }: TReadDeclaration, { namedGraph, predicate, object }: Omit<TQuad, "timestamp">): void {
 	// A JSON-LD keyword, such as the `@id` a page holds a served record by, isn't a field of the type.
 	if (predicate in surface.references || predicate.startsWith(JSON_LD_KEYWORD)) return;
-	const field = unwrapToShape(schema)?.[predicate];
+	const field = fieldSchemaOf(schema, predicate);
 	if (field === undefined)
 		throw new Error(`${namedGraph} doesn't declare the field ${predicate}, so a ${namedGraph} record doesn't hold it. Declare the field in the type's schema.`);
-	schemaRecord(z.object({ [predicate]: field }), namedGraph, { [predicate]: object }, true);
+	schemaRecord(field, namedGraph, { [predicate]: object }, true);
+}
+
+/** Each type's schema of one field, by the type's schema and the field, built once: a write of a fact parses it through it. */
+const fieldSchemas = new WeakMap<z.ZodType, Map<string, z.ZodType | undefined>>();
+
+/** The schema that parses one field of a type's schema, or undefined where the type doesn't declare the field. */
+function fieldSchemaOf(schema: z.ZodType, predicate: string): z.ZodType | undefined {
+	let fields = fieldSchemas.get(schema);
+	if (fields === undefined) {
+		fields = new Map();
+		fieldSchemas.set(schema, fields);
+	}
+	if (!fields.has(predicate)) {
+		const field = unwrapToShape(schema)?.[predicate];
+		fields.set(predicate, field === undefined ? undefined : z.object({ [predicate]: field }));
+	}
+	return fields.get(predicate);
 }
 
 /** Returns a record of a declared type as a store writes it: the fields its schema parsed, and the edges its topology declares,

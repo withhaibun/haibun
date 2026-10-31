@@ -11,7 +11,8 @@
  */
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { buildConcernCatalog, getJsonLdContext } from "@haibun/core/lib/domains/hypermedia.js";
-import { isPersisted, withinAccess, type TRecordNamespace, type TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
+import { withinAccess, type TRecordNamespace, type TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
+import { persistedDomainOf } from "@haibun/core/lib/domains/domains.js";
 import { readingAt } from "@haibun/core/lib/domains/capability-context.js";
 import type { NamedNode, Quad } from "@rdfjs/types";
 import { DataFactory } from "n3";
@@ -75,10 +76,9 @@ async function reasoned(
 	{ ruleSets, rules, query, closedOver }: TReasoning,
 	explained: boolean,
 ): Promise<{ derived: string; open: TOpenGraph[] }> {
-	const declared = Object.values(domains).flatMap(({ topology }) => (isPersisted(topology) ? [topology] : []));
 	const ceiling = readingAt();
 	const closing = closedOver.map((label) => {
-		const topology = declared.find(({ persistedAs }) => persistedAs === label);
+		const topology = persistedDomainOf(domains, label)?.topology;
 		if (topology?.complete !== true)
 			throw new Error(
 				`the rules close over ${label}, whose type doesn't declare its graph complete. Declare \`complete: true\` on ${label}'s topology, or read its facts with h:read.`,
