@@ -407,7 +407,7 @@
 			"actuality": {
 				"text": "e2e-tests/tests, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
 				"status": "passed",
-				"tookMs": 21400,
+				"tookMs": 24000,
 				"digest": {
 					"e2e-tests/src": "dc573cdd7ecddf68fac9a13e4d4fd63eebf115f44b4ce2a5b4db616c5a049e04",
 					"e2e-tests/tests": "7b66e2bfdd3952df8d78b342072e8c23d95420dda1722cd3817371690f642808",
@@ -470,19 +470,19 @@
 				"/features/counter.feature": {
 					"text": "/features/counter",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 1500,
 					"steps": 20
 				},
 				"/features/counter.feature.ts": {
 					"text": "Counts feature",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 2300,
 					"steps": 20
 				},
 				"/features/counts.feature.ts": {
 					"text": "Counts feature",
 					"status": "passed",
-					"tookMs": 1100,
+					"tookMs": 1000,
 					"steps": 22
 				},
 				"/features/elements.feature": {
@@ -494,7 +494,7 @@
 				"/features/executor-rpc.feature.ts": {
 					"text": "Executor RPC dispatch",
 					"status": "passed",
-					"tookMs": 0,
+					"tookMs": 100,
 					"steps": 8
 				},
 				"/features/feature-variables.feature": {
@@ -518,7 +518,7 @@
 				"/features/once.feature.ts": {
 					"text": "A group of features runs once per state of what it depends on",
 					"status": "passed",
-					"tookMs": 2000,
+					"tookMs": 2100,
 					"steps": 20
 				},
 				"/features/page-visits.feature.ts": {
@@ -554,7 +554,7 @@
 				"/features/trauma_center.feature": {
 					"text": "/features/trauma_center",
 					"status": "passed",
-					"tookMs": 900,
+					"tookMs": 1000,
 					"steps": 93
 				},
 				"/features/upload-verify.feature": {
@@ -578,7 +578,7 @@
 				"/features/xss.feature": {
 					"text": "/features/xss",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 600,
 					"steps": 13
 				}
 			}

@@ -5,7 +5,7 @@
 			"actuality": {
 				"text": "e2e-tests/capability, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
 				"status": "passed",
-				"tookMs": 800,
+				"tookMs": 900,
 				"digest": {
 					"e2e-tests/capability": "f60a467b1916bade9b199593dc655ac9b6694b0c489cd1975c9c83bf14918d77",
 					"e2e-tests/src": "dc573cdd7ecddf68fac9a13e4d4fd63eebf115f44b4ce2a5b4db616c5a049e04",
@@ -32,7 +32,7 @@
 				"/features/identity-and-capability.feature.ts": {
 					"text": "Identity and capability authorization",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 800,
 					"steps": 30
 				}
 			}

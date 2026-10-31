@@ -314,7 +314,7 @@
 			"actuality": {
 				"text": "modules/shu/tests, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 29500,
+				"tookMs": 28900,
 				"digest": {
 					"modules/cli/src": "d87cc4e09e66e02838c719d1d51389753fbff52161e6dda71185401e5ec48933",
 					"modules/core/src": "254f2517f2c90fa29e65f6550e4e738690d04dcd770b033a0ce043ec3efec6c0",
@@ -352,7 +352,7 @@
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
-					"tookMs": 18500,
+					"tookMs": 18000,
 					"steps": 670
 				},
 				"/features/remote-store.feature.ts": {
@@ -364,7 +364,7 @@
 				"/features/voice-ui.feature.ts": {
 					"text": "UI extension propagation: domain ui → concern catalog → SPA actions bar",
 					"status": "passed",
-					"tookMs": 2000,
+					"tookMs": 1900,
 					"steps": 204
 				}
 			}

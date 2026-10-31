@@ -126,7 +126,7 @@
 			"actuality": {
 				"text": "e2e-tests/requirements, node_modules/@haibun/cli/waypoints, node_modules/@haibun/logic/waypoints, node_modules/@haibun/core/waypoints",
 				"status": "passed",
-				"tookMs": 25100,
+				"tookMs": 24700,
 				"digest": {
 					"e2e-tests/requirements": "d7eccee26c7dbec01d3692b499a8538964ef15a459c637b19318ab028b5c00d7",
 					"e2e-tests/src": "dc573cdd7ecddf68fac9a13e4d4fd63eebf115f44b4ce2a5b4db616c5a049e04",
@@ -160,13 +160,13 @@
 				"/features/02-authority.feature.ts": {
 					"text": "Capabilities authorize every call",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 500,
 					"steps": 59
 				},
 				"/features/03-activities.feature.ts": {
 					"text": "Waypoints and ensure",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 400,
 					"steps": 69
 				},
 				"/features/04-combinators.feature.ts": {
@@ -184,13 +184,13 @@
 				"/features/06-world-and-products.feature.ts": {
 					"text": "The world's data and a step's products",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 400,
 					"steps": 21
 				},
 				"/features/07-records.feature.ts": {
 					"text": "Records, events and actualities",
 					"status": "passed",
-					"tookMs": 2200,
+					"tookMs": 2100,
 					"steps": 121
 				},
 				"/features/08-timing.feature.ts": {
@@ -208,7 +208,7 @@
 				"/features/10-cli.feature.ts": {
 					"text": "The command line",
 					"status": "passed",
-					"tookMs": 1100,
+					"tookMs": 1000,
 					"steps": 11
 				},
 				"/features/11-performance.feature.ts": {
@@ -244,7 +244,7 @@
 				"/features/16-class-expressions.feature.ts": {
 					"text": "Class expressions",
 					"status": "passed",
-					"tookMs": 15200,
+					"tookMs": 15300,
 					"steps": 39
 				}
 			}
