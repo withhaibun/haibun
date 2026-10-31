@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import type { TWorkerTask } from "../domains/worker-task.js";
-import { piscinaPool, workerArguments } from "./piscina-pool.js";
+import { MAX_WORKERS, POOL_MODE, piscinaPool, workerArguments } from "./piscina-pool.js";
 
 const IDLE_MS = 100;
 const ECHO: TWorkerTask<{ text: string }, { doubled: string }> = {
@@ -17,7 +17,7 @@ const ECHO: TWorkerTask<{ text: string }, { doubled: string }> = {
 
 describe("the worker pool", () => {
 	it("runs a task with each effect it requests performed by its process, and releases its idle worker", { timeout: 30_000 }, async () => {
-		const pool = piscinaPool(IDLE_MS);
+		const pool = piscinaPool(IDLE_MS, POOL_MODE.queued);
 		try {
 			const requested: unknown[] = [];
 			const output = await pool.run(ECHO, { text: "ab" }, (request) => {
@@ -34,7 +34,7 @@ describe("the worker pool", () => {
 	});
 
 	it("refuses an effect where its caller doesn't perform effects", { timeout: 30_000 }, async () => {
-		const pool = piscinaPool(IDLE_MS);
+		const pool = piscinaPool(IDLE_MS, POOL_MODE.queued);
 		try {
 			await expect(pool.run(ECHO, { text: "ab" })).rejects.toThrow("the task the echo task requested an effect, and its caller doesn't perform effects");
 		} finally {
@@ -56,5 +56,18 @@ describe("the worker pool", () => {
 			"--experimental-vm-modules",
 		];
 		expect(workerArguments(argv)).toEqual(["--no-warnings", "--disable-warning=ExperimentalWarning", "--enable-source-maps", "--experimental-vm-modules"]);
+	});
+
+	it("refuses a resident task past its bound at once, with its cause and remedy, where a queued pool would wait", { timeout: 60_000 }, async () => {
+		const pool = piscinaPool(IDLE_MS, POOL_MODE.resident);
+		const held = Promise.withResolvers<unknown>();
+		try {
+			const residents = Array.from({ length: MAX_WORKERS }, () => pool.run(ECHO, { text: "ab" }, () => held.promise));
+			await expect(pool.run(ECHO, { text: "ab" }, () => held.promise)).rejects.toThrow(`each of the ${MAX_WORKERS} resident workers holds a task until it ends`);
+			held.resolve("x");
+			expect(await Promise.all(residents)).toEqual(Array(MAX_WORKERS).fill({ doubled: "xx" }));
+		} finally {
+			await pool.close();
+		}
 	});
 });

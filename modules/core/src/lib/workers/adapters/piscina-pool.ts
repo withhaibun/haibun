@@ -38,11 +38,18 @@ export function workerArguments(argv: readonly string[]): string[] {
  * issue 29767 reports another wasm code collection abort that this flag stops. A module's code is still freed with the module.
  */
 const KEEP_WASM_CODE = "--no-wasm-code-gc";
+// V8's flags are the process's, and a module compiled before the flag is set keeps its code collectable, so the flag is set as
+// this module loads, before a process that imports the pool compiles WebAssembly.
+setFlagsFromString(KEEP_WASM_CODE);
 
-/** Returns a worker pool that releases a worker idle for `idleMs`. V8's flags are the process's, so the pool sets its flag for
- *  every isolate before its first worker starts. */
-export function piscinaPool(idleMs: number): IWorkerPool {
-	setFlagsFromString(KEEP_WASM_CODE);
+/** How a pool holds its tasks past its bound: queued until a worker is free, or, for a resident task that holds its worker until
+ *  it ends, such as a database, refused at once with its cause and remedy, so a task past the bound doesn't wait unseen. A
+ *  resident task within the bound waits only while its worker starts. */
+export const POOL_MODE = { queued: "queued", resident: "resident" } as const;
+export type TPoolMode = (typeof POOL_MODE)[keyof typeof POOL_MODE];
+
+/** Returns a worker pool that releases a worker idle for `idleMs`, and holds a task past its bound as `mode` states. */
+export function piscinaPool(idleMs: number, mode: TPoolMode): IWorkerPool {
 	const pool = new Piscina({
 		maxThreads: MAX_WORKERS,
 		minThreads: 0,
@@ -51,10 +58,15 @@ export function piscinaPool(idleMs: number): IWorkerPool {
 		resourceLimits: { maxOldGenerationSizeMb: MAX_WORKER_HEAP_MB },
 		execArgv: workerArguments(process.execArgv),
 	});
+	// The resident tasks that run now, which a resident pool holds to its bound.
+	let residents = 0;
 	return {
 		threads: () => pool.threads.length,
 		close: () => pool.destroy(),
 		run: async <I, O>(task: TWorkerTask<I, O>, input: I, perform?: TPerformEffect): Promise<O> => {
+			if (mode === POOL_MODE.resident && residents >= MAX_WORKERS)
+				throw new Error(`${task.name} needs a worker, and each of the ${MAX_WORKERS} resident workers holds a task until it ends. Close a resident task first.`);
+			if (mode === POOL_MODE.resident) residents += 1;
 			const { port1: here, port2: there } = new MessageChannel();
 			here.on("message", (message: unknown) => {
 				const { id, request } = EffectRequestSchema.parse(message);
@@ -67,9 +79,11 @@ export function piscinaPool(idleMs: number): IWorkerPool {
 			});
 			try {
 				const running: Promise<unknown> = pool.run(Piscina.move(there), { filename: task.module.href, name: "default" });
-				here.postMessage({ input: task.input.parse(input) });
+				// The task parses its input, so the process passes it as its first message without parsing it again.
+				here.postMessage({ input });
 				return task.output.parse(await running);
 			} finally {
+				if (mode === POOL_MODE.resident) residents -= 1;
 				here.close();
 			}
 		},
@@ -79,6 +93,14 @@ export function piscinaPool(idleMs: number): IWorkerPool {
 let shared: IWorkerPool | undefined;
 /** The process's worker pool, which every task of the process runs in, started on its first request. */
 export function workerPool(): IWorkerPool {
-	if (shared === undefined) shared = piscinaPool(WORKER_IDLE_MS);
+	if (shared === undefined) shared = piscinaPool(WORKER_IDLE_MS, POOL_MODE.queued);
 	return shared;
+}
+
+let resident: IWorkerPool | undefined;
+/** The process's pool of resident tasks, each holding its worker until it ends, apart from the tasks the process's worker pool
+ *  queues, so a resident task doesn't hold a worker for which those tasks wait. */
+export function residentPool(): IWorkerPool {
+	if (resident === undefined) resident = piscinaPool(WORKER_IDLE_MS, POOL_MODE.resident);
+	return resident;
 }

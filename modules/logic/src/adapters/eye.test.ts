@@ -8,7 +8,7 @@ import { DataFactory } from "n3";
 import { REASONER_BUILTIN, RULE_SET } from "../domains/reasoning.js";
 import type { TReasoner } from "../ports.js";
 import { eyeReasoner } from "./eye.js";
-import { piscinaPool } from "@haibun/core/lib/workers/adapters/piscina-pool.js";
+import { POOL_MODE, piscinaPool } from "@haibun/core/lib/workers/adapters/piscina-pool.js";
 import type { IWorkerPool } from "@haibun/core/lib/workers/ports.js";
 import { ruleLibrary } from "./rule-library.js";
 
@@ -69,7 +69,7 @@ async function outcomeOf(reasoner: Pick<TReasoner, "session">, { sources, query,
 const TEST_IDLE_MS = 100;
 /** A reasoner over a worker pool of its own, whose worker starts a runtime of its own, and the pool, which the test closes. */
 async function withFreshRuntime<T>(use: (reasoner: Pick<TReasoner, "session">, pool: IWorkerPool) => Promise<T>): Promise<T> {
-	const pool = piscinaPool(TEST_IDLE_MS);
+	const pool = piscinaPool(TEST_IDLE_MS, POOL_MODE.queued);
 	try {
 		return await use(eyeReasoner(pool), pool);
 	} finally {
