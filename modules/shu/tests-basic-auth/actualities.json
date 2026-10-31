@@ -77,11 +77,11 @@
 			"actuality": {
 				"text": "modules/shu/tests-basic-auth",
 				"status": "passed",
-				"tookMs": 2800,
+				"tookMs": 2900,
 				"digest": {
 					"modules/core/src": "88e6a654a5ca429428460cbf2b3b06a753a8a88dca3ba28fa408dbb8890cbd54",
 					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
-					"modules/logic/src": "854393d9eb173cdef82ca6fbaf281e32050b4fada7b6132453fc7e78171e9d1a",
+					"modules/logic/src": "fea5ea7e2d127c0a27a8123788670cd6b84b0206699d1e69ab94417d6a81d688",
 					"modules/shu/src": "ee4ea4eebc698f983bd1f9b47603ce8aa4bd823494a2c5224e0169b79faa2749",
 					"modules/shu/tests-basic-auth": "9cca75b8a1c2cb5e25f1d47bc884cf26c5940a3fcec9dde0934acb925e34ae32",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
@@ -94,7 +94,7 @@
 				"/features/behind-basic-auth.feature.ts": {
 					"text": "A page behind basic auth",
 					"status": "passed",
-					"tookMs": 1700,
+					"tookMs": 1800,
 					"steps": 210
 				}
 			}
