@@ -21,6 +21,8 @@ import { REASONER_BUILTIN, type TReasonerState, type TReasonerValue } from "../d
 import type { TReasoner, TReasonerSession } from "../ports.js";
 import type { IWorkerPool } from "@haibun/core/lib/workers/ports.js";
 import { siblingModule, type TWorkerTask } from "@haibun/core/lib/workers/domains/worker-task.js";
+import { converse, type TConversation, type TTurn } from "@haibun/core/lib/workers/adapters/conversation.js";
+import { serialQueue } from "@haibun/core/lib/domains/serial-queue.js";
 import { EyeSessionSchema, EyeSteppedSchema } from "./eye-task.js";
 
 const EYE_SOURCE = "@haibun/logic/eye.qlf";
@@ -112,65 +114,43 @@ function stateOf({ answer, printed, errors }: TStepped): TReasonerState {
 
 /** The rows of a need its caller doesn't read, as Prolog's text. */
 const EMPTY_ROWS = "[]";
-/** A value its holder settles once, from outside the promise. */
-const settled = <T>() => Promise.withResolvers<T>();
 
-/** Runs a session as a task of the worker pool, which its caller steps through: the start returns the state of the engine's first
- *  step, and each resume posts the rows of the need before it and returns the state of the next. */
+/** The state of a turn of a session's conversation: the read or the effect its engine needs, or the text EYE printed once it ended. */
+const turnState = (turn: TTurn<TStepped>): TReasonerState => stateOf("output" in turn ? turn.output : EyeSteppedSchema.parse(turn.request));
+
+/** Runs a session as a conversation with a task of the worker pool, which its caller steps through: the start returns the state of
+ *  the engine's first step, and each resume posts the rows of the need before it and returns the state of the next. A caller that
+ *  returns or throws before the session ends, on a need it refuses, ends it, and each need that follows reads empty rows. */
 async function pooledSession<T>(pool: IWorkerPool, run: (held: TReasonerSession) => Promise<T>): Promise<T> {
 	const program = createRequire(import.meta.url).resolve(EYE_SOURCE);
-	let next = settled<TReasonerState>();
-	let rows: PromiseWithResolvers<string> | undefined;
-	let task: Promise<unknown> | undefined;
-	/** Whether the caller returned or threw: the session's further needs then read empty rows, so its task ends. */
-	let abandoned = false;
+	let conversation: TConversation<TStepped> | undefined;
 	try {
 		return await run({
-			start: (sources, query, explained) => {
-				if (task !== undefined) throw new Error("a session started twice. Start a session of its own for each query.");
-				task = pool
-					.run(EYE_TASK, { program, builtins: BUILTINS, sources, query, explained }, (stepped) => {
-						if (abandoned) return Promise.resolve(EMPTY_ROWS);
-						next.resolve(stateOf(EyeSteppedSchema.parse(stepped)));
-						rows = settled<string>();
-						return rows.promise;
-					})
-					.then(
-						(stepped) => next.resolve(stateOf(stepped)),
-						(err: unknown) => next.reject(err),
-					);
-				return next.promise;
+			start: async (sources, query, explained) => {
+				if (conversation !== undefined) throw new Error("a session started twice. Start a session of its own for each query.");
+				conversation = converse(pool, EYE_TASK, { program, builtins: BUILTINS, sources, query, explained });
+				return turnState(await conversation.first);
 			},
-			resume: (posted) => {
-				if (rows === undefined) throw new Error("a session resumed where it doesn't need a read or an effect. Resume a session only after the need it returned.");
-				const replying = rows;
-				rows = undefined;
-				next = settled<TReasonerState>();
-				replying.resolve(`[${posted.map(prologOf).join(", ")}]`);
-				return next.promise;
+			resume: async (posted) => {
+				if (conversation === undefined) throw new Error("a session resumed before it started. Start a session before resuming it.");
+				return turnState(await conversation.reply(`[${posted.map(prologOf).join(", ")}]`));
 			},
 		});
 	} finally {
-		// A caller that returns or throws before the session ends, on a need it refuses, ends the task with empty replies.
-		abandoned = true;
-		rows?.resolve(EMPTY_ROWS);
-		await task?.catch(() => undefined);
+		await conversation?.end(EMPTY_ROWS);
 	}
 }
 
 /** Returns the reasoner over the worker pool `pool`. Each session runs once the sessions before it ended, and a session started
  *  within an effect of a session runs at once beside it. */
 export function eyeReasoner(pool: IWorkerPool): Pick<TReasoner, "session"> {
-	let turn: Promise<unknown> = Promise.resolve();
+	const inTurn = serialQueue();
 	return {
 		session: <T>(run: (held: TReasonerSession) => Promise<T>): Promise<T> => {
 			const enclosing = nesting.getStore();
 			const depth = enclosing === undefined ? 0 : enclosing + 1;
 			const inSession = () => nesting.run(depth, () => pooledSession(pool, run));
-			if (depth > 0) return inSession();
-			const ran = turn.then(inSession);
-			turn = ran.catch(() => undefined);
-			return ran;
+			return depth > 0 ? inSession() : inTurn(inSession);
 		},
 	};
 }
