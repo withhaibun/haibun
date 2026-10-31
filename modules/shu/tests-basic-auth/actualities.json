@@ -79,9 +79,9 @@
 				"status": "passed",
 				"tookMs": 2800,
 				"digest": {
-					"modules/core/src": "d48a82f8b2e8f191562b53953b8b21b181d55007b0d314adc9c1539dc09497e5",
+					"modules/core/src": "88e6a654a5ca429428460cbf2b3b06a753a8a88dca3ba28fa408dbb8890cbd54",
 					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
-					"modules/logic/src": "b5b96825f83d33fa6edadb75a86ee1da757a2c2e4d81787064cd63d2895f71a2",
+					"modules/logic/src": "854393d9eb173cdef82ca6fbaf281e32050b4fada7b6132453fc7e78171e9d1a",
 					"modules/shu/src": "ee4ea4eebc698f983bd1f9b47603ce8aa4bd823494a2c5224e0169b79faa2749",
 					"modules/shu/tests-basic-auth": "9cca75b8a1c2cb5e25f1d47bc884cf26c5940a3fcec9dde0934acb925e34ae32",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
