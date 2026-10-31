@@ -23,7 +23,7 @@ import type { IWorkerPool } from "@haibun/core/lib/workers/ports.js";
 import { siblingModule, type TWorkerTask } from "@haibun/core/lib/workers/domains/worker-task.js";
 import { converse, type TConversation, type TTurn } from "@haibun/core/lib/workers/adapters/conversation.js";
 import { serialQueue } from "@haibun/core/lib/domains/serial-queue.js";
-import { EyeSessionSchema, EyeSteppedSchema } from "./eye-task.js";
+import { EyeNeedSchema, EyeSessionSchema, EyeSteppedSchema } from "./eye-task.js";
 
 const EYE_SOURCE = "@haibun/logic/eye.qlf";
 /** A session of EYE as a task of the worker pool. */
@@ -35,14 +35,14 @@ const EYE_TASK: TWorkerTask<z.infer<typeof EyeSessionSchema>, TStepped> = {
 };
 /** The read built-in, which yields the subject and the predicate and binds its object to each row the host posts; the effect
  *  built-in, which yields its request and binds its outcome to the row the host posts; the record of
- *  each predicate, its clauses and each Prolog flag a runtime holds before its first session; and the reset to that record. EYE's
+ *  each predicate, the clauses of each dynamic one, and each Prolog flag a runtime holds before its first session; and the reset to that record. EYE's
  *  `main` asserts and retracts clauses, declares predicates, among them its own and the read built-in, and sets flags, and the
  *  reset removes each predicate `main` declared and restores the clauses of each predicate whose clauses changed. */
 const BUILTINS = `
 :- dynamic('<${REASONER_BUILTIN.read}>'/2), dynamic('<${REASONER_BUILTIN.effect}>'/2), dynamic(held_predicate/1), dynamic(held_clauses/3), dynamic(held_flag/2).
 '<${REASONER_BUILTIN.read}>'([S, P], O) :- engine_self(_), engine_yield(need(read, S, P)), engine_fetch(rows(Os)), member(O, Os).
 '<${REASONER_BUILTIN.effect}>'(R, O) :- engine_self(_), engine_yield(need(effect, R)), engine_fetch(rows(Os)), member(O, Os).
-holding(H) :- current_predicate(user:N/A), \\+ memberchk(N, [held_predicate, held_clauses, held_flag]), functor(H, N, A), \\+ predicate_property(user:H, imported_from(_)).
+holding(H) :- current_predicate(user:N/A), \\+ memberchk(N, [held_predicate, held_clauses, held_flag]), functor(H, N, A), predicate_property(user:H, dynamic), \\+ predicate_property(user:H, imported_from(_)).
 references(H, Refs) :- findall(Ref, clause(user:H, _, Ref), Refs).
 hold_runtime :- forall(current_predicate(user:N/A), assertz(held_predicate(N/A))), forall(current_prolog_flag(F, V), assertz(held_flag(F, V))),
 \tforall(holding(H), (findall(H-B, clause(user:H, B), Cs), references(H, Refs), assertz(held_clauses(H, Cs, Refs)))).
@@ -116,7 +116,7 @@ function stateOf({ answer, printed, errors }: TStepped): TReasonerState {
 const EMPTY_ROWS = "[]";
 
 /** The state of a turn of a session's conversation: the read or the effect its engine needs, or the text EYE printed once it ended. */
-const turnState = (turn: TTurn<TStepped>): TReasonerState => stateOf("output" in turn ? turn.output : EyeSteppedSchema.parse(turn.request));
+const turnState = (turn: TTurn<TStepped>): TReasonerState => stateOf("output" in turn ? turn.output : { ...EyeNeedSchema.parse(turn.request), printed: [], errors: [] });
 
 /** Runs a session as a conversation with a task of the worker pool, which its caller steps through: the start returns the state of
  *  the engine's first step, and each resume posts the rows of the need before it and returns the state of the next. A caller that

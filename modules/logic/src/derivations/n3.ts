@@ -10,7 +10,7 @@
  * and the rule's arrow, so a literal's text never reads as a formula or a list. A rule set that doesn't vary with the
  * declarations is an N3 file of its own under `src/rules`.
  */
-import { DataFactory, Parser, Writer } from "n3";
+import { DataFactory, Parser, Store, Writer } from "n3";
 import type { Literal, NamedNode, Quad, Quad_Object, Quad_Predicate, Quad_Subject, Term, Variable } from "@rdfjs/types";
 import type { TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
@@ -79,35 +79,20 @@ export const givenBy = (gives: readonly Quad[], predicate: NamedNode): Quad[] =>
 export const selectionQuery = (predicates: readonly NamedNode[]): string =>
 	predicates.map((predicate) => ruleText([pattern("?s", predicate, "?o")], [pattern("?s", predicate, "?o")])).join("\n");
 
-/** Each list cell of a reading's quads, by its node: its first item and the rest, held once for each array of quads. */
-const cellsByQuads = new WeakMap<readonly Quad[], Map<string, { first?: Term; rest?: Term }>>();
-const nodeKey = (node: Term): string => `${node.termType}:${node.value}`;
-function cellsOf(quads: readonly Quad[]): Map<string, { first?: Term; rest?: Term }> {
-	const held = cellsByQuads.get(quads);
-	if (held !== undefined) return held;
-	const cells = new Map<string, { first?: Term; rest?: Term }>();
-	for (const { subject, predicate, object } of quads) {
-		if (predicate.value !== RDF.first && predicate.value !== RDF.rest) continue;
-		const key = nodeKey(subject);
-		const cell = { ...cells.get(key), [predicate.value === RDF.first ? "first" : "rest"]: object };
-		cells.set(key, cell);
-	}
-	cellsByQuads.set(quads, cells);
-	return cells;
-}
+/** Each list of a reading's quads, by its head, as N3.js's store extracts them, held once for each array of quads. */
+const listsByQuads = new WeakMap<readonly Quad[], Record<string, Term[]>>();
 
-/** Returns the items of the list whose head is `node`, as quads N3.js read state it through `rdf:first` and `rdf:rest`. The quads'
- *  cells are indexed once, so reading a list takes time in its length. */
+/** Returns the items of the list whose head is `node`, as quads N3.js read state it through `rdf:first` and `rdf:rest`. N3.js
+ *  extracts the quads' lists once for each array, so reading a list takes time in its length. */
 export function listItems(quads: readonly Quad[], node: Term): Term[] {
-	const cells = cellsOf(quads);
-	const items: Term[] = [];
-	for (let at: Term = node; at.value !== RDF.nil; ) {
-		const cell = cells.get(nodeKey(at));
-		if (cell?.first === undefined || cell.rest === undefined)
-			throw new Error(`the reasoner's output names a list ${at.value} its quads don't state. Check the rules that derive it.`);
-		items.push(cell.first);
-		at = cell.rest;
+	if (node.value === RDF.nil) return [];
+	let lists = listsByQuads.get(quads);
+	if (lists === undefined) {
+		lists = new Store([...quads]).extractLists();
+		listsByQuads.set(quads, lists);
 	}
+	const items = lists[node.value];
+	if (items === undefined) throw new Error(`the reasoner's output names a list ${node.value} its quads don't state. Check the rules that derive it.`);
 	return items;
 }
 

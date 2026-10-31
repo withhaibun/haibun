@@ -15,6 +15,8 @@ export const EyeSessionSchema = z.object({ program: z.string(), builtins: z.stri
 /** What an engine step returned, which a read or an effect requests of the process, or the session's end: with what EYE printed
  *  and reported. */
 export const EyeSteppedSchema = z.object({ answer: z.unknown(), printed: z.array(z.string()), errors: z.array(z.string()) });
+/** A step that needs a read or an effect, which crosses with its engine's result alone: what EYE printed crosses once, as the session ends. */
+export const EyeNeedSchema = z.object({ answer: z.unknown() });
 /** The rows a process replies to a read or an effect, as Prolog's text. */
 const RowsSchema = z.string();
 
@@ -90,7 +92,7 @@ export default runTask(EyeSessionSchema, async ({ program, builtins, sources, qu
 		once(runtime, `engine_create(${DONE}, user:main(${eyeArguments(explained)}), _, [alias(${ENGINE})])`);
 		let answer = once(runtime, `engine_next(${ENGINE}, A)`);
 		while (answer.A !== DONE && typeof answer.A === "object" && answer.A !== null && "need" in answer.A) {
-			const rows = RowsSchema.parse(await effect(stepped(answer)));
+			const rows = RowsSchema.parse(await effect({ answer: answer.A }));
 			answer = once(runtime, `term_string(Rows, Text), engine_post(${ENGINE}, rows(Rows), A)`, { Text: rows });
 		}
 		return stepped(answer);
