@@ -18,26 +18,26 @@ import {
 	DOMAIN_JSON,
 	DOMAIN_DOMAIN_KEY,
 	DOMAIN_JSON_OBJECT,
-	DOMAIN_WAYPOINT_ARGUMENT,
+	namesMember,
 } from "@haibun/core/lib/domains/domains.js";
-import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { actionNotOK, actionOK, actionOKWithProducts, actionUnknown, errorDetail } from "@haibun/core/lib/domains/util.js";
-import { argumentsOf } from "@haibun/core/lib/steps/pipelines/populate-action-args.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
+import { ACTIVITIES_STEPPER } from "@haibun/core/steps/domains/activities-actions.js";
+import { z } from "zod";
 import { Access, SEQ_PATH_LABEL, type TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
-import { SEQ_PATH_FIELD, calledParts, actualityFeatureOf, stepRecordOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
+import { SEQ_PATH_FIELD, calledParts, actualityFeatureOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { callerHolds, readingAsOf } from "@haibun/core/lib/domains/capability-context.js";
 import { DOMAIN_APPLICABLE_STEPS, DOMAIN_GOAL_RESOLUTION, DOMAIN_PLAN_ID, DOMAIN_PLAN_PROGRESS, goalDomainDefinitions } from "@haibun/core/lib/domains/goal-resolution.js";
-import { applicableStepsAt, planAdvanced, planBegun, pursued, resolved, type TGoalScope } from "./pipelines/goals.js";
+import { applicableStepsAt, ensured, planAdvanced, planBegun, resolved, type TGoalScope } from "./pipelines/goals.js";
 import { stepperContext } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
 import { proverOf } from "./pipelines/prove.js";
-import { canonicalOf, readerOf, recordsWhere, writeFacts } from "./pipelines/reads.js";
+import { recordsWhere } from "./pipelines/reads.js";
 import { callTerm, derivationUnder, lineTerm, refuseDeclarations } from "./pipelines/registry-reads.js";
 import { logicEngine, reasoner } from "./root.js";
 import { checkedExpression, countedMembers, entailedMembers, expressionCompletions, expressionReading, queryBasis, subsumptionRefusal, truncationOf } from "./pipelines/members.js";
 import { DOMAIN_INDIVIDUAL_ADDRESS, type TIndividualAddress } from "@haibun/core/lib/domains/typed-links.js";
 import { DOMAIN_CLASS_EXPRESSION, DOMAIN_ENTAILED_MEMBERS, classExpressionDomainDefinition, reasoningDomainDefinitions } from "./domains/reasoning.js";
-import { DOMAIN_DERIVATION, DOMAIN_LINE_TERM, READ_GRAPH, READ_PREDICATE, RESOLVE_STATEMENT, logicDomainDefinitions } from "./domains/logic.js";
+import { DOMAIN_DERIVATION, DOMAIN_DOMAIN_GOAL, DOMAIN_LINE_TERM, RESOLVE_STATEMENT, logicDomainDefinitions } from "./domains/logic.js";
 import { DOMAIN_ALTERNATIVES, DOMAIN_OBSERVATION_SOURCE, DOMAIN_REFUSAL, DOMAIN_STATUS, readingDomainDefinitions } from "./domains/readings.js";
 
 /** The feature's step records as an observation source: each record's fields, the stepper of the step it called, and its
@@ -71,7 +71,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 	cycles: IStepperCycles = {
 		getConcerns: () => ({
 			sources: [steps],
-			domains: [...logicDomainDefinitions, ...readingDomainDefinitions, ...goalDomainDefinitions, ...reasoningDomainDefinitions, this.classExpressionDomain],
+			domains: [...logicDomainDefinitions, ...readingDomainDefinitions, ...goalDomainDefinitions, ...reasoningDomainDefinitions, this.classExpressionDomain, this.domainGoalDomain],
 		}),
 	};
 
@@ -89,6 +89,22 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			}
 		},
 	};
+
+	/** The domain goal ensure takes, whose refusal of a term that doesn't name a registered domain leaves a line that states a
+	 *  waypoint's head to the activities' ensure. */
+	private readonly domainGoalDomain: TDomainDefinition = {
+		selectors: [DOMAIN_DOMAIN_GOAL],
+		schema: z.string().min(1),
+		description: "A domain goal: a registered domain's key, whose fact ensure makes hold by the goal's plan",
+		refuses: (term) => (this.domainKeys().includes(term) ? undefined : `"${term}" doesn't name a registered domain; the Domain records list them`),
+		completions: (term) => this.domainKeys().filter((key) => key.startsWith(term)),
+	};
+
+	/** The keys of the registered domains, as the domain key's domain names them. */
+	private domainKeys(): string[] {
+		const { domains } = this.getWorld();
+		return Object.keys(domains).filter((key) => namesMember(domains[DOMAIN_DOMAIN_KEY], key));
+	}
 
 	/** The members a class expression entails over the world's store, under the caller's authority. */
 	private members(expression: string) {
@@ -126,33 +142,6 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			productsDomain: DOMAIN_STATUS,
 			reading: READING.maybe,
 		},
-		absent: {
-			gwta: `absent {statement: ${DOMAIN_STATEMENT}}`,
-			description:
-				"States the falsity of a goal, a line that unifies with a waypoint's head: the goal is refuted where its proof doesn't hold, and a contradiction where its proof holds.",
-			action: async ({ statement }: { statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
-				const [goal] = statement;
-				const head = goal?.action.step.rule?.head;
-				if (statement.length !== 1 || goal === undefined || head === undefined)
-					return actionNotOK(`\`${featureStep.in}\` doesn't state one waypoint's head to deny. State one line that matches a waypoint's head after absent.`);
-				const world = this.getWorld();
-				const read = await argumentsOf(goal, world, this.steppers);
-				if ("refused" in read) return actionNotOK(read.refused);
-				const store = world.shared.getStore();
-				const canonical = await canonicalOf(readerOf(store));
-				const args = Object.fromEntries(Object.entries(read.args).map(([name, value]) => [name, canonical(String(value))]));
-				await writeFacts(store, stepRecordOf(world.tag, featureStep.seqPath), READ_GRAPH.falsity, { [READ_PREDICATE.head]: head, ...args });
-				return OK;
-			},
-		},
-		sameAs: {
-			gwta: `{individual: ${DOMAIN_WAYPOINT_ARGUMENT}} is the same as {other: ${DOMAIN_WAYPOINT_ARGUMENT}}`,
-			description: "States that two individuals are one, so a goal reads each as its canonical representative: the first in order of the individuals stated the same.",
-			action: async ({ individual, other }: { individual: string; other: string }) => {
-				await writeFacts(this.getWorld().shared.getStore(), individual, READ_GRAPH.same, { [READ_PREDICATE.sameAs]: other });
-				return OK;
-			},
-		},
 		someObserved: {
 			gwta: `some ${OBSERVED}`,
 			precludes: ["LogicStepper.some"],
@@ -182,12 +171,14 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			productsDomain: DOMAIN_GOAL_RESOLUTION,
 			action: ({ goal }: { goal: string }, featureStep: TFeatureStep) => resolved(this.goalScope(), featureStep, goal, RESOLVE_STATEMENT),
 		},
-		pursue: {
-			gwta: `pursue {goal: ${DOMAIN_DOMAIN_KEY}}`,
+		ensure: {
+			gwta: `ensure {goal: ${DOMAIN_DOMAIN_GOAL}}`,
+			precludes: [`${ACTIVITIES_STEPPER}.ensure`],
+			unique: true,
 			description:
-				"Proves a goal, and where only its plan would prove it, calls each step of its first plan under this step and proves the goal again. A plan whose steps take a value from the caller is advanced one step at a time with plan.",
+				"Proves a domain goal, and where only its plan would prove it, calls each step of its first plan under this step and proves the goal again. A plan whose steps take a value from the caller is advanced one step at a time with plan. A line that states a waypoint's head ensures the waypoint.",
 			productsDomain: DOMAIN_GOAL_RESOLUTION,
-			action: ({ goal }: { goal: string }, featureStep: TFeatureStep) => pursued(this.goalScope(), featureStep, goal),
+			action: ({ goal }: { goal: string }, featureStep: TFeatureStep) => ensured(this.goalScope(), featureStep, goal),
 		},
 		plan: {
 			gwta: `plan {goal: ${DOMAIN_DOMAIN_KEY}}`,

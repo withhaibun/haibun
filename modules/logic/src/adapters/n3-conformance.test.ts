@@ -4,7 +4,7 @@
  */
 import { beforeAll, describe, expect, it } from "vitest";
 import { VERDICT } from "@haibun/core/lib/domains/protocol.js";
-import { EFFECT, PROOF_NAMESPACE, READ_PREDICATE, type TReadRequest, type TWaypointEffect } from "../domains/logic.js";
+import { EFFECT, PROOF_NAMESPACE } from "../domains/logic.js";
 import type { Quad } from "@rdfjs/types";
 import { quadsOf } from "../derivations/n3.js";
 import { neededBy } from "../domains/reasoning.js";
@@ -33,14 +33,10 @@ const eyeDerives = (reasoner: Pick<TReasoner, "session">, n3: string): Promise<s
 const provedTriple = (path: number[]): string => `<${PROOF_NAMESPACE}p${["", ...path].join("_")}> <${PROOF_NAMESPACE}is> <${PROOF_NAMESPACE}proved>.`;
 
 /** The outcome of each effect but a call, which each proof states by position. */
-const EFFECTS: Record<string, string> = { open: "opened", close: "closed", rule: "rule(true, [call(n4)], none)" };
-/** The reasoner's proof of a waypoint's head, as the prover returns it: its first proof refutes the head at its first line, and
- *  its proof after the activity, whose call takes the next position, proves it. */
-const waypointOf = ({ base }: TWaypointEffect): string =>
-	base === 0 ? "proved(unknown, [1, 1], 1, [part([1, 1], proof(1), call(refuted))])" : "proved(proved, none, 1, [part([1, 3], proof(2), call(proved))])";
-/** A quantifier reads the members a and b, and a waypoint reads that it doesn't take arguments. */
-const readOf = (request: TReadRequest): string =>
-	`facts([${request.patterns.map((pattern) => (pattern.predicate === READ_PREDICATE.member ? "[['a'], ['b']]" : "[]")).join(", ")}])`;
+const EFFECTS: Record<string, string> = { open: "opened", close: "closed", members: "rows([a, b])" };
+/** The prover's proof of a waypoint's head in ensure: its first proof refutes the head at its first line, its activity's call
+ *  takes the next position, and its proof after the activity proves it, so the prover closes the head's record as proved. */
+const ENSURED = "proved(proved, [part([1, 1], proof(1), call(refuted)), part([1, 2], activity(1), call(proved)), part([1, 3], proof(2), call(proved))])";
 
 /** Proves a term with the outcome each call position states, as the pipeline performs effects, and returns the N3 export of
  *  its proof and the triple of each node the engine closed as proved. */
@@ -49,10 +45,8 @@ function proved(engine: TLogicEngine, top: string, term: string, calls: Record<s
 	let outcome = engine.prove(top, term);
 	while ("need" in outcome) {
 		const { need, path, request } = outcome;
-		if (need === EFFECT.close && "verdict" in request && request.verdict === VERDICT.proved) nodes.push(provedTriple(path));
-		const effectOf = (): string | undefined =>
-			need === EFFECT.read ? readOf(request as TReadRequest) : need === EFFECT.waypoint ? waypointOf(request as TWaypointEffect) : EFFECTS[need];
-		const performed = need === EFFECT.call ? calls[path.join(".")] : effectOf();
+		if ((need === EFFECT.close && "verdict" in request && request.verdict === VERDICT.proved) || need === EFFECT.waypoint) nodes.push(provedTriple(path));
+		const performed = need === EFFECT.call ? calls[path.join(".")] : need === EFFECT.waypoint ? ENSURED : EFFECTS[need];
 		if (performed === undefined) throw new Error(`the test doesn't state the outcome of ${need} at ${path.join(".")}`);
 		outcome = engine.resume(top, performed);
 	}
@@ -73,7 +67,7 @@ const PROOFS: [string, string, Record<string, string>][] = [
 	["universal over proved members", "every(n1, [call(n2)])", { "1": "passed", "2": "passed" }],
 	["universal over a refuted member", "every(n1, [call(n2)])", { "1": "passed", "2": "failed" }],
 	["maybe", "maybe(n1, [call(n2)])", { "1": "failed" }],
-	["ensure that runs its activity", "ensure(n1, [apply(n2, w)])", { "1.2": "passed" }],
+	["ensure that runs its activity", "ensure(n1, [apply(n2)])", {}],
 ];
 
 describe("the engine's readings in N3", () => {

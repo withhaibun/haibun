@@ -1,10 +1,9 @@
 # Waypoints' proofs as backward rules. A waypoint's head holds where each line of its proof holds; its activity, which makes the
 # proof hold, and ensure, which runs it, stay haibun's. Each waypoint states its proof as `h:proof`, a list of its lines in
 # order: "call", a step haibun calls, or "apply", a waypoint's head applied beneath it. An application's record opens with the
-# arguments it read and closes with its verdict, a step's call and a stated falsity are read through `h:effect`, and an
-# application's key, its head with its arguments, joins the ancestors its proof passes down, which refuse it again below itself.
-# A verdict is a list of its value and why: "none", a reason the engine states, the position of the line that gave it, or
-# ("falsity" record).
+# arguments it read and closes with its verdict, a step's call is read through `h:effect`, and an application's key, its head
+# with its arguments, joins the ancestors its proof passes down, which refuse it again below itself. A verdict is a list of its
+# value and why: "none", a reason the engine states, or the position of the line that gave it.
 @prefix h: <urn:haibun:> .
 @prefix list: <http://www.w3.org/2000/10/swap/list#> .
 @prefix log: <http://www.w3.org/2000/10/swap/log#> .
@@ -20,12 +19,11 @@
 { (?Key ?Ancestors) h:bound ("unknown" "depth") } <= {
     ?Ancestors list:notMember ?Key . ?Ancestors list:length ?Depth . h:session h:maxDepth ?Max . ?Depth math:notLessThan ?Max } .
 
-# An application's verdict: its proof, refuted by a stated falsity of its head and arguments, a contradiction where its proof holds
-# as well, and unknown where its proof doesn't hold without one. Its check is its proof alone, as a line run alone reads it.
-{ (?App ?Key ?Head ?Ancestors) h:verdict ?Result } <= { (?Key ?Ancestors) h:bound ?Result } .
-{ (?App ?Key ?Head ?Ancestors) h:verdict ?Result } <= {
-    (h:found { (?Key ?Ancestors) h:bound ?any } ()) log:collectAllIn ?within . (?App ?Key ?Head ?Ancestors) h:proved ?Proved .
-    (h:falsity ?App) h:effect ?Falsities . (?Falsities ?Proved) h:stated ?Result } .
+# An application's verdict is its check, open world: a head whose proof is refuted is unknown, since a proof that doesn't hold
+# doesn't make its head false. Its check is its proof alone, as a line run alone reads it.
+{ (?App ?Key ?Head ?Ancestors) h:verdict ?Result } <= { (?App ?Key ?Head ?Ancestors) h:checked ?Checked . ?Checked h:open ?Result } .
+{ ?Checked h:open ("unknown" ?Why) } <= { ?Checked list:firstRest ("refuted" (?Why)) } .
+{ ?Checked h:open ?Checked } <= { ?Checked list:first ?Value . ?Value log:notEqualTo "refuted" } .
 { (?App ?Key ?Head ?Ancestors) h:checked ?Result } <= { (?Key ?Ancestors) h:bound ?Result } .
 { (?App ?Key ?Head ?Ancestors) h:checked ?Result } <= {
     (h:found { (?Key ?Ancestors) h:bound ?any } ()) log:collectAllIn ?within . (?App ?Key ?Head ?Ancestors) h:proved ?Result } .
@@ -44,9 +42,3 @@
 # A line is a step haibun calls, or a head applied beneath this application.
 { (?App "call" ?At ?Ancestors) h:line (?Value ?At) } <= { (h:call ?App ?At) h:effect ?Value } .
 { (?App "apply" ?At ?Ancestors) h:line (?Value ?At) } <= { (?App ?At ?Ancestors) h:applied ?Applied . ?Applied list:first ?Value } .
-
-# A stated falsity refutes a head whose proof doesn't hold, and contradicts one whose proof holds.
-{ (() ?Proved) h:stated ("unknown" ?Why) } <= { ?Proved list:firstRest ("refuted" (?Why)) } .
-{ (() ?Proved) h:stated ?Proved } <= { ?Proved list:first ?Value . ?Value log:notEqualTo "refuted" } .
-{ (?Falsities ?Proved) h:stated ("contradiction" ("falsity" ?Record)) } <= { ?Falsities list:first ?Record . ?Proved list:first "proved" } .
-{ (?Falsities ?Proved) h:stated ("refuted" ("falsity" ?Record)) } <= { ?Falsities list:first ?Record . ?Proved list:first ?Value . ?Value log:notEqualTo "proved" } .

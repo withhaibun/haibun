@@ -13,7 +13,7 @@
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
 					"modules/core/src": "9fa221b0b090ffb114fa29bf63a0731b18f4fa75dd2c1b91eaee064717e74bf7",
 					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
-					"modules/logic/src": "68207d7b26d3e2aafa581237baf308aa2b99b235ab39f2122b64b3a2f94c5e5f",
+					"modules/logic/src": "505c4a334bf06765b948adc65e5c2e0e6f80e86dd2b49f1466cbb9f64b1029a5",
 					"modules/monitor-otel/src": "4fbef0f2c78fed7b3e2d03ec4ab094bef11766724e5f5f6efb73491ea1d4dea6",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/out-junit/src": "22d1ca5d4f4449cae6186ff8d84c1f0b182e7591e1ffda9520a38daa3e8681d2",
@@ -23,7 +23,7 @@
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/utils/src": "9799d114ca397313863bfc29604199b02bc9daf1a4bfa26675dbfe7cfc30e36c",
 					"modules/web-accessibility-axe/src": "df284b3ae6b1e6f9aaa117a6ab9ce80ccde73ec21ca48abef9c9dac9ddf8ae87",
-					"modules/web-playwright/src": "3f49c90fabe4b75a66b30ffdec7639c32a9fbc92a6badfe716962cf99ebdcd9b",
+					"modules/web-playwright/src": "7dd567c69dc602467a423d8af76f960873386fb5ce1bef63645fb0437ffb7bdc",
 					"modules/web-server-hono/src": "15bc6c19fd5a60098fc0428d37a4fec7f5accc6a9399c2e1cbc0b41c87af7b2d",
 					"modules/web-server-hono/waypoints": "fa5853749829db27d77867eb4c13e1860184beafed284ebff8f0672c617affe3"
 				}
@@ -32,7 +32,7 @@
 				"/features/identity-and-capability.feature.ts": {
 					"text": "Identity and capability authorization",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 800,
 					"steps": 30
 				}
 			}

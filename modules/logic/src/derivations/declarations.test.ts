@@ -4,7 +4,8 @@
  */
 import { describe, expect, it } from "vitest";
 import { AStepper, READING, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
-import { actionOK, constructorName } from "@haibun/core/lib/domains/util.js";
+import { actionOK } from "@haibun/core/lib/domains/util.js";
+import { passWithDefaults } from "@haibun/core/lib/test/lib.js";
 import ActivitiesStepper from "@haibun/core/steps/activities-stepper.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import DebuggerStepper from "@haibun/core/steps/debugger-stepper.js";
@@ -50,9 +51,8 @@ describe("one declaration", () => {
 		expect(() => refuseDeclarations([declaring({ never: { description: TEST_STEP, gwta: "never {statement: statement}", reading: READING.didnt } })])).not.toThrow();
 	});
 
-	it("the core steppers with the logic stepper declare each step once with every face", () => {
-		const steppers = [Haibun, VariablesStepper, NarratorStepper, ActivitiesStepper, AuthorityStepper, DebuggerStepper, LogicStepper].map((Stepper) => new Stepper());
-		expect(steppers.map(constructorName)).toHaveLength(7);
-		expect(() => refuseDeclarations(steppers)).not.toThrow();
+	it("the core steppers with the logic stepper declare each step once with every face, as the logic stepper checks them at start", { timeout: 30_000 }, async () => {
+		const result = await passWithDefaults(`set started to "yes"`, [Haibun, VariablesStepper, NarratorStepper, ActivitiesStepper, AuthorityStepper, DebuggerStepper, LogicStepper]);
+		expect(result.ok, result.failure?.error.message).toBe(true);
 	});
 });

@@ -151,7 +151,7 @@ For `every request observed in http-trace is variable request/status is less tha
 
 ### Waypoint Resolution
 
-A waypoint is a rule, which ActivitiesStepper holds as resolution reaches its line. An `Activity:` runs to its last `waypoint` line, and each waypoint's activity is the activity's lines before it. The activity's title is the description of each waypoint it states, which the step input, the affordances, the step definitions and the language server show; a waypoint under an activity without a title is refused as resolution reaches it. A saved waypoint's title is its head, and a universal rule's description is its line. A feature's rule applies in that feature, and a background's or a saved waypoint's in every feature. A line unifies with a rule's head where the head's pattern parses it: the head is the waypoint's name after `dePolite`, and each placeholder takes the line's term, so `ensure The table is laid` unifies with `waypoint The table is laid with ...`, and `ensure dinner is ready` with `waypoint {m:meal} is ready with ...`. Such a line resolves to ActivitiesStepper's `apply` step, which holds the rule, and the logic engine applies it. A line that states a head alone runs the activity where the proof doesn't hold, and in a proof a head is a goal that its rule's proof proves. A head's proof is the reasoner's: `modules/logic/src/rules/waypoints.n3` states a waypoint's head as holding where each line of its proof holds, a head in a proof is a backward goal of the same EYE session, a step is a call of the line's proof, and a stated falsity refutes a head (`modules/logic/src/pipelines/waypoints.ts`). The keys of the applications above a goal, each a head with its arguments, pass down across the proofs of steps whose statements nest a session of their own, so a head applied again below itself is unknown, and a proof that nests more than `MAX_NESTED_SESSIONS` sessions is refused as unknown. ensure's check, activity and check again, and each application's record, stay the logic engine's.
+A waypoint is a rule, which ActivitiesStepper holds as resolution reaches its line. An `Activity:` runs to its last `waypoint` line, and each waypoint's activity is the activity's lines before it. The activity's title is the description of each waypoint it states, which the step input, the affordances, the step definitions and the language server show; a waypoint under an activity without a title is refused as resolution reaches it. A saved waypoint's title is its head, and a universal rule's description is its line. A feature's rule applies in that feature, and a background's or a saved waypoint's in every feature. A line unifies with a rule's head where the head's pattern parses it: the head is the waypoint's name after `dePolite`, and each placeholder takes the line's term, so `ensure The table is laid` unifies with `waypoint The table is laid with ...`, and `ensure dinner is ready` with `waypoint {m:meal} is ready with ...`. Such a line resolves to ActivitiesStepper's `apply` step, which holds the rule, and the logic engine applies it. A line that states a head alone runs the activity where the proof doesn't hold, and in a proof a head is a goal that its rule's proof proves. A head's proof is the reasoner's: `modules/logic/src/rules/waypoints.n3` states a waypoint's head as holding where each line of its proof holds, a head in a proof is a backward goal of the same EYE session, a step is a call of the line's proof, and a head whose proof doesn't hold is unknown, since a proof that doesn't hold doesn't make its head false (`modules/logic/src/pipelines/waypoints.ts`). The keys of the applications above a goal, each a head with its arguments, pass down across the proofs of steps whose statements nest a session of their own, so a head applied again below itself is unknown, and a proof that nests more than `MAX_NESTED_SESSIONS` sessions is refused as unknown. The waypoint effect performs a head in TypeScript (`modules/logic/src/pipelines/prove.ts`): ensure's proof, activity and proof again, P ∨ (¬P ∧ [A]P), a line run alone's proof and activity, P ∨ [A], and each application's record; the activity's lines are proved as a proof's steps are, and `haibun.pl` holds only the closed proof of a line. `ensure "domain"` ensures a domain goal: it proves the goal over the producer rules, and where only its plan would prove it, calls the plan's steps and proves the goal again; the resolver takes a line whose term names a registered domain to it, and every other `ensure` line to a waypoint's.
 
 ## Phase 4: Executor
 
@@ -231,7 +231,7 @@ predicate(X, Y)":
 every host observed in http-trace hosts is some domain in Allowed domains is matches {host} with "*{domain}"
 ```
 
-### Rules, falsities and equality
+### Rules
 
 A waypoint states a rule H ← P, and `for every {x: D} where B, H` states the same rule with x ranging over the domain D:
 ```
@@ -240,14 +240,12 @@ for every {meal: Meals} where variable {meal} is "cooked", {meal} is edible
 `after every StepperName, statement` states a rule over step records: after each step of that stepper that a feature's line
 states, the statement is proved under the step, apart from a step of the statement's own action.
 
-`absent goal` states the falsity of a goal, a line that unifies with a waypoint's head. A goal whose proof doesn't hold is
-refuted where a falsity of its head and arguments is stated, and unknown without one. A goal whose proof holds and whose
-falsity is stated is a contradiction, and its step fails naming the record that stated the falsity and the record of its
-proof. `maybe statement` holds whatever the statement's verdict and returns it. `"a" is the same as "b"` states that two
-individuals are one, and a goal reads each argument as its canonical representative.
+A waypoint's head whose proof doesn't hold is unknown: the records state what holds, and a claim over the ontology and the
+records (`individual … is a …`, `every … is a …`, `some …`) is how a feature states knowledge. `maybe statement` holds whatever
+the statement's verdict and returns it.
 
-The engine doesn't hold facts. A proof reads the facts it needs through one read request, a read of the store within the
-line's authority, once for each pattern in a proof. Actions and views read and write the store directly.
+The engine doesn't hold facts. A quantifier reads its closed set, a domain's values or an observation source's items, through
+one effect within the line's authority. Actions and views read and write the store directly.
 
 A line that reads as until states how long it proves its statements again, or it doesn't resolve. A proof that stops on an
 exception, such as a wait for a node that isn't the until open at its position, fails its line with the line and the cause,
@@ -492,7 +490,7 @@ whose components the views picker lists.
 | Haibun | `Backgrounds: name`, `Feature:`, `Scenario:`, `Pending scenario:`, `until statement within duration` |
 | VariablesStepper | `set var to "value"`, `variable var is "value"`, `set of domain is [values]`, `{value} is in {domain}`, `variable var is less than "value"`, `matches {var} with "pattern"`, `increment var` |
 | ActivitiesStepper | `Activity: name`, `waypoint Label with proof`, `ensure outcome`, `for every {x: domain} where body, head`, `after every StepperName, statement` |
-| LogicStepper | `didn't statement`, `where condition, action`, `maybe statement`, `every x in domain is statement`, `some x in domain is statement`, `absent goal`, `"a" is the same as "b"`, `resolve goal`, `pursue goal`, `plan goal`, `advance plan plan with args`, `show the applicable steps` (with the chain's lint findings) |
+| LogicStepper | `didn't statement`, `where condition, action`, `maybe statement`, `every x in domain is statement`, `some x in domain is statement`, `resolve goal`, `ensure "goal"`, `plan goal`, `advance plan plan with args`, `show the applicable steps` (with the chain's lint findings) |
 | DebuggerStepper | `debug step by step`; debugger commands: `step`, `continue`, `retry`, `next`, `fail`; `DEBUG_STEPPERS` names the steppers it pauses before as actuality starts |
 
 ### Web Steppers

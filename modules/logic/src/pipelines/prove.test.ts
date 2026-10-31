@@ -17,22 +17,22 @@ import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { DIFFERENT_BUILDS, EFFECT } from "../domains/logic.js";
-import { atom } from "../derivations/terms.js";
 import type { TLogicEngine } from "../ports.js";
 import { logicEngine, reasoner } from "../root.js";
 import { proverOf } from "./prove.js";
 
 const HEAD = "Variable changed by waypoint";
-const SCOPING = `set v to 1\nActivity: Demonstrate scoping\nset v to 2\nwaypoint ${HEAD}\n${HEAD}\nvariable v is 2`;
+/** The line that opens its node and then requests the waypoint's head. */
+const LINE = `maybe ${HEAD}`;
+const SCOPING = `set v to 1\nActivity: Demonstrate scoping\nset v to 2\nwaypoint ${HEAD}\n${LINE}\nvariable v is 2`;
 
-/** The engine of the process, which yields until's wait at the line's position once a line that applies the waypoint `head`
- *  opens its node. */
-function waitingAt(engine: TLogicEngine, head: string): TLogicEngine {
+/** The engine of the process, which yields until's wait at the line's position once the line that reads as maybe opens its node. */
+function waitingAt(engine: TLogicEngine): TLogicEngine {
 	const applying = new Set<string>();
 	return {
 		...engine,
 		prove: (top, term) => {
-			if (term.startsWith(`apply(`) && term.includes(atom(head))) applying.add(top);
+			if (term.startsWith("maybe(")) applying.add(top);
 			return engine.prove(top, term);
 		},
 		resume: (top, outcome) => {
@@ -47,7 +47,7 @@ class WaitingEngine extends AStepper implements IHasCycles {
 	description = "Proves through an engine that yields until's wait for the line that applies a waypoint";
 	cycles = {
 		startFeature: async () => {
-			this.getWorld().runtime.prover = proverOf(waitingAt(await logicEngine(), HEAD), reasoner());
+			this.getWorld().runtime.prover = proverOf(waitingAt(await logicEngine()), reasoner());
 		},
 	};
 	steps = {} as const satisfies TStepperSteps;
@@ -61,11 +61,11 @@ describe("a proof that stops on an exception", () => {
 		];
 		const options = { ...DEF_PROTO_OPTIONS, options: { ...DEF_PROTO_OPTIONS.options, [CONTINUE_AFTER_ERROR]: true } };
 		const result = await failWithDefaults(features, [Haibun, TestSteps, VariablesStepper, ActivitiesStepper, WaitingEngine, LogicStepper], options);
-		expect(result.failure?.error.message).toContain(`The proof of \`${HEAD}\` tries again a step that doesn't read as until. ${DIFFERENT_BUILDS}`);
+		expect(result.failure?.error.message).toContain(`The proof of \`${LINE}\` tries again a step that doesn't read as until. ${DIFFERENT_BUILDS}`);
 		const ran = result.featureResults?.map(({ ok }) => ok);
 		expect(ran, "the features after it run").toEqual([false, true]);
 		const steps = await readEvery(result.world.shared.getStore(), { label: SEQ_PATH_LABEL });
-		const line = steps.find((step) => step[SEQ_PATH_FIELD.stepText] === HEAD);
+		const line = steps.find((step) => step[SEQ_PATH_FIELD.stepText] === LINE);
 		expect(line?.[SEQ_PATH_FIELD.actionStatus], "the line's record ends").toBe(RECORDED_STATUS.failed);
 	});
 });

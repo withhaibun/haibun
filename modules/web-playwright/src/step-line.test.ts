@@ -3,7 +3,7 @@
  * for each parameter, a line the resolver parses back to that step with those terms, so the record of a call a transport
  * carries is a line that runs.
  */
-import { describe, it, expect } from "vitest";
+import { beforeAll, describe, it, expect } from "vitest";
 import { Resolver } from "@haibun/core/phases/Resolver.js";
 import { createSteppers } from "@haibun/core/lib/domains/util.js";
 import { literalTerm, namedInterpolation, renderStepLine } from "@haibun/core/lib/namedVars.js";
@@ -12,6 +12,8 @@ import type { AStepper } from "@haibun/core/lib/astepper.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import LogicStepper from "@haibun/logic/logic-stepper.js";
+import { DOMAIN_DOMAIN_GOAL } from "@haibun/logic/domains/logic.js";
+import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import ResourcesStepper from "@haibun/core/steps/resources-stepper.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import ActivitiesStepper from "@haibun/core/steps/activities-stepper.js";
@@ -29,12 +31,13 @@ const paramsOf = (gwta: string): Array<[string, string | undefined]> =>
 /** The line of a step that doesn't take a parameter, which a statement parameter is given. */
 const STATEMENT = "page has settled";
 
-/** A literal term for a parameter of `domain`: a number or a composite where the domain takes one, a statement line,
- *  else text. */
+/** A literal term for a parameter of `domain`: a number or a composite where the domain takes one, a statement line, a
+ *  registered domain's key for a domain goal, else text. */
 const termFor = (name: string, domain: string | undefined): string => {
 	if (domain && domainParts(domain).includes(DOMAIN_NUMBER)) return literalTerm(7, domain);
 	if (domain === DOMAIN_JSON) return literalTerm({ [name]: 7 }, domain);
 	if (domain === DOMAIN_STATEMENT) return literalTerm(STATEMENT, domain);
+	if (domain === DOMAIN_DOMAIN_GOAL) return literalTerm(DOMAIN_STATEMENT, domain);
 	return literalTerm(`a ${name}`, domain);
 };
 
@@ -48,6 +51,12 @@ const rendered = (steppers as AStepper[]).flatMap((stepper) =>
 );
 
 describe("a step's line, as the one renderer states it", () => {
+	// The logic stepper's domain goal reads the registered domains of its world, and its start checks the declarations.
+	beforeAll(async () => {
+		const logic = (steppers as AStepper[]).find((stepper) => stepper instanceof LogicStepper);
+		await logic?.setWorld(getDefaultWorld({ HAIBUN_LOG_LEVEL: "none" }), steppers as AStepper[]);
+	}, 30_000);
+
 	it("resolves a statement a statement parameter is given", () => {
 		expect(resolver.findSingleStepAction(STATEMENT).actionName).toBe("pageHasSettled");
 	});

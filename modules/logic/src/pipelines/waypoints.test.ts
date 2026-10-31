@@ -1,6 +1,6 @@
 /**
- * Waypoints' proofs on the reasoner: a head nested in a proof is a goal of the same session, a stated falsity refutes a head, a
- * head applied again below itself is unknown within a session and across the sessions a step's statements nest, and a proof
+ * Waypoints' proofs on the reasoner: a head nested in a proof is a goal of the same session, a head whose proof is refuted is
+ * unknown, a head applied again below itself is unknown within a session and across the sessions a step's statements nest, and a proof
  * that nests sessions without repeating a head is refused past the bound of nesting.
  */
 import { describe, expect, it } from "vitest";
@@ -32,16 +32,15 @@ describe("waypoints' proofs on the reasoner", () => {
 		);
 	});
 
-	it("refutes a head whose falsity is stated, and holds a contradiction where its proof holds as well", { timeout: 60_000 }, async () => {
+	it("leaves a head unknown where it is a line of a proof and its own proof is refuted", { timeout: 60_000 }, async () => {
 		await passes(
 			"Activity: Open the door",
 			'waypoint The door is open with variable door is "open"',
-			"absent The door is open",
-			"set shut from maybe ensure The door is open",
-			'variable shut.verdict is "refuted"',
-			'set door to "open"',
-			"set both from maybe ensure The door is open",
-			'variable both.verdict is "contradiction"',
+			"Activity: Enter",
+			"waypoint Entered with The door is open",
+			'set door to "shut"',
+			"set entered from maybe Entered",
+			'variable entered.verdict is "unknown"',
 		);
 	});
 

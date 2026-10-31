@@ -1,14 +1,14 @@
 % The logic engine's program. A line's proof is one query, and each effect it reaches is one more. prove/3 starts a
 % Prolog engine, named by the line, that evaluates the line's term. Where the proof reaches an effect (a built-in call, a
-% record's opening or closing, a read, a waypoint's rule or its proof, or a wait), effect/4 yields the request and the query returns it. The pipeline performs the effect, and resume/3 posts its outcome to the line's
+% record's opening or closing, a quantifier's members, a waypoint's head, or a wait), effect/4 yields the request and the query returns it. The pipeline performs the effect, and resume/3 posts its outcome to the line's
 % engine, which continues from the effect. The engine holds its own stacks between queries, so a query never holds the runtime
 % across an await, the proofs of several callers interleave at each effect, and a query evaluates only the part of the
 % proof after the effect it resumes, however many effects its line performed.
 %
 % A verdict is proved, refuted, unknown or contradiction. A built-in that passed is proved, one that failed is refuted,
 % and one that couldn't run is unknown. Negation is negation as failure scoped to the outcomes of its line: a query reads
-% only the outcome of the effect its own line performed. The engine doesn't hold facts: a proof reads them through read/5,
-% and TypeScript answers each read from the store within the line's authority. Each part of a proof, once it ends, is
+% only the outcome of the effect its own line performed. The engine doesn't hold facts: a quantifier reads its closed set of
+% members through an effect, and TypeScript proves a waypoint's head over the reasoner. Each part of a proof, once it ends, is
 % asserted as part/4, which only the N3 export reads.
 :- module(haibun, [prove/3, resume/3, forget/1, n3_export/3]).
 :- use_module(library(lists)).
@@ -17,8 +17,8 @@
 
 :- dynamic part/4.
 
-% One bound holds every proof but until's: the depth of nested readings, the repetitions of whenever, and a waypoint's
-% applications in ensure and in a line run alone. until is bounded by its deadline alone.
+% One bound holds every proof but until's: the depth of nested readings and the repetitions of whenever. until is bounded by
+% its deadline alone.
 max_depth(1000).
 
 % prove(+Top, +TermText, -Outcome): Outcome is _{verdict} where the line's proof ended, or the effect it needs.
@@ -40,15 +40,6 @@ outcome(need(K, P, R), _{need: K, path: P, request: RJ}) :- request_json(R, RJ).
 forget(Top) :- ( is_engine(Top) -> engine_destroy(Top) ; true ), retractall(part(Top, _, _, _)).
 
 effect(K, P, R, O) :- engine_yield(need(K, P, R)), engine_fetch(O).
-
-% read(+Path, +Bindings, +Patterns, +Template, -Found): Found is rows(Ts), each Template where every pattern q(S, P, O, G)
-% matches a fact, or refused(Reason). A pattern's unbound positions are its variables: the read returns the values they take
-% in each fact that holds the pattern's constants, and the engine joins the patterns by unification. The named graph node
-% holds a node's own facts: a quantifier's members and a waypoint's arguments.
-read(P, B, Ps, T, Found) :-
-    maplist(variables_of, Ps, Vss), effect(read, P, read(Ps, B), Read),
-    ( Read = facts(Rss) -> findall(T, maplist(member, Vss, Rss), Ts), Found = rows(Ts) ; Found = Read ).
-variables_of(Q, Vs) :- Q =.. [q|Ts], include(var, Ts, Vs).
 
 % child(+Parent, -Child): the next position under a node, Path-Counter, so a reading that proves its statements again takes
 % new positions. The counter is a term in the node's frame.
@@ -73,8 +64,7 @@ worse(W, _, W).
 % all(Xs): the statements a step states, proved in order under the step's own record, which is open while its action runs.
 ev(T, G, all(Xs), P, B, A, D, V) :- !, conj(T, G, Xs, P-c(0), B, A, D, V, _).
 ev(T, G, call(N), P, B, _, _, V) :- !, effect(call, P, call(N, B), O), outcome_verdict(O, V), assertz(part(T, P, G, call(V))).
-ev(T, G, apply(M, W), P, B, A, D, V) :-
-    !, ( memberchk(proving, A) -> Mode = prove ; Mode = run ), applied(T, Mode, M, W, P, B, A, D, V), assertz(part(T, P, G, node(apply, V))).
+ev(T, G, apply(M), P, B, A, _, V) :- !, ( memberchk(proving, A) -> Mode = prove ; Mode = run ), waypoint(T, Mode, M, P, B, V), assertz(part(T, P, G, node(apply, V))).
 ev(T, G, Term, P, B, A, D, V) :-
     Term =.. [F, N | Args],
     effect(open, P, open(N, B), Opened),
@@ -116,7 +106,7 @@ reading(every, N, [Xs], T, P, B, A, D, V, Why) :-
     ( Found = rows(Ms) -> for_all(T, N, Ms, Xs, P, B, A, D, V, Why) ; V = unknown, Why = Found ).
 reading(whenever, _, [Cs, Xs], T, P, B, A, D, V, Why) :- repeat_while(T, Cs, Xs, P, B, A, D, 1, V, Why).
 reading(until, N, [Xs], T, P, B, A, D, V, Why) :- attempts(T, N, Xs, P, B, A, D, 1, V, Why).
-reading(ensure, _, [[apply(M, W)]], T, P, B, A, D, V, C) :- !, child(P, C), applied(T, ensure, M, W, C, B, A, D, V), assertz(part(T, C, all, node(apply, V))).
+reading(ensure, _, [[apply(M)]], T, P, B, _, _, V, C) :- !, child(P, C), waypoint(T, ensure, M, C, B, V), assertz(part(T, C, all, node(apply, V))).
 reading(ensure, _, [_], _, _, _, _, _, refuted, not_waypoint).
 
 any(_, [], _, _, _, _, W, Why, W, Why).
@@ -124,7 +114,8 @@ any(T, [Xs|Rest], P, B, A, D, W, _, V, Why) :-
     conj(T, all, Xs, P, B, A, D, V0, W0),
     ( V0 == proved -> V = proved, Why = none ; worse(W, V0, W1), any(T, Rest, P, B, A, D, W1, W0, V, Why) ).
 
-members(N, P-_, B, Found) :- read(P, B, [q(N, member, M, node)], M, Found).
+% members(+Node, +Parent, +Bindings, -Found): Found is rows(Ms), the members of a quantifier's closed set, or refused(Reason).
+members(N, P-_, B, Found) :- effect(members, P, members(N, B), Found).
 
 exists(_, _, [], _, _, _, _, _, W, Why, W, Why).
 exists(T, N, [M|Ms], Xs, P, B, A, D, W, _, V, Why) :-
@@ -154,74 +145,24 @@ attempts(T, N, Xs, P, B, A, D, K, V, Why) :-
         ( Waited == again -> K1 is K + 1, attempts(T, N, Xs, P, B, A, D, K1, V, Why) ; V = V0, Why = expired )
     ).
 
-% A waypoint's rule: its head holds where its proof holds, and its activity is the plan that makes the proof hold. The proof of a
-% head is the reasoner's, over the waypoints' rules as N3, which a waypoint effect requests (waypoint/7). In a proof, a head is a
-% goal of the reasoner, which opens and closes its record. ensure reads P ∨ (¬P ∧ [A]P), and a waypoint line run alone reads
-% P ∨ [A], where the activity runs between the reasoner's proofs of P; beneath an activity the ancestors don't hold `proving`.
-% The rule effect states whether the waypoint has a proof, its activity, and `cycle` where the application repeats one above it.
-applied(T, prove, M, _, P, B, _, _, V) :- !, waypoint(T, prove, M, P-c(0), B, proof(1), V-_).
-applied(T, Mode, M, W, P, B, A, D, V) :-
-    effect(open, P, open(M, B), Opened),
-    (   Opened == refused -> V = unknown
-    ;   read(P, B, [q(M, K, X, node)], K-X, Read),
-        (   Read = rows(Pairs) ->
-            effect(rule, P, rule(W), rule(HasProof, Activity, Bound)),
-            D1 is D + 1, max_depth(Max),
-            (   Bound \== none -> V = unknown, Why = Bound
-            ;   D1 > Max -> V = unknown, Why = depth(Max)
-            ;   exclude(==(proving), A, Acting), plan(Mode, T, M, HasProof, Activity, P-c(0), [M-args(Pairs)|B], Acting, D1, V, Why)
-            )
-        ;   V = unknown, Why = Read
-        ),
-        close(P, M, V, Why)
-    ).
-
-% ensure judges the head's proof with its stated falsities, runs the activity where they don't prove it, and judges them again;
-% a falsity also reads the verdict of an activity that doesn't hold. A line run alone checks the proof, and runs the activity
-% where it doesn't hold.
-plan(ensure, T, M, HasProof, Activity, Q, B, A, D, V, Why) :-
-    waypoint(T, judge, M, Q, B, proof(1), V0-W0),
-    (   ( HasProof == false ; memberchk(V0, [proved, contradiction]) ) -> V = V0, Why = W0
-    ;   conj(T, activity(1), Activity, Q, B, A, D, VA, WA),
-        ( VA == proved -> waypoint(T, judge, M, Q, B, proof(2), V-Why) ; waypoint(T, state(VA, WA), M, Q, B, activity(1), V-Why) )
-    ).
-plan(run, _, _, false, [], _, _, _, _, refuted, no_proof) :- !.
-plan(run, T, M, HasProof, Activity, Q, B, A, D, V, Why) :-
-    ( HasProof == false -> V0 = refuted, W0 = none ; waypoint(T, check, M, Q, B, proof(1), V0-W0) ),
-    (   V0 == proved -> V = proved, Why = none
-    ;   Activity == [] -> V = V0, Why = W0
-    ;   conj(T, activity(1), Activity, Q, B, A, D, V, Why)
-    ).
-
-% waypoint(+Top, +Mode, +Node, +Parent, +Bindings, +Group, -Verdict-Why): the reasoner's proof of the head a node applies, whose
-% lines take the positions after the parent's counter in the group, and whose parts the N3 export reads.
-waypoint(T, Mode, M, P-Counter, B, G, V-Why) :-
-    arg(1, Counter, N0),
-    effect(waypoint, P, waypoint(Mode, M, B, N0, G), proved(V, Why, Used, Parts)),
-    N is N0 + Used, nb_setarg(1, Counter, N),
-    forall(member(part(C, G1, K), Parts), assertz(part(T, C, G1, K))).
+% waypoint(+Top, +Mode, +Node, +Path, +Bindings, -Verdict): the head a node applies, which the waypoint effect proves in
+% TypeScript: in a proof (prove), a goal of the reasoner; in ensure, P ∨ (¬P ∧ [A]P); and in a line run alone (run), P ∨ [A],
+% where the activity A runs between the reasoner's proofs of P. The effect returns the verdict and the parts of the proofs, which
+% the N3 export reads.
+waypoint(T, Mode, M, P, B, V) :- effect(waypoint, P, waypoint(Mode, M, B), proved(V, Parts)), forall(member(part(C, G, K), Parts), assertz(part(T, C, G, K))).
 
 % Requests as JSON-ready dicts.
 request_json(call(N, B), _{node: N, bindings: Bs}) :- bindings_json(B, Bs).
 request_json(open(N, B), _{node: N, bindings: Bs}) :- bindings_json(B, Bs).
-request_json(read(Ps, B), _{patterns: Js, bindings: Bs}) :- maplist(pattern_json, Ps, Js), bindings_json(B, Bs).
-request_json(close(N, V, falsity(R)), _{node: N, verdict: V, why: _{falsity: R}}) :- !.
+request_json(members(N, B), _{node: N, bindings: Bs}) :- bindings_json(B, Bs).
 request_json(close(N, V, Why), _{node: N, verdict: V, why: W}) :- ( is_list(Why) -> W = Why ; term_to_atom(Why, W) ).
-request_json(rule(W), _{rule: W}).
-request_json(waypoint(state(V, Why), N, B, Base, G), _{mode: state, node: N, bindings: Bs, base: Base, group: GA, given: _{verdict: V, why: WA}}) :-
-    !, bindings_json(B, Bs), term_to_atom(G, GA), term_to_atom(Why, WA).
-request_json(waypoint(Mode, N, B, Base, G), _{mode: Mode, node: N, bindings: Bs, base: Base, group: GA}) :- bindings_json(B, Bs), term_to_atom(G, GA).
+request_json(waypoint(Mode, N, B), _{mode: Mode, node: N, bindings: Bs}) :- bindings_json(B, Bs).
 request_json(wait(N, K), _{node: N, attempt: K}).
 
-% A pattern states each of its constants, and leaves out each position that is its variable.
-pattern_json(q(S, P, O, G), J) :- findall(K-X, ( member(K-X, [subject-S, predicate-P, object-O, namedGraph-G]), nonvar(X) ), Pairs), dict_pairs(J, _, Pairs).
-
-% A binding is a quantifier's member, a waypoint's arguments or the position of a context a node opened, innermost first.
+% A binding is a quantifier's member or the position of a context a node opened, innermost first.
 bindings_json(B, Bs) :- maplist(binding_json, B, Bs).
-binding_json(N-args(Pairs), _{node: N, args: Js}) :- !, maplist(argument_json, Pairs, Js).
 binding_json(N-within(P), _{node: N, within: P}) :- !.
 binding_json(N-M, _{node: N, member: M}).
-argument_json(K-Val, _{name: K, value: Val}).
 
 % n3_export(+Namespace, +Top, -Text): a line's proof as N3: each proved call as a fact, and each node as the rules of its
 % reading over its parts. An activity stays out of the rules, so a node that proves its statements again (ensure, a waypoint

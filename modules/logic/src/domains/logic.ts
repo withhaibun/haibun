@@ -10,11 +10,13 @@ import type { TQuad } from "@haibun/core/lib/steps/domains/quad-types.js";
 
 /** The statement of a goal, which the resolve step's pattern parses and a goal's proof and conjecture render. */
 export const RESOLVE_STATEMENT = `resolve {goal: ${DOMAIN_DOMAIN_KEY}}`;
+/** A domain goal as ensure states it: a registered domain's key, whose fact ensure makes hold by the goal's plan. */
+export const DOMAIN_DOMAIN_GOAL = "domain-goal";
 
 const VerdictSchema = z.enum(VERDICT);
 
-/** A binding a proof passes to an effect, innermost first: a quantifier's member, a waypoint's arguments, or the context a
- *  node opens. */
+/** A binding a proof passes to an effect, innermost first: a quantifier's member, a waypoint's arguments, which a waypoint's
+ *  session passes to its lines, or the context a node opens. */
 const BindingSchema = z.union([
 	z.object({ node: z.string(), member: z.string() }),
 	z.object({ node: z.string(), args: z.array(z.object({ name: z.string(), value: z.string() })) }),
@@ -25,45 +27,27 @@ export type TBinding = z.infer<typeof BindingSchema>;
 export type TArgsBinding = Extract<TBinding, { args: unknown }>;
 
 /** The effects a proof requests, by kind. */
-export const EFFECT = { call: "call", open: "open", close: "close", read: "read", rule: "rule", waypoint: "waypoint", wait: "wait" } as const;
+export const EFFECT = { call: "call", open: "open", close: "close", members: "members", waypoint: "waypoint", wait: "wait" } as const;
 /** The remedy where a proof reaches a request or a result the TypeScript prover doesn't hold, which a step program from another
  *  build of haibun makes. */
 export const DIFFERENT_BUILDS = "The step program and the TypeScript prover are from different builds; run `npm run build` in haibun.";
 
 /** A fact a read returns: its subject, predicate, object and named graph. */
 export type TFact = Pick<TQuad, "subject" | "predicate" | "object" | "namedGraph">;
-/** The positions of a fact, in the order a pattern's variables take their values. */
+/** The positions of a fact, in the order a read's key states them. */
 export const FACT_POSITIONS = ["subject", "predicate", "object", "namedGraph"] as const;
-/** A read's pattern: the constants of its subject, predicate, object and named graph. A position it doesn't state is its variable. */
-const PatternSchema = z.object({ subject: z.string(), predicate: z.string(), object: z.string(), namedGraph: z.string() }).partial();
-/** The named graphs a proof reads beside the store's types, and their predicates: a node's own facts, a quantifier's members
- *  and a waypoint's arguments by their names; the falsities `absent` states, each a record's goal head and arguments; and
- *  the individuals `is the same as` states equal. */
-export const READ_GRAPH = { node: "node", falsity: "falsity", same: "same" } as const;
-export const READ_PREDICATE = { member: "member", head: "head", sameAs: "sameAs" } as const;
 
 const NodeRequestSchema = z.object({ node: z.string(), bindings: z.array(BindingSchema) });
-const ReadRequestSchema = z.object({ patterns: z.array(PatternSchema), bindings: z.array(BindingSchema) });
-/** A node's close: its verdict and what determined it, the position of a part, the reason the engine states, or the record that stated its falsity. */
-const CloseRequestSchema = z.object({ node: z.string(), verdict: VerdictSchema, why: z.union([z.array(z.number()), z.string(), z.object({ falsity: z.string() })]) });
+/** A node's close: its verdict and what determined it, the position of a part or the reason the engine states. */
+const CloseRequestSchema = z.object({ node: z.string(), verdict: VerdictSchema, why: z.union([z.array(z.number()), z.string()]) });
 
-/** What a proof requests of a waypoint's head: `prove`, its record with its proof and falsity; `judge`, the proof and falsity of an
- *  application the line opened; `check`, that application's proof alone; and `state`, its falsity over a verdict the line's
- *  proof gave. */
-export const WAYPOINT_MODE = { prove: "prove", judge: "judge", check: "check", state: "state" } as const;
-/** A waypoint effect: what it requests of the head a node applies, the node's bindings, the position its lines start after, the group
- *  they take, and, for `state`, the verdict and why the line's proof gave, as its term. */
-const WaypointEffectSchema = z.object({
-	mode: z.enum(WAYPOINT_MODE),
-	node: z.string(),
-	bindings: z.array(BindingSchema),
-	base: z.number(),
-	group: z.string(),
-	given: z.object({ verdict: VerdictSchema, why: z.string() }).optional(),
-});
+/** How a proof reads a waypoint's head: in a proof, a goal of the reasoner; in ensure, P ∨ (¬P ∧ [A]P); and in a line run
+ *  alone, P ∨ [A]. */
+export const APPLY_MODE = { prove: "prove", ensure: "ensure", run: "run" } as const;
+/** A waypoint effect: how it reads the head a node applies, and the node's bindings. */
+const WaypointEffectSchema = z.object({ mode: z.enum(APPLY_MODE), node: z.string(), bindings: z.array(BindingSchema) });
 export type TWaypointEffect = z.infer<typeof WaypointEffectSchema>;
 export type TNodeRequest = z.infer<typeof NodeRequestSchema>;
-export type TReadRequest = z.infer<typeof ReadRequestSchema>;
 export type TCloseRequest = z.infer<typeof CloseRequestSchema>;
 
 /** A node of a goal's proof over producer rules: the domain a fact holds of, a producer whose inputs are its nodes, a composite's
@@ -84,14 +68,7 @@ export const ProofStateSchema = z.union([
 		need: z.string(),
 		path: z.array(z.number()),
 		// A waypoint effect holds a node and its bindings as a node's request does, so it is read first.
-		request: z.union([
-			WaypointEffectSchema,
-			NodeRequestSchema,
-			ReadRequestSchema,
-			CloseRequestSchema,
-			z.object({ rule: z.string() }),
-			z.object({ node: z.string(), attempt: z.number() }),
-		]),
+		request: z.union([WaypointEffectSchema, NodeRequestSchema, CloseRequestSchema, z.object({ node: z.string(), attempt: z.number() })]),
 	}),
 ]);
 export type TProofState = z.infer<typeof ProofStateSchema>;

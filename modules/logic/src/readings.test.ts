@@ -86,16 +86,6 @@ const READINGS: [string, string, boolean][] = [
 		'set of Meals is ["dinner", "lunch"]\nset dinner to "cooked"\nfor every {meal: Meals} where variable {meal} is "cooked", {meal} is edible\n"dinner" is edible\ndidn\'t "lunch" is edible',
 		true,
 	],
-	[
-		"a stated falsity refutes a goal, and a goal without one is unknown",
-		'set of Meals is ["dinner", "lunch"]\nActivity: Prepare a meal\nwaypoint {meal: Meals} is raw\nabsent dinner is raw\nset dinner status from maybe ensure dinner is raw\nvariable dinner status.verdict is "refuted"\nset lunch status from maybe ensure lunch is raw\nvariable lunch status.verdict is "unknown"',
-		true,
-	],
-	[
-		"an individual stated the same as another is read as their canonical representative",
-		'Activity: Prepare a meal\nwaypoint {meal} is raw\n"supper" is the same as "dinner"\nabsent "dinner" is raw\nset status from maybe ensure "supper" is raw\nvariable status.verdict is "refuted"',
-		true,
-	],
 	["an observation source that isn't declared", "every x observed in unknown source is passes", false],
 	["until holds once its statement holds", 'set ready to "yes"\nuntil variable ready is "yes" within 1s', true],
 	["until is refuted where its statement doesn't hold in time", 'set ready to "yes"\ndidn\'t until variable ready is "never" within 300ms', true],
@@ -105,7 +95,7 @@ const READINGS: [string, string, boolean][] = [
 		true,
 	],
 	[
-		"ensure is unknown where the activity doesn't prove the proof and a falsity isn't stated",
+		"ensure is unknown where the activity doesn't prove the proof",
 		'Activity: Unset\nset left to "no"\nwaypoint It is set with variable left is "yes"\nset outcome from maybe ensure It is set\nvariable outcome.verdict is "unknown"',
 		true,
 	],
@@ -145,13 +135,6 @@ describe("the readings of the logic engine", () => {
 		const content = 'passes\nholding only "LogicStepper:everyObserved,VariablesStepper:matches", every step observed in steps is matches {step} with "*"';
 		const result = await failWithDefaults(content, [...STEPPERS, AuthorityStepper]);
 		expect(result.failure?.error.message).toContain("request Read:public from a key that delegates it");
-	});
-
-	it("fails a goal both proved and stated absent as a contradiction, naming the record of each", async () => {
-		const content =
-			'Activity: Serve dinner\nset served to "yes"\nwaypoint Dinner is served with variable served is "yes"\nset served to "yes"\nabsent Dinner is served\nensure Dinner is served';
-		const result = await failWithDefaults(content, STEPPERS);
-		expect(result.failure?.error.message).toMatch(/`Dinner is served` is contradiction: the record \S+\.0\.1\.0\.2 states it is absent, and its proof at \S+\.0\.1\.0\.3\.1 holds/);
 	});
 
 	it("refuses a line that reads as until without a duration where it resolves, naming the line, rather than end actuality at its first wait", async () => {

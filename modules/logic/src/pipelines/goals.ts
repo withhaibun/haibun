@@ -141,7 +141,7 @@ export async function resolved(scope: TGoalScope, parent: TFeatureStep, goal: st
 }
 
 /** Proves a goal, and where only its plan would prove it, proves each step of its first plan under the step and the goal again. */
-export async function pursued(scope: TGoalScope, parent: TFeatureStep, goal: string): Promise<TActionResult> {
+export async function ensured(scope: TGoalScope, parent: TFeatureStep, goal: string): Promise<TActionResult> {
 	const resolution = await resolutionOf(scope, goal);
 	if (resolution.verdict === VERDICT.proved) return actionOKWithProducts(resolution);
 	const [plan] = resolution.plans;
