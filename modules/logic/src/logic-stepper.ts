@@ -28,7 +28,7 @@ import { Access, SEQ_PATH_LABEL, type TDomainDefinition } from "@haibun/core/lib
 import { SEQ_PATH_FIELD, calledParts, actualityFeatureOf, stepRecordOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { callerHolds, readingAsOf } from "@haibun/core/lib/domains/capability-context.js";
 import { DOMAIN_APPLICABLE_STEPS, DOMAIN_GOAL_RESOLUTION, DOMAIN_PLAN_ID, DOMAIN_PLAN_PROGRESS, goalDomainDefinitions } from "@haibun/core/lib/domains/goal-resolution.js";
-import { affordancesAt, planAdvanced, planBegun, pursued, resolved, type TGoalScope } from "./pipelines/goals.js";
+import { applicableStepsAt, planAdvanced, planBegun, pursued, resolved, type TGoalScope } from "./pipelines/goals.js";
 import { stepperContext } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
 import { proverOf } from "./pipelines/prove.js";
 import { canonicalOf, readerOf, recordsWhere, writeFacts } from "./pipelines/reads.js";
@@ -207,15 +207,15 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			gwta: "show the applicable steps",
 			description: "Returns the steps the caller may call next and the resolution of each goal a step returns, over the facts that hold now, or, under `as of`, at a step.",
 			productsDomain: DOMAIN_APPLICABLE_STEPS,
-			action: (_args, featureStep: TFeatureStep) => affordancesAt(this.goalScope(), featureStep, readingAsOf()),
+			action: (_args, featureStep: TFeatureStep) => applicableStepsAt(this.goalScope(), featureStep, readingAsOf()),
 		},
 		applicableSteps: {
 			gwta: "applicable steps",
 			read: true,
 			readsAt: Access.public,
-			description: "Reads the affordances, as a page does after a step, now, or, under `as of`, at a step; a read from outside isn't recorded as actuality's step.",
+			description: "Reads the applicable steps, as a page does after a step, now, or, under `as of`, at a step; a read from outside isn't recorded as actuality's step.",
 			productsDomain: DOMAIN_APPLICABLE_STEPS,
-			action: (_args, featureStep: TFeatureStep) => affordancesAt(this.goalScope(), featureStep, readingAsOf()),
+			action: (_args, featureStep: TFeatureStep) => applicableStepsAt(this.goalScope(), featureStep, readingAsOf()),
 		},
 		showDerivation: {
 			gwta: `show derivation of {statement: ${DOMAIN_STATEMENT}}`,

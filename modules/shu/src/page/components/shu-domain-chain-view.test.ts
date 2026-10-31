@@ -42,7 +42,7 @@ const mount = (): ShuDomainChainView => {
 };
 
 /** The title the affordances panel's declaration gives its pane. */
-const AFFORDANCES_TITLE = "Affordances";
+const AFFORDANCES_TITLE = "Applicable steps";
 
 /** A chain node as the projection gives one. */
 const chainNode = (node: Partial<TGraphNode> & { id: string }): TGraphNode => ({ label: node.id, ...node });

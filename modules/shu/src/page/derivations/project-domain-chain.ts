@@ -25,7 +25,8 @@ import { producingStepRecord } from "@haibun/core/lib/seq-path.js";
 import { stepLabelOf } from "./steps.js";
 
 /** A link to the affordances panel, opened on the goal or waypoint a node names. */
-const affordancesAt = (param: (typeof AFFORDANCE_PARAM)[keyof typeof AFFORDANCE_PARAM], value: string): string => hashWithColumns([SHU_TAG.AFFORDANCES_PANEL], { [param]: value });
+const applicableStepsAt = (param: (typeof AFFORDANCE_PARAM)[keyof typeof AFFORDANCE_PARAM], value: string): string =>
+	hashWithColumns([SHU_TAG.AFFORDANCES_PANEL], { [param]: value });
 
 /** The chain projection consumes the waypoint fields it renders: a subset of the core panel entry. */
 export type TWaypointSnapshot = Pick<TWaypointEntry, "outcome" | "method" | "ensured">;
@@ -136,7 +137,7 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 	/** A domain's node: its verdict as its kind, a link to it in the affordances panel, and its one producer, if one. */
 	const domainNode = (d: string): TGraphNode => {
 		if (d === SOURCE_DOMAIN) return { id: d, label: `${SOURCE_DOMAIN} without preconditions`, kind: NODE_KIND.default };
-		const node: TGraphNode = { id: d, label: d, kind: resolvedToKind(goalVerdicts.get(d)), link: { href: affordancesAt(AFFORDANCE_PARAM.GOAL, d) } };
+		const node: TGraphNode = { id: d, label: d, kind: resolvedToKind(goalVerdicts.get(d)), link: { href: applicableStepsAt(AFFORDANCE_PARAM.GOAL, d) } };
 		const producer = producersByDomain.get(d);
 		if (producer) node.invokes = { stepperName: producer.stepperName, stepName: producer.stepName };
 		return node;
@@ -176,7 +177,7 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 		for (const [composite, ranges] of Object.entries(a.composites)) {
 			for (const [fieldName, fieldDomain] of Object.entries(ranges)) {
 				const fieldId = fieldNodeId(composite, fieldName);
-				nodes.push({ id: fieldId, label: `${fieldName} : ${fieldDomain}`, kind: NODE_KIND.field, link: { href: affordancesAt(AFFORDANCE_PARAM.GOAL, fieldDomain) } });
+				nodes.push({ id: fieldId, label: `${fieldName} : ${fieldDomain}`, kind: NODE_KIND.field, link: { href: applicableStepsAt(AFFORDANCE_PARAM.GOAL, fieldDomain) } });
 				declareDomain(fieldDomain);
 				declareDomain(composite);
 				edges.push({ from: fieldDomain, to: fieldId, label: undefined, kind: EDGE_KIND.default });
@@ -191,7 +192,7 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 			const id = waypointNodeId(w.outcome);
 			const kind = w.ensured ? NODE_KIND.waypointEnsured : NODE_KIND.waypointPending;
 			const [stepperName, stepName] = w.method.includes("-") ? [w.method.slice(0, w.method.indexOf("-")), w.method.slice(w.method.indexOf("-") + 1)] : [w.method, w.method];
-			nodes.push({ id, label: `waypoint: ${w.outcome}`, kind, link: { href: affordancesAt(AFFORDANCE_PARAM.WAYPOINT, w.outcome) }, invokes: { stepperName, stepName } });
+			nodes.push({ id, label: `waypoint: ${w.outcome}`, kind, link: { href: applicableStepsAt(AFFORDANCE_PARAM.WAYPOINT, w.outcome) }, invokes: { stepperName, stepName } });
 		}
 	}
 

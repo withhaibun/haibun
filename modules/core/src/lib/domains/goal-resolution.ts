@@ -144,8 +144,8 @@ export const lintFindingLine = (finding: TLintFinding): string =>
 		: `${finding.kind} ${finding.domain}`;
 
 /** The affordances: the snapshot, the waypoints, and the step graph's lint findings, the ways the steps' chain is incomplete. */
-export const AffordancesSchema = z.object({ ...snapshot, waypoints: z.array(WaypointEntrySchema), findings: z.array(LintFindingSchema) }).strict();
-export type TAffordances = z.infer<typeof AffordancesSchema>;
+export const ApplicableStepsSchema = z.object({ ...snapshot, waypoints: z.array(WaypointEntrySchema), findings: z.array(LintFindingSchema) }).strict();
+export type TApplicableSteps = z.infer<typeof ApplicableStepsSchema>;
 
 export const goalDomainDefinitions: TDomainDefinition[] = [
 	{ selectors: [DOMAIN_PLAN_ID], schema: NameSchema, description: "The id of a plan toward a goal. Each advance of the plan names this id." },
@@ -156,9 +156,9 @@ export const goalDomainDefinitions: TDomainDefinition[] = [
 	},
 	{
 		selectors: [DOMAIN_APPLICABLE_STEPS],
-		schema: AffordancesSchema,
+		schema: ApplicableStepsSchema,
 		description: "The steps the caller may call next, each with whether its inputs hold, the resolution of each goal, and the step graph's lint findings.",
-		ui: { component: "shu-affordances-panel", summary: "Affordances" },
+		ui: { component: "shu-affordances-panel", summary: "Applicable steps" },
 	},
 	{ selectors: [DOMAIN_PLAN_PROGRESS], schema: PlanProgressSchema, description: "A plan toward a goal, which calls one of its steps per advance." },
 ];

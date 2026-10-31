@@ -9,6 +9,7 @@ import { MessageChannel } from "node:worker_threads";
 import { Piscina } from "piscina";
 import { EffectRequestSchema, type TEffectReply, type TPerformEffect, type TWorkerTask } from "../domains/worker-task.js";
 import type { IWorkerPool } from "../ports.js";
+import { errorDetail } from "../../domains/util.js";
 
 /** The most workers the pool holds, which bounds the tasks that run at once, nested ones among them. */
 export const MAX_WORKERS = 8;
@@ -16,8 +17,6 @@ export const MAX_WORKERS = 8;
 const MAX_WORKER_HEAP_MB = 512;
 /** How long a worker stays idle before the pool releases it. */
 export const WORKER_IDLE_MS = 30_000;
-
-const errorText = (err: unknown): string => (err instanceof Error ? err.message : String(err));
 
 /** The Node options a worker takes from its process: warnings, source maps and experimental features. A worker refuses V8's
  *  options, such as `--expose-gc`, and options of the process, and a task's module imports each package by its build, as a
@@ -74,7 +73,7 @@ export function piscinaPool(idleMs: number, mode: TPoolMode): IWorkerPool {
 				if (perform === undefined) return replied({ id, failed: `the task ${task.name} requested an effect, and its caller doesn't perform effects` });
 				perform(request).then(
 					(reply) => replied({ id, reply }),
-					(err: unknown) => replied({ id, failed: errorText(err) }),
+					(err: unknown) => replied({ id, failed: errorDetail(err) }),
 				);
 			});
 			try {

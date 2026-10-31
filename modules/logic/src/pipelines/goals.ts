@@ -20,7 +20,7 @@ import { DOMAIN_DOMAIN_KEY, refTargetOf } from "@haibun/core/lib/domains/domains
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { ACTUALITY_FIELD, SEQ_PATH_FIELD, actualityFeatureOf, factIdOf, producingStepRecord, stepRecordOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import {
-	AffordancesSchema,
+	ApplicableStepsSchema,
 	PlanProgressSchema,
 	GoalResolutionSchema,
 	PLAN_STATUS,
@@ -248,11 +248,11 @@ async function snapshotOf(scope: TGoalScope, asOf: readonly number[] | undefined
 }
 
 /** The affordances over the facts that held at `asOf` where it is stated, with each stepper's waypoints where it isn't. */
-export async function affordancesAt(scope: TGoalScope, parent: TFeatureStep, asOf: readonly number[] | undefined): Promise<TActionResult> {
+export async function applicableStepsAt(scope: TGoalScope, parent: TFeatureStep, asOf: readonly number[] | undefined): Promise<TActionResult> {
 	const waypointers = asOf === undefined ? scope.ctx.steppers.filter(providesWaypoints) : [];
 	const waypoints = (await Promise.all(waypointers.map((stepper) => stepper.waypointEntries(parent)))).flat();
 	const findings = await lintFindings(scope.reasoner, scope.ctx.steppers, scope.ctx.world.domains, heldDerivations(scope.ctx.registry));
-	return actionOKWithProducts(AffordancesSchema.parse({ ...(await snapshotOf(scope, asOf)), waypoints, findings }));
+	return actionOKWithProducts(ApplicableStepsSchema.parse({ ...(await snapshotOf(scope, asOf)), waypoints, findings }));
 }
 
 /** The step graph's lint findings, as the reasoner derives them from the steps' signatures and the domains. */

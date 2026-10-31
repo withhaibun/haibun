@@ -16,7 +16,7 @@ import { loadRenders } from "./load-renders.js";
 import {
 	LintFindingSchema,
 	type TLintFinding,
-	type TAffordances as TOffered,
+	type TApplicableSteps as TOffered,
 	type TBinding,
 	type TFieldBinding,
 	type TForwardAffordance,
@@ -57,7 +57,7 @@ const REFRESH = "refresh";
 type TGoalAffordance = TOffered["goals"][number];
 
 /** The panel's read-projection of the affordances wire blob: forward steps + goal verdicts (+ optional waypoints). forward/goals reuse the core element types; the panel ignores composites/satisfied* that the chain view consumes. */
-type TAffordances = {
+type TApplicableSteps = {
 	/** The actuality whose facts these are, which is where a fact's step is: a fact's id is that step's seqPath. */
 	actuality: string;
 	forward: TForwardAffordance[];
@@ -71,7 +71,7 @@ type TAffordances = {
 
 /** A snapshot of actuality's affordances, as a step's products or a read of them give it; refused where the forward
  *  steps, the goals or the actuality they are of is missing. */
-function snapshotOf(p: Record<string, unknown>): TAffordances {
+function snapshotOf(p: Record<string, unknown>): TApplicableSteps {
 	if (!Array.isArray(p.forward) || !Array.isArray(p.goals) || typeof p.actuality !== "string") {
 		throw new Error(`shu-affordances-panel takes \`forward\` and \`goals\` arrays and the \`actuality\` that holds them. Received keys: [${Object.keys(p).join(", ")}].`);
 	}
@@ -128,14 +128,14 @@ const feedGoalGraph = (presenter: TGraphPresenter, graph: TGraph): void => {
 
 export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSchema> {
 	/** The affordances the panel shows: read from actuality, or given as a step's products. */
-	readonly #affordances = new LoadController<TAffordances>(this, async () => {
+	readonly #affordances = new LoadController<TApplicableSteps>(this, async () => {
 		const asOf = this.getAttribute("as-of");
 		const read = await applicableSteps(asOf === null ? undefined : asOf);
 		return read.ok ? { ok: true, value: this.merged(snapshotOf(read.value)) } : read;
 	});
 
 	/** The affordances the panel shows, or null before they are read. */
-	private get affordances(): TAffordances | null {
+	private get affordances(): TApplicableSteps | null {
 		const page = this.#affordances.page;
 		return page === undefined ? null : page;
 	}
@@ -231,7 +231,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	/** Returns a snapshot with the waypoints the panel shows where the snapshot doesn't carry them, as a live update after a
 	 *  step doesn't, so the section doesn't leave between reads. Notes the actuality feature the snapshot is of, whose facts it shows,
 	 *  so a fact's step opens there, and the goals it satisfies. */
-	private merged(a: TAffordances): TAffordances {
+	private merged(a: TApplicableSteps): TApplicableSteps {
 		const held = this.affordances;
 		const waypoints = a.waypoints !== undefined ? a.waypoints : held === null ? undefined : held.waypoints;
 		noteActualityFeature(a.actuality);

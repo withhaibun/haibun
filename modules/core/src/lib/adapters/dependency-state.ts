@@ -202,9 +202,10 @@ async function repositoryFiles(root: string): Promise<{ rel: string; files: TRep
  * runs every time, rather than never.
  */
 export async function dependencyState(roots: readonly string[]): Promise<TDigest | undefined> {
+	// Each root's files are read at once, and digested in the roots' order.
+	const read = await Promise.all(roots.map(repositoryFiles));
 	const digests: TDigest = {};
-	for (const root of roots) {
-		const held = await repositoryFiles(root);
+	for (const held of read) {
 		if (held === undefined || held.files.length === 0) return undefined;
 		const at = path.join(".", held.rel);
 		if (digests[at] !== undefined) throw new Error(`two dependency roots are at ${at} in their repositories, and one digest would replace the other. Move one root.`);

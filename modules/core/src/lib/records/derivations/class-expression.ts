@@ -8,6 +8,7 @@
  * doesn't evaluate for a query are refused, each with its reason and the form to write instead. Writes an expression in DL
  * notation and as a plain-English reading.
  */
+import { errorDetail } from "../../domains/util.js";
 import { itemAt } from "../../domains/item-at.js";
 import { DL_SYMBOL } from "../domains/axioms.js";
 import {
@@ -232,7 +233,7 @@ export function resolvedExpression(expression: TClassExpression, vocabulary: TVo
 	try {
 		return resolve(expression, []);
 	} catch (caught) {
-		return { refused: caught instanceof Error ? caught.message : String(caught) };
+		return { refused: errorDetail(caught) };
 	}
 }
 
