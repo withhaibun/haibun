@@ -13,9 +13,9 @@ import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { buildConcernCatalog, getJsonLdContext } from "@haibun/core/lib/domains/hypermedia.js";
 import { isPersisted, withinAccess, type TRecordNamespace, type TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
 import { readingAt } from "@haibun/core/lib/domains/capability-context.js";
-import type { Quad } from "@rdfjs/types";
+import type { NamedNode, Quad } from "@rdfjs/types";
 import { DataFactory } from "n3";
-import { COMPLETE_GRAPH, neededBy, REASONING_READ_CEILING, type TExplained, type TOpenGraph, type TReasoning } from "../domains/reasoning.js";
+import { COMPLETE_GRAPH, neededBy, REASONING_READ_CEILING, type TExplained, type TOpenGraph, type TReasoning, type TReasonerValue } from "../domains/reasoning.js";
 import { patternText, quadsOf, recordTerms } from "../derivations/n3.js";
 import { proofOf } from "../derivations/proof.js";
 import type { TReasoner } from "../ports.js";
@@ -42,6 +42,27 @@ export async function explain(
 ): Promise<TExplained> {
 	const { derived, open } = await reasoned(reasoner, store, domains, records, reasoning, true);
 	return { proof: proofOf(derived), open };
+}
+
+/** How a session's needs are performed: a read of the store's facts of a subject and a predicate, and an effect of a proof. A
+ *  need its caller doesn't perform is refused, naming the need. */
+export type TSessionNeeds = {
+	read?: (subject: NamedNode, predicate: NamedNode) => Promise<readonly TReasonerValue[]>;
+	effect?: (request: readonly TReasonerValue[]) => Promise<readonly TReasonerValue[]>;
+};
+
+/** Runs one session of `reasoner` over `sources` and `query`, performing each need through `needs`, and returns what EYE printed.
+ *  A need `needs` doesn't perform throws, stating `what`, the limit of what the session reads, and the need its rules reached. */
+export function derive(reasoner: TReasoner, sources: string, query: string, explained: boolean, needs: TSessionNeeds, what: string): Promise<string> {
+	return reasoner.session(async (session) => {
+		let state = await session.start(sources, query, explained);
+		while ("need" in state) {
+			const performed = state.need === "read" ? needs.read?.(state.subject, state.predicate) : needs.effect?.(state.request);
+			if (performed === undefined) throw new Error(`${what}, and its rules reached ${neededBy(state)}. Check its rules.`);
+			state = await session.resume(await performed);
+		}
+		return state.derived;
+	});
 }
 
 /** Runs a reasoning's session, stating each graph it closes over that is complete to the reader as one formula, and returns
@@ -75,14 +96,7 @@ async function reasoned(
 		...closing.flatMap(({ graph, accessLevel, complete }) => (complete ? [] : [{ graph, accessLevel }])),
 		...reads.flatMap(({ graph, truncated }) => (truncated ? [{ graph, readCeiling: REASONING_READ_CEILING }] : [])),
 	];
-	const derived = await reasoner.session(async (session) => {
-		let state = await session.start([...ruleSets.map(reasoner.rules), rules, ...formulas].join("\n"), query, explained);
-		while ("need" in state) {
-			if (state.need === "effect") throw new Error(`a reasoning reads the store, and its rules reached ${neededBy(state)}. Check its rules.`);
-			const facts = await reader.facts(terms.patternOf(state.subject, state.predicate));
-			state = await session.resume(facts.map(terms.objectOf));
-		}
-		return state.derived;
-	});
+	const read = async (subject: NamedNode, predicate: NamedNode) => (await reader.facts(terms.patternOf(subject, predicate))).map(terms.objectOf);
+	const derived = await derive(reasoner, [...ruleSets.map(reasoner.rules), rules, ...formulas].join("\n"), query, explained, { read }, "a reasoning reads the store");
 	return { derived, open };
 }

@@ -5,13 +5,13 @@
 import { DataFactory } from "n3";
 import type { NamedNode, Quad, Term } from "@rdfjs/types";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
-import { RDF, XSD } from "@haibun/core/lib/domains/vocabularies.js";
+import { RDF } from "@haibun/core/lib/domains/vocabularies.js";
 import { DIFFERENT_BUILDS, type TGoalProof, type TProofNode } from "../domains/logic.js";
 import { REASONER_NAMESPACE } from "../domains/reasoning.js";
-import { listItems, pattern, patternText, type TN3List, type TN3Pattern } from "./n3.js";
+import { listItems, pattern, patternText, termIn, termOf, type TN3List, type TN3Pattern } from "./n3.js";
 
 const { namedNode, literal } = DataFactory;
-const h = (name: string): NamedNode => namedNode(`${REASONER_NAMESPACE}${name}`);
+const h = termIn(REASONER_NAMESPACE);
 /** The terms of a goal's facts and of what the query selects, as `src/rules/goals.n3` names them. */
 const GOAL_TERM = {
 	produced: h("Produced"),
@@ -63,8 +63,8 @@ export type TGoalFacts = {
 	goals: readonly string[];
 };
 
-const yes = literal("true", namedNode(XSD.boolean));
-const bool = (value: boolean) => literal(String(value), namedNode(XSD.boolean));
+const yes = termOf(true);
+const bool = (value: boolean) => termOf(value);
 
 /** Returns a proof of goals' facts as N3. Each domain the steps name or a goal is states its producers the caller may call, in
  *  the steps' order, since a sub-goal holds by its first producer whose inputs hold. */

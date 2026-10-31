@@ -7,12 +7,13 @@
  * sessions is unknown, and it refuses a session nested past `MAX_NESTED_SESSIONS`.
  */
 import { DataFactory } from "n3";
-import type { NamedNode, Quad, Term } from "@rdfjs/types";
+import type { Quad, Term } from "@rdfjs/types";
 import { VERDICT, type TVerdict } from "@haibun/core/lib/domains/protocol.js";
 import { RDF } from "@haibun/core/lib/domains/vocabularies.js";
 import { WAYPOINT_MODE, type TArgsBinding, type TBinding, type TCloseRequest, type TWaypointEffect } from "../domains/logic.js";
 import { RULE_SET, REASONER_NAMESPACE, type TReasonerValue } from "../domains/reasoning.js";
-import { listItems, quadsOf } from "../derivations/n3.js";
+import { derive } from "./reason.js";
+import { listItems, quadsOf, termIn } from "../derivations/n3.js";
 import { atom, list } from "../derivations/terms.js";
 import type { TReasoner } from "../ports.js";
 
@@ -63,7 +64,7 @@ type TApplication = { path: number[]; node: string; head: string; key: string; o
 
 /** The IRI a value names, where it is a named node. */
 const iriOf = (value: TReasonerValue | undefined): string | undefined => (typeof value === "object" && "termType" in value ? value.value : undefined);
-const h = (name: string): NamedNode => DataFactory.namedNode(`${REASONER_NAMESPACE}${name}`);
+const h = termIn(REASONER_NAMESPACE);
 const ROOT = h("root").value;
 const SESSION = h("session").value;
 const RESULT = h("result").value;
@@ -183,15 +184,9 @@ export async function waypointProof(reasoner: TReasoner, host: TWaypointHost, pa
 		...(root === undefined ? [] : [`h:session h:opened (<${APPLICATION}0> ${JSON.stringify(root.key)} ${headIri(root.head)}) .`]),
 		...(request.given === undefined ? [] : [`h:session h:given (${JSON.stringify(request.given.verdict)} ${JSON.stringify(GIVEN)}) .`]),
 	];
-	const derived = await reasoner.session(async (session) => {
-		let state = await session.start(`${reasoner.rules(RULE_SET.waypoints)}\n${PREFIX}${facts.join("\n")}`, `${PREFIX}${QUERY[request.mode]}`, false);
-		while ("need" in state) {
-			if (state.need === "read")
-				throw new Error(`a waypoint's proof reads through its effects, and its rules reached a read of ${state.predicate.value}. Check src/rules/waypoints.n3.`);
-			state = await session.resume([await perform(state.request)]);
-		}
-		return state.derived;
-	});
+	const effect = async (requested: readonly TReasonerValue[]) => [await perform(requested)];
+	const sources = `${reasoner.rules(RULE_SET.waypoints)}\n${PREFIX}${facts.join("\n")}`;
+	const derived = await derive(reasoner, sources, `${PREFIX}${QUERY[request.mode]}`, false, { effect }, "a waypoint's proof reads through its effects");
 	const [verdict, why] = resultOf(sessionResult(quadsOf(derived)));
 	if (why === GIVEN && request.given !== undefined) return `proved(${verdict}, ${request.given.why}, ${used}, ${list(parts)})`;
 	return outcome(verdict, whyOf(applications[0], why));

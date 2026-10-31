@@ -31,7 +31,8 @@ import {
 import { argumentsOf, compositeRanges, forwardOf, goalFactsOf, isTrivial, planOf, stepGraph, stepSignatures, unmetReason, type THeldFact } from "../derivations/goals.js";
 import { goalFacts, goalProofsOf, type TGoalFacts } from "../derivations/goal-rules.js";
 import { lintFacts, lintFindingsOf } from "../derivations/lint-rules.js";
-import { neededBy, RULE_SET, type TRuleSet } from "../domains/reasoning.js";
+import { RULE_SET, type TRuleSet } from "../domains/reasoning.js";
+import { derive } from "./reason.js";
 import { quadsOf } from "../derivations/n3.js";
 import type { Quad } from "@rdfjs/types";
 import type { StepRegistry } from "@haibun/core/lib/steps/pipelines/step-registry.js";
@@ -65,13 +66,7 @@ function derivedOf(reasoner: TReasoner, [rules, query]: [TRuleSet, TRuleSet], fa
 	const key = `${rules}\n${facts}`;
 	const found = held?.get(key);
 	if (found !== undefined) return found;
-	const deriving = reasoner
-		.session(async (session) => {
-			const state = await session.start(`${reasoner.rules(rules)}\n${facts}`, reasoner.rules(query), false);
-			if ("need" in state) throw new Error(`${what} reads only its own facts, and its rules reached ${neededBy(state)}. Check its rules.`);
-			return state.derived;
-		})
-		.then(quadsOf);
+	const deriving = derive(reasoner, `${reasoner.rules(rules)}\n${facts}`, reasoner.rules(query), false, {}, `${what} reads only its own facts`).then(quadsOf);
 	if (held === undefined) return deriving;
 	held.set(key, deriving);
 	deriving.catch(() => held.delete(key));

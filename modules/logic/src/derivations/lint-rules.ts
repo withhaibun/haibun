@@ -3,15 +3,15 @@
  */
 import { DataFactory } from "n3";
 import type { Quad } from "@rdfjs/types";
-import { RDF, XSD } from "@haibun/core/lib/domains/vocabularies.js";
+import { RDF } from "@haibun/core/lib/domains/vocabularies.js";
 import { LINT_FINDING, LintFindingSchema, type TLintFinding } from "@haibun/core/lib/domains/goal-resolution.js";
 import { REASONER_NAMESPACE } from "../domains/reasoning.js";
 import { DIFFERENT_BUILDS } from "../domains/logic.js";
 import { domainIri, domainOf, stepIri } from "./goal-rules.js";
-import { listItems, pattern, patternText } from "./n3.js";
+import { listItems, pattern, patternText, termIn, termOf } from "./n3.js";
 
 const { namedNode, literal } = DataFactory;
-const h = (name: string) => namedNode(`${REASONER_NAMESPACE}${name}`);
+const h = termIn(REASONER_NAMESPACE);
 /** The terms of the step graph's facts and of a finding, as `src/rules/lint.n3` names them. */
 const LINT_TERM = {
 	stepper: h("stepper"),
@@ -30,7 +30,7 @@ const LINT_TERM = {
 	finding: h("Finding"),
 };
 const L = LINT_TERM;
-const yes = literal("true", namedNode(XSD.boolean));
+const yes = termOf(true);
 
 /** A step as the lint reads it: its stepper, its name, its method, and the domains it takes and returns. */
 export type TLintStep = { stepperName: string; stepName: string; method: string; inputs: readonly string[]; outputs: readonly string[] };

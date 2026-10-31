@@ -72,6 +72,13 @@ export const formulaText = ({ formula }: TN3Formula): string => `{ ${formula.map
 export const ruleText = (body: readonly TN3Pattern[], head: readonly TN3Pattern[]): string =>
 	patternText({ subject: { formula: body }, predicate: namedNode(LOG.implies), object: { formula: head } });
 
+/** The facts a session gave of `predicate`. */
+export const givenBy = (gives: readonly Quad[], predicate: NamedNode): Quad[] => gives.filter((given) => given.predicate.equals(predicate));
+
+/** A query that selects each fact of each of `predicates`, as a session returns them. */
+export const selectionQuery = (predicates: readonly NamedNode[]): string =>
+	predicates.map((predicate) => ruleText([pattern("?s", predicate, "?o")], [pattern("?s", predicate, "?o")])).join("\n");
+
 /** Each list cell of a reading's quads, by its node: its first item and the rest, held once for each array of quads. */
 const cellsByQuads = new WeakMap<readonly Quad[], Map<string, { first?: Term; rest?: Term }>>();
 const nodeKey = (node: Term): string => `${node.termType}:${node.value}`;
@@ -103,6 +110,15 @@ export function listItems(quads: readonly Quad[], node: Term): Term[] {
 	}
 	return items;
 }
+
+/** Returns the factory of a namespace's terms: each local name as its IRI. */
+export const termIn =
+	(namespace: string) =>
+	(name: string): NamedNode =>
+		namedNode(`${namespace}${name}`);
+
+/** A time as an xsd:dateTime literal. */
+export const dateTimeOf = (at: string): Literal => literal(at, namedNode(XSD.dateTime));
 
 /** Returns quads as N3, each a triple N3.js writes. */
 export const quadsText = (quads: readonly Quad[]): string => writer.quadsToString([...quads]);

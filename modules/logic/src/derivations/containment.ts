@@ -7,12 +7,12 @@ import { DataFactory } from "n3";
 import type { NamedNode, Quad, Term } from "@rdfjs/types";
 import { ACCESS_BROADEST_FIRST, narrowerAccess } from "@haibun/core/lib/domains/resources.js";
 import { EXCEEDS, NEVER_EXPIRES, readAction, type TExceeding, type TPermission } from "@haibun/core/lib/domains/actions.js";
-import { SEC, XSD } from "@haibun/core/lib/domains/vocabularies.js";
+import { SEC } from "@haibun/core/lib/domains/vocabularies.js";
 import { REASONER_NAMESPACE } from "../domains/reasoning.js";
-import { literalSubject, quadsText } from "./n3.js";
+import { dateTimeOf, literalSubject, quadsText, termIn } from "./n3.js";
 
 const { namedNode, literal, quad } = DataFactory;
-const h = (name: string): NamedNode => namedNode(`${REASONER_NAMESPACE}${name}`);
+const h = termIn(REASONER_NAMESPACE);
 /** The terms a containment's facts and query name: the candidate and its bound, a candidate's bound, a use's time, containment,
  *  an entry allowing an action, a read a read action allows, what exceeds, and the expiry that stands for a candidate that
  *  doesn't state one. */
@@ -31,7 +31,6 @@ export const CONTAINMENT_TERM = {
 /** The term of each kind of what a candidate holds beyond its bound. */
 export const EXCEEDING: Record<keyof typeof EXCEEDS, NamedNode> = { action: h("exceedsAction"), target: h("exceedsTarget"), expires: h("exceedsExpiry") };
 const T = CONTAINMENT_TERM;
-const dateTime = (at: string) => literal(at, namedNode(XSD.dateTime));
 
 /** Each read action with each read it allows: its own level and each narrower one. */
 const readGrammar = (): Quad[] =>
@@ -46,8 +45,8 @@ export function permissionFacts(subject: NamedNode, { actions, target, expires, 
 	return [
 		...actions.map((action) => quad(subject, namedNode(SEC.allowedAction), literal(action))),
 		...(target === undefined ? [] : [quad(subject, namedNode(SEC.invocationTarget), literal(target))]),
-		...(expires === undefined ? [] : [quad(subject, namedNode(SEC.expires), dateTime(expires))]),
-		...(usedAt === undefined ? [] : [quad(subject, T.usedAt, dateTime(usedAt))]),
+		...(expires === undefined ? [] : [quad(subject, namedNode(SEC.expires), dateTimeOf(expires))]),
+		...(usedAt === undefined ? [] : [quad(subject, T.usedAt, dateTimeOf(usedAt))]),
 	];
 }
 
