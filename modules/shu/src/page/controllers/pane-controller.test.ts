@@ -44,9 +44,9 @@ describe("derived helpers", () => {
 	});
 
 	it("an entity pane of a type whose panel is slotted opens the generic entity column", () => {
-		// The petitions panel is declared on Proposal with a slot: it mounts in the permissions area and is about the
+		// The change requests panel is declared on Proposal with a slot: it mounts in the permissions area and is about the
 		// type. Opening one proposal must not mount that panel as the record's column: it doesn't have an `open` to call.
-		declareSpec(emptyMeta({ Proposal: { component: "shu-petitions", slot: "permissions" }, Report: { component: "shu-report-column" } }));
+		declareSpec(emptyMeta({ Proposal: { component: "shu-change-requests", slot: "permissions" }, Report: { component: "shu-report-column" } }));
 		expect(tagOf({ paneType: "entity", id: "p-1", persistedAs: "Proposal" }, PANE_CONTEXT)).toBe("shu-entity-column");
 		expect(tagOf({ paneType: "entity", id: "r-1", persistedAs: "Report" }, PANE_CONTEXT)).toBe("shu-report-column");
 		declareSpec(emptyMeta());

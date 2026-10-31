@@ -452,7 +452,7 @@ describe("Discourse rels", () => {
 		expect(DISCOURSE_RELS).toContain("narrate");
 		expect(DISCOURSE_RELS).toContain("question");
 		expect(DISCOURSE_RELS).toContain("play");
-		expect(DISCOURSE_RELS).toContain("petition");
+		expect(DISCOURSE_RELS).toContain("changeRequest");
 		expect(DISCOURSE_RELS).toContain("grant");
 		expect(DISCOURSE_RELS).toContain("deny");
 		expect(DISCOURSE_RELS).toContain("invoke");
@@ -586,7 +586,7 @@ describe("isSubPropertyOf", () => {
 
 	it("returns true for discourse rels as sub-properties of inReplyTo", () => {
 		expect(isSubPropertyOf("narrate", "inReplyTo")).toBe(true);
-		expect(isSubPropertyOf("petition", "inReplyTo")).toBe(true);
+		expect(isSubPropertyOf("changeRequest", "inReplyTo")).toBe(true);
 		expect(isSubPropertyOf("grant", "inReplyTo")).toBe(true);
 	});
 
@@ -613,7 +613,7 @@ describe("isReplyEdge, generic chain walk", () => {
 	it("recognises discourse rels as reply edges", () => {
 		expect(isReplyEdge("narrate")).toBe(true);
 		expect(isReplyEdge("measure")).toBe(true);
-		expect(isReplyEdge("petition")).toBe(true);
+		expect(isReplyEdge("changeRequest")).toBe(true);
 	});
 
 	it("resolves predicate names through EdgePredicates", () => {

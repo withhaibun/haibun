@@ -207,7 +207,7 @@ export const PROPERTY_LABEL = "Property";
  * The discourse value is the edge predicate, as in (comment, narrate, parent).
  * Writing a discourse edge also writes inReplyTo, which materializes the entailment.
  */
-export const DISCOURSE_RELS = ["measure", "narrate", "question", "play", "petition", "grant", "deny", "invoke", "revoke"] as const;
+export const DISCOURSE_RELS = ["measure", "narrate", "question", "play", "changeRequest", "grant", "deny", "invoke", "revoke"] as const;
 export type TDiscourseRel = (typeof DISCOURSE_RELS)[number];
 
 // ============================================================================
@@ -352,7 +352,7 @@ export const LinkRelations = {
 	NARRATE: { rel: "narrate", uri: "hbn:narrate", range: "iri", subPropertyOf: "inReplyTo", label: "Narrate", icon: "💬" },
 	QUESTION: { rel: "question", uri: "hbn:question", range: "iri", subPropertyOf: "inReplyTo", label: "Question", icon: "❓" },
 	PLAY: { rel: "play", uri: "hbn:play", range: "iri", subPropertyOf: "inReplyTo", label: "Play", icon: "▶️" },
-	PETITION: { rel: "petition", uri: "hbn:petition", range: "iri", subPropertyOf: "inReplyTo", label: "Petition", icon: "🙋" },
+	CHANGE_REQUEST: { rel: "changeRequest", uri: "hbn:changeRequest", range: "iri", subPropertyOf: "inReplyTo", label: "Change request", icon: "🙋" },
 	GRANT: { rel: "grant", uri: "hbn:grant", range: "iri", subPropertyOf: "inReplyTo", label: "Grant", icon: "🪪" },
 	DENY: { rel: "deny", uri: "hbn:deny", range: "iri", subPropertyOf: "inReplyTo", label: "Deny", icon: "⛔" },
 	INVOKE: { rel: "invoke", uri: "hbn:invoke", range: "iri", subPropertyOf: "inReplyTo", label: "Invoke", icon: "⚡" },
@@ -970,7 +970,7 @@ export const COMMENT_TOPOLOGY: THypermediaTopology = {
 		// edge and attributedTo let a view read a discourse as messages between agents. oa:hasTarget holds the
 		// comment's subject.
 		[LinkRelations.AUDIENCE.rel]: { rel: LinkRelations.AUDIENCE.rel, range: RESOURCE_LABEL },
-		// The record the comment carries: a petition carries the proposal it requests, and a measure carries its
+		// The record the comment carries: a change request carries the proposal it requests, and a measure carries its
 		// observation. The edge is declared so a view can follow it to the carried record.
 		[LinkRelations.ATTACHMENT.rel]: { rel: LinkRelations.ATTACHMENT.rel, range: RESOURCE_LABEL },
 		// A linking annotation's cross-reference: the note points at another SpecificResource (a section) in the source.

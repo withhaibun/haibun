@@ -14,7 +14,7 @@ import { pageHolding } from "../controllers/authority-controller.test-fake.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 
 /** A reference a ref opens: an individual, by its address. */
-const OPENABLE = { kind: REF_DENOTES.individual, target: { persistedAs: "Petition", id: "a" } };
+const OPENABLE = { kind: REF_DENOTES.individual, target: { persistedAs: "ChangeRequest", id: "a" } };
 
 const PREFIX = "app-";
 /** The corner used beside the view, which only its own control closes; every other corner is a picker. */

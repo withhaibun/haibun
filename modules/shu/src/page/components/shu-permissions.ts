@@ -122,7 +122,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 
 			<div class="awaiting-row" role="alert" ?hidden=${this.awaiting <= 0}>
 				<span class="awaiting-count">${this.awaiting}</span>
-				<span>${this.awaiting === 1 ? "petition awaits your decision" : "petitions await your decision"}</span>
+				<span>${this.awaiting === 1 ? "change request awaits your decision" : "change requests await your decision"}</span>
 				${this.awaitingRef === null ? nothing : refTpl(this.awaitingRef, "read them", "permissions-awaiting")}
 			</div>
 			${this.#held.render<TemplateResult>({

@@ -343,7 +343,7 @@ describe("allowed forms", () => {
 	});
 
 	it("doesn't read a word an arrow joins", () => {
-		expect(violationsIn(MARKDOWN, "Grant → petition and say → ask were in place. Alice -> knows -> Bob.")).toEqual([]);
+		expect(violationsIn(MARKDOWN, "Grant → change request and say → ask were in place. Alice -> knows -> Bob.")).toEqual([]);
 		expect(rulesOf(violationsIn(MARKDOWN, "←/→ asks the column."))).toEqual([ANTHROPOMORPHIC]);
 	});
 
