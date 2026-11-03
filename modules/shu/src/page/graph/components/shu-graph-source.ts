@@ -1,5 +1,5 @@
 /**
- * shu-graph-source: the axioms of what a graph view shows, in a pane of its own: each frame in Manchester syntax, with its
+ * shu-graph-source: the axioms of what a graph view shows, or of the records a proof wrote, in a pane of its own: each frame in Manchester syntax, with its
  * axioms in DL notation, the statement and the record behind it on hover, the summary of the source's kinds, the format it
  * reads, and a copy and a download of its text. A line that states a record or a class links to its pane, and the lines that
  * state the record a reader is on light. A reader moves through the lines with the arrow keys, Home and End, and lets the
@@ -7,17 +7,19 @@
  *
  * The pane shows what `show axioms of {view}` returned, which a graph view's ¶ control and a node or an edge chosen in its DL
  * view open it with, the latter at the frame that states it. It holds the view the axioms state, so it reads that view again
- * in another format.
+ * in another format. A derivation's products open it at the frame of the first goal the proof couldn't prove, and a proof
+ * doesn't state a view to read again.
  */
 import { css, html, nothing, type PropertyValues, type TemplateResult } from "lit";
 import { z } from "zod";
-import { FRAME_KIND, type TFrame } from "@haibun/core/lib/records/domains/axioms.js";
-import { SHU_TAG } from "../../../domains/elements.js";
+import { FRAME_KIND, GraphAxiomsSchema, type TFrame } from "@haibun/core/lib/records/domains/axioms.js";
+import { RPC_METHOD, SHU_TAG } from "../../../domains/elements.js";
 import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
-import { ViewAxiomsProductsSchema, type TViewAxioms } from "../../../domains/graph-view.js";
+import { GraphViewSchema, ViewAxiomsProductsSchema } from "../../../domains/graph-view.js";
 import { defineElement } from "../../controllers/element-controller.js";
 import { saveFile } from "../../controllers/file-controller.js";
 import { LoadController } from "../../controllers/load-controller.js";
+import { typeShownIn } from "../../controllers/catalog-controller.js";
 import { callStep } from "../../controllers/read-controller.js";
 import type { TCallOutcome } from "../../pipelines/call-step.js";
 import { SubjectController } from "../../controllers/subject-controller.js";
@@ -27,12 +29,17 @@ import { revealInDocument } from "../../components/reveal.js";
 import { paneHref } from "../../components/ref-navigation.js";
 import "../../components/shu-copy-button.js";
 import "../../components/shu-refusal.js";
-import { SOURCE_FORMATS, SOURCE_FORMAT_IDS, sourceFormat } from "../domains/sources.js";
+import { SOURCE_FORMATS, SOURCE_FORMAT_IDS, sourceFormat, type TSourceFormat } from "../domains/sources.js";
 import { lineAfterKey, linesOf, provenanceOf, statusOf, summaryOf } from "../derivations/source-lines.js";
 
-/** What the pane is given: the axioms of a view, the view, and the frame it opens at first. A step's products carry hypermedia
- *  markers beside them, which the pane doesn't read. */
-export const GraphSourcePaneSchema = ViewAxiomsProductsSchema.extend({ line: z.string().optional() });
+/** The axioms the pane shows, and the view they state where they state one. */
+const PaneAxiomsSchema = z.object({ ...GraphAxiomsSchema.shape, graphView: GraphViewSchema.optional() });
+type TPaneAxioms = z.output<typeof PaneAxiomsSchema>;
+/** The axioms the pane is given, the view they state, and the frame it opens at first. A step's products carry hypermedia markers
+ *  and the fields of their own domain beside them, which the pane doesn't read. */
+const GivenAxiomsSchema = PaneAxiomsSchema.extend({ line: z.string().optional() });
+/** What the pane is given: axioms, or the id of a step's record, whose derivation the pane reads. */
+export const GraphSourcePaneSchema = z.union([GivenAxiomsSchema, z.object({ step: z.string() })]);
 export type TGraphSourcePane = z.input<typeof GraphSourcePaneSchema>;
 
 const GraphSourceStateSchema = z.object({ format: z.enum(SOURCE_FORMAT_IDS) });
@@ -59,21 +66,28 @@ class ShuGraphSource extends ShuElement<typeof GraphSourceStateSchema> {
 			: { "@id": "view:graph-axioms", "@type": "as:Document", name: "the axioms of what a graph view shows, in Manchester syntax", content: axioms.text };
 	}
 
-	/** The axioms shown: those the pane was given, or those it read again in another format. */
-	readonly #axioms: LoadController<TViewAxioms> = new LoadController<TViewAxioms>(this, async (): Promise<TCallOutcome<TViewAxioms>> => {
-		const shown: TViewAxioms | undefined = this.#axioms.page;
-		if (shown === undefined) throw new Error("the axioms pane reads again the view it was given, and wasn't given one");
+	/** The axioms shown: those the pane was given, the derivation of the step it was given, or those it read again in another format. */
+	readonly #axioms: LoadController<TPaneAxioms> = new LoadController<TPaneAxioms>(this, async (): Promise<TCallOutcome<TPaneAxioms>> => {
+		const step = this.#step;
+		if (step !== undefined) {
+			const derived = await callStep<unknown>(RPC_METHOD.RECORDED_DERIVATION, { step: { persistedAs: typeShownIn(SHU_TAG.STEP_DETAIL), id: step } }, `the derivation of ${step}`);
+			return derived.ok ? { ok: true, value: this.opened(GivenAxiomsSchema.parse(derived.value)) } : derived;
+		}
+		const view = this.#axioms.page?.graphView;
+		if (view === undefined) throw new Error("the axioms pane reads again the view it was given, and wasn't given one");
 		const format = sourceFormat(this.state.format);
-		const outcome = await callStep<unknown>(format.step, { view: shown.graphView }, `the graph as ${format.label}`);
+		const outcome = await callStep<unknown>(format.step, { view }, `the graph as ${format.label}`);
 		return outcome.ok ? { ok: true, value: ViewAxiomsProductsSchema.parse(outcome.value) } : outcome;
 	});
+	/** The step whose derivation the pane reads, where it was given one. */
+	#step: string | undefined = undefined;
 	/** The reader's line. */
 	#line: string | null = null;
 	/** The lines that state the page's active record. */
 	#lit: ReadonlySet<string> = new Set();
 	/** Whether the reader's line or the lit lines moved since the last render, to bring them into view. */
 	#moved = false;
-	readonly #subject = new SubjectController(this, (record) => this.light(record === null ? [] : [record.id]));
+	readonly #subject = new SubjectController(this, (record) => this.light(record === null ? [] : [record.id], this.#axioms.page));
 
 	constructor() {
 		super(GraphSourceStateSchema, { format: SOURCE_FORMATS[0].id });
@@ -89,16 +103,25 @@ class ShuGraphSource extends ShuElement<typeof GraphSourceStateSchema> {
 		this.products = products;
 	}
 
-	private show({ line, ...axioms }: z.output<typeof GraphSourcePaneSchema>): void {
-		this.#axioms.hold(axioms);
-		this.#line = line === undefined ? null : line;
-		const record = this.#subject.record;
-		this.light(record === null ? [] : [record.id]);
+	private show(given: z.output<typeof GraphSourcePaneSchema>): void {
+		if ("step" in given) {
+			this.#step = given.step;
+			void this.#axioms.run();
+			return;
+		}
+		this.#axioms.hold(this.opened(given));
 	}
 
-	/** Lights the lines that state `nodes`. */
-	private light(nodes: string[]): void {
-		const axioms = this.#axioms.page;
+	/** Opens the pane at the line given axioms name, lights the lines of the reader's active record, and returns the axioms. */
+	private opened({ line, ...axioms }: z.output<typeof GivenAxiomsSchema>): TPaneAxioms {
+		this.#line = line === undefined ? null : line;
+		const record = this.#subject.record;
+		this.light(record === null ? [] : [record.id], axioms);
+		return axioms;
+	}
+
+	/** Lights the lines of `axioms` that state `nodes`. */
+	private light(nodes: string[], axioms: TPaneAxioms | undefined): void {
 		this.#lit = new Set(axioms === undefined ? [] : linesOf(axioms, nodes));
 		this.#moved = true;
 		this.requestUpdate();
@@ -122,21 +145,19 @@ class ShuGraphSource extends ShuElement<typeof GraphSourceStateSchema> {
 
 	override render(): TemplateResult {
 		return this.#axioms.render<TemplateResult>({
-			pending: () => html`<p>the axioms of a graph view open here, from its ¶ control or from <code>show axioms of {view}</code></p>`,
+			pending: () => html`<p>the axioms of a graph view open here, from its ¶ control or from <code>show axioms of {view}</code>, and a step's proof from its why</p>`,
 			running: () => html`<p>reading the graph as ${sourceFormat(this.state.format).label}…</p>`,
 			completed: (axioms) => this.renderAxioms(axioms),
 			failed: (refusal) => html`<shu-refusal .refusal=${refusal} .readAgain=${() => void this.#axioms.run()}></shu-refusal>`,
 		});
 	}
 
-	private renderAxioms(axioms: TViewAxioms): TemplateResult {
+	private renderAxioms(axioms: TPaneAxioms): TemplateResult {
 		const format = sourceFormat(this.state.format);
 		const line = this.#line;
 		const file = `graph.${format.extension}`;
 		return html`<div class="head">
-				<select aria-label="source format" .value=${format.id} @change=${(e: Event) => this.chooseFormat((e.target as HTMLSelectElement).value)}>
-					${SOURCE_FORMATS.map(({ id, label }) => html`<option value=${id} ?selected=${id === format.id}>${label}</option>`)}
-				</select>
+				${axioms.graphView === undefined ? nothing : this.renderFormats(format.id)}
 				<span>${summaryOf(axioms.summary)}</span>
 				<span role="status">${statusOf(
 					axioms.frames.find(({ name }) => name === line),
@@ -159,6 +180,13 @@ class ShuGraphSource extends ShuElement<typeof GraphSourceStateSchema> {
 						html`<li role="option" id=${lineId(frame.name)} data-name=${frame.name} aria-selected=${frame.name === line} class=${this.#lit.has(frame.name) ? "lit" : ""} title=${provenanceOf(frame)}>${frame.manchester} ${termRef(frame)}</li>`,
 				)}
 			</ol>`;
+	}
+
+	/** The formats a view's axioms read as, which a reader chooses between. */
+	private renderFormats(chosen: TSourceFormat["id"]): TemplateResult {
+		return html`<select aria-label="source format" .value=${chosen} @change=${(e: Event) => this.chooseFormat((e.target as HTMLSelectElement).value)}>
+			${SOURCE_FORMATS.map(({ id, label }) => html`<option value=${id} ?selected=${id === chosen}>${label}</option>`)}
+		</select>`;
 	}
 
 	/** The reader chose the format the axioms read as: the pane reads its view again in it. */

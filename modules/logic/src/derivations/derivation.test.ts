@@ -1,0 +1,48 @@
+import { describe, expect, it } from "vitest";
+import { SEQ_PATH_EDGE, SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
+import { VERDICT } from "@haibun/core/lib/domains/protocol.js";
+import { derivationOf } from "./derivation.js";
+
+const ACTUALITY = "1790000000000-1";
+const id = (path: string): string => `${ACTUALITY}.${path}`;
+const record = (path: string, stepText: string, verdict: string, more: Record<string, string> = {}) => ({
+	[SEQ_PATH_FIELD.id]: id(path),
+	[SEQ_PATH_FIELD.stepText]: stepText,
+	[SEQ_PATH_FIELD.verdict]: verdict,
+	...more,
+});
+const RECORDS = [
+	record("0.1", "ensure It is closed", VERDICT.refuted, { [SEQ_PATH_EDGE.isPartOf]: id("0") }),
+	record("0.1.1", 'variable open is "yes"', VERDICT.refuted, {
+		[SEQ_PATH_EDGE.isPartOf]: id("0.1"),
+		[SEQ_PATH_FIELD.called]: "VariablesStepper.is",
+		[SEQ_PATH_FIELD.capabilityAction]: "VariablesStepper:is",
+		[SEQ_PATH_FIELD.allowedAction]: "*",
+		[SEQ_PATH_FIELD.error]: "open is no",
+	}),
+	record("0.2", "set open to yes", VERDICT.proved),
+];
+const isNode = (called: string | undefined): boolean => called === undefined;
+
+describe("a derivation's frames", () => {
+	const derivation = derivationOf(RECORDS, id("0.1"), isNode);
+
+	it("states each record under the statement as an individual frame in proof order, with the record it is part of as an edge", () => {
+		expect(derivation.frames.map(({ name }) => name)).toEqual([`Individual ${id("0.1")}`, `Individual ${id("0.1.1")}`]);
+		expect(derivation.frames[0]?.edges, "the statement's own record is the root of its proof").toEqual([]);
+		expect(derivation.frames[1]?.edges).toEqual([{ from: id("0.1.1"), label: SEQ_PATH_EDGE.isPartOf, to: id("0.1") }]);
+		expect(derivation.summary).toEqual({ classes: 0, properties: 0, individuals: 2 });
+	});
+
+	it("states a call's verdict, the action it required and the actions that allowed it as facts", () => {
+		const call = derivation.frames[1];
+		expect(call?.statement).toBe('variable open is "yes"');
+		expect(call?.dl).toContain(`capabilityAction(<${id("0.1.1")}>, "VariablesStepper:is")`);
+		expect(call?.dl).toContain(`allowedAction(<${id("0.1.1")}>, "*")`);
+		expect(call?.manchester).toContain(`verdict "${VERDICT.refuted}"`);
+	});
+
+	it("opens at the frame of the first goal the proof couldn't prove, with its reason", () => {
+		expect([derivation.firstUnmet, derivation.reason, derivation.line]).toEqual(['variable open is "yes"', "open is no", `Individual ${id("0.1.1")}`]);
+	});
+});

@@ -158,9 +158,11 @@ function derive({ concerns, domains }: TCatalogSource): TCatalog {
 		if (concern.ui !== undefined) catalog.ui[label] = concern.ui;
 	}
 	// A concern that declares both `topology.persistedAs` and a selector arrives in the catalog by its label and among the
-	// domains by its selector, so the domains add a component the catalog doesn't name.
+	// domains by its selector, so the domains add a component the catalog doesn't name. A component's declaration is the one
+	// that names its script, ahead of a domain whose products render in the component without naming it.
 	const components = new Set(Object.values(catalog.ui).flatMap((entry) => (typeof entry.component === "string" ? [entry.component] : [])));
-	for (const [domainKey, info] of Object.entries(domains)) {
+	const scripted = (named: boolean) => Object.entries(domains).filter(([, info]) => (typeof info.ui?.js === "string") === named);
+	for (const [domainKey, info] of [...scripted(true), ...scripted(false)]) {
 		if (info.ui === undefined || catalog.ui[domainKey] !== undefined) continue;
 		const component = typeof info.ui.component === "string" ? info.ui.component : undefined;
 		if (component !== undefined && components.has(component)) continue;
@@ -203,7 +205,7 @@ export function edgeTargetLabels(catalog: TCatalog, edgeType: string, sourceLabe
 /** Returns the type of the record a field of `label` names, where the type declares the field an edge to one type other than
  *  the generic resource. */
 export function edgeRecordType(catalog: TCatalog, label: string, field: string): string | undefined {
-	const labels = edgeTargetLabels(catalog, field, label);
+	const labels = catalog.edgeRanges[label]?.[field];
 	const range = labels?.length === 1 ? labels[0] : undefined;
 	return range === RESOURCE_LABEL ? undefined : range;
 }

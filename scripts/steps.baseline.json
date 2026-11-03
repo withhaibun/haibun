@@ -1,6 +1,6 @@
 {
 	".": {
-		"declares steps": 213
+		"declares steps": 214
 	},
 	"modules/cli/src/instance-stepper.ts": {
 		"has at most one call site: InstanceStepper.reachInstance": 1,
@@ -62,8 +62,7 @@
 		"returns a list of records or a count its domain doesn't declare as a list: LogicStepper.applicableSteps (applicable-steps)": 1,
 		"returns a list of records or a count its domain doesn't declare as a list: LogicStepper.ensure (goal-resolution)": 1,
 		"returns a list of records or a count its domain doesn't declare as a list: LogicStepper.resolve (goal-resolution)": 1,
-		"returns a list of records or a count its domain doesn't declare as a list: LogicStepper.showApplicableSteps (applicable-steps)": 1,
-		"returns a list of records or a count its domain doesn't declare as a list: LogicStepper.showDerivation (derivation)": 1
+		"returns a list of records or a count its domain doesn't declare as a list: LogicStepper.showApplicableSteps (applicable-steps)": 1
 	},
 	"modules/recorder/src/recorder-stepper.ts": {
 		"has at most one call site: RecorderStepper.startRecording": 1,

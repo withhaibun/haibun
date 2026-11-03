@@ -43,5 +43,7 @@ export const GraphAxiomsSchema = z
 	})
 	.strict();
 export type TGraphAxioms = z.infer<typeof GraphAxiomsSchema>;
+/** The view of a graph's axioms, which each domain whose products hold axioms names as its component. */
+export const AXIOMS_COMPONENT = "shu-graph-source";
 /** The domain of a graph's axioms, which the step that returns them declares. */
 export const DOMAIN_GRAPH_AXIOMS = "graph-axioms";

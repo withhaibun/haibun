@@ -46,6 +46,6 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "A goal's proof is a set of records" }),
 		"Essential.",
 		'set proof from show derivation of "resolve \\"var-snapshot\\""',
-		"variable proof.records exists",
+		"variable proof.frames exists",
 	],
 };

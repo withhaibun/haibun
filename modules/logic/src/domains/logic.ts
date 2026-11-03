@@ -6,6 +6,8 @@ import { z } from "zod";
 import { VERDICT } from "@haibun/core/lib/domains/protocol.js";
 import type { TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import { DOMAIN_DOMAIN_KEY } from "@haibun/core/lib/domains/domains.js";
+import { listOf } from "@haibun/core/lib/domains/lists.js";
+import { AXIOMS_COMPONENT, GraphAxiomsSchema } from "@haibun/core/lib/records/domains/axioms.js";
 import type { TQuad } from "@haibun/core/lib/steps/domains/quad-types.js";
 
 /** The statement of a goal, which the resolve step's pattern parses and a goal's proof and conjecture render. */
@@ -87,14 +89,16 @@ const DerivationCallSchema = z.object({
 	error: z.string().optional(),
 });
 
-/** A statement's derivation: its verdict, the records its proof wrote under the step that requested it, the calls among
- *  them, and the line of the first goal it couldn't prove with the reason its record states, where its proof failed. */
-export const DerivationSchema = z.object({
+/** A statement's derivation: its verdict, the records its proof wrote under the step that requested it as the frames of their
+ *  axioms in proof order, the calls among them, and the line of the first goal it couldn't prove with the reason its record
+ *  states, where its proof failed. */
+export const DerivationSchema = GraphAxiomsSchema.extend({
 	verdict: VerdictSchema,
-	records: z.array(z.looseObject({ id: z.string(), isPartOf: z.string().optional() })),
 	calls: z.array(DerivationCallSchema),
 	firstUnmet: z.string().optional(),
 	reason: z.string().optional(),
+	/** The frame of the first goal the proof couldn't prove, at which a reader opens the frames. */
+	line: z.string().optional(),
 });
 export type TDerivation = z.infer<typeof DerivationSchema>;
 
@@ -109,7 +113,10 @@ export const logicDomainDefinitions: TDomainDefinition[] = [
 	{
 		selectors: [DOMAIN_DERIVATION],
 		schema: DerivationSchema,
-		description: "A statement's verdict, the records its proof wrote, its calls, and the first goal it couldn't prove with its reason",
+		// A proof's records are axioms, which the axioms pane shows; the graph view's declaration of the pane names its script.
+		ui: { component: AXIOMS_COMPONENT },
+		list: listOf(DerivationSchema, "frames"),
+		description: "A statement's verdict, the frames of the records its proof wrote, its calls, and the first goal it couldn't prove with its reason",
 	},
 	{ selectors: [DOMAIN_LINE_TERM], schema: LineTermSchema, description: "A line, the term the registry parses it to, and the line the term renders as" },
 ];

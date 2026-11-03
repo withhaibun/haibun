@@ -2,9 +2,10 @@
  * The graph's DL view: the axioms of what the graph shows, mapped onto the same nodes and edges the scene draws. An individual
  * carries the type its record asserts (∈) and the types the ontology entails (⊨ ∈), a Class record carries its class's axioms,
  * and an edge carries its property's. A refused claim's witness marks in place the records that exceed its subsumption (∉) and
- * the class it names (⋢). A node or an edge the scene doesn't draw doesn't carry an axiom.
+ * the class it names (⋢), and a derivation's witness marks the records its proof wrote with the axioms of their frames. A node or
+ * an edge the scene doesn't draw doesn't carry an axiom.
  */
-import { DL_SYMBOL, FRAME_KIND, type TClaimWitness, type TGraphAxioms } from "@haibun/core/lib/records/domains/axioms.js";
+import { DL_SYMBOL, FRAME_KIND, type TClaimWitness, type TFrame, type TGraphAxioms } from "@haibun/core/lib/records/domains/axioms.js";
 import { BETWEEN_AXIOMS } from "@haibun/core/lib/records/derivations/axioms.js";
 import { edgeKey } from "./focus-policy.js";
 import type { TDrawn } from "./source-lines.js";
@@ -14,10 +15,12 @@ export type TCarried = { lines: string[]; frame: string };
 /** The axioms each node and each edge of a graph carries, by node id and by edge key, and the nodes a refused claim's witness
  *  names, which the scene lights. */
 export type TAxiomOverlay = { nodes: ReadonlyMap<string, TCarried>; edges: ReadonlyMap<string, TCarried>; witnessed: ReadonlySet<string> };
+/** What a step end names as its witness: a refused claim's, or the frames of the records a derivation's proof wrote. */
+export type TWitness = { claim: TClaimWitness } | { proof: readonly TFrame[] };
 
 /** Returns the axioms `axioms` states for each node and edge the scene draws, keyed by the scene's ids and edge keys, with the
- *  marks of a refused claim's `witness` where there is one. */
-export function axiomOverlay(drawn: TDrawn, axioms: TGraphAxioms, witness: TClaimWitness | undefined): TAxiomOverlay {
+ *  marks of a `witness` where there is one. */
+export function axiomOverlay(drawn: TDrawn, axioms: TGraphAxioms, witness: TWitness | undefined): TAxiomOverlay {
 	const drawnNodes = new Set(drawn.nodes);
 	const drawnEdges = new Set(drawn.edges.map(({ from, predicate, to }) => edgeKey(from, predicate, to)));
 	const nodes = new Map<string, TCarried>();
@@ -43,15 +46,16 @@ export function axiomOverlay(drawn: TDrawn, axioms: TGraphAxioms, witness: TClai
 			}
 	}
 	const witnessed = new Set<string>();
-	const mark = (id: string, line: string, kind: string): void => {
+	const mark = (id: string, lines: string[], kind: string): void => {
 		if (!drawnNodes.has(id)) return;
-		carry(nodes, id, [line], `${kind} ${id}`);
+		carry(nodes, id, lines, `${kind} ${id}`);
 		witnessed.add(id);
 	};
-	if (witness !== undefined) {
-		for (const { id } of witness.members) mark(id, `${DL_SYMBOL.notMember} ${witness.sup}`, FRAME_KIND.individual);
-		mark(witness.sub, `${witness.sub} ${DL_SYMBOL.notSubsumedBy} ${witness.sup}`, FRAME_KIND.class);
-	}
+	if (witness !== undefined && "claim" in witness) {
+		const { members, sub, sup } = witness.claim;
+		for (const { id } of members) mark(id, [`${DL_SYMBOL.notMember} ${sup}`], FRAME_KIND.individual);
+		mark(sub, [`${sub} ${DL_SYMBOL.notSubsumedBy} ${sup}`], FRAME_KIND.class);
+	} else if (witness !== undefined) for (const frame of witness.proof) for (const id of frame.nodes) mark(id, frame.dl.split(BETWEEN_AXIOMS), frame.kind);
 	return { nodes, edges, witnessed };
 }
 

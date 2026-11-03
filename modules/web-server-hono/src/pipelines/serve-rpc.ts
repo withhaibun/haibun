@@ -3,6 +3,7 @@
  * Actuality's own registry holds what actuality's transports injected, so a caller reaching actuality by RPC dispatches
  * and discovers the same steps as every other caller of actuality.
  */
+import { stepRecordOf } from "@haibun/core/lib/seq-path.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
@@ -92,7 +93,7 @@ export function serveRpc({ world, steppers, webserver, transport, verifier, sess
 		try {
 			const called = calledStep(within, { method, params, asks: msg.asks, seqPath: msg.seqPath }, caller);
 			if ("refused" in called) return called.refused;
-			const { featureStep } = called;
+			const { tool, featureStep } = called;
 			// An RPC dispatch comes from a page, such as its polling of getClusteredQuads, not from a feature: it is logged at
 			// trace so it doesn't bury actuality's own steps in the timeline, and it is still visible at debug.
 			featureStep.isSubStep = true;
@@ -100,7 +101,8 @@ export function serveRpc({ world, steppers, webserver, transport, verifier, sess
 			// which can only be narrower.
 			const baseIri = requestBaseIri(request?.headers, webserver.origins);
 			const hr = await runWithRequestContext({ baseIri }, () => runReadingAt(msg.readingAt, () => dispatchCall(within, caller, featureStep)));
-			if (!hr.ok) return callFailed(method, hr.errorMessage, hr.remedy);
+			// A step that isn't a read leaves its record, from which a reader reads why it was refused.
+			if (!hr.ok) return callFailed(method, hr.errorMessage, hr.remedy, tool.descriptor.read ? undefined : stepRecordOf(world.tag, featureStep.seqPath));
 			return hr.products === undefined ? ANSWERED_WITHOUT_PRODUCTS : hr.products;
 		} catch (err) {
 			const detail = errorDetail(err);

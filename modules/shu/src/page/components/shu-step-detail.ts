@@ -3,8 +3,9 @@
  *
  * A step is a record: what was requested, what ran, how it went and why it failed, how long it took, where it ran, and
  * what it had to hold to run. This reads that record and the variables whose records link the step, so the pane is a
- * read of the graph rather than a second account of the same act. The read is a load controller's, so opening another
- * step ends the earlier read without showing it, and a refused read shows the refusal and its remedy.
+ * read of the graph rather than a second account of the same act. Its why opens the proof actuality recorded for the step.
+ * The read is a load controller's, so opening another step ends the earlier read without showing it, and a refused read
+ * shows the refusal and its remedy.
  */
 import { PROV_ACTIVITY } from "@haibun/core/lib/domains/vocabularies.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
@@ -21,6 +22,7 @@ import { variablesSetBy, type TVariableSet } from "../derivations/step-variables
 import { anIndividual, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { formatSeqPath, parseRecordName, stepLine, type TStepLine } from "@haibun/core/lib/seq-path.js";
 import { actionRef, calledRef, originLink, recordRef } from "./shu-ref.js";
+import { whyTpl } from "./why.js";
 import { ClockController } from "../controllers/clock-controller.js";
 import { appAccessLevel } from "../controllers/view-query-controller.js";
 import { typeShownIn } from "../controllers/catalog-controller.js";
@@ -148,7 +150,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		return this.#load.render({
 			...loadRenders(html`Loading step [${key}]`, this.#load),
 			failed: (refusal) => emptyState({ message: `Step [${key}] wasn't read.`, next: refusalTpl(refusal, this.#load) }),
-			completed: (data) => this.renderContent(key, data),
+			completed: (data) => this.renderContent(key, data, record.id),
 		});
 	}
 
@@ -164,12 +166,12 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 			${action === undefined ? "" : html`<div class="field"><span class="label">Capability:</span> <span class="value">${actionRef(action.required)}${action.allowed === undefined ? "" : html` allowed by${action.allowed.map((held) => html` ${actionRef(held)}`)}`}</span></div>`}`;
 	}
 
-	private renderContent(key: string, data: TStepData): TemplateResult {
+	private renderContent(key: string, data: TStepData, id: string): TemplateResult {
 		const { step, variablesSet } = data;
 		if (!step && variablesSet.length === 0) return emptyState({ message: `Actuality doesn't hold a record of step [${key}].`, next: actualityStepsNext() });
 		const line = step === undefined ? undefined : stepLine(step);
 		return html`<div class="step-detail">
-			<h4>Step [${key}]</h4>
+			<h4>Step [${key}] ${line === undefined ? "" : whyTpl(id)}</h4>
 			${line === undefined ? "" : this.renderLine(line)}
 			${
 				variablesSet.length > 0

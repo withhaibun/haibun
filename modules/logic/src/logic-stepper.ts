@@ -25,14 +25,14 @@ import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { ACTIVITIES_STEPPER } from "@haibun/core/steps/domains/activities-actions.js";
 import { z } from "zod";
 import { Access, SEQ_PATH_LABEL, type TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
-import { SEQ_PATH_FIELD, calledParts, actualityFeatureOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
+import { SEQ_PATH_ACCESS, SEQ_PATH_FIELD, calledParts, actualityFeatureOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { callerHolds, readingAsOf } from "@haibun/core/lib/domains/capability-context.js";
 import { DOMAIN_APPLICABLE_STEPS, DOMAIN_GOAL_RESOLUTION, DOMAIN_PLAN_ID, DOMAIN_PLAN_PROGRESS, goalDomainDefinitions } from "@haibun/core/lib/domains/goal-resolution.js";
 import { applicableStepsAt, ensured, planAdvanced, planBegun, resolved, type TGoalScope } from "./pipelines/goals.js";
 import { stepperContext } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
 import { proverOf } from "./pipelines/prove.js";
 import { recordsWhere } from "./pipelines/reads.js";
-import { callTerm, derivationUnder, lineTerm, refuseDeclarations } from "./pipelines/registry-reads.js";
+import { callTerm, derivationOfRecord, derivationUnder, lineTerm, refuseDeclarations } from "./pipelines/registry-reads.js";
 import { logicEngine, reasoner } from "./root.js";
 import { checkedExpression, countedMembers, entailedMembers, expressionCompletions, expressionReading, queryBasis, subsumptionRefusal, truncationOf } from "./pipelines/members.js";
 import { DOMAIN_INDIVIDUAL_ADDRESS, type TIndividualAddress } from "@haibun/core/lib/domains/typed-links.js";
@@ -217,6 +217,15 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 				if (statement.length !== 1) return actionNotOK(`\`${featureStep.in}\` states ${statement.length} steps. State one step to show its derivation.`);
 				return actionOKWithProducts(await derivationUnder(stepperContext(this.getWorld(), this.steppers), featureStep, itemAt(statement, 0)));
 			},
+		},
+		recordedDerivation: {
+			read: true,
+			readsAt: SEQ_PATH_ACCESS,
+			gwta: `derivation of step {step: ${DOMAIN_INDIVIDUAL_ADDRESS}}`,
+			description:
+				"Reads the derivation of a step actuality recorded, from the records its proof wrote, without proving it again: its verdict, the frames of its records, the calls among them with the actions that allowed each, and the line of the first goal it couldn't prove.",
+			productsDomain: DOMAIN_DERIVATION,
+			action: async ({ step }: { step: TIndividualAddress }) => actionOKWithProducts(await derivationOfRecord(this.getWorld(), this.steppers, step)),
 		},
 		individualsOf: {
 			read: true,

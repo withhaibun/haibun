@@ -13,6 +13,8 @@ export type TIndividualFact = { property: string; value: string | number | boole
 const WRITTEN_NAME = /^(?:[A-Za-z_][\w.-]*:)?[A-Za-z_][\w.-]*$/;
 const SECTION = "\n    ";
 export const BETWEEN_AXIOMS = " · ";
+/** Separates the frames of a graph's Manchester text. */
+export const BETWEEN_FRAMES = "\n\n";
 
 /** A name as Manchester syntax and DL notation write it. */
 export const manchesterName = (name: string): string => (WRITTEN_NAME.test(name) ? name : `<${encodeURI(name)}>`);

@@ -87,11 +87,21 @@ describe("a refused claim's witness in the DL view", () => {
 				{ persistedAs: "Email", id: "e9" },
 			],
 		};
-		const overlay = axiomOverlay(DRAWN, AXIOMS, witness);
+		const overlay = axiomOverlay(DRAWN, AXIOMS, { claim: witness });
 		expect(overlay.nodes.get("e1")?.lines).toContain("∉ Person");
 		expect(overlay.nodes.get("Email")?.lines).toContain("Email ⋢ Person");
 		expect([...overlay.witnessed].sort(), "a member the scene doesn't draw isn't lit").toEqual(["Email", "e1"]);
 		expect(axiomOverlay(DRAWN, AXIOMS, undefined).witnessed.size).toBe(0);
+	});
+
+	it("marks the records a derivation's proof wrote with the axioms of their frames, and lights the ones the scene draws", () => {
+		const proof = [
+			frame(FRAME_KIND.individual, "Individual e1", 'SeqPath(e1) · verdict(e1, "refuted")', { nodes: ["e1"] }),
+			frame(FRAME_KIND.individual, "Individual e2", "SeqPath(e2)", { nodes: ["e2"] }),
+		];
+		const overlay = axiomOverlay(DRAWN, AXIOMS, { proof });
+		expect(overlay.nodes.get("e1")?.lines).toContain('verdict(e1, "refuted")');
+		expect([...overlay.witnessed], "a record the scene doesn't draw isn't lit").toEqual(["e1"]);
 	});
 });
 

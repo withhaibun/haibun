@@ -12,6 +12,7 @@
  *     states the statement with each input's term.
  */
 import { html, css, nothing, type TemplateResult } from "lit";
+import { z } from "zod";
 import { property, state } from "lit/decorators.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
@@ -21,6 +22,7 @@ import { DOMAIN_STATEMENT } from "@haibun/core/lib/domains/domains.js";
 import { phraseParts } from "@haibun/core/lib/steps/domains/phrase.js";
 import { lineOfCall } from "@haibun/core/lib/steps/derivations/named-vars.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
+import { TRACE_SEQ_PATH } from "@haibun/core/lib/domains/protocol.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { getConcernCatalog } from "../controllers/catalog-controller.js";
@@ -37,6 +39,7 @@ import { ShuElement, EmptyStateSchema, type TLinkedData } from "./shu-element.js
 import { jsonDisclosure } from "./json-disclosure.js";
 import { shuBaseStyles } from "./styles.js";
 import "./shu-combobox.js";
+import { whyOfPathTpl } from "./why.js";
 import "./shu-refusal.js";
 
 type TInputProperty = {
@@ -56,6 +59,9 @@ const PARAM = /\{(\w+)(?::\s*[^}]*)?\}/g;
 const NAME_FIELDS = ["name", "title", "label", "subject"];
 /** How many records a reference's options offer. */
 const REFERENCE_OPTIONS = 50;
+
+/** What a step returned that states the path of its record, which actuality recorded. */
+const TracedSchema = z.object({ [TRACE_SEQ_PATH]: z.array(z.number()) });
 
 /** A value as the text it is written as: a string as it is, anything else as JSON. */
 function textOf(value: unknown): string {
@@ -442,6 +448,12 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 		return textOf(value);
 	}
 
+	/** The control that opens why the step holds, where what it returned states its record's path. */
+	#why(result: unknown): TemplateResult | typeof nothing {
+		const traced = TracedSchema.safeParse(result);
+		return traced.success ? whyOfPathTpl(traced.data[TRACE_SEQ_PATH]) : nothing;
+	}
+
 	render(): TemplateResult {
 		if (this.unshown !== undefined) return html`<div class="step-caller" data-testid=${`step-caller-${this.step}`}><shu-refusal .refusal=${this.unshown}></shu-refusal></div>`;
 		const desc = this.definition;
@@ -455,7 +467,7 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 			${call.executed ? html`<button type="button" class="dismiss-btn" title="Remove" @click=${() => this.remove()}>x</button>` : nothing}
 			${this.auto ? nothing : this.#renderForm(desc)}
 			${call.calling ? html`<div class="loading" data-testid=${this.#testId("step-loading")}>loading...</div>` : nothing}
-			${returned === undefined ? nothing : html`<div data-testid=${this.#testId("step-result")}>${this.#renderOutput(desc, returned.result)}</div>`}
+			${returned === undefined ? nothing : html`<div data-testid=${this.#testId("step-result")}>${this.#renderOutput(desc, returned.result)}</div>${this.#why(returned.result)}`}
 			${refusal === undefined ? nothing : html`<div class="error" data-testid=${this.#testId("step-error")}><shu-refusal .refusal=${refusal}></shu-refusal></div>`}
 			${returned !== undefined && desc.outputSchema === undefined ? html`<div class="success" data-testid=${this.#testId("step-success")}>done</div>` : nothing}
 			${call.executed ? html`<div hidden data-testid=${this.#testId("step-done")}></div>` : nothing}

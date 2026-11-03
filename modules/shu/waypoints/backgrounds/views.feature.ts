@@ -3,6 +3,7 @@ import { RAIL_EDGE_TITLE, SETTINGS_GROUP, SHU_ATTR, SHU_TAG, TIME_SYNC_CLASS } f
 import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
 import { RAIL_POSITION_MAX } from "@haibun/shu/page/derivations/rail.js";
 import { READ_STATE } from "@haibun/shu/page/graph/domains/views.js";
+import { FRAME_KIND } from "@haibun/core/lib/records/domains/axioms.js";
 
 /** A waypoint's placeholder for the view whose page it reads, which a feature names by its tag, quoted. */
 const VIEW = "{view}";
@@ -110,6 +111,8 @@ export const views = {
 	graphNodeCarries: (view: string, id: string, axiom: string) => `node ${id} of graph ${view} carries ${axiom}`,
 	enterInStepInput: (statement: string) => `enter ${statement} in the actions bar's step input`,
 	runLastStepForm: () => "run the last step form in the actions bar",
+	runLastStepFormRefused: () => "run the last step form in the actions bar, which refuses it",
+	askWhy: (view: string) => `ask why in ${view}, which opens the frames of its proof`,
 };
 
 /** The steps an activity runs on the locator it composes, each written before the locator but the scroll and the wait until gone. */
@@ -148,6 +151,19 @@ export const backgrounds: TKirejiExport = {
 		`compose ${TARGET} as page-locator with ${lastStepForm("step-result")}`,
 		`wait for ${TARGET}`,
 		`waypoint ${views.runLastStepForm()}`,
+		"Activity: Run the last step form to its refusal",
+		`compose ${TARGET} as page-locator with ${lastStepForm("step-run")}`,
+		`click ${TARGET}`,
+		`compose ${TARGET} as page-locator with ${lastStepForm("step-error")}`,
+		`wait for ${TARGET}`,
+		`waypoint ${views.runLastStepFormRefused()}`,
+		"A refused step, a step's result and a step's record offer why, which opens the proof actuality recorded for the step as frames in the axioms pane: each record of the proof with its line, its verdict and the actions that allowed it.",
+		"Activity: Ask why",
+		`compose ${TARGET} as page-locator with ${testId(SHU_TEST_IDS.WHY)} >> nth=-1`,
+		`in {view}, click ${TARGET}`,
+		`compose ${TARGET} as page-locator with ${AXIOM_LINES} [role="option"][data-name^="${FRAME_KIND.individual} "] >> nth=0`,
+		`wait for ${TARGET}`,
+		`waypoint ${views.askWhy(VIEW)}`,
 
 		"A view's rail states the first row on screen at its head, which a reader reads as where the view is in the column.",
 		...within("Read the first row on screen", "{view}", `${testId(SHU_TEST_IDS.SCROLLBAR.POS_TOP)}:text-is("{row}")`, "wait for", views.showsRowFirst(VIEW, "{row}")),
