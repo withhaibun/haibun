@@ -170,6 +170,7 @@ export const SHU_TAG = {
 	POLYMORPHIC_SETTINGS: "shu-polymorphic-settings",
 	FIELD: "shu-field",
 	ANNOTATED_BODY: "shu-annotated-body",
+	RECORD_STEPS: "shu-record-steps",
 } as const;
 
 /** The index pane's key. Every other column is opened from the index pane, and the app builds only the index pane itself. */

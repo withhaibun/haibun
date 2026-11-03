@@ -305,8 +305,20 @@ export class A11yRenderer implements TGraphRenderer {
 			if (n === undefined) throw new Error(`A11yRenderer: an entry names node ${id}, which the last draw doesn't hold`);
 			const states = [n.type, ...(pinned(n.id) ? [READ_STATE.pinned] : []), ...(tierOf(n) === DIMMED ? [READ_STATE.dimmed] : [])];
 			entry.textContent = `${this.deps.labelOf(n)} (${states.join(", ")})`;
-			if (n.id === active) entry.setAttribute("aria-current", "true");
-			else entry.removeAttribute("aria-current");
+			const li = entry.parentElement;
+			if (n.id === active) {
+				entry.setAttribute("aria-current", "true");
+				if (li && !li.querySelector("shu-record-steps")) {
+					const stepsEl = document.createElement("shu-record-steps");
+					stepsEl.setAttribute("compact", "true");
+					if (n.type !== undefined) stepsEl.setAttribute("label", n.type);
+					stepsEl.setAttribute("record-id", n.id);
+					li.append(stepsEl);
+				}
+			} else {
+				entry.removeAttribute("aria-current");
+				li?.querySelector("shu-record-steps")?.remove();
+			}
 		}
 	}
 

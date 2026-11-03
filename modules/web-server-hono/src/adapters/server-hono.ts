@@ -21,7 +21,7 @@ import { type TRouteTypes, ROUTE_TYPES, EndpointLabels, admitsHost, misdirected,
 import type { TServing } from "../pipelines/server-settings.js";
 import type { Context, IWebServer, MiddlewareHandler, TRouteMap, TRoutePurpose, TRequestHandler } from "../ports.js";
 
-const EMPTY_MOUNTS = (): TRouteMap => ROUTE_TYPES.reduce((acc, type) => ({ ...acc, [type]: {} }), {} as TRouteMap);
+const EMPTY_MOUNTS = (): TRouteMap => ({ get: {}, post: {}, put: {}, delete: {}, head: {}, options: {} });
 
 /** The root path. A folder mounted there shares its addresses with the server's other routes, and an index names its own
  *  mount point by it. */

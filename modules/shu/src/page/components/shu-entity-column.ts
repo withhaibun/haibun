@@ -3,7 +3,7 @@
  * Fetches individual+edges via RPC on open. Renders once per navigation.
  * HATEOAS rel-based links, each addressing the pane it opens. Fully type-agnostic, driven by schema metadata.
  */
-import { html, css, type TemplateResult } from "lit";
+import { html, css, nothing, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { jsonDisclosure, literalWithJson, recordJson } from "./json-disclosure.js";
 import { jsonCarried, RecordsSchema, isRecord } from "@haibun/core/lib/domains/json-text.js";
@@ -19,7 +19,7 @@ import { EntityController } from "../controllers/entity-controller.js";
 import { unread, type TEntityResult, type TEntityView, type TAnnotationDraft } from "../domains/entity.js";
 import { LOAD_STATUS } from "../domains/load.js";
 import type { TLinkedBody } from "@haibun/core/lib/records/domains/body.js";
-import { assertFragmentReads, fragmentReads, isFragment, pageOfPassage, pdfPage, type TFragment } from "@haibun/core/lib/domains/media-fragments.js";
+import { isFragment, type TFragment } from "@haibun/core/lib/domains/media-fragments.js";
 import "./shu-annotated-body.js";
 import {
 	edgeRecordType,
@@ -39,11 +39,8 @@ import { linkHtml, paneHref, refHref } from "./ref-navigation.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { pageAddress } from "../controllers/hash-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { z } from "zod";
-import { CallLinkSchema, counted, statedTotal, type TCallLink, type TCounted } from "@haibun/core/lib/domains/hypermedia.js";
-import { SentFileSchema, fileDataBlob } from "@haibun/core/lib/domains/media-object.js";
-import { MEDIA_TYPE, viewedInBrowser } from "@haibun/core/lib/domains/media-types.js";
-import { reportFailure } from "../controllers/client-log-controller.js";
+import { counted, statedTotal, type TCallLink, type TCounted } from "@haibun/core/lib/domains/hypermedia.js";
+import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { ClockController } from "../controllers/clock-controller.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
@@ -58,16 +55,13 @@ import type { TPageRefusal } from "../domains/refusal.js";
 import { refusalTpl } from "./load-renders.js";
 import "./shu-spinner.js";
 import { ObserverController } from "../controllers/observer-controller.js";
-import { saveFile, showFile } from "../controllers/file-controller.js";
-import type { TStepLink } from "@haibun/core/lib/domains/hypermedia.js";
-import { pageMay } from "../controllers/authority-controller.js";
-import { typeStepLinks } from "../controllers/registry-controller.js";
+import { recordSteps } from "../controllers/registry-controller.js";
+import { normalizeStepKey } from "../derivations/steps.js";
+import "./shu-record-steps.js";
 
 /** The name of the delay after which the copy button reads Copy again. */
 const COPY_RESULT = "copy-result";
 
-/** The links a record carries, by rel. */
-const OfferedLinksSchema = z.record(z.string(), CallLinkSchema);
 type VertexData = Record<string, unknown>;
 type EdgeData = { type: string; target: VertexData; direction?: "out" | "in" };
 
@@ -192,7 +186,25 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	/** The open record's products, the linked data the page embeds, with the text of each body the reader opened set on
 	 *  that body. Null while the products are read. */
 	summarizeForContext(): TLinkedData | null {
-		return this.products === null ? null : withBodiesRead(this.products, this.bodiesRead);
+		const augmented = this.#augmentedProducts();
+		return augmented === null ? null : withBodiesRead(augmented, this.bodiesRead);
+	}
+
+	#augmentedProducts(): Record<string, unknown> | null {
+		if (this.products === null) return null;
+		const { persistedAs, individualId } = this.state;
+		if (!persistedAs || !individualId || persistedAs === PRODUCTS_LABEL) return this.products;
+		const steps = recordSteps(persistedAs, individualId, this.vertex?._links as Record<string, TCallLink> | undefined);
+		if (steps.length === 0) return this.products;
+		const existingLinks = (this.products._links as Record<string, unknown>) ?? {};
+		const mergedLinks: Record<string, unknown> = { ...existingLinks };
+		for (const step of steps) {
+			const key = step.rel ?? normalizeStepKey(step.method);
+			if (mergedLinks[key] === undefined) {
+				mergedLinks[key] = step;
+			}
+		}
+		return { ...this.products, _links: mergedLinks };
 	}
 	/** The one data path for this individual: its entity, the annotations anchored in it, and how it resolved (live /
 	 *  cache / offline), kept fresh over SSE. The column never fetches / falls back / reloads annotations itself. */
@@ -300,7 +312,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	}
 
 	render(): TemplateResult {
-		const { loading, persistedAs } = this.state;
+		const { loading, persistedAs, individualId } = this.state;
 		this.predicateLinkCount = 0;
 		this.edgeTargetCount = 0;
 
@@ -364,65 +376,23 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			contentHtml = `${typeLine}${summaryHtml}${this.renderRoles()}${fieldsHtml}${this.renderItemsTable()}${this.renderReferences()}${governance}${bodyLiterals}`;
 		}
 
-		return html`${unsafeHTML(this.emitHypermediaScript(this.products))}${this.renderColumnSettings()}<div class="entity-content ${this.#isFuture() ? TIME_SYNC_CLASS.FUTURE : ""}">${this.renderFromStore()}${this.renderOffers()}${this.renderTypeSteps()}${unsafeHTML(`${contentHtml}${recordJson(this.vertex, false)}`)}${this.renderBodyArea(contentIframe)}</div>`;
+		const recordStepsBar =
+			persistedAs && individualId && persistedAs !== PRODUCTS_LABEL
+				? html`<shu-record-steps ?active=${this.#paneActive} label=${persistedAs} record-id=${individualId} .links=${this.vertex?._links} @step-success=${this.#onStepSuccess}></shu-record-steps>`
+				: nothing;
+
+		return html`${unsafeHTML(this.emitHypermediaScript(this.#augmentedProducts() ?? this.products))}${this.renderColumnSettings()}<div class="entity-content ${this.#isFuture() ? TIME_SYNC_CLASS.FUTURE : ""}">${this.renderFromStore()}${recordStepsBar}${unsafeHTML(`${contentHtml}${recordJson(this.vertex, false)}`)}${this.renderBodyArea(contentIframe)}</div>`;
 	}
 
-	protected updated(): void {
-		if (!this.state.loading && this.#refusal === undefined && this.vertex) this.bindEvents();
-	}
-
-	/** The calls the record offers, each a control that states what it does: a link that doesn't state it, as the record's
-	 *  own read, isn't offered. The record's links are its own, apart from the links of the step that read it. */
-	private renderOffers(): TemplateResult {
-		const offered = Object.entries(OfferedLinksSchema.parse(this.vertex?._links ?? {})).filter(([, link]) => link.summary);
-		return html`${offered.map(
-			([rel, link]) =>
-				html`<button type="button" class="entity-offer" data-testid=${this.#paneActive ? `${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_OFFER}-${rel}` : ""} @click=${() => this.followOffer(link)}>${link.summary}${this.fragment ? ` at ${this.fragment.value}` : ""}</button>`,
-		)}`;
-	}
-
-	/** The steps the record's type takes, as controls: its kaname steps first, then its acts, then its reads, each stating what it
-	 *  does. A step this page's authority doesn't allow is shown unavailable, naming the action it requires. A control opens the
-	 *  step's caller in the actions bar with the record as its argument. */
-	private renderTypeSteps(): TemplateResult {
-		const { persistedAs, individualId } = this.state;
-		if (!individualId || persistedAs === PRODUCTS_LABEL) return html``;
-		return html`<div class="entity-steps">${typeStepLinks(persistedAs, individualId).map((link) => {
-			const allowed = pageMay(link.capability);
-			const testId = this.#paneActive ? `${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_STEP}-${link.method}` : "";
-			return html`<button type="button" class="entity-step ${link.asks}" data-testid=${testId} ?disabled=${!allowed} title=${link.summary} @click=${() => this.chooseStep(link)}>${link.summary}${allowed ? "" : html` <span class="needs">needs ${link.capability}</span>`}</button>`;
-		})}</div>`;
-	}
-
-	/** Opens a step's caller in the actions bar, with the record as its argument. */
-	private chooseStep(link: TStepLink): void {
-		this.dispatchEvent(new CustomEvent(SHU_EVENT.STEP_CHOOSE, { detail: { method: link.method, args: link.params }, bubbles: true, composed: true }));
-	}
-
-	/** Follow a call the record offers. A call that returns a file of a type a browser shows as it is
-	 *  (`viewedInBrowser`) opens it in a tab of its own: a PDF in its own viewer, at the fragment a reference named, as its
-	 *  page. A file of any other type is saved under its name, since its sender chose its type, and a browser runs a page of
-	 *  that type, as HTML or SVG, with this page's origin. */
-	private readonly followOffer = async (link: TCallLink): Promise<void> => {
-		try {
-			const { name, file } = SentFileSchema.parse(await this.entity.follow(link));
-			const blob = fileDataBlob(file);
-			if (!viewedInBrowser(blob.type)) return saveFile(blob, name);
-			const at = this.fragment ?? this.pageOfRevealedPassage(blob.type);
-			if (at) assertFragmentReads(at, blob.type);
-			showFile(blob, name, at?.value);
-		} catch (err) {
-			reportFailure(SHU_TAG.ENTITY_COLUMN, `following "${link.summary}"`, err);
+	#onStepSuccess = async (): Promise<void> => {
+		const { individualId, persistedAs } = this.state;
+		if (individualId && persistedAs) {
+			await this.open(individualId, persistedAs);
 		}
 	};
 
-	/** The page of a PDF the passage a reference quoted is on, as the record's text marks each page's beginning: where a file
-	 *  the record offers opens, so the passage is in view. */
-	private pageOfRevealedPassage(mediaType: string): TFragment | undefined {
-		const body = this.annotatableBody();
-		const page = this.revealTarget && body ? pageOfPassage(body.text, this.revealTarget) : undefined;
-		const at = page === undefined ? undefined : pdfPage(page);
-		return at && fragmentReads(at, mediaType) ? at : undefined;
+	protected updated(): void {
+		if (!this.state.loading && this.#refusal === undefined && this.vertex) this.bindEvents();
 	}
 
 	/** Where the view came from when it was not fetched: a copy held this session, or the browser store when offline.

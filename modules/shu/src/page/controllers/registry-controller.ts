@@ -13,8 +13,9 @@ import { heldSteps } from "../pipelines/held-catalog.js";
 import { outcomeOf, type TCallOutcome } from "../pipelines/call-step.js";
 import { REGISTRY_EVENT, REGISTRY_STATUS, type TRegistryOrigin, type TStepList } from "../machines/registry.js";
 import * as Steps from "../derivations/steps.js";
+import { recordSteps as deriveRecordSteps } from "../derivations/record-steps.js";
 import { askSteps, type TAskSteps } from "../ask/derivations/ask-steps.js";
-import type { TStepLink } from "@haibun/core/lib/domains/hypermedia.js";
+import type { TCallLink, TRecordStep } from "@haibun/core/lib/domains/hypermedia.js";
 
 /** Reads actuality's steps where the page doesn't hold them, and returns them. */
 const stepList = (): Promise<TStepList> => readSteps(registryScope());
@@ -81,7 +82,8 @@ export const declaredStepRead = (method: string): Promise<TCallOutcome<TStepDefi
 export const stepsForContext = (label: string): TStepDefinition[] => Steps.stepsForContext(readList(`the steps of ${label}`), label);
 
 /** Returns the links to the steps a record of a type takes, as a viewport shows them. */
-export const typeStepLinks = (label: string, id: string): TStepLink[] => Steps.typeStepLinks(readList(`the steps of ${label}`), label, id);
+export const recordSteps = (label: string, id: string, recordLinks?: Record<string, TCallLink>): TRecordStep[] =>
+	deriveRecordSteps(readList(`the steps of ${label}`), label, id, recordLinks);
 
 /** Returns the domain options a type selector offers. */
 export const domainOptions = async (): Promise<Steps.TDomainOption[]> => {

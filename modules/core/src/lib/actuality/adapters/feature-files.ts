@@ -74,12 +74,15 @@ async function getFeaturesAndBackgrounds(
 		const ff: Record<string, string[] | undefined> = { feature: featureFilter, background: [] };
 
 		const rawFeaturesAndBackgrounds: TFeaturesBackgrounds = { features: [], backgrounds: [] };
-		for (const t of ["feature", "background"] as const) {
-			const p = `${t}s` as keyof TFeaturesBackgrounds;
-			const checkPath = `${abase}/${p}`;
+		const KIND_KEYS = [
+			{ kind: "feature", plural: "features" },
+			{ kind: "background", plural: "backgrounds" },
+		] as const;
+		for (const { kind, plural } of KIND_KEYS) {
+			const checkPath = `${abase}/${plural}`;
 			if (fs.existsSync(checkPath)) {
-				const more = await recurse(abase, `/${p}`, t, ff[t], policyConfig, fs);
-				rawFeaturesAndBackgrounds[p] = rawFeaturesAndBackgrounds[p].concat(more);
+				const more = await recurse(abase, `/${plural}`, kind, ff[kind], policyConfig, fs);
+				rawFeaturesAndBackgrounds[plural] = rawFeaturesAndBackgrounds[plural].concat(more);
 			}
 		}
 		if (rawFeaturesAndBackgrounds.features.length < 1 && rawFeaturesAndBackgrounds.backgrounds.length < 1) {

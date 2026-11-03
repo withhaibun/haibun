@@ -69,7 +69,9 @@ function taggedAsset(content: string, etag: string): TServedAsset {
 /** The bytes of the font file at `path`. */
 function fontBytes(path: string): ArrayBuffer {
 	const font = readFileSync(path);
-	return font.buffer.slice(font.byteOffset, font.byteOffset + font.byteLength) as ArrayBuffer;
+	const copy = new Uint8Array(font.byteLength);
+	copy.set(font);
+	return copy.buffer;
 }
 
 /** The bundle files under `build/`. */

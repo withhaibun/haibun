@@ -6,7 +6,7 @@
 import type { QuadGraphModel } from "@haibun/core/lib/derivations/quad-graph-model.js";
 import type { AccessLevel } from "@haibun/core/lib/domains/resources.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
-import * as Steps from "../../derivations/steps.js";
+import { methodOf } from "../../derivations/steps.js";
 import { reads } from "../../domains/links.js";
 import type { TStepList } from "../../machines/registry.js";
 import type { TConduit } from "../../ports.js";
@@ -54,7 +54,7 @@ async function read(scope: TSnapshotScope, store: SnapshotStore, ask: TSnapshotA
 		clustered = await scope
 			.conduit()
 			.follow<{ quads: TQuad[]; clusters: TCluster[]; site?: string }>(
-				reads(Steps.methodOf(list, "getClusteredQuads"), { perTypeLimit: ask.perTypeLimit, types, accessLevel: scope.accessLevel }),
+				reads(methodOf(list, "getClusteredQuads"), { perTypeLimit: ask.perTypeLimit, types, accessLevel: scope.accessLevel }),
 				"the graph's clustered sample",
 			);
 		if (!Array.isArray(clustered.quads)) throw new Error("getClusteredQuads returned quads that aren't a list");

@@ -106,6 +106,160 @@
 			}
 		}
 	},
+	"linux-x64-20x-12th-gen-intel-core-i7-12700k": {
+		"084bf7534e76c052": {
+			"filter": "",
+			"actuality": {
+				"text": "e2e-tests/policy-test",
+				"status": "passed",
+				"tookMs": 0,
+				"digest": {
+					"e2e-tests/policy-test": "926b6ca236fb5c169cbd325b1a019947d5e11622ce559212af1fad0aaa6146d6",
+					"modules/core/src": "4f0b2b730a7c180476e78ca50872e9b4a79c8ba7764c032044da4cc934de3bcb",
+					"modules/logic/src": "b076f81df94183b3738aa742aed55563fc5ef98d5376054aa98acfcd4f90a673"
+				}
+			},
+			"features": {
+				"/features/api/r_list.feature": {
+					"text": "/features/api/r_list",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				},
+				"/features/smoke/r_health.feature": {
+					"text": "/features/smoke/r_health",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 11
+				}
+			}
+		},
+		"6f8c5a17e03e2ef3": {
+			"filter": "",
+			"actuality": {
+				"text": "e2e-tests/policy-test",
+				"status": "failed",
+				"error": "0.5.0.3: variable THIS_PLACE exists (the variable THIS_PLACE isn't set, and the environment doesn't hold it)",
+				"tookMs": 0,
+				"digest": {
+					"e2e-tests/policy-test": "926b6ca236fb5c169cbd325b1a019947d5e11622ce559212af1fad0aaa6146d6",
+					"modules/core/src": "4f0b2b730a7c180476e78ca50872e9b4a79c8ba7764c032044da4cc934de3bcb",
+					"modules/logic/src": "b076f81df94183b3738aa742aed55563fc5ef98d5376054aa98acfcd4f90a673"
+				}
+			},
+			"features": {
+				"/features/api/a_profile.feature": {
+					"text": "/features/api/a_profile",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				},
+				"/features/api/r_list.feature": {
+					"text": "/features/api/r_list",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				},
+				"/features/api/w_create.feature": {
+					"text": "/features/api/w_create",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				},
+				"/features/smoke/a_auth_check.feature": {
+					"text": "/features/smoke/a_auth_check",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				},
+				"/features/smoke/r_health.feature": {
+					"text": "/features/smoke/r_health",
+					"status": "failed",
+					"error": "0.5.0.3: variable THIS_PLACE exists (the variable THIS_PLACE isn't set, and the environment doesn't hold it)",
+					"tookMs": 0,
+					"steps": 3
+				}
+			}
+		},
+		"a3e326357be55878": {
+			"filter": "",
+			"actuality": {
+				"text": "e2e-tests/policy-test",
+				"status": "passed",
+				"tookMs": 100,
+				"digest": {
+					"e2e-tests/policy-test": "926b6ca236fb5c169cbd325b1a019947d5e11622ce559212af1fad0aaa6146d6",
+					"modules/core/src": "4f0b2b730a7c180476e78ca50872e9b4a79c8ba7764c032044da4cc934de3bcb",
+					"modules/logic/src": "b076f81df94183b3738aa742aed55563fc5ef98d5376054aa98acfcd4f90a673"
+				}
+			},
+			"features": {
+				"/features/api/a_profile.feature": {
+					"text": "/features/api/a_profile",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				},
+				"/features/api/r_list.feature": {
+					"text": "/features/api/r_list",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				},
+				"/features/api/w_create.feature": {
+					"text": "/features/api/w_create",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				},
+				"/features/smoke/a_auth_check.feature": {
+					"text": "/features/smoke/a_auth_check",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				},
+				"/features/smoke/r_health.feature": {
+					"text": "/features/smoke/r_health",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 11
+				},
+				"/features/smoke/w_write_check.feature": {
+					"text": "/features/smoke/w_write_check",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				}
+			}
+		},
+		"d903f2d81f06085b": {
+			"filter": "",
+			"actuality": {
+				"text": "e2e-tests/policy-test",
+				"status": "passed",
+				"tookMs": 0,
+				"digest": {
+					"e2e-tests/policy-test": "926b6ca236fb5c169cbd325b1a019947d5e11622ce559212af1fad0aaa6146d6",
+					"modules/core/src": "4f0b2b730a7c180476e78ca50872e9b4a79c8ba7764c032044da4cc934de3bcb",
+					"modules/logic/src": "b076f81df94183b3738aa742aed55563fc5ef98d5376054aa98acfcd4f90a673"
+				}
+			},
+			"features": {
+				"/features/api/r_list.feature": {
+					"text": "/features/api/r_list",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				},
+				"/features/smoke/r_health.feature": {
+					"text": "/features/smoke/r_health",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 12
+				}
+			}
+		}
+	},
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
 		"3ee7e6c72e2003cb": {
 			"filter": "",

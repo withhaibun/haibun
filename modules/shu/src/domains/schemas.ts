@@ -168,3 +168,25 @@ export type TBundle = z.infer<typeof BundleSchema>;
  *  converses with a model, and the mode control offers it only where actuality registers an ask-capable step. */
 export const BAR_MODES = ["search", "ask", "step"] as const;
 export const ActionsBarSchema = z.object({ mode: z.enum(BAR_MODES) });
+
+// --- Record steps ---
+
+/** The outcome of a step run in place beside a record. */
+export const RecordStepOutcomeSchema = z.object({
+	method: z.string().min(1),
+	summary: z.string(),
+	path: z.array(z.number()).optional(),
+	refusal: z.object({ error: z.string(), remedy: z.unknown().optional() }).optional(),
+});
+export type TRecordStepOutcome = z.infer<typeof RecordStepOutcomeSchema>;
+
+/** What `<shu-record-steps>` holds of its record and the step it runs in place. */
+export const RecordStepsStateSchema = z.object({
+	label: z.string(),
+	recordId: z.string(),
+	compact: z.boolean(),
+	active: z.boolean(),
+	activeMethod: z.string().optional(),
+	outcome: RecordStepOutcomeSchema.optional(),
+});
+export type TRecordStepsState = z.infer<typeof RecordStepsStateSchema>;
