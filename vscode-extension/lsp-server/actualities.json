@@ -23,6 +23,30 @@
 			}
 		}
 	},
+	"linux-x64-20x-12th-gen-intel-core-i7-12700k": {
+		"2156d8abbf3d7a08": {
+			"filter": "serve-lsp",
+			"actuality": {
+				"text": "vscode-extension/lsp-server",
+				"status": "passed",
+				"tookMs": 100,
+				"digest": {
+					"modules/core/src": "9fa221b0b090ffb114fa29bf63a0731b18f4fa75dd2c1b91eaee064717e74bf7",
+					"modules/logic/src": "634cb1baf49ab3e5c654d4a254e3fe0ba9e5e277fc6c37be340c0ca61244fed8",
+					"modules/lsp/src": "95fcc1e187791b5862bb573019ae06449d73ee31dfa22a1410bccf0017ad7ef9",
+					"vscode-extension/lsp-server": "d551206d22fffaf8f4bff8d8a234b6c2d1d0fb2d3e359df0f107bd9dfe68c45c"
+				}
+			},
+			"features": {
+				"/features/serve-lsp.feature": {
+					"text": "/features/serve-lsp",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				}
+			}
+		}
+	},
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
 		"2156d8abbf3d7a08": {
 			"filter": "serve-lsp",

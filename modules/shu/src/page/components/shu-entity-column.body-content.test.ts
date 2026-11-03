@@ -13,7 +13,12 @@ import { readingKey } from "@haibun/core/lib/records/derivations/bodies.js";
 type Body = { id: string; content: string; mediaType: string; representations?: Array<{ mediaType: string; content: string }> };
 
 /** Longer than the text annotator's redraw debounce, which a removed view's annotator still runs. */
-const ANNOTATOR_SETTLE_MS = 30;
+const ANNOTATOR_SETTLE_MS = 50;
+
+if (typeof globalThis.requestAnimationFrame === "undefined") {
+	globalThis.requestAnimationFrame = (cb: FrameRequestCallback) => setTimeout(cb, 0) as unknown as number;
+	globalThis.cancelAnimationFrame = (id: number) => clearTimeout(id);
+}
 
 // Each test removes its views and waits for the annotator's last redraw, so a redraw doesn't run once jsdom has ended.
 afterEach(async () => {
