@@ -22,7 +22,7 @@ import {
 	RpcEnvelopeSchema,
 } from "@haibun/core/lib/rpc-wire.js";
 import type { TRuntime } from "@haibun/core/lib/world.js";
-import type { THaibunEvent } from "@haibun/core/lib/domains/protocol.js";
+import type { THaibunEvent, TLogEvent } from "@haibun/core/lib/domains/protocol.js";
 import { serializedEvent } from "@haibun/core/lib/steps/derivations/serialized-event.js";
 import { capabilityAllows, FOLLOWS_THE_RUN, readAction } from "@haibun/core/lib/domains/actions.js";
 import type { AccessLevel } from "@haibun/core/lib/domains/resources.js";
@@ -181,10 +181,10 @@ export class SSETransport implements ITransport, IStepTransport {
 			return `{"type":"event","event":${serializedEvent(event)}}`;
 		} catch (err) {
 			// JSON.stringify throws for a text longer than V8's limit, around 512MB. The record of the drop keeps the stream open.
-			const { id, timestamp, kind, level, accessLevel } = event;
-			const droppedReason = errorDetail(err);
-			this.parts.eventLogger.error(`the event ${id} was dropped from the stream, since it doesn't serialize: ${droppedReason}`);
-			return JSON.stringify({ type: "event", event: { id, timestamp, kind, level, accessLevel, dropped: true, droppedReason } });
+			const { id, timestamp, kind, accessLevel } = event;
+			const message = `the ${kind} event ${id} was dropped from the stream, since it doesn't serialize: ${errorDetail(err)}`;
+			this.parts.eventLogger.error(message);
+			return JSON.stringify({ type: "event", event: { id, timestamp, source: "haibun", kind: "log", level: "error", accessLevel, message } satisfies TLogEvent });
 		}
 	}
 

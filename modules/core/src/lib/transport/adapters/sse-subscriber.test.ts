@@ -37,8 +37,8 @@ describe("SseSubscriber delivery", () => {
 		sub.subscribe((e) => received.push(e));
 		sub.connect();
 		await vi.waitFor(() => expect(host.connections).toHaveLength(1));
-		itemAt(host.connections, 0).send(wire({ id: "live-1", kind: "lifecycle", timestamp: 2 }));
-		itemAt(host.connections, 0).send(wire({ id: "live-2", kind: "lifecycle", timestamp: 3 }));
+		itemAt(host.connections, 0).send(wire({ id: "live-1", kind: "log", level: "info", message: "one", timestamp: 2 }));
+		itemAt(host.connections, 0).send(wire({ id: "live-2", kind: "log", level: "info", message: "two", timestamp: 3 }));
 		await vi.waitFor(() => expect(received.map((e) => e.id)).toEqual(["live-1", "live-2"]));
 		sub.close();
 	});

@@ -12,8 +12,8 @@ const wholeLine = (line: number, text: string): Range => ({ start: { line, chara
 /** A feature line that doesn't resolve, on its line (numbered from one) across its text. */
 export const unresolvedLine = (lineNumber: number, text: string, message: string): Diagnostic => diagnostic(SEVERITY.error, wholeLine(lineNumber - 1, text), message);
 
-/** A kireji string's line that doesn't resolve to one step, across its range. */
-export const unresolvedString = (range: Range, text: string): Diagnostic => diagnostic(SEVERITY.error, range, `'${text}' doesn't resolve to one step.`);
+/** A kireji string's line that doesn't resolve to one step, across its range, with the resolver's reason as its message. */
+export const unresolvedString = (range: Range, message: string): Diagnostic => diagnostic(SEVERITY.error, range, message);
 
 /** A background a feature names that isn't found: an error across the first Backgrounds: line, or the first line of a feature without one, since the feature doesn't expand. */
 export function backgroundNotFound(content: string, reason: string): Diagnostic {

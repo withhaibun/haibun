@@ -98,7 +98,7 @@ export const DerivationSchema = z.object({
 });
 export type TDerivation = z.infer<typeof DerivationSchema>;
 
-/** A rule a formula states: the formula's name, its role, and its rendering in Unicode notation. */
+/** The domain of a statement's derivation, which showDerivation returns, and of a line with its term. */
 export const DOMAIN_DERIVATION = "derivation";
 export const DOMAIN_LINE_TERM = "line-term";
 

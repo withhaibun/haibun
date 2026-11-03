@@ -6,7 +6,7 @@
  * the callers of its method, so its test ids stay unique across repeated calls.
  */
 import { html, nothing, type ReactiveController, type TemplateResult } from "lit";
-import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
+import { RPC_METHOD, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { prettifyGwta, VALIDATE_STEP_METHOD, waypointMark, type TPredicate, type TStepDefinition, type TStepValidation } from "@haibun/core/lib/step-discovery.js";
 import { callStep } from "../controllers/read-controller.js";
 import type { TPageRefusal } from "../domains/refusal.js";
@@ -51,14 +51,8 @@ export function stepDetails(step: TStepDefinition): string {
 	return lines.join("\n");
 }
 
-/** The understanding commands, which work on anything a reader is shown: what it is (its axioms), why it is so (its
- *  derivation), what can be done with it (the applicable steps) and where it fits (the graph view). */
-export const UNDERSTANDING_STEPS: readonly string[] = [
-	"GraphSourceStepper-showAxioms",
-	"LogicStepper-showDerivation",
-	"LogicStepper-showApplicableSteps",
-	"ShuStepper-showPolymorphicGraphView",
-];
+/** The understanding commands, which work on anything a reader is shown. */
+export const UNDERSTANDING_STEPS: readonly string[] = [RPC_METHOD.SHOW_AXIOMS, RPC_METHOD.SHOW_DERIVATION, RPC_METHOD.SHOW_APPLICABLE_STEPS, RPC_METHOD.SHOW_GRAPH_VIEW];
 
 /** The step options: the understanding commands, then the selected type's kaname steps and its other steps, marked, then every
  *  other step, each with its description. Each option's value is the step's full method, since a step's own name can repeat

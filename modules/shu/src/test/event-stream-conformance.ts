@@ -25,7 +25,7 @@ type TStreamUnderTest = {
 	done?(): void | Promise<void>;
 };
 
-const event = (n: number): TEvent => ({ level: n % 2 === 0 ? "info" : "debug", message: `event ${n}` });
+const event = (n: number): TEvent => ({ id: `event-${n}`, timestamp: n, kind: "log", level: n % 2 === 0 ? "info" : "debug", message: `event ${n}` });
 const messages = (got: TEvent[]): string[] => got.map((e) => String(e.message));
 
 /** Run the specification against one stream. `make` returns a connected stream that hasn't delivered an event yet. */

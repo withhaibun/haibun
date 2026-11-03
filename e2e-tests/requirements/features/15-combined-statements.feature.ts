@@ -7,7 +7,7 @@ export const features: TKirejiExport = {
 	"Combined statements": [
 		feature({ feature: "Combined statements" }),
 		`Statements combine in plain English. A scenario's steps run in order, and a step that fails ends the scenario, so the steps of a scenario hold together. Coordination with and is a universal over a closed domain, coordination with or is any of, and a named Activity combines the statements its waypoint ensures. Each line names its subjects, and a line doesn't refer to a subject another line named.
-		A proof renders as its statements in proof order: the statements that support the goal first, and the goal last. The verdict of each statement is in its record (docs/reasoner.md, Combined statements).`,
+		A proof renders as its statements in proof order: the statements that support the goal first, and the goal last. The verdict of each statement is in its record.`,
 
 		scenario({ scenario: "The steps of a scenario hold together in order" }),
 		"Essential, for every surface. Source: executor.ts, doFeature.",
@@ -26,19 +26,19 @@ export const features: TKirejiExport = {
 		'variable plated is "yes"',
 
 		scenario({ scenario: "Coordination with and joins statements" }),
-		"Essential, for people and models. Every member of a closed domain joins the statements that differ by that member. Source: docs/reasoner.md, Combined statements.",
+		"Essential, for people and models. Every member of a closed domain joins the statements that differ by that member.",
 		'set of Platters is ["soup", "bread"]',
 		'set soup to "cooked"',
 		'set bread to "cooked"',
 		'every course in Platters is variable {course} is "cooked"',
 
 		scenario({ scenario: "Coordination with or holds where one statement holds" }),
-		"Essential, for people and models. Source: docs/reasoner.md, Combined statements.",
+		"Essential, for people and models.",
 		'set supper to "cooked"',
 		'any of "variable breakfast is \\"cooked\\", variable supper is \\"cooked\\""',
 
 		scenario({ scenario: "A relative clause states a universal over a closed domain" }),
-		"Essential, for the formal model. Source: docs/reasoner.md, Combined statements.",
+		"Essential, for the formal model.",
 		'set of Dishes is ["stew", "salad"]',
 		'set stew to "cooked"',
 		'for every {dish: Dishes} where variable {dish} is "cooked", {dish} is edible',
@@ -46,7 +46,7 @@ export const features: TKirejiExport = {
 		'didn\'t "salad" is edible',
 
 		scenario({ scenario: "A proof renders as its statements in proof order, the goal last" }),
-		"Essential, for people and models. The verdict is the proof's, and each statement's is in its record. Source: docs/reasoner.md, Proofs as SeqPath records.",
+		"Essential, for people and models. The verdict is the proof's, and each statement's is in its record.",
 		'set dessert to "cooked"',
 		"show var dessert",
 		'set proof from resolve "var-snapshot"',

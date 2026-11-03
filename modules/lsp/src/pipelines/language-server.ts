@@ -198,8 +198,8 @@ export class LanguageServer {
 				const step: TFeatureStep = { action, source: { lineNumber: start.line + 1, path }, in: line.text, seqPath: [0] };
 				placed.push({ step, startOffset: start.character, length: line.text.length });
 				this.#log.debug(`[LspStepper] "${line.text}" resolves to ${action.actionName}`);
-			} catch {
-				diagnostics.push(unresolvedString({ start, end: document.positionAt(line.offset + line.text.length) }, line.text));
+			} catch (err) {
+				diagnostics.push(unresolvedString({ start, end: document.positionAt(line.offset + line.text.length) }, errorDetail(err)));
 			}
 		}
 		this.#placed.set(path, placed);

@@ -1,18 +1,16 @@
 import { withAction, type TKirejiExport } from "@haibun/core/kireji/derivations/withAction.js";
 import WebPlaywright from "@haibun/web-playwright";
 import WebServerStepper from "@haibun/web-server-hono/web-server-stepper.js";
-import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import ShuStepper from "@haibun/shu/shu-stepper.js";
 import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
-import { configuredServiceHost, createStepUI, flattenTestIds, signedInAddress } from "@haibun/shu/test/step-ui.js";
+import { configuredServiceHost, createStepUI, signedInAddress, registerTestIds } from "@haibun/shu/test/step-ui.js";
 
 const webPlaywright = new WebPlaywright();
 const { serveShuApp } = withAction(new ShuStepper());
 const { asksToSignIn: everyVisitorSignsIn } = withAction(new WebServerStepper());
 const { gotoPage, waitFor } = withAction(webPlaywright);
-const { setAs } = withAction(new VariablesStepper());
 const { feature, scenario } = withAction(new Haibun());
 const { chooseGraphLabel } = createStepUI(webPlaywright);
 
@@ -20,7 +18,7 @@ const APP = "/spa";
 const host = configuredServiceHost();
 const IDS = SHU_TEST_IDS;
 
-const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
+const testIdSetup = registerTestIds(IDS);
 
 export const features: TKirejiExport = {
 	"A page behind basic auth": [

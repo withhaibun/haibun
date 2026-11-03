@@ -1,6 +1,7 @@
 import { withAction, type TKirejiStep } from "@haibun/core/kireji/derivations/withAction.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import type WebPlaywright from "@haibun/web-playwright";
+import { DOMAIN_PAGE_TEST_ID } from "@haibun/web-playwright/domains.js";
 import { BASIC_AUTH_OPTION, basicAuthUsers } from "@haibun/core/lib/domains/basic-auth.js";
 import { requiredModuleOption } from "@haibun/core/lib/held-module-options.js";
 import { MODULE_OPTION_PREFIX } from "@haibun/core/lib/domains/protocol.js";
@@ -24,36 +25,26 @@ export function signedInAddress(address: string): string {
 	return address.replace("://", `://${encodeURIComponent(username)}:${encodeURIComponent(password)}@`);
 }
 
-/** Declare one id under the `page-test-id` domain so the variable resolver maps the bare name to that test id. */
-const registerTestIdStep = (id: string): TKirejiStep => setAs({ what: id, domain: "page-test-id", value: `"${id}"` });
-
-/** Collect every leaf id string from the given id-set objects (and bare id arrays), de-duplicated. */
-function collectTestIds(idSets: Array<Record<string, unknown> | ReadonlyArray<string>>): string[] {
-	const flat = idSets.flatMap((set) => (Array.isArray(set) ? [...set] : flattenTestIds(set as Record<string, unknown>)));
-	return [...new Set(flat)];
-}
-
 /** Wrap steps as an activity: they run as hidden substeps, surfaced as the single line `as` (a lowercase declarative outcome like "the recipe is created", unique per feature, shown after the steps run). Spread `setup` before the scenarios, `call` at the point of use. */
 export function activity(as: string, ...steps: TKirejiStep[]): { setup: TKirejiStep[]; call: TKirejiStep[] } {
 	return { setup: [`Activity: ${as}`, ...steps, `waypoint ${as}`], call: [as] };
 }
 
-export function flattenTestIds(obj: Record<string, unknown>): string[];
-/** Activity form: bundle the test-id registrations into one activity. `as` is a lowercase declarative label; spread `setup` before the scenarios and `call` once before any step that uses a test id. */
-export function flattenTestIds(as: string, ...idSets: Array<Record<string, unknown> | ReadonlyArray<string>>): { setup: TKirejiStep[]; call: TKirejiStep[] };
-export function flattenTestIds(
-	objOrAs: Record<string, unknown> | string,
-	...idSets: Array<Record<string, unknown> | ReadonlyArray<string>>
-): string[] | { setup: TKirejiStep[]; call: TKirejiStep[] } {
-	if (typeof objOrAs !== "string") {
-		const result: string[] = [];
-		for (const value of Object.values(objOrAs)) {
-			if (typeof value === "string") result.push(value);
-			else if (typeof value === "object" && value !== null) result.push(...flattenTestIds(value as Record<string, unknown>));
-		}
-		return result;
-	}
-	return activity(objOrAs, ...collectTestIds(idSets).map(registerTestIdStep));
+/** Every leaf id string of a test-id set, at any depth. */
+function flattenTestIds(ids: Record<string, unknown>): string[] {
+	return Object.values(ids).flatMap((value) =>
+		typeof value === "string" ? [value] : typeof value === "object" && value !== null ? flattenTestIds(value as Record<string, unknown>) : [],
+	);
+}
+
+/** The steps that declare each test id of `idSets` (id-set objects and bare id arrays), once each, under the `page-test-id`
+ *  domain, so a feature's lines name a test id by its bare name. */
+export const registerTestIds = (...idSets: Array<Record<string, unknown> | ReadonlyArray<string>>): TKirejiStep[] =>
+	[...new Set(idSets.flatMap((set) => (Array.isArray(set) ? [...set] : flattenTestIds(set as Record<string, unknown>))))].map(registerTestIdStep);
+
+/** The step that declares one test id under the `page-test-id` domain, so a feature's lines name it by its bare name. */
+function registerTestIdStep(id: string): TKirejiStep {
+	return setAs({ what: id, domain: DOMAIN_PAGE_TEST_ID, value: `"${id}"` });
 }
 
 const IDS = SHU_TEST_IDS;
@@ -105,11 +96,6 @@ export const ACTIONS_PANE = paneOfComponent(SHU_TAG.ACTIONS_BAR);
 
 export function createStepUI(wp: WebPlaywright) {
 	const { waitFor, click, setValue, selectionOption, press, shouldSeeTestId, type: typeText } = withAction(wp);
-
-	/** Set every leaf string in `idSets` as a `page-test-id` variable. */
-	function registerTestIds(...idSets: Array<Record<string, unknown> | ReadonlyArray<string>>): TKirejiStep[] {
-		return collectTestIds(idSets).map(registerTestIdStep);
-	}
 
 	/** Wait for the bar's pane to attach. The bar opens its pane from the address as the pane attaches, so once the pane's
 	 *  control is on the page, whether the bar is open is settled, and a check of it doesn't race the address. */
@@ -334,7 +320,6 @@ export function createStepUI(wp: WebPlaywright) {
 		askShowsTurns,
 		askStates,
 		selectQueryFirstRow,
-		registerTestIds,
 		runStep,
 		passesStepForm,
 		failsStepForm,

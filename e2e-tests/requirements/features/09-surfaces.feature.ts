@@ -29,7 +29,7 @@ export const features: TKirejiExport = {
 		'as of "0.1", applicable steps',
 
 		scenario({ scenario: "A model's tool call and a line reach the same term" }),
-		`Essential, for a model and the page. Source: docs/reasoner.md, For a model.
+		`Essential, for a model and the page.
 		Done for the record: a call writes one SeqPath record, which holds the call's parameters and result, the model and the ask of its turn, its delegation and the read level it ran under (step-records.ts).`,
 		'the call "VariablesStepper-set" with {"what": "x", "value": "1"} is the line "set x to \\"1\\""',
 

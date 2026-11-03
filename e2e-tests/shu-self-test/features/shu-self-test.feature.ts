@@ -6,7 +6,7 @@ import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import ShuStepper from "@haibun/shu/shu-stepper.js";
 import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
 import { SHU_TAG } from "@haibun/shu/domains/elements.js";
-import { createStepUI, flattenTestIds } from "@haibun/shu/test/step-ui.js";
+import { createStepUI, registerTestIds } from "@haibun/shu/test/step-ui.js";
 import { COMMENT_DOMAIN, COMMENT_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { DOMAIN_PAGE_TEST_ID } from "@haibun/web-playwright/domains.js";
 import { domains } from "@haibun/shu/waypoints/backgrounds/domains.feature.ts";
@@ -52,7 +52,7 @@ const CHAIN_GRAPH_CANVAS_SELECTOR = `${SHU_TAG.DOMAIN_CHAIN_VIEW} > [slot='${IDS
 /** The views picker's list of declared views, and its row that opens the monitor column. */
 const VIEWS_PICKER = SHU_TEST_IDS.VIEWS_PICKER.ROOT;
 const VIEWS_PICKER_MONITOR = `${SHU_TEST_IDS.VIEWS_PICKER.ROW}${SHU_TAG.MONITOR_COLUMN}`;
-const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
+const testIdSetup = registerTestIds(IDS);
 // createStepUI's helpers emit a setAs step for each step-caller test id they use. Each id holds the method and the call index. An input's id also holds its parameter.
 // This list holds the registrations made at file scope. This file doesn't register one, so the list is empty.
 const stepIdSetup: ReturnType<typeof setAs>[] = [];

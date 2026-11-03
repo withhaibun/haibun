@@ -238,6 +238,12 @@ export const RPC_METHOD = {
 	/** The applicable steps, as a read. The panel and the chain view request it to stay current. */
 	APPLICABLE_STEPS: "LogicStepper-applicableSteps",
 	AS_OF: "Haibun-asOf",
+	/** The understanding commands: what a thing is (its axioms), why it is so (its derivation), what can be done with it, and
+	 *  where it fits (the graph view). */
+	SHOW_AXIOMS: "GraphSourceStepper-showAxioms",
+	SHOW_DERIVATION: "LogicStepper-showDerivation",
+	SHOW_APPLICABLE_STEPS: "LogicStepper-showApplicableSteps",
+	SHOW_GRAPH_VIEW: "ShuStepper-showPolymorphicGraphView",
 } as const;
 
 /** The classes a row takes against the time cursor: after it (dimmed), and the cursor's row. `SHU_BASE` styles both. */
