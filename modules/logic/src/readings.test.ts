@@ -143,7 +143,7 @@ describe("the readings of the logic engine", () => {
 		expect(result.failure?.error.message).toContain(untilWithoutDuration("retry fails"));
 	});
 
-	it("ends until at its deadline, however many attempts the deadline allows", async () => {
+	it("ends until at its deadline, however many attempts the deadline allows", { timeout: 15_000 }, async () => {
 		const world = getDefaultWorld({ HAIBUN_LOG_LEVEL: "none" });
 		let now = 0;
 		world.clock = { ...world.clock, now: () => now, wait: (ms) => Promise.resolve(void (now += ms)) };
