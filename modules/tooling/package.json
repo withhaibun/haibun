@@ -18,7 +18,7 @@
 	"peerDependencies": {
 		"esbuild": "^0.28.1",
 		"vite": "^8.3.4",
-		"vitest": "^5.0.4"
+		"vitest": "^5.1.0"
 	},
 	"license": "ISC"
 }

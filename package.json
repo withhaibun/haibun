@@ -14,9 +14,9 @@
 		"@semantic-release/exec": "^7.1.0",
 		"@semantic-release/git": "^11.0.1",
 		"@types/node": "^25.9.9",
-		"@vitest/coverage-v8": "^5.0.5",
+		"@vitest/coverage-v8": "^5.1.0",
 		"concurrently": "^10.0.6",
-		"dependency-cruiser": "^18.7.0",
+		"dependency-cruiser": "^18.7.2",
 		"esbuild": "^0.28.2",
 		"playwright": "^1.63.0",
 		"playwright-core": "^1.63.0",
@@ -24,7 +24,7 @@
 		"semantic-release": "^25.0.9",
 		"typescript": "^6.0.3",
 		"vite": "^8.3.5",
-		"vitest": "^5.0.5"
+		"vitest": "^5.1.0"
 	},
 	"scripts": {
 		"test": "vitest run",
