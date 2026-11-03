@@ -24,14 +24,15 @@ function countsText(c: GraphSceneChangedDetail["counts"], prune: boolean): strin
 }
 
 const POLYMORPHIC_IDS = SHU_TEST_IDS.POLYMORPHIC_VIEW;
-/** A step's end whose products hold a refused claim's witness: the claim's own, and those of `didn't` and `maybe` over it. */
-const WitnessCarrierSchema = z.object({ products: z.object({ witness: ClaimWitnessSchema }) });
+/** A step's end whose products hold a witness: a refused claim's, its own and those of `didn't` and `maybe` over it, or the frames
+ *  of the records a derivation's proof wrote. */
+const WitnessCarrierSchema = z.object({ products: z.union([z.object({ witness: ClaimWitnessSchema }), z.object({ frames: GraphAxiomsSchema.shape.frames })]) });
 const carriesWitness = (event: TEvent): boolean => isStepEnd(event) && WitnessCarrierSchema.safeParse(event).success;
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { VIEW, VIEW_TYPES } from "../domains/views.js";
 import type { TPolymorphicOptionChange } from "./shu-polymorphic-settings.js";
 import { ViewAxiomsProductsSchema, type TGraphView, type TViewAxioms } from "../../../domains/graph-view.js";
-import { ClaimWitnessSchema, type TClaimWitness } from "@haibun/core/lib/records/domains/axioms.js";
+import { ClaimWitnessSchema, GraphAxiomsSchema } from "@haibun/core/lib/records/domains/axioms.js";
 import { isStepEnd } from "@haibun/core/lib/domains/protocol.js";
 import type { TEvent } from "../../ports.js";
 import { LoadController } from "../../controllers/load-controller.js";
@@ -40,7 +41,7 @@ import { appAccessLevel } from "../../controllers/view-query-controller.js";
 import { ClockController } from "../../controllers/clock-controller.js";
 import { SOURCE_FORMATS } from "../domains/sources.js";
 import type { TDrawn } from "../derivations/source-lines.js";
-import { axiomOverlay, sameOverlay, type TAxiomOverlay, type TCarried } from "../derivations/axiom-overlay.js";
+import { axiomOverlay, sameOverlay, type TAxiomOverlay, type TCarried, type TWitness } from "../derivations/axiom-overlay.js";
 import { linkEndId } from "../domains/graph-types.js";
 import "./shu-graph-source.js";
 import type { TGraphSourcePane } from "./shu-graph-source.js";
@@ -157,8 +158,8 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	});
 	/** The axioms the DL view maps onto the nodes and edges the scene draws; null outside the DL view. */
 	#overlay: TAxiomOverlay | null = null;
-	/** The witness of the latest claim a step end refused, which the DL view marks in place. */
-	#witness: TClaimWitness | undefined = undefined;
+	/** The witness the latest step end named, which the DL view marks in place. */
+	#witness: TWitness | undefined = undefined;
 	/** The saved scenes offered in the settings, fetched by this host (the settings element doesn't call an RPC of its own). */
 	private sceneNames: string[] = [];
 	/** What went wrong with the last scene a reader asked to save or return to, shown beside the controls; null when the last one succeeded. */
@@ -434,7 +435,8 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		this.configureScene();
 		// In the DL view a node or an edge a reader chooses opens the frame that states its axioms in the axioms pane.
 		this.autoListen(this, GRAPH_SCENE_EVENT.EDGE_CHOSEN, ((e: CustomEvent<{ key: string }>) => this.openFrameOf(this.#overlay?.edges.get(e.detail.key), false)) as EventListener);
-		// A claim a step refuses names its witness in its products, and in the products of `didn't` and `maybe` over it.
+		// A claim a step refuses names its witness in its products, and in the products of `didn't` and `maybe` over it; a
+		// derivation names the frames of its proof's records.
 		if (!this.usesExternalData) this.autoTeardown(this.subscribeBatched({ onBatch: (events) => this.noteWitness(events), filter: carriesWitness }));
 		if (!this.usesExternalData)
 			this.autoListen(this, SHU_EVENT.PANE_OPEN, ((e: CustomEvent<TPaneOpen>) => {
@@ -577,11 +579,12 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		if (overlay !== null && overlay.witnessed.size > 0) scene?.setPreview({ subjects: overlay.witnessed });
 	}
 
-	/** Holds the witness of the latest claim a step end refused, which the DL view marks in place. */
+	/** Holds the witness the latest step end named, which the DL view marks in place. */
 	private noteWitness(events: TEvent[]): void {
 		const carrier = WitnessCarrierSchema.safeParse(events.at(-1));
 		if (!carrier.success) return;
-		this.#witness = carrier.data.products.witness;
+		const { products } = carrier.data;
+		this.#witness = "witness" in products ? { claim: products.witness } : { proof: products.frames };
 		this.mapAxioms();
 	}
 

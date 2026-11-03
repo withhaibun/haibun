@@ -31,7 +31,10 @@ export const features: TKirejiExport = {
 		'set visits to "1"',
 		'waypoint Visits are counted with variable visits is "1"',
 		'set nodes from show derivation of "ensure Visits are counted"',
-		"variable nodes.records.0.isPartOf exists",
+		'variable nodes.frames.1.edges.0.label is "isPartOf"',
+		"A step's derivation reads again from the records its proof wrote, without proving it again. Source: registry-reads.ts, derivationOfRecord.",
+		"set recorded from derivation of step nodes.frames.0.assertedBy",
+		'variable recorded.verdict is "proved"',
 
 		scenario({ scenario: "A class expression returns the records it entails, which a combinator counts" }),
 		"Essential, for the open world. A record is a member of its type's class and of each class that subsumes it, so a class expression over the ontology returns the step records actuality wrote; another member may exist that the records don't entail. Source: members.ts and reason.ts.",

@@ -1,8 +1,8 @@
 /**
- * <shu-refusal>: a refusal's cause, a control that copies it, and its remedy as a native control (CA4F4): a link that signs
- * in, a button that reloads or reads again, the action to request with a control that copies it, and a link to what a
- * reference names. The page performs a reload through its
- * remedies port.
+ * <shu-refusal>: a refusal's cause, a control that copies it, its remedy as a native control (CA4F4), and, for a step actuality
+ * recorded, the control that opens why it was refused. A remedy is a link that signs in, a button that reloads or reads again,
+ * the action to request with a control that copies it, or a link to what a reference names. The page performs a reload through
+ * its remedies port.
  */
 import { html, css, nothing, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
@@ -14,6 +14,7 @@ import { defineElement } from "../controllers/element-controller.js";
 import { reloadFor } from "../controllers/remedy-controller.js";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { refHref } from "./ref-navigation.js";
+import { whyTpl } from "./why.js";
 import { shuBaseStyles } from "./styles.js";
 import "./shu-copy-button.js";
 
@@ -69,6 +70,7 @@ export class ShuRefusal extends ShuElement<typeof EmptyStateSchema> {
 			<span data-testid=${SHU_TEST_IDS.REFUSAL.CAUSE}>${refusal.error}</span>
 			<shu-copy-button label="copy" title="copy this message" .source=${refusal.error}></shu-copy-button>
 			${refusal.remedy === undefined ? nothing : this.remedyControl(refusal.remedy)}
+			${refusal.step === undefined ? nothing : whyTpl(refusal.step)}
 		</div>`;
 	}
 }

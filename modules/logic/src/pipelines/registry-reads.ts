@@ -1,6 +1,6 @@
 /**
- * Reads of a proof and of the predicate registry for the logic stepper's steps: a statement's derivation from the records its
- * proof wrote, a line's term and the line it renders as, the term of a call a transport carries, and the refusal of steppers
+ * Reads of a proof and of the predicate registry for the logic stepper's steps: a statement's or a recorded step's derivation
+ * from the records its proof wrote, a line's term and the line it renders as, the term of a call a transport carries, and the refusal of steppers
  * from whose declarations the registry doesn't derive each step once.
  */
 import type { DispatchContext } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
@@ -9,7 +9,7 @@ import { Resolver } from "@haibun/core/lib/actuality/pipelines/resolver.js";
 import { runRegistry } from "@haibun/core/lib/steps/pipelines/step-registry.js";
 import { mapInputToStepValues } from "@haibun/core/lib/steps/derivations/named-vars.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
-import { SEQ_PATH_FIELD, calledParts, actualityFeatureOf, formatRecordName } from "@haibun/core/lib/actuality/domains/seq-path.js";
+import { SEQ_PATH_FIELD, calledParts, actualityFeatureOf, formatRecordName, parseRecordName, type TRecordName } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { constructorName } from "@haibun/core/lib/domains/util.js";
 import type { TWorld } from "@haibun/core/lib/actuality/domains/world.js";
 import type { AStepper, TFeatureStep } from "@haibun/core/lib/steps/domains/stepper.js";
@@ -17,6 +17,7 @@ import { derivationOf } from "../derivations/derivation.js";
 import { lineOfTerm, termOfAction, termText, type TLineTerm } from "../derivations/registry.js";
 import { declaredSteps, predicateOf, predicatesOf } from "@haibun/core/lib/steps/derivations/predicate-registry.js";
 import type { TDerivation } from "../domains/logic.js";
+import type { TIndividualAddress } from "@haibun/core/lib/domains/typed-links.js";
 import { declarationFindings } from "../derivations/declarations.js";
 import { recordsWhere } from "./reads.js";
 
@@ -29,14 +30,26 @@ const isNodeOf =
 		return steppers.find((one) => constructorName(one) === stepperName)?.steps[actionName]?.reading !== undefined;
 	};
 
+/** Returns the derivation of the step whose record `name` names, from the records its proof wrote in its actuality feature. */
+async function derivationRecorded(world: TWorld, steppers: AStepper[], name: TRecordName): Promise<TDerivation> {
+	const records = await recordsWhere(world.shared.getStore(), SEQ_PATH_LABEL, SEQ_PATH_FIELD.actuality, name.actuality);
+	return derivationOf(records, formatRecordName(name), isNodeOf(steppers));
+}
+
 /** Proves a statement under a step, and returns its derivation from the records its proof wrote. */
 export async function derivationUnder(ctx: DispatchContext, parent: TFeatureStep, statement: TFeatureStep): Promise<TDerivation> {
 	const { world, steppers } = ctx;
 	const seqPath = nextSeqPath(world, parent.seqPath);
 	await proveStep(ctx, { ...statement, seqPath, isSubStep: true, ...(parent.runtimeArgs === undefined ? {} : { runtimeArgs: parent.runtimeArgs }) });
-	const actualityFeature = actualityFeatureOf(world.tag);
-	const records = await recordsWhere(world.shared.getStore(), SEQ_PATH_LABEL, SEQ_PATH_FIELD.actuality, actualityFeature);
-	return derivationOf(records, formatRecordName({ actuality: actualityFeature, path: seqPath }), isNodeOf(steppers));
+	return derivationRecorded(world, steppers, { actuality: actualityFeatureOf(world.tag), path: seqPath });
+}
+
+/** Returns the derivation of the step whose record `step` addresses, read from the records its proof wrote, without proving it again. */
+export function derivationOfRecord(world: TWorld, steppers: AStepper[], step: TIndividualAddress): Promise<TDerivation> {
+	const name = step.persistedAs === SEQ_PATH_LABEL ? parseRecordName(step.id) : undefined;
+	if (name === undefined)
+		throw new Error(`${step.persistedAs} ${step.id} isn't a step's record. Address a ${SEQ_PATH_LABEL} record by its id, its actuality feature and its path.`);
+	return derivationRecorded(world, steppers, name);
 }
 
 /** The term of the step a line resolves to, through the pattern that parses the line: the head of the waypoint the line

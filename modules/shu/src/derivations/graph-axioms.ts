@@ -9,12 +9,10 @@ import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { ONTOLOGY_FIELD } from "@haibun/core/lib/records/domains/ontology.js";
 import { CLASS_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { FRAME_KIND, type TGraphAxioms, type TFrame } from "@haibun/core/lib/records/domains/axioms.js";
-import { classAxioms, individualAxioms, propertyAxioms, type TIndividualFact } from "@haibun/core/lib/records/derivations/axioms.js";
+import { BETWEEN_FRAMES, classAxioms, individualAxioms, propertyAxioms, type TIndividualFact } from "@haibun/core/lib/records/derivations/axioms.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import type { GraphEdge, GraphModel, GraphNode } from "../domains/graph-model.js";
 import { INSTANCE_OF } from "./ontology-projection.js";
-
-const BETWEEN_FRAMES = "\n\n";
 
 /** The haibun statement behind a record's frame: the line a step's record states, or the record by its type and id. */
 const statementOf = (node: GraphNode): string => {

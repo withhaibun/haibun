@@ -242,6 +242,8 @@ export const RPC_METHOD = {
 	 *  where it fits (the graph view). */
 	SHOW_AXIOMS: "GraphSourceStepper-showAxioms",
 	SHOW_DERIVATION: "LogicStepper-showDerivation",
+	/** The derivation actuality recorded for a step, as a read, which a step's why opens. */
+	RECORDED_DERIVATION: "LogicStepper-recordedDerivation",
 	SHOW_APPLICABLE_STEPS: "LogicStepper-showApplicableSteps",
 	SHOW_GRAPH_VIEW: "ShuStepper-showPolymorphicGraphView",
 } as const;

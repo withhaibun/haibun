@@ -35,7 +35,7 @@ export const ACTION_BEGIN = "action.begin";
 /** The RPC protocol version this code implements. Every call states it. The handshake response holds it. An instance
  *  refuses a call at another version. A client refuses a handshake response at another version. A change to the wire
  *  requires a higher version. rpc-wire.test.ts compares the wire's shape with the shape recorded for this version. */
-export const RPC_PROTOCOL = 4;
+export const RPC_PROTOCOL = 5;
 
 /** What every call's envelope holds. */
 export const RpcEnvelopeSchema = z.object({
@@ -126,8 +126,9 @@ const heldActuality = (actualityId: TActualityId) => z.literal(actualityId, { er
  *  the step returns products. This result doesn't state that. */
 export const ANSWERED_WITHOUT_PRODUCTS = { ok: true } as const;
 
-/** A host's response to a call it didn't serve. `error` states why. `remedy` states what the person can do, where a remedy exists. */
-export const RpcRefusalSchema = z.object({ error: z.string().min(1), remedy: RemedySchema.optional() });
+/** A host's response to a call it didn't serve. `error` states why. `remedy` states what the person can do, where a remedy exists.
+ *  `step` is the id of the refused step's record, where actuality recorded the step. A reader reads the step's proof from that record. */
+export const RpcRefusalSchema = z.object({ error: z.string().min(1), remedy: RemedySchema.optional(), step: z.string().optional() });
 export type TRpcRefusal = z.infer<typeof RpcRefusalSchema>;
 
 /** A host's response to a call: its body, or its refusal. */
@@ -149,11 +150,11 @@ const REFUSED_CALL = "RefusedCall";
 /** The error of a refused call. It carries the refusal, so the code that shows it can offer the remedy as a control. */
 export class RefusedCall extends Error {
 	readonly refusal: TRpcRefusal;
-	/** Takes a refusal or a refused response and keeps its reason and remedy. The message appends the remedy as text. */
-	constructor({ error, remedy }: TRpcRefusal) {
+	/** Takes a refusal or a refused response and keeps its reason, its remedy and its step's path. The message appends the remedy as text. */
+	constructor({ error, remedy, step }: TRpcRefusal) {
 		super(refusalSaid({ error, remedy }));
 		this.name = REFUSED_CALL;
-		this.refusal = { error, remedy };
+		this.refusal = { error, remedy, step };
 	}
 }
 
@@ -176,8 +177,13 @@ export const REFUSED_CALL_STATUS = 422;
 /** Returns the refusal of a call whose presented authority failed verification. Its remedy reads what the key holds again. */
 export const authorityRefusal = (error: string): TRpcRefusal => ({ error, remedy: RELOAD.authority });
 
-/** Returns the refusal of a call that failed. The error names the method, so a page shows which call failed. */
-export const callFailed = (method: string, failure: string, remedy?: TRemedy): TRpcRefusal => ({ error: `${method}: ${failure}`, ...(remedy === undefined ? {} : { remedy }) });
+/** Returns the refusal of a call that failed. The error names the method, so a page shows which call failed, and `step` names
+ *  the failed step's record where actuality recorded the step. */
+export const callFailed = (method: string, failure: string, remedy?: TRemedy, step?: string): TRpcRefusal => ({
+	error: `${method}: ${failure}`,
+	...(remedy === undefined ? {} : { remedy }),
+	...(step === undefined ? {} : { step }),
+});
 
 /** Returns the refusal of a call whose response didn't come from actuality. Actuality responds to every call with JSON, so
  *  a response of another media type came from a proxy or server in front of it. The remedy of a 401 or 407 status signs
