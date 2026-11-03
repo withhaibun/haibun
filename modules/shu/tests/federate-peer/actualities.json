@@ -55,6 +55,62 @@
 			}
 		}
 	},
+	"linux-x64-20x-12th-gen-intel-core-i7-12700k": {
+		"60fcd1b0d44b1e2e": {
+			"filter": "",
+			"actuality": {
+				"text": "modules/shu/tests/federate-peer",
+				"status": "passed",
+				"tookMs": 0,
+				"digest": {
+					"modules/core/src": "67b9244afbfd3d109355da5cefe86eb1fee3397ca2b6ae0646e37f5c50e61573",
+					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
+					"modules/logic/src": "fe5f33e122937886b1dbc30f2c31606c35496f3eb246a044f63de01a8fa37caa",
+					"modules/shu/src": "3e32d66e1b44592aef69329beb59f0cd6208ac055b7efeb5a6a8835b356c86e0",
+					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
+					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
+					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
+					"modules/web-playwright/src": "7dd567c69dc602467a423d8af76f960873386fb5ce1bef63645fb0437ffb7bdc",
+					"modules/web-server-hono/src": "29e21a1daba386905be55e702fe8e309cf6feb9c6a0b10d499c36ff565148be1"
+				}
+			},
+			"features": {
+				"/features/serve.feature": {
+					"text": "/features/serve",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 4
+				}
+			}
+		},
+		"a4947abcc9832875": {
+			"filter": "",
+			"actuality": {
+				"text": "modules/shu/tests/federate-peer",
+				"status": "passed",
+				"tookMs": 0,
+				"digest": {
+					"modules/core/src": "67b9244afbfd3d109355da5cefe86eb1fee3397ca2b6ae0646e37f5c50e61573",
+					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
+					"modules/logic/src": "fe5f33e122937886b1dbc30f2c31606c35496f3eb246a044f63de01a8fa37caa",
+					"modules/shu/src": "3e32d66e1b44592aef69329beb59f0cd6208ac055b7efeb5a6a8835b356c86e0",
+					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
+					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
+					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
+					"modules/web-playwright/src": "7dd567c69dc602467a423d8af76f960873386fb5ce1bef63645fb0437ffb7bdc",
+					"modules/web-server-hono/src": "29e21a1daba386905be55e702fe8e309cf6feb9c6a0b10d499c36ff565148be1"
+				}
+			},
+			"features": {
+				"/features/serve.feature": {
+					"text": "/features/serve",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 4
+				}
+			}
+		}
+	},
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
 		"12a6452828c6cb03": {
 			"filter": "",

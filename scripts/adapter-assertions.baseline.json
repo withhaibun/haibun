@@ -1,18 +1,6 @@
 {
-	"modules/core/src/lib/actuality/adapters/feature-files.ts": {
-		"asserts a type with `as` where a schema parses the value": 1
-	},
-	"modules/core/src/lib/adapters/current-version.ts": {
-		"asserts a type with `as` where a schema parses the value": 1
-	},
 	"modules/core/src/lib/adapters/dependency-state.ts": {
 		"asserts a type with `as` where a schema parses the value": 4
-	},
-	"modules/core/src/lib/adapters/module-loader.ts": {
-		"asserts a type with `as` where a schema parses the value": 1
-	},
-	"modules/core/src/lib/adapters/port-occupant.ts": {
-		"asserts a type with `as` where a schema parses the value": 1
 	},
 	"modules/core/src/lib/adapters/workspace-lib.ts": {
 		"asserts a type with `as` where a schema parses the value": 1
@@ -27,12 +15,6 @@
 		"asserts a type with `as` where a schema parses the value": 7
 	},
 	"modules/logic/src/adapters/swipl.ts": {
-		"asserts a type with `as` where a schema parses the value": 1
-	},
-	"modules/shu/src/adapters/bundle-file.ts": {
-		"asserts a type with `as` where a schema parses the value": 1
-	},
-	"modules/shu/src/adapters/remote-graph-source.ts": {
 		"asserts a type with `as` where a schema parses the value": 1
 	},
 	"modules/shu/src/page/adapters/embedder-channel.ts": {
@@ -88,8 +70,5 @@
 	},
 	"modules/web-playwright/src/relay-client/adapters/relay-connection.ts": {
 		"asserts a type with `as` where a schema parses the value": 12
-	},
-	"modules/web-server-hono/src/adapters/server-hono.ts": {
-		"asserts a type with `as` where a schema parses the value": 1
 	}
 }

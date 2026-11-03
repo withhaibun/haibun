@@ -7,7 +7,7 @@ import { RemoteInstance } from "@haibun/core/lib/rpc-client.js";
 import type { TRequestSigner } from "@haibun/core/lib/domains/authority-types.js";
 import { readAction } from "@haibun/core/lib/domains/actions.js";
 import type { AccessLevel } from "@haibun/core/lib/domains/resources.js";
-import type { TCluster, TClusteredQuads, TQuad } from "@haibun/core/lib/quad-types.js";
+import type { TCluster, TClusteredQuads } from "@haibun/core/lib/quad-types.js";
 import type { TPeerCalls, TPeerGraphSource } from "../ports.js";
 
 type TRemoteGraphSourceConfig = { url: string; sign: TRequestSigner; calls: TPeerCalls; fetchImpl?: typeof fetch };
@@ -53,6 +53,6 @@ export class RemoteGraphSource implements TPeerGraphSource {
 		// Every sampled subject is stamped, so merged into another instance's sample it keeps the site that served it, and a
 		// peer that stamped its subjects keeps its stamps.
 		const clusters: TCluster[] = r.clusters.map((c) => ({ ...c, sites: Object.fromEntries(c.sampledSubjects.map((s) => [s, c.sites?.[s] ?? servedBy])) }));
-		return { quads: r.quads as TQuad[], clusters, site: remote };
+		return { quads: r.quads, clusters, site: remote };
 	}
 }

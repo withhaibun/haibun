@@ -9,9 +9,12 @@
  * failed bind both call this function, so both describe the occupant the same way.
  */
 
+import { z } from "zod";
 import { MEDIA_TYPE } from "../domains/media-types.js";
 import { localOrigin } from "../domains/local-origin.js";
 import { ACTION_BEGIN, RPC_ROUTE, rpcEnvelope } from "../transport/domains/rpc-wire.js";
+
+const ProbeResponseSchema = z.object({ hostId: z.number().optional() });
 
 /** How long a probe of a port is given to reply, in milliseconds. */
 export const PROBE_TIMEOUT_MS = 1_500;
@@ -28,7 +31,11 @@ export async function describePortOccupant(port: number, timeoutMs: number): Pro
 	} catch {
 		return undefined; // the request failed or timed out, so the probe reports the port as free
 	}
-	const body = (await res.json().catch((): undefined => undefined)) as { hostId?: number } | undefined;
+	const parsed = await res
+		.json()
+		.then((json) => ProbeResponseSchema.safeParse(json))
+		.catch(() => undefined);
+	const body = parsed?.success ? parsed.data : undefined;
 	if (res.ok && body) return `a haibun host${body.hostId !== undefined ? ` (id ${body.hostId})` : ""} responds there, likely a standing run or serve from an earlier session`;
 	return `a server that is not a haibun host responds there (HTTP ${res.status})`;
 }

@@ -20,7 +20,7 @@ export async function use(module: string): Promise<TClass> {
 		const resolvedPath = resolveModulePath(module);
 		const re: object = (await import(resolvedPath)).default;
 		checkModuleIsClass(re, module);
-		return <TClass>re;
+		return re;
 	} catch (e) {
 		console.error("failed including", module);
 		throw e;
@@ -48,7 +48,7 @@ function resolveModulePath(module: string): string {
 	return `${module}.js`;
 }
 
-export function checkModuleIsClass(re: object, module: string): void {
+export function checkModuleIsClass(re: object, module: string): asserts re is TClass {
 	const type = itemAt(re.toString().replace(/^ /g, "").split("\n"), 0).replace(/\s.*/, "");
 	if (type !== "class") {
 		throw Error(`"${module}" is ${type}, not a class`);
