@@ -1,5 +1,15 @@
 #!/bin/sh
 # Lint and the unit tests, which a commit must pass. CI runs them with the build and the groups of features.
+# A commit that changes only markdown files runs the linter and rules suite, skipping compilation and broader unit tests.
 set -e
-npm run lint
-npx vitest run --project unit
+
+staged=$(git diff --cached --name-only)
+non_docs=$(printf '%s\n' "$staged" | grep -v -E '\.(md|markdown)$' || true)
+
+if [ -n "$staged" ] && [ -z "$non_docs" ]; then
+	npx biome check .
+	npx vitest run scripts/rules.test.ts
+else
+	npm run lint
+	npx vitest run --project unit
+fi
