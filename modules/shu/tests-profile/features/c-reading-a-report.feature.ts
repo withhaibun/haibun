@@ -4,7 +4,7 @@ import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import ShuStepper from "@haibun/shu/shu-stepper.js";
 import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
-import { flattenTestIds } from "@haibun/shu/test/step-ui.js";
+import { registerTestIds } from "@haibun/shu/test/step-ui.js";
 import { SHU_TAG } from "@haibun/shu/domains/elements.js";
 import { views } from "@haibun/shu/waypoints/backgrounds/views.feature.ts";
 
@@ -17,7 +17,7 @@ const { feature, scenario } = withAction(new Haibun());
 const host = "http://localhost:8241";
 const IDS = SHU_TEST_IDS;
 const REPORT = "/tmp/haibun-shu-report.html";
-const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
+const testIdSetup = registerTestIds(IDS);
 const reportedEvents = Array.from({ length: 8 }, (_, i) => setAs({ what: `reportedEvent${i}`, domain: "page-test-id", value: `"r${i}"` }));
 
 export const features: TKirejiExport = {

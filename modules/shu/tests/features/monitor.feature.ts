@@ -5,7 +5,7 @@ import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import BlipsStepper from "@haibun/core/steps/blips-stepper.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
-import { createStepUI, flattenTestIds } from "@haibun/shu/test/step-ui.js";
+import { createStepUI, registerTestIds } from "@haibun/shu/test/step-ui.js";
 import { SHU_TAG } from "@haibun/shu/domains/elements.js";
 import { PRINCIPAL_LABEL, SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { views } from "@haibun/shu/waypoints/backgrounds/views.feature.ts";
@@ -23,7 +23,7 @@ const IDS = SHU_TEST_IDS;
 const MONITOR = `"${SHU_TAG.MONITOR_COLUMN}"`;
 const DOCUMENT = `"${SHU_TAG.DOCUMENT_COLUMN}"`;
 
-const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
+const testIdSetup = registerTestIds(IDS);
 // Buffer far more events than any viewport can hold, so a virtualized monitor renders only a small window of them.
 const BULK_EVENTS = 200;
 const bulkEvents = Array.from({ length: BULK_EVENTS }, (_, i) => setAs({ what: `windowEvent${i}`, domain: "page-test-id", value: `"v${i}"` }));

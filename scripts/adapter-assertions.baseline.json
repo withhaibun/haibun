@@ -23,9 +23,6 @@
 	"modules/core/src/lib/transport/adapters/rpc-client.ts": {
 		"asserts a type with `as` where a schema parses the value": 1
 	},
-	"modules/core/src/lib/transport/adapters/sse-subscriber.ts": {
-		"asserts a type with `as` where a schema parses the value": 3
-	},
 	"modules/core/src/steps/adapters/speech.ts": {
 		"asserts a type with `as` where a schema parses the value": 7
 	},

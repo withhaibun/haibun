@@ -9,6 +9,7 @@ import { DOMAIN_STRING, domainParts } from "@haibun/core/lib/domains/domains.js"
 import { declaredSteps } from "@haibun/core/lib/steps/derivations/predicate-registry.js";
 import { placeholderOf, stepParts } from "@haibun/core/lib/steps/domains/phrase.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 
 export type TDeclarationFinding = { method: string; finding: string };
 
@@ -76,8 +77,8 @@ export function declarationFindings(steppers: readonly AStepper[], resolve: (lin
 			return parsed.stepperName === one.stepperName && parsed.actionName === one.actionName
 				? []
 				: [{ method, finding: `${PARSES_TWO_WAYS}: \`${line}\` parses to ${parsed.stepperName}.${parsed.actionName}. ${PARSES_ALONE}` }];
-		} catch {
-			return [{ method, finding: `${PARSES_TWO_WAYS}: \`${sampled}\` doesn't parse to one step. ${PARSES_ALONE}` }];
+		} catch (err) {
+			return [{ method, finding: `${PARSES_TWO_WAYS}: \`${sampled}\` doesn't parse to one step (${errorDetail(err)}). ${PARSES_ALONE}` }];
 		}
 	});
 }

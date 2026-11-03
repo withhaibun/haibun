@@ -6,7 +6,7 @@ import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
 import { typeNotHeld } from "@haibun/shu/page/controllers/view-query-controller.js";
-import { flattenTestIds } from "@haibun/shu/test/step-ui.js";
+import { registerTestIds } from "@haibun/shu/test/step-ui.js";
 
 const wp = new WebPlaywright();
 const { serveShuApp } = withAction(new ShuStepper());
@@ -19,7 +19,7 @@ const NOT_HELD = "Nonesuch";
 /** The link to the query of the step records, which the refusal offers. */
 const HELD_STEPS = `${SHU_TEST_IDS.QUERY.HELD_TYPE}-${SEQ_PATH_LABEL}`;
 
-const testIdSetup = flattenTestIds(SHU_TEST_IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
+const testIdSetup = registerTestIds(SHU_TEST_IDS);
 
 export const features: TKirejiExport = {
 	"An address names a type": [

@@ -4,7 +4,7 @@ import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import ShuStepper from "@haibun/shu/shu-stepper.js";
 import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
-import { flattenTestIds } from "@haibun/shu/test/step-ui.js";
+import { registerTestIds } from "@haibun/shu/test/step-ui.js";
 
 const wp = new WebPlaywright();
 const { waitFor, click, gotoPage } = withAction(wp);
@@ -15,7 +15,7 @@ const { feature, scenario } = withAction(new Haibun());
 const host = "http://localhost:8241";
 const IDS = SHU_TEST_IDS;
 const SOURCE_LOADED = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}info-loaded`;
-const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
+const testIdSetup = registerTestIds(IDS);
 
 export const features: TKirejiExport = {
 	"Reading an actuality this device holds": [

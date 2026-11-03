@@ -26,7 +26,7 @@ export const features: TKirejiExport = {
 		`a read of "Haibun-validateStep" with {"text": "line x renders from its term as written"} over RPC at "${RPC}Haibun-validateStep" leaves no record`,
 
 		scenario({ scenario: "A proof writes its nodes as records under the line that requested it" }),
-		"Essential, for the monitor and graph view. Source: docs/reasoner.md, Proofs as SeqPath records.",
+		"Essential, for the monitor and graph view.",
 		"Activity: Count a visit",
 		'set visits to "1"',
 		'waypoint Visits are counted with variable visits is "1"',

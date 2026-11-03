@@ -15,10 +15,10 @@
  * same origin or a remote host, and what the headers prove.
  *
  * This subscriber decodes the SSE message format that web-server-hono's
- * SSETransport emits. Each message's `data` field holds a JSON envelope
- * `{ type, event, ... }` or a plain event payload. A payload that doesn't
- * parse as JSON is dispatched as `{ raw: data }`, so a listener can handle
- * other wire formats.
+ * SSETransport emits. Each message's `data` field holds the JSON envelope
+ * `{ type: "event", event }`, which this subscriber parses against the event
+ * schema. A message that doesn't parse isn't dispatched; failFastOrLog
+ * reports it with its cause.
  *
  * --- Listeners (`StreamListeners`) ---
  * `StreamListeners` (stream-listeners.ts) holds the listeners, the events
@@ -35,12 +35,17 @@
 
 import { MEDIA_TYPE } from "../../domains/media-types.js";
 import { ACTUALITY_HEADER, type TActualityId } from "../domains/rpc-wire.js";
-import type { THaibunEvent } from "../../domains/protocol.js";
+import { z } from "zod";
+import { HaibunEvent, type THaibunEvent } from "../../domains/protocol.js";
+import { failFastOrLog } from "../../domains/dev-mode.js";
 import { REPLAY_BUFFER_LIMIT, StreamListeners } from "./stream-listeners.js";
 
 /** Whether a break connects the stream again: a refused connection stays down, and a stream that ended connects again. */
 const STAYS_DOWN = false;
 const CONNECTS_AGAIN = true;
+
+/** The envelope that holds each event web-server-hono's SSETransport sends. */
+const EventEnvelopeSchema = /* @__PURE__ */ z.object({ type: /* @__PURE__ */ z.literal("event"), event: HaibunEvent });
 
 type SseSubscriberConfig = {
 	/** The SSE endpoint's URL. It is absolute for a remote host and relative for the same origin. */
@@ -127,16 +132,11 @@ export class SseSubscriber {
 	}
 
 	private received(data: string): void {
-		let msg: Record<string, unknown>;
 		try {
-			msg = JSON.parse(data);
-		} catch {
-			this.dispatch({ raw: data } as unknown as THaibunEvent);
-			return;
+			this.dispatch(EventEnvelopeSchema.parse(JSON.parse(data)).event);
+		} catch (err) {
+			failFastOrLog(`SseSubscriber[${this.clientId}]: the stream at ${this.url} sent a message that isn't an event envelope, so it isn't dispatched`, err);
 		}
-		// web-server-hono wraps an event as { type: "event", event: {...} }. This unwraps that envelope and dispatches any
-		// other message unchanged. The server validates each event against the schema.
-		this.dispatch(msg.type === "event" && msg.event ? (msg.event as THaibunEvent) : (msg as unknown as THaibunEvent));
 	}
 
 	private broke(retry: boolean): void {

@@ -28,7 +28,7 @@ export const features: TKirejiExport = {
 		'variable checked.method is "VariablesStepper-exists"',
 
 		scenario({ scenario: "A line and its term convert both ways through one registry" }),
-		"Essential, for proofs rendered as prose. Source: docs/reasoner.md, The predicate registry.",
+		"Essential, for proofs rendered as prose.",
 		'the line "set greeting to \\"hello\\"" renders from its term as written',
 
 		scenario({ scenario: "A waypoint whose name starts with a leading word resolves" }),

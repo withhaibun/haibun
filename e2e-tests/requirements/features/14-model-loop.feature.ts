@@ -17,11 +17,11 @@ export const features: TKirejiExport = {
 		'variable x is "1"',
 
 		"Pending scenario: A model's output enters as a fact derived by a model",
-		"Essential, for provenance. Source: docs/reasoner.md, The model loop.",
+		"Essential, for provenance.",
 		'fact summary of "dinner" was derived by a model',
 
 		"Pending scenario: A rule can require a person's confirmation before an action",
-		"Essential, for actions that read a fact derived by a model. Source: docs/reasoner.md, The model loop.",
+		"Essential, for actions that read a fact derived by a model.",
 		'didn\'t the model proposes "delete the record" as "ranger" without confirmation',
 	],
 };

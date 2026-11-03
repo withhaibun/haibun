@@ -44,7 +44,7 @@ export const features: TKirejiExport = {
 		"variable offered.findings exists",
 
 		scenario({ scenario: "A goal's proof is a set of records" }),
-		"Essential. Source: docs/reasoner.md, step 5.",
+		"Essential.",
 		'set proof from show derivation of "resolve \\"var-snapshot\\""',
 		"variable proof.records exists",
 	],

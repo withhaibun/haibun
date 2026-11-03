@@ -97,7 +97,7 @@ describe("the language server's diagnostics", () => {
 		const text = 'const steps: TKirejiStep = ["set x to 1", "not a step"];';
 		const { server, sent } = serverOver([new SampleStepper()]);
 		await server.processDocument(TextDocument.create(`file://${path}`, "typescript", 1, text));
-		expect(sent[0]?.diagnostics.map((diagnostic) => diagnostic.message)).toEqual(["'not a step' doesn't resolve to one step."]);
+		expect(sent[0]?.diagnostics.map((diagnostic) => diagnostic.message)).toEqual(['"not a step" doesn\'t match a step']);
 		expect(server.placedSteps(path)).toMatchObject([{ startOffset: text.indexOf("set x to 1"), length: "set x to 1".length }]);
 	});
 });

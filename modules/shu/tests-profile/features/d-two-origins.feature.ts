@@ -1,22 +1,20 @@
 import { withAction, type TKirejiExport } from "@haibun/core/kireji/derivations/withAction.js";
 import WebPlaywright from "@haibun/web-playwright";
-import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import ShuStepper from "@haibun/shu/shu-stepper.js";
 import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
-import { flattenTestIds } from "@haibun/shu/test/step-ui.js";
+import { registerTestIds } from "@haibun/shu/test/step-ui.js";
 
 const wp = new WebPlaywright();
 const { waitFor, gotoPage } = withAction(wp);
 const { serveShuApp } = withAction(new ShuStepper());
-const { setAs } = withAction(new VariablesStepper());
 const { feature, scenario } = withAction(new Haibun());
 
 const PORT = "8241";
 const firstAddress = `http://localhost:${PORT}`;
 const otherAddress = `http://127.0.0.1:${PORT}`;
 const IDS = SHU_TEST_IDS;
-const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
+const testIdSetup = registerTestIds(IDS);
 
 export const features: TKirejiExport = {
 	"What a reader holds is held per address": [

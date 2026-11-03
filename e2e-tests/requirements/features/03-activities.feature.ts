@@ -32,7 +32,7 @@ export const features: TKirejiExport = {
 		"didn't variable waved exists",
 
 		scenario({ scenario: "A goal unifies with a waypoint's head, whose placeholder names a domain" }),
-		"Essential, for the formal model. Source: docs/reasoner.md, Waypoints as rules with unification.",
+		"Essential, for the formal model.",
 		'set of meal is ["dinner", "lunch"]',
 		"Activity: Make a meal ready",
 		'set {m} to "ready"',
@@ -69,7 +69,7 @@ export const features: TKirejiExport = {
 		'variable knocks is "2"',
 
 		scenario({ scenario: "A failed ensure states the first goal it couldn't prove" }),
-		"Essential, for people and models. Source: docs/reasoner.md, Proofs as SeqPath records.",
+		"Essential, for people and models.",
 		"Activity: Leave it open",
 		'set open to "no"',
 		'waypoint It is closed with variable open is "yes"',
