@@ -23,7 +23,7 @@ import { streamContext } from "../../transport/domains/step-stream-context.js";
 import { actionNotOK } from "../../domains/util.js";
 import { normalizeDomainKey } from "../../domains/domains.js";
 import { assertFact } from "../../records/pipelines/facts.js";
-import { doStepperCycle } from "../../steps/pipelines/stepper-cycles.js";
+import { doStepperCycle, enterPhase } from "../../steps/pipelines/stepper-cycles.js";
 import { actingAs, askedIn, callerHolds, readScope, runInStep, runInvoking, runReadingAsHeld, runStatedAt, stepInFlight, writtenLevel } from "../../domains/capability-context.js";
 import { capabilityAllows } from "../../domains/actions.js";
 import { SEQ_PATH_LABEL } from "../../domains/resources.js";
@@ -289,6 +289,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 			let doAction = true;
 			while (doAction) {
 				await doStepperCycle(steppers, "beforeStep", <TBeforeStep>{ featureStep });
+				enterPhase(`the step ${step.seqPath}, ${featureStep.in}`);
 				// The handler validates the step's products against the step's domain. A tool of another host or process
 				// validates them where it runs.
 				actionResult = await (perform === undefined ? tool.handler(featureStep, world) : perform());

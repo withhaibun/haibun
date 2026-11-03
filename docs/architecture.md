@@ -258,8 +258,8 @@ named tasks: a task module exports `runTask(schema, run)`, its input and output 
 requests of its process crosses its own port. The pool holds at most 8 workers of 512 MB heap, one task each at a time, releases a
 worker idle for 30 s, and sets `--no-wasm-code-gc`, a workaround for a V8 defect that aborts a process when workers share
 WebAssembly code. I/O runs asynchronously instead: git through `execFile`, gzip through zlib's threads. The cli watches the event
-loop of each process it starts (`watchEventLoop`), warns where a stretch holds it past 500 ms, and states the delay's summary as
-the process ends.
+loop of each process it starts (`watchEventLoop`), warns where a stretch holds it past 500 ms, naming the phase in progress (the
+start's phase, a stepper's cycle method or a step), and states the delay's summary as the process ends.
 
 ### Description logic and the reasoner
 

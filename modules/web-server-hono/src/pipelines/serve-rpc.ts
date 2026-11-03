@@ -4,6 +4,7 @@
  * and discovers the same steps as every other caller of actuality.
  */
 import { stepRecordOf } from "@haibun/core/lib/seq-path.js";
+import { TRACE_SEQ_PATH } from "@haibun/core/lib/domains/protocol.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
@@ -103,7 +104,9 @@ export function serveRpc({ world, steppers, webserver, transport, verifier, sess
 			const hr = await runWithRequestContext({ baseIri }, () => runReadingAt(msg.readingAt, () => dispatchCall(within, caller, featureStep)));
 			// A step that isn't a read leaves its record, from which a reader reads why it was refused.
 			if (!hr.ok) return callFailed(method, hr.errorMessage, hr.remedy, tool.descriptor.read ? undefined : stepRecordOf(world.tag, featureStep.seqPath));
-			return hr.products === undefined ? ANSWERED_WITHOUT_PRODUCTS : hr.products;
+			// A step without products that isn't a read states the path of its record, from which a reader reads why it holds.
+			if (hr.products !== undefined) return hr.products;
+			return tool.descriptor.read ? ANSWERED_WITHOUT_PRODUCTS : { ...ANSWERED_WITHOUT_PRODUCTS, [TRACE_SEQ_PATH]: featureStep.seqPath };
 		} catch (err) {
 			const detail = errorDetail(err);
 			world.eventLogger.error(`[RPC] ${method}: ${detail}`);
