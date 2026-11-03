@@ -186,6 +186,189 @@
 			}
 		}
 	},
+	"linux-x64-20x-12th-gen-intel-core-i7-12700k": {
+		"8f22e3bf6e256e4d": {
+			"filter": "",
+			"actuality": {
+				"text": "e2e-tests/tests, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
+				"status": "passed",
+				"tookMs": 19500,
+				"digest": {
+					"e2e-tests/src": "dc573cdd7ecddf68fac9a13e4d4fd63eebf115f44b4ce2a5b4db616c5a049e04",
+					"e2e-tests/tests": "7b66e2bfdd3952df8d78b342072e8c23d95420dda1722cd3817371690f642808",
+					"modules/cli/src": "d87cc4e09e66e02838c719d1d51389753fbff52161e6dda71185401e5ec48933",
+					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
+					"modules/core/src": "4f0b2b730a7c180476e78ca50872e9b4a79c8ba7764c032044da4cc934de3bcb",
+					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
+					"modules/logic/src": "b076f81df94183b3738aa742aed55563fc5ef98d5376054aa98acfcd4f90a673",
+					"modules/monitor-otel/src": "4fbef0f2c78fed7b3e2d03ec4ab094bef11766724e5f5f6efb73491ea1d4dea6",
+					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
+					"modules/out-junit/src": "22d1ca5d4f4449cae6186ff8d84c1f0b182e7591e1ffda9520a38daa3e8681d2",
+					"modules/recorder/src": "079caf826dbcad8943531b3f8f716e79a45d55f1668d29417e2a230978236208",
+					"modules/shu/src": "1d5695b873aa1ac1cb098cf8523f1f6614f6f802ebe9e151206c54c07147ace0",
+					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
+					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
+					"modules/utils/src": "9799d114ca397313863bfc29604199b02bc9daf1a4bfa26675dbfe7cfc30e36c",
+					"modules/web-accessibility-axe/src": "df284b3ae6b1e6f9aaa117a6ab9ce80ccde73ec21ca48abef9c9dac9ddf8ae87",
+					"modules/web-playwright/src": "7dd567c69dc602467a423d8af76f960873386fb5ce1bef63645fb0437ffb7bdc",
+					"modules/web-server-hono/src": "af48c09b6fb7e08e9ab049c34170b72f8c8a4e1b0c4d070ebcb74dcc39973c79",
+					"modules/web-server-hono/waypoints": "fa5853749829db27d77867eb4c13e1860184beafed284ebff8f0672c617affe3"
+				}
+			},
+			"features": {
+				"/features/a11y-fail.feature": {
+					"text": "/features/a11y-fail",
+					"status": "passed",
+					"tookMs": 700,
+					"steps": 13
+				},
+				"/features/a11y-pass.feature": {
+					"text": "/features/a11y-pass",
+					"status": "passed",
+					"tookMs": 600,
+					"steps": 13
+				},
+				"/features/after-every.feature": {
+					"text": "/features/after-every",
+					"status": "passed",
+					"tookMs": 100,
+					"steps": 8
+				},
+				"/features/auth-basic.feature": {
+					"text": "/features/auth-basic",
+					"status": "passed",
+					"tookMs": 1000,
+					"steps": 55
+				},
+				"/features/auth-bearer.feature": {
+					"text": "/features/auth-bearer",
+					"status": "passed",
+					"tookMs": 800,
+					"steps": 78
+				},
+				"/features/auth-form.feature": {
+					"text": "/features/auth-form",
+					"status": "passed",
+					"tookMs": 1000,
+					"steps": 24
+				},
+				"/features/counter.feature": {
+					"text": "/features/counter",
+					"status": "passed",
+					"tookMs": 900,
+					"steps": 20
+				},
+				"/features/counter.feature.ts": {
+					"text": "Counts feature",
+					"status": "passed",
+					"tookMs": 900,
+					"steps": 20
+				},
+				"/features/counts.feature.ts": {
+					"text": "Counts feature",
+					"status": "passed",
+					"tookMs": 900,
+					"steps": 22
+				},
+				"/features/elements.feature": {
+					"text": "/features/elements",
+					"status": "passed",
+					"tookMs": 800,
+					"steps": 17
+				},
+				"/features/executor-rpc.feature.ts": {
+					"text": "Executor RPC dispatch",
+					"status": "passed",
+					"tookMs": 100,
+					"steps": 8
+				},
+				"/features/feature-variables.feature": {
+					"text": "/features/feature-variables",
+					"status": "passed",
+					"tookMs": 100,
+					"steps": 19
+				},
+				"/features/if-set.feature": {
+					"text": "/features/if-set",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 13
+				},
+				"/features/not.feature": {
+					"text": "/features/not",
+					"status": "passed",
+					"tookMs": 500,
+					"steps": 9
+				},
+				"/features/once.feature.ts": {
+					"text": "A group of features runs once per state of what it depends on",
+					"status": "passed",
+					"tookMs": 1200,
+					"steps": 20
+				},
+				"/features/page-visits.feature.ts": {
+					"text": "Visit pages",
+					"status": "passed",
+					"tookMs": 1400,
+					"steps": 65
+				},
+				"/features/popup.feature": {
+					"text": "/features/popup",
+					"status": "passed",
+					"tookMs": 700,
+					"steps": 14
+				},
+				"/features/qrcode.feature": {
+					"text": "/features/qrcode",
+					"status": "passed",
+					"tookMs": 2600,
+					"steps": 19
+				},
+				"/features/recurse.feature": {
+					"text": "/features/recurse",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 6
+				},
+				"/features/run-policy-refusals.feature.ts": {
+					"text": "A run refuses a run policy its config doesn't allow",
+					"status": "passed",
+					"tookMs": 1100,
+					"steps": 16
+				},
+				"/features/trauma_center.feature": {
+					"text": "/features/trauma_center",
+					"status": "passed",
+					"tookMs": 800,
+					"steps": 93
+				},
+				"/features/upload-verify.feature": {
+					"text": "/features/upload-verify",
+					"status": "passed",
+					"tookMs": 600,
+					"steps": 20
+				},
+				"/features/visited-pages.feature": {
+					"text": "/features/visited-pages",
+					"status": "passed",
+					"tookMs": 600,
+					"steps": 31
+				},
+				"/features/workflow.feature.ts": {
+					"text": "workflow",
+					"status": "passed",
+					"tookMs": 300,
+					"steps": 64
+				},
+				"/features/xss.feature": {
+					"text": "/features/xss",
+					"status": "passed",
+					"tookMs": 700,
+					"steps": 13
+				}
+			}
+		}
+	},
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
 		"0b946c5232a3d794": {
 			"filter": "run-policy-refusals",

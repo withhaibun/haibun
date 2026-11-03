@@ -33,6 +33,29 @@
 			}
 		}
 	},
+	"linux-x64-20x-12th-gen-intel-core-i7-12700k": {
+		"2a037a2351cd0c2b": {
+			"filter": "",
+			"actuality": {
+				"text": "e2e-tests/once",
+				"status": "passed",
+				"tookMs": 0,
+				"digest": {
+					"e2e-tests/once": "aa76efd39289af80e2a6d1122f1b1be86d79141a1ce60f59a64e68146a41b1cf",
+					"modules/core/src": "4f0b2b730a7c180476e78ca50872e9b4a79c8ba7764c032044da4cc934de3bcb",
+					"modules/logic/src": "b076f81df94183b3738aa742aed55563fc5ef98d5376054aa98acfcd4f90a673"
+				}
+			},
+			"features": {
+				"/features/once.feature": {
+					"text": "/features/once",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 1
+				}
+			}
+		}
+	},
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
 		"00a39643087f9efb": {
 			"filter": "",

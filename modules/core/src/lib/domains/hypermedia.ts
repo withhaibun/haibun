@@ -471,6 +471,10 @@ export type TCallLink = z.infer<typeof CallLinkSchema>;
 export const StepLinkSchema = CallLinkSchema.extend({ summary: z.string(), asks: z.enum(["read", "act"]), capability: z.string(), kaname: z.literal(true).optional() });
 export type TStepLink = z.infer<typeof StepLinkSchema>;
 
+/** A step offered on a record: its verb phrase as a control's label, how many inputs remain to be filled, and an optional link relation. */
+export const RecordStepSchema = StepLinkSchema.extend({ verb: z.string().min(1), unboundCount: z.number().int().nonnegative(), rel: z.string().optional() });
+export type TRecordStep = z.infer<typeof RecordStepSchema>;
+
 /** Returns the link to a step, from what its declaration states, with `params` naming the record it takes. */
 export const stepLinkOf = (step: { method: string; description: string; read: boolean; capability: string; kaname: boolean }, params?: Record<string, unknown>): TStepLink => ({
 	method: step.method,

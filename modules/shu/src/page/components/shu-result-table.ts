@@ -13,7 +13,7 @@
  *   row-click: { individualId, label, ctrlKey }, or { individualId: null, deselect: true } on an empty-area click
  *   sort-change: { field, order }
  */
-import { html, css, type TemplateResult } from "lit";
+import { html, css, nothing, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { shuBaseStyles } from "./styles.js";
@@ -27,6 +27,7 @@ import { formatInstant, isDateValue, readerZone } from "../derivations/time-form
 import { ellipsize } from "@haibun/core/lib/domains/util.js";
 import { getIdField, getPropertyOrder } from "../controllers/catalog-controller.js";
 import "./shu-virtual-column.js";
+import "./shu-record-steps.js";
 import { virtualColumnCss } from "./shu-virtual-column.js";
 import { arrayWindowedSource, statedCountOf, type WindowedSource } from "../derivations/windowed-source.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
@@ -263,6 +264,12 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 		const groupHeader = this.#multiType && index > 0 && prev !== undefined && v["@type"] !== prev["@type"] ? html`<div class="group-header">${String(v["@type"] ?? "")}</div>` : "";
 		const dim = this.#isFutureRow(v) ? TIME_SYNC_CLASS.FUTURE : "";
 		const selected = vid && this.selectedIds.has(vid) ? "selected" : "";
+		const rowSteps =
+			selected && vid && vlabel
+				? html`<div class="row-record-steps" style="grid-column: 1 / -1; padding: 2px 8px;" @click=${(e: Event) => e.stopPropagation()}>
+					<shu-record-steps compact label=${vlabel} record-id=${vid} .links=${(v as { _links?: Record<string, import("@haibun/core/lib/domains/hypermedia.js").TCallLink> })._links}></shu-record-steps>
+				</div>`
+				: nothing;
 		return html`${groupHeader}<div
 				class=${["clickable-row", selected, dim].filter(Boolean).join(" ")}
 				data-individual-id=${vid}
@@ -281,6 +288,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 				const display = isDateValue(raw) ? formatInstant(raw, new Date(), readerZone()) : ellipsize(raw, CELL_MAX);
 				return html`<span class="td" title=${raw} data-testid=${testId}>${display}</span>`;
 			})}
+			${rowSteps}
 		</div>`;
 	};
 

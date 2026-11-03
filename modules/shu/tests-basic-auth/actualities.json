@@ -28,6 +28,35 @@
 			}
 		}
 	},
+	"linux-x64-20x-12th-gen-intel-core-i7-12700k": {
+		"4b964f2b82a9ef57": {
+			"filter": "",
+			"actuality": {
+				"text": "modules/shu/tests-basic-auth",
+				"status": "passed",
+				"tookMs": 1700,
+				"digest": {
+					"modules/core/src": "4f0b2b730a7c180476e78ca50872e9b4a79c8ba7764c032044da4cc934de3bcb",
+					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
+					"modules/logic/src": "b076f81df94183b3738aa742aed55563fc5ef98d5376054aa98acfcd4f90a673",
+					"modules/shu/src": "1d5695b873aa1ac1cb098cf8523f1f6614f6f802ebe9e151206c54c07147ace0",
+					"modules/shu/tests-basic-auth": "535e2108c1aaa9f494da113350f8c249d4d7b5ce687a1f652d4cd92ba4972e0e",
+					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
+					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
+					"modules/web-playwright/src": "7dd567c69dc602467a423d8af76f960873386fb5ce1bef63645fb0437ffb7bdc",
+					"modules/web-server-hono/src": "af48c09b6fb7e08e9ab049c34170b72f8c8a4e1b0c4d070ebcb74dcc39973c79"
+				}
+			},
+			"features": {
+				"/features/behind-basic-auth.feature.ts": {
+					"text": "A page behind basic auth",
+					"status": "passed",
+					"tookMs": 1000,
+					"steps": 215
+				}
+			}
+		}
+	},
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
 		"03d75cd4d387071b": {
 			"filter": "",

@@ -293,7 +293,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 				// validates them where it runs.
 				actionResult = await (perform === undefined ? tool.handler(featureStep, world) : perform());
 				if (actionResult.ok) {
-					if (actionResult.products) actionResult = { ...actionResult, products: { ...actionResult.products, [TRACE_SEQ_PATH]: featureStep.seqPath } };
+					if (actionResult.products && recorded) actionResult = { ...actionResult, products: { ...actionResult.products, [TRACE_SEQ_PATH]: featureStep.seqPath } };
 					actionResult = augmentViewHypermedia(world, action.step, actionResult, steppers);
 					// A fact is a record of actuality. Actuality doesn't record a read over a transport as a step or assert its products.
 					if (recorded) await autoAssertProducts(world, { actuality: actualityFeatureOf(world.tag), path: featureStep.seqPath }, action.step, actionResult);

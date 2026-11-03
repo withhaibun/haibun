@@ -95,6 +95,8 @@ export const SHU_TEST_IDS = {
 		ENTITY_CONTROLS: "entity-controls",
 		FROM_STORE: "entity-from-store",
 	},
+	/** The steps a record offers or takes, rendered as controls beside it. */
+	RECORD_STEPS: { ROOT: "record-steps", STEP: "record-step", MORE: "record-steps-more", OUTCOME: "record-step-outcome" },
 	MONITOR: {
 		/** What a step produced, shown on its own row: a screenshot taken during it. */
 		PRODUCED: "monitor-produced",

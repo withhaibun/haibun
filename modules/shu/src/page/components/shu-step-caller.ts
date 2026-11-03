@@ -41,6 +41,7 @@ import { shuBaseStyles } from "./styles.js";
 import "./shu-combobox.js";
 import { whyOfPathTpl } from "./why.js";
 import "./shu-refusal.js";
+import "./shu-record-steps.js";
 
 type TInputProperty = {
 	type?: string;
@@ -256,6 +257,14 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 		this.formValues = { ...values };
 		const schema = this.#inputSchemaOf(desc);
 		const params: Record<string, unknown> = { ...this.#fixed };
+		for (const [k, v] of Object.entries(this.#fixed)) {
+			const prop = schema.properties?.[k];
+			if (prop?.type === "string" && typeof v === "object" && v !== null && "id" in v) {
+				params[k] = (v as { id: unknown }).id;
+			} else if (prop?.type === "object" && typeof v === "string") {
+				params[k] = { id: v };
+			}
+		}
 		const phrases = this.#phrases(desc);
 		const terms = new Map<string, Record<string, string>>([...phrases.keys()].map((param) => [param, {}]));
 		try {
@@ -353,7 +362,11 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 		const fixed = this.#fixed;
 		const phrase = this.#phrases(desc).get(paramName);
 		if (phrase !== undefined) return html`${this.#sentence(phrase, (name) => this.#textInput(`${paramName}.${name}`, `${paramName}-${name}`, name, "text"))}`;
-		if (paramName in fixed) return html`<span class="step-fixed">${String(fixed[paramName])}</span>`;
+		if (paramName in fixed) {
+			const val = fixed[paramName];
+			const display = typeof val === "object" && val !== null && "id" in val ? String((val as { id: unknown }).id) : String(val);
+			return html`<span class="step-fixed" data-record-id=${display}>${display}</span>`;
+		}
 		const prop = properties[paramName];
 		// A parameter naming the type of a record's fields offers the types the catalog declares.
 		const names = (desc.recordData === undefined ? [] : Object.values(desc.recordData)).includes(paramName) ? Object.keys(getConcernCatalog().persisted).sort() : prop?.enum;
@@ -410,9 +423,27 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 			<button type="submit" class=${executed ? "run-inline rerun" : "run-inline"} title=${executed ? "Re-run" : "Run"} data-testid=${this.#testId("step-run")}>${executed ? "⟳▶" : "▶"}</button></form>`;
 	}
 
+	#hasRecord(data: unknown): boolean {
+		if (typeof data !== "object" || data === null || Array.isArray(data)) return false;
+		const obj = data as Record<string, unknown>;
+		const label = typeof obj["@type"] === "string" ? obj["@type"] : typeof obj._type === "string" ? obj._type : undefined;
+		const id = typeof obj.id === "string" ? obj.id : typeof obj["@id"] === "string" ? obj["@id"] : undefined;
+		return Boolean(label && id);
+	}
+
+	#recordStepsOf(data: unknown): TemplateResult | typeof nothing {
+		if (!this.#hasRecord(data)) return nothing;
+		const obj = data as Record<string, unknown>;
+		const label = (typeof obj["@type"] === "string" ? obj["@type"] : obj._type) as string;
+		const id = (typeof obj.id === "string" ? obj.id : obj["@id"]) as string;
+		return html`<shu-record-steps compact label=${label} record-id=${id} .links=${obj._links as Record<string, import("@haibun/core/lib/domains/hypermedia.js").TCallLink> | undefined}></shu-record-steps>`;
+	}
+
 	/** What the call returned, by the step's output schema, or as JSON where the step doesn't declare one. */
 	#renderOutput(desc: TStepDefinition, result: unknown): TemplateResult {
-		return desc.outputSchema === undefined ? html`${unsafeHTML(jsonDisclosure(result))}` : this.#bySchema(result, desc.outputSchema);
+		const steps = this.#recordStepsOf(result);
+		const body = desc.outputSchema === undefined ? html`${unsafeHTML(jsonDisclosure(result))}` : this.#bySchema(result, desc.outputSchema);
+		return html`${body}${steps}`;
 	}
 
 	#bySchema(data: unknown, schema: Record<string, unknown>): TemplateResult {
@@ -439,7 +470,11 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 	#table(rows: Record<string, unknown>[]): TemplateResult {
 		if (rows.length === 0) return html`<p>The result doesn't hold a row.</p>`;
 		const cols = [...new Set(rows.flatMap((r) => Object.keys(r)))];
-		return html`<table><thead><tr>${cols.map((c) => html`<th>${c}</th>`)}</tr></thead><tbody>${rows.map((r) => html`<tr>${cols.map((c) => html`<td>${this.#cell(r[c])}</td>`)}</tr>`)}</tbody></table>`;
+		const hasSteps = rows.some((r) => this.#hasRecord(r));
+		return html`<table><thead><tr>${cols.map((c) => html`<th>${c}</th>`)}${hasSteps ? html`<th></th>` : nothing}</tr></thead><tbody>${rows.map((r) => {
+			const steps = this.#recordStepsOf(r);
+			return html`<tr>${cols.map((c) => html`<td>${this.#cell(r[c])}</td>`)}${hasSteps ? html`<td>${steps}</td>` : nothing}</tr>`;
+		})}</tbody></table>`;
 	}
 
 	/** A value as the text of its cell: a field a row leaves out is an empty cell. */
