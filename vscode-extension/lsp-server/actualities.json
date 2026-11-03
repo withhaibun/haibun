@@ -31,9 +31,9 @@
 				"status": "passed",
 				"tookMs": 100,
 				"digest": {
-					"modules/core/src": "9fa221b0b090ffb114fa29bf63a0731b18f4fa75dd2c1b91eaee064717e74bf7",
-					"modules/logic/src": "634cb1baf49ab3e5c654d4a254e3fe0ba9e5e277fc6c37be340c0ca61244fed8",
-					"modules/lsp/src": "95fcc1e187791b5862bb573019ae06449d73ee31dfa22a1410bccf0017ad7ef9",
+					"modules/core/src": "27d8e0f46199080ad79bdf33c21712b0c47e28782cb5ab0f01eb51d037bb6f5d",
+					"modules/logic/src": "b076f81df94183b3738aa742aed55563fc5ef98d5376054aa98acfcd4f90a673",
+					"modules/lsp/src": "34c561bc372e56bb9e5073f10eea2a5ef089540a42e3775332dd4051933f8200",
 					"vscode-extension/lsp-server": "d551206d22fffaf8f4bff8d8a234b6c2d1d0fb2d3e359df0f107bd9dfe68c45c"
 				}
 			},
