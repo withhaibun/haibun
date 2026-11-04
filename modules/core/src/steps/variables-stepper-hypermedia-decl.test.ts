@@ -57,6 +57,21 @@ set of Ingredient by ${jsonld}`,
 		expect(JSON.stringify(jsonld.failure)).toContain("@accessLevel");
 	});
 
+	it("states the declared types it doesn't share a record with, and refuses one that isn't declared", async () => {
+		const res = await passWithDefaults(
+			`set of Recipe by id, with name, stored at private
+set of Ingredient by id, with name, disjoint with Recipe, stored at private`,
+			[VariablesStepper, LogicStepper],
+		);
+		expect(res.ok).toBe(true);
+		const declared = z.object({ disjointWith: z.object({ types: z.array(z.string()), declaredIn: z.string() }) });
+		const record = await res.world.shared.getStore().readRecord({ label: DOMAIN_LABEL, schema: DomainRecordSchema }, "ingredient");
+		expect(declared.parse(record?.topology).disjointWith.types).toEqual(["Recipe"]);
+		const refused = await passWithDefaults("set of Ingredient by id, with name, disjoint with Nonesuch, stored at private", [VariablesStepper, LogicStepper]);
+		expect(refused.ok).toBe(false);
+		expect(JSON.stringify(refused.failure)).toContain("is declared disjoint with Nonesuch, which isn't a declared type. Declare the type first");
+	});
+
 	it("rejects a duplicate declaration", async () => {
 		const res = await passWithDefaults(
 			`set of Recipe by id, with name, stored at private

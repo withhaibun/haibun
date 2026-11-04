@@ -40,7 +40,7 @@ import {
 import { fromJsonText } from "../lib/domains/json-text.js";
 import { typeCollectionRemedy } from "../lib/domains/typed-links.js";
 import { HypermediaContextSchema, hypermediaDomainFromContext, type THypermediaContext } from "../lib/domains/hypermedia.js";
-import { AccessLevelSchema, REL_CONTEXT, LinkRelations, type TRel, type TRegisteredDomain, type TDomainDefinition } from "../lib/domains/resources.js";
+import { AccessLevelSchema, REL_CONTEXT, LinkRelations, isPersisted, type TRel, type TRegisteredDomain, type TDomainDefinition } from "../lib/domains/resources.js";
 
 const clearVars = (vars: VariablesStepper) => async () => {
 	await vars.getWorld().shared.clear();
@@ -118,8 +118,10 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		defineHypermediaDomain: {
 			gwta: `set of {domain: ${DOMAIN_DOMAIN_NAME}} by {spec: ${DOMAIN_HYPERMEDIA_DECLARATION}}`,
 			description:
-				"Registers the domain as a persisted hypermedia domain from the declaration, a JSON-LD context or its prose shorthand, deriving its topology and schema. It refuses where the domain is already registered or the declaration doesn't parse.",
-			action: ({ domain, spec }: { domain: string; spec: string }) => this.registerHypermediaDomain(domain, spec),
+				"Registers the domain as a persisted hypermedia domain from the declaration, a JSON-LD context or its prose shorthand, deriving its topology and schema, and the declared types that don't share a record with it. It refuses where the domain is already registered, the declaration doesn't parse or it names a type that isn't declared.",
+			// The declaration names where it was made: its feature, or the step that made it where a call made it.
+			action: ({ domain, spec }: { domain: string; spec: string }, featureStep: TFeatureStep) =>
+				this.registerHypermediaDomain(domain, spec, featureStep.source === undefined ? `the step ${featureStep.seqPath.join(".")}` : featureStep.source.path),
 		},
 		statementSetValues: { gwta: `\\[{items: ${DOMAIN_SET_VALUES}}\\]`, description: "Matches the bracketed values of a set declaration and passes.", action: () => OK },
 		composeAs: {
@@ -460,10 +462,16 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		}
 	}
 
-	private registerHypermediaDomain(domain: string, spec: string) {
+	private registerHypermediaDomain(domain: string, spec: string, declaredIn: string) {
 		try {
 			const doc: THypermediaContext = spec.startsWith("{") ? fromJsonText(HypermediaContextSchema).parse(spec) : parseHypermediaDeclProse(domain, spec);
-			const { topology, schema } = hypermediaDomainFromContext(domain, doc);
+			const persisted = Object.values(this.getWorld().domains).flatMap(({ topology }) => (isPersisted(topology) ? [topology.persistedAs] : []));
+			const unknown = (doc["@disjointWith"] === undefined ? [] : doc["@disjointWith"]).filter((type) => !persisted.includes(type));
+			if (unknown.length > 0)
+				return actionNotOK(
+					`the set of "${domain}" is declared disjoint with ${unknown.join(", ")}, which isn't a declared type. Declare the type first, or name one of ${persisted.join(", ")}.`,
+				);
+			const { topology, schema } = hypermediaDomainFromContext(domain, doc, declaredIn);
 			const selector = domain.toLowerCase();
 			const domainKey = normalizeDomainKey(selector);
 			if (this.getWorld().domains[domainKey]) return actionNotOK(`the domain "${domainKey}" is already registered; declare a domain of another name`);
@@ -492,7 +500,7 @@ const XSD_FOR: Record<string, string> = {
 
 /** Prose shorthand → JSON-LD @context: `id, with name [as number], used in Recipe, stored at private`. The first clause is
  * the id field; `with {field}` maps the field to its same-named relation (queryable); `used in {Range}`
- * is the usedIn (isPartOf) edge; `stored at {level}` states the level the type's records are stored at, and a declaration
+ * is the usedIn (isPartOf) edge; `disjoint with {Type}` names a declared type that doesn't share a record with it; `stored at {level}` states the level the type's records are stored at, and a declaration
  * without it is refused. Non-relation field names need the JSON-LD form with an explicit @id. */
 function parseHypermediaDeclProse(domain: string, spec: string): THypermediaContext {
 	const clauses = spec
@@ -503,6 +511,7 @@ function parseHypermediaDeclProse(domain: string, spec: string): THypermediaCont
 	if (!idField) throw new Error(`set of ${domain}: declaration needs an id field (e.g. "by id, with name")`);
 	const context: THypermediaContext["@context"] = { [idField]: "@id" };
 	const queryable: string[] = [];
+	const disjointWith: string[] = [];
 	let accessLevel: string | undefined;
 	for (const clause of fields) {
 		const storedM = clause.match(STORED_AT);
@@ -522,18 +531,28 @@ function parseHypermediaDeclProse(domain: string, spec: string): THypermediaCont
 			queryable.push(field);
 			continue;
 		}
+		const disjointM = clause.match(/^disjoint with\s+(\S+)$/);
+		if (disjointM) {
+			disjointWith.push(itemAt(disjointM, 1));
+			continue;
+		}
 		const usedM = clause.match(/^used in\s+(\S+)$/);
 		if (usedM) {
 			context.usedIn = { "@id": REL_CONTEXT[LinkRelations.PART_OF.rel], range: usedM[1] };
 			continue;
 		}
-		throw new Error(`set of ${domain}: unrecognized clause "${clause}" (expected "with <field> [as <type>]", "used in <Range>" or "stored at <level>")`);
+		throw new Error(`set of ${domain}: unrecognized clause "${clause}" (expected "with <field> [as <type>]", "used in <Range>", "disjoint with <Type>" or "stored at <level>")`);
 	}
 	if (accessLevel === undefined)
 		throw new Error(
 			`set of ${domain}: the declaration doesn't state the storage level of its records. Add the clause "stored at <level>", where the level is one of ${AccessLevelSchema.options.join(", ")}.`,
 		);
-	return HypermediaContextSchema.parse({ "@context": context, ...(queryable.length ? { "@queryable": queryable } : {}), "@accessLevel": accessLevel });
+	return HypermediaContextSchema.parse({
+		"@context": context,
+		...(queryable.length ? { "@queryable": queryable } : {}),
+		...(disjointWith.length ? { "@disjointWith": disjointWith } : {}),
+		"@accessLevel": accessLevel,
+	});
 }
 
 const extractValuesFromFragments = (valueFragments?: TFeatureStep[], fallback?: string) => {

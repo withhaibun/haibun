@@ -237,7 +237,7 @@ export const prettifyGwta = (gwta: string): string =>
  *  holds. The definition of show steps states how to read the declarations. A model's turn puts these instructions in its
  *  standing instruction. An MCP host sets its instructions before any caller connects, so they don't list a stepper. */
 export function stepsInstructions(steppers: TStepperSummary[]): string {
-	const ask = `Call ${SHOW_STEPS_METHOD} to list the steps, ${MATCHING_METHOD} with a text and the statement "${SHOW_STEPS_LINE}" to find the step a request needs, and ${SHOW_STEP_DEFINITIONS_METHOD} under ${MATCHING_METHOD} to read its definition.`;
+	const ask = `Call ${SHOW_STEPS_METHOD} to list the steps, ${MATCHING_METHOD} with a text and the statement "${SHOW_STEPS_LINE}" to find the step a request needs, and ${SHOW_STEP_DEFINITIONS_METHOD} under ${MATCHING_METHOD} to read its definition. ${MATCHING_METHOD} keeps the steps that hold its text as one phrase, so pass one name or phrase a step holds, such as its method or a verb of its pattern, and a shorter one where a lookup doesn't find one.`;
 	if (steppers.length === 0) return ask;
 	const listed = steppers.map((entry) => `- ${entry.stepper} (${entry.steps} steps): ${entry.description}`).join("\n");
 	return `${ask}\n\nSteppers whose steps you hold:\n${listed}`;

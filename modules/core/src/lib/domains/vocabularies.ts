@@ -39,7 +39,18 @@ const termsIn = <T extends string>(prefix: keyof typeof NAMESPACE, names: readon
 
 export const RDF = /* @__PURE__ */ termsIn("rdf", ["type", "Property", "first", "rest", "nil"]);
 export const RDFS = /* @__PURE__ */ termsIn("rdfs", ["Class", "subClassOf", "subPropertyOf", "domain", "range", "comment"]);
-export const OWL = /* @__PURE__ */ termsIn("owl", ["Class", "ObjectProperty", "unionOf", "sameAs", "equivalentProperty", "disjointWith"]);
+export const OWL = /* @__PURE__ */ termsIn("owl", [
+	"Class",
+	"ObjectProperty",
+	"unionOf",
+	"sameAs",
+	"equivalentProperty",
+	"disjointWith",
+	"Axiom",
+	"annotatedSource",
+	"annotatedProperty",
+	"annotatedTarget",
+]);
 export const XSD = /* @__PURE__ */ termsIn("xsd", ["string", "dateTime", "date", "integer", "decimal", "boolean"]);
 export const LOG = /* @__PURE__ */ termsIn("log", ["includes", "notIncludes", "implies", "equalTo"]);
 export const MATH = /* @__PURE__ */ termsIn("math", ["greaterThan", "lessThan", "notLessThan", "notGreaterThan"]);

@@ -54,7 +54,6 @@
 		"has at most one call site: UrakataStepper.urakataIsRunning": 1
 	},
 	"modules/core/src/steps/variables-stepper.ts": {
-		"has at most one call site: VariablesStepper.defineHypermediaDomain": 1,
 		"has at most one call site: VariablesStepper.unset": 1
 	},
 	"modules/logic/src/logic-stepper.ts": {

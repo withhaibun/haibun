@@ -3,7 +3,7 @@
  * alternatives, and the parameters that state statements, in the order the step's phrase names them.
  */
 import { z } from "zod";
-import { ClaimWitnessSchema } from "@haibun/core/lib/records/domains/axioms.js";
+import { ClaimWitnessSchema, DisjointnessWitnessSchema } from "@haibun/core/lib/records/domains/axioms.js";
 import { DOMAIN_STATEMENT } from "@haibun/core/lib/domains/domains.js";
 import type { TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import type { TStepperStep } from "@haibun/core/lib/steps/domains/stepper.js";
@@ -27,7 +27,10 @@ const RefusalSchema = z.object({
 	refusal: z.string(),
 	seqPath: z.string(),
 	lacksAction: z.string().optional().describe("The action the refused call lacked, where the gate refused it for an action its caller doesn't hold"),
-	witness: ClaimWitnessSchema.optional().describe("The subsumption a refused claim names and the records that exceed it, where a claim of subsumption didn't hold"),
+	witness: z
+		.union([ClaimWitnessSchema, DisjointnessWitnessSchema])
+		.optional()
+		.describe("A refused claim's witness: the subsumption and the records that exceed it, or the individual and the two disjoint classes with what states them"),
 });
 export type TRefusal = z.infer<typeof RefusalSchema>;
 

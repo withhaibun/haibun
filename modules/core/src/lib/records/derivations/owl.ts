@@ -79,6 +79,25 @@ export function ontologyOwl(ontology: TClusteredQuads, context: Record<string, u
 		if (range !== undefined) axiom(property(subject), RDFS.range, unionOf(range));
 	}
 	for (const q of stated(PROPERTY_LABEL, ONTOLOGY_FIELD.subPropertyOf)) axiom(property(q.subject), RDFS.subPropertyOf, property(String(q.object)));
+	// A disjointness a type's declaration states, annotated (OWL 2, axiom annotations) with where the declaration was made, so a
+	// reader tells it from a standard vocabulary's.
+	const declaredIn = new Map(stated(CLASS_LABEL, ONTOLOGY_FIELD.disjointnessDeclaredIn).map((q) => [q.subject, String(q.object)]));
+	for (const { subject, object } of stated(CLASS_LABEL, ONTOLOGY_FIELD.disjointWith)) {
+		const [declared, other] = [ref(subject), ref(String(object))];
+		axiom(declared, OWL.disjointWith, other);
+		const where = declaredIn.get(subject);
+		if (where !== undefined)
+			writer.addQuad(
+				writer.blank([
+					{ predicate: namedNode(RDF.type), object: namedNode(OWL.Axiom) },
+					{ predicate: namedNode(OWL.annotatedSource), object: declared },
+					{ predicate: namedNode(OWL.annotatedProperty), object: namedNode(OWL.disjointWith) },
+					{ predicate: namedNode(OWL.annotatedTarget), object: other },
+				]),
+				namedNode(RDFS.comment),
+				literal(`declared in ${where}`),
+			);
+	}
 	let turtle: string | undefined;
 	writer.end((error, result: string) => {
 		if (error) throw error;

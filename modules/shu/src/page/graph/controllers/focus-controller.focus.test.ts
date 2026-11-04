@@ -56,6 +56,7 @@ function mailbox(over: { worldPerPx?: number } = {}) {
 		pinNode: () => undefined,
 		worldPerPxAt: () => over.worldPerPx ?? 1,
 		focusEdgeColor: () => "#222222",
+		disjointEdgeColor: () => "#c00000",
 		edgeLineColor: () => "#888888",
 		edgeLabelColor: () => "#555555",
 		focusTextPx: () => 13,

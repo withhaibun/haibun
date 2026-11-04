@@ -80,4 +80,18 @@ describe("ontologyOwl", () => {
 		expect(holds(memo, RDFS.comment, literal("Memo"))).toBe(true);
 		expect(owl.getObjects(entity, namedNode(RDFS.comment), null)).toEqual([]);
 	});
+
+	it("writes a disjointness a type's declaration states as owl:disjointWith, annotated with where it was declared", () => {
+		const declared = mapDefinitionsToDomains([
+			typeOf("Note", {}),
+			{ ...typeOf("Memo", {}), topology: { ...typeOf("Memo", {}).topology, disjointWith: { types: ["Note"], declaredIn: "features/memo.feature" } } },
+		]);
+		const declaredContext = getJsonLdContext(declared)["@context"];
+		const exported = new Store(new Parser().parse(ontologyOwl(ontologyToQuads(declared), declaredContext)));
+		const [memoClass, noteClass] = [namedNode(iriIn(declaredContext, "Memo")), namedNode(iriIn(declaredContext, "Note"))];
+		expect(exported.has(quad(memoClass, namedNode(OWL.disjointWith), noteClass))).toBe(true);
+		const [annotation] = exported.getSubjects(namedNode(OWL.annotatedSource), memoClass, null);
+		if (annotation === undefined) throw new Error("the export doesn't annotate the declared disjointness");
+		expect(exported.getObjects(annotation, namedNode(RDFS.comment), null).map((term) => term.value)).toEqual(["declared in features/memo.feature"]);
+	});
 });

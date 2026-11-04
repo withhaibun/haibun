@@ -1,7 +1,7 @@
 /**
  * The claims, each an entailment check through the reasoner: an instance check of ClassAssertion(E X), a subsumption check of
  * SubClassOf(E1 E2), and an instance retrieval of the named individuals entailed to be an E. A claim holds where K, the ontology
- * with the standard vocabularies' class axioms and the records the reasoner read, entails its axiom, is refuted where K entails
+ * with the class axioms of the vocabularies a deployment declares and the records the reasoner read, entails its axiom, is refuted where K entails
  * its contradiction, as a membership of two disjoint classes, and is unknown where K doesn't entail the axiom and
  * doesn't contradict it. Each returns its result with what it checks, its verdict and its proof or witness.
  */
@@ -10,6 +10,7 @@ import { VERDICT, type TActionResult } from "@haibun/core/lib/domains/protocol.j
 import type { TRecordNamespace, TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
 import type { TIndividualAddress } from "@haibun/core/lib/domains/typed-links.js";
 import type { TEntailment } from "@haibun/core/lib/records/domains/claim.js";
+import type { TDisjointnessWitness } from "@haibun/core/lib/records/domains/axioms.js";
 import { UNDETERMINED, claimResult, entailmentOf } from "@haibun/core/lib/records/derivations/claim.js";
 import type { TReasoner } from "../ports.js";
 import {
@@ -54,7 +55,10 @@ export async function instanceChecked(scope: TClaimScope, address: TIndividualAd
 	const entailed = await entailedMembers(scope.reasoner, scope.store, scope.domains, scope.records, expression);
 	if (entailed.members.some(({ persistedAs, id }) => persistedAs === address.persistedAs && id === address.id)) return claimResult(entailment, VERDICT.proved, ENTAILED_BY);
 	const refuting = await membershipRefuted(scope.reasoner, scope.store, scope.domains, scope.records, address, expression);
-	if (refuting !== undefined) return claimResult(entailment, VERDICT.refuted, `${REFUTED_BY} ${refuting.join(", ")}`);
+	if (refuting !== undefined) {
+		const witness: TDisjointnessWitness = { individual: address, disjoint: refuting.disjoint.classes, statedBy: refuting.disjoint.statedBy };
+		return claimResult(entailment, VERDICT.refuted, `${REFUTED_BY} ${refuting.axioms.join(", ")}`, { witness });
+	}
 	return claimResult(entailment, VERDICT.unknown, `${UNDETERMINED}.${truncationOf(entailed)} ${UNKNOWN_REMEDY}`);
 }
 
@@ -68,7 +72,7 @@ export async function subsumptionChecked(scope: TClaimScope, sub: string, sup: s
 		return claimResult(entailment, VERDICT.proved, `${ENTAILED_BY}: an individual that stands for any member of the first expression is entailed a member of the second`);
 	const { exceeding, witness } = await subsumptionWitness(...read);
 	const refuting = witness.members.length === 0 ? undefined : await disjointExpressions(...read);
-	if (refuting !== undefined) return claimResult(entailment, VERDICT.refuted, `${REFUTED_BY} ${refuting.join(", ")}, and ${exceeding}`, { witness });
+	if (refuting !== undefined) return claimResult(entailment, VERDICT.refuted, `${REFUTED_BY} ${refuting.axioms.join(", ")}, and ${exceeding}`, { witness });
 	return claimResult(entailment, VERDICT.unknown, `${UNDETERMINED}, and ${exceeding}. State the subsumption in the ontology, or narrow the first expression.`, { witness });
 }
 

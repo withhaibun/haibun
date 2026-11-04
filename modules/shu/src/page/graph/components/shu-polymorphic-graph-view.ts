@@ -26,13 +26,15 @@ function countsText(c: GraphSceneChangedDetail["counts"], prune: boolean): strin
 const POLYMORPHIC_IDS = SHU_TEST_IDS.POLYMORPHIC_VIEW;
 /** A step's end whose products hold a witness: a refused claim's, its own and those of `didn't` and `maybe` over it, or the frames
  *  of the records a derivation's proof wrote. */
-const WitnessCarrierSchema = z.object({ products: z.union([z.object({ witness: ClaimWitnessSchema }), z.object({ frames: GraphAxiomsSchema.shape.frames })]) });
+const WitnessCarrierSchema = z.object({
+	products: z.union([z.object({ witness: z.union([ClaimWitnessSchema, DisjointnessWitnessSchema]) }), z.object({ frames: GraphAxiomsSchema.shape.frames })]),
+});
 const carriesWitness = (event: TEvent): boolean => isStepEnd(event) && WitnessCarrierSchema.safeParse(event).success;
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { VIEW, VIEW_TYPES } from "../domains/views.js";
 import type { TPolymorphicOptionChange } from "./shu-polymorphic-settings.js";
 import { ViewAxiomsProductsSchema, type TGraphView, type TViewAxioms } from "../../../domains/graph-view.js";
-import { ClaimWitnessSchema, GraphAxiomsSchema, type TFrame } from "@haibun/core/lib/records/domains/axioms.js";
+import { ClaimWitnessSchema, DisjointnessWitnessSchema, GraphAxiomsSchema, type TFrame } from "@haibun/core/lib/records/domains/axioms.js";
 import { isStepEnd } from "@haibun/core/lib/domains/protocol.js";
 import type { TEvent } from "../../ports.js";
 import { LoadController } from "../../controllers/load-controller.js";
@@ -586,7 +588,8 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		const carrier = WitnessCarrierSchema.safeParse(events.at(-1));
 		if (!carrier.success) return;
 		const { products } = carrier.data;
-		this.markWitness("witness" in products ? { claim: products.witness } : { proof: products.frames });
+		if (!("witness" in products)) this.markWitness({ proof: products.frames });
+		else this.markWitness("disjoint" in products.witness ? { disjointness: products.witness } : { claim: products.witness });
 	}
 
 	/** Holds a witness, which the DL view marks in place. */

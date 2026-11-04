@@ -8,12 +8,28 @@ import { IndividualAddressSchema } from "../../domains/typed-links.js";
 
 /** The symbols of DL notation the axioms and a claim's witness write, which a graph's labels draw: subsumption and its failure,
  *  the existential and universal restrictions, union, intersection, the top class, membership and its failure, and entailment. */
-export const DL_SYMBOL = { subsumedBy: "⊑", notSubsumedBy: "⋢", some: "∃", all: "∀", union: "⊔", intersection: "⊓", top: "⊤", member: "∈", notMember: "∉", entails: "⊨" } as const;
+export const DL_SYMBOL = {
+	subsumedBy: "⊑",
+	notSubsumedBy: "⋢",
+	some: "∃",
+	all: "∀",
+	union: "⊔",
+	intersection: "⊓",
+	top: "⊤",
+	member: "∈",
+	notMember: "∉",
+	entails: "⊨",
+	bottom: "⊥",
+} as const;
 
 /** What a claim of subsumption the records don't prove names as its witness: the subsumption in DL notation, the narrower and
  *  the wider class expression as the claim writes them, and the records the narrower holds and the wider doesn't. */
 export const ClaimWitnessSchema = z.object({ subsumption: z.string(), sub: z.string(), sup: z.string(), members: z.array(IndividualAddressSchema) }).strict();
 export type TClaimWitness = z.infer<typeof ClaimWitnessSchema>;
+/** What a claim K contradicts names as its witness: the individual entailed a member of two classes, the two classes, and the
+ *  vocabulary whose axiom states them disjoint, by its title and version. */
+export const DisjointnessWitnessSchema = z.object({ individual: IndividualAddressSchema, disjoint: z.tuple([z.string(), z.string()]), statedBy: z.string() }).strict();
+export type TDisjointnessWitness = z.infer<typeof DisjointnessWitnessSchema>;
 
 /** The kinds of frame, as Manchester syntax names them. */
 export const FRAME_KIND = { class: "Class", property: "ObjectProperty", individual: "Individual" } as const;

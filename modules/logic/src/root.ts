@@ -7,6 +7,7 @@ import { eyeReasoner } from "./adapters/eye.js";
 import { workerPool } from "@haibun/core/lib/workers/adapters/piscina-pool.js";
 import { ruleLibrary } from "./adapters/rule-library.js";
 import { startSwipl } from "./adapters/swipl.js";
+export { declareVocabularies } from "./adapters/vocabulary-library.js";
 import type { TLogicEngine, TReasoner } from "./ports.js";
 
 let started: Promise<TLogicEngine> | undefined;

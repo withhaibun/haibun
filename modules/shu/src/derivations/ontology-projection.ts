@@ -129,12 +129,15 @@ export function withOntologySchema(
 	response: TClusteredQuads,
 	evidence: TQuad[],
 	domains: Record<string, TRegisteredDomain>,
+	added: (ontology: TClusteredQuads) => TClusteredQuads,
 	standardVocab?: ReadonlyMap<string, readonly TStandardTerm[]>,
 ): TClusteredQuads {
 	// The standard terms are added after the pruning. The data doesn't use them, so the pruning would remove them, and a type
 	// view shows a standard's whole vocabulary. Each has a domain edge to its type, so scopeSchemaToType keeps it.
 	const pruned = pruneOntologyToUse(ontologyToQuads(domains), evidence);
-	const ontology = standardVocab ? withStandardTerms(pruned, standardVocab) : pruned;
+	// What the caller adds above the classes the data uses, such as a registered vocabulary's classes and axioms, is added after
+	// the pruning too.
+	const ontology = added(standardVocab ? withStandardTerms(pruned, standardVocab) : pruned);
 	// An ontology that doesn't hold a Class cluster doesn't hold a class to which an instance links.
 	const classCluster = ontology.clusters.find((c) => c.type === CLASS_LABEL);
 	const classNodes = new Set(classCluster === undefined ? [] : classCluster.sampledSubjects);

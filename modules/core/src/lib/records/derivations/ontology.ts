@@ -91,7 +91,7 @@ const cluster = (type: string, subjects: string[], displayLabels: Record<string,
 	displayLabels,
 });
 
-const quadOf = (subject: string, predicate: string, object: unknown, namedGraph: string, objectType?: string): TQuad => ({
+export const quadOf = (subject: string, predicate: string, object: unknown, namedGraph: string, objectType?: string): TQuad => ({
 	subject,
 	predicate,
 	object,
@@ -123,7 +123,7 @@ export function ontologyToQuads(domains: Record<string, TRegisteredDomain>): TCl
 	};
 	for (const d of Object.values(domains)) {
 		if (!isPersisted(d.topology)) continue;
-		const { persistedAs, type, subClassOf } = d.topology;
+		const { persistedAs, type, subClassOf, disjointWith } = d.topology;
 		addClass(persistedAs);
 		if (type) quads.push(quadOf(persistedAs, ONTOLOGY_FIELD.classIri, type, CLASS_LABEL));
 		// A class a type declares carries its declaration's description; a class a type names as its superclass from a
@@ -133,6 +133,11 @@ export function ontologyToQuads(domains: Record<string, TRegisteredDomain>): TCl
 		for (const s of supers) {
 			addClass(s);
 			quads.push(quadOf(persistedAs, ONTOLOGY_FIELD.subClassOf, s, CLASS_LABEL, CLASS_LABEL));
+		}
+		// A disjointness a type's declaration states, for a case a standard vocabulary doesn't, with where it was declared.
+		if (disjointWith !== undefined) {
+			quads.push(quadOf(persistedAs, ONTOLOGY_FIELD.disjointnessDeclaredIn, disjointWith.declaredIn, CLASS_LABEL));
+			for (const other of disjointWith.types) quads.push(quadOf(persistedAs, ONTOLOGY_FIELD.disjointWith, other, CLASS_LABEL, CLASS_LABEL));
 		}
 	}
 

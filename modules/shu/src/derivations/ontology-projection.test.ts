@@ -121,7 +121,7 @@ describe("withOntologySchema: the schema travels with the response (live and off
 	const response = { quads: [instance], clusters: [{ type: "Principal", totalCount: 1, sampledCount: 1, omittedCount: 0, sampledSubjects: ["did:x"], displayLabels: {} }] };
 
 	it("appends the pruned Class + Property clusters and an rdf:type edge per instance, keeping the instance data intact", () => {
-		const out = withOntologySchema(response, response.quads, domains);
+		const out = withOntologySchema(response, response.quads, domains, (ontology) => ontology);
 		expect(out.quads).toContain(instance); // instance data preserved
 		// the Principal Class node is present (an instance exercises it)…
 		expect(out.quads.some((q) => q.namedGraph === CLASS_LABEL && q.subject === "Principal")).toBe(true);
@@ -134,7 +134,7 @@ describe("withOntologySchema: the schema travels with the response (live and off
 
 	it("adds exactly one rdf:type edge per subject, and doesn't add one for a type without a Class node", () => {
 		const twoOfAType: TQuad[] = [instance, { subject: "did:x", predicate: "name", object: "X", namedGraph: "Principal", timestamp: 5 }];
-		const out = withOntologySchema({ quads: twoOfAType, clusters: response.clusters }, twoOfAType, domains);
+		const out = withOntologySchema({ quads: twoOfAType, clusters: response.clusters }, twoOfAType, domains, (ontology) => ontology);
 		expect(out.quads.filter((q) => q.predicate === "a" && q.subject === "did:x")).toHaveLength(1);
 		// every appended non-schema quad that is an `a` edge points at a real Class node
 		const classNodes = new Set(out.quads.filter((q) => isSchemaType(q.namedGraph) && q.namedGraph === CLASS_LABEL).map((q) => q.subject));

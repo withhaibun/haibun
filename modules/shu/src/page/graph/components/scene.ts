@@ -378,6 +378,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private sceneTextColor = "#e6e6e6"; // text OFF a chip, on the scene bg (gantt bar labels), follows --shu-fg (white in dark)
 	private glowRamp: readonly string[] = GLOW_RAMP.dark; // which warm ramp the glow cycles through, chosen by theme
 	private focusEdgeColor = "#222222"; // full-contrast foreground: a focused node's edges + labels brighten to it
+	private disjointEdgeColor = "#c00000"; // a disjointness between two classes, from --shu-error
 	private particleColor = "#1a6b3c";
 	private focusTextPx = 13; // from --shu-font-md: the pop matches the app's own text size (follows --shu-scale)
 	// The single interface to the live render world, late-bound three.js leaf refs + the shared mutable graph-state
@@ -478,6 +479,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		pinNode: (n) => this.dataPinnedIds.push(n.id),
 		worldPerPxAt: (pos) => this.cameraCtl.camera.worldPerPxAt(pos),
 		focusEdgeColor: () => this.focusEdgeColor,
+		disjointEdgeColor: () => this.disjointEdgeColor,
 		edgeLineColor: () => this.edgeLineColor,
 		edgeLabelColor: () => this.edgeLabelColor,
 		focusTextPx: () => this.focusTextPx,
@@ -1326,6 +1328,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		// own dark signal (1 in dark), the same one the embedded-document inversion reads.
 		this.glowRamp = this.themeColor("--shu-invert", "0") === "1" ? GLOW_RAMP.dark : GLOW_RAMP.light;
 		this.focusEdgeColor = this.themeColor("--shu-fg", "#222222");
+		this.disjointEdgeColor = this.themeColor("--shu-error", "#c00000");
 		this.particleColor = this.themeColor("--shu-accent", "#1a6b3c");
 		this.focusTextPx = this.themeLengthPx("--shu-font-md");
 		this.compassFgColor = this.themeColor("--shu-fg", "#e0e0e0");

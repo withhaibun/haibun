@@ -2,10 +2,12 @@
  * The graph's DL view: the axioms of what the graph shows, mapped onto the same nodes and edges the scene draws. An individual
  * carries the type its record asserts (∈) and the types the ontology entails (⊨ ∈), a Class record carries its class's axioms,
  * and an edge carries its property's. A refused claim's witness marks in place the records that exceed its subsumption (∉) and
- * the class it names (⋢), and a derivation's witness marks the records its proof wrote with the axioms of their frames. A node or
+ * the class it names (⋢), a claim K contradicts marks the individual, the two disjoint classes and the disjointness between them
+ * with the vocabulary that states it, and a derivation's witness marks the records its proof wrote with the axioms of their frames. A node or
  * an edge the scene doesn't draw doesn't carry an axiom.
  */
-import { DL_SYMBOL, FRAME_KIND, type TClaimWitness, type TFrame, type TGraphAxioms } from "@haibun/core/lib/records/domains/axioms.js";
+import { DL_SYMBOL, FRAME_KIND, type TClaimWitness, type TDisjointnessWitness, type TFrame, type TGraphAxioms } from "@haibun/core/lib/records/domains/axioms.js";
+import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { BETWEEN_AXIOMS } from "@haibun/core/lib/records/derivations/axioms.js";
 import { edgeKey } from "./focus-policy.js";
 import type { TDrawn } from "./source-lines.js";
@@ -16,7 +18,7 @@ export type TCarried = { lines: string[]; frame: string };
  *  names, which the scene lights. */
 export type TAxiomOverlay = { nodes: ReadonlyMap<string, TCarried>; edges: ReadonlyMap<string, TCarried>; witnessed: ReadonlySet<string> };
 /** What a step end names as its witness: a refused claim's, or the frames of the records a derivation's proof wrote. */
-export type TWitness = { claim: TClaimWitness } | { proof: readonly TFrame[] };
+export type TWitness = { claim: TClaimWitness } | { disjointness: TDisjointnessWitness } | { proof: readonly TFrame[] };
 
 /** Returns the axioms `axioms` states for each node and edge the scene draws, keyed by the scene's ids and edge keys, with the
  *  marks of a `witness` where there is one. */
@@ -55,6 +57,14 @@ export function axiomOverlay(drawn: TDrawn, axioms: TGraphAxioms, witness: TWitn
 		const { members, sub, sup } = witness.claim;
 		for (const { id } of members) mark(id, [`${DL_SYMBOL.notMember} ${sup}`], FRAME_KIND.individual);
 		mark(sub, [`${sub} ${DL_SYMBOL.notSubsumedBy} ${sup}`], FRAME_KIND.class);
+	} else if (witness !== undefined && "disjointness" in witness) {
+		const { individual, disjoint, statedBy } = witness.disjointness;
+		const [a, b] = disjoint;
+		const axiom = `${a} ${DL_SYMBOL.intersection} ${b} ${DL_SYMBOL.subsumedBy} ${DL_SYMBOL.bottom} (${statedBy})`;
+		mark(individual.id, [`${DL_SYMBOL.member} ${a}`, `${DL_SYMBOL.member} ${b}`, axiom], FRAME_KIND.individual);
+		for (const cls of disjoint) mark(cls, [axiom], FRAME_KIND.class);
+		for (const key of [edgeKey(a, LinkRelations.DISJOINT_WITH.rel, b), edgeKey(b, LinkRelations.DISJOINT_WITH.rel, a)])
+			if (drawnEdges.has(key)) carry(edges, key, [axiom], `${FRAME_KIND.class} ${a}`);
 	} else if (witness !== undefined) for (const frame of witness.proof) for (const id of frame.nodes) mark(id, frame.dl.split(BETWEEN_AXIOMS), frame.kind);
 	return { nodes, edges, witnessed };
 }

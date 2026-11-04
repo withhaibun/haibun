@@ -9,10 +9,13 @@ import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import { Access, GeneratedAtTimeSchema, HAIBUN_RECORD_NAMESPACE, LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { VERDICT, type TActionResult } from "@haibun/core/lib/domains/protocol.js";
 import { ClaimProductsSchema } from "@haibun/core/lib/records/domains/claim.js";
-import { ClaimWitnessSchema } from "@haibun/core/lib/records/domains/axioms.js";
+import { ClaimWitnessSchema, DisjointnessWitnessSchema } from "@haibun/core/lib/records/domains/axioms.js";
 import { storeOfDomains } from "@haibun/core/lib/test/declared-types.js";
 import { reasoner } from "../root.js";
 import { instanceChecked, subsumptionChecked, type TClaimScope } from "./claims.js";
+import { declareVocabularies } from "../root.js";
+
+declareVocabularies(["prov"]);
 
 const [STEP, NOTE, PERSON] = ["Step", "Note", "Person"];
 const typeOf = (persistedAs: string, subClassOf: string) => ({
@@ -35,7 +38,7 @@ async function scopeWith(): Promise<TClaimScope> {
 }
 const outcomeOf = (result: TActionResult) => ClaimProductsSchema.parse(result.products).claim;
 /** The axioms that refute a Note's membership of Step: PROV-O's disjointness, and the superclass each type declares. */
-const DISJOINT = "DisjointClasses(prov:Activity prov:Entity), SubClassOf(Note prov:Entity), SubClassOf(Step prov:Activity)";
+const DISJOINT = "DisjointClasses(prov:Activity prov:Entity) (PROV-O W3C Recommendation 2013-04-30), SubClassOf(Note prov:Entity), SubClassOf(Step prov:Activity)";
 
 describe("claims K contradicts", () => {
 	it("refutes an instance check that contradicts a disjointness, naming the standard's axiom, the superclasses and the record's type", { timeout: 60_000 }, async () => {
@@ -45,6 +48,11 @@ describe("claims K contradicts", () => {
 		expect(verdict).toBe(VERDICT.refuted);
 		expect(proof).toContain(`from ClassAssertion(Note Note:n1), ${DISJOINT}`);
 		expect(result.ok ? "" : result.errorMessage).toContain(`instance check · K ⊨ ClassAssertion(Step Note:n1) · refuted · ${proof}`);
+		expect(DisjointnessWitnessSchema.parse(z.object({ witness: z.unknown() }).parse(result.products).witness), "the clash the DL view lights").toEqual({
+			individual: { persistedAs: NOTE, id: "n1" },
+			disjoint: ["prov:Activity", "prov:Entity"],
+			statedBy: "PROV-O W3C Recommendation 2013-04-30",
+		});
 	});
 
 	it("refutes a subsumption whose classes are disjoint where a member exists, with the member as its witness", { timeout: 60_000 }, async () => {

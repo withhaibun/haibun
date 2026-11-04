@@ -236,14 +236,14 @@
 			"actuality": {
 				"text": "e2e-tests/shu-self-test, node_modules/@haibun/web-playwright/waypoints, node_modules/@haibun/shu/waypoints",
 				"status": "passed",
-				"tookMs": 142400,
+				"tookMs": 132600,
 				"digest": {
 					"e2e-tests/shu-self-test": "442d23ff9142f40224a12dac257aecb9c2bc91df0900385b2c2c321a3f4b9967",
-					"modules/core/src": "e5a853f52a876c0f75ae84ae39816011e246f734db6cd7e8057a9d2828e8edf1",
+					"modules/core/src": "ff401e3a47cdb712bfacb42facee13f911fba1ce166ee538662514a2f92b6227",
 					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
-					"modules/logic/src": "5d59aae38fa358841723fb460e36e23cff046b49dd1b706b1d15956aafb3f3f3",
+					"modules/logic/src": "56cbe1870839851e1a3e7f73ef165b85cf727479d2d0be6154226247f74556f3",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/shu/src": "e6cc4f170814a5ba07a02314f73990d6a1facb60213e763641ce1d8df53fea5e",
+					"modules/shu/src": "f19899d8d8c11826f910b4e8a4643088b5c75faea7b189da77be078b3860c195",
 					"modules/shu/waypoints": "bf3404dac6e40f8fee76ffc4327503c9b2ce7b61de89068a9bfc28ffefcd1604",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
@@ -256,7 +256,7 @@
 				"/features/shu-self-test.feature.ts": {
 					"text": "Shu SPA Self-Test",
 					"status": "passed",
-					"tookMs": 139000,
+					"tookMs": 129300,
 					"steps": 685
 				},
 				"/features/z-post.feature.ts": {

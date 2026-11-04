@@ -8,6 +8,7 @@ import { ontologyRecords, ontologyToQuads, withStandardTerms } from "../derivati
 import type { TRecordNamespace, TRegisteredDomain } from "../../domains/resources.js";
 import { readDeclarationsOf, readFromRecords, type THeldRecord } from "../derivations/read-records.js";
 import { domainRecords } from "../derivations/domain-records.js";
+import { withVocabularyAxioms } from "../derivations/vocabulary-axioms.js";
 import { enumerateStandardVocab, type TVocabularyWarning } from "./standard-vocabulary.js";
 import type { TRecordReader } from "./record-reads.js";
 
@@ -22,7 +23,7 @@ function derivedOf(domains: Record<string, TRegisteredDomain>, warn: TVocabulary
 	const size = Object.keys(domains).length;
 	const held = derivedFor.get(domains);
 	if (held && held.size === size) return held;
-	const ontology = enumerateStandardVocab(domains, warn).then((standard) => withStandardTerms(ontologyToQuads(domains), standard));
+	const ontology = enumerateStandardVocab(domains, warn).then((standard) => withVocabularyAxioms(withStandardTerms(ontologyToQuads(domains), standard)));
 	const derived = { size, records: ontology.then((stated) => [...ontologyRecords(stated), ...domainRecords(domains)]) };
 	derivedFor.set(domains, derived);
 	return derived;

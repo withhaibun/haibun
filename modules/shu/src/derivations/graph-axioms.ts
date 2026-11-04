@@ -8,8 +8,10 @@
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { ONTOLOGY_FIELD } from "@haibun/core/lib/records/domains/ontology.js";
 import { CLASS_LABEL } from "@haibun/core/lib/domains/resources.js";
-import { FRAME_KIND, type TGraphAxioms, type TFrame } from "@haibun/core/lib/records/domains/axioms.js";
-import { BETWEEN_FRAMES, classAxioms, individualAxioms, propertyAxioms, type TIndividualFact } from "@haibun/core/lib/records/derivations/axioms.js";
+import { DL_SYMBOL, FRAME_KIND, type TGraphAxioms, type TFrame } from "@haibun/core/lib/records/domains/axioms.js";
+import { registeredVocabularies, vocabularyName, vocabularyOf } from "@haibun/core/lib/domains/vocabulary-registry.js";
+import { NAMESPACE } from "@haibun/core/lib/domains/vocabularies.js";
+import { BETWEEN_AXIOMS, BETWEEN_FRAMES, classAxioms, individualAxioms, propertyAxioms, type TIndividualFact } from "@haibun/core/lib/records/derivations/axioms.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import type { GraphEdge, GraphModel, GraphNode } from "../domains/graph-model.js";
 import { INSTANCE_OF } from "./ontology-projection.js";
@@ -18,6 +20,19 @@ import { INSTANCE_OF } from "./ontology-projection.js";
 const statementOf = (node: GraphNode): string => {
 	const line = node.properties[SEQ_PATH_FIELD.stepText];
 	return typeof line === "string" ? line : `${node.type} ${node.id}`;
+};
+
+/** A class's axioms with `lines` after its DL notation, and in its Manchester text as an annotation of each. */
+const withLines = ({ manchester, dl }: { manchester: string; dl: string }, lines: readonly string[]) =>
+	lines.length === 0
+		? { manchester, dl }
+		: { manchester: [manchester, ...lines.map((line) => `    Annotations: ${JSON.stringify(line)}`)].join("\n"), dl: [dl, ...lines].join(BETWEEN_AXIOMS) };
+
+/** The IRI a class's name stands for where its prefix is a vocabulary's, else the name. */
+const iriOfClass = (name: string): string => {
+	const colon = name.indexOf(":");
+	const namespace = colon < 0 ? undefined : (NAMESPACE as Record<string, string>)[name.slice(0, colon)];
+	return namespace === undefined ? name : `${namespace}${name.slice(colon + 1)}`;
 };
 
 /** A literal property's value. Throws for a value that isn't text, a number or a boolean, which a graph model doesn't copy. */
@@ -64,11 +79,42 @@ export function graphAxioms({ nodes, edges }: GraphModel, ontology: readonly TQu
 	// A Class record is a class as well as an individual of Class: its node carries the class's own axioms beside its type's records.
 	const isClassRecord = (node: GraphNode, name: string): boolean => node.type === CLASS_LABEL && node.id === name;
 	const classNames = [...new Set([...types, ...[...records.values()].filter((node) => node.type === CLASS_LABEL).map(({ id }) => id)])];
+	/** Each path from a class up its superclasses to a class without one, as a line of subsumptions. */
+	const pathsOf = (name: string, through: ReadonlySet<string>): string[] => {
+		const supers = superclassesOf(name).filter((superclass) => !through.has(superclass));
+		const next = new Set([...through, name]);
+		return supers.length === 0 ? [name] : supers.flatMap((superclass) => pathsOf(superclass, next).map((path) => `${name} ${DL_SYMBOL.subsumedBy} ${path}`));
+	};
+	/** A class's axioms beside its superclasses: each path to its standard classes, each class a vocabulary states it disjoint
+	 *  with, the vocabulary that defines it, and the count of that vocabulary's axioms that are stated, not reasoned over. */
+	const vocabularyLines = (name: string): string[] => {
+		const disjoint = [
+			...objectsOf(name, ONTOLOGY_FIELD.disjointWith),
+			...ontology.filter((q) => q.predicate === ONTOLOGY_FIELD.disjointWith && q.object === name).map((q) => q.subject),
+		];
+		const [source] = objectsOf(name, ONTOLOGY_FIELD.definedBy);
+		const defining = source === undefined ? undefined : registeredVocabularies().find(({ entry }) => entry.source === source);
+		// A disjointness names what states it: the vocabulary, or the declaration of either class.
+		const statedBy = (other: string): string => {
+			const held = vocabularyOf(iriOfClass(name));
+			const [declared] = [...objectsOf(name, ONTOLOGY_FIELD.disjointnessDeclaredIn), ...objectsOf(other, ONTOLOGY_FIELD.disjointnessDeclaredIn)];
+			if (held !== undefined) return ` (${vocabularyName(held.entry)})`;
+			return declared === undefined ? "" : ` (declared in ${declared})`;
+		};
+		return [
+			// A path past the immediate superclass reads the chain; the immediate one the class's own axiom states.
+			...pathsOf(name, new Set()).filter((path) => path.split(` ${DL_SYMBOL.subsumedBy} `).length > 2),
+			...disjoint.map((other) => `${name} ${DL_SYMBOL.intersection} ${other} ${DL_SYMBOL.subsumedBy} ${DL_SYMBOL.bottom}${statedBy(other)}`),
+			...(defining === undefined
+				? []
+				: [`defined by ${vocabularyName(defining.entry)} <${defining.entry.source}>`, `${defining.stated} axioms of ${defining.entry.title} are stated, not reasoned over`]),
+		];
+	};
 	const classes = classNames.map(
 		(name): TFrame => ({
 			name: `${FRAME_KIND.class} ${name}`,
 			kind: FRAME_KIND.class,
-			...classAxioms(name, superclassesOf(name)),
+			...withLines(classAxioms(name, superclassesOf(name)), vocabularyLines(name)),
 			statement: types.has(name) ? `the type ${name}` : `the class ${name}`,
 			nodes: [...records.values()].filter((node) => node.type === name || isClassRecord(node, name)).map(({ id }) => id),
 			edges: [],

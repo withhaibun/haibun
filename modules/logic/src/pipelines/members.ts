@@ -17,18 +17,21 @@ import { DL_SYMBOL, type TClaimWitness } from "@haibun/core/lib/records/domains/
 import { manchesterName } from "@haibun/core/lib/records/derivations/axioms.js";
 import { QUERY_NAMESPACE, REASONING_READ_CEILING, RULE_SET } from "../domains/reasoning.js";
 import { DataFactory } from "n3";
-import type { NamedNode, Term } from "@rdfjs/types";
+import type { NamedNode, Quad, Term } from "@rdfjs/types";
+import { OWL } from "@haibun/core/lib/domains/vocabularies.js";
+import { registeredVocabularies, vocabularyName, vocabularyOf } from "@haibun/core/lib/domains/vocabulary-registry.js";
 import { dlOf, nameRefusal, namesOf, parseClassExpression, readingOf, resolvedExpression, type TVocabulary } from "@haibun/core/lib/records/derivations/class-expression.js";
 import type { TClassExpression } from "@haibun/core/lib/records/domains/class-expression.js";
 import { expressionRules, frozenMembers, type TExpressionIris } from "../derivations/class-expression.js";
 import { patternText, quadsText, recordTerms, type TRecordTerms } from "../derivations/n3.js";
 import type { TReasoner } from "../ports.js";
 import { extractedBy, functionalAxiom } from "../derivations/proof.js";
+import { vocabularyClosure } from "../derivations/vocabulary.js";
 import { readerOf } from "./reads.js";
 import { explain, reason } from "./reason.js";
 
-/** The rule sets a query over class expressions reads: the rules of OWL 2 RL, and the class axioms of the standard vocabularies. */
-const CLASS_RULE_SETS = [RULE_SET.owlRl, RULE_SET.standardAxioms];
+/** The rule sets a query over class expressions reads: the rules of OWL 2 RL. */
+const CLASS_RULE_SETS = [RULE_SET.owlRl];
 
 /** What a query over the declarations reads: the IRIs of its classes and properties, the records' N3 terms under the records'
  *  namespace, the ontology as OWL 2, the vocabulary its names are checked against, and the types
@@ -37,8 +40,12 @@ type TQueryBasis = {
 	iris: Omit<TExpressionIris, "individualIri">;
 	termsOf: (records: TRecordNamespace) => TRecordTerms;
 	axioms: string;
+	/** The closure of the ontology's classes under the registered vocabularies, derived once for the basis. */
+	closure: string;
 	/** The name of a class's or a property's IRI in the served context. */
 	nameOf: (iri: string) => string;
+	/** Where a type's declaration states the disjointness of the class an IRI names, where it states one. */
+	declaredIn: (iri: string) => string | undefined;
 	vocabulary: TVocabulary;
 	typesReached: (expression: TClassExpression) => string[];
 };
@@ -46,16 +53,17 @@ type TQueryBasis = {
 /** The IRIs of a query's names, with each record named by its IRI under the records' namespace. */
 const irisOf = (basis: TQueryBasis, terms: TRecordTerms): TExpressionIris => ({ ...basis.iris, individualIri: terms.individualAt });
 
-/** What a query read, by the declarations it was derived from, with the count of those declarations. */
-const basisFor = new WeakMap<Record<string, TRegisteredDomain>, { size: number; basis: TQueryBasis }>();
+/** What a query read, by the declarations it was derived from, with the count of those declarations and of the vocabularies
+ *  registered when it was derived. */
+const basisFor = new WeakMap<Record<string, TRegisteredDomain>, { size: number; vocabularies: number; basis: TQueryBasis }>();
 
-/** Returns what a query over the declarations reads, derived again where a declaration was added since. */
+/** Returns what a query over the declarations reads, derived again where a declaration was added or a vocabulary registered since. */
 export function queryBasis(domains: Record<string, TRegisteredDomain>): TQueryBasis {
-	const size = Object.keys(domains).length;
+	const [size, vocabularies] = [Object.keys(domains).length, registeredVocabularies().length];
 	const held = basisFor.get(domains);
-	if (held !== undefined && held.size === size) return held.basis;
+	if (held !== undefined && held.size === size && held.vocabularies === vocabularies) return held.basis;
 	const basis = derivedBasis(domains);
-	basisFor.set(domains, { size, basis });
+	basisFor.set(domains, { size, vocabularies, basis });
 	return basis;
 }
 
@@ -87,6 +95,7 @@ function derivedBasis(domains: Record<string, TRegisteredDomain>): TQueryBasis {
 		}),
 		ancestors: (cls) => ancestorsWith(cls, supers),
 	};
+	const declaredDisjointness = new Map(stated(CLASS_LABEL, ONTOLOGY_FIELD.disjointnessDeclaredIn).map((q) => [q.subject, String(q.object)]));
 	const labels = Object.values(domains).flatMap(({ topology }) => (isPersisted(topology) ? [topology.persistedAs] : []));
 	const typesReached = (expression: TClassExpression): string[] => {
 		const { classes: named, properties } = namesOf(expression);
@@ -98,7 +107,13 @@ function derivedBasis(domains: Record<string, TRegisteredDomain>): TQueryBasis {
 		iris: { classIri: (name) => DataFactory.namedNode(iriIn(context, name)), propertyIri },
 		termsOf: (records) => recordTerms(catalog, getJsonLdContext(domains, undefined, records)["@context"], records),
 		axioms: ontologyOwl(ontology, context),
+		closure: vocabularyClosure(
+			classes.map((name) => iriIn(context, name)),
+			parents.map((q) => [iriIn(context, q.subject), iriIn(context, String(q.object))] as const),
+			stated(CLASS_LABEL, ONTOLOGY_FIELD.disjointWith).map((q) => [iriIn(context, q.subject), iriIn(context, String(q.object))] as const),
+		),
 		nameOf: (iri) => nameIn(context, iri),
+		declaredIn: (iri) => declaredDisjointness.get(nameIn(context, iri)),
 		vocabulary,
 		typesReached,
 	};
@@ -159,7 +174,12 @@ export async function entailedMembers(
 	const reads = await Promise.all(basis.typesReached(expression).map(async (label) => ({ label, ...(await reader.records(label)) })));
 	const { rules, query } = expressionRules(expression, QUERY_NAMESPACE, irisOf(basis, terms));
 	const facts = reads.map(({ label, facts: read }) => quadsText(terms.statements(label, read)));
-	const derived = await reason(reasoner, store, domains, records, { ruleSets: CLASS_RULE_SETS, rules: [basis.axioms, rules, ...facts].join("\n"), query, closedOver: [] });
+	const derived = await reason(reasoner, store, domains, records, {
+		ruleSets: CLASS_RULE_SETS,
+		rules: [basis.axioms, basis.closure, rules, ...facts].join("\n"),
+		query,
+		closedOver: [],
+	});
 	const members = [...new Map(derived.map(({ subject }) => [subject, terms.addressOf(subject)])).values()];
 	return { members, truncated: reads.flatMap(({ label, truncated }) => (truncated ? [label] : [])) };
 }
@@ -204,7 +224,7 @@ export async function subsumes(
 	for (const facts of frozenMembers(narrower, FROZEN, QUERY_NAMESPACE, iris)) {
 		const derived = await reason(reasoner, store, domains, records, {
 			ruleSets: CLASS_RULE_SETS,
-			rules: [basis.axioms, rules, ...facts.map(patternText)].join("\n"),
+			rules: [basis.axioms, basis.closure, rules, ...facts.map(patternText)].join("\n"),
 			query,
 			closedOver: [],
 		});
@@ -225,7 +245,7 @@ async function disjointnessMet(
 	labels: readonly string[],
 	subject: NamedNode,
 	expression: TClassExpression,
-): Promise<string[] | undefined> {
+): Promise<TDisjointnessMet | undefined> {
 	const basis = queryBasis(domains);
 	const terms = basis.termsOf(records);
 	const reader = readerOf(store);
@@ -235,17 +255,38 @@ async function disjointnessMet(
 		const address = terms.recordAt(term);
 		return manchesterName(address === undefined ? basis.nameOf(term.value) : addressText(address));
 	};
+	// A disjointness names the vocabulary that states it, by its title and version.
+	// A disjointness names what states it: the vocabulary, by its title and version, or the declaration of either class.
+	const statedBy = (a: string, b: string): string => {
+		const vocabulary = vocabularyOf(a);
+		if (vocabulary !== undefined) return vocabularyName(vocabulary.entry);
+		const declared = basis.declaredIn(a) ?? basis.declaredIn(b);
+		if (declared === undefined) throw new Error(`the disjointness of ${a} and ${b} doesn't name a vocabulary or a declaration. Declare it in a type, or register its vocabulary.`);
+		return `declared in ${declared}`;
+	};
+	const axiomOf = (read: Quad): string =>
+		read.predicate.value === OWL.disjointWith ? `${functionalAxiom(read, nameOf)} (${statedBy(read.subject.value, read.object.value)})` : functionalAxiom(read, nameOf);
 	const query = reasoner.rules(RULE_SET.disjointnessQuery);
 	const met = new Set<string>();
+	let disjoint: TDisjointnessMet["disjoint"] | undefined;
 	for (const supposed of frozenMembers(expression, subject, QUERY_NAMESPACE, irisOf(basis, terms))) {
 		const supposition = supposed.map(patternText);
-		const rules = [basis.axioms, ...facts, ...supposition].join("\n");
+		const rules = [basis.axioms, basis.closure, ...facts, ...supposition].join("\n");
 		const { proof } = await explain(reasoner, store, domains, records, { ruleSets: CLASS_RULE_SETS, rules, query, closedOver: [] });
 		if (proof.gives.length === 0) return undefined;
-		for (const read of extractedBy(proof)) if (!supposition.includes(patternText(read))) met.add(functionalAxiom(read, nameOf));
+		for (const read of extractedBy(proof)) if (!supposition.includes(patternText(read))) met.add(axiomOf(read));
+		const clash = proof.gives.find((given) => given.predicate.value === OWL.disjointWith);
+		if (clash !== undefined) {
+			disjoint = { classes: [basis.nameOf(clash.subject.value), basis.nameOf(clash.object.value)], statedBy: statedBy(clash.subject.value, clash.object.value) };
+		}
 	}
-	return [...met].sort();
+	if (disjoint === undefined) throw new Error("the reasoner's proof of a disjointness doesn't state the disjointness it read. Check the disjointness query.");
+	return { axioms: [...met].sort(), disjoint };
 }
+
+/** What a membership of two disjoint classes states: the axioms the reasoner's proof read, and the two disjoint classes with the
+ *  vocabulary that states them disjoint. */
+export type TDisjointnessMet = { axioms: string[]; disjoint: { classes: [string, string]; statedBy: string } };
 
 /** Returns the axioms by which K entails that the record at `address` isn't a member of `text`, or undefined where it doesn't. */
 export function membershipRefuted(
@@ -255,7 +296,7 @@ export function membershipRefuted(
 	records: TRecordNamespace,
 	address: TIndividualAddress,
 	text: string,
-): Promise<string[] | undefined> {
+): Promise<TDisjointnessMet | undefined> {
 	const basis = queryBasis(domains);
 	const individual = basis.termsOf(records).individualAt(addressText(address));
 	return disjointnessMet(reasoner, store, domains, records, [address.persistedAs], individual, checkedExpression(text, basis));
@@ -270,7 +311,7 @@ export function disjointExpressions(
 	records: TRecordNamespace,
 	sub: string,
 	sup: string,
-): Promise<string[] | undefined> {
+): Promise<TDisjointnessMet | undefined> {
 	const basis = queryBasis(domains);
 	return disjointnessMet(reasoner, store, domains, records, [], FROZEN, { and: [checkedExpression(sub, basis), checkedExpression(sup, basis)] });
 }

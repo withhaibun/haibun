@@ -10,6 +10,7 @@
 // OWNS those, this controller only reads them and owns the magnify animation state. (lovely-finding-babbage.)
 
 import { focusStateFor, opacityFor, isFullContrast, previewLights, previewLightsLink, type FocusState, type KindTiers, type TGraphPreview } from "../derivations/focus-policy.js";
+import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { type FGNode, type FGLink, type LabelVisual, type XYZ, isPlaced, linkEndId, neighboursOf } from "../domains/graph-types.js";
 import { chipTextHeight } from "../derivations/layout-forces.js";
 import { FULL_BURN, NEWCOMER_GLOW_MS, RESTING_INTENSITY, glowColorAt, pulseAt } from "../derivations/highlight.js";
@@ -87,6 +88,7 @@ export type FocusDeps = {
 	pinNode: (n: FGNode) => void; // record the rest-time focus pin (rides the data-feed pin set; released at the next engine stop)
 	worldPerPxAt: (pos: XYZ) => number | null; // the zoom signal readableK scales from
 	focusEdgeColor: () => string; // full-contrast foreground a focused edge/label brightens to
+	disjointEdgeColor: () => string; // a disjointness a vocabulary states between two classes, in the theme's error colour
 	edgeLineColor: () => string; // resting line colour
 	edgeLabelColor: () => string; // resting edge-label colour
 	focusTextPx: () => number; // the on-screen target size the focus chip pops to
@@ -139,7 +141,10 @@ export class PolymorphicFocus {
 	 *  opacity (the lib multiplies it by the global linkOpacity of 1). This is the whole line dim/highlight mechanism. */
 	lineRgbaFor(l: FGLink): string {
 		const state = this.linkFocusState(l);
-		const rgb = rgbTriplet(isFullContrast(state) ? this.deps.focusEdgeColor() : this.deps.edgeLineColor());
+		// A disjointness stands apart from every other edge, focused or not, since a claim it contradicts is refuted.
+		const rgb = rgbTriplet(
+			l.predicate === LinkRelations.DISJOINT_WITH.rel ? this.deps.disjointEdgeColor() : isFullContrast(state) ? this.deps.focusEdgeColor() : this.deps.edgeLineColor(),
+		);
 		return `rgba(${rgb},${opacityFor(state, this.deps.lineTiers)})`;
 	}
 

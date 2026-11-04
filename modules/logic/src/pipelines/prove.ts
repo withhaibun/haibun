@@ -9,7 +9,7 @@
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import { z } from "zod";
-import { ClaimWitnessSchema } from "@haibun/core/lib/records/domains/axioms.js";
+import { ClaimWitnessSchema, DisjointnessWitnessSchema } from "@haibun/core/lib/records/domains/axioms.js";
 import type { DispatchContext } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
 import { dispatchStep, nextSeqPath, proveStep, runAsDispatched } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
@@ -629,8 +629,8 @@ function refusalOf(failed: TStepResult & { ok: false }): TRefusal {
 	};
 }
 
-/** The products of a refused claim of subsumption, which hold its witness. */
-const WitnessProductsSchema = z.object({ witness: ClaimWitnessSchema });
+/** The products of a refused claim, which hold its witness: a subsumption's, or the disjointness of a refuted membership. */
+const WitnessProductsSchema = z.object({ witness: z.union([ClaimWitnessSchema, DisjointnessWitnessSchema]) });
 
 /** The prover of an engine, which proves a permission's containment through the reasoner. */
 export function proverOf(engine: TLogicEngine, reasoner: TReasoner): TProver {

@@ -23,6 +23,7 @@ import { AUTHORITY_CAPABILITIES } from "@haibun/core/lib/domains/actions.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { visibleGraphModel } from "../page/graph/derivations/scene-data.js";
 import { ontologyToQuads } from "@haibun/core/lib/records/derivations/ontology.js";
+import { withVocabularyAxioms } from "@haibun/core/lib/records/derivations/vocabulary-axioms.js";
 import { concernCatalogOf } from "@haibun/core/lib/steps/pipelines/discover-steps.js";
 import { graphAxioms } from "../derivations/graph-axioms.js";
 import type { TGraphView, TViewAxioms } from "../domains/graph-view.js";
@@ -57,7 +58,7 @@ function clustered(world: TWorld): NonNullable<IQuadStore["getClusteredQuads"]> 
 /** The schema a response carries beside its quads: the Class, Property and rdf:type statements its terms use. */
 async function withSchema(world: TWorld, sample: { quads: TQuad[]; clusters: TClusters }): Promise<{ quads: TQuad[]; clusters: TClusters }> {
 	const standardVocab = await enumerateStandardVocab(world.domains, (message) => world.eventLogger.warn(message));
-	return withOntologySchema(sample, sample.quads, world.domains, standardVocab);
+	return withOntologySchema(sample, sample.quads, world.domains, withVocabularyAxioms, standardVocab);
 }
 
 /**
@@ -149,7 +150,7 @@ export async function graphAxiomsOf(world: TWorld, view: TGraphView): Promise<TV
 		if (rel === undefined) throw new Error(`${type} doesn't declare the edge ${edge} that the graph shows. Declare the edge in the type's topology.`);
 		return rel;
 	};
-	return { ...graphAxioms(model, ontologyToQuads(world.domains).quads, relOf), graphView: view };
+	return { ...graphAxioms(model, withVocabularyAxioms(ontologyToQuads(world.domains)).quads, relOf), graphView: view };
 }
 
 /** Whether this instance's merged sample, read at `level`, holds `subject`, and the site it names as serving it. A subject

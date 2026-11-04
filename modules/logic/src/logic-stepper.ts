@@ -3,6 +3,7 @@ import {
 	READING,
 	observedOf,
 	type IHasCycles,
+	type IHasOptions,
 	type IObservationSource,
 	type IStepperCycles,
 	type TFeatureStep,
@@ -20,7 +21,8 @@ import {
 	DOMAIN_JSON_OBJECT,
 	namesMember,
 } from "@haibun/core/lib/domains/domains.js";
-import { actionNotOK, actionOK, actionOKWithProducts, errorDetail } from "@haibun/core/lib/domains/util.js";
+import { actionNotOK, actionOK, actionOKWithProducts, errorDetail, getStepperOption } from "@haibun/core/lib/domains/util.js";
+import { VOCABULARY_ENTRIES, vocabularyEntry } from "@haibun/core/lib/domains/vocabulary-registry.js";
 import { itemAt, valueAt } from "@haibun/core/lib/domains/item-at.js";
 import { ACTIVITIES_STEPPER } from "@haibun/core/steps/domains/activities-actions.js";
 import { z } from "zod";
@@ -33,7 +35,7 @@ import { stepperContext } from "@haibun/core/lib/actuality/pipelines/step-dispat
 import { proverOf } from "./pipelines/prove.js";
 import { recordsWhere } from "./pipelines/reads.js";
 import { callTerm, derivationOfRecord, derivationUnder, lineTerm, refuseDeclarations } from "./pipelines/registry-reads.js";
-import { logicEngine, reasoner } from "./root.js";
+import { declareVocabularies, logicEngine, reasoner } from "./root.js";
 import { checkedExpression, countedMembers, entailedMembers, expressionCompletions, expressionReading, queryBasis } from "./pipelines/members.js";
 import { claimEntailment, instanceChecked, retrievalChecked, subsumptionChecked, type TClaimScope } from "./pipelines/claims.js";
 import { DOMAIN_INDIVIDUAL_ADDRESS, type TIndividualAddress } from "@haibun/core/lib/domains/typed-links.js";
@@ -61,9 +63,20 @@ const CLAIM_TERMS = "the terms of a claim's line";
 const QUANTIFIED = `{what: ${DOMAIN_VARIABLE_NAME}} in {domain: ${DOMAIN_DOMAIN_NAME}} is {statement: ${DOMAIN_STATEMENT}}`;
 const OBSERVED = `{what: ${DOMAIN_VARIABLE_NAME}} observed in {source: ${DOMAIN_OBSERVATION_SOURCE}} is {statement: ${DOMAIN_STATEMENT}}`;
 
-export default class LogicStepper extends AStepper implements IHasCycles {
+export default class LogicStepper extends AStepper implements IHasCycles, IHasOptions {
 	description = "The logic engine that proves every step, and the readings it evaluates: negation, implication, disjunction, maybe, the quantifiers and repetition";
 	steppers: AStepper[] = [];
+
+	options = {
+		VOCABULARIES: {
+			desc: `The standard vocabularies whose axioms the reasoner reads beside the ontology, comma-separated, of those the vocabulary registry holds: ${VOCABULARY_ENTRIES.map((entry) => entry.prefix).join(", ")}. Unset, the reasoner reads the ontology alone`,
+			parse: (input: string) => {
+				const named = input.split(",").map((prefix) => prefix.trim());
+				const unheld = named.filter((prefix) => !VOCABULARY_ENTRIES.some((entry) => entry.prefix === prefix));
+				return unheld.length === 0 ? { result: named } : { parseError: `VOCABULARIES: the registry doesn't hold ${unheld.join(", ")}` };
+			},
+		},
+	};
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
@@ -73,6 +86,11 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 	}
 
 	cycles: IStepperCycles = {
+		// The vocabularies a deployment declares are read as actuality starts, where its options are held.
+		startActuality: () => {
+			const declared = getStepperOption(this, "VOCABULARIES", this.getWorld().moduleOptions);
+			if (declared !== undefined) declareVocabularies(declared.split(",").map((prefix) => vocabularyEntry(prefix.trim()).prefix));
+		},
 		getConcerns: () => ({
 			sources: [steps],
 			domains: [...logicDomainDefinitions, ...readingDomainDefinitions, ...goalDomainDefinitions, ...reasoningDomainDefinitions, this.classExpressionDomain, this.domainGoalDomain],

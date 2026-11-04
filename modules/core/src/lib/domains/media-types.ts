@@ -14,6 +14,8 @@ export const MEDIA_TYPE = {
 	/** Notation3, as the reasoner reads and writes it (W3C Team Submission, Notation3). */
 	n3: "text/n3",
 	turtle: "text/turtle",
+	nQuads: "application/n-quads",
+	nTriples: "application/n-triples",
 	/** JavaScript, as RFC 9239 names it. */
 	javascript: "text/javascript",
 	eventStream: "text/event-stream",

@@ -379,6 +379,10 @@ export const LinkRelations = {
 	// RDFS terms. Property nodes describe rels with them.
 	SUB_PROPERTY_OF: { rel: "subPropertyOf", uri: "rdfs:subPropertyOf", range: "iri" },
 	SUB_CLASS_OF: { rel: "subClassOf", uri: "rdfs:subClassOf", range: "iri" },
+	// OWL and RDFS terms a standard vocabulary states of its classes: two classes without a common member, and the vocabulary
+	// that defines a class.
+	DISJOINT_WITH: { rel: "disjointWith", uri: "owl:disjointWith", range: "iri" },
+	IS_DEFINED_BY: { rel: "isDefinedBy", uri: "rdfs:isDefinedBy", range: "iri" },
 	LABEL: { rel: "label", uri: "rdfs:label", range: "literal" },
 	DESCRIPTION: { rel: "description", uri: "rdfs:comment", range: "literal" },
 	// schema.org's domainIncludes and rangeIncludes list the classes a property connects as a union. Several rdfs:domain
@@ -709,6 +713,11 @@ export type THypermediaTopology = {
 	 * (range `prov:Agent`).
 	 */
 	subClassOf?: string | string[];
+	/**
+	 * owl:disjointWith: the declared types that don't share a record with this one, for a case a standard vocabulary doesn't
+	 * state, and where the declaration was made, a feature's path or a module's name, which an axiom citing it names.
+	 */
+	disjointWith?: { types: readonly string[]; declaredIn: string };
 	id: string;
 	properties: Record<string, TPropertyDef>;
 	edges?: Record<string, TEdgeDef>;

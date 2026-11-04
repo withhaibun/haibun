@@ -419,6 +419,9 @@ export const HypermediaContextSchema = z.object({
 	"@context": z.record(z.string(), z.union([z.string(), z.object({ "@id": z.string(), "@type": z.string().optional(), range: z.string().optional() })])),
 	"@queryable": z.array(z.string()).optional(),
 	"@accessLevel": AccessLevelSchema,
+	/** The declared types that don't share a record with this one (owl:disjointWith), for a case a standard vocabulary
+	 *  doesn't state. */
+	"@disjointWith": z.array(z.string().min(1)).optional(),
 });
 export type THypermediaContext = z.infer<typeof HypermediaContextSchema>;
 
@@ -570,9 +573,10 @@ const kindOf = (typeHint?: string) => (typeHint && TYPE_KINDS[typeHint]) || { zo
  * The field mapped to `@id` is the identifier (required: a persisted type is invalid without one);
  * entries with a `range` are edges; others are properties whose rel comes from the IRI (canonical
  * REL_CONTEXT vocabulary). `published` (structural timeline field) is auto-injected if absent;
- * `@queryable` fields become typed sortColumns.
+ * `@queryable` fields become typed sortColumns. `@disjointWith` names the declared types that don't share a record with it,
+ * declared in `declaredIn`.
  */
-export function hypermediaDomainFromContext(domainName: string, doc: THypermediaContext): { topology: THypermediaTopology; schema: z.ZodType } {
+export function hypermediaDomainFromContext(domainName: string, doc: THypermediaContext, declaredIn: string): { topology: THypermediaTopology; schema: z.ZodType } {
 	const ctx = doc["@context"] ?? {};
 	const properties: Record<string, TRel> = {};
 	const edges: Record<string, { range: string; rel: TRel }> = {};
@@ -614,6 +618,7 @@ export function hypermediaDomainFromContext(domainName: string, doc: THypermedia
 		properties,
 		...(Object.keys(edges).length ? { edges } : {}),
 		...(queryable.length ? { sortColumns } : {}),
+		...(doc["@disjointWith"] === undefined ? {} : { disjointWith: { types: doc["@disjointWith"], declaredIn } }),
 	};
 	// A step-declared type is persisted like any stepper-declared one, so its records state the level every persisted
 	// type carries, and registration adds the property that states it.
@@ -1046,7 +1051,7 @@ function assertBoundPrefixes(label: string, domainKey: string, topology: THyperm
 /** The vocabularies core itself binds: the standards every domain may name, without declaring them. A consumer's own
  *  prefixes are NOT here: each domain declares those in `topology.namespaces`. ONE source, so what is served and what
  *  `assertBoundPrefixes` accepts cannot drift: a prefix that resolves in the context is exactly one a type may use. */
-const SERVED_PREFIXES = ["as", "foaf", "dcterms", "prov", "sec", "did", "sosa", "schema", "oa", "skos", "cito", "earl", "otel", "rdf", "rdfs"] as const;
+const SERVED_PREFIXES = ["as", "foaf", "dcterms", "prov", "sec", "did", "sosa", "schema", "oa", "skos", "cito", "earl", "otel", "rdf", "rdfs", "owl"] as const;
 /** Each prefix's namespace, as the served context binds it. */
 const namespacesOf = (prefixes: readonly (keyof typeof NAMESPACE)[]): Record<string, string> => Object.fromEntries(prefixes.map((prefix) => [prefix, NAMESPACE[prefix]]));
 // A pure call, so a page that doesn't serve a context leaves the namespaces out of its bundle.

@@ -10,7 +10,7 @@ import { listOf } from "@haibun/core/lib/domains/lists.js";
 import type { AccessLevel, TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import { IndividualAddressSchema } from "@haibun/core/lib/domains/typed-links.js";
 import { ClaimProductsSchema } from "@haibun/core/lib/records/domains/claim.js";
-import { ClaimWitnessSchema } from "@haibun/core/lib/records/domains/axioms.js";
+import { ClaimWitnessSchema, DisjointnessWitnessSchema } from "@haibun/core/lib/records/domains/axioms.js";
 import type { NamedNode, Quad, Term } from "@rdfjs/types";
 import type { TFact } from "./logic.js";
 
@@ -21,8 +21,7 @@ export const REASONER_NAMESPACE = "urn:haibun:";
 export const REASONER_BUILTIN = { read: `${REASONER_NAMESPACE}read`, effect: `${REASONER_NAMESPACE}effect` } as const;
 /** The rule sets the logic module holds as N3 files, each read by its name: goals over producer rules and their query, the step
  *  graph's lint and its query, a permission's containment and its query, the rules of OWL 2 RL a query of members reads, the
- *  class axioms of the standard vocabularies it reads beside the ontology, the query of the disjoint classes an
- *  individual is entailed a member of, and waypoints' proofs. */
+ *  query of the disjoint classes an individual is entailed a member of, and waypoints' proofs. */
 export const RULE_SET = {
 	goals: "goals",
 	goalsQuery: "goals-query",
@@ -31,7 +30,6 @@ export const RULE_SET = {
 	containment: "containment",
 	containmentQuery: "containment-query",
 	owlRl: "owl-rl",
-	standardAxioms: "standard-axioms",
 	disjointnessQuery: "disjointness-query",
 	waypoints: "waypoints",
 } as const;
@@ -96,7 +94,7 @@ export const classExpressionDomainDefinition: TDomainDefinition = {
 export const reasoningDomainDefinitions: TDomainDefinition[] = [
 	{
 		selectors: [DOMAIN_CLAIM],
-		schema: ClaimProductsSchema.extend({ witness: ClaimWitnessSchema.optional() }),
+		schema: ClaimProductsSchema.extend({ witness: z.union([ClaimWitnessSchema, DisjointnessWitnessSchema]).optional() }),
 		description: "How a claim ended: its reasoning task, the entailment it checks, its verdict and its proof or witness",
 	},
 	{

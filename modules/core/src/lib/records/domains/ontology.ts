@@ -20,6 +20,12 @@ export const ONTOLOGY_FIELD = {
 	classIri: "classIri",
 	subClassOf: "subClassOf",
 	subPropertyOf: "subPropertyOf",
+	/** The classes that a standard vocabulary states don't share a member with a class. */
+	disjointWith: "disjointWith",
+	/** The address of the published file of the vocabulary that defines a class, as the vocabulary registry pins it. */
+	definedBy: "definedBy",
+	/** Where a type's declaration states the types it doesn't share a record with: a feature's path or a module's name. */
+	disjointnessDeclaredIn: "disjointnessDeclaredIn",
 	/** The classes that declare a property, whose union is its domain. */
 	domain: "domain",
 	/** The classes an edge reaches, whose union is its range. With `domain` it relates each property to the classes it connects. */
@@ -43,6 +49,9 @@ export const ClassSchema = PersistedVertexSchema.extend({
 	// A class a type declares carries its declaration's description; a class a type names as its superclass from a standard
 	// vocabulary isn't described by a declaration.
 	[ONTOLOGY_FIELD.description]: z.string().min(1).optional(),
+	// A class a registered vocabulary defines names the published file of that vocabulary.
+	[ONTOLOGY_FIELD.definedBy]: z.url().optional(),
+	[ONTOLOGY_FIELD.disjointnessDeclaredIn]: z.string().min(1).optional(),
 	[ONTOLOGY_FIELD.generatedAtTime]: z.string(),
 });
 
@@ -72,10 +81,15 @@ export const classDomainDefinition: TDomainDefinition = {
 			// Grouped-as, so a filter reads the classes of one designation.
 			[ONTOLOGY_FIELD.category]: LinkRelations.CONTEXT.rel,
 			[ONTOLOGY_FIELD.description]: LinkRelations.DESCRIPTION.rel,
+			[ONTOLOGY_FIELD.definedBy]: LinkRelations.IS_DEFINED_BY.rel,
+			[ONTOLOGY_FIELD.disjointnessDeclaredIn]: LinkRelations.SOURCE_PATH.rel,
 			[ONTOLOGY_FIELD.generatedAtTime]: LinkRelations.GENERATED_AT_TIME.rel,
 			[ONTOLOGY_FIELD.accessLevel]: LinkRelations.ACCESS_LEVEL.rel,
 		},
-		edges: { [ONTOLOGY_FIELD.subClassOf]: { rel: LinkRelations.SUB_CLASS_OF.rel, range: CLASS_LABEL } },
+		edges: {
+			[ONTOLOGY_FIELD.subClassOf]: { rel: LinkRelations.SUB_CLASS_OF.rel, range: CLASS_LABEL },
+			[ONTOLOGY_FIELD.disjointWith]: { rel: LinkRelations.DISJOINT_WITH.rel, range: CLASS_LABEL },
+		},
 		// A Class record's name is a type's name, so the record describes the records of that type.
 		ranges: { [ONTOLOGY_FIELD.name]: DOMAIN_PERSISTED_TYPE },
 	},
