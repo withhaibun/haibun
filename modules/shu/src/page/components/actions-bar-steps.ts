@@ -179,13 +179,12 @@ export class ActionsBarSteps implements ReactiveController {
 	/** The step mode's input line: the mode toggle, and the step selector once actuality offers steps, those for the selected
 	 *  type first. */
 	template(modeToggle: TemplateResult): TemplateResult {
-		const label = this.#deps.selectedLabel();
 		const selector =
 			this.#steps.length > 0
 				? html`<shu-combobox class="step-combo"
 					testid=${`${this.#deps.testIdPrefix()}step-select`}
 					placeholder="type a step or a statement"
-					.options=${[...stepOptions(this.#steps, label ? stepsForContext(label) : []), ...this.#heads]}
+					.options=${this.#options()}
 					.value=${this.#chosen}
 					.accepts=${true}
 					@combo-change=${this.#onComboChange}></shu-combobox>`
@@ -197,6 +196,12 @@ export class ActionsBarSteps implements ReactiveController {
 			</div>`;
 	}
 
+	/** The selector's options: the steps, those for the selected type first, then the waypoints' heads. */
+	#options(): TComboboxOption[] {
+		const label = this.#deps.selectedLabel();
+		return [...stepOptions(this.#steps, label ? stepsForContext(label) : []), ...this.#heads];
+	}
+
 	/** Filters the steps by `text`, as the reader typing it in the step selector does. */
 	enter(text: string): void {
 		const selector = this.#host.renderRoot.querySelector<ShuCombobox>(".step-combo");
@@ -204,13 +209,19 @@ export class ActionsBarSteps implements ReactiveController {
 		selector.enter(text);
 	}
 
-	/** A pick of a step opens its caller, and a pick of a waypoint's head the caller of the step that ensures it; text that doesn't
-	 *  name either is a statement, resolved to the step it states. */
+	/** A pick of a step opens its caller, and a pick of a waypoint's head the caller of the step that ensures it. Typed words
+	 *  that begin an option's sentence, as a word a reader types and enters does, pick the first such option; other text is
+	 *  a statement, resolved to the step it states. The words are whole, so `individual` begins `individual … is a …` and
+	 *  doesn't begin `individuals of …`. */
 	#onComboChange = (e: CustomEvent): void => {
-		const method = e.detail?.value;
-		if (!method) return;
+		const value: string = e.detail?.value;
+		if (!value) return;
+		const options = this.#options();
+		const typed = `${value.toLowerCase()} `;
+		const picked = options.find((o) => o.value === value) ?? options.find((o) => o.label.replace(FOR_THE_TYPE, "").toLowerCase().startsWith(typed));
+		if (picked === undefined) return void this.#openStatement(value);
+		const method = picked.value;
 		if (this.#heads.some((head) => head.value === method)) return this.open(requireStep(ENSURE), { args: { outcome: method } });
-		if (!this.#steps.some((step) => step.method === method)) return void this.#openStatement(method);
 		this.#chosen = method;
 		this.open(method, {});
 	};

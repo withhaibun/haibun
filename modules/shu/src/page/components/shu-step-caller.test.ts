@@ -30,7 +30,7 @@ const ISSUER: TStepSpec = {
 	paramDomains: { issuer: "issuer" },
 	inputSchema: {
 		type: "object",
-		properties: { issuer: { type: "object", properties: { did: { type: "string" }, name: { type: "string" } }, required: ["did"] } },
+		properties: { issuer: { type: "object", properties: { did: { type: "string", description: "The issuer's DID." }, name: { type: "string" } }, required: ["did"] } },
 		required: ["issuer"],
 	},
 };
@@ -114,6 +114,13 @@ describe("shu-step-caller", () => {
 		expect(shown(caller)).toContain('name="issuer.did"');
 		expect(shown(caller)).toContain('name="issuer.name"');
 		expect(shown(caller)).not.toMatch(/name="issuer"[^.]/);
+	});
+
+	it("shows what its schema describes a field as in the field's empty input, and the field's name and type where it doesn't describe it", async () => {
+		const caller = await aCaller(ISSUER);
+		const placeholder = (name: string) => caller.shadowRoot?.querySelector<HTMLInputElement>(`input[name="${name}"]`)?.placeholder;
+		expect(placeholder("issuer.did")).toBe("The issuer's DID.");
+		expect(placeholder("issuer.name")).toBe("name?: string");
 	});
 
 	it("renders the fields of the type a record's data is of, once the type is chosen", async () => {

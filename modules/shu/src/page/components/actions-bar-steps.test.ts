@@ -220,6 +220,17 @@ describe("a statement typed in step mode", () => {
 		]);
 	});
 
+	it("opens the step whose sentence begins with a word typed and entered, rather than resolving the word as a statement", async () => {
+		const { history } = await typed("Show");
+		expect(itemAt(callers(history), 0).getAttribute("method")).toBe(SHOW.method);
+	});
+
+	it("resolves part of a word as a statement, since a step's sentence begins with whole words", async () => {
+		const { history } = await typed("sho");
+		expect(callers(history)).toEqual([]);
+		expect(history.querySelector(SHU_TAG.REFUSAL)).not.toBeNull();
+	});
+
 	it("states why in the history where the statement doesn't resolve to one step", async () => {
 		const { history } = await typed("show nothing at all");
 		expect(callers(history)).toEqual([]);

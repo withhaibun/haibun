@@ -76,6 +76,9 @@ function isCompositeProperty(prop: TInputProperty | undefined): prop is TInputPr
 	return prop?.type === "object" && prop.properties !== undefined && Object.keys(prop.properties).length > 0;
 }
 
+/** What an empty input shows: what its schema describes the field as, or `named` where the schema doesn't describe it. */
+const describedAs = (prop: TInputProperty | undefined, named: string): string => (prop?.description === undefined ? named : prop.description);
+
 /** Returns the refused fields' causes, by field. */
 function collectFieldErrors(errs: TFieldError[]): Record<string, string> {
 	const out: Record<string, string> = {};
@@ -389,7 +392,7 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 					@combo-change=${(e: CustomEvent<{ value: string }>) => this.#referenceIds.set(paramName, e.detail.value)}
 					@input=${(e: Event) => this.#referenceIds.set(paramName, (e.composedPath()[0] as HTMLInputElement).value)}></shu-combobox>${refusal === undefined ? nothing : html`<shu-refusal .refusal=${refusal}></shu-refusal>`}</span>`;
 		}
-		if (!isCompositeProperty(prop)) return this.#textInput(paramName, paramName, paramName, "text");
+		if (!isCompositeProperty(prop)) return this.#textInput(paramName, paramName, describedAs(prop, paramName), "text");
 		const required = new Set(prop.required ?? []);
 		const fields = Object.entries(prop.properties).map(([subName, subProp]) => {
 			// A test id joins with `-`, so haibun's variable resolver doesn't read `foo.bar` as a path.
@@ -398,7 +401,7 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 			return this.#textInput(
 				`${paramName}.${subName}`,
 				`${paramName}-${subName}`,
-				`${subName}${required.has(subName) ? "" : "?"}: ${typeLabel}`,
+				describedAs(subProp, `${subName}${required.has(subName) ? "" : "?"}: ${typeLabel}`),
 				subProp.type === "number" ? "number" : "text",
 			);
 		});

@@ -11,6 +11,8 @@ import { refHref } from "./ref-navigation.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { RECORD_JSON } from "./json-disclosure.js";
 import { persistedTypeDefinition } from "../../test/setup.js";
+import { SHU_TAG } from "../../domains/elements.js";
+import type { ShuRefusal } from "./shu-refusal.js";
 
 /** The href of a link to a type's view, as the column's markup serializes it. */
 const typeHref = (domain: string) => `href="${refHref({ kind: REF_DENOTES.type, target: { domain } })}"`;
@@ -28,7 +30,12 @@ describe("shu-entity-column type and fields", () => {
 		document.body.innerHTML = "";
 		declareCatalog(
 			buildConcernCatalog(
-				mapDefinitionsToDomains([persistedTypeDefinition("Widget", { description: "A widget.", properties: { name: LinkRelations.NAME.rel, note: LinkRelations.CONTEXT.rel } })]),
+				mapDefinitionsToDomains([
+					persistedTypeDefinition("Widget", {
+						description: "A widget.",
+						properties: { name: LinkRelations.NAME.rel, note: LinkRelations.CONTEXT.rel, error: LinkRelations.ERROR.rel },
+					}),
+				]),
 			),
 		);
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
@@ -44,6 +51,16 @@ describe("shu-entity-column type and fields", () => {
 
 	it("doesn't name a type for an ad-hoc result view without a registered type", async () => {
 		expect(await render("Result")).not.toContain(`data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_TYPE_LINK}"`);
+	});
+
+	it("states the reason a record holds for its failure first, as a refusal states it, and the whole reason in its field", async () => {
+		const el = document.createElement("shu-entity-column") as ShuEntityColumn;
+		document.body.appendChild(el);
+		el.openProducts({ _type: "Widget", id: "x1", name: "Example", error: "the nonce does not match (W3C Data Integrity): challenge=abc" });
+		await el.updateComplete;
+		const refusal = el.shadowRoot?.querySelector<ShuRefusal>(SHU_TAG.REFUSAL);
+		expect(refusal?.refusal).toEqual({ error: "the nonce does not match" });
+		expect(el.shadowRoot?.querySelector('[data-testid="entity-field-error"]')?.textContent).toContain("challenge=abc");
 	});
 
 	it("shows non-summary fields in a visible fields section (not buried in the collapsed disclosure)", async () => {

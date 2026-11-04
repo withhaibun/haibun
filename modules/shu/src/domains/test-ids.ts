@@ -76,6 +76,8 @@ export const SHU_TEST_IDS = {
 		PREDICATE_LINK: "predicate-link",
 		PREDICATE_LINK_FIRST: "predicate-link-first",
 		BODY_IFRAME: "email-body-iframe",
+		/** A JSON body, closed under its own disclosure until a reader opens it. */
+		BODY_DOCUMENT: "body-document",
 		/** The references a body shown in the sandboxed iframe makes, listed beside it where they work. */
 		BODY_REFS: "body-refs",
 		/** One button per reading of a record's content; the one shown is pressed. */

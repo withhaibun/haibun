@@ -80,11 +80,12 @@ describe("entity body content renders for every type and view that should show i
 		expect(html).toContain('data-testid="email-body-iframe"');
 	});
 
-	it("document with a json body shows its content", async () => {
+	it("document with a json body shows its content under a disclosure that starts closed, as the record's Data does", async () => {
 		const html = await render("Document", { id: "doc1", issuer: "did:web:i", subject: "did:web:s" }, [
 			{ id: "vb", content: '{"age_over_18":true}', mediaType: "application/json" },
 		]);
 		expect(html).toContain('data-testid="email-body-iframe"');
+		expect(html).toMatch(new RegExp(`<details class="record-json" data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_DOCUMENT}">`));
 	});
 
 	it("REGRESSION: an entity with only an id plus a body still renders the content (not hidden as a stub)", async () => {

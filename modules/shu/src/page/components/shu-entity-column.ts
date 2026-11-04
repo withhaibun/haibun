@@ -12,7 +12,7 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT, ANNOTATION_GLYPH, PRODUCTS_LABEL, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { copyText } from "../controllers/clipboard-controller.js";
-import { isReplyEdge, type TAnnotationView, type TPart, type TQuoteAnchor } from "@haibun/core/lib/domains/resources.js";
+import { LinkRelations, isReplyEdge, type TAnnotationView, type TPart, type TQuoteAnchor } from "@haibun/core/lib/domains/resources.js";
 import { EntityColumnSchema } from "../../domains/schemas.js";
 import { anIndividual, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { EntityController } from "../controllers/entity-controller.js";
@@ -25,6 +25,8 @@ import {
 	edgeRecordType,
 	rangeOf,
 	getEdgeTargetLabels,
+	getFieldRel,
+	relationOfPredicate,
 	getSummaryFields,
 	getIdField,
 	getQueryableFields,
@@ -53,6 +55,7 @@ import { formIn, preferredReading, readingsOf, withBodiesRead, type TReading } f
 import type { TWritten } from "../pipelines/call-step.js";
 import type { TPageRefusal } from "../domains/refusal.js";
 import { refusalTpl } from "./load-renders.js";
+import "./shu-refusal.js";
 import "./shu-spinner.js";
 import { ObserverController } from "../controllers/observer-controller.js";
 import { recordSteps } from "../controllers/registry-controller.js";
@@ -68,6 +71,9 @@ type EdgeData = { type: string; target: VertexData; direction?: "out" | "in" };
 /** How many fields the field table shows open. A record with many fields dumps them all at once, so a table holding more
  *  starts closed behind a summary naming how many, and a reader opens it when a field is the question. */
 const FIELDS_FOLD_AT = 6;
+
+/** Where a reason's first statement ends, before the detail that supports it: a parenthesis, or a stop, colon or semicolon. */
+const REASON_DETAIL = /\s\(|[.:;]\s/;
 
 /** How many targets a reference group shows before the rest collapse behind a summary naming how many. */
 const TARGETS_FOLD_AT = 4;
@@ -381,7 +387,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 				? html`<shu-record-steps ?active=${this.#paneActive} label=${persistedAs} record-id=${individualId} .links=${this.vertex?._links} .fragment=${this.fragment} .fileAt=${this.fileAt} @step-success=${this.#onStepSuccess}></shu-record-steps>`
 				: nothing;
 
-		return html`${unsafeHTML(this.emitHypermediaScript(this.#augmentedProducts() ?? this.products))}${this.renderColumnSettings()}<div class="entity-content ${this.#isFuture() ? TIME_SYNC_CLASS.FUTURE : ""}">${this.renderFromStore()}${recordStepsBar}${unsafeHTML(`${contentHtml}${recordJson(this.vertex, false)}`)}${this.renderBodyArea(contentIframe)}</div>`;
+		return html`${unsafeHTML(this.emitHypermediaScript(this.#augmentedProducts() ?? this.products))}${this.renderColumnSettings()}<div class="entity-content ${this.#isFuture() ? TIME_SYNC_CLASS.FUTURE : ""}">${this.renderFromStore()}${recordStepsBar}${this.renderStatedError(fields)}${unsafeHTML(`${contentHtml}${recordJson(this.vertex, false)}`)}${this.renderBodyArea(contentIframe)}</div>`;
 	}
 
 	/** The part of a file of `mediaType` at which a link the record offers opens it: the part a reference named, or the page of
@@ -577,7 +583,10 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const refsHtml = refs.length
 			? `<div class="body-refs" data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_REFS}">${refs.map(({ ref, text }) => renderRef(ref, text)).join(", ")}</div>`
 			: "";
-		return `<div class="body-container">${toolbar}${iframeHtml}${refsHtml}</div>`;
+		const body = `<div class="body-container">${toolbar}${iframeHtml}${refsHtml}</div>`;
+		// A JSON body is a document's data, as a signed capability is, so it starts closed as the record's Data does.
+		const isData = active.media === MEDIA_TYPE.json || active.media === MEDIA_TYPE.jsonld;
+		return isData ? `<details class="record-json" data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_DOCUMENT}"><summary>Document</summary>${body}</details>` : body;
 	}
 
 	/** The reading the reader is shown, and the one whose body's text is to read: the one the reader switched to, where this
@@ -684,6 +693,17 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	 * fields out of the field table, but renderContentIframe only handles linked `hasBody` sub-resources, so a literal
 	 * `content` value otherwise doesn't render.
 	 */
+	/** A record that states why it failed, as a refused verification does, shows that reason first as the page shows a refusal:
+	 *  its first statement, with the control that opens why the step that wrote the record was refused. The whole reason
+	 *  reads in its field. */
+	private renderStatedError(fields: Record<string, string | string[]>): TemplateResult | typeof nothing {
+		const label = this.state.persistedAs;
+		const reason = Object.entries(fields).find(([k]) => getFieldRel(label, k) === LinkRelations.ERROR.rel)?.[1];
+		if (typeof reason !== "string" || reason === "") return nothing;
+		const generating = this.edges.find((e) => relationOfPredicate(e.type, label) === LinkRelations.WAS_GENERATED_BY.rel);
+		return html`<shu-refusal .refusal=${{ error: itemAt(reason.split(REASON_DETAIL, 1), 0), ...(generating ? { step: idOf(generating.target) } : {}) }}></shu-refusal>`;
+	}
+
 	private renderBodyLiterals(persistedAs: string): string {
 		if (!this.vertex) return "";
 		return Object.entries(extractBodyLiterals(this.vertex, persistedAs))
