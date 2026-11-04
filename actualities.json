@@ -49,7 +49,7 @@
 				"/AGENTS.md": {
 					"text": "/AGENTS",
 					"status": "passed",
-					"tookMs": 1700,
+					"tookMs": 1800,
 					"steps": 383
 				}
 			}

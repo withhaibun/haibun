@@ -424,7 +424,7 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 	#entailmentTpl(): TemplateResult | typeof nothing {
 		const shown = this.entailment;
 		if (shown === undefined) return nothing;
-		const lines = [shown.task, shown.entails, ...(shown.manchester === undefined ? [] : [shown.manchester]), shown.dl];
+		const lines = [shown.task, shown.entails, shown.manchester, shown.dl].filter((line) => line !== undefined);
 		return html`<div class="entailment" data-testid=${this.#testId("step-entailment")}>${lines.map((line) => html`<div>${line}</div>`)}</div>`;
 	}
 

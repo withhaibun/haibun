@@ -299,10 +299,8 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 				this.sortableFields = data.sort?.fields ?? [];
 				// Reflect the server's resolved sort, including the per-type default the client didn't explicitly pick, so the result-table indicator highlights the active column.
 				if (data.sort?.current?.field && !this.qSort) viewQuery.set({ sort: data.sort.current.field, order: data.sort.current.order });
-				if (data.cypher) {
-					const pane = this.closest("shu-column-pane");
-					if (pane) pane.setAttribute("label", data.cypher);
-				}
+				// The pane is titled by the type it shows rather than the query's text: its header shows the order and its search field the search.
+				if (this.qLabel) this.closest("shu-column-pane")?.setAttribute("label", this.qLabel);
 			} catch (err) {
 				this.#refusal = refusalOf(err);
 			}

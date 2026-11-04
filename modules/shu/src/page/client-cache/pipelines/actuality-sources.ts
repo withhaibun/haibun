@@ -184,7 +184,7 @@ export function makeGraphActualitySource(
 
 	/** The newest recording the window holds: a following read reads what happened since. A row that does not state
 	 *  when it was recorded reads everything recorded since records began to state it. */
-	const recordedThrough = (rows: TActualityRow[]): number => Math.max(0, ...rows.flatMap((row) => (row.recordedAt === undefined ? [] : [row.recordedAt])));
+	const recordedThrough = (rows: TActualityRow[]): number => Math.max(0, ...rows.map((row) => row.recordedAt).filter((at) => at !== undefined));
 
 	/** The rows the window holds, oldest first, and what they span: what every view of this source reads. */
 	let window: TActualityRow[] = [];
