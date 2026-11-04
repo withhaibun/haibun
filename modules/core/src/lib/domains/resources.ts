@@ -17,7 +17,7 @@
  * JSON-LD emits. `id` is the IRI.
  */
 import { stripTrailingSlash } from "./local-origin.js";
-import { PROV_ACTIVITY, PROV_AGENT } from "./vocabularies.js";
+import { PROV_ACTIVITY, PROV_AGENT, PROV_ENTITY } from "./vocabularies.js";
 import { z } from "zod";
 import { MEDIA_TYPE } from "./media-types.js";
 import { FragmentSchema, isFragment } from "./media-fragments.js";
@@ -940,8 +940,9 @@ export const COMMENT_TOPOLOGY: THypermediaTopology = {
 	persistedAs: COMMENT_LABEL,
 	accessLevel: Access.private,
 	// A Comment carries oa:hasBody and oa:hasTarget in the W3C Web Annotation shape. The class relationship is an
-	// RDFS axiom and doesn't make @type multi-valued.
-	subClassOf: "oa:Annotation",
+	// RDFS axiom and doesn't make @type multi-valued. A comment is a PROV entity, so PROV-O's disjointness of entities and
+	// activities applies to it.
+	subClassOf: ["oa:Annotation", PROV_ENTITY],
 	id: "id",
 	properties: {
 		id: LinkRelations.IDENTIFIER.rel,

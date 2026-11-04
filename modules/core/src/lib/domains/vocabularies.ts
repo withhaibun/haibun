@@ -20,7 +20,7 @@ export const NAMESPACE = {
 	as: "https://www.w3.org/ns/activitystreams#",
 	foaf: "http://xmlns.com/foaf/0.1/",
 	dcterms: "http://purl.org/dc/terms/",
-	prov: "https://www.w3.org/ns/prov#",
+	prov: "http://www.w3.org/ns/prov#",
 	http: "http://www.w3.org/2011/http#",
 	did: "https://www.w3.org/ns/did#",
 	sosa: "http://www.w3.org/ns/sosa/",
@@ -39,7 +39,7 @@ const termsIn = <T extends string>(prefix: keyof typeof NAMESPACE, names: readon
 
 export const RDF = /* @__PURE__ */ termsIn("rdf", ["type", "Property", "first", "rest", "nil"]);
 export const RDFS = /* @__PURE__ */ termsIn("rdfs", ["Class", "subClassOf", "subPropertyOf", "domain", "range", "comment"]);
-export const OWL = /* @__PURE__ */ termsIn("owl", ["Class", "ObjectProperty", "unionOf", "sameAs", "equivalentProperty"]);
+export const OWL = /* @__PURE__ */ termsIn("owl", ["Class", "ObjectProperty", "unionOf", "sameAs", "equivalentProperty", "disjointWith"]);
 export const XSD = /* @__PURE__ */ termsIn("xsd", ["string", "dateTime", "date", "integer", "decimal", "boolean"]);
 export const LOG = /* @__PURE__ */ termsIn("log", ["includes", "notIncludes", "implies", "equalTo"]);
 export const MATH = /* @__PURE__ */ termsIn("math", ["greaterThan", "lessThan", "notLessThan", "notGreaterThan"]);
@@ -78,4 +78,6 @@ export const XSD_DATE_TIME = "xsd:dateTime";
 export const PROV_ACTIVITY = "prov:Activity";
 export const PROV_AGENT = "prov:Agent";
 export const PROV_ENTITY = "prov:Entity";
+export const PROV_PLAN = "prov:Plan";
+export const FOAF_DOCUMENT = "foaf:Document";
 export const SOSA_OBSERVATION = "sosa:Observation";

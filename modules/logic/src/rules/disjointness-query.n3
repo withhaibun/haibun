@@ -1,0 +1,4 @@
+# Each individual entailed a member of two classes an axiom states disjoint, with that axiom: the rule cax-dw of OWL 2 RL, whose
+# premises are inconsistent. An explained reasoning's proof of it names the axioms the membership rests on.
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+{ ?x a ?c1 . ?x a ?c2 . ?c1 owl:disjointWith ?c2 } => { ?x a ?c1 . ?x a ?c2 . ?c1 owl:disjointWith ?c2 } .

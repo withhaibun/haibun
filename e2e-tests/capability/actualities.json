@@ -44,15 +44,15 @@
 			"actuality": {
 				"text": "e2e-tests/capability, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
 				"status": "passed",
-				"tookMs": 700,
+				"tookMs": 900,
 				"digest": {
 					"e2e-tests/capability": "f60a467b1916bade9b199593dc655ac9b6694b0c489cd1975c9c83bf14918d77",
 					"e2e-tests/src": "dc573cdd7ecddf68fac9a13e4d4fd63eebf115f44b4ce2a5b4db616c5a049e04",
 					"modules/cli/src": "9ae9daf9c93b533c22d4e4c2306f6144f46e91ed75a2b34955c6893ea6d1bfd4",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "edec983ca8b68bfb6cae58c8b59c04790373a4f3c891fad99a7b2e6dfa99c78f",
+					"modules/core/src": "e5a853f52a876c0f75ae84ae39816011e246f734db6cd7e8057a9d2828e8edf1",
 					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
-					"modules/logic/src": "6288e38edd68d08436f90aebfebeafb5126508b621609c05e916b7aa23de96f6",
+					"modules/logic/src": "5d59aae38fa358841723fb460e36e23cff046b49dd1b706b1d15956aafb3f3f3",
 					"modules/monitor-otel/src": "4fbef0f2c78fed7b3e2d03ec4ab094bef11766724e5f5f6efb73491ea1d4dea6",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/out-junit/src": "22d1ca5d4f4449cae6186ff8d84c1f0b182e7591e1ffda9520a38daa3e8681d2",
@@ -62,7 +62,7 @@
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/utils/src": "9799d114ca397313863bfc29604199b02bc9daf1a4bfa26675dbfe7cfc30e36c",
 					"modules/web-accessibility-axe/src": "df284b3ae6b1e6f9aaa117a6ab9ce80ccde73ec21ca48abef9c9dac9ddf8ae87",
-					"modules/web-playwright/src": "7dd567c69dc602467a423d8af76f960873386fb5ce1bef63645fb0437ffb7bdc",
+					"modules/web-playwright/src": "05c60c0681ae0e3515e2dc364a7ff2bb72c2955857ec66a1f90fb83d6e5a74d3",
 					"modules/web-server-hono/src": "88880f36498f725f493b80e710d1940de505f010af357e301c18d1fbf3b76c34",
 					"modules/web-server-hono/waypoints": "fa5853749829db27d77867eb4c13e1860184beafed284ebff8f0672c617affe3"
 				}
@@ -71,7 +71,7 @@
 				"/features/identity-and-capability.feature.ts": {
 					"text": "Identity and capability authorization",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 800,
 					"steps": 30
 				}
 			}

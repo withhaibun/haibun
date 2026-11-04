@@ -11,18 +11,24 @@ import { CLASS_LABEL, PROPERTY_LABEL, isPersisted, type TRecordNamespace, type T
 import type { TEntailed } from "@haibun/core/lib/actuality/ports.js";
 import type { TIndividualAddress } from "@haibun/core/lib/domains/typed-links.js";
 import { ancestorsWith, ontologyToQuads } from "@haibun/core/lib/records/derivations/ontology.js";
-import { iriIn, ontologyOwl } from "@haibun/core/lib/records/derivations/owl.js";
+import { iriIn, nameIn, ontologyOwl } from "@haibun/core/lib/records/derivations/owl.js";
 import { ONTOLOGY_FIELD } from "@haibun/core/lib/records/domains/ontology.js";
 import { DL_SYMBOL, type TClaimWitness } from "@haibun/core/lib/records/domains/axioms.js";
+import { manchesterName } from "@haibun/core/lib/records/derivations/axioms.js";
 import { QUERY_NAMESPACE, REASONING_READ_CEILING, RULE_SET } from "../domains/reasoning.js";
 import { DataFactory } from "n3";
+import type { NamedNode, Term } from "@rdfjs/types";
 import { dlOf, nameRefusal, namesOf, parseClassExpression, readingOf, resolvedExpression, type TVocabulary } from "@haibun/core/lib/records/derivations/class-expression.js";
 import type { TClassExpression } from "@haibun/core/lib/records/domains/class-expression.js";
 import { expressionRules, frozenMembers, type TExpressionIris } from "../derivations/class-expression.js";
 import { patternText, quadsText, recordTerms, type TRecordTerms } from "../derivations/n3.js";
 import type { TReasoner } from "../ports.js";
+import { extractedBy, functionalAxiom } from "../derivations/proof.js";
 import { readerOf } from "./reads.js";
-import { reason } from "./reason.js";
+import { explain, reason } from "./reason.js";
+
+/** The rule sets a query over class expressions reads: the rules of OWL 2 RL, and the class axioms of the standard vocabularies. */
+const CLASS_RULE_SETS = [RULE_SET.owlRl, RULE_SET.standardAxioms];
 
 /** What a query over the declarations reads: the IRIs of its classes and properties, the records' N3 terms under the records'
  *  namespace, the ontology as OWL 2, the vocabulary its names are checked against, and the types
@@ -31,6 +37,8 @@ type TQueryBasis = {
 	iris: Omit<TExpressionIris, "individualIri">;
 	termsOf: (records: TRecordNamespace) => TRecordTerms;
 	axioms: string;
+	/** The name of a class's or a property's IRI in the served context. */
+	nameOf: (iri: string) => string;
 	vocabulary: TVocabulary;
 	typesReached: (expression: TClassExpression) => string[];
 };
@@ -90,6 +98,7 @@ function derivedBasis(domains: Record<string, TRegisteredDomain>): TQueryBasis {
 		iris: { classIri: (name) => DataFactory.namedNode(iriIn(context, name)), propertyIri },
 		termsOf: (records) => recordTerms(catalog, getJsonLdContext(domains, undefined, records)["@context"], records),
 		axioms: ontologyOwl(ontology, context),
+		nameOf: (iri) => nameIn(context, iri),
 		vocabulary,
 		typesReached,
 	};
@@ -150,7 +159,7 @@ export async function entailedMembers(
 	const reads = await Promise.all(basis.typesReached(expression).map(async (label) => ({ label, ...(await reader.records(label)) })));
 	const { rules, query } = expressionRules(expression, QUERY_NAMESPACE, irisOf(basis, terms));
 	const facts = reads.map(({ label, facts: read }) => quadsText(terms.statements(label, read)));
-	const derived = await reason(reasoner, store, domains, records, { ruleSets: [RULE_SET.owlRl], rules: [basis.axioms, rules, ...facts].join("\n"), query, closedOver: [] });
+	const derived = await reason(reasoner, store, domains, records, { ruleSets: CLASS_RULE_SETS, rules: [basis.axioms, rules, ...facts].join("\n"), query, closedOver: [] });
 	const members = [...new Map(derived.map(({ subject }) => [subject, terms.addressOf(subject)])).values()];
 	return { members, truncated: reads.flatMap(({ label, truncated }) => (truncated ? [label] : [])) };
 }
@@ -194,7 +203,7 @@ export async function subsumes(
 	const { rules, query } = expressionRules(wider, QUERY_NAMESPACE, iris);
 	for (const facts of frozenMembers(narrower, FROZEN, QUERY_NAMESPACE, iris)) {
 		const derived = await reason(reasoner, store, domains, records, {
-			ruleSets: [RULE_SET.owlRl],
+			ruleSets: CLASS_RULE_SETS,
 			rules: [basis.axioms, rules, ...facts.map(patternText)].join("\n"),
 			query,
 			closedOver: [],
@@ -202,4 +211,66 @@ export async function subsumes(
 		if (!derived.some(({ subject }) => subject.equals(FROZEN))) return false;
 	}
 	return true;
+}
+
+/** Returns the axioms, in OWL 2 functional syntax, by which K entails that `subject` isn't a member of `expression`: where each way
+ *  of being a member makes it a member of two classes an axiom states disjoint (the rule cax-dw of OWL 2 RL), the axioms, records
+ *  of `labels` and standard axioms the reasoner's proof of each read, apart from the membership supposed. Returns undefined where a
+ *  way of being a member doesn't contradict a disjointness, so K doesn't entail the membership's contradiction. */
+async function disjointnessMet(
+	reasoner: TReasoner,
+	store: IQuadStore,
+	domains: Record<string, TRegisteredDomain>,
+	records: TRecordNamespace,
+	labels: readonly string[],
+	subject: NamedNode,
+	expression: TClassExpression,
+): Promise<string[] | undefined> {
+	const basis = queryBasis(domains);
+	const terms = basis.termsOf(records);
+	const reader = readerOf(store);
+	const facts = await Promise.all(labels.map(async (label) => quadsText(terms.statements(label, (await reader.records(label)).facts))));
+	const nameOf = (term: Term): string => {
+		if (term.termType === "Literal") return JSON.stringify(term.value);
+		const address = terms.recordAt(term);
+		return manchesterName(address === undefined ? basis.nameOf(term.value) : addressText(address));
+	};
+	const query = reasoner.rules(RULE_SET.disjointnessQuery);
+	const met = new Set<string>();
+	for (const supposed of frozenMembers(expression, subject, QUERY_NAMESPACE, irisOf(basis, terms))) {
+		const supposition = supposed.map(patternText);
+		const rules = [basis.axioms, ...facts, ...supposition].join("\n");
+		const { proof } = await explain(reasoner, store, domains, records, { ruleSets: CLASS_RULE_SETS, rules, query, closedOver: [] });
+		if (proof.gives.length === 0) return undefined;
+		for (const read of extractedBy(proof)) if (!supposition.includes(patternText(read))) met.add(functionalAxiom(read, nameOf));
+	}
+	return [...met].sort();
+}
+
+/** Returns the axioms by which K entails that the record at `address` isn't a member of `text`, or undefined where it doesn't. */
+export function membershipRefuted(
+	reasoner: TReasoner,
+	store: IQuadStore,
+	domains: Record<string, TRegisteredDomain>,
+	records: TRecordNamespace,
+	address: TIndividualAddress,
+	text: string,
+): Promise<string[] | undefined> {
+	const basis = queryBasis(domains);
+	const individual = basis.termsOf(records).individualAt(addressText(address));
+	return disjointnessMet(reasoner, store, domains, records, [address.persistedAs], individual, checkedExpression(text, basis));
+}
+
+/** Returns the axioms by which the ontology entails that a member of `sub` isn't a member of `sup`: an individual that stands for any
+ *  member of both is a member of two disjoint classes. Undefined where it doesn't. */
+export function disjointExpressions(
+	reasoner: TReasoner,
+	store: IQuadStore,
+	domains: Record<string, TRegisteredDomain>,
+	records: TRecordNamespace,
+	sub: string,
+	sup: string,
+): Promise<string[] | undefined> {
+	const basis = queryBasis(domains);
+	return disjointnessMet(reasoner, store, domains, records, [], FROZEN, { and: [checkedExpression(sub, basis), checkedExpression(sup, basis)] });
 }

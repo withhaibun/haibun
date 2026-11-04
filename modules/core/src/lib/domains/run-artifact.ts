@@ -9,6 +9,7 @@ import { z } from "zod";
 import { HAIBUN_LOG_LEVELS } from "./protocol.js";
 import { ACTUALITY_FIELD, RECORDED_AT_TIME_FIELD } from "../actuality/domains/seq-path.js";
 import { Access, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "./resources.js";
+import { PROV_ENTITY } from "./vocabularies.js";
 
 const RUN_ARTIFACT_DOMAIN = "run-artifact";
 
@@ -94,6 +95,7 @@ export const runArtifactDomainDefinition: TDomainDefinition = {
 	topology: {
 		persistedAs: RUN_ARTIFACT_LABEL,
 		accessLevel: Access.private,
+		subClassOf: PROV_ENTITY,
 		id: RUN_ARTIFACT_FIELD.id,
 		instrumentation: true,
 		// A reader receives an artifact as the artifact event a step emits. This record is the durable copy of that event, so

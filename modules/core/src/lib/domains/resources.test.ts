@@ -172,7 +172,7 @@ describe("getJsonLdContext prefix declarations", () => {
 	it("declares the prov, sosa, schema, otel and hbn prefixes", () => {
 		const out = getJsonLdContext({}) as { "@context": Record<string, unknown> };
 		const ctx = out["@context"];
-		expect(ctx.prov).toBe("https://www.w3.org/ns/prov#");
+		expect(ctx.prov).toBe("http://www.w3.org/ns/prov#");
 		expect(ctx.sosa).toBe("http://www.w3.org/ns/sosa/");
 		expect(ctx.schema).toBe("https://schema.org/");
 		expect(ctx.otel).toBe("https://opentelemetry.io/schemas/");

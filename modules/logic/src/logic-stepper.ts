@@ -253,7 +253,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			readsAt: Access.public,
 			gwta: `individual {address: ${DOMAIN_INDIVIDUAL_ADDRESS}} is a {expression: ${DOMAIN_CLASS_EXPRESSION}}`,
 			description:
-				"An instance check: holds where the reasoner entails ClassAssertion(E X), the record at an address as a member of a class expression. A membership the records don't entail and don't contradict is unknown, which isn't false in the open world, so the claim fails closed.",
+				"An instance check: holds where the reasoner entails ClassAssertion(E X), the record at an address as a member of a class expression, and is refuted where the membership implies two classes an axiom states disjoint, naming the axioms. A membership the records don't entail and don't contradict is unknown, which isn't false in the open world, so the claim fails closed.",
 			productsDomain: DOMAIN_CLAIM,
 			entails: (terms) => claimEntailment({ individual: valueAt(terms, "address", CLAIM_TERMS), expression: valueAt(terms, "expression", CLAIM_TERMS) }, this.getWorld().domains),
 			action: ({ address, expression }: { address: TIndividualAddress; expression: string }) => instanceChecked(this.claimScope(), address, expression),
@@ -263,7 +263,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			readsAt: Access.public,
 			gwta: `every {sub: ${DOMAIN_CLASS_EXPRESSION}} is a {sup: ${DOMAIN_CLASS_EXPRESSION}}`,
 			description:
-				"A subsumption check: holds where the ontology entails SubClassOf(E1 E2), that every member of the first class expression is a member of the second. Fails closed otherwise, and its products hold the witness as data: the subsumption that isn't entailed and the entailed members of the first that the second doesn't hold.",
+				"A subsumption check: holds where the ontology entails SubClassOf(E1 E2), that every member of the first class expression is a member of the second, and is refuted where the records entail a member of the first and the two expressions are entailed disjoint. Fails closed otherwise, and its products hold the witness as data: the subsumption that isn't entailed and the entailed members of the first that the second doesn't hold.",
 			productsDomain: DOMAIN_CLAIM,
 			entails: (terms) => claimEntailment({ sub: valueAt(terms, "sub", CLAIM_TERMS), sup: valueAt(terms, "sup", CLAIM_TERMS) }, this.getWorld().domains),
 			action: ({ sub, sup }: { sub: string; sup: string }) => subsumptionChecked(this.claimScope(), sub, sup),

@@ -256,16 +256,16 @@
 			"actuality": {
 				"text": "e2e-tests/requirements, node_modules/@haibun/cli/waypoints, node_modules/@haibun/logic/waypoints, node_modules/@haibun/core/waypoints",
 				"status": "passed",
-				"tookMs": 26900,
+				"tookMs": 50900,
 				"digest": {
-					"e2e-tests/requirements": "1c151768cc17d7edb531f72c5096a96cc78a9f123e699a65c6abffd2fed1ffd4",
+					"e2e-tests/requirements": "79bbbebedf068ee1241c3bc6374c85f046b79f138ad92571ef67cc5a79d90d51",
 					"e2e-tests/src": "dc573cdd7ecddf68fac9a13e4d4fd63eebf115f44b4ce2a5b4db616c5a049e04",
 					"modules/cli/src": "9ae9daf9c93b533c22d4e4c2306f6144f46e91ed75a2b34955c6893ea6d1bfd4",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "edec983ca8b68bfb6cae58c8b59c04790373a4f3c891fad99a7b2e6dfa99c78f",
+					"modules/core/src": "e5a853f52a876c0f75ae84ae39816011e246f734db6cd7e8057a9d2828e8edf1",
 					"modules/core/waypoints": "f573c51de6e8154e49adbb5d98a25b3fd1872742dfdab0f3d6ec8f6164759860",
 					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
-					"modules/logic/src": "6288e38edd68d08436f90aebfebeafb5126508b621609c05e916b7aa23de96f6",
+					"modules/logic/src": "5d59aae38fa358841723fb460e36e23cff046b49dd1b706b1d15956aafb3f3f3",
 					"modules/logic/waypoints": "93e972f98438aa5cbe8f36d93e6aa45924af65df9fdb2846bf209209421a4671",
 					"modules/monitor-otel/src": "4fbef0f2c78fed7b3e2d03ec4ab094bef11766724e5f5f6efb73491ea1d4dea6",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
@@ -276,7 +276,7 @@
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/utils/src": "9799d114ca397313863bfc29604199b02bc9daf1a4bfa26675dbfe7cfc30e36c",
 					"modules/web-accessibility-axe/src": "df284b3ae6b1e6f9aaa117a6ab9ce80ccde73ec21ca48abef9c9dac9ddf8ae87",
-					"modules/web-playwright/src": "7dd567c69dc602467a423d8af76f960873386fb5ce1bef63645fb0437ffb7bdc",
+					"modules/web-playwright/src": "05c60c0681ae0e3515e2dc364a7ff2bb72c2955857ec66a1f90fb83d6e5a74d3",
 					"modules/web-server-hono/src": "88880f36498f725f493b80e710d1940de505f010af357e301c18d1fbf3b76c34"
 				}
 			},
@@ -284,19 +284,19 @@
 				"/features/01-prose-and-steps.feature.ts": {
 					"text": "Prose and steps",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 700,
 					"steps": 24
 				},
 				"/features/02-authority.feature.ts": {
 					"text": "Capabilities authorize every call",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 700,
 					"steps": 59
 				},
 				"/features/03-activities.feature.ts": {
 					"text": "Waypoints and ensure",
 					"status": "passed",
-					"tookMs": 300,
+					"tookMs": 500,
 					"steps": 69
 				},
 				"/features/04-combinators.feature.ts": {
@@ -308,19 +308,19 @@
 				"/features/05-goals.feature.ts": {
 					"text": "Goals over producer rules",
 					"status": "passed",
-					"tookMs": 1600,
+					"tookMs": 2100,
 					"steps": 41
 				},
 				"/features/06-world-and-products.feature.ts": {
 					"text": "The world's data and a step's products",
 					"status": "passed",
-					"tookMs": 400,
+					"tookMs": 500,
 					"steps": 21
 				},
 				"/features/07-records.feature.ts": {
 					"text": "Records, events and actualities",
 					"status": "passed",
-					"tookMs": 2100,
+					"tookMs": 2800,
 					"steps": 125
 				},
 				"/features/08-timing.feature.ts": {
@@ -332,13 +332,13 @@
 				"/features/09-surfaces.feature.ts": {
 					"text": "One path for every surface",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 800,
 					"steps": 77
 				},
 				"/features/10-cli.feature.ts": {
 					"text": "The command line",
 					"status": "passed",
-					"tookMs": 1000,
+					"tookMs": 1400,
 					"steps": 11
 				},
 				"/features/11-performance.feature.ts": {
@@ -368,14 +368,14 @@
 				"/features/15-combined-statements.feature.ts": {
 					"text": "Combined statements",
 					"status": "passed",
-					"tookMs": 400,
+					"tookMs": 600,
 					"steps": 44
 				},
 				"/features/16-class-expressions.feature.ts": {
 					"text": "Class expressions",
 					"status": "passed",
-					"tookMs": 18000,
-					"steps": 63
+					"tookMs": 39100,
+					"steps": 78
 				}
 			}
 		},

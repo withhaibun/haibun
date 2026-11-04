@@ -15,6 +15,7 @@ import { ACTIVITIES_ACTIONS, ACTIVITIES_STEPPER } from "./domains/activities-act
 import { readEvery } from "../lib/records/pipelines/record-reads.js";
 import { packageOf } from "./root.js";
 import { itemAt } from "../lib/domains/item-at.js";
+import { PROV_PLAN } from "../lib/domains/vocabularies.js";
 
 /** The source path a saved waypoint holds where the step that saves it doesn't have a source path. */
 const SAVED_WAYPOINT_SOURCE = "a saved waypoint";
@@ -53,6 +54,8 @@ export const savedWaypointDomainDefinition: TDomainDefinition = {
 		persistedAs: SAVED_WAYPOINT_LABEL,
 		accessLevel: Access.private,
 		type: "schema:HowTo",
+		// A waypoint's lines are the steps its activity takes: a PROV plan.
+		subClassOf: PROV_PLAN,
 		id: "id",
 		properties: { id: LinkRelations.IDENTIFIER.rel, lines: LinkRelations.STEP.rel, source: LinkRelations.SOURCE_PATH.rel },
 		displayLabel: "id",

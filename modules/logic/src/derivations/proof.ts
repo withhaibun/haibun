@@ -5,7 +5,7 @@
  */
 import { DataFactory, Store } from "n3";
 import type { Quad, Term } from "@rdfjs/types";
-import { LOG, RDF, REASON } from "@haibun/core/lib/domains/vocabularies.js";
+import { LOG, OWL, RDF, RDFS, REASON } from "@haibun/core/lib/domains/vocabularies.js";
 import { PROOF_KIND, type TProof, type TProofKind, type TProofStep } from "../domains/reasoning.js";
 import { quadsOf } from "./n3.js";
 
@@ -59,4 +59,20 @@ export function proofOf(text: string): TProof {
 	const proof = steps.find(({ kind }) => kind === PROOF_KIND.proof);
 	if (proof === undefined) throw new Error("EYE's explanation doesn't state its proof. Run EYE with its proof explanation.");
 	return { gives: proof.gives, steps, text };
+}
+
+/** Returns the facts and axioms a proof read from its sources, each once: what its extractions give. */
+export function extractedBy({ steps }: TProof): Quad[] {
+	const read = steps.flatMap(({ kind, gives }) => (kind === PROOF_KIND.extraction ? gives : []));
+	return [...new Map(read.map((q) => [`${q.subject.value} ${q.predicate.value} ${q.object.value}`, q])).values()];
+}
+
+/** Returns the axiom a triple states in OWL 2 functional syntax, each term by the name `nameOf` gives it: a subsumption, a
+ *  disjointness, a membership, or a property's assertion of a value. */
+export function functionalAxiom({ subject, predicate, object }: Quad, nameOf: (term: Term) => string): string {
+	const [s, o] = [nameOf(subject), nameOf(object)];
+	if (predicate.value === RDFS.subClassOf) return `SubClassOf(${s} ${o})`;
+	if (predicate.value === OWL.disjointWith) return `DisjointClasses(${s} ${o})`;
+	if (predicate.value === RDF.type) return `ClassAssertion(${o} ${s})`;
+	return `${object.termType === "Literal" ? "DataPropertyAssertion" : "ObjectPropertyAssertion"}(${nameOf(predicate)} ${s} ${o})`;
 }

@@ -13,6 +13,7 @@ import { z } from "zod";
 import { HAIBUN_LOG_LEVELS } from "./protocol.js";
 import { ACTUALITY_FIELD, RECORDED_AT_TIME_FIELD } from "../actuality/domains/seq-path.js";
 import { Access, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "./resources.js";
+import { PROV_ENTITY } from "./vocabularies.js";
 
 const LOG_MESSAGE_DOMAIN = "log-message";
 export const LOG_MESSAGE_LABEL = "LogMessage";
@@ -52,6 +53,7 @@ export const logMessageDomainDefinition: TDomainDefinition = {
 	topology: {
 		persistedAs: LOG_MESSAGE_LABEL,
 		accessLevel: Access.private,
+		subClassOf: PROV_ENTITY,
 		id: LOG_MESSAGE_FIELD.id,
 		instrumentation: true,
 		countedBy: [LOG_MESSAGE_FIELD.level, ACTUALITY_FIELD],

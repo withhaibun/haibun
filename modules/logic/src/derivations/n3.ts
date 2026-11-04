@@ -141,6 +141,8 @@ export type TRecordTerms = {
 	objectOf: (fact: TFact) => Quad_Object;
 	/** The address of the record an individual names. */
 	addressOf: (individual: Term) => { persistedAs: string; id: string };
+	/** The address of the record an individual names, and undefined where it doesn't name one, as a class or a query's term doesn't. */
+	recordAt: (individual: Term) => { persistedAs: string; id: string } | undefined;
 	/** The individual that is the record at an address, `Type:id`. */
 	individualAt: (address: string) => NamedNode;
 };
@@ -187,12 +189,16 @@ export function recordTerms(catalog: TConcernCatalog, context: Record<string, un
 			);
 		return individualOf(itemAt(targets, 0), String(object));
 	};
-	const iriOf = (individual: Term): { label: string; id: string } => {
+	const recordAt = (individual: Term): { persistedAs: string; id: string } | undefined => {
 		const iri = individual.value;
 		const named = individual.termType === "NamedNode" && iri.startsWith(namespace) ? recordOfIri(`${records.prefix}:${iri.slice(namespace.length)}`) : undefined;
 		const label = named === undefined ? undefined : byLowerLabel.get(named.lowerLabel);
-		if (named === undefined || label === undefined) throw new Error(`${iri} isn't the IRI of a record of a persisted type. Name a record as recordIri names it.`);
-		return { label, id: named.id };
+		return named === undefined || label === undefined ? undefined : { persistedAs: label, id: named.id };
+	};
+	const addressOf = (individual: Term): { persistedAs: string; id: string } => {
+		const address = recordAt(individual);
+		if (address === undefined) throw new Error(`${individual.value} isn't the IRI of a record of a persisted type. Name a record as recordIri names it.`);
+		return address;
 	};
 	return {
 		classIri: (label) => typeOf(label).classIri,
@@ -202,16 +208,14 @@ export function recordTerms(catalog: TConcernCatalog, context: Record<string, un
 			return [...typed, ...facts.map((fact) => DataFactory.quad(individualOf(label, fact.subject), fieldOf(label, fact.predicate).iri, objectOf(fact)))];
 		},
 		patternOf: (subject, predicate) => {
-			const { label, id } = iriOf(subject);
+			const { persistedAs: label, id } = addressOf(subject);
 			const field = [...typeOf(label).fields].find(([, held]) => held.iri.equals(predicate));
 			if (field === undefined) throw new Error(`${label} doesn't declare a field whose IRI is ${predicate.value}. Read a field the type declares.`);
 			return { subject: id, predicate: field[0], namedGraph: label };
 		},
 		objectOf,
-		addressOf: (individual) => {
-			const { label, id } = iriOf(individual);
-			return { persistedAs: label, id };
-		},
+		addressOf,
+		recordAt,
 		individualAt: (address) => {
 			const colon = address.indexOf(":");
 			if (colon <= 0) throw new Error(`${address} isn't a record's address. Write it as Type:id.`);

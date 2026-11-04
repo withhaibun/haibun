@@ -29,6 +29,15 @@ export function iriIn(context: Record<string, unknown>, term: string): string {
 	return `${namespace}${local}`;
 }
 
+/** Returns the name an IRI has in the context, the inverse of `iriIn`: a term of the haibun namespace by its bare name, a term of a
+ *  namespace a prefix binds as a CURIE of the longest such namespace, and any other IRI as itself. */
+export function nameIn(context: Record<string, unknown>, iri: string): string {
+	const namespaces = Object.entries(context).filter((bound): bound is [string, string] => typeof bound[1] === "string" && /[#/]$/.test(bound[1]) && iri.startsWith(bound[1]));
+	const [prefix, namespace] = namespaces.reduce<[string, string] | [undefined, ""]>((longest, bound) => (bound[1].length > longest[1].length ? bound : longest), [undefined, ""]);
+	if (prefix === undefined || iri.length === namespace.length) return iri;
+	return prefix === HAIBUN_PREFIX ? iri.slice(namespace.length) : `${prefix}:${iri.slice(namespace.length)}`;
+}
+
 /** Returns the ontology's axioms in Turtle, written by N3.js, with each term's IRI from the served context. */
 export function ontologyOwl(ontology: TClusteredQuads, context: Record<string, unknown>): string {
 	const { namedNode, literal } = DataFactory;

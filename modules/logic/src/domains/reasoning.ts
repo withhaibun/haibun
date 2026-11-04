@@ -20,8 +20,9 @@ export const REASONER_NAMESPACE = "urn:haibun:";
  *  `(kind argument …) h:effect outcome` performs one of haibun's effects of a proof, whose request is the list. */
 export const REASONER_BUILTIN = { read: `${REASONER_NAMESPACE}read`, effect: `${REASONER_NAMESPACE}effect` } as const;
 /** The rule sets the logic module holds as N3 files, each read by its name: goals over producer rules and their query, the step
- *  graph's lint and its query, a permission's containment and its query, the rules of OWL 2 RL a query of members reads, and
- *  waypoints' proofs. */
+ *  graph's lint and its query, a permission's containment and its query, the rules of OWL 2 RL a query of members reads, the
+ *  class axioms of the standard vocabularies it reads beside the ontology, the query of the disjoint classes an
+ *  individual is entailed a member of, and waypoints' proofs. */
 export const RULE_SET = {
 	goals: "goals",
 	goalsQuery: "goals-query",
@@ -30,6 +31,8 @@ export const RULE_SET = {
 	containment: "containment",
 	containmentQuery: "containment-query",
 	owlRl: "owl-rl",
+	standardAxioms: "standard-axioms",
+	disjointnessQuery: "disjointness-query",
 	waypoints: "waypoints",
 } as const;
 export type TRuleSet = (typeof RULE_SET)[keyof typeof RULE_SET];

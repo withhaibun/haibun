@@ -1,0 +1,53 @@
+# The class axioms the standard vocabularies state, which the reasoner reads beside the ontology: each subsumption between two
+# named classes (rdfs:subClassOf) and each disjointness (owl:disjointWith), as each vocabulary's published RDF states them, so
+# a disjointness haibun's classes reach through their superclasses is the standard's own.
+#
+# FOAF Vocabulary Specification 0.99 (14 January 2014), http://xmlns.com/foaf/spec/index.rdf, as @vocabulary/foaf 1.0.6 holds it.
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+
+foaf:Document owl:disjointWith foaf:Organization, foaf:Project.
+foaf:Group rdfs:subClassOf foaf:Agent.
+foaf:Image rdfs:subClassOf foaf:Document.
+foaf:OnlineAccount rdfs:subClassOf owl:Thing.
+foaf:OnlineChatAccount rdfs:subClassOf foaf:OnlineAccount.
+foaf:OnlineEcommerceAccount rdfs:subClassOf foaf:OnlineAccount.
+foaf:OnlineGamingAccount rdfs:subClassOf foaf:OnlineAccount.
+foaf:Organization rdfs:subClassOf foaf:Agent;
+    owl:disjointWith foaf:Document, foaf:Person.
+foaf:Person rdfs:subClassOf <http://www.w3.org/2000/10/swap/pim/contact#Person>, <http://www.w3.org/2003/01/geo/wgs84_pos#SpatialThing>, foaf:Agent;
+    owl:disjointWith foaf:Organization, foaf:Project.
+foaf:PersonalProfileDocument rdfs:subClassOf foaf:Document.
+foaf:Project owl:disjointWith foaf:Document, foaf:Person.
+
+# PROV-O: The PROV Ontology, W3C Recommendation 30 April 2013, http://www.w3.org/ns/prov-o-20130430, as w3c/prov's
+# ontology/prov-o.ttl states it.
+@prefix prov: <http://www.w3.org/ns/prov#> .
+prov:Activity owl:disjointWith prov:Entity.
+prov:ActivityInfluence rdfs:subClassOf prov:Influence;
+    owl:disjointWith prov:EntityInfluence.
+prov:Agent owl:disjointWith prov:InstantaneousEvent.
+prov:AgentInfluence rdfs:subClassOf prov:Influence.
+prov:Association rdfs:subClassOf prov:AgentInfluence.
+prov:Attribution rdfs:subClassOf prov:AgentInfluence.
+prov:Bundle rdfs:subClassOf prov:Entity.
+prov:Collection rdfs:subClassOf prov:Entity.
+prov:Communication rdfs:subClassOf prov:ActivityInfluence.
+prov:Delegation rdfs:subClassOf prov:AgentInfluence.
+prov:Derivation rdfs:subClassOf prov:EntityInfluence.
+prov:EmptyCollection rdfs:subClassOf prov:Collection.
+prov:End rdfs:subClassOf prov:EntityInfluence, prov:InstantaneousEvent.
+prov:Entity owl:disjointWith prov:InstantaneousEvent.
+prov:EntityInfluence rdfs:subClassOf prov:Influence.
+prov:Generation rdfs:subClassOf prov:ActivityInfluence, prov:InstantaneousEvent.
+prov:Invalidation rdfs:subClassOf prov:ActivityInfluence, prov:InstantaneousEvent.
+prov:Organization rdfs:subClassOf prov:Agent.
+prov:Person rdfs:subClassOf prov:Agent.
+prov:Plan rdfs:subClassOf prov:Entity.
+prov:PrimarySource rdfs:subClassOf prov:Derivation.
+prov:Quotation rdfs:subClassOf prov:Derivation.
+prov:Revision rdfs:subClassOf prov:Derivation.
+prov:SoftwareAgent rdfs:subClassOf prov:Agent.
+prov:Start rdfs:subClassOf prov:EntityInfluence, prov:InstantaneousEvent.
+prov:Usage rdfs:subClassOf prov:EntityInfluence, prov:InstantaneousEvent.
