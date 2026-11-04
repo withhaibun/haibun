@@ -54,6 +54,8 @@ const CELL_MAX = 50;
 export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 	/** The instant this view shows, which is the page's time cursor or the moment `data-snapshot-time` states. */
 	readonly #timeline = new TimelineViewController(this);
+	// A row is as wide as the header: the virtualizer places each row absolutely, which would shrink it to its content and
+	// narrow its columns below the header's.
 	static styles = [
 		shuBaseStyles,
 		virtualColumnCss,
@@ -75,7 +77,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 			.grid-header > .th.sortable { cursor: pointer; }
 			.grid-header > .th.sortable:hover { color: var(--shu-fg); background: var(--shu-bg-input); }
 			.grid-header > .th.sorted { font-weight: 700; color: var(--shu-fg); }
-			.clickable-row { cursor: pointer; }
+			.clickable-row { cursor: pointer; width: 100%; }
 			.clickable-row > .td { padding: 1px var(--shu-space-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 			.clickable-row:hover { background: var(--shu-bg-hover); }
 			.clickable-row.selected { background: var(--shu-bg-info-soft); }
