@@ -47,6 +47,15 @@ const listed = stepsShown(
 			description: "Renews a permit until a date.",
 			paramDomains: { permit: "permit-ref", date: "date" },
 		},
+		{
+			method: "Notes-noteOn",
+			stepperName: "Notes",
+			stepName: "noteOn",
+			pattern: "note on {label} {id} with {text}",
+			description: "Notes any record.",
+			kaname: true,
+			paramDomains: { label: "persisted-type", id: "record-id", text: "text" },
+		},
 		{ method: "Notes-listNotes", stepperName: "Notes", stepName: "listNotes", pattern: "list notes", description: "Lists the notes." },
 	],
 	{ "permit-ref": { description: "A reference to a permit.", persistedAs: PERMIT } },
@@ -55,15 +64,16 @@ const listed = stepsShown(
 const list = { ...listed, declared: listed.steps };
 
 describe("the steps a viewport shows a record", () => {
-	it("are its type's steps, kaname first, then acts, then reads, each naming the record and stating what it does and requires", () => {
+	it("are its type's steps, its own kaname steps first, then its links, then acts and reads, where a step that takes any record isn't its kaname step, each naming the record and stating what it does and requires", () => {
 		const steps = recordSteps(list, PERMIT, "permit-1", { audit: { method: "Permits-showPermit", params: { permit: { id: "permit-1" } }, summary: "Audit permit" } });
 		expect(steps.map((s) => [s.method, s.verb, s.asks, s.kaname === true, s.unboundCount, s.rel])).toEqual([
-			["Permits-showPermit", "show", "read", false, 0, "audit"],
 			["Permits-revokePermit", "revoke", "act", true, 0, undefined],
+			["Permits-showPermit", "show", "read", false, 0, "audit"],
 			["Permits-suspendPermit", "suspend", "act", false, 0, undefined],
+			["Notes-noteOn", "note on with …", "act", false, 1, undefined],
 			["Permits-renewPermit", "renew until …", "act", false, 1, undefined],
 		]);
-		expect(steps[1]).toMatchObject({ params: { permit: { id: "permit-1" } }, summary: "Revokes a permit.", capability: "Permits:revokePermit" });
+		expect(steps[0]).toMatchObject({ params: { permit: { id: "permit-1" } }, summary: "Revokes a permit.", capability: "Permits:revokePermit" });
 	});
 });
 

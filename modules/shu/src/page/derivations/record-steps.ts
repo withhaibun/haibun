@@ -1,6 +1,6 @@
 /**
- * Derives the steps offered on a record, as a viewport shows them: instance-offered `_links` first, followed by the
- * record type's kaname steps, acts, and reads.
+ * Derives the steps offered on a record, as a viewport shows them: the record type's kaname steps first, then the steps
+ * the record's own `_links` offer, then its other acts and reads.
  */
 import type { TCallLink, TRecordStep } from "@haibun/core/lib/domains/hypermedia.js";
 import type { TStepList } from "../machines/registry.js";
@@ -41,8 +41,8 @@ export function stepVerb(step: { pattern: string; gwta?: string } | string, take
 }
 
 /**
- * Returns the links to the steps a record takes, as a viewport shows them: the instance-offered `_links` first, then the
- * record type's kaname steps, acts, and reads. Each states its verb phrase, full description, required capability, and
+ * Returns the links to the steps a record takes, as a viewport shows them: the record type's kaname steps first, then the
+ * steps the record's own `_links` offer, then its other acts and reads. Each states its verb phrase, full description, required capability, and
  * how many inputs remain to be filled.
  */
 export function recordSteps(list: TStepList, label: string, id: string, recordLinks?: Record<string, TCallLink>): TRecordStep[] {
@@ -92,7 +92,9 @@ export function recordSteps(list: TStepList, label: string, id: string, recordLi
 		const hasLabelParam = paramEntries.some(([name, domain]) => name === "label" && (domain === "persisted-type" || domain === "string"));
 		const hasIdParam = paramEntries.some(([name, domain]) => name === "id" && (domain === "record-id" || domain === "string"));
 
-		if (hasLabelParam && hasIdParam) {
+		// A step that takes any record by its type and id, such as a comment, isn't a kaname step of this type, whatever it states.
+		const anyRecord = hasLabelParam && hasIdParam;
+		if (anyRecord) {
 			bound.label = label;
 			bound.id = id;
 		} else {
@@ -116,14 +118,15 @@ export function recordSteps(list: TStepList, label: string, id: string, recordLi
 			summary: step.description,
 			asks: step.read ? "read" : "act",
 			capability: step.capability,
-			...(step.kaname ? { kaname: true } : {}),
+			...(step.kaname && !anyRecord ? { kaname: true } : {}),
 			unboundCount,
 		});
 	}
 
+	// A type's kaname steps lead, as the kaname contract states, then the steps the record's own links offer, then the rest.
 	const rank = (s: TRecordStep): number => {
-		if (s.rel !== undefined) return s.asks === "act" ? 0 : 1;
-		if (s.kaname) return s.asks === "act" ? 2 : 3;
+		if (s.kaname) return s.asks === "act" ? 0 : 1;
+		if (s.rel !== undefined) return s.asks === "act" ? 2 : 3;
 		return s.asks === "act" ? 4 : 5;
 	};
 

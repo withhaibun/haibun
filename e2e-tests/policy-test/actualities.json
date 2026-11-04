@@ -418,7 +418,7 @@
 			"actuality": {
 				"text": "e2e-tests/policy-test",
 				"status": "passed",
-				"tookMs": 200,
+				"tookMs": 100,
 				"digest": {
 					"e2e-tests/policy-test": "926b6ca236fb5c169cbd325b1a019947d5e11622ce559212af1fad0aaa6146d6",
 					"modules/core/src": "ff401e3a47cdb712bfacb42facee13f911fba1ce166ee538662514a2f92b6227",
