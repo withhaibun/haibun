@@ -24,8 +24,16 @@ const verdictOf = (record: TRecord): TVerdict | undefined => {
 };
 
 /** The fields of a step's record that its frame states as facts: what it called, its verdict, the action it required, the
- *  actions that allowed it, and why it failed. */
-const STATED_FIELDS = [SEQ_PATH_FIELD.called, SEQ_PATH_FIELD.verdict, SEQ_PATH_FIELD.capabilityAction, SEQ_PATH_FIELD.allowedAction, SEQ_PATH_FIELD.error] as const;
+ *  actions that allowed it, why it failed, and a claim's result: its task, the entailment it checks, its verdict and its proof
+ *  or witness. */
+const STATED_FIELDS = [
+	SEQ_PATH_FIELD.called,
+	SEQ_PATH_FIELD.verdict,
+	SEQ_PATH_FIELD.capabilityAction,
+	SEQ_PATH_FIELD.allowedAction,
+	SEQ_PATH_FIELD.error,
+	SEQ_PATH_FIELD.entailment,
+] as const;
 
 /** The name of the frame of a record of a proof. */
 const frameName = (record: TRecord): string => `${FRAME_KIND.individual} ${String(record[SEQ_PATH_FIELD.id])}`;

@@ -13,6 +13,7 @@ import { ActionSchema, readAction } from "../../domains/actions.js";
 import { StepMethodSchema, type TStepMethod } from "./step-method.js";
 import { DomainKeySchema } from "../../domains/domains.js";
 import { Access, AccessLevelSchema } from "../../domains/resources.js";
+import type { TEntailment } from "../../records/domains/claim.js";
 
 /** The lines and the methods of the steps that show actuality's declarations: the steps a caller may call, their
  *  definitions, and the steppers. The `Haibun` stepper declares them, so the configuration of an instance that serves
@@ -35,10 +36,10 @@ export const SHOW_STEPS_ACTION = readAction(Access.public);
 /** The method of the step that resolves a line to one of the steps a caller may call. */
 export const VALIDATE_STEP_METHOD = "Haibun-validateStep" as TStepMethod;
 
-/** Whether a line resolves to one step: the method of that step and each of its parameters' terms as the line states them,
- *  or why the line doesn't resolve to exactly one. */
+/** Whether a line resolves to one step: the method of that step, each of its parameters' terms as the line states them, the
+ *  reading of each term whose domain states one and, for a claim, what it checks; or why the line doesn't resolve to exactly one. */
 export type TStepValidation =
-	| { valid: true; method: string; values: Record<string, string>; readings: Record<string, string> }
+	| { valid: true; method: string; values: Record<string, string>; readings: Record<string, string>; entailment?: TEntailment }
 	| { valid: false; error: string; completions: string[] };
 
 /** The product domains of the reads of actuality's declarations. Each holds a list, which the list combinators read. */

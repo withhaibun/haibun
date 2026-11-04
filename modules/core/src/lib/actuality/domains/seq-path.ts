@@ -214,6 +214,9 @@ export const SEQ_PATH_FIELD = {
 	actionStatus: "actionStatus",
 	/** The reason a step failed. It is written only on a failed step, since the failure is a fact about that step. */
 	error: "error",
+	/** A claim's result: its reasoning task, the entailment K ⊨ axiom it checks, its verdict and its proof or witness. It is
+	 *  written only on a claim's step, whether the claim holds or not. */
+	entailment: "entailment",
 	/** The name of the view this step showed, as the site declares it. The site's declaration holds how the view
 	 *  looks, so the record holds the view's name and not a copy of the declaration. */
 	showed: "showed",
@@ -291,6 +294,7 @@ export const SeqPathSchema = PersistedVertexSchema.extend({
 	[SEQ_PATH_FIELD.called]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.actionStatus]: z.enum(RECORDED_STATUS),
 	[SEQ_PATH_FIELD.error]: OPTIONAL_TEXT,
+	[SEQ_PATH_FIELD.entailment]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.showed]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.capabilityAction]: OPTIONAL_ACTION,
 	// The actions the caller held, as the comma-separated list that states them, which a step's line reads as actions.
@@ -383,6 +387,7 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 			[SEQ_PATH_FIELD.called]: LinkRelations.CALLED.rel,
 			[SEQ_PATH_FIELD.actionStatus]: LinkRelations.ACTION_STATUS.rel,
 			[SEQ_PATH_FIELD.error]: LinkRelations.CONTENT.rel,
+			[SEQ_PATH_FIELD.entailment]: LinkRelations.CONTENT.rel,
 			// Grouped-as, so the type offers a filter such as "the steps that showed the graph".
 			[SEQ_PATH_FIELD.showed]: LinkRelations.CONTEXT.rel,
 			[SEQ_PATH_FIELD.capabilityAction]: LinkRelations.CAPABILITY_ACTION.rel,

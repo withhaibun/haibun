@@ -121,7 +121,12 @@
 			"actuality": {
 				"text": "e2e-tests/once",
 				"status": "passed",
-				"tookMs": 0
+				"tookMs": 0,
+				"digest": {
+					"e2e-tests/once": "aa76efd39289af80e2a6d1122f1b1be86d79141a1ce60f59a64e68146a41b1cf",
+					"modules/core/src": "edec983ca8b68bfb6cae58c8b59c04790373a4f3c891fad99a7b2e6dfa99c78f",
+					"modules/logic/src": "6288e38edd68d08436f90aebfebeafb5126508b621609c05e916b7aa23de96f6"
+				}
 			},
 			"features": {
 				"/features/once.feature": {
@@ -187,12 +192,7 @@
 			"actuality": {
 				"text": "e2e-tests/once",
 				"status": "passed",
-				"tookMs": 0,
-				"digest": {
-					"e2e-tests/once": "aa76efd39289af80e2a6d1122f1b1be86d79141a1ce60f59a64e68146a41b1cf",
-					"modules/core/src": "6d9a24a1f2d266214bfa3e87c4560f6a13f471cd861867be40657ff76849c008",
-					"modules/logic/src": "b076f81df94183b3738aa742aed55563fc5ef98d5376054aa98acfcd4f90a673"
-				}
+				"tookMs": 0
 			},
 			"features": {
 				"/features/once.feature": {

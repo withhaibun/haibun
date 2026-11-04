@@ -6,11 +6,12 @@
  * a literal in double quotes, with `^^xsd:{type}` where it isn't a string, and a number bare. A property names a field of the expression's
  * class, or a relation of the ontology. A mix of `and` and `or` takes parentheses, so each reads one way. The constructs RL
  * doesn't evaluate for a query are refused, each with its reason and the form to write instead. Writes an expression in DL
- * notation and as a plain-English reading.
+ * notation, in OWL 2 functional syntax and as a plain-English reading.
  */
 import { errorDetail } from "../../domains/util.js";
 import { itemAt } from "../../domains/item-at.js";
 import { DL_SYMBOL } from "../domains/axioms.js";
+import { manchesterName } from "./axioms.js";
 import {
 	DATATYPE,
 	FACET,
@@ -260,6 +261,26 @@ export function nameRefusal(expression: TClassExpression, vocabulary: TVocabular
 
 const FACET_DL: Record<TFacet, string> = { ">=": "≥", ">": ">", "<=": "≤", "<": "<", pattern: "pattern" };
 const FACET_READING: Record<TFacet, string> = { ">=": "at least", ">": "above", "<=": "at most", "<": "below", pattern: "matching" };
+
+/** The facets of OWL 2 functional syntax, each an XML Schema facet. */
+const FACET_FUNCTIONAL: Record<TFacet, string> = { ">=": "xsd:minInclusive", ">": "xsd:minExclusive", "<=": "xsd:maxInclusive", "<": "xsd:maxExclusive", pattern: "xsd:pattern" };
+
+/** Returns an expression in OWL 2 functional syntax (W3C OWL 2 Structural Specification and Functional-Style Syntax). A facet's
+ *  literal that doesn't state its datatype is of the restriction's datatype, and a pattern's is a string. */
+export function functionalOf(expression: TClassExpression): string {
+	if ("named" in expression) return manchesterName(expression.named);
+	if ("and" in expression) return `ObjectIntersectionOf(${expression.and.map(functionalOf).join(" ")})`;
+	if ("or" in expression) return `ObjectUnionOf(${expression.or.map(functionalOf).join(" ")})`;
+	const role = expression.inverse ? `ObjectInverseOf(${manchesterName(expression.property)})` : manchesterName(expression.property);
+	if ("some" in expression) return `ObjectSomeValuesFrom(${role} ${functionalOf(expression.some)})`;
+	if ("value" in expression) return `ObjectHasValue(${role} ${manchesterName(expression.value)})`;
+	if ("literal" in expression) return `DataHasValue(${role} ${literalText(expression.literal)})`;
+	const { datatype, facets } = expression.range;
+	const typed = (facet: TFacet, literal: TLiteral): string => literalText(literal.datatype === undefined && facet !== FACET.pattern ? { ...literal, datatype } : literal);
+	const range =
+		facets.length === 0 ? datatype : `DatatypeRestriction(${[datatype, ...facets.map(({ facet, literal }) => `${FACET_FUNCTIONAL[facet]} ${typed(facet, literal)}`)].join(" ")})`;
+	return `DataSomeValuesFrom(${role} ${range})`;
+}
 
 /** The mark of an inverse property in DL notation. A reading in the page's text writes it, and a graph's label doesn't. */
 const INVERSE_MARK = "⁻";

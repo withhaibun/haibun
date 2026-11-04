@@ -71,7 +71,14 @@ Approved by the operator; stage 7 applies the renames as part of its rewrite. Ea
 - **plan {goal}** (was `walk toward`): writes a plan record, the steps that would make a domain goal hold, naming the next step (PDDL's plan). `planOf` and `TPlan` already mean this. Other uses of the word: `queryExplain` (was `queryPlan`, a SQL query plan) and `TProposedTurn` (was `TPlannedTurn`, a model's proposed lines) are renamed; this file and the application's `docs/planning/` are project plans, which are prose.
 - **advance plan {plan} with {args}** (was `advance the walk`): performs a plan's next step with the values a person supplies. The domains are `plan-id` and `plan-progress`, the graph `PLAN_GRAPH`, and the type `TPlanProgress`.
 - **applicable steps** (was "affordances on offer"): the steps the caller may call whose inputs the facts hold (automated planning's applicable actions); `show the applicable steps`, whose article keeps its pattern apart from `show steps` and the `applicable steps` read, domain `applicable-steps`.
-- **claim**: a statement the reasoner proves over the ontology and the records, open world: `individual … is a …`, `every … is a …`, `some …`. One the records don't prove is unknown.
+- **claim**: an entailment check over the ontology and the records, K, open world. A claim holds exactly where its axiom is entailed (K ⊨ axiom), is refuted where the axiom contradicts K, and is `unknown` otherwise, where K doesn't entail the axiom and doesn't contradict it. Validating a claim's line returns its task, its axiom in OWL 2 functional syntax and in Manchester syntax where a frame states it, and the entailment in DL notation (claim.ts, `entailmentOf`); its result and its record state the task, the entailment, the verdict and the proof or witness, which the axioms pane shows in its why frames. The ontology doesn't state a disjointness or a complement yet, so a claim isn't refuted yet.
+
+| claim | axiom checked | OWL reasoning task |
+|---|---|---|
+| `individual X is a E` | `ClassAssertion(E X)` (Manchester `Individual: X Types: E`) | instance check |
+| `every E1 is a E2` | `SubClassOf(E1 E2)` (Manchester `Class: E1 SubClassOf: E2` where E1 is a named class) | subsumption check |
+| `some E` | a named individual entailed to be an E, without an axiom | instance retrieval (non-empty) |
+
 - **containment**: a permission's place within its bound, as ODRL 2.2 reads a ZCAP-LD capability: each action, the target and the expiry within the bound's. Its witness is what exceeds.
 - **urakata**: a background task the instance runs (Japanese: the crew behind the stage).
 - **kireji**: the builder that writes features as code (Japanese: the cutting word of a haiku).

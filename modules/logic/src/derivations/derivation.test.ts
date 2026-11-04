@@ -11,6 +11,8 @@ const record = (path: string, stepText: string, verdict: string, more: Record<st
 	[SEQ_PATH_FIELD.verdict]: verdict,
 	...more,
 });
+/** A claim's result as its record states it. */
+const CLAIMED = "instance retrieval · ∃a. K ⊨ ClassAssertion(SeqPath a) · holds · the witness is SeqPath:s1";
 const RECORDS = [
 	record("0.1", "ensure It is closed", VERDICT.refuted, { [SEQ_PATH_EDGE.isPartOf]: id("0") }),
 	record("0.1.1", 'variable open is "yes"', VERDICT.refuted, {
@@ -21,6 +23,7 @@ const RECORDS = [
 		[SEQ_PATH_FIELD.error]: "open is no",
 	}),
 	record("0.2", "set open to yes", VERDICT.proved),
+	record("0.3", "some SeqPath", VERDICT.proved, { [SEQ_PATH_FIELD.called]: "LogicStepper.someOf", [SEQ_PATH_FIELD.entailment]: CLAIMED }),
 ];
 const isNode = (called: string | undefined): boolean => called === undefined;
 
@@ -44,5 +47,9 @@ describe("a derivation's frames", () => {
 
 	it("opens at the frame of the first goal the proof couldn't prove, with its reason", () => {
 		expect([derivation.firstUnmet, derivation.reason, derivation.line]).toEqual(['variable open is "yes"', "open is no", `Individual ${id("0.1.1")}`]);
+	});
+
+	it("states a claim's task, entailment, verdict and witness as a fact of its frame", () => {
+		expect(derivationOf(RECORDS, id("0.3"), isNode).frames[0]?.manchester).toContain(`entailment ${JSON.stringify(CLAIMED)}`);
 	});
 });

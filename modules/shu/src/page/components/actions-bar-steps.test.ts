@@ -172,6 +172,9 @@ describe("the actions bar's step mode", () => {
 describe("a statement typed in step mode", () => {
 	const VALIDATE = step(VALIDATE_STEP_METHOD, "validate step {text}", { paramDomains: { text: "text" }, read: true, readsAt: "public" });
 	const STATED = "show graph all";
+	const CLAIMED = "show graph claim";
+	/** What a claim checks, as the instance states it, which the page shows as it is. */
+	const ENTAILMENT = { task: "instance check", functional: "ClassAssertion(E X)", manchester: "Individual: X Types: E", entails: "K ⊨ ClassAssertion(E X)", dl: "K ⊨ X ∈ E" };
 	let t: TShuTestHandle;
 	beforeEach(() => {
 		provideLayout();
@@ -180,6 +183,7 @@ describe("a statement typed in step mode", () => {
 			dispatch: (method, params) => {
 				if (method === SHOW_STEP_DEFINITIONS_METHOD) return stepsShown(offered, CHAT_DOMAINS);
 				if (method !== VALIDATE_STEP_METHOD) throw new Error(`unexpected ${method}`);
+				if (params.text === CLAIMED) return { valid: true, method: SHOW.method, values: { name: "claim" }, readings: {}, entailment: ENTAILMENT };
 				return params.text === STATED ? { valid: true, method: SHOW.method, values: { name: "all" } } : { valid: false, error: `"${String(params.text)}" doesn't match a step` };
 			},
 		});
@@ -200,6 +204,20 @@ describe("a statement typed in step mode", () => {
 		const caller = itemAt(callers(history), 0) as ShuStepCaller;
 		expect(caller.getAttribute("method")).toBe(SHOW.method);
 		expect(caller.values).toEqual({ name: "all" });
+	});
+
+	it("shows what a typed claim checks under its inputs, as the instance states it", async () => {
+		const { history } = await typed(CLAIMED);
+		const caller = itemAt(callers(history), 0) as ShuStepCaller;
+		expect(caller.entailment).toEqual(ENTAILMENT);
+		await caller.updateComplete;
+		const shown = caller.shadowRoot?.querySelector(".entailment");
+		expect(shown === null || shown === undefined ? [] : [...shown.children].map((line) => line.textContent)).toEqual([
+			ENTAILMENT.task,
+			ENTAILMENT.entails,
+			ENTAILMENT.manchester,
+			ENTAILMENT.dl,
+		]);
 	});
 
 	it("states why in the history where the statement doesn't resolve to one step", async () => {

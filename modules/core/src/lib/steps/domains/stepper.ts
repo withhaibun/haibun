@@ -10,6 +10,7 @@ import type { TCoercionSite, TDomainDefinition } from "../../domains/resources.j
 import type { TStepReads } from "../../domains/actions.js";
 import type { TListing, TListQuery, TListStage } from "../../domains/lists.js";
 import type { IQuadStore } from "../ports.js";
+import type { TEntailment } from "../../records/domains/claim.js";
 import { constructorName } from "../../domains/util.js";
 import { DOMAIN_TITLE } from "../../domains/domains.js";
 
@@ -150,6 +151,9 @@ type TStepperStepBase = TStepReads & {
 	 *  read's result after this step runs, so the model doesn't request the read next. `answeredFor` in call-step.ts states
 	 *  how a failed step combines with the read. */
 	answeredBy?: string;
+	/** For a claim, what it checks, from its parameters' terms as its line states them: its reasoning task, its axiom and the
+	 *  entailment, which a line's validation returns and the claim's result states. */
+	entails?: (terms: ReadonlyMap<string, string>) => TEntailment;
 	/** The predicate of the registry the step proves where its method doesn't name it: member_of, which a domain's membership proves. */
 	predicate?: typeof PREDICATE.memberOf;
 	/** Offers this step to a model before the model requests discovery. A request to a model lists a small set of steps

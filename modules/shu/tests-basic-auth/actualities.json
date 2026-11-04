@@ -108,15 +108,15 @@
 				"status": "passed",
 				"tookMs": 2900,
 				"digest": {
-					"modules/core/src": "35ac23af9c2b9b513cd78f00d63904075af0559bdec0471b688c39f680ba1fbf",
+					"modules/core/src": "edec983ca8b68bfb6cae58c8b59c04790373a4f3c891fad99a7b2e6dfa99c78f",
 					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
-					"modules/logic/src": "b076f81df94183b3738aa742aed55563fc5ef98d5376054aa98acfcd4f90a673",
-					"modules/shu/src": "8337aa56818c85f17ee046e93e58cc9175a4c26d910bd53cbc8604c7dc61313f",
+					"modules/logic/src": "6288e38edd68d08436f90aebfebeafb5126508b621609c05e916b7aa23de96f6",
+					"modules/shu/src": "e6cc4f170814a5ba07a02314f73990d6a1facb60213e763641ce1d8df53fea5e",
 					"modules/shu/tests-basic-auth": "535e2108c1aaa9f494da113350f8c249d4d7b5ce687a1f652d4cd92ba4972e0e",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/web-playwright/src": "7dd567c69dc602467a423d8af76f960873386fb5ce1bef63645fb0437ffb7bdc",
-					"modules/web-server-hono/src": "5f5739fde6bd4b6e01fef8d2a9dce2a606d73e9a10f04901d225396700b839a3"
+					"modules/web-server-hono/src": "88880f36498f725f493b80e710d1940de505f010af357e301c18d1fbf3b76c34"
 				}
 			},
 			"features": {
@@ -124,7 +124,7 @@
 					"text": "A page behind basic auth",
 					"status": "passed",
 					"tookMs": 1800,
-					"steps": 211
+					"steps": 215
 				}
 			}
 		},

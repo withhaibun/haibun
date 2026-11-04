@@ -16,6 +16,7 @@ import { z } from "zod";
 import { property, state } from "lit/decorators.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
+import type { TEntailment } from "@haibun/core/lib/records/domains/claim.js";
 import { JsonObjectTextSchema, RecordSchema, RecordsSchema } from "@haibun/core/lib/domains/json-text.js";
 import { itemAt, valueAt } from "@haibun/core/lib/domains/item-at.js";
 import { DOMAIN_STATEMENT } from "@haibun/core/lib/domains/domains.js";
@@ -112,6 +113,7 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 			.step-fixed { font-weight: 500; white-space: nowrap; }
 			.inline-input, .inline-select { font: inherit; width: auto; }
 			.dismiss-btn { float: right; }
+			.entailment { color: var(--shu-fg-muted); font-size: var(--shu-font-sm); }
 			.field-error { display: inline-block; color: var(--shu-error); font-size: var(--shu-font-sm); margin-left: var(--shu-space-1); }
 		`,
 	];
@@ -122,6 +124,9 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 	@property() accessor params = "";
 	/** The values its inputs start with, by parameter, each a term a statement gave it, which a reader changes before the call. */
 	@property({ attribute: false }) accessor values: Record<string, string> = {};
+	/** What the claim a reader typed checks, as the instance states it: its reasoning task, the entailment K ⊨ axiom, its
+	 *  Manchester frame where one states it, and the entailment in DL notation. */
+	@property({ attribute: false }) accessor entailment: TEntailment | undefined = undefined;
 
 	readonly #call = new StepCallController(this);
 	@state() private accessor definition: TStepDefinition | undefined = undefined;
@@ -415,6 +420,14 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 	}
 
 	/** The form: the step's pattern as a sentence, with an input in place of each parameter. */
+	/** The lines of what a typed claim checks, each as the instance states it, under the claim's inputs. */
+	#entailmentTpl(): TemplateResult | typeof nothing {
+		const shown = this.entailment;
+		if (shown === undefined) return nothing;
+		const lines = [shown.task, shown.entails, ...(shown.manchester === undefined ? [] : [shown.manchester]), shown.dl];
+		return html`<div class="entailment" data-testid=${this.#testId("step-entailment")}>${lines.map((line) => html`<div>${line}</div>`)}</div>`;
+	}
+
 	#renderForm(desc: TStepDefinition): TemplateResult {
 		const properties = this.#inputSchemaOf(desc).properties ?? {};
 		const parts = this.#sentence(desc.pattern, (name) => this.#paramInput(desc, properties, name));
@@ -501,6 +514,7 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 		return html`<div class="step-caller" data-testid=${`step-caller-${this.step}`}>
 			${call.executed ? html`<button type="button" class="dismiss-btn" title="Remove" @click=${() => this.remove()}>x</button>` : nothing}
 			${this.auto ? nothing : this.#renderForm(desc)}
+			${this.#entailmentTpl()}
 			${call.calling ? html`<div class="loading" data-testid=${this.#testId("step-loading")}>loading...</div>` : nothing}
 			${returned === undefined ? nothing : html`<div data-testid=${this.#testId("step-result")}>${this.#renderOutput(desc, returned.result)}</div>${this.#why(returned.result)}`}
 			${refusal === undefined ? nothing : html`<div class="error" data-testid=${this.#testId("step-error")}><shu-refusal .refusal=${refusal}></shu-refusal></div>`}

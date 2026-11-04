@@ -9,6 +9,8 @@ import { CountedFields, MAX_PAGE_ROWS } from "@haibun/core/lib/domains/hypermedi
 import { listOf } from "@haibun/core/lib/domains/lists.js";
 import type { AccessLevel, TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import { IndividualAddressSchema } from "@haibun/core/lib/domains/typed-links.js";
+import { ClaimProductsSchema } from "@haibun/core/lib/records/domains/claim.js";
+import { ClaimWitnessSchema } from "@haibun/core/lib/records/domains/axioms.js";
 import type { NamedNode, Quad, Term } from "@rdfjs/types";
 import type { TFact } from "./logic.js";
 
@@ -76,6 +78,8 @@ export const QUERY_NAMESPACE = `${REASONER_NAMESPACE}query#`;
 export const DOMAIN_CLASS_EXPRESSION = "class-expression";
 /** The domain of the members a query entails. */
 export const DOMAIN_ENTAILED_MEMBERS = "entailed-members";
+/** The domain of a claim's products: how it ended, and the witness of a subsumption the ontology doesn't entail. */
+export const DOMAIN_CLAIM = "claim";
 /** The members a class expression entails, each by its address, and how many there are. A member the records don't entail may exist. */
 export const EntailedMembersSchema = z.object({ members: z.array(IndividualAddressSchema), ...CountedFields });
 
@@ -87,6 +91,11 @@ export const classExpressionDomainDefinition: TDomainDefinition = {
 	description: "A class expression in Manchester syntax: a named class, and, or, {property} some {class}, {property} value {Type:id}, and inverse {property}",
 };
 export const reasoningDomainDefinitions: TDomainDefinition[] = [
+	{
+		selectors: [DOMAIN_CLAIM],
+		schema: ClaimProductsSchema.extend({ witness: ClaimWitnessSchema.optional() }),
+		description: "How a claim ended: its reasoning task, the entailment it checks, its verdict and its proof or witness",
+	},
 	{
 		selectors: [DOMAIN_ENTAILED_MEMBERS],
 		schema: EntailedMembersSchema,

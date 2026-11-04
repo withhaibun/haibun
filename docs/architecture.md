@@ -244,6 +244,17 @@ A waypoint's head whose proof doesn't hold is unknown: the records state what ho
 records (`individual … is a …`, `every … is a …`, `some …`) is how a feature states knowledge. `maybe statement` holds whatever
 the statement's verdict and returns it.
 
+A claim is an entailment check over the ontology and the records, K: it holds exactly where its axiom is entailed
+(K ⊨ axiom), is refuted where the axiom contradicts K, and is `unknown` otherwise, where K doesn't entail the axiom and
+doesn't contradict it. Validating a claim's line returns what it checks beside each value's reading, and its result and its step's
+record state the task, the entailment, the verdict and the proof or witness:
+
+| claim | axiom checked | OWL reasoning task |
+|---|---|---|
+| `individual X is a E` | `ClassAssertion(E X)` (Manchester `Individual: X Types: E`) | instance check |
+| `every E1 is a E2` | `SubClassOf(E1 E2)` (Manchester `Class: E1 SubClassOf: E2` where E1 is a named class) | subsumption check |
+| `some E` | a named individual entailed to be an E, without an axiom | instance retrieval (non-empty) |
+
 The engine doesn't hold facts. A quantifier reads its closed set, a domain's values or an observation source's items, through
 one effect within the line's authority. Actions and views read and write the store directly.
 

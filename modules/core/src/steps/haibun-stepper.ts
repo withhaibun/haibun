@@ -70,10 +70,17 @@ import {
 import { runAsOf, shownTo } from "../lib/domains/capability-context.js";
 import { validateStep } from "../lib/pipelines/step-validation.js";
 import { Access } from "../lib/domains/resources.js";
+import { EntailmentSchema } from "../lib/records/domains/claim.js";
 
 /** Whether a line resolves to one step, as `TStepValidation` states it. The page reads that type only, so the schema stays here. */
 const StepValidationSchema = z.discriminatedUnion("valid", [
-	z.object({ valid: z.literal(true), method: z.string(), values: z.record(z.string(), z.string()), readings: z.record(z.string(), z.string()) }),
+	z.object({
+		valid: z.literal(true),
+		method: z.string(),
+		values: z.record(z.string(), z.string()),
+		readings: z.record(z.string(), z.string()),
+		entailment: EntailmentSchema.optional(),
+	}),
 	z.object({ valid: z.literal(false), error: z.string(), completions: z.array(z.string()) }),
 ]) satisfies z.ZodType<TStepValidation>;
 
@@ -281,7 +288,7 @@ class Haibun extends AStepper implements IHasCycles {
 			readsAt: Access.public,
 			gwta: `validate step {text: ${DOMAIN_TEXT}}`,
 			description:
-				"Whether a line resolves to exactly one of the steps the caller may call, and which method that step is; otherwise why the line doesn't resolve to one of them or resolves to more than one.",
+				"Whether a line resolves to exactly one of the steps the caller may call, and which method that step is, with the reading of each value whose domain states one and, for a claim, the reasoning task, the axiom in OWL 2 functional and Manchester syntax and the entailment in DL notation; otherwise why the line doesn't resolve to one of them or resolves to more than one.",
 			productsDomain: DOMAIN_STEP_VALIDATION,
 			action: ({ text }: { text: string }) => {
 				const validation = validateStep(text, this.steppers, shownTo());
@@ -291,7 +298,7 @@ class Haibun extends AStepper implements IHasCycles {
 					const completions = complete === undefined || validation.refused === undefined ? [] : complete(validation.refused.term);
 					return actionOKWithProducts({ valid: false, error: validation.error, completions });
 				}
-				const { stepperName, actionName, stepValuesMap } = validation.action;
+				const { stepperName, actionName, stepValuesMap, step } = validation.action;
 				const stated = stepValuesMap === undefined ? [] : Object.entries(stepValuesMap);
 				const values = Object.fromEntries(stated.map(([name, value]) => [name, value.term]));
 				const readings = Object.fromEntries(
@@ -300,7 +307,8 @@ class Haibun extends AStepper implements IHasCycles {
 						return read === undefined ? [] : [[name, read(term)]];
 					}),
 				);
-				return actionOKWithProducts({ valid: true, method: stepMethodName(stepperName, actionName), values, readings });
+				const entailment = step.entails?.(new Map(Object.entries(values)));
+				return actionOKWithProducts({ valid: true, method: stepMethodName(stepperName, actionName), values, readings, ...(entailment === undefined ? {} : { entailment }) });
 			},
 		},
 

@@ -23,6 +23,7 @@ import { streamContext } from "../../transport/domains/step-stream-context.js";
 import { actionNotOK } from "../../domains/util.js";
 import { normalizeDomainKey } from "../../domains/domains.js";
 import { assertFact } from "../../records/pipelines/facts.js";
+import { entailmentRecorded } from "../../records/derivations/claim.js";
 import { doStepperCycle, enterPhase } from "../../steps/pipelines/stepper-cycles.js";
 import { actingAs, askedIn, callerHolds, readScope, runInStep, runInvoking, runReadingAsHeld, runStatedAt, stepInFlight, writtenLevel } from "../../domains/capability-context.js";
 import { capabilityAllows } from "../../domains/actions.js";
@@ -330,7 +331,14 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	// A call a transport carries states what it read back, since its caller reads the result and not a line.
 	const result = featureStep.programmatic === true && actionResult.products !== undefined ? { result: resultText(actionResult.products) } : {};
 	const verdict = verdictOf(actionResult);
-	await writeStepEnd(world, started, { status: RECORDED_STATUS[ended], verdict, ...(error === undefined ? {} : { error }), ...shown(viewShown(actionResult.products)), ...result });
+	await writeStepEnd(world, started, {
+		status: RECORDED_STATUS[ended],
+		verdict,
+		...(error === undefined ? {} : { error }),
+		...entailmentRecorded(actionResult.products),
+		...shown(viewShown(actionResult.products)),
+		...result,
+	});
 	return lastStepResult;
 }
 

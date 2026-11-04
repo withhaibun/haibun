@@ -20,8 +20,8 @@ import {
 	DOMAIN_JSON_OBJECT,
 	namesMember,
 } from "@haibun/core/lib/domains/domains.js";
-import { actionNotOK, actionOK, actionOKWithProducts, actionUnknown, errorDetail } from "@haibun/core/lib/domains/util.js";
-import { itemAt } from "@haibun/core/lib/domains/item-at.js";
+import { actionNotOK, actionOK, actionOKWithProducts, errorDetail } from "@haibun/core/lib/domains/util.js";
+import { itemAt, valueAt } from "@haibun/core/lib/domains/item-at.js";
 import { ACTIVITIES_STEPPER } from "@haibun/core/steps/domains/activities-actions.js";
 import { z } from "zod";
 import { Access, SEQ_PATH_LABEL, type TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
@@ -34,9 +34,10 @@ import { proverOf } from "./pipelines/prove.js";
 import { recordsWhere } from "./pipelines/reads.js";
 import { callTerm, derivationOfRecord, derivationUnder, lineTerm, refuseDeclarations } from "./pipelines/registry-reads.js";
 import { logicEngine, reasoner } from "./root.js";
-import { checkedExpression, countedMembers, entailedMembers, expressionCompletions, expressionReading, queryBasis, subsumptionRefusal, truncationOf } from "./pipelines/members.js";
+import { checkedExpression, countedMembers, entailedMembers, expressionCompletions, expressionReading, queryBasis } from "./pipelines/members.js";
+import { claimEntailment, instanceChecked, retrievalChecked, subsumptionChecked, type TClaimScope } from "./pipelines/claims.js";
 import { DOMAIN_INDIVIDUAL_ADDRESS, type TIndividualAddress } from "@haibun/core/lib/domains/typed-links.js";
-import { DOMAIN_CLASS_EXPRESSION, DOMAIN_ENTAILED_MEMBERS, classExpressionDomainDefinition, reasoningDomainDefinitions } from "./domains/reasoning.js";
+import { DOMAIN_CLAIM, DOMAIN_CLASS_EXPRESSION, DOMAIN_ENTAILED_MEMBERS, classExpressionDomainDefinition, reasoningDomainDefinitions } from "./domains/reasoning.js";
 import { DOMAIN_DERIVATION, DOMAIN_DOMAIN_GOAL, DOMAIN_LINE_TERM, RESOLVE_STATEMENT, logicDomainDefinitions } from "./domains/logic.js";
 import { DOMAIN_ALTERNATIVES, DOMAIN_OBSERVATION_SOURCE, DOMAIN_REFUSAL, DOMAIN_STATUS, readingDomainDefinitions } from "./domains/readings.js";
 
@@ -52,6 +53,9 @@ const steps: IObservationSource = {
 			return observedOf(String(record[SEQ_PATH_FIELD.id]), { ...record, stepper, duration });
 		}),
 };
+
+/** What a claim's terms are named in a fault where its line lacks one its pattern names. */
+const CLAIM_TERMS = "the terms of a claim's line";
 
 /** The statements of a quantifier, as `some x in D is S` and `every x observed in S is P` state them. */
 const QUANTIFIED = `{what: ${DOMAIN_VARIABLE_NAME}} in {domain: ${DOMAIN_DOMAIN_NAME}} is {statement: ${DOMAIN_STATEMENT}}`;
@@ -106,10 +110,16 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 		return Object.keys(domains).filter((key) => namesMember(domains[DOMAIN_DOMAIN_KEY], key));
 	}
 
+	/** What a claim reads over the world's store, under the caller's authority. */
+	private claimScope(): TClaimScope {
+		const world = this.getWorld();
+		return { reasoner: reasoner(), store: world.shared.getStore(), domains: world.domains, records: world.runtime.records };
+	}
+
 	/** The members a class expression entails over the world's store, under the caller's authority. */
 	private members(expression: string) {
-		const world = this.getWorld();
-		return entailedMembers(reasoner(), world.shared.getStore(), world.domains, world.runtime.records, expression);
+		const { reasoner: reads, store, domains, records } = this.claimScope();
+		return entailedMembers(reads, store, domains, records, expression);
 	}
 
 	/** What a goal's proof reads, under the caller's authority. */
@@ -243,40 +253,30 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			readsAt: Access.public,
 			gwta: `individual {address: ${DOMAIN_INDIVIDUAL_ADDRESS}} is a {expression: ${DOMAIN_CLASS_EXPRESSION}}`,
 			description:
-				"Holds where the reasoner entails the record at an address as a member of a class expression. A membership the records don't entail is unknown, which isn't false in the open world, so the claim fails closed.",
-			action: async ({ address, expression }: { address: TIndividualAddress; expression: string }) => {
-				const entailed = await this.members(expression);
-				if (entailed.members.some(({ persistedAs, id }) => persistedAs === address.persistedAs && id === address.id)) return actionOK();
-				return actionUnknown(
-					`${address.persistedAs}:${address.id} ∈ ${expression} is unknown: the records don't entail it, and unknown isn't false in the open world.${truncationOf(entailed)} Add the fact, or read a complete graph.`,
-				);
-			},
+				"An instance check: holds where the reasoner entails ClassAssertion(E X), the record at an address as a member of a class expression. A membership the records don't entail and don't contradict is unknown, which isn't false in the open world, so the claim fails closed.",
+			productsDomain: DOMAIN_CLAIM,
+			entails: (terms) => claimEntailment({ individual: valueAt(terms, "address", CLAIM_TERMS), expression: valueAt(terms, "expression", CLAIM_TERMS) }, this.getWorld().domains),
+			action: ({ address, expression }: { address: TIndividualAddress; expression: string }) => instanceChecked(this.claimScope(), address, expression),
 		},
 		everyIsA: {
 			read: true,
 			readsAt: Access.public,
 			gwta: `every {sub: ${DOMAIN_CLASS_EXPRESSION}} is a {sup: ${DOMAIN_CLASS_EXPRESSION}}`,
 			description:
-				"Holds where the ontology entails that every member of the first class expression is a member of the second. Fails closed otherwise, and its products hold the witness as data: the subsumption that doesn't hold and the entailed members of the first that the second doesn't hold.",
-			action: async ({ sub, sup }: { sub: string; sup: string }) => {
-				const world = this.getWorld();
-				const refused = await subsumptionRefusal(reasoner(), world.shared.getStore(), world.domains, world.runtime.records, sub, sup);
-				return refused === undefined ? actionOK() : { ...actionUnknown(refused.refusal), products: { witness: refused.witness } };
-			},
+				"A subsumption check: holds where the ontology entails SubClassOf(E1 E2), that every member of the first class expression is a member of the second. Fails closed otherwise, and its products hold the witness as data: the subsumption that isn't entailed and the entailed members of the first that the second doesn't hold.",
+			productsDomain: DOMAIN_CLAIM,
+			entails: (terms) => claimEntailment({ sub: valueAt(terms, "sub", CLAIM_TERMS), sup: valueAt(terms, "sup", CLAIM_TERMS) }, this.getWorld().domains),
+			action: ({ sub, sup }: { sub: string; sup: string }) => subsumptionChecked(this.claimScope(), sub, sup),
 		},
 		someOf: {
 			read: true,
 			readsAt: Access.public,
 			gwta: `some {expression: ${DOMAIN_CLASS_EXPRESSION}}`,
-			description: "Holds where the reasoner entails a member of a class expression. Without one the claim is unknown, which isn't false in the open world, so it fails closed.",
+			description:
+				"An instance retrieval: holds where the reasoner entails a named individual as a member of a class expression, which its products name as the witness. Without one the claim is unknown, which isn't false in the open world, so it fails closed.",
 			productsDomain: DOMAIN_ENTAILED_MEMBERS,
-			action: async ({ expression }: { expression: string }) => {
-				const entailed = await this.members(expression);
-				if (entailed.members.length > 0) return actionOKWithProducts(countedMembers(entailed));
-				return actionUnknown(
-					`some ${expression} is unknown: the records don't entail a member, and unknown isn't false in the open world.${truncationOf(entailed)} Add the fact, or read a complete graph.`,
-				);
-			},
+			entails: (terms) => claimEntailment({ some: valueAt(terms, "expression", CLAIM_TERMS) }, this.getWorld().domains),
+			action: ({ expression }: { expression: string }) => retrievalChecked(this.claimScope(), expression),
 		},
 		lineRendersAsWritten: {
 			read: true,

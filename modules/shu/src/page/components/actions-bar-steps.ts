@@ -8,6 +8,7 @@
 import { html, nothing, type ReactiveController, type TemplateResult } from "lit";
 import { RPC_METHOD, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { prettifyGwta, VALIDATE_STEP_METHOD, waypointMark, type TPredicate, type TStepDefinition, type TStepValidation } from "@haibun/core/lib/step-discovery.js";
+import type { TEntailment } from "@haibun/core/lib/records/domains/claim.js";
 import { callStep } from "../controllers/read-controller.js";
 import type { TPageRefusal } from "../domains/refusal.js";
 import type { ShuRefusal } from "./shu-refusal.js";
@@ -21,8 +22,9 @@ import "./shu-step-caller.js";
 
 import "./shu-combobox.js";
 
-/** What opens a step's caller: fixed arguments, whether it runs at once, and the starting values its inputs show. */
-type TStepOpening = { args?: Record<string, unknown>; auto?: boolean; values?: Record<string, string> };
+/** What opens a step's caller: fixed arguments, whether it runs at once, the starting values its inputs show, and what a typed
+ *  claim checks. */
+type TStepOpening = { args?: Record<string, unknown>; auto?: boolean; values?: Record<string, string>; entailment?: TEntailment };
 
 /** What marks a step offered for the selected type. */
 const FOR_THE_TYPE = "● ";
@@ -142,7 +144,7 @@ export class ActionsBarSteps implements ReactiveController {
 	 * the new one doesn't carry fixed arguments, so a reader trying steps keeps one caller. A caller carries the method it
 	 * calls and its number among the callers of that method, which its test ids carry. The newest caller is kept in view.
 	 */
-	open(method: string, { args, auto, values }: TStepOpening): void {
+	open(method: string, { args, auto, values, entailment }: TStepOpening): void {
 		const history = this.#deps.history;
 		const last = history.querySelector<ShuStepCaller>(`${SHU_TAG.STEP_CALLER}:last-of-type`);
 		if (last && !last.executed && !args && !auto) last.remove();
@@ -153,6 +155,7 @@ export class ActionsBarSteps implements ReactiveController {
 		if (args) caller.setAttribute("params", JSON.stringify(args));
 		if (auto) caller.setAttribute("auto", "");
 		if (values) caller.values = values;
+		if (entailment) caller.entailment = entailment;
 		history.append(caller);
 	}
 
@@ -163,7 +166,7 @@ export class ActionsBarSteps implements ReactiveController {
 		if (!resolved.ok) return this.#refuse(resolved.refusal);
 		const validation = resolved.value;
 		if (!validation.valid) return this.#refuse({ error: validation.error });
-		this.pick(validation.method, { values: validation.values });
+		this.pick(validation.method, { values: validation.values, entailment: validation.entailment });
 	}
 
 	/** States a refusal in the history, where the reader's step callers show theirs. */

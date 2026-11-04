@@ -158,27 +158,25 @@ export async function entailedMembers(
 /** The individual that stands for any member of an expression in a subsumption. */
 const FROZEN = DataFactory.namedNode(`${QUERY_NAMESPACE}member`);
 
-/** Returns why the ontology doesn't entail that every member of `sub` is a member of `sup`, and its witness as data: the
- *  subsumption that doesn't hold and the entailed members of `sub` that `sup` doesn't hold. Undefined where it entails it. */
-export async function subsumptionRefusal(
+/** An individual's address as a claim names it: its type and its id. */
+export const addressText = ({ persistedAs, id }: TIndividualAddress): string => `${persistedAs}:${id}`;
+
+/** Returns the witness of a subsumption the ontology doesn't entail, as data and as text: the subsumption in DL notation, and the
+ *  entailed members of `sub` that `sup` doesn't hold. */
+export async function subsumptionWitness(
 	reasoner: TReasoner,
 	store: IQuadStore,
 	domains: Record<string, TRegisteredDomain>,
 	records: TRecordNamespace,
 	sub: string,
 	sup: string,
-): Promise<{ refusal: string; witness: TClaimWitness } | undefined> {
-	if (await subsumes(reasoner, store, domains, records, sub, sup)) return undefined;
+): Promise<{ exceeding: string; witness: TClaimWitness }> {
 	const basis = queryBasis(domains);
 	const subsumption = `${dlOf(checkedExpression(sub, basis))} ${DL_SYMBOL.subsumedBy} ${dlOf(checkedExpression(sup, basis))}`;
-	const addressOf = ({ persistedAs, id }: TIndividualAddress): string => `${persistedAs}:${id}`;
-	const held = new Set((await entailedMembers(reasoner, store, domains, records, sup)).members.map(addressOf));
-	const members = (await entailedMembers(reasoner, store, domains, records, sub)).members.filter((member) => !held.has(addressOf(member)));
-	const exceeding = members.length === 0 ? "the records don't hold a member that exceeds it" : `the witness that exceeds it is ${members.map(addressOf).join(", ")}`;
-	return {
-		refusal: `${subsumption} isn't entailed by the ontology, and ${exceeding}. State the subsumption in the ontology, or narrow the first expression.`,
-		witness: { subsumption, sub, sup, members },
-	};
+	const held = new Set((await entailedMembers(reasoner, store, domains, records, sup)).members.map(addressText));
+	const members = (await entailedMembers(reasoner, store, domains, records, sub)).members.filter((member) => !held.has(addressText(member)));
+	const exceeding = members.length === 0 ? "the records don't hold a member that exceeds it" : `the witness that exceeds it is ${members.map(addressText).join(", ")}`;
+	return { exceeding, witness: { subsumption, sub, sup, members } };
 }
 
 /** Returns whether the ontology entails that every member of `sub` is a member of `sup`. */
