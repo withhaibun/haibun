@@ -13,7 +13,7 @@
 import { css, html, nothing, type PropertyValues, type TemplateResult } from "lit";
 import { z } from "zod";
 import { FRAME_KIND, GraphAxiomsSchema, type TFrame } from "@haibun/core/lib/records/domains/axioms.js";
-import { RPC_METHOD, SHU_TAG } from "../../../domains/elements.js";
+import { RPC_METHOD, SHU_EVENT, SHU_TAG } from "../../../domains/elements.js";
 import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
 import { GraphViewSchema, ViewAxiomsProductsSchema } from "../../../domains/graph-view.js";
 import { defineElement } from "../../controllers/element-controller.js";
@@ -71,7 +71,10 @@ class ShuGraphSource extends ShuElement<typeof GraphSourceStateSchema> {
 		const step = this.#step;
 		if (step !== undefined) {
 			const derived = await callStep<unknown>(RPC_METHOD.RECORDED_DERIVATION, { step: { persistedAs: typeShownIn(SHU_TAG.STEP_DETAIL), id: step } }, `the derivation of ${step}`);
-			return derived.ok ? { ok: true, value: this.opened(GivenAxiomsSchema.parse(derived.value)) } : derived;
+			if (!derived.ok) return derived;
+			const proof = this.opened(GivenAxiomsSchema.parse(derived.value));
+			this.dispatchEvent(new CustomEvent(SHU_EVENT.PROOF_READ, { detail: proof.frames, bubbles: true, composed: true }));
+			return { ok: true, value: proof };
 		}
 		const view = this.#axioms.page?.graphView;
 		if (view === undefined) throw new Error("the axioms pane reads again the view it was given, and wasn't given one");

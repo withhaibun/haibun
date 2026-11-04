@@ -27,7 +27,7 @@ import { ACTUALITY_HEADER, actualityRefusal, refusalSaid } from "@haibun/core/li
 import { admitsOrigin, PRESENTED_REQUEST_HEADERS } from "../domains/web-server.js";
 import type { Context, IWebServer, TCapabilityVerifier } from "../ports.js";
 import { actionsOf } from "../derivations/actions.js";
-import { calledStep, dispatchedAs, type TCaller, type TDispatchWithin } from "./dispatch-call.js";
+import { calledStep, dispatchedAs, recordedRefusal, type TCaller, type TDispatchWithin } from "./dispatch-call.js";
 import { proveClaimed } from "@haibun/core/lib/step-dispatch.js";
 import { refuseInvocation } from "./capability-verifier.js";
 
@@ -57,7 +57,7 @@ async function callTool(parts: TMcpParts, name: string, args: Record<string, unk
 	const within: TDispatchWithin = { registry: parts.registry(), world: parts.world, steppers: parts.steppers };
 	try {
 		const called = calledStep(within, { method: name, params: args, asks: undefined, seqPath: undefined }, caller);
-		if ("refused" in called) return failedTool(refusalSaid(called.refused));
+		if ("refused" in called) return failedTool(refusalSaid(await recordedRefusal(within, caller, called)));
 		const dispatched = dispatchedAs(within, caller);
 		const result = await runActingAs(caller.principal, async () => answeredFor(dispatched, called.tool, await proveClaimed(dispatched, called.featureStep)), caller.restsOn);
 		if (!result.ok) return failedTool(result.errorMessage === undefined ? `the step ${name} failed without stating why` : result.errorMessage);

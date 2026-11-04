@@ -37,6 +37,8 @@ export const CONTEXT_DOCUMENT = { wellKnown: "/.well-known/haibun-context.jsonld
 export const SHU_EVENT = {
 	/** A view in the graph bundle opens a pane (a `TPaneOpen` detail): that bundle's panes aren't the page's. */
 	PANE_OPEN: "pane-open",
+	/** The axioms pane read a step's proof; its detail is the proof's frames, which a graph's DL view marks. */
+	PROOF_READ: "proof-read",
 	COLUMN_CLOSE: "column-close",
 	PANE_DISMISS: "pane-dismiss",
 	STEP_CHOOSE: "step-choose",

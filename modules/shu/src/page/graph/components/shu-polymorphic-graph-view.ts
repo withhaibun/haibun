@@ -32,7 +32,7 @@ import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { VIEW, VIEW_TYPES } from "../domains/views.js";
 import type { TPolymorphicOptionChange } from "./shu-polymorphic-settings.js";
 import { ViewAxiomsProductsSchema, type TGraphView, type TViewAxioms } from "../../../domains/graph-view.js";
-import { ClaimWitnessSchema, GraphAxiomsSchema } from "@haibun/core/lib/records/domains/axioms.js";
+import { ClaimWitnessSchema, GraphAxiomsSchema, type TFrame } from "@haibun/core/lib/records/domains/axioms.js";
 import { isStepEnd } from "@haibun/core/lib/domains/protocol.js";
 import type { TEvent } from "../../ports.js";
 import { LoadController } from "../../controllers/load-controller.js";
@@ -438,6 +438,8 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		// A claim a step refuses names its witness in its products, and in the products of `didn't` and `maybe` over it; a
 		// derivation names the frames of its proof's records.
 		if (!this.usesExternalData) this.autoTeardown(this.subscribeBatched({ onBatch: (events) => this.noteWitness(events), filter: carriesWitness }));
+		// A proof the axioms pane read from a step's why is a witness as a derivation's step end is.
+		if (!this.usesExternalData) this.autoListen(document, SHU_EVENT.PROOF_READ, ((e: CustomEvent<TFrame[]>) => this.markWitness({ proof: e.detail })) as EventListener);
 		if (!this.usesExternalData)
 			this.autoListen(this, SHU_EVENT.PANE_OPEN, ((e: CustomEvent<TPaneOpen>) => {
 				const { pane } = e.detail;
@@ -584,7 +586,12 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		const carrier = WitnessCarrierSchema.safeParse(events.at(-1));
 		if (!carrier.success) return;
 		const { products } = carrier.data;
-		this.#witness = "witness" in products ? { claim: products.witness } : { proof: products.frames };
+		this.markWitness("witness" in products ? { claim: products.witness } : { proof: products.frames });
+	}
+
+	/** Holds a witness, which the DL view marks in place. */
+	private markWitness(witness: TWitness): void {
+		this.#witness = witness;
 		this.mapAxioms();
 	}
 

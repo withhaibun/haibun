@@ -30,7 +30,7 @@ import { runInvoking, runReadingAsHeld, runReadingAt, runActingAs } from "@haibu
 import type { IWebServer, TCapabilityVerifier } from "../ports.js";
 import type { IStepTransport, ITransport } from "../domains/transport.js";
 import { notARead } from "../domains/web-server.js";
-import { calledStep, dispatchCall, type TCaller } from "./dispatch-call.js";
+import { calledStep, dispatchCall, recordedRefusal, type TCaller } from "./dispatch-call.js";
 
 /** What serving `/rpc` reads: actuality's world and steppers, the server and its transport, the verifier of each request's
  *  authority, and the seqPath root of each session's action. */
@@ -93,7 +93,7 @@ export function serveRpc({ world, steppers, webserver, transport, verifier, sess
 
 		try {
 			const called = calledStep(within, { method, params, asks: msg.asks, seqPath: msg.seqPath }, caller);
-			if ("refused" in called) return called.refused;
+			if ("refused" in called) return await recordedRefusal(within, caller, called);
 			const { tool, featureStep } = called;
 			// An RPC dispatch comes from a page, such as its polling of getClusteredQuads, not from a feature: it is logged at
 			// trace so it doesn't bury actuality's own steps in the timeline, and it is still visible at debug.

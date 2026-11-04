@@ -22,7 +22,7 @@ import LogicStepper from "@haibun/logic/logic-stepper.js";
 import { TEST_DOMAIN, declaresTestDomains } from "@haibun/core/lib/test/test-domains.js";
 import { AStepper, type TFeatureStep } from "@haibun/core/lib/astepper.js";
 import { nextSeqPath } from "@haibun/core/lib/step-dispatch.js";
-import { LogEvent, OK, type TStepArgs } from "@haibun/core/lib/domains/protocol.js";
+import { LogEvent, OK, VERDICT, type TStepArgs } from "@haibun/core/lib/domains/protocol.js";
 import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOptionName } from "@haibun/core/lib/domains/util.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import FakeAuthorityStepper, { DOMAIN_FAKE_HOLDER, FakeInvoker, fakeGrant } from "@haibun/core/lib/test/fake-authority.js";
@@ -34,7 +34,9 @@ import { SHOW_STEP_DEFINITIONS_METHOD, SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, rea
 import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import { streamContext, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { authorizedWith, readingAt } from "@haibun/core/lib/domains/capability-context.js";
-import { Access, LinkRelations, PersistedVertexSchema, type AccessLevel } from "@haibun/core/lib/domains/resources.js";
+import { Access, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type AccessLevel } from "@haibun/core/lib/domains/resources.js";
+import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
+import { recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { TRANSPORT, type ITransport } from "./domains/transport.js";
 import { DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_STEP_METHOD, DOMAIN_TEXT } from "@haibun/core/lib/domains/domains.js";
 import { StepMethodSchema } from "@haibun/core/lib/steps/domains/step-method.js";
@@ -567,6 +569,23 @@ class NoticeStepper extends AStepper {
 				return remedy?.do === "request" && remedy.action === READS_PUBLIC ? OK : actionNotOK(`the refusal doesn't request ${READS_PUBLIC}: ${res.status} ${text}`);
 			},
 		},
+		refusedAtGate: {
+			description: TEST_STEP,
+			gwta: `rpc call to {url: ${DOMAIN_LINK}} without a capability invocation is refused at its gate, which records the step it refused for lacking {action: ${DOMAIN_TEXT}}`,
+			action: async ({ url, action }: TStepArgs) => {
+				const method = String(url).slice(String(url).lastIndexOf("/") + 1);
+				const res = await fetch(String(url), {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: await rpcBody(String(url), { method, seqPath: [0, 1, 1, 2], params: {} }),
+				});
+				const refused = RpcRefusalSchema.parse(await res.json());
+				if (refused.step === undefined) return actionNotOK(`the refusal doesn't name the record of the step it refused: ${JSON.stringify(refused)}`);
+				const record = await recordOf(this.getWorld().shared.getStore(), SEQ_PATH_LABEL, refused.step);
+				const holds = record?.[SEQ_PATH_FIELD.verdict] === VERDICT.refuted && String(record?.[SEQ_PATH_FIELD.error]).includes(String(action));
+				return holds ? OK : actionNotOK(`the record of the refused step doesn't state its refusal: ${JSON.stringify(record)}`);
+			},
+		},
 	};
 }
 
@@ -993,6 +1012,19 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-ping" without seqPath succ
 		// External callers without a feature-step context get a server-synthesised seqPath; the call succeeds.
 		expect(rpcResponse?.error).toBeUndefined();
 		expect(rpcResponse?.pong).toBe(true);
+	});
+
+	it("records a call its gate refuses, with the refusal and the action it lacked, and names that record in the refusal", async () => {
+		const port = await freePort();
+		const feature = {
+			path: "/features/gate-recorded.feature",
+			content: `
+webserver is listening for "rpc-gate-recorded"
+rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" without a capability invocation is refused at its gate, which records the step it refused for lacking "PingStepper:protected"
+`,
+		};
+		const result = await passWithDefaults([feature], [...signedSteppers, NoticeStepper], makeOptions(port));
+		expect(result.ok, JSON.stringify(result.failure)).toBe(true);
 	});
 
 	it("denies protected RPC steps without capability and allows them with capability", async () => {

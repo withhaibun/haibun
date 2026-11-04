@@ -5,6 +5,8 @@
  * into <shu-step-caller> in place. Outcomes remain beside the record until dismissed or replaced.
  */
 import { html, css, nothing, type TemplateResult } from "lit";
+import { property } from "lit/decorators.js";
+import { assertFragmentReads, type TFragment } from "@haibun/core/lib/domains/media-fragments.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { RecordStepsStateSchema } from "../../domains/schemas.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
@@ -77,6 +79,10 @@ export class ShuRecordSteps extends ShuElement<typeof RecordStepsStateSchema> {
 
 	#unfollowRegistry?: () => void;
 	#links?: Record<string, TCallLink>;
+	/** The part of the record a reference named. A link the record offers states that it opens the file there. */
+	@property({ attribute: false }) accessor fragment: TFragment | null = null;
+	/** The part of a file of a media type at which a link the record offers opens it: the named part, or the page of a revealed passage. */
+	@property({ attribute: false }) accessor fileAt: ((mediaType: string) => TFragment | undefined) | undefined = undefined;
 
 	set links(value: Record<string, TCallLink> | undefined) {
 		this.#links = value;
@@ -148,7 +154,7 @@ export class ShuRecordSteps extends ShuElement<typeof RecordStepsStateSchema> {
 				@click=${() => this.#choose(step)}
 			>
 				${allowed ? nothing : html`<span class="lock-mark" aria-hidden="true">🔒</span>`}
-				<span class="btn-text">${step.verb}</span>
+				<span class="btn-text">${step.verb}${step.rel !== undefined && this.fragment !== null ? ` at ${this.fragment.value}` : ""}</span>
 			</button>
 		`;
 	}
@@ -208,8 +214,12 @@ export class ShuRecordSteps extends ShuElement<typeof RecordStepsStateSchema> {
 		if (parsedFile.success) {
 			const { name, file } = parsedFile.data;
 			const blob = fileDataBlob(file);
+			// A file a browser shows as it is opens in a tab of its own at the part the record names; a file of another type is
+			// saved under its name, since a browser runs a page of that type with this page's origin.
 			if (viewedInBrowser(blob.type)) {
-				showFile(blob, name, undefined);
+				const at = this.fileAt?.(blob.type);
+				if (at) assertFragmentReads(at, blob.type);
+				showFile(blob, name, at?.value);
 			} else {
 				saveFile(blob, name);
 			}

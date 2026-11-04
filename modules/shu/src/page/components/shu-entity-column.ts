@@ -19,7 +19,7 @@ import { EntityController } from "../controllers/entity-controller.js";
 import { unread, type TEntityResult, type TEntityView, type TAnnotationDraft } from "../domains/entity.js";
 import { LOAD_STATUS } from "../domains/load.js";
 import type { TLinkedBody } from "@haibun/core/lib/records/domains/body.js";
-import { isFragment, type TFragment } from "@haibun/core/lib/domains/media-fragments.js";
+import { fragmentReads, isFragment, pageOfPassage, pdfPage, type TFragment } from "@haibun/core/lib/domains/media-fragments.js";
 import "./shu-annotated-body.js";
 import {
 	edgeRecordType,
@@ -378,11 +378,21 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 
 		const recordStepsBar =
 			persistedAs && individualId && persistedAs !== PRODUCTS_LABEL
-				? html`<shu-record-steps ?active=${this.#paneActive} label=${persistedAs} record-id=${individualId} .links=${this.vertex?._links} @step-success=${this.#onStepSuccess}></shu-record-steps>`
+				? html`<shu-record-steps ?active=${this.#paneActive} label=${persistedAs} record-id=${individualId} .links=${this.vertex?._links} .fragment=${this.fragment} .fileAt=${this.fileAt} @step-success=${this.#onStepSuccess}></shu-record-steps>`
 				: nothing;
 
 		return html`${unsafeHTML(this.emitHypermediaScript(this.#augmentedProducts() ?? this.products))}${this.renderColumnSettings()}<div class="entity-content ${this.#isFuture() ? TIME_SYNC_CLASS.FUTURE : ""}">${this.renderFromStore()}${recordStepsBar}${unsafeHTML(`${contentHtml}${recordJson(this.vertex, false)}`)}${this.renderBodyArea(contentIframe)}</div>`;
 	}
+
+	/** The part of a file of `mediaType` at which a link the record offers opens it: the part a reference named, or the page of
+	 *  a PDF the revealed passage is on, as the record's text marks each page's beginning. */
+	private readonly fileAt = (mediaType: string): TFragment | undefined => {
+		if (this.fragment !== null) return this.fragment;
+		const body = this.annotatableBody();
+		const page = this.revealTarget && body ? pageOfPassage(body.text, this.revealTarget) : undefined;
+		const at = page === undefined ? undefined : pdfPage(page);
+		return at && fragmentReads(at, mediaType) ? at : undefined;
+	};
 
 	#onStepSuccess = async (): Promise<void> => {
 		const { individualId, persistedAs } = this.state;
