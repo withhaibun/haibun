@@ -126,6 +126,15 @@ export function requestFrom(scope: TPanesScope, source: Element | Event, input: 
 	request(scope, input);
 }
 
+/** Titles the record's pane `id` by `label`, as its view read the record. Only the pane's label changes: the pane stays
+ *  where it stands, the active pane stays, and the address stays, since it names a record's pane by the record. */
+export function relabel(scope: TPanesScope, id: string, label: string): void {
+	const before = synced(scope);
+	const after = move(scope, { type: PANES_EVENT.RELABEL, id, label });
+	const d = after.desired.get(id);
+	if (after !== before && d !== undefined) scope.held.strip?.update(id, Kinds.labelOf(d), d.flag === "min", Boolean(d.docked));
+}
+
 /** Makes `id` the active pane, as the strip or a reader chose it. */
 export function activate(scope: TPanesScope, id: string): void {
 	const before = synced(scope);

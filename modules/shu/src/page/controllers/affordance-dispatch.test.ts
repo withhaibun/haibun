@@ -45,6 +45,9 @@ describe("dispatchAffordanceFromResponse", () => {
 					activatePane(_i: number) {
 						/* no-op */
 					}
+					publishPanes() {
+						/* no-op: the breadcrumb is not under test here */
+					}
 					updateAccordion() {
 						/* no-op */
 					}

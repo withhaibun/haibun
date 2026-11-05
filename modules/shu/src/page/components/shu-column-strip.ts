@@ -321,8 +321,8 @@ export class ShuColumnStrip extends ShuElement<typeof EmptyStateSchema> {
 		if (index >= 0) this.activatePane(index);
 	};
 
-	/** Publish the panes this strip holds, in its order. */
-	private publishPanes(): void {
+	/** Publish the panes this strip holds, in its order, with their labels, which the breadcrumb reads. */
+	publishPanes(): void {
 		stripPanes.set(
 			this.panes.map((pane) => ({
 				key: paneKeyOf(pane),

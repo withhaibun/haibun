@@ -37,7 +37,11 @@ export function browserPaneStrip(doc: Document, elements: CustomElementRegistry,
 		update: (id, label, minimized, docked) => {
 			const pane = strip.panes.find((p) => idOf(p) === id);
 			if (pane === undefined) throw new Error(`the strip doesn't hold the pane ${id} it updates`);
-			pane.setAttribute("label", label);
+			// A pane titled anew, as a record's pane once its record is read, is stated to the breadcrumb too.
+			if (pane.getAttribute("label") !== label) {
+				pane.setAttribute("label", label);
+				strip.publishPanes();
+			}
 			pane.setMinimized(minimized);
 			if (pane.docked === docked) return false;
 			pane.setDocked(docked);

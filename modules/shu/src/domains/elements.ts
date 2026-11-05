@@ -41,6 +41,8 @@ export const SHU_EVENT = {
 	PROOF_READ: "proof-read",
 	COLUMN_CLOSE: "column-close",
 	PANE_DISMISS: "pane-dismiss",
+	/** A record's view read its record's title, which titles its pane (a `{ paneId, label }` detail). */
+	PANE_RELABEL: "pane-relabel",
 	STEP_CHOOSE: "step-choose",
 	/** A reader forks the conversation at a question from the history, asking it again as it was or edited (a `TQuestionFork` detail). */
 	QUESTION_FORK: "question-fork",

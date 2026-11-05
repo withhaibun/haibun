@@ -21,7 +21,7 @@ import { TestConduit, newPage } from "../../test/setup.js";
 import { IMPORTED_VIEWS } from "../../test/pane-requests.js";
 import type { TStripElement } from "../ports.js";
 import { activePane } from "../root.js";
-import { PANE_CONTEXT, paneOfEntry, activatePane, dismissPane, openStrip, requestPane, requestPaneFrom, restorePanes } from "./pane-controller.js";
+import { PANE_CONTEXT, paneOfEntry, activatePane, dismissPane, openStrip, relabelPane, requestPane, requestPaneFrom, restorePanes } from "./pane-controller.js";
 import { columnEntryOf, DesiredPaneSchema, paneIdOf, tagOf, labelOf } from "../derivations/pane-kinds.js";
 
 /** Offline is which TConduit is installed: a serialized one doesn't have a location to mutate, a live one does. */
@@ -197,6 +197,9 @@ describe("the page's panes", () => {
 						const p = this.panes[i];
 						if (!p) throw new Error(`test stub strip: removePane index ${i} out of range (have ${this.panes.length})`);
 						p.remove();
+					}
+					publishPanes() {
+						/* no-op: the breadcrumb is not under test here */
 					}
 					updateAccordion() {
 						/* no-op: layout is not under test here */
@@ -405,6 +408,18 @@ describe("the page's panes", () => {
 		expect(opened).toEqual({ id: "msg-1", label: "Email" });
 		const pane = document.querySelector("shu-column-pane") as HTMLElement | null;
 		expect(pane?.dataset.columnKey).toBe("e:Email:msg-1");
+	});
+
+	it("titles a record's pane by its record's title, leaving the active pane and the address as they are", async () => {
+		requestPane({ paneType: "entity", persistedAs: "File", id: "677eba34" });
+		requestPane({ paneType: "component", tag: "shu-monitor-column", label: "M" });
+		await flush();
+		const address = ShuElement.getHash();
+		relabelPane("e:File:677eba34", "invoice-jan2026.txt");
+		await flush();
+		expect(document.querySelector('shu-column-pane[data-column-key="e:File:677eba34"]')?.getAttribute("label")).toBe("invoice-jan2026.txt");
+		expect(activePane.get()).toBe("shu-monitor-column");
+		expect(ShuElement.getHash()).toBe(address);
 	});
 
 	it("requestFrom prunes every non-pinned pane to the right of the source (pane tracked + hash updated)", async () => {

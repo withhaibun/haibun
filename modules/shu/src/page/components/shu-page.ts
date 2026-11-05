@@ -30,7 +30,7 @@ import type { ShuColumnStrip } from "./shu-column-strip.js";
 import type { ShuGraphQuery } from "./shu-graph-query.js";
 import { appAccessLevel } from "../controllers/view-query-controller.js";
 import { ViewQuerySchema } from "../domains/view-query.js";
-import { PANE_ATTACH, activatePane, dismissPane, openStrip, requestPane, requestPaneFrom, restorePanes } from "../controllers/pane-controller.js";
+import { PANE_ATTACH, activatePane, dismissPane, relabelPane, openStrip, requestPane, requestPaneFrom, restorePanes } from "../controllers/pane-controller.js";
 import { PaneOpenSchema } from "../derivations/pane-kinds.js";
 import "./shu-page-key.js";
 import "./shu-column-strip.js";
@@ -127,6 +127,7 @@ export class ShuPage extends ShuElement<typeof EmptyStateSchema> {
 			const paneId = e.detail?.paneId;
 			if (typeof paneId === "string" && paneId !== INDEX_PANE_KEY) dismissPane(paneId);
 		}) as EventListener);
+		this.autoListen(this, SHU_EVENT.PANE_RELABEL, ((e: CustomEvent<{ paneId: string; label: string }>) => relabelPane(e.detail.paneId, e.detail.label)) as EventListener);
 		// A click on a pane link opens the linked pane beside the pane that holds it, in the capture phase, before a view under
 		// the link receives the click.
 		this.autoListen(this, "click", followPaneLink as EventListener, { capture: true });

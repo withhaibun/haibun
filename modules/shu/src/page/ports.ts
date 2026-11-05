@@ -257,6 +257,8 @@ export type TStripElement = HTMLElement & {
 	layoutColumns(): void;
 	updateAccordion(): void;
 	applyActive(): void;
+	/** States the panes and their labels to the views that list them, such as the breadcrumb. */
+	publishPanes(): void;
 };
 
 /** The names a pane strip marks its panes with and follows their controls by: the pane element's tag, the attributes of a
