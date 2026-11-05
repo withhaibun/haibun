@@ -6,11 +6,13 @@ import { isReferenceEdge, SPA_PROPS } from "../derivations/record-fields.js";
 
 /** A type whose id and title field names don't match another type's fields. Only its declaration resolves them. */
 const CONCEPT = { type: "Concept", idField: "conceptId", titleField: "title" } as const;
+/** A type titled by the record that its edge names. */
+const VERDICT = { type: "Verdict", idField: "id", edge: "checked" } as const;
 
 // The catalog declares each type's relations, which isVisibleKey reads.
 declareSpec({
-	types: ["Email", "SeqPath", CONCEPT.type],
-	idFields: { Email: "messageId", SeqPath: "id", [CONCEPT.type]: CONCEPT.idField },
+	types: ["Email", "SeqPath", CONCEPT.type, VERDICT.type],
+	idFields: { Email: "messageId", SeqPath: "id", [CONCEPT.type]: CONCEPT.idField, [VERDICT.type]: VERDICT.idField },
 	rels: {
 		Email: {
 			messageId: "identifier",
@@ -27,12 +29,13 @@ declareSpec({
 		// A SeqPath's stepText carries the `content` rel (body presentation): the literal-body case extractBodyLiterals covers.
 		SeqPath: { id: "identifier", stepText: "content", actionStatus: "actionStatus", generatedAtTime: "generatedAtTime" },
 		[CONCEPT.type]: { [CONCEPT.idField]: "identifier", [CONCEPT.titleField]: "name" },
+		[VERDICT.type]: { [VERDICT.idField]: "identifier" },
 	},
-	edgeRanges: { Email: { hasBody: ["Body"], inReplyTo: ["Email"] } },
+	edgeRanges: { Email: { hasBody: ["Body"], inReplyTo: ["Email"] }, [VERDICT.type]: { [VERDICT.edge]: [CONCEPT.type] } },
 	queryable: { Email: ["subject", "from", "folder"] },
 	validTimeFields: { Email: "dateReceived" },
 	ui: {},
-	titledBy: { [CONCEPT.type]: { key: CONCEPT.titleField, through: false } },
+	titledBy: { [CONCEPT.type]: { key: CONCEPT.titleField, through: false }, [VERDICT.type]: { key: VERDICT.edge, through: true } },
 });
 
 describe("a record's id and title", () => {
@@ -41,6 +44,14 @@ describe("a record's id and title", () => {
 	it("resolves both from the fields its type declares", () => {
 		expect(idOf(concept)).toBe("c-1");
 		expect(instanceLabel(concept)).toBe("Watershed");
+	});
+
+	it("titles a record its type titles by an edge by the title of the record the edge points at, and by its id without one", () => {
+		const verdict = { "@type": VERDICT.type, [VERDICT.idField]: "v-1" };
+		const linked = (edge: string) => (edge === VERDICT.edge ? instanceLabel(concept) : undefined);
+		expect(instanceLabel(verdict, linked)).toBe("Watershed");
+		expect(instanceLabel(verdict, () => undefined)).toBe("v-1");
+		expect(instanceLabel(verdict)).toBe("v-1");
 	});
 
 	it("reads the id from the record's @id where it carries one", () => {

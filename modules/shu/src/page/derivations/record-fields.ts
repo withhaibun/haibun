@@ -4,7 +4,7 @@
  */
 import { recordOfIri } from "@haibun/core/lib/records/derivations/record-iri.js";
 import { isProjectionKey } from "@haibun/core/lib/quad-types.js";
-import { TITLE_RELS, composeDisplayLabel, parseTimestampValue, type TTitledBy } from "@haibun/core/lib/domains/hypermedia.js";
+import { TITLE_RELS, composeDisplayLabel, parseTimestampValue, type TDeclaredTitle, type TTitledBy } from "@haibun/core/lib/domains/hypermedia.js";
 import { getRelPresentation, LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { STORED_TYPE_PROP } from "../../domains/elements.js";
 
@@ -45,8 +45,9 @@ export function titleFields(rels: TFieldRels | undefined, titledBy: TTitledBy | 
 	return titledBy === undefined ? byRel : [titledBy.key, ...byRel];
 }
 
-/** Returns a record's title: the field its type declares, then a title relation of its properties `rels`, then `id`. */
-export const instanceLabel = (v: Record<string, unknown>, rels: TFieldRels | undefined, titledBy: TTitledBy | undefined, id: string): string =>
+/** Returns a record's title: the field its type declares, or the title of the record its declared edge points at, then a
+ *  title relation of its properties `rels`, then `id`. */
+export const instanceLabel = (v: Record<string, unknown>, rels: TFieldRels | undefined, titledBy: TDeclaredTitle | undefined, id: string): string =>
 	composeDisplayLabel({ rels, getProperty: (field) => v[field], ...(titledBy ? { displayLabel: titledBy } : {}), id });
 
 /** Whether a relation routes its field to the body or the governance section. */

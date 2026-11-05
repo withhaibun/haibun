@@ -21,11 +21,16 @@ export function titleFields(label: string): string[] {
 	return Fields.titleFields(catalog.rels[label], catalog.titledBy[label]);
 }
 
-/** Returns a record's title. */
-export function instanceLabel(v: Record<string, unknown>): string {
+/** Returns a record's title. A type titled by an edge (`displayLabel` naming an edge) is titled by the record that edge
+ *  points at, where `linkedTitle` returns that record's title for the edge; a view passes the title of a record it already
+ *  holds, and a record without one keeps the rest of the order. */
+export function instanceLabel(v: Record<string, unknown>, linkedTitle?: (edge: string) => string | undefined): string {
 	const type = Fields.persistedTypeOf(v);
 	const catalog = held("a record's title");
-	return Fields.instanceLabel(v, type === undefined ? undefined : catalog.rels[type], type === undefined ? undefined : catalog.titledBy[type], idOf(v));
+	const titledBy = type === undefined ? undefined : catalog.titledBy[type];
+	const linkedLabel = titledBy?.through && linkedTitle !== undefined ? linkedTitle(titledBy.key) : undefined;
+	const declared = titledBy === undefined || linkedLabel === undefined ? titledBy : { ...titledBy, linkedLabel };
+	return Fields.instanceLabel(v, type === undefined ? undefined : catalog.rels[type], declared, idOf(v));
 }
 
 /** Whether the field table of a record of `label` shows key `k`. */

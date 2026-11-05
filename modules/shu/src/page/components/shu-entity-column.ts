@@ -272,8 +272,16 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		// The pane is titled by the record's title once the record is read, rather than by its id. A view outside a page's pane
 		// (a report's) doesn't title one.
 		const paneId = this.closest<HTMLElement>(SHU_TAG.COLUMN_PANE)?.dataset.columnKey;
-		if (paneId !== undefined)
-			this.dispatchEvent(new CustomEvent(SHU_EVENT.PANE_RELABEL, { detail: { paneId, label: instanceLabel(result.vertex) }, bubbles: true, composed: true }));
+		if (paneId !== undefined) this.dispatchEvent(new CustomEvent(SHU_EVENT.PANE_RELABEL, { detail: { paneId, label: this.recordTitle() }, bubbles: true, composed: true }));
+	}
+
+	/** The open record's title, by the title of a record its edges point at where its type is titled by an edge. */
+	private recordTitle(): string {
+		if (this.vertex === null) throw new Error("<shu-entity-column> titles a record before it holds one");
+		return instanceLabel(this.vertex, (edge) => {
+			const target = this.edges.find((e) => e.type === edge)?.target;
+			return target === undefined ? undefined : instanceLabel(target);
+		});
 	}
 
 	/** Show the part of the open individual a reference names: a quoted passage is revealed in its body, and a fragment of
