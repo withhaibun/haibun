@@ -14,7 +14,8 @@ import { actingAs, actingFor, callerHolds, runActingAs, runAuthorizedWith } from
 import { AUTHORITY_CAPABILITIES, delegatedActions, permissionOf, readAction, witnessOf } from "../lib/domains/actions.js";
 import { proverOf } from "../lib/actuality/pipelines/step-dispatch.js";
 import { activeSitePrincipal, SITE_DID_PREFIX } from "../lib/domains/host-id.js";
-import { Access, AccessLevelSchema, PRINCIPAL_LABEL, principalDomainDefinition } from "../lib/domains/resources.js";
+import { Access, AccessLevelSchema, PRINCIPAL_LABEL } from "../lib/domains/resources.js";
+import { principalDomainDefinition } from "../lib/domains/resource-domains.js";
 
 const authorityActionSchema = z
 	.string()

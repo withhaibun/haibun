@@ -3,7 +3,8 @@ import { pruneOntologyToUse, withOntologySchema, scopeSchemaToType, isSchemaType
 import { categoryOf, ontologyToQuads, typesDeclaringRel } from "@haibun/core/lib/records/derivations/ontology.js";
 import { ONTOLOGY_FIELD } from "@haibun/core/lib/records/domains/ontology.js";
 import { CLASS_LABEL, PROPERTY_LABEL } from "@haibun/core/lib/domains/resources.js";
-import { LinkRelations, principalDomainDefinition, HAIBUN_NS, type TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
+import { LinkRelations, HAIBUN_NS, type TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
+import { principalDomainDefinition } from "@haibun/core/lib/domains/resource-domains.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
 const edge = (quads: ReturnType<typeof ontologyToQuads>["quads"], predicate: string, from: string, to: string): boolean =>

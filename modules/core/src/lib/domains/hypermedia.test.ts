@@ -3,15 +3,8 @@ import { z } from "zod";
 import { buildConcernCatalog, composeDisplayLabel, composeTitle, MAX_DISPLAY_LABEL_LEN, queryableFields } from "./hypermedia.js";
 import type { TDomainDefinition, THypermediaTopology } from "./resources.js";
 import { mapDefinitionsToDomains } from "./domains.js";
-import {
-	Access,
-	isPersisted,
-	LinkRelations,
-	specificResourceDomainDefinition,
-	textQuoteSelectorDomainDefinition,
-	commentDomainDefinition,
-	principalDomainDefinition,
-} from "./resources.js";
+import { Access, isPersisted, LinkRelations, commentDomainDefinition } from "./resources.js";
+import { specificResourceDomainDefinition, textQuoteSelectorDomainDefinition, principalDomainDefinition } from "./resource-domains.js";
 
 const props = (o: Record<string, unknown>) => (f: string) => o[f];
 

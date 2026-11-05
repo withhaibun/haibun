@@ -12,10 +12,7 @@ import {
 	commentDomainDefinition,
 	COMMENT_LABEL,
 	getPropertyDefinitions,
-	principalDomainDefinition,
 	PRINCIPAL_LABEL,
-	specificResourceDomainDefinition,
-	textQuoteSelectorDomainDefinition,
 	SpecificResourceSchema,
 	TextQuoteSelectorSchema,
 	SPECIFIC_RESOURCE_LABEL,
@@ -30,6 +27,7 @@ import {
 	isPersisted,
 	type TDiscourseStore,
 } from "./resources.js";
+import { principalDomainDefinition, specificResourceDomainDefinition, textQuoteSelectorDomainDefinition } from "./resource-domains.js";
 import { RelSchema, getJsonLdContext, buildConcernCatalog, counted } from "./hypermedia.js";
 import { mapDefinitionsToDomains } from "./domains.js";
 import { itemAt } from "./item-at.js";

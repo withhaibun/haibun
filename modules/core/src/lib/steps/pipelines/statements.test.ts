@@ -1,13 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import type { QuadStore } from "./quad-store.js";
-import {
-	LinkRelations,
-	readingDomainDefinition,
-	SEQ_PATH_LABEL,
-	SPECIFIC_RESOURCE_LABEL,
-	specificResourceDomainDefinition,
-	textQuoteSelectorDomainDefinition,
-} from "../../domains/resources.js";
+import { LinkRelations, SEQ_PATH_LABEL, SPECIFIC_RESOURCE_LABEL } from "../../domains/resources.js";
+import { readingDomainDefinition, specificResourceDomainDefinition, textQuoteSelectorDomainDefinition } from "../../domains/resource-domains.js";
 import { readTypedLinks } from "../../records/pipelines/discourse-writes.js";
 import { RECORDED_STATUS } from "../../domains/protocol.js";
 import { declaredTypeOf, storeDeclaring } from "../../test/declared-types.js";

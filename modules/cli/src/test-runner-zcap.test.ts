@@ -16,7 +16,7 @@ import { runAuthorizedWith } from "@haibun/core/lib/domains/capability-context.j
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { addStepperConcerns } from "@haibun/core/phases/Executor.js";
 import { QuadStore, newStoreChain } from "@haibun/core/lib/quad-store.js";
-import { principalDomainDefinition } from "@haibun/core/lib/domains/resources.js";
+import { principalDomainDefinition } from "@haibun/core/lib/domains/resource-domains.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 

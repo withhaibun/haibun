@@ -57,6 +57,7 @@
 		"./lib/local-origin.js": { "haibun-source": "./src/lib/domains/local-origin.js", "default": "./build/lib/domains/local-origin.js" },
 		"./lib/util/dot-path.js": { "haibun-source": "./src/lib/domains/dot-path.js", "default": "./build/lib/domains/dot-path.js" },
 		"./lib/resources.js": { "haibun-source": "./src/lib/domains/resources.js", "default": "./build/lib/domains/resources.js" },
+		"./lib/resource-domains.js": { "haibun-source": "./src/lib/domains/resource-domains.js", "default": "./build/lib/domains/resource-domains.js" },
 		"./lib/actions.js": { "haibun-source": "./src/lib/domains/actions.js", "default": "./build/lib/domains/actions.js" },
 		"./lib/signature-header.js": { "haibun-source": "./src/lib/domains/signature-header.js", "default": "./build/lib/domains/signature-header.js" },
 		"./lib/store-protocol.js": { "haibun-source": "./src/lib/domains/store-protocol.js", "default": "./build/lib/domains/store-protocol.js" },

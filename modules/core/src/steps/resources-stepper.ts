@@ -24,16 +24,7 @@ import {
 	SPECIFIC_RESOURCE_LABEL,
 	TEXT_QUOTE_SELECTOR_LABEL,
 	ANNOTATION_NOTE_DOMAIN,
-	type TAnnotationNote,
-	annotationNoteDomainDefinition,
-	bodyDomainDefinition,
 	commentDomainDefinition,
-	readingDomainDefinition,
-	principalDomainDefinition,
-	sceneDomainDefinition,
-	specificResourceDomainDefinition,
-	textQuoteSelectorDomainDefinition,
-	fragmentSelectorDomainDefinition,
 	writeEdge,
 	conversationRoot,
 	assertCommentGrounded,
@@ -42,6 +33,17 @@ import {
 	type TQuoteAnchor,
 	Access,
 } from "../lib/domains/resources.js";
+import {
+	type TAnnotationNote,
+	annotationNoteDomainDefinition,
+	bodyDomainDefinition,
+	readingDomainDefinition,
+	principalDomainDefinition,
+	sceneDomainDefinition,
+	specificResourceDomainDefinition,
+	textQuoteSelectorDomainDefinition,
+	fragmentSelectorDomainDefinition,
+} from "../lib/domains/resource-domains.js";
 import { MEDIA_TYPE } from "../lib/domains/media-types.js";
 import { readEvery } from "../lib/records/pipelines/record-reads.js";
 import { bodiesByMediaType, markdownOf } from "../lib/records/pipelines/body-reads.js";

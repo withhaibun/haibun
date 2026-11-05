@@ -2,19 +2,21 @@ import { describe, it, expect, beforeEach } from "vitest";
 import type { QuadStore } from "./steps/pipelines/quad-store.js";
 import {
 	BODY_LABEL,
-	bodyDomainDefinition,
 	COMMENT_LABEL,
 	commentDomainDefinition,
 	FRAGMENT_SELECTOR_LABEL,
-	fragmentSelectorDomainDefinition,
 	READING_LABEL,
-	readingDomainDefinition,
 	LinkRelations,
 	SPECIFIC_RESOURCE_LABEL,
-	specificResourceDomainDefinition,
 	TEXT_QUOTE_SELECTOR_LABEL,
-	textQuoteSelectorDomainDefinition,
 } from "./domains/resources.js";
+import {
+	bodyDomainDefinition,
+	fragmentSelectorDomainDefinition,
+	readingDomainDefinition,
+	specificResourceDomainDefinition,
+	textQuoteSelectorDomainDefinition,
+} from "./domains/resource-domains.js";
 import { commentBodyIdOf, createComment, readTypedLinks, readingIdFor } from "./records/pipelines/discourse-writes.js";
 import { DEFAULT_BODY_KIND } from "./records/derivations/bodies.js";
 import { MEDIA_TYPE } from "./domains/media-types.js";

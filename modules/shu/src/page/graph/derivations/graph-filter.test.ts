@@ -6,17 +6,8 @@ import { buildConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import { seqPathDomainDefinition } from "@haibun/core/lib/seq-path.js";
 import { factDomainDefinition } from "@haibun/core/lib/records/domains/facts.js";
-import {
-	COMMENT_LABEL,
-	PRINCIPAL_LABEL,
-	SPECIFIC_RESOURCE_LABEL,
-	TEXT_QUOTE_SELECTOR_LABEL,
-	commentDomainDefinition,
-	principalDomainDefinition,
-	bodyDomainDefinition,
-	specificResourceDomainDefinition,
-	textQuoteSelectorDomainDefinition,
-} from "@haibun/core/lib/domains/resources.js";
+import { COMMENT_LABEL, PRINCIPAL_LABEL, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL, commentDomainDefinition } from "@haibun/core/lib/domains/resources.js";
+import { principalDomainDefinition, bodyDomainDefinition, specificResourceDomainDefinition, textQuoteSelectorDomainDefinition } from "@haibun/core/lib/domains/resource-domains.js";
 import { projectFilterClusters, effectiveHiddenTypes } from "./graph-filter.js";
 import { getTitledBy, instrumentationTypes } from "../../controllers/catalog-controller.js";
 
