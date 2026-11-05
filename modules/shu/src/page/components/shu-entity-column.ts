@@ -117,7 +117,6 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		css`
 		:host { display: flex; flex-direction: column; height: 100%; overflow: auto; padding: var(--shu-space-3) var(--shu-space-4); font-family: inherit; color: var(--shu-fg); }
 		.entity-content { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-		.entity-steps { display: flex; flex-wrap: wrap; gap: var(--shu-space-1); }
 		.entity-step .needs { opacity: 0.7; }
 		.entity-header { padding: var(--shu-space-2) 0; }
 		.entity-from-store { align-self: flex-start; margin-bottom: var(--shu-space-1); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }

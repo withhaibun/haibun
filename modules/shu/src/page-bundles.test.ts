@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { join } from "node:path";
 import { expectWithinBaseline } from "@haibun/core/lib/test/baseline.js";
-import { BUDGET_FIX, measureBundles } from "@haibun/tooling/bundles.js";
+import { BUDGET_FIX, buildInMemory, measureBundles } from "@haibun/tooling/bundles.js";
 import { SHU_BUNDLES, SHU_ROOT } from "../scripts/bundles.ts";
 
 /** The time the hook takes to build every bundle of the page in memory, as its script builds it. A build isn't a unit check: it
@@ -33,4 +33,23 @@ describe("the page's bundles", () => {
 			fix: BUDGET_FIX,
 		});
 	});
+
+	it(
+		"inline in a single-file bundle each module the page loads lazily, so a report loads it without fetching a chunk",
+		async () => {
+			const [page, ...whole] = await Promise.all(SHU_BUNDLES.map((bundle) => buildInMemory(SHU_ROOT, bundle)));
+			if (page === undefined) throw new Error("shu declares its page bundle first");
+			const lazilyLoaded = Object.values(page.metafile.inputs).flatMap(({ imports }) => imports.filter((i) => i.kind === "dynamic-import").map((i) => i.path));
+			expect(lazilyLoaded.length, "the page loads a module lazily").toBeGreaterThan(0);
+			for (const { metafile } of whole) {
+				expect(
+					Object.values(metafile.outputs).flatMap(({ imports }) => imports.filter((i) => i.kind === "dynamic-import")),
+					"a single-file bundle holds each module it loads",
+				).toEqual([]);
+			}
+			const report = whole.find(({ metafile }) => Object.keys(metafile.outputs).some((out) => out.endsWith("shu-report-bundle.js")));
+			expect(lazilyLoaded.filter((module) => !(report !== undefined && module in report.metafile.inputs))).toEqual([]);
+		},
+		BUNDLES_BUILD_TIMEOUT_MS,
+	);
 });

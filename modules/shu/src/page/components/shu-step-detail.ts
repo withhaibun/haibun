@@ -72,8 +72,6 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 			.step-detail pre { background: var(--shu-bg-elevated); padding: var(--shu-space-3); border-radius: var(--shu-radius); font-size: var(--shu-font-md); white-space: pre-wrap; word-break: break-all; margin: var(--shu-space-2) 0; }
 			.step-detail .section { border-top: var(--shu-border-w) solid var(--shu-border); padding-top: var(--shu-space-3); margin-top: var(--shu-space-4); }
 			.step-detail .var-row { display: flex; gap: var(--shu-space-4); padding: var(--shu-space-1) 0; }
-			.step-detail .var-name { font-weight: 600; min-width: 120px; }
-			.step-detail .var-value { word-break: break-all; }
 			.empty { padding: var(--shu-space-6); color: var(--shu-fg-faded); }
 		`,
 	];

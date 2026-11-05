@@ -39,3 +39,14 @@ export function endPage(): void {
 	for (const { value, release } of held.values()) release?.(value);
 	held.clear();
 }
+
+/** Returns a load of what `load` loads, made at its first call and held for each call after it: a module a page rarely
+ *  needs loads where it is first used. Within a single-file bundle the module is already present, and the load resolves
+ *  without a fetch. */
+export function loadedOnFirstUse<T>(load: () => Promise<T>): () => Promise<T> {
+	let loaded: Promise<T> | undefined;
+	return () => {
+		loaded ??= load();
+		return loaded;
+	};
+}

@@ -391,13 +391,6 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		.explanation-body { padding: var(--shu-space-3) 0; }
 		.explanation-body p { margin: var(--shu-space-2) 0; }
 		.explanation-body ul { margin: var(--shu-space-2) 0; padding-left: var(--shu-space-6); }
-		.affordance { border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); margin: var(--shu-space-2) 0; overflow: hidden; }
-		.affordance.ready { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-success); }
-		.affordance.not-ready { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-warn); }
-		.choose { display: block; width: 100%; text-align: left; padding: var(--shu-space-4) var(--shu-space-5); background: var(--shu-bg-soft); border: 0; cursor: pointer; font: inherit; color: inherit; border-radius: 0; }
-		.affordance.ready .choose { background: var(--shu-accent-soft); }
-		.affordance.not-ready .choose { background: var(--shu-bg-warn-soft); color: var(--shu-warn); }
-		.choose:hover { background: var(--shu-bg-hover); }
 		.goal { padding: var(--shu-space-4) var(--shu-space-5); margin: var(--shu-space-2) 0; border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); background: var(--shu-bg-soft); }
 		.goal-proved { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-success); }
 		.goal-unknown { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-info); }

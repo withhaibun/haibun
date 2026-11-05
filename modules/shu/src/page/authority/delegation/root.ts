@@ -3,20 +3,15 @@
  * browser extension's background worker doesn't load, so it is apart from the authority area's root. The suite loads at the
  * page's first delegation, since a reader rarely delegates and the suite is a sixth of the page's bundle.
  */
-import { pagePinned } from "../../adapters/page-held.js";
+import { loadedOnFirstUse, pagePinned } from "../../adapters/page-held.js";
 import type { TDelegationSigner } from "./ports.js";
 
 const DELEGATIONS_KEY = "__SHU_DELEGATION_SIGNER__";
 
 /** A signer that loads the signature suite at its first signature, and signs each delegation with it. */
 function signerLoadedOnFirstUse(): TDelegationSigner {
-	let loaded: Promise<TDelegationSigner> | undefined;
-	return {
-		sign: async (document, parent, key) => {
-			loaded ??= import("./adapters/zcap-signer.js").then(({ zcapDelegationSigner }) => zcapDelegationSigner());
-			return (await loaded).sign(document, parent, key);
-		},
-	};
+	const signer = loadedOnFirstUse(() => import("./adapters/zcap-signer.js").then(({ zcapDelegationSigner }) => zcapDelegationSigner()));
+	return { sign: async (document, parent, key) => (await signer()).sign(document, parent, key) };
 }
 
 /** Returns the page's delegation signer. */
