@@ -56,6 +56,7 @@ export function stepDeclaration(stepper: AStepper, stepName: string, stepDef: TS
 		...(stepDef.recordData ? { recordData: stepDef.recordData } : {}),
 		capability: requiredAction(stepperName, stepName, stepDef),
 		...(stepDef.readsAt ? { readsAt: stepDef.readsAt } : {}),
+		...(stepDef.writesAt ? { writesAt: stepDef.writesAt } : {}),
 		read: stepDef.read === true,
 		kaname: stepDef.kaname === true,
 		fallback: stepDef.fallback === true,

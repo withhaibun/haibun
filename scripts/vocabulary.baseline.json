@@ -53,7 +53,8 @@
 		"names action as invoked": 2
 	},
 	"modules/core/src/lib/domains/capability-context.ts": {
-		"names action as invoked": 3
+		"names action as granted": 2,
+		"names action as invoked": 4
 	},
 	"modules/core/src/lib/domains/domains.ts": {
 		"names action as granted": 1
@@ -202,12 +203,10 @@
 		"names action as invoked": 2
 	},
 	"modules/web-server-hono/src/pipelines/mcp.ts": {
-		"names action as granted": 3,
-		"names action as invoked": 1
+		"names action as granted": 3
 	},
 	"modules/web-server-hono/src/pipelines/serve-rpc.ts": {
-		"names action as granted": 4,
-		"names action as invoked": 1
+		"names action as granted": 3
 	},
 	"modules/web-server-hono/src/ports.ts": {
 		"names action as granted": 2

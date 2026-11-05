@@ -17,7 +17,8 @@ import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import type { StepRegistry, StepTool } from "@haibun/core/lib/step-registry.js";
 import { lackedByCall } from "@haibun/core/lib/domains/actions.js";
 import { allocateSyntheticSeqPath } from "@haibun/core/lib/domains/host-id.js";
-import { runActingAs } from "@haibun/core/lib/domains/capability-context.js";
+import { runAsCaller, runReadingAt } from "@haibun/core/lib/domains/capability-context.js";
+import type { AccessLevel } from "@haibun/core/lib/domains/resources.js";
 import { callAtRunningPath, notARead } from "../domains/web-server.js";
 
 /** Who makes a call and under what: the actions the request invoked and those its caller holds, who proved themselves,
@@ -80,7 +81,7 @@ export async function recordedRefusal(within: TDispatchWithin, caller: TCaller, 
 export const dispatchedAs = (within: TDispatchWithin, caller: TCaller): DispatchContext => ({ ...within, grantedCapability: caller.granted, held: caller.held });
 
 /** Runs a call's step as whoever proved themselves at the boundary, so what the step records names the reader who called
- *  it rather than the process that carried it out. */
-export function dispatchCall(within: TDispatchWithin, caller: TCaller, featureStep: TFeatureStep): Promise<TStepResult> {
-	return runActingAs(caller.principal, () => proveClaimed(dispatchedAs(within, caller), featureStep), caller.restsOn);
+ *  it rather than the process that carried it out, reading at `readingAt` at most where the call requests a level. */
+export function dispatchCall(within: TDispatchWithin, caller: TCaller, featureStep: TFeatureStep, readingAt?: AccessLevel): Promise<TStepResult> {
+	return runAsCaller(caller, () => runReadingAt(readingAt, () => proveClaimed(dispatchedAs(within, caller), featureStep)));
 }

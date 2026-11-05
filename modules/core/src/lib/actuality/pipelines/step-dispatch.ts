@@ -25,7 +25,18 @@ import { normalizeDomainKey } from "../../domains/domains.js";
 import { assertFact } from "../../records/pipelines/facts.js";
 import { entailmentRecorded } from "../../records/derivations/claim.js";
 import { doStepperCycle, enterPhase } from "../../steps/pipelines/stepper-cycles.js";
-import { actingAs, askedIn, callerHolds, readScope, runInStep, runInvoking, runReadingAsHeld, runStatedAt, stepInFlight, writtenLevel } from "../../domains/capability-context.js";
+import {
+	actingAs,
+	askedIn,
+	callerHolds,
+	readScope,
+	runInStep,
+	runInvoking,
+	runReadingOnceAsHeld,
+	runStatedAt,
+	stepInFlight,
+	writtenLevel,
+} from "../../domains/capability-context.js";
 import { capabilityAllows } from "../../domains/actions.js";
 import { SEQ_PATH_LABEL } from "../../domains/resources.js";
 import { SEQ_PATH_ACCESS, actualityFeatureOf, type TRecordName } from "../domains/seq-path.js";
@@ -163,7 +174,7 @@ function authorityOf(ctx: DispatchContext): { grantedCapability: string | string
  */
 export function runAsDispatched<T>(ctx: DispatchContext, run: () => Promise<T>): Promise<T> {
 	const { grantedCapability, held } = authorityOf(ctx);
-	return runInvoking({ invoked: grantedCapability, held }, () => runStatedAt(readScope(), () => runReadingAsHeld(held, run)));
+	return runInvoking({ invoked: grantedCapability, held }, () => runStatedAt(readScope(), () => runReadingOnceAsHeld(held, run)));
 }
 
 /** What a node of a proof performs in place of a step's action: the proof of its statements, which its caller resolves. */

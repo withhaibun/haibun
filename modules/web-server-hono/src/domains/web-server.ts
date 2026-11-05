@@ -7,7 +7,7 @@
  */
 import { z } from "zod";
 import type { Context } from "hono";
-import { ENDPOINT_CLASS, ENDPOINT_LABEL, PersistedVertexSchema } from "@haibun/core/lib/domains/resources.js";
+import { AccessLevelSchema, ENDPOINT_CLASS, ENDPOINT_LABEL, PersistedVertexSchema } from "@haibun/core/lib/domains/resources.js";
 import { MODULE_OPTION_PREFIX } from "@haibun/core/lib/domains/protocol.js";
 import { SIGNATURE_HEADER } from "@haibun/core/lib/domains/signature-header.js";
 import { isDev, PRODUCTION } from "@haibun/core/lib/domains/dev-mode.js";
@@ -76,6 +76,8 @@ export const EndpointSchema = PersistedVertexSchema.extend({
 	method: z.string(),
 	description: z.string(),
 	endpointClass: z.enum([ENDPOINT_CLASS.route, ENDPOINT_CLASS.service]).optional(),
+	/** The level of records the route reads, where its purpose states one. */
+	reads: AccessLevelSchema.optional(),
 	generatedAtTime: z.coerce.date(),
 });
 export type TEndpoint = z.infer<typeof EndpointSchema>;

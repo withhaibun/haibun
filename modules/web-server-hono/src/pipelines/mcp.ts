@@ -22,7 +22,7 @@ import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { answeredFor } from "@haibun/core/lib/call-step.js";
 import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { stepsInstructions, toolDefinition } from "@haibun/core/lib/step-discovery.js";
-import { actingAs, authorizedWith, callerHolds, restingOn, runActingAs, runInvoking, runReadingAsCaller, shownTo } from "@haibun/core/lib/domains/capability-context.js";
+import { actingAs, authorizedWith, callerHolds, restingOn, runActingAs, runAsCaller, shownTo } from "@haibun/core/lib/domains/capability-context.js";
 import { ACTUALITY_HEADER, actualityRefusal, refusalSaid } from "@haibun/core/lib/rpc-wire.js";
 import { admitsOrigin, PRESENTED_REQUEST_HEADERS } from "../domains/web-server.js";
 import type { Context, IWebServer, TCapabilityVerifier } from "../ports.js";
@@ -139,7 +139,7 @@ function verifiedRequests({ world, verifier, webserver }: TMcpParts) {
 		if (otherActuality) return c.json(otherActuality, 400);
 		// An event stream is sent uncompressed.
 		c.header("Cache-Control", "no-transform");
-		await runInvoking({ invoked: granted, held }, () => runActingAs(principal, () => runReadingAsCaller(held, next), restsOn));
+		await runAsCaller({ granted, held, principal, restsOn }, next);
 	};
 }
 

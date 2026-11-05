@@ -3,7 +3,7 @@
  * on it, and records each mounted route as an endpoint.
  */
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
-import { runAsRequest } from "@haibun/core/lib/domains/capability-context.js";
+import { runAsReaderAt, runAsRequest } from "@haibun/core/lib/domains/capability-context.js";
 import { Hono } from "hono";
 import { LinearRouter } from "hono/router/linear-router";
 import { bodyLimit } from "hono/body-limit";
@@ -181,7 +181,7 @@ export class ServerHono implements IWebServer {
 		this.validatePath(path);
 		this.ensureNotMounted(type, path);
 		this.eventLogger.debug(`ServerHono: adding ${type} route at ${path} (${purpose.description})`);
-		this.registerRoute(type, path, handlers);
+		this.registerRoute(type, path, handlers, purpose);
 		this.mount(type, path, handlers.toString(), purpose);
 	}
 
@@ -285,9 +285,12 @@ export class ServerHono implements IWebServer {
 		if (!statSync(folder).isDirectory()) throw new Error(`ServerHono: "${folder}" is not a directory`);
 	}
 
-	private registerRoute(type: TRouteTypes, path: string, [handler, ...more]: TRequestHandler[]): void {
+	/** Mounts a route's handlers. A route whose purpose states a read runs its handler as a reader at that level, since a
+	 *  request holds only what its route states. */
+	private registerRoute(type: TRouteTypes, path: string, [handler, ...more]: TRequestHandler[], { reads }: TRoutePurpose): void {
 		if (!handler) throw new Error(`ServerHono: a ${type} route at "${path}" doesn't have a handler`);
-		this._app.on(type.toUpperCase(), path, handler, ...more);
+		const answering: TRequestHandler = reads === undefined ? handler : (c) => runAsReaderAt(reads, async () => await handler(c));
+		this._app.on(type.toUpperCase(), path, answering, ...more);
 	}
 
 	/** What is served is recorded as its Endpoint, so the graph holds every route the instance serves. */
@@ -307,6 +310,7 @@ export class ServerHono implements IWebServer {
 				method: type.toUpperCase(),
 				description: purpose.description,
 				endpointClass: purpose.service ? ENDPOINT_CLASS.service : ENDPOINT_CLASS.route,
+				reads: purpose.reads,
 				generatedAtTime: new Date().toISOString(),
 			})
 			.catch((e) => this.eventLogger.error(`persistEndpoint ${type} ${path}: ${e}`));

@@ -6,7 +6,7 @@ import type { FeatureVariables } from "../../actuality/pipelines/feature-variabl
 import type { TWorld, TEnvVariables } from "../../actuality/domains/world.js";
 import type { TOptionValue, TFeatures, TSourceLocation, TStepInput } from "../../actuality/domains/actuality.js";
 import type { TSeqPath, TActionResult, TStepArgs, TStepValue, TStepResult, TFeatureResult, TExecutorResult, THaibunEvent, TProvenanceIdentifier } from "../../domains/protocol.js";
-import type { TCoercionSite, TDomainDefinition } from "../../domains/resources.js";
+import type { AccessLevel, TCoercionSite, TDomainDefinition } from "../../domains/resources.js";
 import type { TStepReads } from "../../domains/actions.js";
 import type { TListing, TListQuery, TListStage } from "../../domains/lists.js";
 import type { IQuadStore } from "../ports.js";
@@ -136,6 +136,9 @@ type TStepValuesMap = Record<string, TStepValue>;
 
 type TStepperStepBase = TStepReads & {
 	description: string;
+	/** The levels of the records the step writes, where a route calls it: with `readsAt`, the actions a route holds to call
+	 *  it (`callStepAsRoute`). */
+	writesAt?: AccessLevel[];
 	/** A kaname step of the types it takes (Japanese: the rivet at the pivot of a fan, the vital point): a record's column shows
 	 *  its type's kaname steps first, then its other applicable steps, and the actions bar and MCP list them first. A type has a
 	 *  few. */

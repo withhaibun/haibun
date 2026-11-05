@@ -8,6 +8,7 @@ import type { IRouteRegistry } from "@haibun/core/lib/actuality.js";
 import type { TRpcMethod } from "@haibun/core/lib/transport/ports.js";
 import type { TRestsOn } from "@haibun/core/lib/domains/authority-types.js";
 import type { TRouteTypes } from "./domains/web-server.js";
+import type { AccessLevel } from "@haibun/core/lib/domains/resources.js";
 
 export type { Context, MiddlewareHandler, Hono };
 
@@ -21,6 +22,9 @@ export type TRoutePurpose = {
 	description: string;
 	/** Set on a service route of the app (/rpc, /sse), which its endpoint records as a service rather than a page route. */
 	service?: true;
+	/** The level of records the route reads, where it serves what readers at that level may read, such as a DID document:
+	 *  its handler runs as a reader at that level. A request otherwise holds only what its route states. */
+	reads?: AccessLevel;
 };
 
 export interface IWebServer extends IRouteRegistry {

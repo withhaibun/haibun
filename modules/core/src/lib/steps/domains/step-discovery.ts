@@ -77,6 +77,8 @@ export const StepDescriptorSchema = z
 		capability: ActionSchema,
 		/** The access level of the records the step reads, where the step states one. A caller's read must reach this level. */
 		readsAt: AccessLevelSchema.optional(),
+		/** The access levels of the records the step writes, where it states them for a route that calls it. */
+		writesAt: z.array(AccessLevelSchema).optional(),
 		/** Whether the step is a read. A call that requests a read must name such a step, and actuality returns the result of
 		 *  a read over a transport without recording a step. */
 		read: z.boolean(),

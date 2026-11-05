@@ -43,7 +43,13 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 					type: "as:Service",
 					instrumentation: true,
 					id: "url",
-					properties: { url: LinkRelations.IDENTIFIER.rel, method: LinkRelations.TAG.rel, description: LinkRelations.NAME.rel, endpointClass: LinkRelations.TAG.rel },
+					properties: {
+						url: LinkRelations.IDENTIFIER.rel,
+						method: LinkRelations.TAG.rel,
+						description: LinkRelations.NAME.rel,
+						endpointClass: LinkRelations.TAG.rel,
+						reads: LinkRelations.TAG.rel,
+					},
 					// An endpoint is part of the host that serves it, which a request observed reaching it names.
 					edges: { isPartOf: { rel: LinkRelations.PART_OF.rel, range: HTTP_HOST_LABEL } },
 					// url is the endpoint's identity: the natural lookup filter (strings are queryable only by manual opt-in).

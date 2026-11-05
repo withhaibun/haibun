@@ -13,7 +13,8 @@ import { basicAuthUsers } from "@haibun/core/lib/domains/basic-auth.js";
 import { eventHubOfTest, freePort } from "@haibun/core/lib/test/lib.js";
 import { recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { storeDeclaring } from "@haibun/core/lib/test/declared-types.js";
-import { ActionSchema } from "@haibun/core/lib/domains/actions.js";
+import { ActionSchema, readAction } from "@haibun/core/lib/domains/actions.js";
+import { Access } from "@haibun/core/lib/domains/resources.js";
 import { actingAs, callerHolds, readingAt, runActingAs, runAuthorizedWith, runInStep, runReadingAt, stepInFlight } from "@haibun/core/lib/domains/capability-context.js";
 
 const mockLogger = eventHubOfTest();
@@ -168,7 +169,7 @@ describe("ServerHono", () => {
 			const port = await freePort();
 			server.addRoute("get", "/as", P, async (c) => {
 				const read = await Promise.resolve()
-					.then(() => readingAt())
+					.then(readingAt)
 					.then(String, (e: unknown) => `refused: ${String(e)}`);
 				return c.json({ step: String(stepInFlight()?.seqPath), authorized: callerHolds(), as: String(actingAs()), read });
 			});
@@ -177,6 +178,13 @@ describe("ServerHono", () => {
 			);
 			const seen = await (await fetch(`http://127.0.0.1:${port}/as`)).json();
 			expect(seen).toEqual({ step: "undefined", authorized: [], as: "undefined", read: expect.stringMatching(/^refused: .*requires a read action/) });
+		});
+
+		it("runs a route whose purpose states a read as a reader at that level", async () => {
+			const port = await freePort();
+			server.addRoute("get", "/public", { ...P, reads: Access.public }, (c) => c.json({ read: readingAt(), authorized: callerHolds() }));
+			await server.listen("test", port);
+			expect(await (await fetch(`http://127.0.0.1:${port}/public`)).json()).toEqual({ read: Access.public, authorized: [readAction(Access.public)] });
 		});
 
 		it("refuses a body past its limit before a route reads it", async () => {

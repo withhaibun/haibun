@@ -22,8 +22,7 @@ import { proveClaimed, type DispatchContext } from "../../actuality/pipelines/st
 import { allocateSyntheticSeqPath } from "../../domains/host-id.js";
 import type { TSeqPath, TStepResult } from "../../domains/protocol.js";
 import { runAsCaller } from "../../domains/capability-context.js";
-import { readAction, writeAction } from "../../domains/actions.js";
-import type { AccessLevel } from "../../domains/resources.js";
+import { actionsToReadAndWrite } from "../../domains/actions.js";
 
 /**
  * Returns the feature step that a call from a transport (RPC, MCP) runs as, with input that holds each value as the step
@@ -117,20 +116,16 @@ export async function callStatedStepFrom(from: { getWorld: () => TWorld; stepper
 
 /**
  * Calls a step by name from a route, as the caller the route states. A route that writes, or reads what isn't public, acts
- * through a declared step: the call holds the step's required action, a read at `reads` and a write at each level of
- * `writes` broader than `reads`, acting as `principal`, the party for which the route acts once it has checked what its
- * protocol requires, such as a request's state.
- * The step's gate, record and proof are a call's, so what the route did reads as that step and why it holds.
+ * through a declared step: the call holds the step's required action and the read and writes the step declares
+ * (`readsAt`, `writesAt`), acting as `principal`, the party for which the route acts once it has checked what its
+ * protocol requires, such as a request's state. The step's gate, record and proof are a call's, so what the route did
+ * reads as that step and why it holds.
  */
-export function callStepAsRoute(
-	world: TWorld,
-	method: string,
-	input: Record<string, unknown>,
-	as: { principal: string | undefined; reads: AccessLevel; writes: AccessLevel[] },
-): Promise<TStepCall> {
-	const required = runRegistry(world).named(method).descriptor.capability;
-	const held = [required, readAction(as.reads), ...as.writes.map(writeAction)];
-	return runAsCaller({ held, principal: as.principal }, () => callStatedStepFrom({ getWorld: () => world, steppers: runSteppers(world) }, method, input));
+export function callStepAsRoute(world: TWorld, method: string, input: Record<string, unknown>, principal: string | undefined): Promise<TStepCall> {
+	const { capability, readsAt, writesAt } = runRegistry(world).named(method).descriptor;
+	if (readsAt === undefined) throw new Error(`${method} is called from a route and doesn't state readsAt, the level of the records it reads`);
+	const held = [capability, ...actionsToReadAndWrite(readsAt, writesAt === undefined ? [] : writesAt)];
+	return runAsCaller({ held, principal }, () => callStatedStepFrom({ getWorld: () => world, steppers: runSteppers(world) }, method, input));
 }
 
 /** Returns the result of `tool` for a caller that reads what the step changed. It calls the read step that the
