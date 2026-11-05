@@ -5,7 +5,7 @@
  */
 import { html, css, nothing, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
-import { jsonDisclosure, literalWithJson, recordJson } from "./json-disclosure.js";
+import { disclosure, jsonDisclosure, literalWithJson, recordJson } from "./json-disclosure.js";
 import { jsonCarried, RecordsSchema, isRecord } from "@haibun/core/lib/domains/json-text.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
@@ -38,11 +38,12 @@ import {
 } from "../controllers/catalog-controller.js";
 import { propertyVocabulary } from "../../derivations/ontology-projection.js";
 import { linkHtml, paneHref, refHref } from "./ref-navigation.js";
+import { titlePane } from "../derivations/pane-kinds.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { pageAddress } from "../controllers/hash-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { counted, statedTotal, type TCallLink, type TCounted } from "@haibun/core/lib/domains/hypermedia.js";
-import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
+import { isJsonMedia, MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { ClockController } from "../controllers/clock-controller.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
@@ -240,6 +241,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		this.products = products;
 		this.annotationsList = [];
 		this.setState({ individualId: String(_summary || ""), persistedAs: label, loading: false, fromStore: undefined });
+		this.#statedError = this.statedError();
 	}
 
 	/** Write a note the reader authored in the body, and re-resolve so it reads back anchored. The body reports what was
@@ -269,10 +271,23 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		this.edges = result.edges as EdgeData[];
 		this.incomingCount = result.incomingCount;
 		this.products = result;
-		// The pane is titled by the record's title once the record is read, rather than by its id. A view outside a page's pane
-		// (a report's) doesn't title one.
-		const paneId = this.closest<HTMLElement>(SHU_TAG.COLUMN_PANE)?.dataset.columnKey;
-		if (paneId !== undefined) this.dispatchEvent(new CustomEvent(SHU_EVENT.PANE_RELABEL, { detail: { paneId, label: this.recordTitle() }, bubbles: true, composed: true }));
+		this.#statedError = this.statedError();
+		// The pane is titled by the record's title once the record is read, rather than by its id.
+		titlePane(this, () => this.recordTitle());
+	}
+
+	/** The reason the open record states for its failure, as a refused verification does, shown first as the page shows a
+	 *  refusal: its first statement, with the control that opens why the step that wrote the record was refused. The whole
+	 *  reason reads in its field. Derived once as the record loads, so the refusal shown is one object across renders. */
+	#statedError: TPageRefusal | undefined = undefined;
+
+	private statedError(): TPageRefusal | undefined {
+		const label = this.state.persistedAs;
+		const fields = this.vertex === null ? {} : extractFieldEntries(this.vertex, label);
+		const reason = Object.entries(fields).find(([k]) => getFieldRel(label, k) === LinkRelations.ERROR.rel)?.[1];
+		if (typeof reason !== "string" || reason === "") return undefined;
+		const generating = this.edges.find((e) => relationOfPredicate(e.type, label) === LinkRelations.WAS_GENERATED_BY.rel);
+		return { error: itemAt(reason.split(REASON_DETAIL, 1), 0), step: generating === undefined ? undefined : idOf(generating.target) };
 	}
 
 	/** The open record's title, by the title of a record its edges point at where its type is titled by an edge. */
@@ -400,7 +415,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 				? html`<shu-record-steps ?active=${this.#paneActive} label=${persistedAs} record-id=${individualId} .links=${this.vertex?._links} .fragment=${this.fragment} .fileAt=${this.fileAt} @step-success=${this.#onStepSuccess}></shu-record-steps>`
 				: nothing;
 
-		return html`${unsafeHTML(this.emitHypermediaScript(this.#augmentedProducts() ?? this.products))}${this.renderColumnSettings()}<div class="entity-content ${this.#isFuture() ? TIME_SYNC_CLASS.FUTURE : ""}">${this.renderFromStore()}${recordStepsBar}${this.renderStatedError(fields)}${unsafeHTML(`${contentHtml}${recordJson(this.vertex, false)}`)}${this.renderBodyArea(contentIframe)}</div>`;
+		return html`${unsafeHTML(this.emitHypermediaScript(this.#augmentedProducts() ?? this.products))}${this.renderColumnSettings()}<div class="entity-content ${this.#isFuture() ? TIME_SYNC_CLASS.FUTURE : ""}">${this.renderFromStore()}${recordStepsBar}${this.#statedError === undefined ? nothing : html`<shu-refusal .refusal=${this.#statedError}></shu-refusal>`}${unsafeHTML(`${contentHtml}${recordJson(this.vertex, false)}`)}${this.renderBodyArea(contentIframe)}</div>`;
 	}
 
 	/** The part of a file of `mediaType` at which a link the record offers opens it: the part a reference named, or the page of
@@ -598,8 +613,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			: "";
 		const body = `<div class="body-container">${toolbar}${iframeHtml}${refsHtml}</div>`;
 		// A JSON body is a document's data, as a signed capability is, so it starts closed as the record's Data does.
-		const isData = active.media === MEDIA_TYPE.json || active.media === MEDIA_TYPE.jsonld;
-		return isData ? `<details class="record-json" data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_DOCUMENT}"><summary>Document</summary>${body}</details>` : body;
+		return isJsonMedia(active.media) ? disclosure(SHU_TEST_IDS.COLUMN_BROWSER.BODY_DOCUMENT, "Document", body, false) : body;
 	}
 
 	/** The reading the reader is shown, and the one whose body's text is to read: the one the reader switched to, where this
@@ -706,17 +720,6 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	 * fields out of the field table, but renderContentIframe only handles linked `hasBody` sub-resources, so a literal
 	 * `content` value otherwise doesn't render.
 	 */
-	/** A record that states why it failed, as a refused verification does, shows that reason first as the page shows a refusal:
-	 *  its first statement, with the control that opens why the step that wrote the record was refused. The whole reason
-	 *  reads in its field. */
-	private renderStatedError(fields: Record<string, string | string[]>): TemplateResult | typeof nothing {
-		const label = this.state.persistedAs;
-		const reason = Object.entries(fields).find(([k]) => getFieldRel(label, k) === LinkRelations.ERROR.rel)?.[1];
-		if (typeof reason !== "string" || reason === "") return nothing;
-		const generating = this.edges.find((e) => relationOfPredicate(e.type, label) === LinkRelations.WAS_GENERATED_BY.rel);
-		return html`<shu-refusal .refusal=${{ error: itemAt(reason.split(REASON_DETAIL, 1), 0), ...(generating ? { step: idOf(generating.target) } : {}) }}></shu-refusal>`;
-	}
-
 	private renderBodyLiterals(persistedAs: string): string {
 		if (!this.vertex) return "";
 		return Object.entries(extractBodyLiterals(this.vertex, persistedAs))

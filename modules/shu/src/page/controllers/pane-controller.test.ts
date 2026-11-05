@@ -198,9 +198,6 @@ describe("the page's panes", () => {
 						if (!p) throw new Error(`test stub strip: removePane index ${i} out of range (have ${this.panes.length})`);
 						p.remove();
 					}
-					publishPanes() {
-						/* no-op: the breadcrumb is not under test here */
-					}
 					updateAccordion() {
 						/* no-op: layout is not under test here */
 					}
@@ -415,9 +412,11 @@ describe("the page's panes", () => {
 		requestPane({ paneType: "component", tag: "shu-monitor-column", label: "M" });
 		await flush();
 		const address = ShuElement.getHash();
-		relabelPane("e:File:677eba34", "invoice-jan2026.txt");
+		const pane = document.querySelector('shu-column-pane[data-column-key="e:File:677eba34"]');
+		if (pane === null) throw new Error("the record's pane isn't open");
+		relabelPane(pane, "invoice-jan2026.txt");
 		await flush();
-		expect(document.querySelector('shu-column-pane[data-column-key="e:File:677eba34"]')?.getAttribute("label")).toBe("invoice-jan2026.txt");
+		expect(pane.getAttribute("label")).toBe("invoice-jan2026.txt");
 		expect(activePane.get()).toBe("shu-monitor-column");
 		expect(ShuElement.getHash()).toBe(address);
 	});

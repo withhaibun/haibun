@@ -56,10 +56,14 @@ export function jsonDisclosure(value: unknown, name = ""): string {
 	return `<details class="json-disclosure"${open} data-testid="${escAttr(`json-${name || "root"}`)}"><summary>${named}<span class="json-holds">${esc(holds(value))}</span></summary>${parts}</details>`;
 }
 
+/** A section a view shows under its summary, open or closed, as the record's Data and a JSON body are, with `inner` as its
+ *  content, which the caller escapes. */
+export const disclosure = (testId: string, summary: string, inner: string, open: boolean): string =>
+	`<details class="record-json"${open ? " open" : ""} data-testid="${testId}"><summary>${summary}</summary>${inner}</details>`;
+
 /** The whole of a record as JSON, last in the view that shows it, so what the view's fields leave out reads there. It starts
  *  closed where a body follows it, so the body keeps the height in which it reads. */
-export const recordJson = (value: unknown, open: boolean): string =>
-	`<details class="record-json"${open ? " open" : ""} data-testid="${RECORD_JSON}"><summary>Data</summary>${jsonDisclosure(value)}</details>`;
+export const recordJson = (value: unknown, open: boolean): string => disclosure(RECORD_JSON, "Data", jsonDisclosure(value), open);
 
 /**
  * A literal that carries JSON, shown as what it is: the words before it as words, and the JSON as disclosures.

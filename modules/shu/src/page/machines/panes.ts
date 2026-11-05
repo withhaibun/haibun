@@ -42,7 +42,7 @@ export type TPanesEvent =
 	| { type: typeof PANES_EVENT.DISMISS; id: string }
 	| { type: typeof PANES_EVENT.FLAG; id: string; flag: TPaneFlag }
 	| { type: typeof PANES_EVENT.DOCK; id: string; docked: boolean }
-	/** A record's pane titled by its record's title, as its view read it. The pane stays where it stands and active as it was. */
+	/** A pane titled by what its view read, such as a record's title. The pane stays where it stands and active as it was. */
 	| { type: typeof PANES_EVENT.RELABEL; id: string; label: string };
 
 /** Returns the first id of `ids`, or null for an empty list. */
@@ -79,9 +79,9 @@ export function panesTransition(state: TPanesState, event: TPanesEvent): TPanesS
 			const flag = event.pane.flag ?? existing?.flag ?? (event.minimizedBefore ? "min" : undefined);
 			// A request doesn't state where the pane stands, so a docked pane stays docked.
 			const dock = event.pane.docked === undefined && existing?.docked ? true : event.pane.docked;
-			// A request doesn't restate the title a record's view gave its pane, so the record's pane opened again keeps it.
-			const titled = event.pane.paneType === "entity" && event.pane.label === undefined && existing?.paneType === "entity" ? { label: existing.label } : {};
-			return { ...state, desired: new Map(state.desired).set(event.id, { ...event.pane, ...titled, flag, docked: dock } as DesiredPane), active: event.id };
+			// A request that doesn't state a label keeps the label its view gave the pane, so a pane opened again keeps its title.
+			const label = event.pane.label ?? existing?.label;
+			return { ...state, desired: new Map(state.desired).set(event.id, { ...event.pane, label, flag, docked: dock } as DesiredPane), active: event.id };
 		}
 		case PANES_EVENT.ACTIVATE:
 			return state.active === event.id ? state : { ...state, active: event.id };
@@ -106,7 +106,7 @@ export function panesTransition(state: TPanesState, event: TPanesEvent): TPanesS
 			return state.desired.has(event.id) ? { ...state, desired: docked(state.desired, event.id, event.docked) } : state;
 		case PANES_EVENT.RELABEL: {
 			const d = state.desired.get(event.id);
-			return d?.paneType !== "entity" || d.label === event.label ? state : { ...state, desired: new Map(state.desired).set(event.id, { ...d, label: event.label }) };
+			return d === undefined || d.label === event.label ? state : { ...state, desired: new Map(state.desired).set(event.id, { ...d, label: event.label }) };
 		}
 	}
 }

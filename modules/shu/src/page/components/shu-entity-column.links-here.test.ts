@@ -41,6 +41,6 @@ describe("shu-entity-column what links here", () => {
 		document.body.appendChild(pane);
 		await el.open("t1", "Task");
 		await el.updateComplete;
-		expect(titles.at(-1)).toEqual({ paneId: "e:Task:t1", label: instanceLabel({ "@id": heldRecordIri("Task", "t1"), title: "a task" }) });
+		expect(titles.at(-1)).toEqual({ label: instanceLabel({ "@id": heldRecordIri("Task", "t1"), title: "a task" }) });
 	});
 });

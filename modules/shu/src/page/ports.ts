@@ -257,8 +257,6 @@ export type TStripElement = HTMLElement & {
 	layoutColumns(): void;
 	updateAccordion(): void;
 	applyActive(): void;
-	/** States the panes and their labels to the views that list them, such as the breadcrumb. */
-	publishPanes(): void;
 };
 
 /** The names a pane strip marks its panes with and follows their controls by: the pane element's tag, the attributes of a
@@ -289,6 +287,8 @@ export type TPaneStrip = {
 	/** Returns the view of the pane `id`, or undefined where the strip doesn't hold the pane. */
 	view(id: string): HTMLElement | undefined;
 	remove(id: string): void;
+	/** Sets the label of the pane `id`, a pane the page renders, such as its index pane, among them. */
+	label(id: string, label: string): void;
 	/** Sets a pane's label, minimize and placement. Returns whether its placement changed. */
 	update(id: string, label: string, minimized: boolean, docked: boolean): boolean;
 	/** Makes a pane and its view, and resolves the view once its element is defined. Resolves undefined where the strip
@@ -300,6 +300,8 @@ export type TPaneStrip = {
 	/** Returns the ids of the panes after the pane `source` is in that a prune closes: the panes that aren't pinned or
 	 *  docked. Undefined where `source` isn't in a pane of the strip. */
 	after(source: Element | Event): string[] | undefined;
+	/** Returns the id of the pane `source` is in, or undefined where it isn't in a pane of the strip. */
+	paneOf(source: Element | Event): string | undefined;
 	/** Unpins and closes the pane `id`, which returns to where the page declares it. */
 	close(id: string): void;
 	/** Calls `handler` with each change a pane's own control makes. */

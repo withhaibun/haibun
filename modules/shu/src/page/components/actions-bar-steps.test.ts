@@ -113,9 +113,9 @@ describe("the actions bar's step mode", () => {
 
 	it("offers the steps for the selected type first and marked, then every other step once, each by its method", () => {
 		const options = stepOptions([SHOW, LIST], [LIST]);
-		expect(options.map((o) => [o.value, o.label])).toEqual([
-			[LIST.method, "● list types"],
-			[SHOW.method, "show graph {name}"],
+		expect(options.map((o) => [o.value, o.mark, o.label])).toEqual([
+			[LIST.method, "● ", "list types"],
+			[SHOW.method, undefined, "show graph {name}"],
 		]);
 	});
 
@@ -218,17 +218,6 @@ describe("a statement typed in step mode", () => {
 			ENTAILMENT.manchester,
 			ENTAILMENT.dl,
 		]);
-	});
-
-	it("opens the step whose sentence begins with a word typed and entered, rather than resolving the word as a statement", async () => {
-		const { history } = await typed("Show");
-		expect(itemAt(callers(history), 0).getAttribute("method")).toBe(SHOW.method);
-	});
-
-	it("resolves part of a word as a statement, since a step's sentence begins with whole words", async () => {
-		const { history } = await typed("sho");
-		expect(callers(history)).toEqual([]);
-		expect(history.querySelector(SHU_TAG.REFUSAL)).not.toBeNull();
 	});
 
 	it("states why in the history where the statement doesn't resolve to one step", async () => {

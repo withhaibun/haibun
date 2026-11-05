@@ -8,6 +8,7 @@ import { ref, createRef } from "lit/directives/ref.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { openRef } from "./ref-navigation.js";
+import { titlePane } from "../derivations/pane-kinds.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { CountedSchema, MAX_PAGE_ROWS, counted, viewCollection, type TCounted } from "@haibun/core/lib/domains/hypermedia.js";
@@ -300,7 +301,8 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 				// Reflect the server's resolved sort, including the per-type default the client didn't explicitly pick, so the result-table indicator highlights the active column.
 				if (data.sort?.current?.field && !this.qSort) viewQuery.set({ sort: data.sort.current.field, order: data.sort.current.order });
 				// The pane is titled by the type it shows rather than the query's text: its header shows the order and its search field the search.
-				if (this.qLabel) this.closest("shu-column-pane")?.setAttribute("label", this.qLabel);
+				const shown = this.qLabel;
+				if (shown) titlePane(this, () => shown);
 			} catch (err) {
 				this.#refusal = refusalOf(err);
 			}

@@ -150,16 +150,27 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 			this.#list.move(e.key === "ArrowDown" ? 1 : -1, offered.length);
 		} else if (e.key === "Enter") {
 			e.preventDefault();
-			const focus = this.#list.focus;
-			const q = this.#list.filter;
-			// One offered option, or the one whose value or label the reader typed whole among several, is the pick.
-			const picked = focus !== undefined ? offered[focus] : offered.length === 1 ? offered[0] : offered.find((o) => o.value === q || o.label === q);
+			const picked = this.#entered(offered);
 			if (picked !== undefined) this.#pick(picked);
 		} else if (e.key === "Escape") {
 			this.#list.close();
 			input.blur();
 		}
 	};
+
+	/** The option Enter picks: the focused one, the one offered alone, the option whose value or label the reader typed whole,
+	 *  the first whose label begins with the words typed, so a word a reader types and enters picks the option it begins,
+	 *  and else the text itself where the control accepts it. Words are whole: `individual` begins `individual … is a …`
+	 *  and doesn't begin `individuals of …`. */
+	#entered(offered: TComboboxOption[]): TComboboxOption | undefined {
+		const focus = this.#list.focus;
+		if (focus !== undefined) return offered[focus];
+		if (offered.length === 1) return offered[0];
+		const q = this.#list.filter;
+		const words = `${q.trim().toLowerCase()} `;
+		const { options } = this.state;
+		return options.find((o) => o.value === q || o.label === q) ?? options.find((o) => o.label.toLowerCase().startsWith(words)) ?? offered.find((o) => o.value === q);
+	}
 
 	#onBlur = (): void => {
 		this.#clock.trailing(BLUR, BLUR_MS, () => this.#list.close());
@@ -215,7 +226,7 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 			group = o.group;
 			const chosen = o.value === this.state.value;
 			const option = html`<li role="option" aria-selected=${String(chosen)} data-value=${o.value} data-testid=${testId === null ? nothing : `${testId}-option-${o.value}`} class=${i === focus ? "focused" : ""}
-				@mouseenter=${() => (this.hovered = i)}><span class="mark" aria-hidden="true">${chosen ? "✓" : ""}</span><div class="option"><div class=${chosen ? "chosen" : ""}>${o.label}</div>${o.secondary === undefined ? nothing : html`<div class="secondary">${o.secondary}</div>`}</div></li>`;
+				@mouseenter=${() => (this.hovered = i)}><span class="mark" aria-hidden="true">${chosen ? "✓" : ""}</span><div class="option"><div class=${chosen ? "chosen" : ""}>${o.mark}${o.label}</div>${o.secondary === undefined ? nothing : html`<div class="secondary">${o.secondary}</div>`}</div></li>`;
 			return [header, option];
 		});
 		return html`<div class="list" popover="manual">

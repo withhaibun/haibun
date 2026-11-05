@@ -34,6 +34,9 @@ const ComboboxOptionSchema = z.object({
 	 * "Declared" vs "Built-in" types in the type selector.
 	 */
 	group: z.string().optional(),
+	/** A mark shown before the label, such as the mark of a step offered for the selected type. It isn't part of the label
+	 *  a reader types, so a typed label matches without it. */
+	mark: z.string().optional(),
 });
 export type TComboboxOption = z.infer<typeof ComboboxOptionSchema>;
 

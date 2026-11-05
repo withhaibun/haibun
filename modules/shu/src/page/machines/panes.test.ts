@@ -47,13 +47,14 @@ describe("the pane machine's table", () => {
 		expect(state.desired.get("g")).toMatchObject({ flag: "min", docked: true });
 	});
 
-	it("titles a record's pane without making it active, and keeps the title where a request for the record doesn't restate it", () => {
+	it("titles a pane without making it active, and keeps the title where a request for the pane doesn't restate it", () => {
 		const RECORD = { paneType: "entity", id: "urn:uuid:1", persistedAs: "File" } as DesiredPane;
 		const titled = after(requested("e:File:1", RECORD), requested("g", GRAPH), { type: PANES_EVENT.RELABEL, id: "e:File:1", label: "invoice.txt" });
 		expect(titled.desired.get("e:File:1")).toMatchObject({ label: "invoice.txt" });
 		expect(titled.active).toBe("g");
 		expect(panesTransition(titled, { type: PANES_EVENT.RELABEL, id: "e:File:1", label: "invoice.txt" })).toBe(titled);
-		expect(panesTransition(titled, { type: PANES_EVENT.RELABEL, id: "g", label: "other" })).toBe(titled);
+		expect(panesTransition(titled, { type: PANES_EVENT.RELABEL, id: "gone", label: "other" })).toBe(titled);
+		expect(panesTransition(titled, { type: PANES_EVENT.RELABEL, id: "g", label: "Graph" }).desired.get("g")).toMatchObject({ label: "Graph" });
 		expect(panesTransition(titled, requested("e:File:1", RECORD)).desired.get("e:File:1")).toMatchObject({ label: "invoice.txt" });
 	});
 

@@ -77,7 +77,7 @@ function isCompositeProperty(prop: TInputProperty | undefined): prop is TInputPr
 }
 
 /** What an empty input shows: what its schema describes the field as, or `named` where the schema doesn't describe it. */
-const describedAs = (prop: TInputProperty | undefined, named: string): string => (prop?.description === undefined ? named : prop.description);
+const describedAs = (prop: TInputProperty | undefined, named: string): string => prop?.description ?? named;
 
 /** Returns the refused fields' causes, by field. */
 function collectFieldErrors(errs: TFieldError[]): Record<string, string> {

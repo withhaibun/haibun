@@ -117,6 +117,23 @@ describe("the combobox", () => {
 		expect(input(combo).value, "and the control shows it").toBe("did:key:z6MkNew");
 	});
 
+	it("picks at Enter the option whose label begins with the whole words entered, and else the text itself", async () => {
+		const combo = await aCombobox();
+		combo.accepts = true;
+		combo.options = [
+			{ value: "of", label: "individuals of {expression}" },
+			{ value: "is-a", label: "individual {address} is a {expression}", mark: "● " },
+		];
+		const changes: string[] = [];
+		combo.addEventListener("combo-change", (e) => changes.push((e as CustomEvent<{ value: string }>).detail.value));
+		for (const text of ["Individual", "indiv"]) {
+			combo.enter(text);
+			await combo.updateComplete;
+			input(combo).dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", cancelable: true }));
+		}
+		expect(changes).toEqual(["is-a", "indiv"]);
+	});
+
 	it("shows the text its holder states for what it holds, and the chosen option's label where its holder doesn't state one", async () => {
 		const combo = await aCombobox();
 		expect(input(combo).value, "the chosen option").toBe("Email");

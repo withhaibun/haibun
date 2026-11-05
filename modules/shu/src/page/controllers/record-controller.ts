@@ -27,10 +27,9 @@ export function titleFields(label: string): string[] {
 export function instanceLabel(v: Record<string, unknown>, linkedTitle?: (edge: string) => string | undefined): string {
 	const type = Fields.persistedTypeOf(v);
 	const catalog = held("a record's title");
-	const titledBy = type === undefined ? undefined : catalog.titledBy[type];
-	const linkedLabel = titledBy?.through && linkedTitle !== undefined ? linkedTitle(titledBy.key) : undefined;
-	const declared = titledBy === undefined || linkedLabel === undefined ? titledBy : { ...titledBy, linkedLabel };
-	return Fields.instanceLabel(v, type === undefined ? undefined : catalog.rels[type], declared, idOf(v));
+	const { rels, titledBy } = type === undefined ? { rels: undefined, titledBy: undefined } : { rels: catalog.rels[type], titledBy: catalog.titledBy[type] };
+	const declared = titledBy?.through && linkedTitle !== undefined ? { ...titledBy, linkedLabel: linkedTitle(titledBy.key) } : titledBy;
+	return Fields.instanceLabel(v, rels, declared, idOf(v));
 }
 
 /** Whether the field table of a record of `label` shows key `k`. */

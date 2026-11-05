@@ -6,6 +6,12 @@ export function browserPaneStrip(doc: Document, elements: CustomElementRegistry,
 	/** A pane's id: its column key, or for the page's index pane, which the page renders, its column type. */
 	const idOf = (pane: TPaneElement): string | null => pane.dataset.columnKey ?? pane.getAttribute(marks.columnType);
 	const paneOf = (id: string): TPaneElement | undefined => strip.panes.find((pane) => pane.dataset.columnKey === id);
+	/** The pane `id` names, the page's index pane among them, which `update` and `label` change. */
+	const heldPane = (id: string): TPaneElement => {
+		const pane = strip.panes.find((p) => idOf(p) === id);
+		if (pane === undefined) throw new Error(`the strip doesn't hold the pane ${id} it changes`);
+		return pane;
+	};
 	const tag = marks.paneTag.toUpperCase();
 	/** Returns the pane `source` is in: an element's closest pane, or the first pane on an event's path, its target's or its
 	 *  current target's, each of which an event states in a different phase of its dispatch. */
@@ -34,14 +40,10 @@ export function browserPaneStrip(doc: Document, elements: CustomElementRegistry,
 			// The strip publishes its panes for each removal it makes, so a reader of the panes sees each one.
 			if (index >= 0) strip.removePane(index);
 		},
+		label: (id, label) => heldPane(id).setAttribute("label", label),
 		update: (id, label, minimized, docked) => {
-			const pane = strip.panes.find((p) => idOf(p) === id);
-			if (pane === undefined) throw new Error(`the strip doesn't hold the pane ${id} it updates`);
-			// A pane titled anew, as a record's pane once its record is read, is stated to the breadcrumb too.
-			if (pane.getAttribute("label") !== label) {
-				pane.setAttribute("label", label);
-				strip.publishPanes();
-			}
+			const pane = heldPane(id);
+			pane.setAttribute("label", label);
 			pane.setMinimized(minimized);
 			if (pane.docked === docked) return false;
 			pane.setDocked(docked);
@@ -79,6 +81,11 @@ export function browserPaneStrip(doc: Document, elements: CustomElementRegistry,
 			for (const pane of strip.panes) pane.setMaximized(maximized !== null && idOf(pane) === maximized);
 			strip.updateAccordion();
 			strip.applyActive();
+		},
+		paneOf: (source) => {
+			const at = sourcePane(source);
+			const pane = strip.panes.find((p) => p === at);
+			return pane === undefined ? undefined : (idOf(pane) ?? undefined);
 		},
 		after: (source) => {
 			const pane = sourcePane(source);

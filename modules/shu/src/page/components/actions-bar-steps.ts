@@ -62,7 +62,8 @@ export const UNDERSTANDING_STEPS: readonly string[] = [RPC_METHOD.SHOW_AXIOMS, R
 export function stepOptions(steps: readonly TStepDefinition[], forTheType: readonly TStepDefinition[]): TComboboxOption[] {
 	const option = (step: TStepDefinition, marked: boolean): TComboboxOption => ({
 		value: step.method,
-		label: `${marked ? FOR_THE_TYPE : ""}${prettifyGwta(step.pattern)}`,
+		label: prettifyGwta(step.pattern),
+		mark: marked ? FOR_THE_TYPE : undefined,
 		secondary: stepSecondary(step),
 		details: stepDetails(step),
 	});
@@ -101,6 +102,8 @@ export class ActionsBarSteps implements ReactiveController {
 	#asks = false;
 	/** The step the selector shows as chosen. */
 	#chosen = "";
+	/** The selector's options, with the selected type that made them. */
+	#optionsHeld: { label: string; options: TComboboxOption[] } | undefined = undefined;
 
 	constructor(host: TControllerHost, deps: TActionsBarStepsDeps) {
 		this.#host = host;
@@ -129,6 +132,7 @@ export class ActionsBarSteps implements ReactiveController {
 		this.#steps = await getAvailableSteps();
 		this.#heads = waypointOptions(await getAvailablePredicates());
 		this.#asks = conversationSteps() !== undefined;
+		this.#optionsHeld = undefined;
 		this.#host.requestUpdate();
 	}
 
@@ -196,10 +200,12 @@ export class ActionsBarSteps implements ReactiveController {
 			</div>`;
 	}
 
-	/** The selector's options: the steps, those for the selected type first, then the waypoints' heads. */
+	/** The selector's options: the steps, those for the selected type first, then the waypoints' heads. They are kept until the
+	 *  steps, the heads or the selected type change. */
 	#options(): TComboboxOption[] {
 		const label = this.#deps.selectedLabel();
-		return [...stepOptions(this.#steps, label ? stepsForContext(label) : []), ...this.#heads];
+		if (this.#optionsHeld?.label !== label) this.#optionsHeld = { label, options: [...stepOptions(this.#steps, label ? stepsForContext(label) : []), ...this.#heads] };
+		return this.#optionsHeld.options;
 	}
 
 	/** Filters the steps by `text`, as the reader typing it in the step selector does. */
@@ -209,19 +215,13 @@ export class ActionsBarSteps implements ReactiveController {
 		selector.enter(text);
 	}
 
-	/** A pick of a step opens its caller, and a pick of a waypoint's head the caller of the step that ensures it. Typed words
-	 *  that begin an option's sentence, as a word a reader types and enters does, pick the first such option; other text is
-	 *  a statement, resolved to the step it states. The words are whole, so `individual` begins `individual … is a …` and
-	 *  doesn't begin `individuals of …`. */
+	/** A pick of a step opens its caller, and a pick of a waypoint's head the caller of the step that ensures it; text that doesn't
+	 *  name either is a statement, resolved to the step it states. */
 	#onComboChange = (e: CustomEvent): void => {
-		const value: string = e.detail?.value;
-		if (!value) return;
-		const options = this.#options();
-		const typed = `${value.toLowerCase()} `;
-		const picked = options.find((o) => o.value === value) ?? options.find((o) => o.label.replace(FOR_THE_TYPE, "").toLowerCase().startsWith(typed));
-		if (picked === undefined) return void this.#openStatement(value);
-		const method = picked.value;
+		const method = e.detail?.value;
+		if (!method) return;
 		if (this.#heads.some((head) => head.value === method)) return this.open(requireStep(ENSURE), { args: { outcome: method } });
+		if (!this.#steps.some((step) => step.method === method)) return void this.#openStatement(method);
 		this.#chosen = method;
 		this.open(method, {});
 	};

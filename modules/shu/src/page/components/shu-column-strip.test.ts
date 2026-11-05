@@ -8,7 +8,7 @@
  *   - the strip's width is always fully used: the pane that grows into the leftover is the rightmost one that CAN
  *     grow, which is not the rightmost pane when that one is collapsed
  */
-import { describe, it, expect, beforeEach, beforeAll } from "vitest";
+import { describe, it, expect, beforeEach, beforeAll, vi } from "vitest";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { ShuColumnPane } from "./shu-column-pane.js";
 import { ShuColumnStrip } from "./shu-column-strip.js";
@@ -158,6 +158,13 @@ describe("the panes a strip publishes", () => {
 			stripPanes.get().map((pane) => pane.key),
 			"a removed pane is not published",
 		).toEqual(["query", "B"]);
+	});
+
+	it("publishes a pane's label again when its view titles it anew, so the breadcrumb follows it", async () => {
+		const pane = makePane("A");
+		strip.addPane(pane as ShuColumnPane & HTMLElement);
+		pane.setAttribute("label", "invoice-jan2026.txt");
+		await vi.waitFor(() => expect(stripPanes.get().map((held) => held.label)).toEqual(["invoice-jan2026.txt"]));
 	});
 
 	it("moves activation from a removed pane to a pane that takes it, past a pane whose view doesn't", () => {

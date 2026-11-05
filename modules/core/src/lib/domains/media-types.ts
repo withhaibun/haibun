@@ -40,6 +40,9 @@ export const MEDIA_TYPE = {
 	bytes: "application/octet-stream",
 } as const;
 
+/** Whether a body of `media` is JSON data, as plain JSON or JSON-LD. */
+export const isJsonMedia = (media: string): boolean => media === MEDIA_TYPE.json || media === MEDIA_TYPE.jsonld;
+
 /** Whether a media type is an image's. */
 export const isImageFormat = (encodingFormat: string): boolean => encodingFormat.startsWith("image/");
 

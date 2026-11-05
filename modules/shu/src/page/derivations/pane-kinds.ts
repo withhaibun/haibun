@@ -8,24 +8,24 @@ import { PartSchema, type TPart } from "@haibun/core/lib/domains/resources.js";
 import { ActionSchema } from "@haibun/core/lib/domains/actions.js";
 import { StepMethodSchema } from "@haibun/core/lib/steps/domains/step-method.js";
 import { PART_DIRECTIVE, partDirectiveFor, splitPart } from "@haibun/core/lib/domains/typed-links.js";
-import { SHU_ATTR, SHU_TAG } from "../../domains/elements.js";
+import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { splitPaneEntry } from "./address.js";
 import { objectId } from "./record-fields.js";
 
 const FlagSchema = z.enum(["min", "max"]).optional();
-/** Where a pane stands: minimized or maximized, and docked along the bottom of the page or a column. */
-const PLACEMENT = { flag: FlagSchema, docked: z.boolean().optional() };
+/** Where a pane stands: minimized or maximized, and docked along the bottom of the page or a column, and the label its view
+ *  gave it, which titles it in place of the label its kind derives. */
+const PLACEMENT = { flag: FlagSchema, docked: z.boolean().optional(), label: z.string().optional() };
 /** The fields of a pane that shows a record by its type and id, and its placement. */
 const OF_SUBJECT = { persistedAs: z.string(), subject: z.string(), ...PLACEMENT };
 const TagSchema = z.string().regex(/^[a-z][a-z0-9-]*$/);
 
 export const DesiredPaneSchema = z.discriminatedUnion("paneType", [
-	z.object({ paneType: z.literal("component"), tag: TagSchema, label: z.string(), data: z.record(z.string(), z.unknown()).optional(), ...PLACEMENT }),
+	z.object({ paneType: z.literal("component"), tag: TagSchema, data: z.record(z.string(), z.unknown()).optional(), ...PLACEMENT, label: z.string() }),
 	z.object({
 		paneType: z.literal("entity"),
 		id: z.string(),
 		persistedAs: z.string(),
-		label: z.string().optional(),
 		// A part of the record to show, a quoted passage or a fragment of its media. The pane is the record, so a second
 		// reference into the same record opens the same pane.
 		selector: PartSchema.optional(),
@@ -114,7 +114,7 @@ export const PANE_KINDS = {
 			const declared = context.recordComponent(d.persistedAs);
 			return declared === undefined ? SHU_TAG.ENTITY_COLUMN : declared;
 		},
-		label: (d) => d.label ?? d.id,
+		label: (d) => d.id,
 		column: () => "entity",
 		parse: (body) => {
 			const { base, anchor } = splitPart(body);
@@ -220,8 +220,8 @@ export const columnEntryOf = (d: DesiredPane): string => kindOf(d).entry(d, pane
 /** Returns the component that shows a pane. */
 export const tagOf = (d: DesiredPane, context: TPaneContext): string => kindOf(d).tag(d, context);
 
-/** Returns a pane's label. */
-export const labelOf = (d: DesiredPane): string => kindOf(d).label(d);
+/** Returns a pane's label: the label its view gave it, else the label its kind derives. */
+export const labelOf = (d: DesiredPane): string => (d.label === undefined ? kindOf(d).label(d) : d.label);
 
 /** Returns the column type that marks a pane. */
 export const columnTypeOf = (d: DesiredPane): string => kindOf(d).column(d);
@@ -249,6 +249,12 @@ export function parseColEntry(raw: string, context: TPaneContext): DesiredPane |
 function parsedPane(input: unknown): DesiredPane | null {
 	const r = DesiredPaneSchema.safeParse(input);
 	return r.success ? r.data : null;
+}
+
+/** Titles the pane `view` is in by the label `labelOf` returns, as the view read it: the page relabels the pane that sends
+ *  the event. A view outside a page's pane, such as a report's, leaves its title alone, and its label isn't read. */
+export function titlePane(view: HTMLElement, labelOf: () => string): void {
+	if (view.closest(SHU_TAG.COLUMN_PANE) !== null) view.dispatchEvent(new CustomEvent(SHU_EVENT.PANE_RELABEL, { detail: { label: labelOf() }, bubbles: true, composed: true }));
 }
 
 /** A pane's key in the `activePane` signal: its columnKey, or its column-type for the query pane, which doesn't have a

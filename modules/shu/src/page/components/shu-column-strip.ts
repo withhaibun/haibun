@@ -15,6 +15,7 @@ import type { ShuColumnPane } from "./shu-column-pane.js";
 import { revealInDocument } from "./reveal.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { paneKeyOf } from "../derivations/pane-kinds.js";
+import { ObserverController } from "../controllers/observer-controller.js";
 
 type PaneEl = ShuColumnPane & HTMLElement;
 
@@ -45,6 +46,7 @@ export class ShuColumnStrip extends ShuElement<typeof EmptyStateSchema> {
 	];
 
 	private savedLayout: Map<PaneEl, SavedPaneState> | null = null;
+	readonly #observers = new ObserverController(this);
 
 	constructor() {
 		super(EmptyStateSchema);
@@ -57,6 +59,8 @@ export class ShuColumnStrip extends ShuElement<typeof EmptyStateSchema> {
 		this.autoListen(this, SHU_EVENT.COLUMN_MAXIMIZE, this.handlePaneMaximize as EventListener);
 		this.autoListen(this, SHU_EVENT.COLUMN_MINIMIZE, this.handlePaneMinimize as EventListener);
 		this.autoListen(this, SHU_EVENT.COLUMN_DOCK, this.handlePaneDock);
+		// A pane titled anew, as a record's pane once its record is read, is stated to the breadcrumb.
+		this.#observers.attributes(this, ["label"], true, () => this.publishPanes());
 		// The active pane is the `activePane` signal; repaint the DOM active state whenever it changes (a click, a
 		// restore, an open). Pane add/remove also repaints (see addPane/removePane), so a restore naming a not-yet-open
 		// pane lands the moment that pane attaches.
@@ -322,7 +326,7 @@ export class ShuColumnStrip extends ShuElement<typeof EmptyStateSchema> {
 	};
 
 	/** Publish the panes this strip holds, in its order, with their labels, which the breadcrumb reads. */
-	publishPanes(): void {
+	private publishPanes(): void {
 		stripPanes.set(
 			this.panes.map((pane) => ({
 				key: paneKeyOf(pane),

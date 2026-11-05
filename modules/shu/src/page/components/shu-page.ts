@@ -127,7 +127,8 @@ export class ShuPage extends ShuElement<typeof EmptyStateSchema> {
 			const paneId = e.detail?.paneId;
 			if (typeof paneId === "string" && paneId !== INDEX_PANE_KEY) dismissPane(paneId);
 		}) as EventListener);
-		this.autoListen(this, SHU_EVENT.PANE_RELABEL, ((e: CustomEvent<{ paneId: string; label: string }>) => relabelPane(e.detail.paneId, e.detail.label)) as EventListener);
+		// A view titles the pane it is in by what it read.
+		this.autoListen(this, SHU_EVENT.PANE_RELABEL, ((e: CustomEvent<{ label: string }>) => relabelPane(e, e.detail.label)) as EventListener);
 		// A click on a pane link opens the linked pane beside the pane that holds it, in the capture phase, before a view under
 		// the link receives the click.
 		this.autoListen(this, "click", followPaneLink as EventListener, { capture: true });

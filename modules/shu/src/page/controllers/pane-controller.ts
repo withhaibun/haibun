@@ -85,8 +85,8 @@ export const activatePane = (id: string): void => Panes.activate(scope(), id);
 /** Closes a pane. */
 export const dismissPane = (id: string): void => Panes.dismiss(scope(), id);
 
-/** Titles a record's pane by its record's title. */
-export const relabelPane = (id: string, label: string): void => Panes.relabel(scope(), id, label);
+/** Titles the pane `source` is in by `label`, as its view read it. */
+export const relabelPane = (source: Element | Event, label: string): void => Panes.relabel(scope(), source, label);
 
 /** Returns the panes the page shows. */
 export const shownPanes = (): Kinds.DesiredPane[] => [...pagePanes().state.get().desired.values()];

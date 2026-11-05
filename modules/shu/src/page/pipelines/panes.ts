@@ -126,14 +126,20 @@ export function requestFrom(scope: TPanesScope, source: Element | Event, input: 
 	request(scope, input);
 }
 
-/** Titles the record's pane `id` by `label`, as its view read the record. Only the pane's label changes: the pane stays
- *  where it stands, the active pane stays, and the address stays, since it names a record's pane by the record. */
-export function relabel(scope: TPanesScope, id: string, label: string): void {
-	const before = synced(scope);
-	const after = move(scope, { type: PANES_EVENT.RELABEL, id, label });
-	const d = after.desired.get(id);
-	if (after !== before && d !== undefined) scope.held.strip?.update(id, Kinds.labelOf(d), d.flag === "min", Boolean(d.docked));
+/** Titles the pane `source` is in by `label`, as its view read it, such as a record's title or the type a query shows. Only
+ *  the pane's label changes: the pane stays where it stands, the active pane stays, and the address stays, since it names a
+ *  pane by what it shows. A pane the page renders itself, such as its index pane, isn't the machine's, and takes the label as it is. */
+export function relabel(scope: TPanesScope, source: Element | Event, label: string): void {
+	const strip = scope.held.strip;
+	const id = strip?.paneOf(source);
+	if (strip === undefined || id === undefined) return;
+	const d = move(scope, { type: PANES_EVENT.RELABEL, id, label }).desired.get(id);
+	if (d === undefined) strip.label(id, label);
+	else updatePane(strip, id, d);
 }
+
+/** Brings the pane `id` on `strip` to `d`: its label, its minimize and where it stands. Returns whether where it stands changed. */
+const updatePane = (strip: TPaneStrip, id: string, d: DesiredPane): boolean => strip.update(id, Kinds.labelOf(d), d.flag === "min", Boolean(d.docked));
 
 /** Makes `id` the active pane, as the strip or a reader chose it. */
 export function activate(scope: TPanesScope, id: string): void {
@@ -179,7 +185,7 @@ async function reconcile(scope: TPanesScope): Promise<void> {
 	for (const d of [...scope.machine.state.get().desired.values()]) {
 		const id = Kinds.paneIdOf(d);
 		if (live.has(id)) {
-			if (strip.update(id, Kinds.labelOf(d), d.flag === "min", Boolean(d.docked))) placementChanged = true;
+			if (updatePane(strip, id, d)) placementChanged = true;
 			continue;
 		}
 		await openPane(scope, strip, d, id);
