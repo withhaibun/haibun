@@ -313,7 +313,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private rafFrame = 0;
 	private dirtyUntilFrame = 0;
 	private dirtyCause: TWakeCause = "data"; // what set dirtyUntilFrame, named while its grace lasts
-	private drawing?: TGraphFrameLoop; // the gate on the renderer's loop; the scene is paused while it is not drawing
 	/** The library's entity once the scene loaded. The library sets its object on the entity once it laid out its first
 	 *  data, and until then its engine doesn't hold a layout to tick, so the scene doesn't feed or pace it: a reheat before
 	 *  then makes the library's next frame read a layout that doesn't exist. */
@@ -841,7 +840,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		// A-Frame's loop as A-Frame installs it, and the end stops the loop before the renderer is released.
 		const frameTime = this.#parts.frameTime(() => scene.renderer?.getContext?.() as TFenceGl | undefined, DEFAULT_REGULATION_THRESHOLDS.windowSamples);
 		const drawing = this.#parts.frameLoop(scene, () => frameTime.drew());
-		this.drawing = drawing;
 		this.configureGraph(this.graph);
 		// One draw, two media: WebGL shows the graph, the accessible document reads it. The a11y entries drive the same
 		// scene entries a pointer does (activate opens, focus highlights), so keyboard and pointer take one path.

@@ -24,7 +24,7 @@ import {
 	type TWaypointEntry,
 } from "@haibun/core/lib/domains/goal-resolution.js";
 import { VERDICT, isStepEnd } from "@haibun/core/lib/domains/protocol.js";
-import { isPrimitiveDomain, type TDomainKey } from "@haibun/core/lib/domains/domains.js";
+import type { TDomainKey } from "@haibun/core/lib/domains/domains.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { SHU_EVENT, AFFORDANCE_PARAM, SHU_TAG } from "../../domains/elements.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
@@ -157,7 +157,6 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		};
 	}
 
-	private assertedDomains: Set<string> = new Set();
 	private lastScrolledGoal: string | undefined = undefined;
 	private lastScrolledWaypoint: string | undefined = undefined;
 	constructor() {
@@ -235,7 +234,6 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		const held = this.affordances;
 		const waypoints = a.waypoints !== undefined ? a.waypoints : held === null ? undefined : held.waypoints;
 		noteActualityFeature(a.actuality);
-		this.assertedDomains = new Set(a.goals.filter((g) => g.resolution.verdict === VERDICT.proved).map((g) => g.domain));
 		return { ...a, waypoints };
 	}
 
@@ -278,26 +276,6 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		const graph = this.goalGraphs.get(slot);
 		if (!graph) return;
 		presenterIn(this, slot)?.previewNodes(pathIdx === undefined ? null : pathNodeIds(graph, pathIdx));
-	}
-
-	private renderBlockedReasonTpl(a: TForwardAffordance): TemplateResult | "" {
-		if (!this.affordances) return "";
-		const forward = this.affordances.forward;
-		const isArgument = (d: TDomainKey) => isPrimitiveDomain(d) || !forward.some((f) => f.outputDomains.includes(d));
-		const missingTyped = a.inputDomains.filter((d) => !isArgument(d) && !this.assertedDomains.has(d));
-		if (missingTyped.length === 0) return "";
-		const producers = this.producersFor(missingTyped).filter((p) => p.readyToRun);
-		const producerTpl =
-			producers.length > 0
-				? html`<div class="blocked-producers">Producers ready to run: ${producers.map((p) => html`<button class="produce" @click=${(): void => this.chooseStep(p.method)}><code>${p.gwta ?? p.method}</code></button> `)}</div>`
-				: html`<div class="blocked-producers">A producer step isn't registered. Add a step whose <code>productsDomain</code> matches, or assert ${missingTyped.length > 1 ? "these facts" : "this fact"} directly.</div>`;
-		return html`<div class="blocked"><span class="blocked-label">Blocked:</span> input${missingTyped.length > 1 ? "s" : ""} ${missingTyped.map((m, i) => html`${i > 0 ? ", " : ""}${domainRef(m)}`)} ${missingTyped.length > 1 ? "don't have" : "doesn't have"} an asserted fact yet.${producerTpl}</div>`;
-	}
-
-	private producersFor(missing: string[]): TForwardAffordance[] {
-		const fwd = this.affordances?.forward ?? [];
-		const want = new Set(missing);
-		return fwd.filter((a) => a.outputDomains.some((d) => want.has(d)));
 	}
 
 	private renderResolutionTpl(g: TGoalAffordance, goalIdx: number): TemplateResult {
@@ -420,12 +398,6 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		.affordance.ready .choose { background: var(--shu-accent-soft); }
 		.affordance.not-ready .choose { background: var(--shu-bg-warn-soft); color: var(--shu-warn); }
 		.choose:hover { background: var(--shu-bg-hover); }
-		.blocked { padding: var(--shu-space-3) var(--shu-space-5); background: var(--shu-bg-warn-soft); border-top: var(--shu-border-w) solid var(--shu-border-warn); color: var(--shu-warn); }
-		.blocked-label { font-weight: 600; }
-		.blocked-producers { margin-top: var(--shu-space-2); color: var(--shu-fg-muted); }
-		.blocked-producers .produce { background: var(--shu-accent-soft); border: var(--shu-border-w) solid var(--shu-success); color: var(--shu-success); padding: var(--shu-space-1) var(--shu-space-3); margin: 0 var(--shu-space-1); }
-		.blocked-producers .produce:hover { filter: brightness(1.05); }
-		.blocked-producers code { background: transparent; padding: 0; }
 		.goal { padding: var(--shu-space-4) var(--shu-space-5); margin: var(--shu-space-2) 0; border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); background: var(--shu-bg-soft); }
 		.goal-proved { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-success); }
 		.goal-unknown { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-info); }
