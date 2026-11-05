@@ -10,7 +10,7 @@
  * calls `named` itself and catches the error. `callStepByName` returns the seqPath because a caller that records the call
  * needs its identity.
  */
-import type { TWorld } from "../../actuality/domains/world.js";
+import { runSteppers, type TWorld } from "../../actuality/domains/world.js";
 import { runRegistry, type StepTool } from "./step-registry.js";
 import { hostOfMethodName, stepMethodName } from "../domains/step-method.js";
 import type { AStepper, TStepperStep, TFeatureStep } from "../domains/stepper.js";
@@ -123,13 +123,14 @@ export async function callStatedStepFrom(from: { getWorld: () => TWorld; stepper
  * The step's gate, record and proof are a call's, so what the route did reads as that step and why it holds.
  */
 export function callStepAsRoute(
-	from: { getWorld: () => TWorld; steppers: AStepper[] },
+	world: TWorld,
 	method: string,
 	input: Record<string, unknown>,
 	as: { principal: string | undefined; reads: AccessLevel; writes: AccessLevel[] },
 ): Promise<TStepCall> {
-	const required = runRegistry(from.getWorld()).named(method).descriptor.capability;
-	return runAsCaller({ held: [required, readAction(as.reads), ...as.writes.map(writeAction)], principal: as.principal }, () => callStatedStepFrom(from, method, input));
+	const required = runRegistry(world).named(method).descriptor.capability;
+	const held = [required, readAction(as.reads), ...as.writes.map(writeAction)];
+	return runAsCaller({ held, principal: as.principal }, () => callStatedStepFrom({ getWorld: () => world, steppers: runSteppers(world) }, method, input));
 }
 
 /** Returns the result of `tool` for a caller that reads what the step changed. It calls the read step that the

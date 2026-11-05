@@ -14,7 +14,7 @@ import { eventHubOfTest, freePort } from "@haibun/core/lib/test/lib.js";
 import { recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { storeDeclaring } from "@haibun/core/lib/test/declared-types.js";
 import { ActionSchema } from "@haibun/core/lib/domains/actions.js";
-import { runInStep, stepInFlight } from "@haibun/core/lib/domains/capability-context.js";
+import { actingAs, callerHolds, readingAt, runActingAs, runAuthorizedWith, runInStep, runReadingAt, stepInFlight } from "@haibun/core/lib/domains/capability-context.js";
 
 const mockLogger = eventHubOfTest();
 
@@ -164,11 +164,19 @@ describe("ServerHono", () => {
 			await server.close();
 		});
 
-		it("serves a request outside the step that started it listening, so the request doesn't name that step as its own", async () => {
+		it("serves a request as a request of its own, which doesn't gain the step, the authority, the principal or the read of the step that started it listening", async () => {
 			const port = await freePort();
-			server.addRoute("get", "/step", P, (c) => c.text(String(stepInFlight()?.seqPath)));
-			await runInStep({ seqPath: "0.1.0.3", reportsAt: undefined }, () => server.listen("test", port));
-			expect(await (await fetch(`http://127.0.0.1:${port}/step`)).text()).toBe("undefined");
+			server.addRoute("get", "/as", P, async (c) => {
+				const read = await Promise.resolve()
+					.then(() => readingAt())
+					.then(String, (e: unknown) => `refused: ${String(e)}`);
+				return c.json({ step: String(stepInFlight()?.seqPath), authorized: callerHolds(), as: String(actingAs()), read });
+			});
+			await runAuthorizedWith(["*"], () =>
+				runReadingAt(undefined, () => runActingAs("did:example:instance", () => runInStep({ seqPath: "0.1.0.3", reportsAt: undefined }, () => server.listen("test", port)))),
+			);
+			const seen = await (await fetch(`http://127.0.0.1:${port}/as`)).json();
+			expect(seen).toEqual({ step: "undefined", authorized: [], as: "undefined", read: expect.stringMatching(/^refused: .*requires a read action/) });
 		});
 
 		it("refuses a body past its limit before a route reads it", async () => {

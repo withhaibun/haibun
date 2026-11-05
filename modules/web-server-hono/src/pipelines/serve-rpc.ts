@@ -26,7 +26,7 @@ import { mayCall } from "@haibun/core/lib/domains/actions.js";
 import { activeSitePrincipal } from "@haibun/core/lib/domains/host-id.js";
 import { SERVING } from "@haibun/core/lib/domains/serving.js";
 import { streamContext } from "@haibun/core/lib/step-stream-context.js";
-import { runInvoking, runReadingAsHeld, runReadingAt, runActingAs } from "@haibun/core/lib/domains/capability-context.js";
+import { runInvoking, runReadingAsCaller, runReadingAt, runActingAs } from "@haibun/core/lib/domains/capability-context.js";
 import type { IWebServer, TCapabilityVerifier } from "../ports.js";
 import type { IStepTransport, ITransport } from "../domains/transport.js";
 import { notARead } from "../domains/web-server.js";
@@ -84,7 +84,7 @@ export function serveRpc({ world, steppers, webserver, transport, verifier, sess
 				// read it holds, or the narrower level it requested, as in a dispatched step. A caller that doesn't
 				// hold a read action is refused each read and write of records.
 				return await runInvoking({ invoked: granted, held }, () =>
-					runActingAs(principal, () => runReadingAsHeld(held, () => runReadingAt(msg.readingAt, () => served.handle(params))), restsOn),
+					runActingAs(principal, () => runReadingAsCaller(held, () => runReadingAt(msg.readingAt, () => served.handle(params))), restsOn),
 				);
 			} catch (err) {
 				return callFailed(method, `the served method failed: ${errorDetail(err)}`, refusalCarried(err)?.remedy);
@@ -101,7 +101,7 @@ export function serveRpc({ world, steppers, webserver, transport, verifier, sess
 			// What a step reads is bounded by the read its caller holds, in dispatch, and by the level the call requested,
 			// which can only be narrower.
 			const baseIri = requestBaseIri(request?.headers, webserver.origins);
-			const hr = await runWithRequestContext({ baseIri }, () => runReadingAt(msg.readingAt, () => dispatchCall(within, caller, featureStep)));
+			const hr = await runWithRequestContext({ baseIri }, () => runReadingAsCaller(held, () => runReadingAt(msg.readingAt, () => dispatchCall(within, caller, featureStep))));
 			// A step that isn't a read leaves its record, from which a reader reads why it was refused.
 			if (!hr.ok) return callFailed(method, hr.errorMessage, hr.remedy, tool.descriptor.read ? undefined : stepRecordOf(world.tag, featureStep.seqPath));
 			// A step without products that isn't a read states the path of its record, from which a reader reads why it holds.

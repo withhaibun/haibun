@@ -3,7 +3,7 @@
  * on it, and records each mounted route as an endpoint.
  */
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
-import { runOutsideStep } from "@haibun/core/lib/domains/capability-context.js";
+import { runAsRequest } from "@haibun/core/lib/domains/capability-context.js";
 import { Hono } from "hono";
 import { LinearRouter } from "hono/router/linear-router";
 import { bodyLimit } from "hono/body-limit";
@@ -106,8 +106,8 @@ export class ServerHono implements IWebServer {
 		}
 		return new Promise((resolve, reject) => {
 			try {
-				// Each request is served outside the step that started the server (runOutsideStep).
-				const server = serve({ fetch: (req, env) => runOutsideStep(() => this._app.fetch(req, env)), port, hostname: host }, () => {
+				// Each request is served as a request of its own, which holds only what its route states (runAsRequest).
+				const server = serve({ fetch: (req, env) => runAsRequest(async () => await this._app.fetch(req, env)), port, hostname: host }, () => {
 					this._port = port;
 					this.servers.set(port, server);
 					ServerHono.listeningPorts.set(port, why);
