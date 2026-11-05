@@ -14,6 +14,7 @@ import { eventHubOfTest, freePort } from "@haibun/core/lib/test/lib.js";
 import { recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { storeDeclaring } from "@haibun/core/lib/test/declared-types.js";
 import { ActionSchema } from "@haibun/core/lib/domains/actions.js";
+import { runInStep, stepInFlight } from "@haibun/core/lib/domains/capability-context.js";
 
 const mockLogger = eventHubOfTest();
 
@@ -161,6 +162,13 @@ describe("ServerHono", () => {
 			await server.listen("test", port);
 			expect(server.port).toBe(port);
 			await server.close();
+		});
+
+		it("serves a request outside the step that started it listening, so the request doesn't name that step as its own", async () => {
+			const port = await freePort();
+			server.addRoute("get", "/step", P, (c) => c.text(String(stepInFlight()?.seqPath)));
+			await runInStep({ seqPath: "0.1.0.3", reportsAt: undefined }, () => server.listen("test", port));
+			expect(await (await fetch(`http://127.0.0.1:${port}/step`)).text()).toBe("undefined");
 		});
 
 		it("refuses a body past its limit before a route reads it", async () => {
