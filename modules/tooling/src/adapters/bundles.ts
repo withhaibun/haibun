@@ -147,6 +147,35 @@ const decodeAlone: Plugin = {
 	},
 };
 
+/** A dynamic import of a module a source names by a literal path. A type that names a module's export
+ *  (`import("x").T`, `typeof import("x")`) isn't a load, and is left as it is. */
+const LAZY_IMPORT = /(?<!typeof\s+)\bimport\(\s*(["'])([^"']+)\1\s*\)(?!\s*\.)/g;
+/** A TypeScript source, which may load a module lazily; a package's own sources are left as they are. */
+const TS_SOURCE = /\.ts$/;
+
+/**
+ * Loads each module a source loads lazily statically, for a single-file bundle. A single-file bundle already holds every
+ * module it loads, so a lazy load there only adds the initializer esbuild wraps around each module the load reaches,
+ * the modules they share among them. The source's `import("x")` reads a namespace it imports statically instead, which
+ * is the value the lazy load resolves to, so the source reads the same either way.
+ */
+export const lazyLoadsStatic: Plugin = {
+	name: "lazy-loads-static",
+	setup(builder) {
+		builder.onLoad({ filter: TS_SOURCE }, (args) => {
+			if (packageOf(args.path) !== undefined) return undefined;
+			const source = readFileSync(args.path, "utf8");
+			if (!source.includes("import(")) return undefined;
+			const imported: string[] = [];
+			const contents = source.replace(LAZY_IMPORT, (_whole, _quote: string, path: string) => {
+				imported.push(path);
+				return `Promise.resolve(__lazilyLoaded${imported.length - 1})`;
+			});
+			return { contents: `${imported.map((path, at) => `import * as __lazilyLoaded${at} from ${JSON.stringify(path)};`).join("\n")}\n${contents}`, loader: "ts" };
+		});
+	},
+};
+
 const DEVELOPMENT = "development";
 
 /** Carries the build's NODE_ENV into a bundle: its value where the build states one, and development where it doesn't,
@@ -168,7 +197,16 @@ export const bundleOptions = (root: string, bundle: TBundle): BuildOptions & { m
 	minify: true,
 	conditions: bundle.conditions === undefined ? [] : [...bundle.conditions],
 	define: nodeEnvDefine(),
-	plugins: [onePackageCopy(root), zodEnglishLocale, d3EngineAlone, oneColourLibrary, extrasControlsAlone, gzipAlone, decodeAlone],
+	plugins: [
+		onePackageCopy(root),
+		zodEnglishLocale,
+		d3EngineAlone,
+		oneColourLibrary,
+		extrasControlsAlone,
+		gzipAlone,
+		decodeAlone,
+		...(bundle.splitting === false ? [lazyLoadsStatic] : []),
+	],
 	metafile: true,
 	logLevel: "warning",
 });
