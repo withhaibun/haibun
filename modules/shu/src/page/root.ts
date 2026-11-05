@@ -107,6 +107,16 @@ export const pageClipboard = (): TClipboard => pagePinned(CLIPBOARD_KEY, () => b
 /** Returns the page's custom elements. */
 export const pageElements = (): TElements => pagePinned(ELEMENTS_KEY, () => browserElements(customElements));
 
+/** The page's own views that load where a pane first shows them, each by its tag, as the page's entry installs them. */
+type TViewLoaders = Readonly<Record<string, () => Promise<unknown>>>;
+const VIEW_LOADERS_KEY = "__SHU_VIEW_LOADERS__";
+
+/** Installs the loaders of the page's own views that load where a pane first shows them. */
+export const installViewLoaders = (loaders: TViewLoaders): TViewLoaders => pagePinned(VIEW_LOADERS_KEY, () => loaders);
+
+/** Returns the loader of the page's own view `tag`, where the page's entry installs one. */
+export const pageViewLoader = (tag: string): (() => Promise<unknown>) | undefined => pagePinned<TViewLoaders>(VIEW_LOADERS_KEY, () => ({}))[tag];
+
 /** Returns what the browser reports of the page. */
 export const pageObservers = (): TPageObservers => pagePinned(OBSERVERS_KEY, () => browserObservers(window));
 

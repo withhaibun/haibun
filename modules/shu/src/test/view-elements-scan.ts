@@ -39,7 +39,7 @@ function valueImports(path: string, source: string): Set<string> {
 			continue;
 		out.add(resolve(dirname(path), itemAt(match, 3).replace(/\.js$/, ".ts")));
 	}
-	for (const match of source.matchAll(/\bimport\(\s*"(\.[^"]+)"\s*\)(?!\s*\.)/g)) out.add(resolve(dirname(path), itemAt(match, 1).replace(/\.js$/, ".ts")));
+	for (const match of source.matchAll(/\bimport\(\s*"(\.[^"]+)"\s*\)(?!\s*\.(?!then\b))/g)) out.add(resolve(dirname(path), itemAt(match, 1).replace(/\.js$/, ".ts")));
 	return out;
 }
 

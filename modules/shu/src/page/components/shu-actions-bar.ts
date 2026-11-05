@@ -16,7 +16,7 @@ import { ActionsBarSteps } from "./actions-bar-steps.js";
 import { ActionsBarQuery } from "./actions-bar-query.js";
 import { ACTIONS_BAR_STYLES } from "./actions-bar-styles.js";
 import { SHU_EVENT, ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, SHU_TAG, CONVERSATION_PARAM } from "../../domains/elements.js";
-import { defineElement } from "../controllers/element-controller.js";
+import { defineElement, loadedOnFirstUse } from "../controllers/element-controller.js";
 import { dispatchSubjectEvent } from "../controllers/subject-controller.js";
 import { SCOPE } from "../domains/current-subject.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
@@ -38,7 +38,10 @@ import { isOffline } from "../controllers/hydration-controller.js";
 import { getActionBarChatExtensionTags } from "../controllers/catalog-controller.js";
 import { reportToRun } from "../controllers/client-log-controller.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
-import "../ask/components/shu-ask.js";
+
+/** The ask pane and its chat, loaded where the bar first shows its ask mode. The element upgrades once it loads; a call
+ *  into the pane waits for the load. */
+const askPane = loadedOnFirstUse(() => import("../ask/components/shu-ask.js").then(() => undefined));
 
 export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	/** A control doesn't contribute to a conversation's context, since it isn't a view of data. */
@@ -122,6 +125,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	/** Send a question from the history again, in the ask mode, through the ask pane. */
 	private async forkAtQuestion(forking: TQuestionFork): Promise<void> {
+		await askPane();
 		this.setState({ mode: "ask" });
 		this.openPane();
 		await this.updateComplete;
@@ -243,6 +247,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	/** The ask holds the transcript, so its settings stand above it and its input line below it. The pane's settings
 	 *  control reaches the chat's settings through this view, which holds that control's state. */
 	private askModeTemplate(hasAsk: boolean): TemplateResult {
+		void askPane();
 		return html`<shu-ask testid-prefix=${this.testIdPrefix} ?data-show-controls=${this.showControls}
 			>${this.modeToggleTemplate(hasAsk, "mode-toggle")}${this._history}</shu-ask
 		>`;
@@ -285,6 +290,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		if (command.kind === "unknown") return this.setStatus(`/${command.name} isn't a command. The commands are ${commandList()}.`);
 		if (command.kind === "stop") return void dispatchConversationEvent({ type: "stop", reason: STOPPED_BY_THE_READER });
 		if (command.mode === "ask" && !this.#steps.offersAsk) return this.setStatus("actuality doesn't offer an ask step");
+		if (command.mode === "ask") await askPane();
 		this.setState({ mode: command.mode });
 		await this.updateComplete;
 		if (command.rest) await this.#inputLine(command.mode).enter(command.rest);

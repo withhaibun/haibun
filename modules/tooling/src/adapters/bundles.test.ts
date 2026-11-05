@@ -17,11 +17,19 @@ async function singleFile(sources: Record<string, string>, plugins: (typeof lazy
 }
 
 const SOURCES = {
-	"entry.ts": 'type TLoaded = typeof import("./loaded.ts");\nconst loaded: Promise<TLoaded> = import("./loaded.ts");\nvoid loaded.then(({ value }) => console.log(value));\n',
+	"entry.ts": 'type TLoaded = typeof import("./loaded.ts");\nvoid import("./loaded.ts").then(({ value }: TLoaded) => console.log(value));\n',
 	"loaded.ts": 'export const value = "loaded";\n',
 };
 
 describe("a single-file bundle's lazy loads", () => {
+	it("import a module a source loads for what it defines for its effect alone, and resolve the load as the source does", async () => {
+		const sources = { "entry.ts": 'void import("./loaded.ts").then(() => undefined);\n', "loaded.ts": 'console.log("defined");\n' };
+		const loadedStatically = await singleFile(sources, [lazyLoadsStatic]);
+		expect(loadedStatically).not.toContain("__esm");
+		expect(loadedStatically).not.toContain("__export");
+		expect(loadedStatically).toContain('"defined"');
+	});
+
 	it("read the module a source loads lazily from a static import, so the bundle doesn't wrap it in an initializer", async () => {
 		const wrapped = await singleFile(SOURCES, []);
 		const loadedStatically = await singleFile(SOURCES, [lazyLoadsStatic]);

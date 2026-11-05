@@ -20,29 +20,31 @@ import "../src/page/components/shu-breadcrumb.js";
 import "../src/page/components/shu-combobox.js";
 import "../src/page/components/shu-spinner.js";
 import "../src/page/components/shu-step-caller.js";
-import "../src/page/components/shu-monitor-column.js";
-import "../src/page/components/shu-thread-column.js";
-import "../src/page/components/shu-step-detail.js";
 import "../src/page/components/shu-index-summary.js";
 import "../src/page/components/shu-playback.js";
-import "../src/page/components/shu-document-column.js";
-import "../src/page/client-cache/components/shu-client-cache-column.js";
 import "../src/page/components/shu-product-view.js";
 import "../src/page/components/shu-views-picker.js";
-import "../src/page/components/shu-affordances-panel.js";
-import "../src/page/components/shu-domain-chain-view.js";
 import "../src/page/components/shu-copy-button.js";
 import "../src/page/components/shu-ref-element.js";
-import "../src/page/components/shu-type-column.js";
-import "../src/page/components/shu-step-definition.js";
-import "../src/page/components/shu-action-column.js";
 import "../src/page/components/shu-theme-switch.js";
 import { readAction } from "@haibun/core/lib/domains/actions.js";
 import { Access } from "@haibun/core/lib/domains/resources.js";
 import { SSE_ROUTE } from "@haibun/core/lib/rpc-wire.js";
 import { DELEGATIONS_READ_METHOD, type TDelegations } from "@haibun/core/lib/domains/authority-types.js";
 import { SHU_TAG } from "../src/domains/elements.js";
-import { embeddedPageView, givenDelegation, pageAuthorityPort, pageClock, pageEmbedder, pageEventStream, pageLog, pageObservers, startPage } from "../src/page/root.js";
+import {
+	embeddedPageView,
+	givenDelegation,
+	installViewLoaders,
+	loadedOnFirstUse,
+	pageAuthorityPort,
+	pageClock,
+	pageEmbedder,
+	pageEventStream,
+	pageLog,
+	pageObservers,
+	startPage,
+} from "../src/page/root.js";
 import { authorityPort, openPageAuthority, pageMay } from "../src/page/authority/controllers/page-authority-controller.js";
 import { holdInvocationSigner } from "../src/page/authority/root.js";
 import { signerLoadedOnFirstUse } from "../src/page/authority/adapters/invocation-signer-loaded.js";
@@ -71,6 +73,21 @@ import { hydrateClientCache } from "../src/page/client-cache/controllers/device-
 import { viewsShown } from "../src/page/client-cache/controllers/actuality-controller.js";
 import { followRunningTurns } from "../src/page/ask/controllers/conversation-controller.js";
 
+/** The page's views that a pane alone shows, loaded where a pane first shows them, for the elements each defines. Their
+ *  chunks are named from the build's metafile, and a single-file bundle imports each statically. */
+const VIEWS_LOADED_ON_OPEN = {
+	[SHU_TAG.MONITOR_COLUMN]: loadedOnFirstUse(() => import("../src/page/components/shu-monitor-column.js").then(() => undefined)),
+	[SHU_TAG.THREAD_COLUMN]: loadedOnFirstUse(() => import("../src/page/components/shu-thread-column.js").then(() => undefined)),
+	[SHU_TAG.STEP_DETAIL]: loadedOnFirstUse(() => import("../src/page/components/shu-step-detail.js").then(() => undefined)),
+	[SHU_TAG.DOCUMENT_COLUMN]: loadedOnFirstUse(() => import("../src/page/components/shu-document-column.js").then(() => undefined)),
+	[SHU_TAG.CLIENT_CACHE_COLUMN]: loadedOnFirstUse(() => import("../src/page/client-cache/components/shu-client-cache-column.js").then(() => undefined)),
+	[SHU_TAG.AFFORDANCES_PANEL]: loadedOnFirstUse(() => import("../src/page/components/shu-affordances-panel.js").then(() => undefined)),
+	[SHU_TAG.DOMAIN_CHAIN_VIEW]: loadedOnFirstUse(() => import("../src/page/components/shu-domain-chain-view.js").then(() => undefined)),
+	[SHU_TAG.TYPE_COLUMN]: loadedOnFirstUse(() => import("../src/page/components/shu-type-column.js").then(() => undefined)),
+	[SHU_TAG.STEP_DEFINITION]: loadedOnFirstUse(() => import("../src/page/components/shu-step-definition.js").then(() => undefined)),
+	[SHU_TAG.ACTION_COLUMN]: loadedOnFirstUse(() => import("../src/page/components/shu-action-column.js").then(() => undefined)),
+};
+
 /** The id of the served document's main element, which holds the page. */
 const MAIN_ID = "shu-main";
 /** The attribute of the main element that states the path the site serves its routes under. */
@@ -83,6 +100,7 @@ async function start(): Promise<void> {
 	const carried = hydratedCache();
 	// The page loads its signer's HTTP signature code at its first signed request.
 	holdInvocationSigner(signerLoadedOnFirstUse);
+	installViewLoaders(VIEWS_LOADED_ON_OPEN);
 	startPage(authorityPort(), requiredActionOf, SSE_ROUTE);
 	// The page that embeds shu at the deployment's embedder origin posts the page the reader has open and a delegation to
 	// shu's key.

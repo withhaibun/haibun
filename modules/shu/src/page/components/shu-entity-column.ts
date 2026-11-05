@@ -72,7 +72,7 @@ type EdgeData = { type: string; target: VertexData; direction?: "out" | "in" };
 /** The inline annotated body and its annotator, loaded at the first body a reader reads with its annotations inline. The
  *  element upgrades once its module loads, with the properties the column set on it. A single-file bundle holds the
  *  module, and reads it without a fetch. */
-const annotatedBody = loadedOnFirstUse(() => import("./shu-annotated-body.js"));
+const annotatedBody = loadedOnFirstUse(() => import("./shu-annotated-body.js").then(() => undefined));
 
 /** How many fields the field table shows open. A record with many fields dumps them all at once, so a table holding more
  *  starts closed behind a summary naming how many, and a reader opens it when a field is the question. */

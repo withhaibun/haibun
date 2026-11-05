@@ -149,7 +149,9 @@ const decodeAlone: Plugin = {
 
 /** A dynamic import of a module a source names by a literal path. A type that names a module's export
  *  (`import("x").T`, `typeof import("x")`) isn't a load, and is left as it is. */
-const LAZY_IMPORT = /(?<!typeof\s+)\bimport\(\s*(["'])([^"']+)\1\s*\)(?!\s*\.)/g;
+const LAZY_IMPORT = /(?<!typeof\s+)\bimport\(\s*(["'])([^"']+)\1\s*\)(?!\s*\.(?!then\b))/g;
+/** A load of a module for what it defines, whose value the source discards. */
+const LOADED_FOR_EFFECT = /\.then\(\s*\(\)\s*=>\s*undefined\s*\)/y;
 /** A TypeScript source, which may load a module lazily; a package's own sources are left as they are. */
 const TS_SOURCE = /\.ts$/;
 
@@ -157,7 +159,9 @@ const TS_SOURCE = /\.ts$/;
  * Loads each module a source loads lazily statically, for a single-file bundle. A single-file bundle already holds every
  * module it loads, so a lazy load there only adds the initializer esbuild wraps around each module the load reaches,
  * the modules they share among them. The source's `import("x")` reads a namespace it imports statically instead, which
- * is the value the lazy load resolves to, so the source reads the same either way.
+ * is the value the lazy load resolves to, so the source reads the same either way. A load the source makes for what the
+ * module defines, `import("x").then(() => undefined)`, imports the module for its effect alone, so the bundle doesn't
+ * build a namespace the source discards.
  */
 export const lazyLoadsStatic: Plugin = {
 	name: "lazy-loads-static",
@@ -166,12 +170,20 @@ export const lazyLoadsStatic: Plugin = {
 			if (packageOf(args.path) !== undefined) return undefined;
 			const source = readFileSync(args.path, "utf8");
 			if (!source.includes("import(")) return undefined;
-			const imported: string[] = [];
-			const contents = source.replace(LAZY_IMPORT, (_whole, _quote: string, path: string) => {
-				imported.push(path);
-				return `Promise.resolve(__lazilyLoaded${imported.length - 1})`;
-			});
-			return { contents: `${imported.map((path, at) => `import * as __lazilyLoaded${at} from ${JSON.stringify(path)};`).join("\n")}\n${contents}`, loader: "ts" };
+			const statements: string[] = [];
+			let contents = "";
+			let from = 0;
+			for (const match of source.matchAll(LAZY_IMPORT)) {
+				const path = JSON.stringify(match[2]);
+				const end = match.index + match[0].length;
+				LOADED_FOR_EFFECT.lastIndex = end;
+				const effect = LOADED_FOR_EFFECT.exec(source);
+				const name = `__lazilyLoaded${statements.length}`;
+				statements.push(effect === null ? `import * as ${name} from ${path};` : `import ${path};`);
+				contents += `${source.slice(from, match.index)}${effect === null ? `Promise.resolve(${name})` : "Promise.resolve(undefined)"}`;
+				from = effect === null ? end : LOADED_FOR_EFFECT.lastIndex;
+			}
+			return { contents: `${statements.join("\n")}\n${contents}${source.slice(from)}`, loader: "ts" };
 		});
 	},
 };

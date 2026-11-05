@@ -1,7 +1,7 @@
 /**
  * The page's element registry, as a view defines its own element (CA4D18) and mounts a component a concern declares.
  */
-import { pageElements, pageLog, pageRegistry } from "../root.js";
+import { pageElements, pageLog, pageRegistry, pageViewLoader } from "../root.js";
 import { loadDeclaredComponent } from "../pipelines/declared-component.js";
 import { heldCatalog } from "../pipelines/held-catalog.js";
 
@@ -16,4 +16,9 @@ export const defineElement = (tag: string, element: CustomElementConstructor): v
 export const isDefined = (tag: string): boolean => pageElements().isDefined(tag);
 
 /** Loads the component `tag` that a concern declares (`loadDeclaredComponent`). */
-export const loadComponent = (tag: string): Promise<void> => loadDeclaredComponent(pageElements(), () => heldCatalog(pageRegistry(), `the component ${tag}`), tag, pageLog);
+export const loadComponent = async (tag: string): Promise<void> => {
+	// A view of the page's own loads where a pane first shows it; a component a concern declares loads its script.
+	const loader = pageViewLoader(tag);
+	if (loader === undefined) return loadDeclaredComponent(pageElements(), () => heldCatalog(pageRegistry(), `the component ${tag}`), tag, pageLog);
+	await loader();
+};
