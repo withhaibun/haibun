@@ -3,6 +3,9 @@
  * installed port, since a bundle that loads this module holds its own copy of it.
  */
 import { pagePinned } from "./adapters/page-held.js";
+
+/** A load made at its first use: a view loads a module it rarely needs with it. */
+export { loadedOnFirstUse } from "./adapters/page-held.js";
 import { SharedCell } from "./adapters/shared-cell.js";
 import { Machine, machine, type TMove, type TTransition } from "@haibun/core/lib/machines/machine.js";
 import type {

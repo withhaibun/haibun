@@ -7,6 +7,9 @@ import { heldCatalog } from "../pipelines/held-catalog.js";
 
 /** Defines `element` under `tag`, where the page doesn't define the tag yet. A page loads a view's module in more than one
  *  of its bundles, and the first definition holds. */
+/** A load made at its first use: a view loads an element it rarely shows where it first shows it. */
+export { loadedOnFirstUse } from "../root.js";
+
 export const defineElement = (tag: string, element: CustomElementConstructor): void => pageElements().define(tag, element);
 
 /** Whether the page defines `tag`. */

@@ -21,8 +21,8 @@ const TAG_OF = new Map<string, string>(Object.entries(SHU_TAG));
 /** Returns `source` without its block and line comments, which name tags they don't render. */
 const withoutComments = (source: string): string => source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`])\/\/.*$/gm, "$1");
 
-/** Returns the module paths `source` imports as values, resolved from `path`: a side-effect import, or an import of a name
- *  that isn't a type. */
+/** Returns the module paths `source` imports as values, resolved from `path`: a side-effect import, an import of a name
+ *  that isn't a type, or a lazy load, which defines the module's elements once it loads. */
 function valueImports(path: string, source: string): Set<string> {
 	const out = new Set<string>();
 	for (const match of source.matchAll(/import\s+(?:(type\s+)?(\{[^}]*\}|\*\s+as\s+\w+|\w+(?:\s*,\s*\{[^}]*\})?)\s+from\s+)?"(\.[^"]+)"/g)) {
@@ -39,6 +39,7 @@ function valueImports(path: string, source: string): Set<string> {
 			continue;
 		out.add(resolve(dirname(path), itemAt(match, 3).replace(/\.js$/, ".ts")));
 	}
+	for (const match of source.matchAll(/\bimport\(\s*"(\.[^"]+)"\s*\)(?!\s*\.)/g)) out.add(resolve(dirname(path), itemAt(match, 1).replace(/\.js$/, ".ts")));
 	return out;
 }
 

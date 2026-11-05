@@ -20,7 +20,6 @@ import { unread, type TEntityResult, type TEntityView, type TAnnotationDraft } f
 import { LOAD_STATUS } from "../domains/load.js";
 import type { TLinkedBody } from "@haibun/core/lib/records/domains/body.js";
 import { fragmentReads, isFragment, pageOfPassage, pdfPage, type TFragment } from "@haibun/core/lib/domains/media-fragments.js";
-import "./shu-annotated-body.js";
 import {
 	edgeRecordType,
 	rangeOf,
@@ -39,6 +38,7 @@ import {
 import { propertyVocabulary } from "../../derivations/ontology-projection.js";
 import { linkHtml, paneHref, refHref } from "./ref-navigation.js";
 import { titlePane } from "../derivations/pane-kinds.js";
+import { loadedOnFirstUse } from "../controllers/element-controller.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { pageAddress } from "../controllers/hash-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
@@ -68,6 +68,11 @@ const COPY_RESULT = "copy-result";
 
 type VertexData = Record<string, unknown>;
 type EdgeData = { type: string; target: VertexData; direction?: "out" | "in" };
+
+/** The inline annotated body and its annotator, loaded at the first body a reader reads with its annotations inline. The
+ *  element upgrades once its module loads, with the properties the column set on it. A single-file bundle holds the
+ *  module, and reads it without a fetch. */
+const annotatedBody = loadedOnFirstUse(() => import("./shu-annotated-body.js"));
 
 /** How many fields the field table shows open. A record with many fields dumps them all at once, so a table holding more
  *  starts closed behind a summary naming how many, and a reader opens it when a field is the question. */
@@ -665,6 +670,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const annBody = this.annotatableBody();
 		const showInline = annBody && this.state.showAnnotations && (this.annotationsList.length > 0 || this.state.annotateMode || this.revealTarget !== null);
 		if (showInline && annBody) {
+			void annotatedBody();
 			return html`<div class="content-toolbar">
 					${unsafeHTML(COPY_BODY_BUTTON)}${unsafeHTML(this.annotateButtonHtml(true))}
 				</div>
