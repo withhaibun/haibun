@@ -44,6 +44,8 @@ import { DELEGATIONS_READ_METHOD, type TDelegations } from "@haibun/core/lib/dom
 import { SHU_TAG } from "../src/domains/elements.js";
 import { embeddedPageView, givenDelegation, pageAuthorityPort, pageClock, pageEmbedder, pageEventStream, pageLog, pageObservers, startPage } from "../src/page/root.js";
 import { authorityPort, openPageAuthority, pageMay } from "../src/page/authority/controllers/page-authority-controller.js";
+import { holdInvocationSigner } from "../src/page/authority/root.js";
+import { signerLoadedOnFirstUse } from "../src/page/authority/adapters/invocation-signer-loaded.js";
 import { conduit } from "../src/page/controllers/conduit-controller.js";
 import { getHash, pushHash } from "../src/page/controllers/hash-controller.js";
 import { pageBlipChannel } from "../src/page/controllers/blip-controller.js";
@@ -79,6 +81,8 @@ async function start(): Promise<void> {
 	// views is the reader's own arrangement; a reader whose address doesn't name one is shown actuality's views.
 	const arrivedWithAddress = getHash().length > 1;
 	const carried = hydratedCache();
+	// The page loads its signer's HTTP signature code at its first signed request.
+	holdInvocationSigner(signerLoadedOnFirstUse);
 	startPage(authorityPort(), requiredActionOf, SSE_ROUTE);
 	// The page that embeds shu at the deployment's embedder origin posts the page the reader has open and a delegation to
 	// shu's key.

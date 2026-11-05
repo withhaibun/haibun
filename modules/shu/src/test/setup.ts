@@ -101,6 +101,8 @@ export class TestConduit implements TConduit {
 
 import { CarriedEventStream } from "../page/adapters/carried-event-stream.js";
 import { endPage } from "../page/adapters/page-held.js";
+import { holdInvocationSigner } from "../page/authority/root.js";
+import { httpInvocationSigner } from "../page/authority/adapters/invocation-signer.js";
 import { CACHE_SHAPE } from "../page/client-cache/ports.js";
 import { installMemoryDeviceStore } from "../page/client-cache/root.js";
 import { hydrateFromDom } from "../page/controllers/hydration-controller.js";
@@ -357,13 +359,19 @@ export function carryAnActuality(): void {
 export async function serveThePageFrom(base: string): Promise<void> {
 	hydrate({ actualityId: await actualityAt(base), settings: SERVED_SETTINGS });
 	hydrateFromDom();
-	installAuthority(authorityPort());
+	holdPageAuthority();
 }
 
 /** Make it a page a server served, with the hydration the server writes. */
 export function serveThePage(): void {
 	hydrate({ actualityId: PAGE_ACTUALITY, settings: SERVED_SETTINGS });
 	hydrateFromDom();
+}
+
+/** Installs the reader's authority as the page's start installs it, with the invocation signer its composition holds. */
+function holdPageAuthority(): void {
+	holdInvocationSigner(httpInvocationSigner);
+	installAuthority(authorityPort());
 }
 
 export function setupShuTest(config: TShuTestConfig = {}): TShuTestHandle {
@@ -380,7 +388,7 @@ export function setupShuTest(config: TShuTestConfig = {}): TShuTestHandle {
 	const eventStream = installCarriedEventStream();
 	const stopServingArtifacts = servingArtifacts(config.artifact ?? (() => new Response(new Blob([], { type: MEDIA_TYPE.png }))));
 	installConduit(conduit);
-	installAuthority(authorityPort());
+	holdPageAuthority();
 	installMemoryDeviceStore();
 	serveThePage();
 	return {
@@ -404,7 +412,7 @@ export function newPage(): void {
 	// A test without a document stands for a page without a hydration element.
 	if (typeof document === "undefined") installHydration(readHydration({ take: () => undefined }));
 	else hydrateFromDom();
-	installAuthority(authorityPort());
+	holdPageAuthority();
 }
 
 /** Removes the stored fields of every tag, so a test starts as a reader's first page does. */

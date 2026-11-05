@@ -19,7 +19,12 @@ import {
 	authorityPort,
 } from "../controllers/page-authority-controller.js";
 import { requiredActionOf } from "../../controllers/registry-controller.js";
+import { holdInvocationSigner } from "../root.js";
+import { httpInvocationSigner } from "../adapters/invocation-signer.js";
 import { CLIENT_LOG_METHOD, RECORD_BLIPS_METHOD } from "../../domains/page-calls.js";
+
+// The test stands for the composition that opens the page, which holds its invocation signer.
+holdInvocationSigner(httpInvocationSigner);
 
 const SITE = "http://localhost:8123";
 const delegatedAll = { id: "urn:uuid:owner", invocationTarget: SITE, allowedAction: ["*"], expires: "2099-01-01T00:00:00Z" };
