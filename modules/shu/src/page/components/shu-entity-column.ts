@@ -10,7 +10,8 @@ import { jsonCarried, RecordsSchema, isRecord } from "@haibun/core/lib/domains/j
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT, ANNOTATION_GLYPH, PRODUCTS_LABEL, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/elements.js";
-import { defineElement } from "../controllers/element-controller.js";
+import { defineElement, loadedOnFirstUse } from "../controllers/element-controller.js";
+import { MarkdownRendererController } from "../controllers/markdown-renderer-controller.js";
 import { copyText } from "../controllers/clipboard-controller.js";
 import { LinkRelations, isReplyEdge, type TAnnotationView, type TPart, type TQuoteAnchor } from "@haibun/core/lib/domains/resources.js";
 import { EntityColumnSchema } from "../../domains/schemas.js";
@@ -38,7 +39,6 @@ import {
 import { propertyVocabulary } from "../../derivations/ontology-projection.js";
 import { linkHtml, paneHref, refHref } from "./ref-navigation.js";
 import { titlePane } from "../derivations/pane-kinds.js";
-import { loadedOnFirstUse } from "../controllers/element-controller.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { pageAddress } from "../controllers/hash-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
@@ -48,7 +48,7 @@ import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { ClockController } from "../controllers/clock-controller.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
 import { appAccessLevel } from "../controllers/view-query-controller.js";
-import { esc, escAttr, renderContentHtml, utf8ToBase64, renderRef, refsInContent } from "../derivations/markdown.js";
+import { esc, escAttr, utf8ToBase64, renderRef, refsInContent } from "../derivations/markdown.js";
 import { buildBodyIframeDoc } from "../derivations/body-frame.js";
 import { idOf, instanceLabel, isVisibleKey, extractFieldEntries, extractBodyLiterals, governanceFields } from "../controllers/record-controller.js";
 import { isReferenceEdge } from "../derivations/record-fields.js";
@@ -284,6 +284,9 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	 *  refusal: its first statement, with the control that opens why the step that wrote the record was refused. The whole
 	 *  reason reads in its field. Derived once as the record loads, so the refusal shown is one object across renders. */
 	#statedError: TPageRefusal | undefined = undefined;
+
+	/** The markdown renderer the column renders a body with; the body shows it is reading until it loads. */
+	readonly #markdown = new MarkdownRendererController(this);
 
 	private statedError(): TPageRefusal | undefined {
 		const label = this.state.persistedAs;
@@ -600,10 +603,12 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		// Text this view was HANDED (a step's products carry their own body) doesn't need a request; otherwise it is the text
 		// read on request, and until that lands the body area shows it is reading rather than showing an empty frame.
 		const raw = this.textOf(active);
-		if (raw === undefined)
-			return `<div class="body-container"><div class="content-toolbar">${switcherHtml}</div><div class="body-reading" data-testid="body-reading">Reading ${esc(active.media)}…</div></div>`;
+		const reading = `<div class="body-container"><div class="content-toolbar">${switcherHtml}</div><div class="body-reading" data-testid="body-reading">Reading ${esc(active.media)}…</div></div>`;
+		if (raw === undefined) return reading;
 		if (raw === "") return ""; // an empty body renders an empty string, not an empty frame
-		const content = renderContentHtml(raw, active.media, refContext);
+		const renderer = this.#markdown.renderer;
+		if (renderer === undefined) return reading;
+		const content = renderer.renderContentHtml(raw, active.media, refContext);
 		const encoded = utf8ToBase64(buildBodyIframeDoc(content, active.media, pageAddress()));
 		const invertible = active.media !== MEDIA_TYPE.html ? " invertible" : "";
 		const iframeHtml = `<iframe class="body-iframe${invertible}" data-reading="${escAttr(active.key)}" sandbox="allow-same-origin allow-top-navigation-by-user-activation" src="data:text/html;base64,${encoded}" data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_IFRAME}"></iframe>`;

@@ -1,23 +1,19 @@
 /**
- * A text as the page shows it: HTML escaping, a reference's markup, the markdown renderers with their in-app references,
- * and a body's HTML by media type.
+ * A text as the page shows it: HTML escaping and a reference's markup. The markdown renderers and a body's HTML by media
+ * type are in `markdown-render.ts`, which the views that render markdown load.
  *
  * A reference follows the typed-link grammar (`@haibun/core/lib/domains/typed-links.js`), the grammar from which the server derives
  * facts: an href of `#Type` names a persisted type, `#Type:id` an individual of that type, and a text directive
  * (`#Type:id:~:text=[prefix-,]exact[,-suffix]`) a passage inside it, which maps one-to-one onto the Web Annotation
  * TextQuoteSelector the graph persists. A rendered reference is a `<shu-ref>`, which opens its target in a column.
  */
-import { isJsonMedia, MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
-import MarkdownIt from "markdown-it";
-import DOMPurify from "dompurify";
-import { esc, headingAnchor } from "@haibun/core/lib/domains/document-content.js";
-import { jsonCarried, JsonObjectTextSchema } from "@haibun/core/lib/domains/json-text.js";
+import { esc } from "@haibun/core/lib/domains/document-content.js";
+import { JsonObjectTextSchema } from "@haibun/core/lib/domains/json-text.js";
 import { IndividualAddressSchema, REF_DENOTES, parseRefHref } from "@haibun/core/lib/domains/typed-links.js";
 import { PartSchema } from "@haibun/core/lib/domains/resources.js";
 import { StepMethodSchema } from "@haibun/core/lib/steps/domains/step-method.js";
 import { ActionSchema } from "@haibun/core/lib/domains/actions.js";
 import { z } from "zod";
-import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import type { TPropertyDefinition } from "./catalog.js";
 
 export { esc };
@@ -88,89 +84,8 @@ export function renderRef(ref: TRef, text?: string): string {
  *  relation. A page holds one context, so each renderer is built once for it. */
 export type TRefContext = { isType: (name: string) => boolean; propertyDefinition: (rel: string) => TPropertyDefinition | undefined };
 
-/** A typed link renders its link text. A typed link without link text (`[:cites](…)`) renders the relation's declared
- *  display name and icon. */
-function displayForLinkText(text: string, refs: TRefContext): string {
-	const colon = text.lastIndexOf(":");
-	if (colon === -1) return text;
-	const words = text.slice(0, colon).trim();
-	if (words) return words;
-	const rel = text.slice(colon + 1).trim();
-	const definition = refs.propertyDefinition(rel);
-	if (!definition) return text;
-	const named = definition.label ?? rel;
-	return definition.icon ? `${definition.icon} ${named}` : named;
-}
-
-/** Installs the reference-link rule: a reference link's `link_open … link_close` tokens become one `<shu-ref>`. */
-export function refLinksPlugin(md: MarkdownIt, refs: TRefContext): void {
-	md.core.ruler.push("shu_ref_links", (state) => {
-		for (const block of state.tokens) {
-			if (block.type !== "inline" || !block.children) continue;
-			const children = block.children;
-			for (let i = 0; i < children.length; i++) {
-				const linkOpen = itemAt(children, i);
-				if (linkOpen.type !== "link_open") continue;
-				const ref = parseRefHref(linkOpen.attrGet("href"), refs.isType);
-				if (!ref) continue;
-				let j = i + 1;
-				let text = "";
-				for (; j < children.length; j++) {
-					const child = itemAt(children, j);
-					if (child.type === "link_close") break;
-					if (child.type === "text" || child.type === "code_inline") text += child.content;
-				}
-				if (j >= children.length) continue; // an unbalanced link stays as it is
-				const tok = new state.Token("html_inline", "", 0);
-				tok.content = renderRef(ref, text ? displayForLinkText(text, refs) : undefined);
-				children.splice(i, j - i + 1, tok);
-			}
-		}
-	});
-}
-
-/** Returns the renderer `make` builds for `refs`, built at the first call for that context. */
-function rendererFor(held: WeakMap<TRefContext, MarkdownIt>, refs: TRefContext, make: () => MarkdownIt): MarkdownIt {
-	const found = held.get(refs);
-	if (found !== undefined) return found;
-	const made = make();
-	refLinksPlugin(made, refs);
-	held.set(refs, made);
-	return made;
-}
-
-/** Stamps every markdown heading the renderer produces with its name as a link anchor in `data-heading`. Core's
- *  headingAnchor computes the anchor from the heading text, as it does for actuality's scenario headings. A prose
- *  block's "## Contents" is then reachable as `#contents`. */
-export function withHeadingAnchors(md: { renderer: { rules: Record<string, unknown>; renderToken(tokens: unknown[], idx: number, options: unknown): string } }): void {
-	md.renderer.rules.heading_open = (tokens: Array<{ attrSet(name: string, value: string): void }>, idx: number, options: unknown) => {
-		const inline = (tokens as Array<{ type?: string; content?: string }>)[idx + 1];
-		if (inline?.type === "inline" && inline.content) itemAt(tokens, idx).attrSet("data-heading", headingAnchor(inline.content));
-		return md.renderer.renderToken(tokens, idx, options);
-	};
-}
-
-const bodyRenderers = new WeakMap<TRefContext, MarkdownIt>();
-const answerRenderers = new WeakMap<TRefContext, MarkdownIt>();
-const proseRenderers = new WeakMap<TRefContext, MarkdownIt>();
-
-/** What a sanitizer allows through for a rewritten reference: the element and its attributes. DOMPurify lowercases attribute
- *  names, so `linkTarget` is allowed as `linktarget`. */
-export const refSanitizeOptions = { ADD_TAGS: ["shu-ref"], ADD_ATTR: ["kind", "linktarget", "text"] };
-
-/** Renders a whole markdown body, block markdown and the inline HTML its source carries, with its references live, so a
- *  reference opens its target in a column and doesn't navigate the page to a hash the page doesn't read. Each body sink
- *  sanitizes with its own allowlist and `refSanitizeOptions`. Every heading carries its anchor, so a link reaches a
- *  heading of any record body (CA4D12). */
-export const renderRefBody = (markdown: string, refs: TRefContext): string =>
-	rendererFor(bodyRenderers, refs, () => {
-		const md = new MarkdownIt({ html: true, linkify: true, typographer: true });
-		withHeadingAnchors(md);
-		return md;
-	}).render(markdown);
-
 /** Returns the text of a parsed element or fragment, whose text the DOM states. */
-function textOf(node: Node): string {
+export function textOf(node: Node): string {
 	const text = node.textContent;
 	if (text === null) throw new Error(`a parsed ${node.nodeName} doesn't state its text`);
 	return text;
@@ -201,39 +116,6 @@ export function refsInContent(html: string, refs: TRefContext): TContentRef[] {
 	return [...found.values()];
 }
 
-/** Renders the text a model returns, with its references live: block markdown, without raw HTML, since a model and not
- *  actuality writes the text. Sanitized, as model output. */
-export const renderRefAnswer = (markdown: string, refs: TRefContext): string =>
-	DOMPurify.sanitize(rendererFor(answerRenderers, refs, () => new MarkdownIt({ html: false, linkify: false, typographer: false })).render(markdown), refSanitizeOptions);
-
-/** Renders a short text, a type's description or a step's, inline, with its references live, so a description names another
- *  type by a link. A description is a sentence, so it renders without paragraphs, headings, lists and raw HTML. Sanitized,
- *  since a description travels from the served concern catalog. */
-export const renderRefProse = (text: string, refs: TRefContext): string =>
-	DOMPurify.sanitize(rendererFor(proseRenderers, refs, () => new MarkdownIt({ html: false, linkify: false, typographer: true })).renderInline(text), refSanitizeOptions);
-
-/** Returns the words a short text reads as, each reference by the words that name it, for a surface that shows text alone. */
-export function proseText(text: string, refs: TRefContext): string {
-	const template = document.createElement("template");
-	template.innerHTML = renderRefProse(text, refs);
-	return textOf(template.content);
-}
-
 /** The reading style of a record's body text. The body iframe's document and the inline annotated view both use it, so the
  *  annotation gutter doesn't change how the text reads. */
 export const BODY_READING_STYLE = "font-family: sans-serif; font-size: 14px; line-height: 1.5;";
-
-const preBlock = (text: string): string => `<pre style="font-family:monospace;white-space:pre-wrap;margin:0;">${esc(text)}</pre>`;
-
-/** Returns a body's HTML by its media type: markdown with its references live, HTML as it reads, JSON indented, and any
- *  other text preformatted. Each surface that shows a `content` value renders it here. Callers sanitize with
- *  `refSanitizeOptions`. */
-export function renderContentHtml(raw: string, mediaType: string, refs: TRefContext): string {
-	if (mediaType === MEDIA_TYPE.markdown) return renderRefBody(raw, refs);
-	if (mediaType === MEDIA_TYPE.html) return raw;
-	if (isJsonMedia(mediaType)) {
-		const carried = jsonCarried(raw);
-		return preBlock(carried === undefined ? raw : JSON.stringify(carried, null, 2)); // a text that isn't JSON shows as it reads
-	}
-	return preBlock(raw);
-}

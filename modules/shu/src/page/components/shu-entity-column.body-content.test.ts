@@ -2,7 +2,7 @@
 // Body sub-resources MUST always render when present. Selecting a file, comment, document, etc. shows its
 // content (one iframe per active type, a switcher when several types exist), even when the entity has few scalar
 // fields, which previously misclassified it as a "stub" and dropped the content. Regression guard for that.
-import { newPage } from "../../test/setup.js";
+import { bodyRendered, newPage } from "../../test/setup.js";
 import { declareSpec } from "../../test/catalog-fixture.js";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";
@@ -30,7 +30,7 @@ const render = async (type: string, fields: Record<string, unknown>, bodies: Bod
 	const el = new ShuEntityColumn();
 	document.body.appendChild(el);
 	el.openProducts({ _type: type, _summary: fields.id ?? type, ...fields, hasBody: bodies });
-	await el.updateComplete;
+	await bodyRendered(el);
 	return el.shadowRoot?.innerHTML ?? "";
 };
 
@@ -175,7 +175,7 @@ describe("annotate toggle button", () => {
 		// inline annotator mounting in jsdom. The button's colour reflects annotation COUNT regardless of the path.
 		(el as unknown as { annotationsList: unknown[] }).annotationsList = annotations;
 		(el as unknown as { setState(p: Record<string, unknown>): void }).setState({ showAnnotations: false });
-		await el.updateComplete;
+		await bodyRendered(el);
 		return el;
 	};
 

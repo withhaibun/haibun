@@ -3,7 +3,8 @@
 import { describe, expect, it } from "vitest";
 import MarkdownIt from "markdown-it";
 import { parseRefHref } from "@haibun/core/lib/domains/typed-links.js";
-import { refLinksPlugin, renderRefAnswer, renderRefBody, renderRefProse, type TRefContext } from "./markdown.js";
+import type { TRefContext } from "./markdown.js";
+import { refLinksPlugin, renderRefAnswer, renderRefBody, renderRefProse } from "./markdown-render.js";
 
 /** A reference context over the types `isType` names, which doesn't declare a relation. */
 const refsOf = (isType: (name: string) => boolean): TRefContext => ({ isType, propertyDefinition: () => undefined });

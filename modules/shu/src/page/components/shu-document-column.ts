@@ -35,7 +35,8 @@ import { refContext } from "../controllers/catalog-controller.js";
 import { artifactUrl } from "../controllers/artifact-controller.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
-import { esc, renderRefBody } from "../derivations/markdown.js";
+import { esc } from "../derivations/markdown.js";
+import { renderRefBody } from "../derivations/markdown-render.js";
 import { unavailableState } from "./empty-state.js";
 import { actualityUnavailable } from "./actuality-states.js";
 

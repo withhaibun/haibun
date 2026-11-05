@@ -2,7 +2,7 @@
 /** The body toolbar copies the body the column shows, and drawing the column again leaves the body's frame in place. */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";
-import { setupShuTest, makeEntityDispatch, type TShuTestHandle } from "../../test/setup.js";
+import { bodyRendered, setupShuTest, makeEntityDispatch, type TShuTestHandle } from "../../test/setup.js";
 import { endPage } from "../adapters/page-held.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { BODY_LABEL } from "@haibun/core/lib/domains/resources.js";
@@ -26,11 +26,11 @@ describe("shu-entity-column copying its body", () => {
 		const el = new ShuEntityColumn();
 		document.body.appendChild(el);
 		await el.open("t1", "Task");
-		await el.updateComplete;
+		await bodyRendered(el);
 		const frame = el.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_IFRAME}"]`);
 		expect(frame, "the body frame").toBeTruthy();
 		el.requestUpdate();
-		await el.updateComplete;
+		await bodyRendered(el);
 		expect(el.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_IFRAME}"]`), "the same frame after drawing again").toBe(frame);
 		const copy = el.shadowRoot?.querySelector<HTMLElement>(".copy-btn");
 		if (!copy) throw new Error("the body toolbar doesn't show its copy control");

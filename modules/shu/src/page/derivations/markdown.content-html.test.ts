@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { renderContentHtml, type TRefContext } from "./markdown.js";
+import type { TRefContext } from "./markdown.js";
+import { renderContentHtml } from "./markdown-render.js";
 
 /** A reference context that doesn't name a type or a relation. */
 const REFS: TRefContext = { isType: () => false, propertyDefinition: () => undefined };

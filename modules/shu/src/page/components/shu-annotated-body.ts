@@ -39,7 +39,8 @@ import { railMarks, railTotalAndWindow } from "./annotation-rail.js";
 import { revealInDocument } from "./reveal.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { ClockController } from "../controllers/clock-controller.js";
-import { renderContentHtml, BODY_READING_STYLE, refSanitizeOptions } from "../derivations/markdown.js";
+import { BODY_READING_STYLE } from "../derivations/markdown.js";
+import { renderContentHtml, refSanitizeOptions } from "../derivations/markdown-render.js";
 import { refContext } from "../controllers/catalog-controller.js";
 import type { TWritten } from "../pipelines/call-step.js";
 

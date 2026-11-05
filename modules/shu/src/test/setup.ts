@@ -15,6 +15,7 @@
  * what was missed.
  */
 
+import { vi } from "vitest";
 import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { actualityAt } from "@haibun/core/lib/transport/adapters/rpc-call.js";
 import { HYDRATION_ID } from "../domains/elements.js";
@@ -482,4 +483,14 @@ function earliest(due: Map<number, { at: number; fn: () => void }>, until: numbe
 	let found: [number, { at: number; fn: () => void }] | undefined;
 	for (const entry of due) if (entry[1].at <= until && (found === undefined || entry[1].at < found[1].at)) found = entry;
 	return found;
+}
+
+/** Waits until a record column has rendered its body: its markdown renderer loads at the first body it renders, and the
+ *  body shows it is reading until then. */
+export async function bodyRendered(column: HTMLElement & { updateComplete: Promise<unknown> }): Promise<void> {
+	await column.updateComplete;
+	await vi.waitFor(() => {
+		if (column.shadowRoot?.querySelector('[data-testid="body-reading"]')) throw new Error("the column's body is reading");
+	});
+	await column.updateComplete;
 }

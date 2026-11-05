@@ -38,7 +38,7 @@ import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { aType, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { ShuProductView } from "./shu-product-view.js";
 import { appAccessLevel } from "../controllers/view-query-controller.js";
-import { renderRefProse } from "../derivations/markdown.js";
+import { renderRefProse } from "../derivations/markdown-render.js";
 import "./shu-result-table.js";
 
 const TypeColumnSchema = z.object({ persistedAs: z.string() });

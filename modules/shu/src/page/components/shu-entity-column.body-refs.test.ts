@@ -4,7 +4,7 @@
  * listed beside it, once each: a markdown body's `#Type:id` links and an HTML body's.
  */
 import { type TCatalogSpec, declareSpec } from "../../test/catalog-fixture.js";
-import { newPage } from "../../test/setup.js";
+import { bodyRendered, newPage } from "../../test/setup.js";
 import { beforeEach, describe, expect, it } from "vitest";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
@@ -27,7 +27,7 @@ const META: TCatalogSpec = {
 async function refsBeside(content: string, mediaType: string) {
 	const column = document.body.appendChild(new ShuEntityColumn());
 	column.openProducts({ _type: NOTE, _summary: "n-1", id: "n-1", hasBody: [{ id: "b-1", content, mediaType }] });
-	await column.updateComplete;
+	await bodyRendered(column);
 	return [...(column.shadowRoot?.querySelectorAll(`[data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_REFS}"] shu-ref`) ?? [])].map((ref) => [
 		ref.getAttribute("kind"),
 		JSON.parse(ref.getAttribute("linkTarget") ?? "{}"),

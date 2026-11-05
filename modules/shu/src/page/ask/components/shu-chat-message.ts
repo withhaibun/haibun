@@ -15,13 +15,13 @@ import { dispatchSubjectEvent } from "../../controllers/subject-controller.js";
 import { SCOPE } from "../../domains/current-subject.js";
 import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../../domains/elements.js";
 import { defineElement } from "../../controllers/element-controller.js";
+import { MarkdownRendererController } from "../../controllers/markdown-renderer-controller.js";
 import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
 import { patternRef, recordRef } from "../../components/shu-ref.js";
 import { CalledSchema } from "@haibun/core/lib/domains/called.js";
 import { ICON_STEP_COMPLETED, RETURNED_TO_CALLER } from "@haibun/core/lib/domains/protocol.js";
 import { BundleSchema, ChatRoleSchema, type TBundle, type TChatRole, type TQuestionFork } from "../../../domains/schemas.js";
 import { ChatStatusSchema, UNVERIFIED_TURN } from "@haibun/core/lib/conversation/domains/conversation.js";
-import { proseText, renderRefAnswer, renderRefProse } from "../../derivations/markdown.js";
 
 /** Styles for a light-DOM chat message, exported for the shadow scope that hosts the activity history: the message
  *  renders in light DOM, so the scope that contains it declares the rules. */
@@ -104,6 +104,9 @@ function activateRecord(label: string, id: string, turn: string, bundle: TBundle
 }
 
 export class ShuChatMessage extends ShuElement<typeof EmptyStateSchema> {
+	/** The markdown renderer the message renders its text with; the text reads as it is until it loads. */
+	readonly #markdown = new MarkdownRendererController(this);
+
 	/** A control doesn't contribute to a conversation's context, since it isn't a view of data. */
 	summarizeForContext(): TLinkedData | null {
 		return null;
@@ -158,6 +161,7 @@ export class ShuChatMessage extends ShuElement<typeof EmptyStateSchema> {
 
 	render(): TemplateResult {
 		const m = this.shown;
+		const renderer = this.#markdown.renderer;
 		// Host attributes reflect the message on each render, so a page reader selects a message by its state.
 		const reflected: Array<[string, string | undefined]> = [
 			[SHU_ATTR.DATA_ROLE, m.role],
@@ -186,14 +190,14 @@ export class ShuChatMessage extends ShuElement<typeof EmptyStateSchema> {
 							? html`<div class="chat-carries" data-testid=${SHU_TEST_IDS.APP.CHAT_CARRIES}>about ${m.bundle.patterns.map(patternRef)}</div>`
 							: ""
 					}
-					${m.role === "llm" ? html`<shu-spinner .status=${proseText(m.spinnerStatus, refContext)} .visible=${m.spinnerVisible} .spinning=${m.spinnerSpinning}></shu-spinner>` : ""}
+					${m.role === "llm" ? html`<shu-spinner .status=${renderer === undefined ? m.spinnerStatus : renderer.proseText(m.spinnerStatus, refContext)} .visible=${m.spinnerVisible} .spinning=${m.spinnerSpinning}></shu-spinner>` : ""}
 					${
 						// What the response was made of reads before the response: the context the turn carried and the calls it
 						// made come first in time, and a reader weighing the response reads them first.
 						m.context.length > 0
 							? html`<details class="chat-made-of" data-testid=${SHU_TEST_IDS.APP.CHAT_CONTEXT}>
 								<summary>context sent (${m.context.length} lines)</summary>
-								<ol>${guard([m.context.join("\n")], () => m.context.map((line) => html`<li>${unsafeHTML(renderRefProse(line, refContext))}</li>`))}</ol>
+								<ol>${guard([m.context.join("\n"), renderer], () => m.context.map((line) => html`<li>${renderer === undefined ? line : unsafeHTML(renderer.renderRefProse(line, refContext))}</li>`))}</ol>
 							</details>`
 							: ""
 					}
@@ -205,7 +209,7 @@ export class ShuChatMessage extends ShuElement<typeof EmptyStateSchema> {
 							</details>`
 							: ""
 					}
-					${m.role === "llm" && m.text ? html`<div class="chat-text" data-testid="app-chat-text">${unsafeHTML(renderRefAnswer(m.text, refContext))}</div>` : ""}
+					${m.role === "llm" && m.text ? html`<div class="chat-text" data-testid="app-chat-text">${renderer === undefined ? m.text : unsafeHTML(renderer.renderRefAnswer(m.text, refContext))}</div>` : ""}
 					${m.error ? html`<div class="chat-error">${m.error}</div>` : ""}
 					${m.unverified !== undefined && m.unverified.length > 0 ? html`<div class="chat-unverified" data-testid="app-chat-unverified">${UNVERIFIED_TURN}: ${m.unverified.join(", ")}</div>` : ""}
 					${
