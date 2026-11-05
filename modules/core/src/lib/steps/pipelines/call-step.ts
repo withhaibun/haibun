@@ -21,6 +21,9 @@ import { DOMAIN_STATEMENT, registeredDomain } from "../../domains/domains.js";
 import { proveClaimed, type DispatchContext } from "../../actuality/pipelines/step-dispatch.js";
 import { allocateSyntheticSeqPath } from "../../domains/host-id.js";
 import type { TSeqPath, TStepResult } from "../../domains/protocol.js";
+import { runAsCaller } from "../../domains/capability-context.js";
+import { readAction, writeAction } from "../../domains/actions.js";
+import type { AccessLevel } from "../../domains/resources.js";
 
 /**
  * Returns the feature step that a call from a transport (RPC, MCP) runs as, with input that holds each value as the step
@@ -110,6 +113,23 @@ export async function callStatedStepFrom(from: { getWorld: () => TWorld; stepper
 	const world = from.getWorld();
 	const ctx = { registry: runRegistry(world), world, steppers: from.steppers };
 	return await proveCall(ctx, method, (tool, seqPath) => validatedFeatureStep(tool, input, seqPath, world, from.steppers));
+}
+
+/**
+ * Calls a step by name from a route, as the caller the route states. A route that writes, or reads what isn't public, acts
+ * through a declared step: the call holds the step's required action, a read at `reads` and a write at each level of
+ * `writes` broader than `reads`, acting as `principal`, the party for which the route acts once it has checked what its
+ * protocol requires, such as a request's state.
+ * The step's gate, record and proof are a call's, so what the route did reads as that step and why it holds.
+ */
+export function callStepAsRoute(
+	from: { getWorld: () => TWorld; steppers: AStepper[] },
+	method: string,
+	input: Record<string, unknown>,
+	as: { principal: string | undefined; reads: AccessLevel; writes: AccessLevel[] },
+): Promise<TStepCall> {
+	const required = runRegistry(from.getWorld()).named(method).descriptor.capability;
+	return runAsCaller({ held: [required, readAction(as.reads), ...as.writes.map(writeAction)], principal: as.principal }, () => callStatedStepFrom(from, method, input));
 }
 
 /** Returns the result of `tool` for a caller that reads what the step changed. It calls the read step that the

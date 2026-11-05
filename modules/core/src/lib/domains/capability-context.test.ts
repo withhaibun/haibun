@@ -6,7 +6,22 @@
  * running. Work that ticks on its own therefore runs under a capability it sets instead of the step's.
  */
 import { describe, expect, it } from "vitest";
-import { authorizedWith, readingAt, runActingAs, runAuthorizedWith, runInStep, runReadingAt, runShowing, shownTo, stepInFlight } from "./capability-context.js";
+import {
+	actingAs,
+	authorizedWith,
+	callerHolds,
+	readingAt,
+	runActingAs,
+	runAsCaller,
+	runAuthorizedWith,
+	runInStep,
+	runReadingAt,
+	runShowing,
+	shownTo,
+	stepInFlight,
+} from "./capability-context.js";
+import { readAction } from "./actions.js";
+import { Access } from "./resources.js";
 
 describe("the capability a step runs under", () => {
 	it("is undefined outside a dispatch", () => {
@@ -99,5 +114,23 @@ describe("the outermost step of a call", () => {
 	it("begins again where a call proves its principal, since that call isn't part of the step during which it arrived", async () => {
 		const arrived = await runInStep(step("0.1"), () => runActingAs("did:example:caller", () => Promise.resolve(runInStep(step("0.9"), () => stepInFlight()))));
 		expect(arrived?.outermost).toBe("0.9");
+	});
+});
+
+describe("a caller a boundary states", () => {
+	it("replaces the authority, the principal and the read scope of the code that reached the boundary", async () => {
+		const held = [readAction(Access.public)];
+		const seen = await runAuthorizedWith(["*"], () =>
+			runReadingAt(undefined, () =>
+				runActingAs("did:example:instance", () =>
+					runAsCaller({ held, principal: "did:example:wallet" }, async () => ({ authorized: authorizedWith(), held: callerHolds(), as: actingAs(), at: readingAt() })),
+				),
+			),
+		);
+		expect(seen).toEqual({ authorized: held, held, as: "did:example:wallet", at: Access.public });
+	});
+
+	it("refuses each read where the caller doesn't hold one", async () => {
+		await expect(runAsCaller({ held: [], principal: undefined }, async () => readingAt())).rejects.toThrow(/requires a read action/);
 	});
 });

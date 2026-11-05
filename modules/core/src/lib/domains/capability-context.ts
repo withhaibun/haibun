@@ -274,6 +274,23 @@ export function writtenLevel(declared: AccessLevel): AccessLevel {
 	return writtenAt(undefined, declared, writeBound());
 }
 
+/** Who a boundary states a call is: the actions it holds, each of which it may call, the principal it acts as, and the
+ *  capabilities on which that principal's proof rests. */
+export type TBoundaryCaller = { held: string[]; principal: string | undefined; restsOn?: TRestsOn };
+
+/**
+ * Runs `within` as the caller a boundary states, in place of the authority of the code that reached the boundary: it
+ * holds and may call the actions `caller` holds, acts as its principal, and reads at the broadest read it holds, or is
+ * refused each read of records where it doesn't hold a read. A server's request reaches its handler in the async context in
+ * which the server began listening, so a route's work runs this way to hold what the route states rather than what that
+ * step held.
+ */
+export function runAsCaller<T>(caller: TBoundaryCaller, within: () => Promise<T>): Promise<T> {
+	const ceiling = readCeilingOf(caller.held);
+	const scope: TReadScope = ceiling === undefined ? { refusal: WITHOUT_READ } : { ceiling };
+	return runAuthorizedWith(caller.held, () => runActingAs(caller.principal, () => readScopeStore.run(scope, () => statedAtStore.exit(within)), caller.restsOn));
+}
+
 /**
  * Runs `within` as the instance itself, without the ceiling of the call that contains it. Only the authority's own
  * operations call it. They verify a chain a caller presents, return the delegations of a key, and delegate, invoke or
