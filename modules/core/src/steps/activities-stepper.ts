@@ -26,7 +26,8 @@ const BACKGROUNDS = "backgrounds/";
 /** The line that opens an activity, the line that states a waypoint with its head and its proof, and a heading, which ends
  *  an activity. */
 const ACTIVITY_LINE = /^Activity:\s*(.*)$/i;
-const WAYPOINT_LINE = /^waypoint\s+(.+?)(?:\s+with\s+(.+))?$/i;
+const WAYPOINT_LINE = /^waypoint\s+(.+)$/i;
+const WAYPOINT_PROOF = " with ";
 /** The line that states a universal rule. */
 const UNIVERSAL_LINE = new RegExp(`^for every ${UNIVERSAL.source.slice(1)}`);
 const HEADING_LINE = /^(Feature|Scenario|Pending scenario|Background|Activity):/i;
@@ -303,9 +304,11 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	 *  applies in every feature, and a feature's in that feature. Throws where the activity's title is empty. */
 	private ruleOf(line: string, path: string, lines: readonly string[], start: number, at: number, actualSourcePath: string | undefined, stating?: string): TWaypointRule {
 		const stated = WAYPOINT_LINE.exec(line);
-		const written = stated?.[1];
-		if (written === undefined) throw new Error(`"${line}" doesn't state a waypoint; state it as waypoint {head} with {proof}`);
-		const proof = stated?.[2];
+		const declared = stated?.[1];
+		if (declared === undefined) throw new Error(`"${line}" doesn't state a waypoint; state it as waypoint {head} with {proof}`);
+		const proofIndex = declared.lastIndexOf(WAYPOINT_PROOF);
+		const written = proofIndex === -1 ? declared.trim() : declared.slice(0, proofIndex).trim();
+		const proof = proofIndex === -1 ? undefined : declared.slice(proofIndex + WAYPOINT_PROOF.length).trim();
 		const source = actualSourcePath === undefined ? path : actualSourcePath;
 		const titled = stating === undefined ? ACTIVITY_LINE.exec(getActionable(itemAt(lines, start)))?.[1]?.trim() : stating;
 		if (titled === undefined || titled === "")

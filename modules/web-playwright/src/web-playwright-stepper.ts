@@ -710,11 +710,11 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		},
 		acceptEndpointRequest: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `accept {accept: ${DOMAIN_MEDIA_TYPE}} using ${HTTP} {method: ${DOMAIN_HTTP_METHOD_WITHOUT_BODY}} to {endpoint: ${DOMAIN_LINK}}`,
+			gwta: `accept {accept: ${DOMAIN_MEDIA_TYPE}} using ${HTTP} {method: ${DOMAIN_HTTP_METHOD_WITHOUT_BODY}} to {endpoint: ${DOMAIN_LINK}}( as {name: ${DOMAIN_FILE_PATH}})?`,
 			description:
-				"Makes the HTTP request of the method to the endpoint inside the page, with the Accept header set to the media type named, and keeps its response as the last one.",
-			action: ({ accept, method, endpoint }: { accept: string; method: string; endpoint: string }, featureStep: TFeatureStep) =>
-				request(this.#rest, featureStep, endpoint, method, { headers: { accept } }),
+				"Makes the HTTP request of the method to the endpoint inside the page, with the Accept header set to the media type named, optionally saving a binary response with the given name, and keeps its response as the last one.",
+			action: ({ accept, method, endpoint, name }: { accept: string; method: string; endpoint: string; name?: string }, featureStep: TFeatureStep) =>
+				request(this.#rest, featureStep, endpoint, method, { headers: { accept }, ...(name !== undefined ? { saveAs: name } : {}) }),
 		},
 		restEndpointRequest: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,

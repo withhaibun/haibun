@@ -84,7 +84,12 @@ describe("the call sites of a step", () => {
 	};
 	beforeEach(() => {
 		repository = mkdtempSync(join(tmpdir(), "haibun-step-rules-"));
-		execFileSync("git", ["init", "-q"], { cwd: repository });
+		const env = { ...process.env };
+		delete env.GIT_DIR;
+		delete env.GIT_WORK_TREE;
+		delete env.GIT_INDEX_FILE;
+		delete env.GIT_PREFIX;
+		execFileSync("git", ["init", "-q"], { cwd: repository, env });
 	});
 	afterEach(() => rmSync(repository, { recursive: true, force: true }));
 
@@ -135,7 +140,12 @@ describe("the steps a repository exercises", () => {
 	};
 	beforeEach(() => {
 		repository = mkdtempSync(join(tmpdir(), "haibun-step-exercise-"));
-		execFileSync("git", ["init", "-q"], { cwd: repository });
+		const env = { ...process.env };
+		delete env.GIT_DIR;
+		delete env.GIT_WORK_TREE;
+		delete env.GIT_INDEX_FILE;
+		delete env.GIT_PREFIX;
+		execFileSync("git", ["init", "-q"], { cwd: repository, env });
 	});
 	afterEach(() => rmSync(repository, { recursive: true, force: true }));
 

@@ -250,18 +250,19 @@ export class FeatureVariables {
 			if (bound === undefined) Object.assign(resolved, await this.lookupVariable(name));
 			else Object.assign(resolved, { value: bound, domain: boundDomain(bound, writtenDomain), origin: Origin.var });
 		} else if (input.origin === Origin.defined) {
-			const bound = featureStep?.runtimeArgs?.[lookupTerm];
+			const filled = await this.filledName(lookupTerm, featureStep);
+			const bound = featureStep?.runtimeArgs?.[filled];
 			if (bound !== undefined) {
 				resolved.value = bound;
 				resolved.domain = boundDomain(bound, writtenDomain);
 				resolved.origin = Origin.var;
-			} else if (runEnvVariable(this.world, lookupTerm)) {
-				resolved.value = runEnvVariable(this.world, lookupTerm);
+			} else if (runEnvVariable(this.world, filled)) {
+				resolved.value = runEnvVariable(this.world, filled);
 				resolved.domain = writtenDomain;
 				resolved.origin = Origin.env;
-				resolved.secret = this.isSecret(lookupTerm);
+				resolved.secret = this.isSecret(filled);
 			} else {
-				const found = await this.lookupVariable(lookupTerm);
+				const found = await this.lookupVariable(filled);
 				if (found) {
 					Object.assign(resolved, found);
 				} else if (input.domain && namesMember(this.world.domains[input.domain], input.term)) {

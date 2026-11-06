@@ -104,9 +104,18 @@ function sourceDefaults(file: string, source: ts.SourceFile): TFound[] {
 	return found;
 }
 
+const gitEnv = (): NodeJS.ProcessEnv => {
+	const env = { ...process.env };
+	delete env.GIT_DIR;
+	delete env.GIT_WORK_TREE;
+	delete env.GIT_INDEX_FILE;
+	delete env.GIT_PREFIX;
+	return env;
+};
+
 /** The compose files git tracks in a repository, by their paths from the repository root. */
 export function composeFiles(repository: string): string[] {
-	return execFileSync("git", ["ls-files", "--", ...COMPOSE_FILES], { cwd: repository, encoding: "utf-8" })
+	return execFileSync("git", ["ls-files", "--", ...COMPOSE_FILES], { cwd: repository, encoding: "utf-8", env: gitEnv() })
 		.split("\n")
 		.filter((path) => path !== "")
 		.sort();

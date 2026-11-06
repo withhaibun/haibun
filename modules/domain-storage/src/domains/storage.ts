@@ -4,12 +4,13 @@
  */
 import { isAbsolute, resolve, relative, sep } from "path";
 import { z } from "zod";
-import { CAPTURE, OK } from "@haibun/core/lib/domains/protocol.js";
+import { CAPTURE, ImageArtifact, OK } from "@haibun/core/lib/domains/protocol.js";
 import { captureLocator } from "@haibun/core/lib/domains/capture-locator.js";
+import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import type { TModuleOptions, TBaseOptions } from "@haibun/core/lib/world.js";
 import type { TTag } from "@haibun/core/lib/domains/ttag.js";
 import type { IFile, TStorageFiles } from "../ports.js";
-import { AStepper, StepperKinds, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
+import { AStepper, StepperKinds, type IHasCycles, type IStepperCycles, type TFeatureStep, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
 import { DOMAIN_NUMBER, DOMAIN_FILE_PATH, DOMAIN_TEXT } from "@haibun/core/lib/domains/domains.js";
 import { listOf } from "@haibun/core/lib/domains/lists.js";
@@ -94,6 +95,24 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 	mkdir = (dir: string): void => this.files.mkdir(dir);
 	mkdirp = (dir: string): void => this.files.mkdirp(dir);
 	exists = (path: string): boolean => this.files.exists(path);
+
+	/** The path of a storage entry: its file path where it exists, or its path in the artifact directory where an artifact was saved there. */
+	entryPath(what: string): string | undefined {
+		if (this.exists(what)) return what;
+		try {
+			const loc = this.locator(this.getWorld().options, this.getWorld().tag, "image");
+			const imagePath = resolve(loc, what);
+			if (this.exists(imagePath)) return imagePath;
+			const baseLoc = this.locator(this.getWorld().options, this.getWorld().tag);
+			const basePath = resolve(baseLoc, what);
+			if (this.exists(basePath)) return basePath;
+			const rootPath = resolve(this.getArtifactRoot(), what);
+			if (this.exists(rootPath)) return rootPath;
+		} catch {
+			// options or tag might not be initialized
+		}
+		return undefined;
+	}
 
 	locator = captureLocator;
 
@@ -210,9 +229,26 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 		fileExists: {
 			gwta: `storage entry {what: ${DOMAIN_FILE_PATH}} exists`,
 			description: "Checks that a storage entry exists at the path. Fails, stating the path, when the entry doesn't exist.",
-			action: ({ what }: { what: string }) => {
-				const exists = this.exists(what);
-				return Promise.resolve(exists ? OK : actionNotOK(`file ${what} does not exist`));
+			action: ({ what }: { what: string }, featureStep: TFeatureStep) => {
+				const found = this.entryPath(what);
+				if (found === undefined) return Promise.resolve(actionNotOK(`file ${what} does not exist`));
+				if (what.endsWith(".png") || what.endsWith(".jpg") || what.endsWith(".jpeg") || what.endsWith(".webp")) {
+					const world = this.getWorld();
+					const basePath = this.getArtifactBasePath();
+					const baseRelativePath = relative(resolve(basePath), resolve(found));
+					const mimetype = what.endsWith(".png") ? MEDIA_TYPE.png : what.endsWith(".webp") ? MEDIA_TYPE.webp : MEDIA_TYPE.jpeg;
+					const artifact = ImageArtifact.parse({
+						id: `${featureStep.seqPath.join(".")}.artifact.0`,
+						timestamp: Date.now(),
+						kind: "artifact",
+						artifactType: "image",
+						path: baseRelativePath,
+						featureRelativePath: `./image/${what}`,
+						mimetype,
+					});
+					world.eventLogger.artifact(artifact);
+				}
+				return Promise.resolve(OK);
 			},
 		},
 		isTheSame: {

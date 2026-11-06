@@ -7,16 +7,24 @@ import { linksAndParentPaths, optionAssignments, untrackedRecords } from "./grou
 
 describe("the parent paths and tracking files of a repository's groups", () => {
 	let repository = "";
+	const gitEnv = (): NodeJS.ProcessEnv => {
+		const env = { ...process.env };
+		delete env.GIT_DIR;
+		delete env.GIT_WORK_TREE;
+		delete env.GIT_INDEX_FILE;
+		delete env.GIT_PREFIX;
+		return env;
+	};
 	const committed = (files: Record<string, string>) => {
 		for (const [file, text] of Object.entries(files)) {
 			mkdirSync(dirname(join(repository, file)), { recursive: true });
 			writeFileSync(join(repository, file), text);
 		}
-		execFileSync("git", ["add", "."], { cwd: repository });
+		execFileSync("git", ["add", "."], { cwd: repository, env: gitEnv() });
 	};
 	beforeEach(() => {
 		repository = mkdtempSync(join(tmpdir(), "haibun-group-rules-"));
-		execFileSync("git", ["init", "-q"], { cwd: repository });
+		execFileSync("git", ["init", "-q"], { cwd: repository, env: gitEnv() });
 	});
 	afterEach(() => rmSync(repository, { recursive: true, force: true }));
 

@@ -46,9 +46,18 @@ const GroupConfigSchema = z.object({ steppers: z.array(z.unknown()), environment
 const BASELINE_SUFFIX = ".baseline.json";
 const BASELINE = `:(glob)**/*${BASELINE_SUFFIX}`;
 
+const gitEnv = (): NodeJS.ProcessEnv => {
+	const env = { ...process.env };
+	delete env.GIT_DIR;
+	delete env.GIT_WORK_TREE;
+	delete env.GIT_INDEX_FILE;
+	delete env.GIT_PREFIX;
+	return env;
+};
+
 /** The files git tracks in a repository that match a pattern, by their paths from the repository root. */
 export const trackedFiles = (repository: string, pattern: string): string[] =>
-	execFileSync("git", ["ls-files", "--", pattern], { cwd: repository, encoding: "utf-8" }).split("\n").filter(Boolean);
+	execFileSync("git", ["ls-files", "--", pattern], { cwd: repository, encoding: "utf-8", env: gitEnv() }).split("\n").filter(Boolean);
 
 /** Each option of haibun that a script of a tracked package.json assigns before its command, which the config the command reads states
  *  in its `options` or `moduleOptions` instead. */
@@ -65,7 +74,7 @@ export function optionAssignments(repository: string): TFound[] {
  *  stepper, a base config, a waypoint base, a dependency and the code its features import by its package, and a script calls
  *  `haibun-cli`, which npm puts on the path, so the group runs the same wherever the repository is checked out. */
 export function linksAndParentPaths(repository: string): TFound[] {
-	const links = execFileSync("git", ["ls-files", "-s"], { cwd: repository, encoding: "utf-8" })
+	const links = execFileSync("git", ["ls-files", "-s"], { cwd: repository, encoding: "utf-8", env: gitEnv() })
 		.split("\n")
 		.filter((line) => line.startsWith(`${LINK_MODE} `))
 		.map((line) => ({ file: itemAt(line.split("\t"), 1), finding: "is a symbolic link, which a checkout elsewhere doesn't resolve" }));
@@ -152,7 +161,7 @@ function ignoredOf(repository: string, files: readonly string[]): Set<string> {
 
 /** Lists the files of `pattern` in a repository by git's arguments `args`, each by its path from the repository root. */
 const listed = (repository: string, args: readonly string[], pattern: string): string[] =>
-	execFileSync("git", ["ls-files", ...args, "--", pattern], { cwd: repository, encoding: "utf-8" })
+	execFileSync("git", ["ls-files", ...args, "--", pattern], { cwd: repository, encoding: "utf-8", env: gitEnv() })
 		.split("\n")
 		.filter(Boolean);
 

@@ -155,7 +155,7 @@ export const getMatch = (
 function matchedAction(matched: RegExpExecArray, actionName: string, stepperName: string, step: TStepperStep, stepValuesMap?: Record<string, TStepValue>): TStepAction {
 	const { groups } = matched;
 	if (groups !== undefined && stepValuesMap !== undefined) {
-		for (const [i, ph] of Object.values(stepValuesMap).entries()) {
+		for (const [i, [key, ph]] of Object.entries(stepValuesMap).entries()) {
 			// A quoted capture is read first, then a backticked one, then an environment variable, then a bare literal. A quoted
 			// term states a quote within it as \".
 			const q = groups[`${TYPE_QUOTED}${i}`];
@@ -168,6 +168,8 @@ function matchedAction(matched: RegExpExecArray, actionName: string, stepperName
 			else if (t !== undefined) {
 				ph.term = t;
 				bareTerm(ph, t);
+			} else {
+				delete stepValuesMap[key];
 			}
 		}
 	}

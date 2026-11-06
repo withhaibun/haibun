@@ -149,8 +149,14 @@ export function nearDuplicates(steps: readonly TDeclaredStep[]): TFound[] {
 }
 
 /** The files of a repository that git tracks or would track, by their paths from the repository root. */
-const repositoryFiles = (repository: string): string[] =>
-	execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], { cwd: repository, encoding: "utf-8" }).split("\n").filter(Boolean);
+const repositoryFiles = (repository: string): string[] => {
+	const env = { ...process.env };
+	delete env.GIT_DIR;
+	delete env.GIT_WORK_TREE;
+	delete env.GIT_INDEX_FILE;
+	delete env.GIT_PREFIX;
+	return execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], { cwd: repository, encoding: "utf-8", env }).split("\n").filter(Boolean);
+};
 
 /** What a feature source states: its lines, and each kireji call by the key of the step it calls. */
 type TStated = { lines: string[]; calls: string[] };

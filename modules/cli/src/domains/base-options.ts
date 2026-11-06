@@ -75,7 +75,7 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv, specl: TSpecl): TPro
 	const moduleOptions: TModuleOptions = { ...specl.moduleOptions };
 
 	const errors: string[] = [];
-	let nenv = {};
+	let nenv: TEnvVariables = specl.env !== undefined ? { ...specl.env } : {};
 
 	const baseOptions = (BaseOptions as IHasOptions).options ?? {};
 	for (const [k, v] of Object.entries(baseOptions)) if (v.default !== undefined) options[k] = v.default;

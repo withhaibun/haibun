@@ -87,13 +87,13 @@ export async function request(
 	featureStep: TFeatureStep,
 	endpoint: string,
 	method: string,
-	payload?: { headers?: Record<string, string>; postData?: string },
+	payload?: { headers?: Record<string, string>; postData?: string; saveAs?: string },
 ): Promise<TActionResult> {
 	const sendsBody = (HTTP_METHODS_WITH_BODY as readonly string[]).includes(method);
 	const body = sendsBody && payload?.postData === undefined ? { postData: "", headers: JSON_CONTENT } : {};
 	const fetched = await fetchInPage(context, endpoint, method, { ...body, ...payload });
 	if (fetched.bytes !== undefined && fetched.mediaType !== undefined && context.storage !== undefined) {
-		const filename = `http-${featureStep.seqPath.join(".")}.${extensionForMediaType(fetched.mediaType)}`;
+		const filename = payload?.saveAs !== undefined ? payload.saveAs : `http-${featureStep.seqPath.join(".")}.${extensionForMediaType(fetched.mediaType)}`;
 		const isImage = isImageFormat(fetched.mediaType);
 		const saved = isImage
 			? await saveImageArtifact(
