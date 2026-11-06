@@ -2,7 +2,7 @@
  * A row of actuality as a view renders it: a step carries how it went and how long it took, what was logged carries its
  * own level, and what a step produced carries the step that produced it.
  */
-import { stepLine } from "@haibun/core/lib/seq-path.js";
+import { calledParts, stepLine } from "@haibun/core/lib/seq-path.js";
 import { declaredName, declaresFeature, declaresScenario } from "@haibun/core/lib/domains/protocol.js";
 import type { TEventRecord } from "../ports.js";
 import type { TActualityRow } from "./actuality-rows.js";
@@ -58,7 +58,8 @@ function stepRecord(row: TActualityRow, seqPath: number[] | undefined): TEventRe
 		level: row.level,
 		// The step's words, and what ran: a view shows the step's own words and states which action carried them out.
 		in: row.text,
-		...(row.called === undefined ? {} : { called: row.called, actionName: row.called }),
+		// A step's event names its stepper and its action apart, as actuality's event of the step names them.
+		...(row.called === undefined ? {} : { called: row.called, ...calledParts(row.called) }),
 		status: row.status,
 		...(row.error === undefined ? {} : { error: row.error }),
 		...(row.showed === undefined ? {} : { showed: row.showed }),
