@@ -24,7 +24,9 @@ import type { TWorld } from "@haibun/core/lib/world.js";
 import { DOMAIN_JSON, DOMAIN_STATEMENT } from "@haibun/core/lib/domains/domains.js";
 import { RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
-import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
+import { Access, SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
+import { callStepAsRoute } from "@haibun/core/lib/call-step.js";
+import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { SEQ_PATH_FIELD, calledOf, actualityFeatureOf, formatRecordName } from "@haibun/core/lib/seq-path.js";
 import { readEvery, recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
@@ -40,6 +42,8 @@ const TALLY = "tally";
 const QRCANVAS_SCRIPT = createRequire(import.meta.url).resolve("qrcanvas/lib/qrcanvas.min.js");
 
 const setTally = (value: number) => ({ term: TALLY, value: String(value), domain: DOMAIN_STRING, origin: Origin.var });
+/** The products of the tally step. */
+const TallySchema = z.object({ count: z.number() });
 
 /** The holder that signs a call and the action that the call invokes. `post` sends the call unsigned when the signer is undefined. */
 type TSigner = { holder: string; action: string } | undefined;
@@ -210,11 +214,12 @@ class TestServer extends AStepper {
 		};
 	};
 
+	/** A served request is refused each read of records, so the route tallies through the declared step that reads and
+	 *  writes the tally, as callStepAsRoute states. */
 	tally: TRequestHandler = async (c: Context): Promise<Response> => {
-		const cur =
-			(parseInt((await this.getWorld().shared.resolveVariable({ term: TALLY, origin: Origin.var }, undefined, undefined, { secure: true })).value as string, 10) || 0) + 1;
-		await this.getWorld().shared.set(setTally(cur), { when: "tally", seq: [cur] });
-		this.getWorld().eventLogger.info(`tally ${cur}`);
+		const { result } = await callStepAsRoute(this.getWorld(), stepMethodName(this, "tallyRequest"), {}, undefined);
+		if (!result.ok) return c.text(result.errorMessage, 500);
+		const { count: cur } = TallySchema.parse(result.products);
 		const username = c.req.query("username");
 		await this.getWorld().clock.wait(Math.random() * 2000);
 		setCookie(c, "userid", String(username));
@@ -401,6 +406,21 @@ class TestServer extends AStepper {
 				return response.status === REFUSED_INVOCATION
 					? actionOK()
 					: actionNotOK(`Expected the server to refuse the call with status ${REFUSED_INVOCATION}, got ${response.status} ${JSON.stringify(data)}`);
+			},
+		},
+		tallyRequest: {
+			gwta: "tally a request",
+			description: "Adds one to the tally variable and returns the tally, for the tally route a request reaches.",
+			contract: { products: TEST_DOMAIN.count },
+			// The tally is a feature variable, which it reads and writes privately.
+			readsAt: Access.private,
+			writesAt: [Access.private],
+			action: async () => {
+				const cur =
+					(parseInt((await this.getWorld().shared.resolveVariable({ term: TALLY, origin: Origin.var }, undefined, undefined, { secure: true })).value as string, 10) || 0) + 1;
+				await this.getWorld().shared.set(setTally(cur), { when: "tally", seq: [cur] });
+				this.getWorld().eventLogger.info(`tally ${cur}`);
+				return actionOKWithProducts({ count: cur });
 			},
 		},
 		addTallyRoute: {
