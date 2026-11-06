@@ -34,6 +34,7 @@ function alsoAsked(at: number): void {
 describe("the actions bar's history", () => {
 	let teardown: () => void;
 	beforeEach(() => {
+		location.hash = "";
 		teardown = setupShuTest().teardown;
 		timeCursor.set(null);
 	});
@@ -54,6 +55,57 @@ describe("the actions bar's history", () => {
 		control?.click();
 		await history.updateComplete;
 		expect(arrivedIn(history)?.hidden, "and pressing it returns them to the newest").toBe(true);
+	});
+
+	it("tracks the latest position as a running turn streams text while following, and holds the reader's place when wheeled up", async () => {
+		const history = await aHistory(1);
+		let height = 200;
+		Object.defineProperty(history, "scrollHeight", { get: () => height, configurable: true });
+		Object.defineProperty(history, "clientHeight", { get: () => 100, configurable: true });
+		history.scrollTop = 100;
+
+		dispatchConversationEvent({ type: "ask", prompt: "Explain the graph", patterns: [], session: SESSION, inReplyTo: SESSION, delegated: [] });
+		dispatchConversationEvent({ type: "started" });
+		height = 320;
+		dispatchConversationEvent({ type: "text", piece: "First paragraph of the response.\n\n" });
+		await history.updateComplete;
+		expect(history.scrollTop, "streaming text while following pins scrollTop to scrollHeight").toBe(320);
+
+		height = 460;
+		dispatchConversationEvent({ type: "text", piece: "Second paragraph of the response." });
+		await history.updateComplete;
+		expect(history.scrollTop, "subsequent chunks keep scrollTop at the growing scrollHeight").toBe(460);
+
+		history.scrollTop = 120;
+		history.dispatchEvent(new WheelEvent("wheel", { deltaY: -80 }));
+		height = 600;
+		dispatchConversationEvent({ type: "text", piece: "\n\nThird paragraph after the reader scrolled up." });
+		await history.updateComplete;
+		expect(history.scrollTop, "streaming chunks do not move scrollTop after the reader wheels up").toBe(120);
+	});
+
+	it("tracks appended step results while following and reports arrived entries when paused", async () => {
+		const history = await aHistory(1);
+		let height = 250;
+		Object.defineProperty(history, "scrollHeight", { get: () => height, configurable: true });
+		Object.defineProperty(history, "clientHeight", { get: () => 100, configurable: true });
+		history.scrollTop = 150;
+
+		const stepEntry = document.createElement("div");
+		height = 400;
+		history.append(stepEntry);
+		await history.updateComplete;
+		expect(history.scrollTop, "appending a step caller while following scrolls to the new bottom").toBe(400);
+
+		history.scrollTop = 80;
+		history.dispatchEvent(new WheelEvent("wheel", { deltaY: -100 }));
+		const laterStepEntry = document.createElement("div");
+		laterStepEntry.dataset.entryAt = String(Date.now() + 5000);
+		height = 550;
+		history.append(laterStepEntry);
+		await history.updateComplete;
+		expect(history.scrollTop, "appending while paused preserves the reader's scroll position").toBe(80);
+		expect(arrivedIn(history)?.hidden, "arrived control appears for the new entry").toBe(false);
 	});
 
 	afterEach(() => teardown());

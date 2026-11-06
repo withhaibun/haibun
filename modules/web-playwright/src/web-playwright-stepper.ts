@@ -184,7 +184,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		return this.madeWithWorld(this.#ports, "browser ports");
 	}
 	get #rest(): TRestContext {
-		return { session: this.session, world: this.getWorld(), fetch: this.#browser.fetch };
+		return { session: this.session, world: this.getWorld(), storage: this.#storage, fetch: this.#browser.fetch };
 	}
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {

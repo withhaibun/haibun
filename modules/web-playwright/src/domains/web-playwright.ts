@@ -136,6 +136,10 @@ export const CapturedResponseSchema = z.object({
 	/** The body read as JSON, absent where it isn't JSON. */
 	json: JsonResponseSchema.optional(),
 	text: z.string(),
+	/** Where actuality keeps a binary response's bytes, absent where the body is text. */
+	contentUrl: z.string().optional(),
+	/** The media type of a binary response's bytes, absent where the body is text. */
+	encodingFormat: z.string().optional(),
 });
 export type TCapturedResponse = z.infer<typeof CapturedResponseSchema>;
 

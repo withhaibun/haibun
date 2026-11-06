@@ -80,6 +80,7 @@ export class BrowserSession {
 		if (opening) {
 			// A page that opens may come to the front, so the next action brings its own page there.
 			this.#front = undefined;
+			if (Object.keys(this.extraHTTPHeaders).length > 0) await page.context().setExtraHTTPHeaders(this.extraHTTPHeaders);
 			if (captureVideo && !this.#videoStartEmitted) this.#emitVideoStart();
 		}
 		if (!this.#boundPages.has(page)) {

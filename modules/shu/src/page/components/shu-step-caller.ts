@@ -316,7 +316,9 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 			this.dispatchEvent(new CustomEvent(SHU_EVENT.STEP_SUCCESS, { bubbles: true, composed: true, detail: returned.result }));
 		}
 		await this.updateComplete;
-		revealInDocument(this, { behavior: "smooth", block: "nearest", inline: "nearest" });
+		if (this.closest(SHU_TAG.ACTIVITY_HISTORY) === null) {
+			revealInDocument(this, { behavior: "smooth", block: "nearest", inline: "nearest" });
+		}
 	}
 
 	#refuseInput(error: string, fieldErrors: Record<string, string>): void {

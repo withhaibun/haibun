@@ -16,7 +16,7 @@
 import { type TemplateResult, html } from "lit";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { ShuChatMessage } from "../ask/components/shu-chat-message.js";
-import { CHAT_VIEW_PARAM, SHU_TAG } from "../../domains/elements.js";
+import { CHAT_VIEW_PARAM, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { ScrollFollowController } from "../controllers/scroll-follow-controller.js";
@@ -24,7 +24,7 @@ import { FOLLOW_EDGE_SLACK_PX } from "../domains/scroll-follow.js";
 import { SignalController } from "../controllers/signal-controller.js";
 import { SubjectController } from "../controllers/subject-controller.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
-import { nextQuestion, conversationState, transcript, turnEnded } from "../ask/controllers/conversation-controller.js";
+import { nextQuestion, conversationState, transcript } from "../ask/controllers/conversation-controller.js";
 import { currentSubject } from "../derivations/current-subject.js";
 import { appAccessLevel } from "../controllers/view-query-controller.js";
 
@@ -82,24 +82,36 @@ export class ShuActivityHistory extends ShuElement<typeof EmptyStateSchema> {
 		for (const raised of ["wheel", "touchmove"]) this.autoListen(this, raised, () => this.#follow.setAtBottom(false), { passive: true });
 		// Reaching the end resumes, however the view got there.
 		this.autoListen(this, "scroll", () => this.scrollHeight - (this.scrollTop + this.clientHeight) <= FOLLOW_EDGE_SLACK_PX && this.#follow.setAtBottom(true), { passive: true });
+		for (const settled of [SHU_EVENT.STEP_SUCCESS, SHU_EVENT.STEP_ERROR]) {
+			this.autoListen(this, settled, (e: Event) => {
+				const caller = (e.target as HTMLElement | null)?.closest?.("[data-entry-at]") as HTMLElement | null;
+				if (caller !== null) caller.dataset.entryAt = String(Date.now());
+				this.keepNewestInView();
+			});
+		}
 	}
 
 	/** Append an activity record and keep the newest entry in view where the reader is at the end. */
 	append(entry: HTMLElement): void {
+		if (!entry.dataset.entryAt) entry.dataset.entryAt = String(Date.now());
 		this.insertBefore(entry, this.#arrived.parentNode === this ? this.#arrived : null);
-		this.#follow.stick();
+		this.keepNewestInView();
 	}
 
 	/** Pin the scroll to the newest entry, also called by a producer whose entry grows in place (a step's result). */
 	keepNewestInView(): void {
+		this.#recomputePlace(transcript(this.#conversation.state, nextQuestion(this.#subject.state).repliesTo?.turn, appAccessLevel()));
 		this.#follow.stick();
 	}
 
-	/** Scroll to the end on the next frame. A plain container holds every row it renders, so the jump always reaches its end. */
+	/** Scroll to the end immediately and on the next frame while following. A plain container holds every row it renders, so the jump always reaches its end. */
 	#jumpToEnd(): boolean {
-		requestAnimationFrame(() => {
-			this.scrollTop = this.scrollHeight;
-		});
+		this.scrollTop = this.scrollHeight;
+		if (typeof requestAnimationFrame === "function") {
+			requestAnimationFrame(() => {
+				if (this.#follow.isFollowing && this.#view.atLiveEdge) this.scrollTop = this.scrollHeight;
+			});
+		}
 		return true;
 	}
 
@@ -122,8 +134,19 @@ export class ShuActivityHistory extends ShuElement<typeof EmptyStateSchema> {
 		this.#arrived.textContent = arrived === 0 ? "" : `${arrived} ${arrived === 1 ? "turn" : "turns"} arrived, return to the newest`;
 	}
 
+	#recomputePlace(entries: ReturnType<typeof transcript>): void {
+		const appended = Array.from(this.querySelectorAll<HTMLElement>("[data-entry-at]"))
+			.map((el) => Number(el.dataset.entryAt))
+			.filter((at) => Number.isFinite(at));
+		const afterTurns = entries.filter((entry) => entry.message.role === "user" && !this.#view.shows(entry.askedAt)).length;
+		const afterAppended = appended.filter((at) => !this.#view.shows(at)).length;
+		this.#turnsAfterThePlace = afterTurns + afterAppended;
+		const turnTimes = entries.flatMap((entry) => (entry.askedAt !== undefined ? [entry.askedAt] : []));
+		this.#newestShown = [...turnTimes, ...appended].reduce<number | null>((at, entryAt) => (this.#view.shows(entryAt) ? Math.max(at ?? 0, entryAt) : at), null);
+	}
+
 	/** Place the transcript's messages: remove the ones it no longer holds, update the ones that changed, and append new
-	 *  ones. The newest entry is kept in view when a message is added or a turn ends. */
+	 *  ones. The newest entry is kept in view when a message is added or updated while following. */
 	private syncTranscript(): void {
 		const entries = transcript(this.#conversation.state, nextQuestion(this.#subject.state).repliesTo?.turn, appAccessLevel());
 		const keys = new Set(entries.map(({ message }) => message.id));
@@ -133,30 +156,29 @@ export class ShuActivityHistory extends ShuElement<typeof EmptyStateSchema> {
 			this.#messages.delete(key);
 		}
 		const current = this.#subject.record?.id;
-		// A question the reader's place doesn't show is a turn asked after it, which is what the history offers to reach.
-		this.#turnsAfterThePlace = entries.filter((entry) => entry.message.role === "user" && !this.#view.shows(entry.askedAt)).length;
-		this.#newestShown = entries.reduce<number | null>(
-			(at, entry) => (entry.askedAt !== undefined && this.#view.shows(entry.askedAt) ? Math.max(at ?? 0, entry.askedAt) : at),
-			null,
-		);
+		this.#recomputePlace(entries);
 		let pin = false;
 		for (const { message, shown, askedAt } of entries) {
+			const visible = shown && this.#view.shows(askedAt);
 			let held = this.#messages.get(message.id);
 			if (!held) {
 				held = { el: new ShuChatMessage(), given: "" };
 				this.#messages.set(message.id, held);
 				// The control the reader returns by stays last, and is placed only once this element holds it.
 				this.insertBefore(held.el, this.#arrived.parentNode === this ? this.#arrived : null);
-				pin = true;
+				if (visible) pin = true;
 			}
 			const given = JSON.stringify(message);
 			if (held.given !== given) {
-				pin ||= turnEnded(held.el.message?.status, message.status);
+				if (visible) pin = true;
 				held.el.message = message;
 				held.given = given;
+				if (visible) {
+					void held.el.updateComplete.then(() => this.#follow.stick());
+				}
 			}
 			// A view holding a place on the timeline shows the turns asked at or before it and hides the rest.
-			held.el.hidden = !shown || !this.#view.shows(askedAt);
+			held.el.hidden = !visible;
 			if (current !== undefined && message.recordId === current) held.el.setAttribute("aria-current", "true");
 			else held.el.removeAttribute("aria-current");
 		}

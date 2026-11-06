@@ -75,9 +75,10 @@ export const refLabel = ({ kind, target }: TRef): string => (REF_KINDS[kind].lab
 
 /** Returns a reference's markup. The words are also its child text, so a surface where the element isn't defined (the
  *  sandboxed body iframe) shows them; the defined element's shadow root doesn't have a slot, so they never show twice. */
-export function renderRef(ref: TRef, text?: string): string {
+export function renderRef(ref: TRef, text?: string, inlineImage?: boolean): string {
 	const display = text ?? refLabel(ref);
-	return `<shu-ref kind="${escAttr(ref.kind)}" linkTarget="${escAttr(JSON.stringify(ref.target))}" text="${escAttr(display)}">${esc(display)}</shu-ref>`;
+	const imageAttr = inlineImage === true ? ' inline-image="true"' : "";
+	return `<shu-ref kind="${escAttr(ref.kind)}" linkTarget="${escAttr(JSON.stringify(ref.target))}" text="${escAttr(display)}"${imageAttr}>${esc(display)}</shu-ref>`;
 }
 
 /** What a text's references read from the catalog: whether a name is a persisted type, and what the ontology declares of a
