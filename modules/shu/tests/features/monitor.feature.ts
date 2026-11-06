@@ -10,6 +10,9 @@ import { SHU_TAG } from "@haibun/shu/domains/elements.js";
 import { PRINCIPAL_LABEL, SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { views } from "@haibun/shu/waypoints/backgrounds/views.feature.ts";
 import { ontology } from "@haibun/shu/waypoints/backgrounds/ontology.feature.ts";
+import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
+import LogicStepper from "@haibun/logic/logic-stepper.js";
+import { VERDICT } from "@haibun/core/lib/domains/protocol.js";
 
 const wp = new WebPlaywright();
 const { serveShuApp } = withAction(new ShuStepper());
@@ -22,6 +25,9 @@ const host = "http://localhost:8237";
 const IDS = SHU_TEST_IDS;
 const MONITOR = `"${SHU_TAG.MONITOR_COLUMN}"`;
 const DOCUMENT = `"${SHU_TAG.DOCUMENT_COLUMN}"`;
+/** The instance check's step, and the line whose record its form picks by title. */
+const INSTANCE_CHECK = stepMethodName(LogicStepper, "individualIsA");
+const CLAIMED_LINE = "set claimed line to 5";
 
 const testIdSetup = registerTestIds(IDS);
 // Buffer far more events than any viewport can hold, so a virtualized monitor renders only a small window of them.
@@ -76,6 +82,12 @@ export const features: TKirejiExport = {
 		`variable axioms.frames.0.name is "Class ${SEQ_PATH_LABEL}"`,
 		"A class's axioms state, in DL notation, the declared IRI and the superclasses that subsume it.",
 		`matches axioms.frames.0.dl with "${SEQ_PATH_LABEL} ⊑ *"`,
+
+		scenario({ scenario: "A claim's form offers the records of its address's type by their titles" }),
+		"A claim's form offers the types the declarations state for the address it checks, and then the records of the chosen type by their titles. A step's record is titled by its line, so the form picks the record of the line below by that line, checks the record that id names, and states the verdict.",
+		CLAIMED_LINE,
+		...passesStepForm(INSTANCE_CHECK, { expression: `"${SEQ_PATH_LABEL}"` }, { "address-persistedAs": SEQ_PATH_LABEL }, { "address-id": CLAIMED_LINE }),
+		views.showsRowContaining(`"${SHU_TAG.STEP_CALLER}[step='${INSTANCE_CHECK}'] [data-testid='step-result-verdict']"`, `"${VERDICT.proved}"`),
 
 		scenario({ scenario: "Open monitor column via step" }),
 		"The show monitor step triggers the SPA to open a monitor log stream column.",

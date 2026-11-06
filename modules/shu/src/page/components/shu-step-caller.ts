@@ -20,6 +20,7 @@ import type { TEntailment } from "@haibun/core/lib/records/domains/claim.js";
 import { JsonObjectTextSchema, RecordSchema, RecordsSchema } from "@haibun/core/lib/domains/json-text.js";
 import { itemAt, valueAt } from "@haibun/core/lib/domains/item-at.js";
 import { DOMAIN_STATEMENT } from "@haibun/core/lib/domains/domains.js";
+import { DOMAIN_INDIVIDUAL_ADDRESS, IndividualAddressSchema, type TIndividualAddress } from "@haibun/core/lib/domains/typed-links.js";
 import { phraseParts } from "@haibun/core/lib/steps/domains/phrase.js";
 import { lineOfCall } from "@haibun/core/lib/steps/derivations/named-vars.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
@@ -27,7 +28,8 @@ import { TRACE_SEQ_PATH } from "@haibun/core/lib/domains/protocol.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { getConcernCatalog } from "../controllers/catalog-controller.js";
-import { queryRead } from "../controllers/read-controller.js";
+import { listRecords } from "../controllers/read-controller.js";
+import { idOf, instanceLabel } from "../controllers/record-controller.js";
 import { StepCallController } from "../controllers/step-call-controller.js";
 import { validateStepInput, type TFieldError } from "../derivations/step-input.js";
 import { normalizeStepKey } from "../derivations/steps.js";
@@ -57,10 +59,13 @@ type TInputSchema = { properties?: Record<string, TInputProperty>; required?: st
 
 /** A parameter of a pattern: `{name}` or `{name: domain}`. */
 const PARAM = /\{(\w+)(?::\s*[^}]*)?\}/g;
-/** The fields a record's options read for its name, in order. */
-const NAME_FIELDS = ["name", "title", "label", "subject"];
-/** How many records a reference's options offer. */
-const REFERENCE_OPTIONS = 50;
+/** The field of an individual's address that names its type. The form offers the declared types in it, and the records of
+ *  the chosen type in the address's id. */
+const ADDRESS_TYPE: keyof TIndividualAddress = "persistedAs";
+/** The persisted types the catalog declares, in order. */
+const declaredTypes = (): string[] => Object.keys(getConcernCatalog().persisted).sort();
+/** The form key of the type an individual's address names, for the address parameter `param`. */
+const addressTypeKey = (param: string): string => `${param}.${ADDRESS_TYPE}`;
 
 /** What a step returned that states the path of its record, which actuality recorded. */
 const TracedSchema = z.object({ [TRACE_SEQ_PATH]: z.array(z.number()) });
@@ -91,6 +96,16 @@ function typedValue(value: string, type: string | undefined): unknown {
 	if ((type === "object" || type === "array") && value !== "") return JSON.parse(value);
 	if (type === "number" && value !== "") return Number(value);
 	return value;
+}
+
+/** The steps of the record a value states by its type and its id, where the value states both. Any other value renders an empty template. */
+function recordStepsOf(data: unknown): TemplateResult | typeof nothing {
+	if (typeof data !== "object" || data === null || Array.isArray(data)) return nothing;
+	const obj = data as Record<string, unknown>;
+	const label = typeof obj["@type"] === "string" ? obj["@type"] : obj._type;
+	const id = typeof obj.id === "string" ? obj.id : obj["@id"];
+	if (typeof label !== "string" || label === "" || typeof id !== "string" || id === "") return nothing;
+	return html`<shu-record-steps compact label=${label} record-id=${id} .links=${obj._links as Record<string, import("@haibun/core/lib/domains/hypermedia.js").TCallLink> | undefined}></shu-record-steps>`;
 }
 
 export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
@@ -142,6 +157,8 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 	@state() private accessor referenceRefusals: Record<string, TPageRefusal> = {};
 	/** The id a reader picked or typed for each reference parameter, by parameter. */
 	readonly #referenceIds = new Map<string, string>();
+	/** The type whose records each parameter that takes a record offers, by parameter. */
+	readonly #offeredTypes = new Map<string, string>();
 
 	constructor() {
 		super(EmptyStateSchema);
@@ -150,6 +167,12 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 	/** Whether the form has called its step, or refused its values. */
 	get executed(): boolean {
 		return this.#call.executed;
+	}
+
+	/** The step's definition, which `what` reads. Throws before the form reads it. */
+	#definitionFor(what: string): TStepDefinition {
+		if (this.definition === undefined) throw new Error(`<shu-step-caller> reads ${what} of ${this.step} before it reads the step's definition`);
+		return this.definition;
 	}
 
 	/** The fixed parameters the `params` attribute states. Throws for text that isn't a JSON object. */
@@ -187,15 +210,19 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 		if (this.auto) await this.callStep({});
 	}
 
-	/** Starts the form's inputs with its `values`: a reference's as its id, empty where `values` doesn't name it, a composite's
-	 *  JSON as the input of each of its fields, and any other's as its input's text. Throws for a composite's value that isn't
-	 *  a JSON object. */
+	/** Starts the form's inputs with its `values`: an individual's address as its type and its id, a reference's as its id,
+	 *  empty where `values` doesn't name it, a composite's JSON as the input of each of its fields, and any other's as its
+	 *  input's text. Throws for a composite's or an address's value that isn't a JSON object of its fields. */
 	#startWith(desc: TStepDefinition): void {
 		const properties = this.#inputSchemaOf(desc).properties;
-		for (const param of Object.keys(desc.paramDomains)) if (this.#referenceTarget(desc, param) !== undefined) this.#referenceIds.set(param, "");
+		for (const param of Object.keys(desc.paramDomains)) if (this.#takesRecord(desc, param)) this.#referenceIds.set(param, "");
 		const inputs: Record<string, string> = {};
 		for (const [param, value] of Object.entries(this.values)) {
-			if (this.#referenceIds.has(param)) this.#referenceIds.set(param, value);
+			if (desc.paramDomains[param] === DOMAIN_INDIVIDUAL_ADDRESS) {
+				const address = IndividualAddressSchema.parse(JsonObjectTextSchema.parse(value));
+				inputs[addressTypeKey(param)] = address.persistedAs;
+				this.#referenceIds.set(param, address.id);
+			} else if (this.#referenceIds.has(param)) this.#referenceIds.set(param, value);
 			else if (isCompositeProperty(properties?.[param])) for (const [field, held] of Object.entries(JsonObjectTextSchema.parse(value))) inputs[`${param}.${field}`] = textOf(held);
 			else inputs[param] = value;
 		}
@@ -225,43 +252,50 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 		return { ...schema, properties };
 	}
 
-	/** The persisted type a parameter names a record of, where its domain is a reference the catalog registers. */
+	/** Whether a parameter takes a record: an individual's address, or a reference the catalog registers. */
+	#takesRecord(desc: TStepDefinition, paramName: string): boolean {
+		return desc.paramDomains[paramName] === DOMAIN_INDIVIDUAL_ADDRESS || this.#referenceTarget(desc, paramName) !== undefined;
+	}
+
+	/** The persisted type a parameter names a record of: the type an individual's address holds once a reader chooses it, or
+	 *  the type of a reference the catalog registers. */
 	#referenceTarget(desc: TStepDefinition, paramName: string): string | undefined {
 		const domainKey = desc.paramDomains[paramName];
+		if (domainKey === DOMAIN_INDIVIDUAL_ADDRESS) {
+			const chosen = this.formValues[addressTypeKey(paramName)];
+			return chosen === undefined || chosen === "" ? undefined : chosen;
+		}
 		return domainKey === undefined ? undefined : getConcernCatalog().references[domainKey]?.targetPersistedAs;
 	}
 
-	/** Reads the options of each reference parameter: the records of its type, each by its id and its name. */
+	/** Reads the options of each parameter that takes a record of a type it names, where the type differs from the one its
+	 *  options hold: the records of that type. A parameter whose type changes holds an empty id. */
 	#loadReferences(desc: TStepDefinition): void {
 		for (const paramName of Object.keys(desc.paramDomains)) {
 			const label = this.#referenceTarget(desc, paramName);
-			if (label !== undefined) void this.#loadReference(paramName, label);
+			const offered = this.#offeredTypes.get(paramName);
+			if (label === undefined || label === offered) continue;
+			if (offered !== undefined) this.#referenceIds.set(paramName, "");
+			this.#offeredTypes.set(paramName, label);
+			void this.#loadReference(paramName, label);
 		}
 	}
 
+	/** Reads the records of `label` as the options of `paramName`, each with its id as its value and its title as its label. */
 	async #loadReference(paramName: string, label: string): Promise<void> {
-		const read = await queryRead({ label, limit: REFERENCE_OPTIONS });
+		const read = await listRecords(label, `the records of ${label} that ${paramName} offers`);
 		if (!read.ok) {
 			this.referenceRefusals = { ...this.referenceRefusals, [paramName]: read.refusal };
 			return;
 		}
-		const concern = Object.values(getConcernCatalog().persisted).find((c) => c.label === label);
-		if (concern === undefined) throw new Error(`<shu-step-caller> offers records of ${label}, which the catalog doesn't declare`);
-		const nameField = NAME_FIELDS.find((field) => field in (concern.properties ?? {}));
-		const options = read.value.vertices.map((v) => {
-			const id = v[concern.idField];
-			if (typeof id !== "string") throw new Error(`a ${label} record's id field ${concern.idField} isn't text`);
-			const name = nameField === undefined ? undefined : v[nameField];
-			return { value: id, label: typeof name === "string" && name !== "" ? name : id, secondary: label, details: JSON.stringify(v, null, 2) };
-		});
+		const options = read.value.vertices.map((v) => ({ value: idOf(v), label: instanceLabel(v), secondary: label, details: JSON.stringify(v, null, 2) }));
 		this.referenceOptions = { ...this.referenceOptions, [paramName]: options };
 	}
 
 	/** Assembles the step's parameters from the form's values, validates them against its input schema, and calls the
 	 *  step. A value that doesn't parse, or a field the schema refuses, refuses the form's values without a call. */
 	async callStep(values: Record<string, string>): Promise<void> {
-		const desc = this.definition;
-		if (desc === undefined) throw new Error(`<shu-step-caller> calls ${this.step} before it reads the step's definition`);
+		const desc = this.#definitionFor("a call");
 		this.formValues = { ...values };
 		const schema = this.#inputSchemaOf(desc);
 		const params: Record<string, unknown> = { ...this.#fixed };
@@ -339,11 +373,13 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 		void this.callStep(this.#valuesOf(e.target as HTMLFormElement));
 	};
 
-	/** A choice of the type of a record's fields renders that type's fields. */
+	/** A choice of a type renders the fields of a record of that type, and offers the records of that type to an individual's
+	 *  address whose type it names. */
 	#onTypeChosen = (e: Event): void => {
 		const form = (e.target as HTMLSelectElement).form;
 		if (form === null) throw new Error("<shu-step-caller> holds a type choice outside its form");
 		this.formValues = this.#valuesOf(form);
+		this.#loadReferences(this.#definitionFor("a type choice"));
 	};
 
 	/** An inline input grows as a reader types. */
@@ -379,21 +415,13 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 		}
 		const prop = properties[paramName];
 		// A parameter naming the type of a record's fields offers the types the catalog declares.
-		const names = (desc.recordData === undefined ? [] : Object.values(desc.recordData)).includes(paramName) ? Object.keys(getConcernCatalog().persisted).sort() : prop?.enum;
-		if (names !== undefined) {
-			const saved = this.formValues[paramName];
-			const typeChoice = (desc.recordData === undefined ? [] : Object.values(desc.recordData)).includes(paramName);
-			return html`<select name=${paramName} class="inline-select" data-testid=${this.#testId(`step-input-${paramName}`)} @change=${typeChoice ? this.#onTypeChosen : nothing}>
-				<option value="" ?selected=${saved === undefined}>${paramName}</option>${names.map((v) => html`<option value=${v} ?selected=${v === saved}>${v}</option>`)}</select>`;
-		}
-		const target = this.#referenceTarget(desc, paramName);
-		if (target !== undefined) {
-			const refusal = this.referenceRefusals[paramName];
-			// The combobox carries its test id to its input, so a driver fills it as a text input. A typed id is the value until a pick.
-			return html`<span class="ref-input"><shu-combobox testid=${this.#testId(`step-input-${paramName}`)} placeholder=${`${paramName} (pick or type id)`} .accepts=${true} .value=${valueAt(this.#referenceIds, paramName, "the id a reference holds")} .options=${this.referenceOptions[paramName] ?? []}
-					@combo-change=${(e: CustomEvent<{ value: string }>) => this.#referenceIds.set(paramName, e.detail.value)}
-					@input=${(e: Event) => this.#referenceIds.set(paramName, (e.composedPath()[0] as HTMLInputElement).value)}></shu-combobox>${refusal === undefined ? nothing : html`<shu-refusal .refusal=${refusal}></shu-refusal>`}</span>`;
-		}
+		const typeChoice = (desc.recordData === undefined ? [] : Object.values(desc.recordData)).includes(paramName);
+		const names = typeChoice ? declaredTypes() : prop?.enum;
+		if (names !== undefined) return this.#choice(paramName, paramName, paramName, names, typeChoice);
+		// An individual's address offers the declared types, and the records of the chosen type by their titles.
+		if (desc.paramDomains[paramName] === DOMAIN_INDIVIDUAL_ADDRESS)
+			return html`<span class="composite-input">${this.#choice(addressTypeKey(paramName), `${paramName}-${ADDRESS_TYPE}`, ADDRESS_TYPE, declaredTypes(), true)}${this.#recordPicker(paramName, `${paramName}-id`)}</span>`;
+		if (this.#takesRecord(desc, paramName)) return this.#recordPicker(paramName, paramName);
 		if (!isCompositeProperty(prop)) return this.#textInput(paramName, paramName, describedAs(prop, paramName), "text");
 		const required = new Set(prop.required ?? []);
 		const fields = Object.entries(prop.properties).map(([subName, subProp]) => {
@@ -408,6 +436,23 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 			);
 		});
 		return html`<span class="composite-input">${fields}</span>`;
+	}
+
+	/** A choice among `names` for the input `name`, whose empty option shows `shown`. A choice of a type renders what follows
+	 *  from that type. */
+	#choice(name: string, testName: string, shown: string, names: string[], typeChoice: boolean): TemplateResult {
+		const saved = this.formValues[name];
+		return html`<select name=${name} class="inline-select" data-testid=${this.#testId(`step-input-${testName}`)} @change=${typeChoice ? this.#onTypeChosen : nothing}>
+			<option value="" ?selected=${saved === undefined}>${shown}</option>${names.map((v) => html`<option value=${v} ?selected=${v === saved}>${v}</option>`)}</select>`;
+	}
+
+	/** The picker of the record `paramName` takes: the records of its type by their titles, and the id a reader types. */
+	#recordPicker(paramName: string, testName: string): TemplateResult {
+		const refusal = this.referenceRefusals[paramName];
+		// The combobox carries its test id to its input, so a driver fills it as a text input. A typed id is the value until a pick.
+		return html`<span class="ref-input"><shu-combobox testid=${this.#testId(`step-input-${testName}`)} placeholder=${`${testName} (pick or type id)`} .accepts=${true} .value=${valueAt(this.#referenceIds, paramName, "the id a reference holds")} .options=${this.referenceOptions[paramName] ?? []}
+				@combo-change=${(e: CustomEvent<{ value: string }>) => this.#referenceIds.set(paramName, e.detail.value)}
+				@input=${(e: Event) => this.#referenceIds.set(paramName, (e.composedPath()[0] as HTMLInputElement).value)}></shu-combobox>${refusal === undefined ? nothing : html`<shu-refusal .refusal=${refusal}></shu-refusal>`}</span>`;
 	}
 
 	/** A pattern as a sentence, with the input `inputOf` returns in place of each parameter. */
@@ -441,25 +486,9 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 			<button type="submit" class=${executed ? "run-inline rerun" : "run-inline"} title=${executed ? "Re-run" : "Run"} data-testid=${this.#testId("step-run")}>${executed ? "⟳▶" : "▶"}</button></form>`;
 	}
 
-	#hasRecord(data: unknown): boolean {
-		if (typeof data !== "object" || data === null || Array.isArray(data)) return false;
-		const obj = data as Record<string, unknown>;
-		const label = typeof obj["@type"] === "string" ? obj["@type"] : typeof obj._type === "string" ? obj._type : undefined;
-		const id = typeof obj.id === "string" ? obj.id : typeof obj["@id"] === "string" ? obj["@id"] : undefined;
-		return Boolean(label && id);
-	}
-
-	#recordStepsOf(data: unknown): TemplateResult | typeof nothing {
-		if (!this.#hasRecord(data)) return nothing;
-		const obj = data as Record<string, unknown>;
-		const label = (typeof obj["@type"] === "string" ? obj["@type"] : obj._type) as string;
-		const id = (typeof obj.id === "string" ? obj.id : obj["@id"]) as string;
-		return html`<shu-record-steps compact label=${label} record-id=${id} .links=${obj._links as Record<string, import("@haibun/core/lib/domains/hypermedia.js").TCallLink> | undefined}></shu-record-steps>`;
-	}
-
 	/** What the call returned, by the step's output schema, or as JSON where the step doesn't declare one. */
 	#renderOutput(desc: TStepDefinition, result: unknown): TemplateResult {
-		const steps = this.#recordStepsOf(result);
+		const steps = recordStepsOf(result);
 		const body = desc.outputSchema === undefined ? html`${unsafeHTML(jsonDisclosure(result))}` : this.#bySchema(result, desc.outputSchema);
 		return html`${body}${steps}`;
 	}
@@ -488,11 +517,11 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 	#table(rows: Record<string, unknown>[]): TemplateResult {
 		if (rows.length === 0) return html`<p>The result doesn't hold a row.</p>`;
 		const cols = [...new Set(rows.flatMap((r) => Object.keys(r)))];
-		const hasSteps = rows.some((r) => this.#hasRecord(r));
-		return html`<table><thead><tr>${cols.map((c) => html`<th>${c}</th>`)}${hasSteps ? html`<th></th>` : nothing}</tr></thead><tbody>${rows.map((r) => {
-			const steps = this.#recordStepsOf(r);
-			return html`<tr>${cols.map((c) => html`<td>${this.#cell(r[c])}</td>`)}${hasSteps ? html`<td>${steps}</td>` : nothing}</tr>`;
-		})}</tbody></table>`;
+		const steps = rows.map((r) => recordStepsOf(r));
+		const hasSteps = steps.some((held) => held !== nothing);
+		return html`<table><thead><tr>${cols.map((c) => html`<th>${c}</th>`)}${hasSteps ? html`<th></th>` : nothing}</tr></thead><tbody>${rows.map(
+			(r, at) => html`<tr>${cols.map((c) => html`<td>${this.#cell(r[c])}</td>`)}${hasSteps ? html`<td>${steps[at]}</td>` : nothing}</tr>`,
+		)}</tbody></table>`;
 	}
 
 	/** A value as the text of its cell: a field a row leaves out is an empty cell. */

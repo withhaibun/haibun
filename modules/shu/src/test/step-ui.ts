@@ -53,6 +53,8 @@ const IDS = SHU_TEST_IDS;
 export const nthChatMessage = (match: string, n: number): string => `${SHU_TAG.CHAT_MESSAGE}:nth-child(${n} of ${match})`;
 /** The transcript's last message matching `match`. */
 export const lastChatMessage = (match: string): string => `${SHU_TAG.CHAT_MESSAGE}:nth-last-child(1 of ${match})`;
+/** A value of each parameter of a step's form, by the parameter's test name. */
+type TByParam = Record<string, string>;
 /** The page-locator variables the ask helpers set. */
 const ASK_LOCATOR = { ANSWERED: "ask-answered", TURNS_SHOWN: "ask-turns-shown", STATED: "ask-stated" } as const;
 /** The page-locator variable the actions bar helpers set: the minimize control of the bar's pane. */
@@ -191,7 +193,7 @@ export function createStepUI(wp: WebPlaywright) {
 	// Dynamic per-invocation testids (`${method}-${callIndex}-...`) are declared via registerTestIdStep
 	// before any waitFor/setValue uses them, since the shared variable resolver maps bare names to test
 	// ids by lookup, not by string shape.
-	function buildStepBody(method: string, passes: boolean, params: Record<string, unknown> = {}, chosen: Record<string, string> = {}): TKirejiStep[] {
+	function buildStepBody(method: string, passes: boolean, params: Record<string, unknown> = {}, chosen: TByParam = {}, picked: TByParam = {}): TKirejiStep[] {
 		const callIndex = nextCallIndex(method);
 		const expandedEntries: Array<[string, string]> = [];
 		for (const [name, rawValue] of Object.entries(params)) {
@@ -216,7 +218,7 @@ export function createStepUI(wp: WebPlaywright) {
 		const doneTarget = stepDone(method, callIndex);
 		const resultTarget = stepResult(method, callIndex);
 		const errorTarget = stepError(method, callIndex);
-		const inputTargets = [...Object.keys(chosen), ...expandedEntries.map(([name]) => name)].map((name) => stepInput(method, callIndex, name));
+		const inputTargets = [...Object.keys(chosen), ...Object.keys(picked), ...expandedEntries.map(([name]) => name)].map((name) => stepInput(method, callIndex, name));
 		const branchTarget = passes ? resultTarget : errorTarget;
 		// The step-caller emits `step-done` once the step's call settles (success or
 		// error). Waiting for `step-done` returns as soon as the outcome lands;
@@ -232,6 +234,8 @@ export function createStepUI(wp: WebPlaywright) {
 				waitFor({ target: stepInput(method, callIndex, name) }),
 				selectionOption({ option: `"${option}"`, field: stepInput(method, callIndex, name) }),
 			]),
+			// A record a parameter takes is picked by its title from the records the form offers.
+			...Object.entries(picked).flatMap(([name, title]) => pickFromCombobox(stepInput(method, callIndex, name), title)),
 			...(expandedEntries.length > 0
 				? [
 						waitFor({ target: stepInput(method, callIndex, itemAt(expandedEntries, 0)[0]) }),
@@ -246,13 +250,14 @@ export function createStepUI(wp: WebPlaywright) {
 	}
 
 	/** Flat (inline) form: the ~9 mechanics emitted directly. Kept for callers that don't use the activity wrapper. */
-	function runStep(method: string, passes: boolean, params: Record<string, unknown> = {}, chosen: Record<string, string> = {}): TKirejiStep[] {
-		return buildStepBody(method, passes, params, chosen);
+	function runStep(method: string, passes: boolean, params: Record<string, unknown> = {}, chosen: TByParam = {}, picked: TByParam = {}): TKirejiStep[] {
+		return buildStepBody(method, passes, params, chosen, picked);
 	}
 
-	/** Run a step from its form and see it pass. `chosen` names the options chosen first, each by its parameter. */
-	function passesStepForm(method: string, params: Record<string, unknown> = {}, chosen: Record<string, string> = {}): TKirejiStep[] {
-		return runStep(method, true, params, chosen);
+	/** Run a step from its form and see it pass. `chosen` names the options chosen first, each by its parameter. `picked` names
+	 *  the record each parameter takes by its title, which the form offers once the type is chosen. */
+	function passesStepForm(method: string, params: Record<string, unknown> = {}, chosen: TByParam = {}, picked: TByParam = {}): TKirejiStep[] {
+		return runStep(method, true, params, chosen, picked);
 	}
 
 	/** Run a step from its form and see it refused. `chosen` names the options chosen first, each by its parameter. */
