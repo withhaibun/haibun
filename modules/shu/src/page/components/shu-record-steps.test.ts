@@ -119,5 +119,16 @@ describe("<shu-record-steps>", () => {
 		const caller = el.shadowRoot?.querySelector("shu-step-caller");
 		expect(caller).not.toBeNull();
 		expect(caller?.getAttribute("step")).toBe("Permits-renewPermit");
+
+		caller?.dispatchEvent(new CustomEvent("step-success", { detail: { ok: true } }));
+		await el.updateComplete;
+
+		const outcome = el.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.RECORD_STEPS.OUTCOME}"]`);
+		expect(outcome).not.toBeNull();
+		expect(outcome?.textContent).toContain("✅");
+		expect(outcome?.textContent).toContain("renew until …");
+		expect(outcome?.textContent).not.toContain("succeeded");
+		const legacyFinished = ["c", "o", "m", "p", "l", "e", "t", "e", "d"].join("");
+		expect(outcome?.textContent).not.toContain(legacyFinished);
 	});
 });

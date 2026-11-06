@@ -17,6 +17,7 @@ import {
 	RETURNED_TO_CALLER,
 	isHandedOutEvent,
 	isNestedEvent,
+	isProseStep,
 	RECORDED_STATUS,
 } from "@haibun/core/lib/domains/protocol.js";
 import { MARK_COLOUR, STATUS_MARKS, type TEventMarkerStyle } from "./status-mark.js";
@@ -71,8 +72,8 @@ function shouldMarkEvent(event: unknown): boolean {
 	if (e.status === RECORDED_STATUS.failed) return true;
 	// A feature's or a scenario's start marks it once; its end carries its id again, so it doesn't mark it a second time.
 	if (e.type === "feature" || e.type === "scenario") return e.stage !== "end";
-	// Each step is one row. A technical step's text starts with a lowercase letter. A reader looks for the prose steps on a rail.
-	return e.type === "step" && !/^[a-z]/.test(e.in ?? "");
+	// Each step is one row. A reader looks for the prose steps on a rail.
+	return e.type === "step" && isProseStep(e);
 }
 
 /**

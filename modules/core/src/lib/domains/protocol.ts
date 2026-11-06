@@ -367,6 +367,13 @@ export type THypermediaProducts = {
  *  actuality's step, so a view's read doesn't end a step. */
 export const isStepEnd = (event: { kind?: unknown; type?: unknown; stage?: unknown }): boolean => event.kind === "lifecycle" && event.type === "step" && event.stage === "end";
 
+/** Whether a step event is a prose step: it executed as a prose step, or its text is prose where an action isn't stated. */
+export const isProseStep = (event: { actionName?: string; in?: string }): boolean =>
+	event.actionName === "prose" || (event.actionName === undefined && (typeof event.in === "string" ? !/^[a-z]/.test(event.in) : true));
+
+/** Whether a step event is a technical (GWTA) step: it executed as an action step other than prose, or its line is lowercase where an action isn't stated. */
+export const isTechnicalStep = (event: { actionName?: string; in?: string }): boolean => !isProseStep(event);
+
 /**
  * How the logic engine ended a goal, with its EARL outcome where EARL states one: proved (earl:passed), refuted by what a
  * step returned or a stated falsity (earl:failed), unknown where a step doesn't prove or refute it (earl:cantTell), and a

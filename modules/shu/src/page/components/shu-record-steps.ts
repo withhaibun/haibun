@@ -16,7 +16,7 @@ import { recordSteps } from "../controllers/registry-controller.js";
 import { pageMay } from "../controllers/authority-controller.js";
 import { conduit } from "../controllers/conduit-controller.js";
 import { reads } from "../domains/links.js";
-import { whyOfPathTpl } from "./why.js";
+import { passedStatementTpl } from "./shu-ref.js";
 import { normalizeStepKey } from "../derivations/steps.js";
 import { shuBaseStyles } from "./styles.js";
 import { SentFileSchema, fileDataBlob } from "@haibun/core/lib/domains/media-object.js";
@@ -226,7 +226,7 @@ export class ShuRecordSteps extends ShuElement<typeof RecordStepsStateSchema> {
 		}
 
 		const path = step.asks === "read" ? undefined : seqPathOf(result);
-		this.setState({ activeMethod: undefined, outcome: { method: step.method, summary: `${step.verb} completed`, path } });
+		this.setState({ activeMethod: undefined, outcome: { method: step.method, summary: step.verb, path } });
 	}
 
 	#renderCaller(steps: TRecordStep[]): TemplateResult | typeof nothing {
@@ -251,7 +251,7 @@ export class ShuRecordSteps extends ShuElement<typeof RecordStepsStateSchema> {
 
 	#onStepSuccess(step: TRecordStep, result: unknown): void {
 		const path = step.asks === "read" ? undefined : seqPathOf(result);
-		this.setState({ activeMethod: undefined, outcome: { method: step.method, summary: `${step.verb} succeeded`, path } });
+		this.setState({ activeMethod: undefined, outcome: { method: step.method, summary: step.verb, path } });
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.STEP_SUCCESS, { bubbles: true, composed: true, detail: result }));
 	}
 
@@ -266,8 +266,7 @@ export class ShuRecordSteps extends ShuElement<typeof RecordStepsStateSchema> {
 		return html`
 			<div class="record-step-outcome" data-testid=${SHU_TEST_IDS.RECORD_STEPS.OUTCOME}>
 				<div class="outcome-body">
-					${outcome.refusal ? html`<shu-refusal .refusal=${outcome.refusal}></shu-refusal>` : html`<span>${outcome.summary}</span>`}
-					${outcome.path ? whyOfPathTpl(outcome.path) : nothing}
+					${outcome.refusal ? html`<shu-refusal .refusal=${outcome.refusal}></shu-refusal>` : passedStatementTpl(outcome.summary, { method: outcome.method, path: outcome.path })}
 				</div>
 				<button type="button" class="outcome-dismiss" title="Dismiss" @click=${this.#dismissOutcome}>×</button>
 			</div>

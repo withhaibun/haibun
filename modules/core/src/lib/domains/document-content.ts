@@ -5,7 +5,7 @@
 import { RecordsSchema } from "./json-text.js";
 import { itemAt } from "./item-at.js";
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TStepEvent, TLifecycleEvent, TLogEvent, TJsonArtifact } from "./protocol.js";
-import { HAIBUN_LOG_LEVELS } from "./protocol.js";
+import { HAIBUN_LOG_LEVELS, isTechnicalStep } from "./protocol.js";
 import { parseRecordName } from "../actuality/domains/seq-path.js";
 import { MEDIA_TYPE } from "./media-types.js";
 
@@ -203,7 +203,7 @@ export function generateDocumentMarkdown(
 
 			if (le.type === "step") {
 				const step = le as TStepEvent;
-				const isTechnical = /^[a-z]/.test(step.in || "");
+				const isTechnical = isTechnicalStep(step);
 
 				if (isTechnical) {
 					if (lastType !== "technical" && md.length > 0) md += '\n<div class="h-1"></div>\n';

@@ -302,3 +302,25 @@ describe("isWebAddress", () => {
 		]);
 	});
 });
+
+describe("prose step classification", () => {
+	it("renders a step with actionName: prose as prose even if its line starts with a lowercase letter", () => {
+		const proseStep: THaibunEvent = {
+			id: "feat-1.0.1",
+			timestamp: 3000,
+			source: "haibun",
+			level: "info",
+			kind: "lifecycle",
+			stage: "end",
+			type: "step",
+			status: "passed",
+			actionName: "prose",
+			stepperName: "Haibun",
+			in: "status lists are published by the issuer Coastal Fisheries Authority itself, so every check of one of its credentials requests the list from it.",
+		} as unknown as THaibunEvent;
+
+		const { md } = generateDocumentMarkdown([proseStep], new Map(), LOG_LEVEL_INFO, 3000);
+		expect(md).toContain('class="prose-block"');
+		expect(md).not.toContain("log-row");
+	});
+});
