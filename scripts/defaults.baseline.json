@@ -36,7 +36,7 @@
 		"fills an absent value with a constant through ??": 5
 	},
 	"modules/core/src/lib/domains/document-content.ts": {
-		"fills a falsy value with a constant through ||": 4,
+		"fills a falsy value with a constant through ||": 3,
 		"fills an absent value with a constant through ??": 1
 	},
 	"modules/core/src/lib/domains/domains.ts": {
@@ -253,9 +253,6 @@
 	"modules/shu/src/page/derivations/document-blocks.ts": {
 		"fills a falsy value with a constant through ||": 2,
 		"fills an absent value with a constant through ??": 3
-	},
-	"modules/shu/src/page/derivations/event-marker.ts": {
-		"fills an absent value with a constant through ??": 1
 	},
 	"modules/shu/src/page/derivations/step-input.ts": {
 		"fills an absent value with a constant through ??": 2

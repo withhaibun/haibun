@@ -13,7 +13,9 @@ import { stepMethodName, type TStepMethod } from "@haibun/core/lib/steps/domains
 import type { TAction } from "@haibun/core/lib/domains/actions.js";
 import type { TDomainKey } from "@haibun/core/lib/domains/domains.js";
 import { statedTotal, type TCounted } from "@haibun/core/lib/domains/hypermedia.js";
+import { ICON_STEP_COMPLETED } from "@haibun/core/lib/domains/protocol.js";
 import { esc, refLabel, renderRef, stepPathRef, type TRef } from "../derivations/markdown.js";
+import { whyOfPathTpl } from "./why.js";
 import "./shu-ref-element.js";
 
 /**
@@ -85,3 +87,8 @@ export const factIdRef = (id: string): string => {
 	const seqPath = factSeqPath(id);
 	return seqPath ? refSeqPath(seqPath, id) : `<code>${esc(id)}</code>`;
 };
+
+/** A step completed successfully: formatted with `ICON_STEP_COMPLETED` (the green check), its statement linked to its definition
+ *  where its method is given, and a why link where its path is given. Supports linking per hypermedia design without dead ends. */
+export const passedStatementTpl = (statement: string, opts?: { method?: TStepMethod | string; path?: readonly number[]; testId?: string }): TemplateResult =>
+	html`<span class="passed-step" data-testid=${opts?.testId ?? nothing}>${ICON_STEP_COMPLETED} ${opts?.method ? stepRef(opts.method as TStepMethod, statement) : statement}</span>${opts?.path ? whyOfPathTpl(opts.path) : nothing}`;
