@@ -26,6 +26,8 @@ import "./domains/graph-blips.js";
 import { type TWorld } from "@haibun/core/lib/world.js";
 import { OK, type THaibunEvent } from "@haibun/core/lib/domains/protocol.js";
 import { actionOKWithProducts, stringOrError, intOrError, findStepper, findStepperFromOptionOrKind, getStepperOption, errorDetail } from "@haibun/core/lib/domains/util.js";
+import { isObserving, observing } from "@haibun/core/lib/domains/observation.js";
+import { isStoreClosing } from "@haibun/core/lib/domains/store-closing.js";
 import { localOrigin } from "@haibun/core/lib/domains/local-origin.js";
 import { actualURI } from "@haibun/core/lib/domains/actual-uri.js";
 import { fromJsonText } from "@haibun/core/lib/domains/json-text.js";
@@ -179,8 +181,9 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			if (queried !== undefined) this.queriedLabel = queried;
 			// A quad announced is a quad the store holds, so the graph a view reads is read from the store rather than
 			// held again here. The live page still receives the announcement over the stream.
-			if (event.kind === "log") this.beganWriting(recordSaid(this.getWorld(), event, this.saidCount++), "what actuality logged");
-			if (event.kind === "artifact") this.beganWriting(recordProduced(this.getWorld(), event, this.producedCount++), "what actuality produced");
+			// What an observing write logs is observation, not actuality's activity, so it isn't recorded.
+			if (event.kind === "log" && !isObserving()) this.beganWriting(() => recordSaid(this.getWorld(), event, this.saidCount++), "what actuality logged");
+			if (event.kind === "artifact" && !isObserving()) this.beganWriting(() => recordProduced(this.getWorld(), event, this.producedCount++), "what actuality produced");
 			this.transport?.sendEvent(event);
 			this.monitorTransport?.sendEvent(event);
 		},
@@ -224,15 +227,29 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	private writing: Promise<unknown> = Promise.resolve();
 	/** The errors of the record writes that failed since the feature began. */
 	private unrecorded: unknown[] = [];
+	/** How many records weren't written because the store is closing, once a write receives its refusal; undefined while the
+	 *  store takes writes. */
+	private leftAtClose: number | undefined = undefined;
 
-	/** Adds `write` to the chain. A failed write is reported once on the console, which doesn't write a record, so the
-	 *  report doesn't start another record write. */
-	private beganWriting(write: Promise<unknown>, what: string): void {
-		const settled = write.then(
+	/** Adds `write` to the chain as an observing write, and doesn't begin it once the store is closing. A failed write is
+	 *  reported on the console, which doesn't write a record, so the report doesn't start another record write. A closing
+	 *  store's refusals are reported once, with the count of records left unwritten, when the writes begun before it settle. */
+	private beganWriting(write: () => Promise<unknown>, what: string): void {
+		if (this.leftAtClose !== undefined) {
+			this.leftAtClose++;
+			return;
+		}
+		const settled = observing(write).then(
 			() => undefined,
 			(err: unknown) => {
-				console.error(`[monitor] ${what} wasn't recorded: ${errorDetail(err)}`);
-				this.unrecorded.push(err);
+				if (!isStoreClosing(err)) {
+					console.error(`[monitor] ${what} wasn't recorded: ${errorDetail(err)}`);
+					this.unrecorded.push(err);
+					return;
+				}
+				if (this.leftAtClose !== undefined) return void this.leftAtClose++;
+				this.leftAtClose = 1;
+				void this.writing.then(() => console.error(`[monitor] the store closed, and ${this.leftAtClose} records of what actuality logged or produced weren't written`));
 			},
 		);
 		this.writing = this.writing.then(() => settled);
