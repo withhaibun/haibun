@@ -161,13 +161,13 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 			gwta: `didn't {statements:${DOMAIN_STATEMENT}}`,
 			description:
 				"Holds where the statement didn't succeed, as negation as failure over the results of its line in actuality, a closed world. Its products hold the failure: its failing step's error text as refusal, and that step's seqPath, so a feature that expects a failure confirms it was the expected error with set … from didn't … and then matches ….refusal with the error's pattern. Its record states whether the statement is refuted or unknown.",
-			productsDomain: DOMAIN_REFUSAL,
+			contract: { products: DOMAIN_REFUSAL },
 			reading: READING.didnt,
 		},
 		maybe: {
 			gwta: `maybe {statements:${DOMAIN_STATEMENT}}`,
 			description: "Proves the statement and holds whatever its verdict, which its record states and it returns: P ∨ ⊤.",
-			productsDomain: DOMAIN_STATUS,
+			contract: { products: DOMAIN_STATUS },
 			reading: READING.maybe,
 		},
 		someObserved: {
@@ -196,7 +196,7 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 			gwta: RESOLVE_STATEMENT,
 			description:
 				"Proves a goal over the producer rules that the steps' signatures state, without calling a step. Returns its verdict, the facts that prove it, the plans that would prove it, and a proved goal's proof as statements. A goal that lacks both a fact and a plan is unknown, and the first sub-goal it couldn't prove is proved under it.",
-			productsDomain: DOMAIN_GOAL_RESOLUTION,
+			contract: { products: DOMAIN_GOAL_RESOLUTION },
 			action: ({ goal }: { goal: string }, featureStep: TFeatureStep) => resolved(this.goalScope(), featureStep, goal, RESOLVE_STATEMENT),
 		},
 		ensure: {
@@ -205,27 +205,27 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 			unique: true,
 			description:
 				"Proves a domain goal, and where only its plan would prove it, calls each step of its first plan under this step and proves the goal again. A plan whose steps take a value from the caller is advanced one step at a time with plan. A line that states a waypoint's head ensures the waypoint.",
-			productsDomain: DOMAIN_GOAL_RESOLUTION,
+			contract: { products: DOMAIN_GOAL_RESOLUTION },
 			action: ({ goal }: { goal: string }, featureStep: TFeatureStep) => ensured(this.goalScope(), featureStep, goal),
 		},
 		plan: {
 			gwta: `plan {goal: ${DOMAIN_DOMAIN_KEY}}`,
 			description:
 				"Writes a plan toward a goal that isn't proved, the steps that would make it hold, held as facts of the plan's graph under the principal that begins it. Returns the step its next advance calls and the parameters that step takes.",
-			productsDomain: DOMAIN_PLAN_PROGRESS,
+			contract: { products: DOMAIN_PLAN_PROGRESS },
 			action: ({ goal }: { goal: string }, featureStep: TFeatureStep) => planBegun(this.goalScope(), featureStep, goal),
 		},
 		advancePlan: {
 			gwta: `advance plan {plan: ${DOMAIN_PLAN_ID}} with {args: ${DOMAIN_JSON_OBJECT}}`,
 			description:
 				"Calls the next step of a plan, as it holds now, under this step with the values given, and holds the fact it asserted. Only the principal that began the plan advances it, since the values are that principal's.",
-			productsDomain: DOMAIN_PLAN_PROGRESS,
+			contract: { products: DOMAIN_PLAN_PROGRESS },
 			action: ({ plan, args }: { plan: string; args: Record<string, unknown> }, featureStep: TFeatureStep) => planAdvanced(this.goalScope(), featureStep, plan, args),
 		},
 		showApplicableSteps: {
 			gwta: "show the applicable steps",
 			description: "Returns the steps the caller may call next and the resolution of each goal a step returns, over the facts that hold now, or, under `as of`, at a step.",
-			productsDomain: DOMAIN_APPLICABLE_STEPS,
+			contract: { products: DOMAIN_APPLICABLE_STEPS },
 			action: (_args, featureStep: TFeatureStep) => applicableStepsAt(this.goalScope(), featureStep, readingAsOf()),
 		},
 		applicableSteps: {
@@ -233,14 +233,14 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 			read: true,
 			readsAt: Access.public,
 			description: "Reads the applicable steps, as a page does after a step, now, or, under `as of`, at a step; a read from outside isn't recorded as actuality's step.",
-			productsDomain: DOMAIN_APPLICABLE_STEPS,
+			contract: { products: DOMAIN_APPLICABLE_STEPS },
 			action: (_args, featureStep: TFeatureStep) => applicableStepsAt(this.goalScope(), featureStep, readingAsOf()),
 		},
 		showDerivation: {
 			gwta: `show derivation of {statement: ${DOMAIN_STATEMENT}}`,
 			description:
 				"Proves a statement of one step under this step, and returns its verdict, the records its proof wrote, the calls among them with the actions that allowed each, and the line of the first goal it couldn't prove.",
-			productsDomain: DOMAIN_DERIVATION,
+			contract: { products: DOMAIN_DERIVATION },
 			action: async ({ statement }: { statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				if (statement.length !== 1) return actionNotOK(`\`${featureStep.in}\` states ${statement.length} steps. State one step to show its derivation.`);
 				return actionOKWithProducts(await derivationUnder(stepperContext(this.getWorld(), this.steppers), featureStep, itemAt(statement, 0)));
@@ -252,7 +252,7 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 			gwta: `derivation of step {step: ${DOMAIN_INDIVIDUAL_ADDRESS}}`,
 			description:
 				"Reads the derivation of a step actuality recorded, from the records its proof wrote, without proving it again: its verdict, the frames of its records, the calls among them with the actions that allowed each, and the line of the first goal it couldn't prove.",
-			productsDomain: DOMAIN_DERIVATION,
+			contract: { products: DOMAIN_DERIVATION },
 			action: async ({ step }: { step: TIndividualAddress }) => actionOKWithProducts(await derivationOfRecord(this.getWorld(), this.steppers, step)),
 		},
 		individualsOf: {
@@ -261,7 +261,7 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 			gwta: `individuals of {expression: ${DOMAIN_CLASS_EXPRESSION}}`,
 			description:
 				"Returns the records a class expression entails as its members, through the reasoner over the ontology and the records an expression's names reach, under the caller's authority. A member the records don't entail may exist.",
-			productsDomain: DOMAIN_ENTAILED_MEMBERS,
+			contract: { products: DOMAIN_ENTAILED_MEMBERS },
 			action: async ({ expression }: { expression: string }) => {
 				return actionOKWithProducts(countedMembers(await this.members(expression)));
 			},
@@ -272,7 +272,7 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 			gwta: `individual {address: ${DOMAIN_INDIVIDUAL_ADDRESS}} is a {expression: ${DOMAIN_CLASS_EXPRESSION}}`,
 			description:
 				"An instance check: holds where the reasoner entails ClassAssertion(E X), the record at an address as a member of a class expression, and is refuted where the membership implies two classes an axiom states disjoint, naming the axioms. A membership the records don't entail and don't contradict is unknown, which isn't false in the open world, so the claim fails closed.",
-			productsDomain: DOMAIN_CLAIM,
+			contract: { products: DOMAIN_CLAIM },
 			entails: (terms) => claimEntailment({ individual: valueAt(terms, "address", CLAIM_TERMS), expression: valueAt(terms, "expression", CLAIM_TERMS) }, this.getWorld().domains),
 			action: ({ address, expression }: { address: TIndividualAddress; expression: string }) => instanceChecked(this.claimScope(), address, expression),
 		},
@@ -282,7 +282,7 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 			gwta: `every {sub: ${DOMAIN_CLASS_EXPRESSION}} is a {sup: ${DOMAIN_CLASS_EXPRESSION}}`,
 			description:
 				"A subsumption check: holds where the ontology entails SubClassOf(E1 E2), that every member of the first class expression is a member of the second, and is refuted where the records entail a member of the first and the two expressions are entailed disjoint. Fails closed otherwise, and its products hold the witness as data: the subsumption that isn't entailed and the entailed members of the first that the second doesn't hold.",
-			productsDomain: DOMAIN_CLAIM,
+			contract: { products: DOMAIN_CLAIM },
 			entails: (terms) => claimEntailment({ sub: valueAt(terms, "sub", CLAIM_TERMS), sup: valueAt(terms, "sup", CLAIM_TERMS) }, this.getWorld().domains),
 			action: ({ sub, sup }: { sub: string; sup: string }) => subsumptionChecked(this.claimScope(), sub, sup),
 		},
@@ -292,7 +292,7 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 			gwta: `some {expression: ${DOMAIN_CLASS_EXPRESSION}}`,
 			description:
 				"An instance retrieval: holds where the reasoner entails a named individual as a member of a class expression, which its products name as the witness. Without one the claim is unknown, which isn't false in the open world, so it fails closed.",
-			productsDomain: DOMAIN_ENTAILED_MEMBERS,
+			contract: { products: DOMAIN_ENTAILED_MEMBERS },
 			entails: (terms) => claimEntailment({ some: valueAt(terms, "expression", CLAIM_TERMS) }, this.getWorld().domains),
 			action: ({ expression }: { expression: string }) => retrievalChecked(this.claimScope(), expression),
 		},
@@ -301,7 +301,7 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 			readsAt: Access.public,
 			gwta: `line {line: ${DOMAIN_TEXT}} renders from its term as written`,
 			description: "Parses a line to its term through the step it resolves to, renders the term through the same step's pattern, and holds where the line renders as written.",
-			productsDomain: DOMAIN_LINE_TERM,
+			contract: { products: DOMAIN_LINE_TERM },
 			action: ({ line }: { line: string }) => {
 				const { term, rendered } = lineTerm(this.getWorld(), this.steppers, line);
 				if (rendered === line) return actionOKWithProducts({ line, term, rendered });

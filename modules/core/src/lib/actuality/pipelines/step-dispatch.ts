@@ -61,6 +61,7 @@ import {
 } from "../derivations/step-records.js";
 import { stepEndEvent, stepStartEvent } from "../derivations/lifecycle-events.js";
 import { moveActuality } from "./move-actuality.js";
+import { contractProducts } from "../../steps/domains/contract.js";
 
 /** How a step is proved and its calls dispatched. `grantedCapability` is the action the call invoked. `held` is what its caller holds, and it
  *  bounds what the step reads. A holder in this process invokes from what it holds, so it passes one list for both.
@@ -388,13 +389,14 @@ async function autoAssertProducts(world: TWorld, stepName: TRecordName, step: TS
 	if (!products) return;
 	const store = world.shared.getStore();
 	const generatedAtTime = recordTime(world);
-	if (step.productsDomain) {
-		if (isViewOnlyDomain(world, step.productsDomain)) return;
-		await assertFact(store, stepName, { domain: normalizeDomainKey(step.productsDomain), value: products, generatedAtTime });
+	const { domain, fields } = contractProducts(step);
+	if (domain) {
+		if (isViewOnlyDomain(world, domain)) return;
+		await assertFact(store, stepName, { domain: normalizeDomainKey(domain), value: products, generatedAtTime });
 		return;
 	}
-	if (step.productsDomains) {
-		for (const [field, domainKey] of Object.entries(step.productsDomains)) {
+	if (fields) {
+		for (const [field, domainKey] of Object.entries(fields)) {
 			if (!(field in products)) continue;
 			if (isViewOnlyDomain(world, domainKey)) continue;
 			await assertFact(store, stepName, { domain: normalizeDomainKey(domainKey), value: products[field], field, generatedAtTime });

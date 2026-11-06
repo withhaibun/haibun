@@ -14,6 +14,7 @@ import type { TWorld } from "../../actuality/domains/world.js";
 import { DOMAIN_DOMAIN_KEY, DOMAIN_RECORD_ID, DOMAIN_STATEMENT, registeredDomain } from "../../domains/domains.js";
 import type { TInputSchema, TStepDescriptor } from "../domains/step-discovery.js";
 import { resolveOutputSchema } from "./tool-validation.js";
+import { contractProducts, StepContractSchema } from "../domains/contract.js";
 
 /** A step's descriptor and the domain key of each of its parameters, by parameter name. */
 export type TStepDeclaration = { descriptor: TStepDescriptor; paramDomainKeys: Map<string, string> };
@@ -35,10 +36,10 @@ export function stepDeclaration(stepper: AStepper, stepName: string, stepDef: TS
 	const stepperName = constructorName(stepper);
 	const step = `step ${stepperName}.${stepName}`;
 	const { inputSchema, paramDomainKeys } = inputSchemaOf(step, stepDef, world);
-	if (stepDef.productsOf !== undefined && paramDomainKeys.get(stepDef.productsOf) !== DOMAIN_STATEMENT)
-		throw new Error(`${step}: productsOf names {${stepDef.productsOf}}, which isn't a statement its phrase takes`);
-	if (stepDef.transformsList !== undefined && stepDef.productsOf === undefined)
-		throw new Error(`${step}: transformsList makes something of its statement's list, so state the statement in productsOf`);
+	const { of } = contractProducts(stepDef);
+	if (of !== undefined && paramDomainKeys.get(of) !== DOMAIN_STATEMENT) throw new Error(`${step}: contract.products.of names {${of}}, which isn't a statement its phrase takes`);
+	if (stepDef.transformsList !== undefined && of === undefined)
+		throw new Error(`${step}: transformsList makes something of its statement's list, so state the statement in contract.products.of`);
 	assertRecordPairings(step, stepDef, paramDomainKeys);
 	if (stepDef.description.trim() === "") throw new Error(`${step} has an empty description. State what the step does in its description.`);
 	const outputSchema = resolveOutputSchema(stepperName, stepName, stepDef, world);
@@ -50,8 +51,7 @@ export function stepDeclaration(stepper: AStepper, stepName: string, stepDef: TS
 		pattern: patternOf(stepName, stepDef),
 		description: stepDef.description,
 		paramDomains: Object.fromEntries([...paramDomainKeys].map(([name, key]) => [name, DomainKeySchema.parse(key)])),
-		productsDomain: stepDef.productsDomain === undefined ? undefined : DomainKeySchema.parse(stepDef.productsDomain),
-		productsOf: stepDef.productsOf,
+		...(stepDef.contract === undefined ? {} : { contract: StepContractSchema.parse(stepDef.contract) }),
 		...(stepDef.recordIds ? { recordIds: stepDef.recordIds } : {}),
 		...(stepDef.recordData ? { recordData: stepDef.recordData } : {}),
 		capability: requiredAction(stepperName, stepName, stepDef),

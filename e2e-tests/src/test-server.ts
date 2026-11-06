@@ -256,7 +256,7 @@ class TestServer extends AStepper {
 			gwta: "protected rpc ping",
 			description: "Returns a pong of true to a caller that holds the TestServer:protected capability.",
 			capability: "TestServer:protected",
-			productsDomain: TEST_DOMAIN.pong,
+			contract: { products: TEST_DOMAIN.pong },
 			action: async () => actionOKWithProducts({ pong: true }),
 		},
 		protectedAdminRpcPing: {
@@ -268,7 +268,7 @@ class TestServer extends AStepper {
 		rpcPing: {
 			gwta: "rpc ping",
 			description: "Returns a pong of true to a caller over RPC.",
-			productsDomain: TEST_DOMAIN.pong,
+			contract: { products: TEST_DOMAIN.pong },
 			action: async () => actionOKWithProducts({ pong: true }),
 		},
 		mcpShownStepsInclude: {

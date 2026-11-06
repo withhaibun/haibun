@@ -11,6 +11,7 @@ import type { TStepReads } from "../../domains/actions.js";
 import type { TListing, TListQuery, TListStage } from "../../domains/lists.js";
 import type { IQuadStore } from "../ports.js";
 import type { TEntailment } from "../../records/domains/claim.js";
+import type { TStepContract } from "./contract.js";
 import { constructorName } from "../../domains/util.js";
 import { DOMAIN_TITLE } from "../../domains/domains.js";
 
@@ -176,26 +177,13 @@ type TStepperStepBase = TStepReads & {
 	prose?: boolean;
 	resolveFeatureLine?(line: string, path: string, stepper: AStepper, backgrounds: TFeatures, allLines?: string[], lineIndex?: number, actualSourcePath?: string): boolean | void;
 	/**
-	 * Single-product postcondition. The step's action must return products that match the named domain's schema. The
-	 * dispatcher asserts the product as a typed fact, registers a producer edge in the resolver graph, and exposes the
-	 * JSON Schema for discovery. A step that returns products names their domain here or in `productsDomains`, and
-	 * dispatch refuses products whose domain the step doesn't name.
+	 * What a call of the step produces (`contract.ts`). A step that returns products declares their domain, the domain of each
+	 * product field, or the statement parameter whose products it returns. Dispatch asserts each product as a typed fact and
+	 * refuses products whose domain the step doesn't name; the producer rules, discovery and the JSON Schema a step exposes read it.
 	 */
-	productsDomain?: string;
+	contract?: TStepContract;
 	/**
-	 * Multi-product postconditions, keyed by product field. Each field's value must match its declared domain's schema.
-	 * The dispatcher asserts each as a typed fact and registers a producer edge per field. Mutually exclusive with
-	 * `productsDomain`.
-	 */
-	productsDomains?: Record<string, string>;
-	/**
-	 * The statement parameter whose products the step returns, for a step that runs a statement and returns that
-	 * statement's products. Each line resolves its statement, and the products take the domain that the statement's last
-	 * step names. The step doesn't name a domain of its own. Mutually exclusive with `productsDomain` and `productsDomains`.
-	 */
-	productsOf?: string;
-	/**
-	 * For a step that returns the products of its statement (`productsOf`), the listing its line's values state, which makes
+	 * For a step that returns the products of its statement (`contract.products.of`), the listing its line's values state, which makes
 	 * something of the list the domain of the statement's last step declares. Dispatch refuses a statement whose last step
 	 * doesn't return a declared list, and the listing's refusal.
 	 */

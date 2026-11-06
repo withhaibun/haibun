@@ -11,10 +11,15 @@ import { stepMethodName } from "../domains/step-method.js";
 import { declaredSteps } from "./predicate-registry.js";
 import { normalizeDomainKey } from "../../domains/domains.js";
 import type { TListDeclaration } from "../../domains/lists.js";
+import { contractProducts } from "../domains/contract.js";
 
 /** The list a step's products domain declares, where it declares one. */
-export const stepList = (world: TWorld, step: TStepperStep): TListDeclaration | undefined =>
-	step.productsDomain === undefined ? undefined : world.domains[normalizeDomainKey(step.productsDomain)]?.list;
+export const stepList = (world: TWorld, step: TStepperStep): TListDeclaration | undefined => productDomainOf(world, step)?.list;
+/** The registered domain of a step's products, where its contract names one. */
+const productDomainOf = (world: TWorld, step: TStepperStep) => {
+	const { domain } = contractProducts(step);
+	return domain === undefined ? undefined : world.domains[normalizeDomainKey(domain)];
+};
 
 /** Which of a step's products its lifecycle event and its fact keep: what the step states. A list combinator and a step whose
  *  products hold a list don't keep them, since the list is the response, and a second copy of it per read would grow the events.
@@ -22,12 +27,12 @@ export const stepList = (world: TWorld, step: TStepperStep): TListDeclaration | 
 export function productsRetained(world: TWorld, step: TStepperStep): TStepperStep["retainProducts"] {
 	if (step.retainProducts !== undefined) return step.retainProducts;
 	if (step.transformsList !== undefined) return false;
-	const domain = step.productsDomain === undefined ? undefined : world.domains[normalizeDomainKey(step.productsDomain)];
+	const domain = productDomainOf(world, step);
 	return domain?.list !== undefined && typeof domain.ui?.component !== "string" ? false : undefined;
 }
 
 /**
- * Adds hypermedia markers to a step's products. Every step with a `productsDomain` receives them. The registered
+ * Adds hypermedia markers to a step's products. Every step whose contract names the domain of its products receives them. The registered
  * domain's declaration supplies their values, and the registered steps supply `_links`. Actions don't emit `_type` or
  * `_summary`.
  *
@@ -43,30 +48,30 @@ export function productsRetained(world: TWorld, step: TStepperStep): TStepperSte
  */
 export function augmentViewHypermedia(world: TWorld, step: TStepperStep, actionResult: TActionResult, steppers: AStepper[]): TActionResult {
 	if (!actionResult.ok || !actionResult.products) return actionResult;
-	const productsDomain = step.productsDomain;
-	if (!productsDomain) return actionResult;
+	const { domain: productDomain } = contractProducts(step);
+	if (!productDomain) return actionResult;
 	const products = actionResult.products;
 	if (typeof products[HYPERMEDIA.COMPONENT] === "string") return actionResult;
-	const domain = world.domains[normalizeDomainKey(productsDomain)];
+	const domain = world.domains[normalizeDomainKey(productDomain)];
 	const ui = domain?.ui;
 	const component = typeof ui?.component === "string" ? ui.component : undefined;
 	const rawSummary = ui?.summary;
 	let summary: string;
 	if (typeof rawSummary === "function") summary = String((rawSummary as (p: Record<string, unknown>) => unknown)(products));
 	else if (typeof rawSummary === "string") summary = rawSummary;
-	else summary = productsDomain;
-	const markers: Record<string, unknown> = { [HYPERMEDIA.TYPE]: component ?? productsDomain, [HYPERMEDIA.SUMMARY]: summary };
+	else summary = productDomain;
+	const markers: Record<string, unknown> = { [HYPERMEDIA.TYPE]: component ?? productDomain, [HYPERMEDIA.SUMMARY]: summary };
 	// The products domain's description, added to the products so a person, a model or an agent can interpret the result
 	// without calling show steps. buildConcernCatalog reads the same field for the type's view. A domain has one
 	// description, and a second description on its schema could differ from the one a reader is shown.
 	if (domain?.description) markers[HYPERMEDIA.DESCRIPTION] = domain.description;
 	if (component) {
 		markers[HYPERMEDIA.COMPONENT] = component;
-		markers.id = productsDomain;
-		markers.view = productsDomain;
+		markers.id = productDomain;
+		markers.view = productDomain;
 	}
 	// Next-action affordances: every step whose parameter domains take this product's domain. A model or an agent reads `_links` to find follow-on steps without calling show steps. Each entry is a step link: the method and the record as its params, the step's description as its summary, whether it reads or acts, the action it requires, and whether it is a kaname step. Each rel is the step name without its stepper prefix, so it names the action rather than the method address.
-	const links = deriveActionLinks(productsDomain, products, steppers, world);
+	const links = deriveActionLinks(productDomain, products, steppers, world);
 	if (Object.keys(links).length > 0) markers[HYPERMEDIA.LINKS] = links;
 	return { ...actionResult, products: { ...products, ...markers } };
 }
@@ -88,12 +93,12 @@ export function augmentViewHypermedia(world: TWorld, step: TStepperStep, actionR
  *
  * H1: one derivation serves every step, and a step doesn't declare its own links.
  */
-function deriveActionLinks(productsDomain: string, products: Record<string, unknown>, steppers: AStepper[], world: TWorld): Record<string, TStepLink> {
+function deriveActionLinks(productDomain: string, products: Record<string, unknown>, steppers: AStepper[], world: TWorld): Record<string, TStepLink> {
 	const out: Record<string, TStepLink> = {};
 	const productId = typeof products.id === "string" ? products.id : undefined;
 	// A part's domain key states a union's parts in order, and a union domain doesn't declare a single-domain topology, so it
 	// doesn't match.
-	const matchesProduct = (paramDomain: string): boolean => paramDomain === productsDomain || world.domains[paramDomain]?.topology?.ranges?.id === productsDomain;
+	const matchesProduct = (paramDomain: string): boolean => paramDomain === productDomain || world.domains[paramDomain]?.topology?.ranges?.id === productDomain;
 	for (const { stepperName, actionName, step } of declaredSteps(steppers)) {
 		const matching = stepParts(step).flatMap(({ name, domain }) => (matchesProduct(domain) ? [name] : []));
 		const method = stepMethodName(stepperName, actionName);

@@ -7,6 +7,7 @@ import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { capabilityAllows } from "@haibun/core/lib/domains/actions.js";
 import type { TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import type { TDomainDiscoveryInfo, TStepDefinition } from "@haibun/core/lib/step-discovery.js";
+import { contractProducts } from "@haibun/core/lib/contract.js";
 import type { TStepList } from "../machines/registry.js";
 import { acts, reads, type TLink } from "../domains/links.js";
 
@@ -50,7 +51,10 @@ export function stepsJoining(list: TStepList, name: string): { taking: TStepDefi
 	const keys = new Set(Object.entries(list.domains).flatMap(([key, info]) => (key === name || info.persistedAs === name ? [key] : [])));
 	return {
 		taking: list.steps.filter((step) => Object.values(step.paramDomains).some((domain) => domainParts(domain).some((part) => keys.has(part)))),
-		returning: list.steps.filter((step) => step.productsDomain !== undefined && keys.has(step.productsDomain)),
+		returning: list.steps.filter((step) => {
+			const { domain } = contractProducts(step);
+			return domain !== undefined && keys.has(domain);
+		}),
 	};
 }
 

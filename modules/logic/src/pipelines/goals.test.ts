@@ -6,12 +6,13 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
-import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
+import { DomainKeySchema, mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import { Access, LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { RUN_AUTHORITY } from "@haibun/core/lib/domains/capability-context.js";
 import { LINT_FINDING } from "@haibun/core/lib/domains/goal-resolution.js";
 import { goalFactsOf, planOf, stepSignatures, unmetReason } from "../derivations/goals.js";
+import { goalFacts } from "../derivations/goal-rules.js";
 import { reasoner } from "../root.js";
 import { goalProofs, heldDerivations, lintFindings } from "./goals.js";
 import type { TReasoner } from "../ports.js";
@@ -48,13 +49,13 @@ const domains = mapDefinitionsToDomains([
 class Shop extends AStepper {
 	description = "Fills a cart, places an order from it, and prints its receipt.";
 	steps: TStepperSteps = {
-		fillCart: { description: TEST_STEP, gwta: "fill a cart", productsDomain: "cart", action },
-		placeOrder: { description: TEST_STEP, gwta: "place an order from {cart: cart}", productsDomain: "order", action },
-		printReceipt: { description: TEST_STEP, gwta: "print a receipt for {order: order}", productsDomain: "receipt", action },
-		loopA: { description: TEST_STEP, gwta: "turn {b: loop-b} to a", productsDomain: "loop-a", action },
-		loopB: { description: TEST_STEP, gwta: "turn {a: loop-a} to b", productsDomain: "loop-b", action },
+		fillCart: { description: TEST_STEP, gwta: "fill a cart", contract: { products: "cart" }, action },
+		placeOrder: { description: TEST_STEP, gwta: "place an order from {cart: cart}", contract: { products: "order" }, action },
+		printReceipt: { description: TEST_STEP, gwta: "print a receipt for {order: order}", contract: { products: "receipt" }, action },
+		loopA: { description: TEST_STEP, gwta: "turn {b: loop-b} to a", contract: { products: "loop-a" }, action },
+		loopB: { description: TEST_STEP, gwta: "turn {a: loop-a} to b", contract: { products: "loop-b" }, action },
 		audit: { description: TEST_STEP, gwta: "audit {ledger: ledger}", action },
-		ship: { description: TEST_STEP, gwta: "ship {shipment: shipment}", productsDomain: "delivery", action },
+		ship: { description: TEST_STEP, gwta: "ship {shipment: shipment}", contract: { products: "delivery" }, action },
 	};
 }
 
@@ -71,6 +72,22 @@ const latest = new Map([["order", "o1"]]);
 const stepsOf = (proof: Awaited<ReturnType<typeof prove>>) => proof.plans.map((plan) => planOf(plan, byMethod, latest).steps.map((step) => step.stepName));
 
 describe("goals over producer rules", () => {
+	it("generates the producer rules the removed products fields gave, from each form of contract.products", () => {
+		class Forms extends AStepper {
+			description = "Returns a cart, an order and its receipt by field, and the products of a statement it runs.";
+			steps: TStepperSteps = {
+				one: { description: TEST_STEP, gwta: "fill one cart", contract: { products: "cart" }, action },
+				byField: { description: TEST_STEP, gwta: "order from {cart: cart}", contract: { products: { order: "order", receipt: "receipt" } }, action },
+				passOn: { description: TEST_STEP, gwta: "pass on {what: statement}", contract: { products: { of: "what" } }, action },
+			};
+		}
+		const after = stepSignatures([new Forms()]);
+		// The outputs `productsDomain`, `productsDomains` and `productsOf` gave the same steps: the domain, each field's domain, and an empty list.
+		const before = after.map((one, at) => ({ ...one, outputDomains: ([["cart"], ["order", "receipt"], []][at] ?? []).map((key) => DomainKeySchema.parse(key)) }));
+		expect(after.map((one) => one.outputDomains)).toEqual(before.map((one) => one.outputDomains));
+		expect(goalFacts(goalFactsOf(after, domains, RUN_AUTHORITY, [], ["receipt"]))).toBe(goalFacts(goalFactsOf(before, domains, RUN_AUTHORITY, [], ["receipt"])));
+	});
+
 	it("leaves a plan of the steps a goal takes, in the order their products are taken", async () => {
 		const proof = await prove("receipt", [], RUN_AUTHORITY);
 		expect(proof.held).toBe(false);

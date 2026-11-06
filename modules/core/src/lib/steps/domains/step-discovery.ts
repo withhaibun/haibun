@@ -14,6 +14,7 @@ import { StepMethodSchema, type TStepMethod } from "./step-method.js";
 import { DomainKeySchema } from "../../domains/domains.js";
 import { Access, AccessLevelSchema } from "../../domains/resources.js";
 import type { TEntailment } from "../../records/domains/claim.js";
+import { StepContractSchema } from "./contract.js";
 
 /** The lines and the methods of the steps that show actuality's declarations: the steps a caller may call, their
  *  definitions, and the steppers. The `Haibun` stepper declares them, so the configuration of an instance that serves
@@ -65,10 +66,8 @@ export const StepDescriptorSchema = z
 		description: z.string().min(1),
 		/** The domain of each parameter. */
 		paramDomains: z.record(z.string(), DomainKeySchema),
-		/** The domain of the products the step returns, where it declares one. */
-		productsDomain: DomainKeySchema.optional(),
-		/** The statement parameter whose products the step returns as its own, where the step returns a statement's products. */
-		productsOf: OptionalText,
+		/** What a call of the step produces, where the step declares it (`contract.ts`). */
+		contract: StepContractSchema.optional(),
 		/** Each parameter naming a record by its id, with the parameter naming the record's type. */
 		recordIds: z.record(z.string(), z.string()).optional(),
 		/** Each parameter taking a record's fields, with the parameter naming the record's type. */

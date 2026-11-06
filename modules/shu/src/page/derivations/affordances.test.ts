@@ -4,6 +4,8 @@ import { parseAffordanceProduct } from "./affordances.js";
 import { HYPERMEDIA } from "@haibun/core/lib/domains/protocol.js";
 import MonitorStepper from "../../monitor-stepper.js";
 import ShuStepper from "../../shu-stepper.js";
+import { contractProducts } from "@haibun/core/lib/contract.js";
+import type { TStepperStep } from "@haibun/core/lib/astepper.js";
 
 describe("parseAffordanceProduct", () => {
 	it("returns kind:none for an empty product", () => {
@@ -53,28 +55,27 @@ describe("parseAffordanceProduct", () => {
 });
 
 /**
- * Checks that the listed view-opening `show` steps of MonitorStepper and ShuStepper declare a `productsDomain`. A
+ * Checks that the listed view-opening `show` steps of MonitorStepper and ShuStepper declare the domain of their products in their contract. A
  * per-instance product parses through the same path as a singleton product, so one parser path parses the products of
  * built-in and external views. The SPA opens a component view from a step's products only where they parse to an
  * `open-component` action. A new `show` step is checked only after it is added to `cases`.
  */
-describe("show* steps declare the productsDomain whose ui.component names their view's component", () => {
+describe("show* steps declare the products domain whose ui.component names their view's component", () => {
 	const stepper = new MonitorStepper();
 	const shu = new ShuStepper();
 
 	// The step's action returns plain `{}` products. augmentViewHypermedia adds the hypermedia markers from the domain's
 	// `ui` declaration. It adds `_component`, `id` and `view` only for a domain that declares `ui.component`. These cases
-	// check the `productsDomain` of each step definition.
-	const cases: Array<{ name: string; productsDomain: string; steps: Record<string, unknown> }> = [
-		{ name: "showPolymorphicGraphView", productsDomain: "shu-polymorphic-graph-view", steps: shu.steps },
-		{ name: "showMonitor", productsDomain: "shu-monitor-column", steps: stepper.steps },
-		{ name: "showDocument", productsDomain: "shu-document-column", steps: stepper.steps },
+	// check the products domain of each step definition's contract.
+	const cases: Array<{ name: string; domain: string; steps: Record<string, unknown> }> = [
+		{ name: "showPolymorphicGraphView", domain: "shu-polymorphic-graph-view", steps: shu.steps },
+		{ name: "showMonitor", domain: "shu-monitor-column", steps: stepper.steps },
+		{ name: "showDocument", domain: "shu-document-column", steps: stepper.steps },
 	];
 
-	for (const { name, productsDomain, steps } of cases) {
-		it(`${name} declares productsDomain "${productsDomain}"`, () => {
-			const step = steps[name] as { productsDomain?: string };
-			expect(step.productsDomain).toBe(productsDomain);
+	for (const { name, domain, steps } of cases) {
+		it(`${name} declares the products domain "${domain}"`, () => {
+			expect(contractProducts(steps[name] as TStepperStep).domain).toBe(domain);
 		});
 	}
 

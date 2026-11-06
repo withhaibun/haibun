@@ -201,7 +201,7 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 		listFiles: {
 			gwta: `list files from {where: ${DOMAIN_FILE_PATH}}`,
 			description: 'Lists the files a directory holds, by name. Count them with `exactly` or `at least`, as in `exactly 2, list files from "tmp"`.',
-			productsDomain: DOMAIN_FILE_LIST,
+			contract: { products: DOMAIN_FILE_LIST },
 			action: async ({ where }: { where: string }) => {
 				const files = await this.readdir(where);
 				return actionOKWithProducts({ files: files.map((name) => ({ name })), ...counted(files.length) });
@@ -227,7 +227,7 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 		readFile: {
 			gwta: `read file {where: ${DOMAIN_FILE_PATH}}`,
 			description: "Reads the file at the path as text and returns the file's contents in the file-contents domain.",
-			productsDomain: DOMAIN_FILE_CONTENTS,
+			contract: { products: DOMAIN_FILE_CONTENTS },
 			action: ({ where }: { where: string }) => {
 				const contents = this.readFile(where, "utf-8");
 				return actionOKWithProducts({ contents });

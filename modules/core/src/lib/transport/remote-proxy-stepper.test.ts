@@ -51,14 +51,14 @@ class EchoStepper extends AStepper {
 		echo: {
 			description: TEST_STEP,
 			gwta: `echo {message: ${DOMAIN_TEXT}}`,
-			productsDomain: TEST_DOMAIN.echoed,
+			contract: { products: TEST_DOMAIN.echoed },
 			action: async ({ message }: { message: string }) => actionOKWithProducts({ echoed: message }),
 		},
 		protectedPing: {
 			description: TEST_STEP,
 			gwta: "protected ping",
 			capability: "EchoStepper:admin",
-			productsDomain: TEST_DOMAIN.pong,
+			contract: { products: TEST_DOMAIN.pong },
 			action: async () => actionOKWithProducts({ pong: true }),
 		},
 		acts: { description: TEST_STEP, gwta: "act", action: async () => OK },
@@ -66,13 +66,13 @@ class EchoStepper extends AStepper {
 		echoPick: {
 			description: TEST_STEP,
 			gwta: `echo the pick {pick: ${DOMAIN_PICK}}`,
-			productsDomain: TEST_DOMAIN.echoed,
+			contract: { products: TEST_DOMAIN.echoed },
 			action: async ({ pick }: { pick: TStepValue }) => actionOKWithProducts({ echoed: String(pick.value) }),
 		},
 		echoLabel: {
 			description: TEST_STEP,
 			gwta: "echo the label of {query: json}",
-			productsDomain: ECHOED_LABEL,
+			contract: { products: ECHOED_LABEL },
 			action: async ({ query }: { query: { label?: string } }) => actionOKWithProducts({ label: query.label ?? null }),
 		},
 	};

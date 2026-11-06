@@ -19,6 +19,7 @@ import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { declaringSteps, setupShuTest, stepsChanged, stepsReadAgain, stepsShown, type TShuTestHandle } from "../../test/setup.js";
 import { StepMethodSchema } from "@haibun/core/lib/steps/domains/step-method.js";
 import { DomainKeySchema } from "@haibun/core/lib/domains/domains.js";
+import { StepContractSchema, type TStepContract } from "@haibun/core/lib/contract.js";
 
 /** The steps actuality offers. */
 const offered: TStepDefinition[] = [];
@@ -29,10 +30,10 @@ const anActuality = () => setupShuTest({ dispatch: declaringSteps(() => stepsSho
 const step = (
 	method: string,
 	pattern: string,
-	extra: Partial<Omit<TStepDefinition, "paramDomains" | "productsDomain">> & { paramDomains?: Record<string, string>; productsDomain?: string } = {},
+	extra: Partial<Omit<TStepDefinition, "paramDomains" | "contract">> & { paramDomains?: Record<string, string>; contract?: TStepContract } = {},
 ) => {
 	const [stepperName, stepName] = method.split("-");
-	const { paramDomains = {}, productsDomain, ...rest } = extra;
+	const { paramDomains = {}, contract, ...rest } = extra;
 	return {
 		method: StepMethodSchema.parse(method),
 		stepperName,
@@ -40,11 +41,11 @@ const step = (
 		pattern,
 		description: `what ${pattern} does`,
 		paramDomains: Object.fromEntries(Object.entries(paramDomains).map(([name, key]) => [name, DomainKeySchema.parse(key)])),
-		...(productsDomain === undefined ? {} : { productsDomain: DomainKeySchema.parse(productsDomain) }),
+		...(contract === undefined ? {} : { contract: StepContractSchema.parse(contract) }),
 		...rest,
 	} as TStepDefinition;
 };
-const SHOW = step("GraphStepper-showGraph", "show graph {name}", { paramDomains: { name: "string" }, productsDomain: "graph" });
+const SHOW = step("GraphStepper-showGraph", "show graph {name}", { paramDomains: { name: "string" }, contract: { products: "graph" } });
 const LIST = step("GraphStepper-listTypes", "list types");
 const ASK = step(stepMethodName(CHAT_STEPPER, CHAT_STEP.ask), "ask {prompt}", CHAT_DECLARED[CHAT_STEP.ask]);
 

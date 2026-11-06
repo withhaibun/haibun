@@ -125,7 +125,7 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 			gwta: `watch blips {names: ${DOMAIN_BLIP_NAMES}}`,
 			description:
 				"Start collecting occurrences with the given names, in order. Names are comma separated. A dotted namespace matches every name under it (`haibun.http` matches `haibun.http.request`). Each name must be declared. Replaces any earlier watch. Read with `show watched blips`.",
-			productsDomain: DOMAIN_BLIP_WATCH,
+			contract: { products: DOMAIN_BLIP_WATCH },
 			action: async ({ names: watching }: { names: string[] }) => {
 				await Promise.resolve();
 				const declared = blipDeclarations().map((d) => d.name);
@@ -151,7 +151,7 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 			gwta: "show watched blips",
 			description:
 				"Show the watched occurrences as text. The text states the total recorded, then a count for each name and each value of its declared dimensions over every recorded occurrence. A measured series adds its total and its largest value. The text then lists the window oldest first. Each line holds an occurrence's position, name, value, step path and attributes. The products hold the total recorded and the number of occurrences the window holds.",
-			productsDomain: DOMAIN_WATCHED_BLIPS,
+			contract: { products: DOMAIN_WATCHED_BLIPS },
 			action: async () => {
 				await Promise.resolve();
 				const held = blipWatch.occurrences();
@@ -171,7 +171,7 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 			gwta: "show declared blips",
 			description:
 				"List every blip name actuality can record, with its description. A declaration that uses `origin` adds the `path:line` that declares it. Use it to find a name to watch and the code that declares it.",
-			productsDomain: DOMAIN_DECLARED_BLIPS,
+			contract: { products: DOMAIN_DECLARED_BLIPS },
 			action: async () => {
 				await Promise.resolve();
 				const declared = blipDeclarations();

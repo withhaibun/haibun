@@ -22,7 +22,7 @@ class TickHarnessStepper extends AStepper {
 		startTick: {
 			description: TEST_STEP,
 			gwta: "start tick",
-			productsDomains: { id: URAKATA_ID_DOMAIN },
+			contract: { products: { id: URAKATA_ID_DOMAIN } },
 			action: () => {
 				const registry = getFromRuntime(this.getWorld().runtime, URAKATA) as IUrakataRegistry;
 				const ticker: IUrakataTicker = {

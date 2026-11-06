@@ -8,6 +8,8 @@
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
+import { contractProducts } from "@haibun/core/lib/contract.js";
+import type { TDomainKey } from "@haibun/core/lib/domains.js";
 import { StepMethodSchema, type TStepMethod } from "@haibun/core/lib/steps/domains/step-method.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
@@ -43,8 +45,7 @@ export class ShuStepDefinition extends ShuElement<typeof StateSchema> {
 			name: step.pattern,
 			...(step.description ? { description: step.description } : {}),
 			paramDomains: step.paramDomains,
-			...(step.productsDomain ? { productsDomain: step.productsDomain } : {}),
-			...(step.productsOf ? { productsOf: step.productsOf } : {}),
+			...(step.contract ? { contract: step.contract } : {}),
 			capability: step.capability,
 		};
 	}
@@ -107,12 +108,13 @@ export class ShuStepDefinition extends ShuElement<typeof StateSchema> {
 
 	/** The domain of each argument and of what a step returns, whether it reads or acts, and where it runs. */
 	private rowsOf(step: TStepDefinition): TemplateResult {
+		const products = contractProducts<TDomainKey>(step);
 		return html`${Object.entries(step.paramDomains).map(
 			([name, domain]) =>
 				html`<dt>${name}</dt><dd data-testid=${IDS.PARAM}>${domainRef(domain)}${step.recordIds?.[name] ? html` of the type <code>{${step.recordIds[name]}}</code> names` : ""}</dd>`,
 		)}
-			${step.productsDomain ? html`<dt>Returns</dt><dd data-testid=${IDS.PRODUCTS}>${domainRef(step.productsDomain)}</dd>` : ""}
-			${step.productsOf ? html`<dt>Returns</dt><dd data-testid=${IDS.PRODUCTS}>what its <code>{${step.productsOf}}</code> returns</dd>` : ""}
+			${products.domain ? html`<dt>Returns</dt><dd data-testid=${IDS.PRODUCTS}>${domainRef(products.domain)}</dd>` : ""}
+			${products.of ? html`<dt>Returns</dt><dd data-testid=${IDS.PRODUCTS}>what its <code>{${products.of}}</code> returns</dd>` : ""}
 			<dt>Does</dt><dd>${step.read ? "reads, and actuality doesn't record the reading" : "acts, and actuality records it"}</dd>
 			${step.remoteOrigin ? html`<dt>Runs at</dt><dd>${originLink(step.remoteOrigin)}</dd>` : ""}`;
 	}

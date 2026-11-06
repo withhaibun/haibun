@@ -211,7 +211,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		showVars: {
 			gwta: "show vars",
 			description: "Returns every feature variable and its value.",
-			productsDomain: DOMAIN_VARS_SNAPSHOT,
+			contract: { products: DOMAIN_VARS_SNAPSHOT },
 			action: async () => {
 				const vars = Object.fromEntries(Object.entries(await this.getWorld().shared.all()).map(([key, variable]) => [key, variable.value]));
 				return actionOKWithProducts({ vars });
@@ -328,7 +328,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		showVar: {
 			gwta: `show var {what: ${DOMAIN_VARIABLE_NAME}}`,
 			description: "Returns the variable's value and domain, and marks it a secret where it is one. It returns the variable with an undefined value where it isn't set.",
-			productsDomain: DOMAIN_VAR_SNAPSHOT,
+			contract: { products: DOMAIN_VAR_SNAPSHOT },
 			action: async ({ what: term }: { what: string }, featureStep: TFeatureStep) => {
 				const shared = this.getWorld().shared;
 				const stepValue = await shared.resolveVariable({ term, origin: Origin.defined }, featureStep);

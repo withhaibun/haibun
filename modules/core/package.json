@@ -7,6 +7,7 @@
 	"exports": {
 		"./lib/astepper.js": { "haibun-source": "./src/lib/steps/domains/stepper.js", "default": "./build/lib/steps/domains/stepper.js" },
 		"./lib/step-discovery.js": { "haibun-source": "./src/lib/steps/domains/step-discovery.js", "default": "./build/lib/steps/domains/step-discovery.js" },
+		"./lib/contract.js": { "haibun-source": "./src/lib/steps/domains/contract.js", "default": "./build/lib/steps/domains/contract.js" },
 		"./lib/quad-types.js": { "haibun-source": "./src/lib/steps/domains/quad-types.js", "default": "./build/lib/steps/domains/quad-types.js" },
 		"./lib/namedVars.js": { "haibun-source": "./src/lib/steps/derivations/named-vars.js", "default": "./build/lib/steps/derivations/named-vars.js" },
 		"./lib/tool-validation.js": { "haibun-source": "./src/lib/steps/derivations/tool-validation.js", "default": "./build/lib/steps/derivations/tool-validation.js" },

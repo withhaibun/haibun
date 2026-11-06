@@ -170,7 +170,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			gwta: `check citations resolve`,
 			description:
 				"Re-anchors every stored anchored passage against its source's current text and returns how many citations it checked. It fails and lists each passage that doesn't resolve, including one whose source doesn't hold text.",
-			productsDomain: DOMAIN_CITATIONS_CHECKED,
+			contract: { products: DOMAIN_CITATIONS_CHECKED },
 			action: async () => {
 				const store = this.getWorld().shared.getStore();
 				const unresolved: string[] = [];
@@ -202,7 +202,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			gwta: `statements with {rel: ${DOMAIN_LINK_REL}}`,
 			description:
 				"Returns the statements made with the stated relation, each with the reading that asserted it and the line that contains that reading. A coverage table is this read with the citation relation.",
-			productsDomain: DOMAIN_STATEMENTS,
+			contract: { products: DOMAIN_STATEMENTS },
 			action: async ({ rel }: { rel: string }) => {
 				const statements = (await statementsWith(this.getWorld().shared.getStore(), rel)) as TStatementRow[];
 				return actionOKWithProducts({ statements, ...counted(statements.length) });
@@ -214,7 +214,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			description:
 				"Writes a comment holding the text on the record, authored by the instance's principal, and links it to the record with a narrate edge. It returns the comment's id and the record's conversation root.",
 			recordIds: { id: "label" },
-			productsDomain: DOMAIN_COMMENT_CREATED,
+			contract: { products: DOMAIN_COMMENT_CREATED },
 			action: async ({ label, id, text }: { label: string; id: string; text: string }) => {
 				const author = requirePrincipal(this.getWorld());
 				const store = this.getWorld().shared.getStore();
@@ -232,7 +232,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			description:
 				"Writes an annotation that quotes the passage in the record and holds the note as its body, resolving the quote to one occurrence by an optional prefix and suffix. It returns the comment's id, the anchor's specific resource, and the record's conversation root.",
 			recordIds: { id: "label" },
-			productsDomain: DOMAIN_ANNOTATION_CREATED,
+			contract: { products: DOMAIN_ANNOTATION_CREATED },
 			// The gwta binds label, id, exact and text. UI authoring calls this action over RPC with optional link passages
 			// and with a prefix and a suffix from the selection's context. The prefix and suffix resolve the anchor to one
 			// occurrence.
@@ -245,7 +245,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			description:
 				"Writes an annotation that anchors on the passage and cross-references the linked passage in the record, with the note as its body. It returns the comment's id, the anchor's specific resource, the linked passage, and the record's conversation root.",
 			recordIds: { id: "label" },
-			productsDomain: DOMAIN_ANNOTATION_CREATED,
+			contract: { products: DOMAIN_ANNOTATION_CREATED },
 			action: async ({ label, id, exact, linkExact, text }: { label: string; id: string; exact: string; linkExact: string; text: string }) =>
 				this.runAnnotate({ label, id, exact, text, links: [{ exact: linkExact }] }),
 		},
@@ -256,7 +256,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			gwta: `annotate note {data: ${ANNOTATION_NOTE_DOMAIN}}`,
 			description:
 				"Writes an annotation from the note value, which states the anchored passage, the body, the period, and the cross-referenced passages in one value. It returns the comment's id, the anchor's specific resource, the linked passages, and the record's conversation root.",
-			productsDomain: DOMAIN_ANNOTATION_CREATED,
+			contract: { products: DOMAIN_ANNOTATION_CREATED },
 			action: async ({ data }: { data: TAnnotationNote }) => this.runAnnotate(data),
 		},
 		annotations: {
@@ -266,7 +266,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			kaname: true,
 			description: "Returns the annotations anchored in the record, each with the comment's body, its author and times, and the passages it cross-references.",
 			recordIds: { id: "label" },
-			productsDomain: DOMAIN_ANNOTATIONS,
+			contract: { products: DOMAIN_ANNOTATIONS },
 			action: async ({ id }: { label: string; id: string }) => {
 				const store = this.getWorld().shared.getStore();
 				// Walks the W3C Web Annotation chain backward from the annotated individual, each read keyed by the record it

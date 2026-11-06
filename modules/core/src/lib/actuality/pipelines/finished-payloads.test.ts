@@ -25,7 +25,7 @@ class ProducingStepper extends AStepper {
 		produces: {
 			description: TEST_STEP,
 			gwta: "produce a large answer",
-			productsDomain: LARGE_ANSWER,
+			contract: { products: LARGE_ANSWER },
 			action: () => Promise.resolve(actionOKWithProducts({ big: "x".repeat(10000) })),
 		},
 		refuses: {

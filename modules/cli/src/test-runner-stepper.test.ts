@@ -63,7 +63,7 @@ class InstanceStepper extends AStepper implements IHasCycles {
 			description: TEST_STEP,
 			gwta: `start a haibun run of {where} matching {filter} from {from} on port {port: number} as run {run} host {hostId: number}`,
 			capability: SUPERVISOR_CAPABILITIES.run,
-			productsDomain: RUN_DOMAIN.started,
+			contract: { products: RUN_DOMAIN.started },
 			action: (input: { where: string; filter: string; from: string; port: number; run: string; hostId: number }) => {
 				this.calls.push({ step: "startRun", input, actingAs: actingAs() });
 				if (this.refusal !== undefined) return Promise.resolve(actionNotOK(this.refusal));
@@ -74,7 +74,7 @@ class InstanceStepper extends AStepper implements IHasCycles {
 			description: TEST_STEP,
 			gwta: `read the haibun run {run} since {cursor: number}`,
 			capability: SUPERVISOR_CAPABILITIES.read,
-			productsDomain: RUN_DOMAIN.read,
+			contract: { products: RUN_DOMAIN.read },
 			action: (input: { run: string; cursor: number }) => {
 				this.calls.push({ step: "readRun", input });
 				const status = this.ended === null ? "running" : "ended";
@@ -101,7 +101,7 @@ class InstanceStepper extends AStepper implements IHasCycles {
 			description: TEST_STEP,
 			gwta: `wait for the haibun run {run} to end within {seconds: number} seconds`,
 			capability: SUPERVISOR_CAPABILITIES.read,
-			productsDomain: RUN_DOMAIN.read,
+			contract: { products: RUN_DOMAIN.read },
 			action: (input: { run: string; seconds: number; cursor: number }) => {
 				this.calls.push({ step: "waitRun", input });
 				return this.steps.readRun.action({ run: input.run, cursor: input.cursor });
@@ -111,7 +111,7 @@ class InstanceStepper extends AStepper implements IHasCycles {
 			description: TEST_STEP,
 			gwta: `stop the haibun run {run}`,
 			capability: SUPERVISOR_CAPABILITIES.stop,
-			productsDomain: RUN_DOMAIN.stopped,
+			contract: { products: RUN_DOMAIN.stopped },
 			action: (input: { run: string }) => {
 				this.calls.push({ step: "stopRun", input });
 				return Promise.resolve(actionOKWithProducts({ run: input.run }));

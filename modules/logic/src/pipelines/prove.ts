@@ -341,7 +341,7 @@ class Proof {
 	private async close(path: number[], request: TCloseRequest): Promise<string> {
 		const opened = this.opened.get(keyOf(path));
 		if (opened === undefined) throw this.differentBuilds("ends a step it didn't open");
-		const products = request.verdict === VERDICT.proved ? this.productsOf(path, request.node) : undefined;
+		const products = request.verdict === VERDICT.proved ? this.provedProducts(path, request.node) : undefined;
 		opened.close(
 			request.verdict === VERDICT.proved
 				? { ok: true, verdict: request.verdict, ...(products === undefined ? {} : { products }) }
@@ -353,7 +353,7 @@ class Proof {
 
 	/** The products of a node that holds: maybe's verdict, with why its statement didn't hold where it didn't, why the statement
 	 *  under didn't failed, and otherwise the products of its statements. */
-	private productsOf(path: readonly number[], node: string): Record<string, unknown> | undefined {
+	private provedProducts(path: readonly number[], node: string): Record<string, unknown> | undefined {
 		const { reading } = this.node(node).step.action.step;
 		if (reading !== READING.maybe && reading !== READING.didnt) return this.productsUnder.get(keyOf(path));
 		const last = this.lastPart(path);

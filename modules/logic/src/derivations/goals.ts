@@ -20,6 +20,7 @@ import { FieldDomainSchema, type TBinding, type TCompositeRanges, type TFieldBin
 import { DIFFERENT_BUILDS, type TGoalProof, type TProofNode } from "../domains/logic.js";
 import { UNMET_WHY, type TCompositeField, type TGoalFacts } from "./goal-rules.js";
 import type { TLintGraph } from "./lint-rules.js";
+import { productDomains } from "@haibun/core/lib/contract.js";
 
 type TDomains = Record<string, TRegisteredDomain>;
 /** A fact as a goal's proof reads it: its id and its domain. */
@@ -30,7 +31,7 @@ export type TStepSignature = Omit<TForwardAffordance, "readyToRun">;
 
 function signaturesOf(steppers: readonly AStepper[]): TStepSignature[] {
 	return declaredSteps(steppers).map(({ stepperName, actionName: stepName, step }) => {
-		const outputs = step.productsDomain !== undefined ? [step.productsDomain] : step.productsDomains === undefined ? [] : Object.values(step.productsDomains);
+		const outputs = productDomains(step);
 		return {
 			method: stepMethodName(stepperName, stepName),
 			stepperName,
@@ -149,7 +150,7 @@ export function planOf(proof: TProofNode, byMethod: ReadonlyMap<string, TStepSig
 		const step = byMethod.get(node.do);
 		if (step === undefined) throw new Error(`A plan the step program returned calls ${node.do}, which this process doesn't declare. ${DIFFERENT_BUILDS}`);
 		const subs = node.inputs.map(flat);
-		const called = { stepperName: step.stepperName, stepName: step.stepName, ...(step.gwta === undefined ? {} : { gwta: step.gwta }), productsDomain: node.domain };
+		const called = { stepperName: step.stepperName, stepName: step.stepName, ...(step.gwta === undefined ? {} : { gwta: step.gwta }), produces: node.domain };
 		return { steps: [...subs.flatMap((sub) => sub.steps), called], bindings: subs.flatMap((sub) => sub.bindings) };
 	};
 	return flat(proof);

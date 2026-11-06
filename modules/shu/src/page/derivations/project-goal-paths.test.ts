@@ -8,12 +8,12 @@ const d = (key: string) => DomainKeySchema.parse(key);
 
 const planA: TPlan = {
 	steps: [
-		{ stepperName: "CustomerStepper", stepName: "createCustomer", gwta: "create customer", productsDomain: "customer" },
-		{ stepperName: "OrderStepper", stepName: "placeOrder", gwta: "place order", productsDomain: "order" },
+		{ stepperName: "CustomerStepper", stepName: "createCustomer", gwta: "create customer", produces: "customer" },
+		{ stepperName: "OrderStepper", stepName: "placeOrder", gwta: "place order", produces: "order" },
 	],
 	bindings: [{ kind: "argument", domain: d("buyer") }],
 };
-const planB: TPlan = { steps: [{ stepperName: "OrderStepper", stepName: "importOrder", gwta: "import order", productsDomain: "order" }], bindings: [] };
+const planB: TPlan = { steps: [{ stepperName: "OrderStepper", stepName: "importOrder", gwta: "import order", produces: "order" }], bindings: [] };
 
 describe("projectGoalPaths", () => {
 	it("renders the goal as a single reachable node and connects every path to it", () => {
@@ -33,7 +33,7 @@ describe("projectGoalPaths", () => {
 	});
 
 	it("renders argument bindings as separate `argument`-kind nodes that share between paths if the domain matches", () => {
-		const sharedArg: TPlan = { steps: [{ stepperName: "OrderStepper", stepName: "noteOrder", productsDomain: "order" }], bindings: [{ kind: "argument", domain: d("buyer") }] };
+		const sharedArg: TPlan = { steps: [{ stepperName: "OrderStepper", stepName: "noteOrder", produces: "order" }], bindings: [{ kind: "argument", domain: d("buyer") }] };
 		const g = projectGoalPaths({ goal: "order", verdict: "unknown", factIds: [], plans: [planA, sharedArg] });
 		const argNodes = g.nodes.filter((n) => n.kind === "argument" && n.label === "buyer");
 		expect(argNodes.length).toBe(1);
@@ -46,7 +46,7 @@ describe("projectGoalPaths", () => {
 
 	it("renders composite bindings as a tree of field nodes connected through the composite to the step", () => {
 		const compositePlan: TPlan = {
-			steps: [{ stepperName: "OrderStepper", stepName: "placeOrder", productsDomain: "order" }],
+			steps: [{ stepperName: "OrderStepper", stepName: "placeOrder", produces: "order" }],
 			bindings: [
 				{
 					kind: "composite",

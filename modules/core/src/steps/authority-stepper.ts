@@ -89,7 +89,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			description:
 				"Assigns a connecting site a unique principal, did:site:<mine>.<n>, under this site's own principal, and writes this site's and the assigned principals to the store as Principal individuals. It returns the assigned principal as the site product, and refuses where a store isn't available or the store's principal list saturates.",
 			capability: AUTHORITY_CAPABILITIES.name,
-			productsDomains: { site: DOMAIN_PRINCIPAL_REF },
+			contract: { products: { site: DOMAIN_PRINCIPAL_REF } },
 			// Site principals are unique within a federation. An instance with the default identity (did:site:0) requests a
 			// name from the site it connects to where the two principals collide. This step assigns `did:site:<mine>.<n>`,
 			// which is unique under this site's own principal. It writes this site's principal and the assigned principal to
@@ -118,7 +118,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			read: true,
 			capability: DELEGATIONS_READ_ACTION,
 			gwta: "delegations to the caller",
-			productsDomain: DOMAIN_DELEGATIONS,
+			contract: { products: DOMAIN_DELEGATIONS },
 			description:
 				"Returns the signed delegations that this instance recorded to the key that signs the call, as the documents a holder presents. The step omits a revoked delegation. A key's holder reads the delegations to determine what the key may do here. The step returns only the calling key's delegations.",
 			action: async () => {
@@ -133,7 +133,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			capability: readAction(Access.private),
 			gwta: "show held calls",
 			description: "Returns the calls held open at this instance, by the capability on which each rests. Revoking a capability ends the calls that rest on it.",
-			productsDomain: DOMAIN_HELD_CALLS,
+			contract: { products: DOMAIN_HELD_CALLS },
 			action: () => {
 				const { capabilities } = this.getAuthority().heldCalls();
 				return Promise.resolve(actionOKWithProducts({ capabilities, ...counted(capabilities.length) }));
@@ -141,7 +141,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 		},
 		holdingOnly: {
 			gwta: `holding only {actions: ${DOMAIN_ACTIONS}}, {what: statement}`,
-			productsOf: "what",
+			contract: { products: { of: "what" } },
 			description:
 				"Proves a statement as the same caller with only those of the listed actions that its caller holds. The actions are comma-separated. A statement can do less than its caller and never more, so a feature can state a caller that holds some actions and not others. A refusal names the action the caller lacks.",
 			reading: READING.within,
@@ -156,7 +156,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 		},
 		holdingCapability: {
 			gwta: `holding capability {cap: ${DOMAIN_JSON}} at {target: ${DOMAIN_LINK}}, {what: statement}`,
-			productsOf: "what",
+			contract: { products: { of: "what" } },
 			description: "Proves a statement under a signed capability that the registered verifier verifies, as the principal it names and with the actions it delegates.",
 			reading: READING.within,
 			context: ({ cap, target }) => this.underCapability(cap, String(target)),

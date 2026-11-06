@@ -128,7 +128,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 				"Returns the record of the given type and id, the edges either way, and how many edges point at it, from the store this instance holds. Fails where the record isn't held, stating the collection that lists the records the instance holds.",
 			recordIds: { id: "label" },
 			fallback: true,
-			productsDomain: DOMAIN_INDIVIDUAL_WITH_EDGES,
+			contract: { products: DOMAIN_INDIVIDUAL_WITH_EDGES },
 			// A page reads an individual with its edges the same way whatever serves the read. This step reads the store
 			// this instance holds, which is what a site without a graph engine of its own has; a deployment that gates a
 			// read by what a reader may see declares its own step, and the page reads through that one instead.
@@ -144,7 +144,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			readsAt: Access.public,
 			gwta: `get select values for {label: ${DOMAIN_PERSISTED_TYPE}}`,
 			description: "Returns, for each field of the type, the values a filter selects. Fails where a filter topology isn't registered for the type.",
-			productsDomain: DOMAIN_SELECT_VALUES,
+			contract: { products: DOMAIN_SELECT_VALUES },
 			action: async ({ label }: { label: string }) => {
 				const values = await selectValues(this.getWorld(), label);
 				return values === undefined ? actionNotOK(`a filter topology isn't registered for ${label}`) : actionOKWithProducts({ values });
@@ -156,7 +156,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			gwta: "get clustered quads",
 			description:
 				"Returns the clustered sample a graph view draws: the quads, and per type what was sampled and what was left out, with the site that serves each sampled subject. Fails, stating the fields the ask must hold, where the ask is malformed, or stating why the read failed, where the read throws.",
-			productsDomain: DOMAIN_CLUSTERED_QUADS,
+			contract: { products: DOMAIN_CLUSTERED_QUADS },
 			// The sampled graph is the RPC response; keeping it on the event too holds a second copy of it per call.
 			retainProducts: false,
 			action: async (asked: Record<string, unknown>) => {
@@ -175,7 +175,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			gwta: `show axioms of {view: ${DOMAIN_GRAPH_VIEW}}`,
 			description:
 				"Returns the axioms of what a graph view shows: an individual frame for each record with its class and facts, a class frame for each type with its superclasses, and a property frame for each link relation with the unions of its domain and range, each in Manchester syntax and DL notation, beside the view they state.",
-			productsDomain: DOMAIN_GRAPH_AXIOMS,
+			contract: { products: DOMAIN_GRAPH_AXIOMS },
 			// The description is the RPC response; keeping it on the event too holds a second copy of it per call.
 			retainProducts: false,
 			action: async ({ view }: { view: TGraphView }) => actionOKWithProducts(await graphAxiomsOf(this.getWorld(), view)),
@@ -185,7 +185,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			description:
 				"Checks that this instance's merged view holds the individual of the given type and subject, served by the given site, over the same clustered surface a graph view draws, and returns the subject with the site that serves it. Fails where the view doesn't hold the subject, or where the subject is served by a different site.",
 			recordIds: { subject: "type" },
-			productsDomain: DOMAIN_SUBJECT_SERVED,
+			contract: { products: DOMAIN_SUBJECT_SERVED },
 			// Federation-health inspection: does this instance's merged view hold {subject} (a {type} individual)
 			// SERVED BY {site}? Reads the same clustered surface the views render from, so it asserts exactly what a
 			// user would see, including that the subject's stamp names the site that serves it.
@@ -200,7 +200,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			gwta: `federate graph reads from {where: ${DOMAIN_LINK}}`,
 			description:
 				"Merges the peer instance at the link into this instance's view, stamping each of the peer's subjects with its site principal so the view groups by site, and returns the site of the federated reads. Fails, stating why, where the reads weren't federated.",
-			productsDomain: DOMAIN_SITE_FEDERATED,
+			contract: { products: DOMAIN_SITE_FEDERATED },
 			// Reads-first federation: a peer instance's clustered reads merge into this one's view, each of the peer's subjects
 			// stamped with its site principal, so the view groups by site.
 			action: async ({ where }: { where: string }) => {
@@ -218,7 +218,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			description:
 				"Returns how many records fall in each division of the span the query states. The step computes the same counts a page computes over its own copy of the graph, so the two never drift.",
 			fallback: true,
-			productsDomain: DOMAIN_DENSITY,
+			contract: { products: DOMAIN_DENSITY },
 			// The counts are the products; keeping them on the event too is the per-read bloat.
 			retainProducts: false,
 			// The same counts a page computes over its own copy of the graph, so the two never drift.
@@ -235,7 +235,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			description:
 				"Returns the rows the graph query matched, with the count of them. The step reads the same records a page reads from its own copy of the graph, so the two never drift.",
 			fallback: true,
-			productsDomain: DOMAIN_GRAPH_ROWS,
+			contract: { products: DOMAIN_GRAPH_ROWS },
 			takesListQuery: ({ query }: { query: TRecordQuery }, listQuery: TListQuery) => queriedList(query, listQuery),
 			// The same records a page reads from its own copy of the graph, so the two never drift.
 			action: async ({ query }: { query: TRecordQuery }) => {

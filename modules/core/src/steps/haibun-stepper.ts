@@ -140,8 +140,15 @@ class Haibun extends AStepper implements IHasCycles {
 	};
 
 	/** A read of actuality's declarations, which every caller may make before it reads any step's declaration. */
-	private declarationRead(gwta: string, description: string, productsDomain: string, read: () => Record<string, unknown>) {
-		return { read: true, capability: SHOW_STEPS_ACTION, gwta, description, productsDomain, action: () => actionOKWithProducts(read()) } as const satisfies TStepperStep;
+	private declarationRead(gwta: string, description: string, domain: string, read: () => Record<string, unknown>) {
+		return {
+			read: true,
+			capability: SHOW_STEPS_ACTION,
+			gwta,
+			description,
+			contract: { products: domain },
+			action: () => actionOKWithProducts(read()),
+		} as const satisfies TStepperStep;
 	}
 
 	/** A list combinator: a read that proves its statement and returns the statement's products with the list its listing makes
@@ -152,7 +159,7 @@ class Haibun extends AStepper implements IHasCycles {
 			readsAt: Access.public,
 			gwta,
 			description,
-			productsOf: "statement",
+			contract: { products: { of: "statement" } },
 			...stage,
 			action: ({ statement }: { statement: TFeatureStep[] }, featureStep: TFeatureStep) => proveStatements(stepperContext(this.getWorld(), this.steppers), featureStep, statement),
 		} as const satisfies TStepperStep;
@@ -163,7 +170,7 @@ class Haibun extends AStepper implements IHasCycles {
 			gwta: `use store at {where: ${DOMAIN_LINK}} for {types: ${DOMAIN_PERSISTED_TYPES}}`,
 			description:
 				"Mounts another instance's store at the link, routing the stated persisted types to it so their records are held there. It returns the store's site and the routed types, and refuses where the world store can't register a backing store.",
-			productsDomain: DOMAIN_STORE_IN_USE,
+			contract: { products: DOMAIN_STORE_IN_USE },
 			// Mounts another instance's store for the given types. RemoteQuadStore sends writes and reads of those types over
 			// the capability-gated store surface, so the serving site's store holds those records instead of this instance's
 			// store. Each record has one store. requestSigner signs each call with actuality's invoker, under a delegation
@@ -181,7 +188,7 @@ class Haibun extends AStepper implements IHasCycles {
 		onHost: {
 			gwta: `on host {hostId: number}, {statement:${DOMAIN_STATEMENT}}`,
 			description: "Proves the statement with its steps routed to the host by the host's id, so they run against that host. It returns the statement's products.",
-			productsOf: "statement",
+			contract: { products: { of: "statement" } },
 			action: ({ hostId, statement }: { hostId: number; statement: TFeatureStep[] }, featureStep: TFeatureStep) =>
 				proveStatements(stepperContext(this.getWorld(), this.steppers), featureStep, statement, hostId),
 		},
@@ -263,7 +270,7 @@ class Haibun extends AStepper implements IHasCycles {
 			readsAt: Access.public,
 			gwta: `as of {asOf: ${DOMAIN_STEP_PATH}}, {statement: ${DOMAIN_STATEMENT}}`,
 			description: "Proves the statement as of a step of actuality, so a read the statement makes that reads actuality at a step, such as the affordances, reads it at that step.",
-			productsOf: "statement",
+			contract: { products: { of: "statement" } },
 			reading: READING.within,
 			context: ({ asOf }) => Promise.resolve(<T>(run: () => Promise<T>) => runAsOf(StepPathValueSchema.parse(asOf), run)),
 		},
@@ -289,7 +296,7 @@ class Haibun extends AStepper implements IHasCycles {
 			gwta: `validate step {text: ${DOMAIN_TEXT}}`,
 			description:
 				"Whether a line resolves to exactly one of the steps the caller may call, and which method that step is, with the reading of each value whose domain states one and, for a claim, the reasoning task, the axiom in OWL 2 functional and Manchester syntax and the entailment in DL notation; otherwise why the line doesn't resolve to one of them or resolves to more than one.",
-			productsDomain: DOMAIN_STEP_VALIDATION,
+			contract: { products: DOMAIN_STEP_VALIDATION },
 			action: ({ text }: { text: string }) => {
 				const validation = validateStep(text, this.steppers, shownTo());
 				const domains = this.getWorld().domains;

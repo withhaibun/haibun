@@ -505,7 +505,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			gwta: `load the browser extension at {where: ${DOMAIN_FILE_PATH}}`,
 			description:
 				"Loads the unpacked extension in the directory `where` into the browser actuality launches, from the next page it opens, and returns the extension's id and origin, derived from the key its manifest pins, so a step can open its pages.",
-			productsDomain: DOMAIN_BROWSER_EXTENSION,
+			contract: { products: DOMAIN_BROWSER_EXTENSION },
 			action: ({ where }: { where: string }) => {
 				if (this.session.hasPage(this.session.tab)) return actionNotOK(`load an extension before any step opens a page; ${where} was named after one`);
 				const loading = loadingExtension(this.#browser.files, this.#browserOptions, where);
@@ -522,7 +522,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			gwta: "show the browser extension",
 			description:
 				"Returns the extension the browser runs: its worker, once it has started, and the side panel its toolbar button opens, as the worker reads it. A worker that doesn't start fails the step.",
-			productsDomain: DOMAIN_RUNNING_BROWSER_EXTENSION,
+			contract: { products: DOMAIN_RUNNING_BROWSER_EXTENSION },
 			action: () => runningExtension(this.session, this.#extension),
 		},
 		showBrowserRelay: {
@@ -531,7 +531,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			capability: readAction(Access.private),
 			gwta: "show the browser relay",
 			description: "Whether a person's browser is attached through the relay, the key that attached it, and its tabs, each with whether actuality drives it.",
-			productsDomain: DOMAIN_RELAY_ATTACHMENT,
+			contract: { products: DOMAIN_RELAY_ATTACHMENT },
 			action: () => this.#withRelay((relay) => Promise.resolve(actionOKWithProducts(relay.attachment()))),
 		},
 		listBrowserTabs: {
@@ -540,7 +540,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			readsAt: Access.private,
 			gwta: "list the attached browser's tabs",
 			description: "Every tab open in the browser a person attached through the relay, attached or not: its id, title and address.",
-			productsDomain: DOMAIN_BROWSER_TABS,
+			contract: { products: DOMAIN_BROWSER_TABS },
 			action: () =>
 				this.#withRelay(async (relay) => {
 					const { tabs } = await listTabs(relay);
@@ -554,14 +554,14 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			gwta: `read the attached browser's tab {tabId: ${DOMAIN_NUMBER}}`,
 			description:
 				"The title, address and text of the page a tab of the attached browser shows, read by the extension without the debugger, so Chrome doesn't show its debugging infobar.",
-			productsDomain: DOMAIN_BROWSER_TAB_TEXT,
+			contract: { products: DOMAIN_BROWSER_TAB_TEXT },
 			action: ({ tabId }: { tabId: number }) => this.#withRelay(async (relay) => actionOKWithProducts(await readTab(relay, tabId))),
 		},
 		openBrowserTab: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.openTab,
 			gwta: `open a tab in the attached browser at {url: ${DOMAIN_LINK}}`,
 			description: "Opens a tab in the browser a person attached through the relay, where actuality's steps may then act as they act in the tab the person attached.",
-			productsDomain: DOMAIN_BROWSER_TAB,
+			contract: { products: DOMAIN_BROWSER_TAB },
 			action: ({ url }: { url: string }) => this.#withRelay(async (relay) => actionOKWithProducts(await openTab(relay, url))),
 		},
 		closeBrowserTab: {
@@ -627,7 +627,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			...PAGE_READ,
 			gwta: "take a screenshot",
 			description: "Screenshots the page into actuality's storage, and returns where the image's bytes are kept and their media type.",
-			productsDomain: DOMAIN_IMAGE_REFERENCE,
+			contract: { products: DOMAIN_IMAGE_REFERENCE },
 			action: async (_args: Record<string, never>, featureStep: TFeatureStep) =>
 				actionOKWithProducts(
 					await captureScreenshot(this.session, this.getWorld(), this.storage, "action", { seqPath: featureStep.seqPath, path: featureStep.source?.path, in: featureStep.in }),
@@ -639,7 +639,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			description:
 				'Reads the page as Playwright\'s aria snapshot in its AI mode: YAML naming each element\'s role and accessible name, and its reference, such as [ref=e2], which `click "e2" by "reference"` clicks. Its links name the steps that act on what it read, and a caller of each of those receives this read.',
 			read: true,
-			productsDomain: DOMAIN_ACCESSIBILITY_SNAPSHOT,
+			contract: { products: DOMAIN_ACCESSIBILITY_SNAPSHOT },
 			action: async () => actionOKWithProducts(await readThePage(this.session, Object.fromEntries(SNAPSHOT_ACTIONS.map((step) => [step, { method: stepMethodName(this, step) }])))),
 		},
 		saveTextFrom: {
@@ -736,7 +736,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			gwta: "show JSON response",
 			description:
 				'Lists the members of the last JSON response. Narrow, count and iterate them with the list combinators, as in `exactly 2, whose "name" matches "Include", show JSON response`.',
-			productsDomain: DOMAIN_JSON_RESPONSE,
+			contract: { products: DOMAIN_JSON_RESPONSE },
 			action: () => jsonResponse(this.getWorld()),
 		},
 		restLastStatusIs: {

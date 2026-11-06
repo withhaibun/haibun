@@ -50,12 +50,12 @@ class PingStepper extends AStepper {
 	description = "Steps that respond to a ping, one of them protected and one gated by an admin capability.";
 	cycles = declaresTestDomains();
 	steps = {
-		ping: { description: TEST_STEP, gwta: "ping", productsDomain: TEST_DOMAIN.pong, action: async () => actionOKWithProducts({ pong: true }) },
+		ping: { description: TEST_STEP, gwta: "ping", contract: { products: TEST_DOMAIN.pong }, action: async () => actionOKWithProducts({ pong: true }) },
 		protectedPing: {
 			description: TEST_STEP,
 			gwta: "protected ping",
 			capability: "PingStepper:protected",
-			productsDomain: TEST_DOMAIN.pong,
+			contract: { products: TEST_DOMAIN.pong },
 			action: async () => actionOKWithProducts({ pong: true }),
 		},
 		adminPing: { description: TEST_STEP, gwta: "admin ping", capability: "PingStepper:admin", action: async () => OK },
@@ -64,7 +64,7 @@ class PingStepper extends AStepper {
 			gwta: "level this reads at",
 			read: true,
 			readsAt: Access.public,
-			productsDomain: TEST_DOMAIN.readAt,
+			contract: { products: TEST_DOMAIN.readAt },
 			action: async () => actionOKWithProducts({ at: readingAt() ?? "unbounded" }),
 		},
 		serveProbe: {
@@ -542,7 +542,7 @@ class NoticeStepper extends AStepper {
 			description: TEST_STEP,
 			exact: "count the notices",
 			capability: NOTICE_COUNT_ACTION,
-			productsDomain: TEST_DOMAIN.count,
+			contract: { products: TEST_DOMAIN.count },
 			action: async () =>
 				actionOKWithProducts({
 					count: (

@@ -1,7 +1,7 @@
 /**
  * End-to-end pin for the `show monitor` → open-component chain.
  *
- * Confirms: a step whose productsDomain has `ui.component` produces a response whose
+ * Confirms: a step whose products domain has `ui.component` produces a response whose
  * markers the SPA parser recognises as an open-component action. A regression makes
  * the "show monitor" affordance a no-op.
  */
@@ -14,6 +14,7 @@ import { StepMethodSchema } from "@haibun/core/lib/steps/domains/step-method.js"
 import { DomainKeySchema } from "@haibun/core/lib/domains/domains.js";
 import { ActionSchema } from "@haibun/core/lib/domains/actions.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
+import { contractProducts } from "@haibun/core/lib/contract.js";
 
 describe("show monitor markers → parser", () => {
 	it("a markers-only product (the shape augmentViewHypermedia produces for show monitor) parses to open-component", () => {
@@ -31,8 +32,8 @@ describe("show monitor markers → parser", () => {
 		}
 	});
 
-	it("buildFeatureStepForTransport carries the real stepDef through (regression: RPC dispatch dropped productsDomain, augment never fired)", () => {
-		const stepDef = { description: TEST_STEP, gwta: "show monitor", productsDomain: "shu-monitor-column", action: () => ({ ok: true as const }) };
+	it("buildFeatureStepForTransport carries the real stepDef through (regression: RPC dispatch dropped the step's contract, augment never fired)", () => {
+		const stepDef = { description: TEST_STEP, gwta: "show monitor", contract: { products: "shu-monitor-column" }, action: () => ({ ok: true as const }) };
 		const tool: StepTool = {
 			descriptor: {
 				method: StepMethodSchema.parse("MonitorStepper-showMonitor"),
@@ -42,7 +43,7 @@ describe("show monitor markers → parser", () => {
 				pattern: "show monitor",
 				description: TEST_STEP,
 				paramDomains: {},
-				productsDomain: DomainKeySchema.parse("shu-monitor-column"),
+				contract: { products: DomainKeySchema.parse("shu-monitor-column") },
 				capability: ActionSchema.parse("MonitorStepper:showMonitor"),
 				read: false,
 				kaname: false,
@@ -57,7 +58,7 @@ describe("show monitor markers → parser", () => {
 			handler: () => Promise.resolve({ ok: true as const }),
 		};
 		const fs = buildFeatureStepForTransport(tool, {}, [0, 1, 1]);
-		expect(fs.action.step.productsDomain).toBe("shu-monitor-column");
+		expect(contractProducts(fs.action.step).domain).toBe("shu-monitor-column");
 		expect(fs.action.step).toBe(stepDef);
 	});
 });

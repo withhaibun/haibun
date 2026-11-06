@@ -268,7 +268,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			gwta: `saves shu( uncompressed)? to {where: ${DOMAIN_FILE_PATH}}`,
 			description:
 				"Write the standalone shu HTML report to the given path. Invokable any time during a feature; endFeature writes once more so the final file always reflects all of actuality. Uncompressed, the report's payload is plain JSON, so the redacted text can be read and audited directly, and the write is a one-off that doesn't become the feature's output.",
-			productsDomain: DOMAIN_SHU_REPORT,
+			contract: { products: DOMAIN_SHU_REPORT },
 			action: async ({ where }: { where: string }, featureStep: TFeatureStep) => {
 				const compressed = !UNCOMPRESSED.test(featureStep.in);
 				if (compressed) this.outputPath = where;
@@ -283,14 +283,14 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			gwta: "show monitor",
 			description:
 				"Opens the monitor column of the shu app, which draws actuality's monitor and event log. The dispatcher injects the markers that mount the view from the domain's declaration.",
-			productsDomain: SHU_TAG.MONITOR_COLUMN,
+			contract: { products: SHU_TAG.MONITOR_COLUMN },
 			action: () => actionOKWithProducts({}),
 		},
 		showDocument: {
 			gwta: "show document",
 			description:
 				"Opens the document column of the shu app, the document and artifact viewer. The dispatcher injects the markers that mount the view from the domain's declaration.",
-			productsDomain: SHU_TAG.DOCUMENT_COLUMN,
+			contract: { products: SHU_TAG.DOCUMENT_COLUMN },
 			action: () => actionOKWithProducts({}),
 		},
 		logClient: {

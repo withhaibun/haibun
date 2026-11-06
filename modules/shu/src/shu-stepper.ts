@@ -202,7 +202,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			readsAt: Access.public,
 			gwta: "show shu apps",
 			description: "Where this instance serves shu: the path of each app it mounted, which a reader opens under the instance's address.",
-			productsDomain: DOMAIN_SHU_APPS,
+			contract: { products: DOMAIN_SHU_APPS },
 			action: () => actionOKWithProducts({ apps: [...this.appPaths].map((path) => ({ path })), ...counted(this.appPaths.size) }),
 		},
 		showPolymorphicGraphView: {
@@ -211,14 +211,14 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				"Opens the polymorphic graph view of the shu app: one graph as a force cloud, a layered flow, a gantt or a sequence. The dispatcher injects the markers that mount the view from the domain's declaration.",
 			// Opened through the same affordance path as every other view: the products domain is the view's own, and the
 			// step-hypermedia projection injects what mounts it from the registered declaration.
-			productsDomain: SHU_TAG.POLYMORPHIC_GRAPH_VIEW,
+			contract: { products: SHU_TAG.POLYMORPHIC_GRAPH_VIEW },
 			action: () => actionOKWithProducts({}),
 		},
 		getGraphLayout: {
 			gwta: "get graph layout",
 			description:
 				"Returns where the graph view placed each node: the nodes and edges as pipe-delimited tokens, and the clusters with the count of each type's records and the count sampled. Fails, stating why the layout wasn't read, where the read throws.",
-			productsDomain: DOMAIN_GRAPH_LAYOUT,
+			contract: { products: DOMAIN_GRAPH_LAYOUT },
 			action: async () => {
 				try {
 					return actionOKWithProducts(await graphLayout(this.getWorld()));

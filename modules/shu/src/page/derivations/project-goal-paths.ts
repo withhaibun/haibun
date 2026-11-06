@@ -10,8 +10,8 @@
  *     across paths by `(stepperName, stepName)`; a step that appears in
  *     every path renders as one node with its incoming edges tagged with
  *     every participating path id. Every step also carries its
- *     `productsDomain`, so the projection builds a map
- *     `productsDomain → stepNodeId`.
+ *     `produces`, so the projection builds a map
+ *     `produces → stepNodeId`.
  *   - Bindings flow into the LAST step (the goal producer). A composite-kind
  *     field whose `fieldDomain` has a producer step in this plan routes its
  *     sub-fields INTO that producer step instead of attaching them to the
@@ -95,7 +95,7 @@ type TEmitContext = {
 	nodes: Map<string, TGraphNode>;
 	edges: EdgeBag;
 	pid: string;
-	/** productsDomain → stepNodeId. Used to route a composite field through the step that produces its domain. */
+	/** produces → stepNodeId. Used to route a composite field through the step that produces its domain. */
 	producerByDomain: Map<string, string>;
 };
 
@@ -203,7 +203,7 @@ export function projectGoalPaths(input: TGoalPathsInput): TGraph {
 		m.steps.forEach((step) => {
 			const stepId = stepNodeId(step.stepperName, step.stepName);
 			stepIds.push(stepId);
-			producerByDomain.set(step.productsDomain, stepId);
+			producerByDomain.set(step.produces, stepId);
 			if (!nodes.has(stepId)) {
 				nodes.set(stepId, { id: stepId, label: stepLabelOf(step), kind: NODE_KIND.default, invokes: { stepperName: step.stepperName, stepName: step.stepName } });
 			}

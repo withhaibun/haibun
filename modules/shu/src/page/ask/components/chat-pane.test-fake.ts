@@ -14,6 +14,7 @@ import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { CLIENT_LOG_METHOD } from "../../domains/page-calls.js";
 import { ASK_PARAM, CONVERSATION_DOMAIN, CONVERSATION_MODEL_CLASS, FILE_PARAM, SESSION_PARAM, type TSessionTurn } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { persistedTypeDefinition, stepsShown, type TDispatch } from "../../../test/setup.js";
+import type { TStepContract } from "@haibun/core/lib/contract.js";
 
 /** The consumer's stepper that offers the steps the pane calls. */
 export const CHAT_STEPPER = "AskingStepper";
@@ -24,14 +25,14 @@ export const CHAT_STEP = { ask: "putQuestion", keepFile: "holdQuestionFile", ses
 /** The domain of the model an ask names, as the consumer declares it. */
 const MODEL_DOMAIN = "asking-model";
 /** What each step takes and returns, by name. */
-export const CHAT_DECLARED: Record<string, { paramDomains: Record<string, string>; productsDomain?: string }> = {
+export const CHAT_DECLARED: Record<string, { paramDomains: Record<string, string>; contract?: TStepContract }> = {
 	[CHAT_STEP.ask]: {
 		paramDomains: { [ASK_PARAM.model]: MODEL_DOMAIN, [ASK_PARAM.readLevel]: "text", [ASK_PARAM.prompt]: "text", [ASK_PARAM.question]: CONVERSATION_DOMAIN.QUESTION },
-		productsDomain: CONVERSATION_DOMAIN.RESPONSE,
+		contract: { products: CONVERSATION_DOMAIN.RESPONSE },
 	},
-	[CHAT_STEP.keepFile]: { paramDomains: { [FILE_PARAM.file]: "text", [FILE_PARAM.name]: "text" }, productsDomain: CONVERSATION_DOMAIN.FILE },
-	[CHAT_STEP.sessions]: { paramDomains: {}, productsDomain: CONVERSATION_DOMAIN.SESSIONS },
-	[CHAT_STEP.session]: { paramDomains: { [SESSION_PARAM]: "text" }, productsDomain: CONVERSATION_DOMAIN.SESSION },
+	[CHAT_STEP.keepFile]: { paramDomains: { [FILE_PARAM.file]: "text", [FILE_PARAM.name]: "text" }, contract: { products: CONVERSATION_DOMAIN.FILE } },
+	[CHAT_STEP.sessions]: { paramDomains: {}, contract: { products: CONVERSATION_DOMAIN.SESSIONS } },
+	[CHAT_STEP.session]: { paramDomains: { [SESSION_PARAM]: "text" }, contract: { products: CONVERSATION_DOMAIN.SESSION } },
 	[CHAT_STEP.catalog]: { paramDomains: {} },
 };
 /** The type the consumer's models are records of, which states itself a conversation model. */

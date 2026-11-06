@@ -159,7 +159,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				"Saves a waypoint whose activity is these lines, and states its rule, which then applies in every feature. The step refuses a line that doesn't resolve to one step and a head that is already a rule's, before it states the rule. Saving a head again with the same lines returns the existing record.",
 			gwta: `save waypoint {outcome: ${DOMAIN_TITLE}} doing {statements: ${DOMAIN_STATEMENT_LINES}}`,
 			capability: ACTIVITIES_ACTIONS.saveWaypoint,
-			productsDomain: SAVED_WAYPOINT_DOMAIN,
+			contract: { products: SAVED_WAYPOINT_DOMAIN },
 			action: async ({ outcome, statements }: { outcome: string; statements: string[] }, featureStep: TFeatureStep) =>
 				actionOKWithProducts(await this.saveWaypoint(outcome, statements, featureStep.source?.path ?? SAVED_WAYPOINT_SOURCE)),
 		},

@@ -6,6 +6,7 @@ import { normalizeDomainKey, registeredDomain } from "../../domains/domains.js";
 import type { TCoercionSite } from "../../domains/resources.js";
 import type { StepTool } from "../pipelines/step-registry.js";
 import { errorDetail } from "../../domains/util.js";
+import { contractProducts } from "../domains/contract.js";
 
 /** The maximum length in characters of a value that a refusal repeats as written. A refusal states the length of a longer
  *  value. A file's bytes are one such value. */
@@ -73,15 +74,16 @@ export const StatementStepsSchema = z.array(
  *  step returns as its own. */
 type TAnsweringStep = { stepperName: string; actionName: string; step: TStepperStep; passedOn: boolean };
 
-/** The step whose domain holds a step's products. That step is the step itself, unless the step declares productsOf. A
- *  step with productsOf returns the products of the statement it ran, which the domain of that statement's last step
- *  holds as `args` resolved it, since the last step's result is the one the step returns. Returns an error message where
- *  `args` doesn't hold a statement for productsOf. */
+/** The step whose domain holds a step's products. That step is the step itself, unless its contract names the statement
+ *  whose products it returns. Such a step returns the products of the statement it ran, which the domain of that
+ *  statement's last step holds as `args` resolved it, since the last step's result is the one the step returns. Returns an
+ *  error message where `args` doesn't hold a statement for that parameter. */
 function answeringStep(stepperName: string, actionName: string, stepDef: TStepperStep, args: TStepArgs): TAnsweringStep | string {
-	if (stepDef.productsOf === undefined) return { stepperName, actionName, step: stepDef, passedOn: false };
+	const { of } = contractProducts(stepDef);
+	if (of === undefined) return { stepperName, actionName, step: stepDef, passedOn: false };
 	// Only the last statement is read, since its result is the one the step returns.
-	const ran = StatementStepsSchema.optional().parse(args[stepDef.productsOf])?.at(-1);
-	if (!ran) return `step ${stepperName}.${actionName} passes on the products of {${stepDef.productsOf}}, which doesn't hold a statement; state a step in it`;
+	const ran = StatementStepsSchema.optional().parse(args[of])?.at(-1);
+	if (!ran) return `step ${stepperName}.${actionName} passes on the products of {${of}}, which doesn't hold a statement; state a step in it`;
 	return { stepperName: ran.action.stepperName, actionName: ran.action.actionName, step: ran.action.step, passedOn: true };
 }
 
@@ -89,9 +91,9 @@ function answeringStep(stepperName: string, actionName: string, stepDef: TSteppe
 const pathSaid = (path: readonly PropertyKey[]): string => (path.length === 0 ? "(root)" : path.map(String).join("."));
 
 /**
- * Validates a step's products against the domain that holds them. That domain is the one the step names. A step with
- * productsOf takes the domain that the statement's last step names. A step that passes on the products of another
- * productsOf step doesn't validate them again, since that step validated them. A step that doesn't name a domain fails
+ * Validates a step's products against the domain that holds them. That domain is the one the step's contract names. A
+ * step that returns its statement's products takes the domain that the statement's last step names. A step that passes on
+ * the products of another such step doesn't validate them again, since that step validated them. A step that doesn't name a domain fails
  * validation where it returns products.
  */
 export function validateProducts(
@@ -104,7 +106,7 @@ export function validateProducts(
 ): string | undefined {
 	const answering = answeringStep(stepperName, actionName, stepDef, args);
 	if (typeof answering === "string") return answering;
-	if (answering.passedOn && answering.step.productsOf !== undefined) return undefined;
+	if (answering.passedOn && contractProducts(answering.step).of !== undefined) return undefined;
 	const named = `step ${stepperName}.${actionName}${answering.passedOn ? ` passing on ${answering.stepperName}.${answering.actionName}` : ""}`;
 	const schema = resolveOutputSchema(answering.stepperName, answering.actionName, answering.step, world);
 	if (!schema) return products === undefined || products === null ? undefined : `${named} returned products and doesn't name a domain for them`;
@@ -117,21 +119,17 @@ export function validateProducts(
 }
 
 /**
- * Resolve a step's output schema from the domains it names. At most one of `productsDomain`, `productsDomains` and
- * `productsOf` may be set. `productsDomain` uses a registered domain's schema. `productsDomains` builds an object schema
- * with one field for each named domain. `productsOf` doesn't resolve a schema of its own, since each line's statement
- * names its domain. Returns undefined for a step that doesn't name a domain.
+ * Resolve a step's output schema from the domains its contract names. A domain uses a registered domain's schema. A map
+ * of fields builds an object schema with one field for each named domain. A statement's products don't resolve a schema
+ * of their own, since each line's statement names its domain. Returns undefined for a step that doesn't name a domain.
  */
 export function resolveOutputSchema(stepperName: string, stepName: string, stepDef: TStepperStep, world: TWorld): z.ZodType | undefined {
-	const declared = [stepDef.productsDomain, stepDef.productsDomains, stepDef.productsOf].filter((d) => d !== undefined);
-	if (declared.length > 1) throw new Error(`step ${stepperName}.${stepName}: only one of productsDomain, productsDomains, productsOf may be set`);
-	if (stepDef.productsDomain) {
-		return registeredDomain(world.domains, normalizeDomainKey(stepDef.productsDomain), `step ${stepperName}.${stepName}: productsDomain`).schema;
-	}
-	if (stepDef.productsDomains) {
+	const { domain, fields: declared } = contractProducts(stepDef);
+	if (domain) return registeredDomain(world.domains, normalizeDomainKey(domain), `step ${stepperName}.${stepName}: contract.products`).schema;
+	if (declared) {
 		const fields: Record<string, z.ZodType> = {};
-		for (const [field, domainKey] of Object.entries(stepDef.productsDomains)) {
-			fields[field] = registeredDomain(world.domains, normalizeDomainKey(domainKey), `step ${stepperName}.${stepName}: productsDomains.${field}`).schema;
+		for (const [field, domainKey] of Object.entries(declared)) {
+			fields[field] = registeredDomain(world.domains, normalizeDomainKey(domainKey), `step ${stepperName}.${stepName}: contract.products.${field}`).schema;
 		}
 		return z.object(fields);
 	}

@@ -15,6 +15,7 @@ import type { TStepDescriptor } from "../domains/step-discovery.js";
 import { stepDeclaration } from "../derivations/step-tools.js";
 import { StatementStepsSchema, validateProducts } from "../derivations/tool-validation.js";
 import { argumentsOf } from "./populate-action-args.js";
+import { contractProducts } from "../domains/contract.js";
 
 /** A registered step tool. Every transport (RPC, MCP, a model's turn) dispatches a step through one. */
 export type StepTool = {
@@ -191,18 +192,19 @@ export function listedStatement(world: TWorld, steps: unknown, stages: readonly 
 	const last = statement.at(-1);
 	if (last === undefined) return { refused: NOT_A_LIST };
 	const { step } = last.action;
-	if (step.productsOf !== undefined && step.action === undefined)
+	const { of } = contractProducts(step);
+	if (of !== undefined && step.action === undefined)
 		return { refused: `${last.in} passes on its statement's products by its reading, so a list combinator can't reach the list; state the combinator inside its statement` };
-	if (step.productsOf === undefined && stepList(world, step) === undefined) return { refused: NOT_A_LIST };
+	if (of === undefined && stepList(world, step) === undefined) return { refused: NOT_A_LIST };
 	return [...statement.slice(0, -1), { ...last, listings: stages }];
 }
 
 /** Returns the call of a step under the stages of its statement's list, or why the stages can't apply to it. */
 function listedCall(world: TWorld, stepDef: TStepperStep, args: TStepArgs, stages: readonly TListStage[]): TListedCall | { refused: string } {
-	const { productsOf } = stepDef;
-	if (productsOf !== undefined) {
-		const statement = listedStatement(world, args[productsOf], stages);
-		return "refused" in statement ? statement : { args: { ...args, [productsOf]: statement }, stages: [] };
+	const { of } = contractProducts(stepDef);
+	if (of !== undefined) {
+		const statement = listedStatement(world, args[of], stages);
+		return "refused" in statement ? statement : { args: { ...args, [of]: statement }, stages: [] };
 	}
 	const declared = stepList(world, stepDef);
 	if (declared === undefined) return { refused: NOT_A_LIST };

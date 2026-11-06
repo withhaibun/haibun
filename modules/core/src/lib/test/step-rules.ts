@@ -21,6 +21,7 @@ import { namedInterpolation } from "../steps/derivations/named-vars.js";
 import { constructorName, dePolite } from "../domains/util.js";
 import type { TFound } from "./baseline.js";
 import { sourceFiles, TEST_MODULE, unwrapped } from "./repository-files.js";
+import { productDomains } from "../steps/domains/contract.js";
 
 export const STARTS_WITHOUT_PARAMETERS = "starts or keeps something without a parameter";
 export const ONE_CALL_SITE = "has at most one call site";
@@ -50,7 +51,7 @@ export type TDeclaredStep = {
 	/** Whether the step applies a listing to its statement's list: a list combinator. */
 	combinator: boolean;
 	/** The domains its products are, by name. */
-	productsDomains: readonly string[];
+	productDomains: readonly string[];
 };
 
 /** A line that starts or keeps something, which a stepper's start cycle does where an option states it. */
@@ -87,13 +88,10 @@ export function declaredSteps(steppers: readonly { file: string; stepper: AStepp
 			if (pattern === undefined || seen.has(`${declaredBy}.${key}`)) return [];
 			seen.add(`${declaredBy}.${key}`);
 			const kind: TPatternKind = step.gwta === undefined ? "exact" : "gwta";
-			const productsDomains = [
-				...(step.productsDomain === undefined ? [] : [step.productsDomain]),
-				...(step.productsDomains === undefined ? [] : Object.values(step.productsDomains)),
-			];
+			const declaredDomains = productDomains(step);
 			const combinator = step.transformsList !== undefined;
-			const declared = { file, stepper: declaredBy, key, kind, pattern, parameters: pattern.includes("{"), read: step.read === true, products: productsDomains.length > 0 };
-			return [{ ...declared, precludes: step.precludes ?? [], combinator, productsDomains }];
+			const declared = { file, stepper: declaredBy, key, kind, pattern, parameters: pattern.includes("{"), read: step.read === true, products: declaredDomains.length > 0 };
+			return [{ ...declared, precludes: step.precludes ?? [], combinator, productDomains: declaredDomains }];
 		}),
 	);
 }
@@ -400,7 +398,7 @@ export function undeclaredLists(steppers: readonly { stepper: AStepper }[], step
 		for (const definition of hasCycles(stepper) ? (stepper.cycles.getConcerns?.().domains ?? []) : [])
 			for (const selector of definition.selectors) definitions.set(selector, definition);
 	return steps.flatMap((s) =>
-		s.productsDomains
+		s.productDomains
 			.filter((name) => {
 				const definition = definitions.get(name);
 				return definition !== undefined && definition.list === undefined && holdsList(definition.schema);

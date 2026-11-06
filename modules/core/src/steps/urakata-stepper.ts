@@ -110,7 +110,7 @@ class UrakataStepper extends AStepper implements IHasCycles, IHasUrakata {
 		showUrakata: {
 			gwta: "show urakata",
 			description: "Returns the urakata running in the feature, each with what it is, when it started, its tick and error counts, and its stop time.",
-			productsDomain: DOMAIN_URAKATA_LIST,
+			contract: { products: DOMAIN_URAKATA_LIST },
 			action: () => {
 				const urakata = this.urakata().list();
 				return actionOKWithProducts({ urakata, ...counted(urakata.length) });

@@ -140,8 +140,8 @@ describe("the steps a domain joins", () => {
 	it("are the steps that return it and the steps that take it, named by its key or by the type it persists as, a union's parts included", async () => {
 		const [RECORD, RECORD_TYPE, CHECK] = ["record", "SubmittedOrder", "verification"];
 		const [issue, verify, either] = [
-			{ ...aStep("OrderStepper", "issue", false), productsDomain: RECORD },
-			{ ...aStep("InspectorStepper", "verify", false), paramDomains: { record: RECORD }, productsDomain: CHECK },
+			{ ...aStep("OrderStepper", "issue", false), contract: { products: RECORD } },
+			{ ...aStep("InspectorStepper", "verify", false), paramDomains: { record: RECORD }, contract: { products: CHECK } },
 			{ ...aStep("InspectorStepper", "either", false), paramDomains: { what: asDomainKey([RECORD, CHECK]) } },
 		];
 		setHydration({ actualityId: PAGE_ACTUALITY, settings: SERVED_SETTINGS });

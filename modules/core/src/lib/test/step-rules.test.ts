@@ -39,7 +39,7 @@ class DemoStepper extends AStepper {
 	description = "Steps whose patterns the rules read";
 	steps = {
 		openStore: { gwta: "open the store", ...ACTS },
-		openKey: { gwta: "open a key", productsDomain: "key", ...ACTS },
+		openKey: { gwta: "open a key", contract: { products: "key" }, ...ACTS },
 		readStore: { description: TEST_STEP, gwta: "show the store", read: true, readsAt: Access.public, action: () => OK },
 		watchEvery: { gwta: "watch every {seconds: number} seconds", ...ACTS },
 		fetchPage: { gwta: "fetch page {page: string}", ...ACTS },
@@ -174,10 +174,17 @@ class ListingStepper extends AStepper {
 		}),
 	};
 	steps = {
-		firstRows: { description: TEST_STEP, gwta: "show the first {n: number} rows", read: true, readsAt: Access.public, productsDomain: "rows", action: () => OK },
-		rowsMatching: { description: TEST_STEP, gwta: "show rows matching {text: string}", read: true, readsAt: Access.public, productsDomain: "counted", action: () => OK },
-		rowsSince: { description: TEST_STEP, gwta: "show rows since {at: date}", read: true, readsAt: Access.public, productsDomain: "listed", action: () => OK },
-		linesFromTo: { description: TEST_STEP, gwta: "show lines from {from: number} to {to: number}", read: true, readsAt: Access.public, productsDomain: "names", action: () => OK },
+		firstRows: { description: TEST_STEP, gwta: "show the first {n: number} rows", read: true, readsAt: Access.public, contract: { products: "rows" }, action: () => OK },
+		rowsMatching: { description: TEST_STEP, gwta: "show rows matching {text: string}", read: true, readsAt: Access.public, contract: { products: "counted" }, action: () => OK },
+		rowsSince: { description: TEST_STEP, gwta: "show rows since {at: date}", read: true, readsAt: Access.public, contract: { products: "listed" }, action: () => OK },
+		linesFromTo: {
+			description: TEST_STEP,
+			gwta: "show lines from {from: number} to {to: number}",
+			read: true,
+			readsAt: Access.public,
+			contract: { products: "names" },
+			action: () => OK,
+		},
 		resize: { gwta: "resize to {width: number}", ...ACTS },
 		delegate: { gwta: "delegate reading until {expires: date}", ...ACTS },
 		combine: { gwta: "limited to {count: number}, {statement: statement}", transformsList: () => (list: TList) => list, ...ACTS },

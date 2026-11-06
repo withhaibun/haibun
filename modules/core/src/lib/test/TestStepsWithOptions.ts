@@ -16,7 +16,7 @@ export const TestStepsWithOptions = class TestStepsWithOptions extends AStepper 
 		test: {
 			description: TEST_STEP,
 			exact: "have a stepper option",
-			productsDomain: DOMAIN_TEST_OPTION_RESULT,
+			contract: { products: DOMAIN_TEST_OPTION_RESULT },
 			action: () => {
 				const _res = getStepperOption(this, "EXISTS", this.getWorld().moduleOptions);
 				return Promise.resolve(actionOKWithProducts({ summary: "options" }));

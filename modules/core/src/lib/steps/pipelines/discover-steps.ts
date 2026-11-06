@@ -21,6 +21,7 @@ import type { AStepper } from "../domains/stepper.js";
 import type { TSteppers } from "../domains/steppers.js";
 import { mayCall } from "../../domains/actions.js";
 import { predicatesOf } from "../derivations/predicate-registry.js";
+import { StepContractSchema, productDomains } from "../domains/contract.js";
 
 /** The concern catalog of a set of registered domains, built again only where a domain is added or replaced. */
 export const concernCatalogOf = heldPerEntries(recordEntries, (domains: Record<string, TRegisteredDomain>) => buildConcernCatalog(domains));
@@ -112,15 +113,15 @@ export function stepDefinitions(world: TWorld, registry: StepRegistry, held: str
 
 /** The fields of a listed step that name what it names: its method, its pattern, and, at the definition detail, the domain
  *  of each parameter and of its products. */
-const NamingStepSchema = z.object({ method: z.string(), pattern: z.string(), paramDomains: z.record(z.string(), z.string()).optional(), productsDomain: z.string().optional() });
+const NamingStepSchema = z.object({ method: z.string(), pattern: z.string(), paramDomains: z.record(z.string(), z.string()).optional(), contract: StepContractSchema.optional() });
 const namingSteps = (items: readonly TListItem[]) => items.map((item) => NamingStepSchema.parse(item));
 /** The keys of the domains the steps name: each part of its pattern, and the domains its definition states. */
 const namedDomains = (items: readonly TListItem[]): Set<string> =>
 	new Set(
-		namingSteps(items).flatMap(({ pattern, paramDomains, productsDomain }) => [
-			...phraseParts(pattern).map(({ domain }) => domain),
-			...(paramDomains === undefined ? [] : Object.values(paramDomains)),
-			...(productsDomain === undefined ? [] : [productsDomain]),
+		namingSteps(items).flatMap((step) => [
+			...phraseParts(step.pattern).map(({ domain }) => domain),
+			...(step.paramDomains === undefined ? [] : Object.values(step.paramDomains)),
+			...productDomains(step),
 		]),
 	);
 /** The entries of a record whose keys are in `kept`. */

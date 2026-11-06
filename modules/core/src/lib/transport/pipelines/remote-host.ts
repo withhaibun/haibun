@@ -13,6 +13,7 @@ import { callInput } from "../../steps/pipelines/populate-action-args.js";
 import { readStepDefinitions, SHOW_STEP_DEFINITIONS_METHOD, SHOW_STEPS_ACTION, type TStepDescriptor } from "../../steps/domains/step-discovery.js";
 import { NO_INPUT } from "../../steps/pipelines/call-step.js";
 import type { TRemoteSteps } from "../ports.js";
+import { contractProducts } from "../../steps/domains/contract.js";
 
 /** A remote host as this process reads it: its host id, which prefixes its registry keys, and the steps it offers this process. */
 export type TRemoteHost = { hostId: number; descriptors: TStepDescriptor[] };
@@ -62,6 +63,6 @@ async function callRemote(rpc: TRemoteSteps, descriptor: TStepDescriptor, params
 	const { method, capability } = descriptor;
 	const called = await rpc.call(method, params, seqPath, capability);
 	if (!called.served) return actionNotOK(called.reason);
-	const answersWithProducts = descriptor.outputSchema !== undefined || descriptor.productsOf !== undefined;
+	const answersWithProducts = descriptor.outputSchema !== undefined || contractProducts(descriptor).of !== undefined;
 	return answersWithProducts ? { ok: true, products: RecordSchema.parse(called.result) } : { ok: true };
 }

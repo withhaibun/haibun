@@ -34,14 +34,14 @@ class ProtectedStepper extends AStepper {
 			exact: "mcp read level",
 			read: true,
 			readsAt: Access.public,
-			productsDomain: TEST_DOMAIN.readAt,
+			contract: { products: TEST_DOMAIN.readAt },
 			action: async () => actionOKWithProducts({ at: readingAt() ?? "unbounded" }),
 		},
 		echoesItsCaller: {
 			description: TEST_STEP,
 			exact: "mcp call that waits for another",
 			capability: "ProtectedStepper:wait",
-			productsDomain: TEST_DOMAIN.echoed,
+			contract: { products: TEST_DOMAIN.echoed },
 			action: async () => {
 				if (++arrived === CALLS_IN_FLIGHT) allArrived.resolve();
 				await allArrived.promise;

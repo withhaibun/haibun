@@ -48,7 +48,7 @@ const REFRESHED_AT_THE_END = ["applicableSteps"];
 
 /** Runs `read` and returns its products, or undefined where it fails or doesn't return products. A failure is a warning:
  *  the report carries what the other views showed. */
-async function productsOf(world: TWorld, name: string, read: TReadStep): Promise<Record<string, unknown> | undefined> {
+async function productsIn(world: TWorld, name: string, read: TReadStep): Promise<Record<string, unknown> | undefined> {
 	try {
 		const result = (await read()) as { products?: Record<string, unknown> } | undefined;
 		return result?.products;
@@ -65,7 +65,7 @@ async function productsOf(world: TWorld, name: string, read: TReadStep): Promise
 async function viewProductsOf(scope: TReportScope): Promise<Record<string, unknown>> {
 	const { world } = scope;
 	const viewProducts: Record<string, unknown> = {};
-	const toggles = await Promise.all(scope.viewSteps.map(async ([name, read]) => [name, await productsOf(world, name, read)] as const));
+	const toggles = await Promise.all(scope.viewSteps.map(async ([name, read]) => [name, await productsIn(world, name, read)] as const));
 	for (const [name, products] of toggles) if (products?.view) viewProducts[`MonitorStepper-${name}`] = products;
 	// Each read is called by name, as every caller's read is, outside the step that writes the report, so actuality doesn't
 	// record it.
@@ -74,7 +74,7 @@ async function viewProductsOf(scope: TReportScope): Promise<Record<string, unkno
 	for (const stepper of steppers) {
 		for (const name of REFRESHED_AT_THE_END.filter((one) => stepper.steps?.[one] !== undefined)) {
 			const key = stepMethodName(stepper, name);
-			const products = await productsOf(world, key, async () => (await runActingAs(actingAs(), () => callStepByName(ctx, key, NO_INPUT))).result);
+			const products = await productsIn(world, key, async () => (await runActingAs(actingAs(), () => callStepByName(ctx, key, NO_INPUT))).result);
 			if (products !== undefined) viewProducts[key] = products;
 		}
 	}

@@ -28,7 +28,7 @@ export default class ClientCacheStepper extends AStepper implements IHasCycles {
 		showClientCache: {
 			gwta: "show client cache",
 			description: "Open the client cache view: what the page caches of actuality, every value under its own test id.",
-			productsDomain: SHU_TAG.CLIENT_CACHE_COLUMN,
+			contract: { products: SHU_TAG.CLIENT_CACHE_COLUMN },
 			action: () => actionOKWithProducts({}),
 		},
 	} as const satisfies TStepperSteps;

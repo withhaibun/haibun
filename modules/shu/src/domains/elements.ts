@@ -117,7 +117,7 @@ export const AWAITING_DECISION = "awaiting-decision";
 /** The element that holds a page's hydration: its settings, and the actuality a record of the page carries. */
 export const HYDRATION_ID = "shu-hydration";
 
-/** Every built-in shu element, by its tag: what the registry defines, a step opens (`productsDomain`), a domain declares
+/** Every built-in shu element, by its tag: what the registry defines, a step opens (`contract.products`), a domain declares
  *  (`ui.component`), a component selects in its tree and a test selects on the page. Each tag is named once here, so a
  *  file doesn't spell a tag again. A component that is also a domain exposes its own tag as `static domainSelector`. */
 export const SHU_TAG = {

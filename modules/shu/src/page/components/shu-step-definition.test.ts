@@ -27,7 +27,7 @@ const VERIFY = {
 	stepName: "verify",
 	pattern: "verify {record}",
 	paramDomains: { record: RECORD },
-	productsDomain: CHECK,
+	contract: { products: CHECK },
 };
 const STATEMENT_PARAM = "what";
 const [TYPE_PARAM, RECORD_ID] = ["label", "record-id"];
@@ -54,7 +54,7 @@ const HOLDING = {
 	stepName: "holdingOnly",
 	pattern: `holding only {actions}, {${STATEMENT_PARAM}: statement}`,
 	paramDomains: { actions: "string", [STATEMENT_PARAM]: "statement" },
-	productsOf: STATEMENT_PARAM,
+	contract: { products: { of: STATEMENT_PARAM } },
 };
 
 describe("a step's view", () => {
