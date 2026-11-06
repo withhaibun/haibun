@@ -83,10 +83,12 @@ export type TBrowserRelay = {
 	transport(): ConnectOverCDPTransport;
 };
 
-/** A request made with `fetch` inside the page: its endpoint, its method, its headers and its body. */
+/** A request made with `fetch`: its endpoint, its method, its headers and its body. */
 export type TFetchRequest = { endpoint: string; method: string; headers: Record<string, string>; postData?: string };
-/** Makes a request inside the page, so it carries the page's cookies, and returns its response. */
-export type TPageFetch = (page: Page, request: TFetchRequest) => Promise<TCapturedResponse>;
+/** A response received from `fetch`: the captured response, and where the body is binary, its bytes and media type. */
+export type TFetchedResponse = { captured: TCapturedResponse; bytes?: Buffer; mediaType?: string };
+/** Makes an HTTP request and returns its response. */
+export type TPageFetch = (request: TFetchRequest) => Promise<TFetchedResponse>;
 
 /** What the browser's adapters log. */
 export type TBrowserLog = { debug(message: string): void; error(message: string): void };

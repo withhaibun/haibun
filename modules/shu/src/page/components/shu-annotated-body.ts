@@ -105,17 +105,20 @@ const ANNOTATED_BODY_STYLE = `
 `;
 
 /** Drop remote-loading URLs so an inline body never phones home: the privacy stance the body iframe's CSP enforces.
- *  Only `data:` (inline) src/href survive; relative/anchor `#` links stay. Registered once per module load. */
-let purifyHookInstalled = false;
-function installPurifyHook(): void {
-	if (purifyHookInstalled) return;
-	purifyHookInstalled = true;
+ *  Only `data:` (inline) src/href survive; relative/anchor `#` links stay. Scoped to each sanitize call so other
+ *  surfaces on the page are unaffected. */
+function sanitizeInlineBody(dirty: string): string {
 	DOMPurify.addHook("afterSanitizeAttributes", (node: Element) => {
 		for (const attr of ["src", "href"] as const) {
 			const v = node.getAttribute(attr);
 			if (v && !v.startsWith("data:") && !v.startsWith("#")) node.removeAttribute(attr);
 		}
 	});
+	try {
+		return DOMPurify.sanitize(dirty, STYLED_REF_SANITIZE);
+	} finally {
+		DOMPurify.removeHooks("afterSanitizeAttributes");
+	}
 }
 
 /** A note card ready to place: the annotation, the top its passage requires (aligned to the highlight), and the top at
@@ -201,7 +204,6 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 
 	constructor() {
 		super(EmptyStateSchema);
-		installPurifyHook();
 	}
 
 	protected override onConnected(): void {
@@ -268,7 +270,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 	 *  Markdown renders with its in-app references live. A text shown inline is read here, so a `#Type:id` link in it
 	 *  opens that individual in a column; as a plain anchor it would navigate the page to a hash the app cannot read. */
 	private sanitizedHtml(): string {
-		return DOMPurify.sanitize(renderContentHtml(this.content, this.mediaType, refContext), STYLED_REF_SANITIZE);
+		return sanitizeInlineBody(renderContentHtml(this.content, this.mediaType, refContext));
 	}
 
 	private contentEl(): HTMLElement | null {
@@ -550,7 +552,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 							@click=${() => this.selectCard(a.commentId)}
 						>
 							<div class="annotation-card-quote">“${a.exact}”</div>
-							${a.body ? html`<div class="annotation-card-body">${unsafeHTML(DOMPurify.sanitize(renderContentHtml(a.body, MEDIA_TYPE.markdown, refContext), STYLED_REF_SANITIZE))}</div>` : html``}
+							${a.body ? html`<div class="annotation-card-body">${unsafeHTML(sanitizeInlineBody(renderContentHtml(a.body, MEDIA_TYPE.markdown, refContext)))}</div>` : html``}
 							${a.author ? html`<div class="annotation-card-author">${recordRef(principalAddress(a.author), a.author)}</div>` : html``}
 							${(a.links ?? []).map(
 								(link) => html`<span

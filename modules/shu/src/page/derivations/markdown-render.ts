@@ -26,16 +26,26 @@ function displayForLinkText(text: string, refs: TRefContext): string {
 	return definition.icon ? `${definition.icon} ${named}` : named;
 }
 
-/** Installs the reference-link rule: a reference link's `link_open … link_close` tokens become one `<shu-ref>`. */
+/** Installs the reference-link rule: a reference link's `link_open … link_close` tokens, or an image token whose src
+ *  names a reference, become one `<shu-ref>`. */
 export function refLinksPlugin(md: MarkdownIt, refs: TRefContext): void {
 	md.core.ruler.push("shu_ref_links", (state) => {
 		for (const block of state.tokens) {
 			if (block.type !== "inline" || !block.children) continue;
 			const children = block.children;
 			for (let i = 0; i < children.length; i++) {
-				const linkOpen = itemAt(children, i);
-				if (linkOpen.type !== "link_open") continue;
-				const ref = parseRefHref(linkOpen.attrGet("href"), refs.isType);
+				const token = itemAt(children, i);
+				if (token.type === "image") {
+					const ref = parseRefHref(token.attrGet("src"), refs.isType);
+					if (!ref) continue;
+					const alt = token.children?.map((child) => child.content).join("") || token.content;
+					const tok = new state.Token("html_inline", "", 0);
+					tok.content = renderRef(ref, alt ? displayForLinkText(alt, refs) : undefined, true);
+					children.splice(i, 1, tok);
+					continue;
+				}
+				if (token.type !== "link_open") continue;
+				const ref = parseRefHref(token.attrGet("href"), refs.isType);
 				if (!ref) continue;
 				let j = i + 1;
 				let text = "";
@@ -80,7 +90,7 @@ const proseRenderers = new WeakMap<TRefContext, MarkdownIt>();
 
 /** What a sanitizer allows through for a rewritten reference: the element and its attributes. DOMPurify lowercases attribute
  *  names, so `linkTarget` is allowed as `linktarget`. */
-export const refSanitizeOptions = { ADD_TAGS: ["shu-ref"], ADD_ATTR: ["kind", "linktarget", "text"] };
+export const refSanitizeOptions = { ADD_TAGS: ["shu-ref"], ADD_ATTR: ["kind", "linktarget", "text", "inline-image"] };
 
 /** Renders a whole markdown body, block markdown and the inline HTML its source carries, with its references live, so a
  *  reference opens its target in a column and doesn't navigate the page to a hash the page doesn't read. Each body sink

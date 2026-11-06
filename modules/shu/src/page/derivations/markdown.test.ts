@@ -117,6 +117,13 @@ describe("renderRefAnswer", () => {
 		expect(html).not.toContain("<img");
 		expect(html).toContain("&lt;img");
 	});
+
+	it("renders an image link to a record as an inline-image shu-ref", () => {
+		const html = renderRefAnswer("![Survey preview](#SiteSurvey:survey-1)", refs);
+		expect(html).toContain('<shu-ref kind="entity"');
+		expect(html).toContain('text="Survey preview"');
+		expect(html).toContain('inline-image="true"');
+	});
 });
 
 describe("a renderer for each reference context", () => {

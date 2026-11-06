@@ -1,5 +1,9 @@
 /** Saves a file a view offers, for a view's save or download control, and opens one a browser shows in a tab of its own. */
-import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
+import { MEDIA_TYPE, isImageFormat } from "@haibun/core/lib/domains/media-types.js";
+import { SentFileSchema, fileDataBlob } from "@haibun/core/lib/domains/media-object.js";
+import type { TRecordStep } from "@haibun/core/lib/domains/hypermedia.js";
+import { reads } from "../domains/links.js";
+import { followCall } from "./read-controller.js";
 
 /** Saves `content` as a file named `name`, typed as bytes, so the browser saves it rather than opening it. */
 export function saveFile(content: BlobPart, name: string): void {
@@ -10,6 +14,14 @@ export function saveFile(content: BlobPart, name: string): void {
 	URL.revokeObjectURL(anchor.href);
 }
 
+/** Saves the resource at `url` as a file named `name`. */
+export function saveUrl(url: string, name: string): void {
+	const anchor = document.createElement("a");
+	anchor.href = url;
+	anchor.download = name;
+	anchor.click();
+}
+
 /** Opens `content` in a tab of its own at `fragment`, without a reference to this page (noopener), so the browser makes the
  *  tab apart from this page's process. Where a DevTools client drives the browser, as a test does, Chromium aborts the
  *  IndexedDB transactions a page has in flight while it makes a tab in the page's process. A browser opens a tab only
@@ -17,4 +29,28 @@ export function saveFile(content: BlobPart, name: string): void {
 export function showFile(content: Blob, name: string, fragment: string | undefined): void {
 	if (!navigator.userActivation.isActive) throw new Error(`the browser opens a tab for ${name} only shortly after a click, and reading the file took longer; follow it again`);
 	window.open(`${URL.createObjectURL(content)}${fragment === undefined ? "" : `#${fragment}`}`, "_blank", "noopener");
+}
+
+/** Reads the file a record's content step provides, and saves it through the browser. */
+export async function downloadStep(step: TRecordStep): Promise<void> {
+	const params = step.params === undefined ? {} : step.params;
+	const result = await followCall(reads(step.method, params), step.summary);
+	const parsed = SentFileSchema.safeParse(result);
+	if (!parsed.success) return;
+	saveFile(fileDataBlob(parsed.data.file), parsed.data.name);
+}
+
+/** Reads the file a record's content step provides, and returns an object URL where it is an image. */
+export async function loadStepImage(step: TRecordStep): Promise<string | undefined> {
+	try {
+		const params = step.params === undefined ? {} : step.params;
+		const result = await followCall(reads(step.method, params), step.summary);
+		const parsed = SentFileSchema.safeParse(result);
+		if (!parsed.success) return undefined;
+		const blob = fileDataBlob(parsed.data.file);
+		if (!isImageFormat(blob.type)) return undefined;
+		return URL.createObjectURL(blob);
+	} catch {
+		return undefined;
+	}
 }
