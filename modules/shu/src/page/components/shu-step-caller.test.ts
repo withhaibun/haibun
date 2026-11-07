@@ -7,7 +7,9 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
 import { buildConcernCatalog, type TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import { deriveNamingDomains, mapDefinitionsToDomains, refDomainKey } from "@haibun/core/lib/domains/domains.js";
-import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
+import { Access, LinkRelations } from "@haibun/core/lib/domains/resources.js";
+import { readAction } from "@haibun/core/lib/domains/actions.js";
+import { DOMAIN_INDIVIDUAL_ADDRESS } from "@haibun/core/lib/domains/typed-links.js";
 import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
 import { declareRegistry } from "../../test/catalog-fixture.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
@@ -177,6 +179,72 @@ describe("shu-step-caller", () => {
 		if (!combo) throw new Error("the reference parameter doesn't render a picker");
 		await combo.updateComplete;
 		expect(combo.shadowRoot?.querySelector<HTMLInputElement>(".combo-input")?.value).toBe("note-not-yet-stored");
+	});
+
+	it("offers the records of the type an individual's address names by their titles, and calls with the picked record's address", async () => {
+		const concerns = buildConcernCatalog(mapDefinitionsToDomains([persistedTypeDefinition(NOTE, { properties: { title: LinkRelations.NAME.rel } })]));
+		const CHECK: TStepSpec = {
+			method: "LogicStepper-individualIsA",
+			stepperName: "LogicStepper",
+			stepName: "individualIsA",
+			pattern: "individual {address: individual-address} is a {expression: class-expression}",
+			paramDomains: { address: DOMAIN_INDIVIDUAL_ADDRESS, expression: "class-expression" },
+			inputSchema: {
+				type: "object",
+				properties: {
+					address: { type: "object", properties: { persistedAs: { type: "string" }, id: { type: "string" } }, required: ["persistedAs", "id"] },
+					expression: { type: "string" },
+				},
+				required: ["address", "expression"],
+			},
+		};
+		const QUERY: TStepSpec = {
+			method: "GraphStepper-graphQuery",
+			stepperName: "GraphStepper",
+			stepName: "graphQuery",
+			pattern: "graph query {query}",
+			read: true,
+			capability: readAction(Access.public),
+		};
+		const sent: unknown[] = [];
+		restore = siteAnswering((method, params) => {
+			if (method === QUERY.method)
+				return rpcAnswer({ vertices: [{ "@type": NOTE, id: "note-1", title: "Shopping list", generatedAtTime: "2026-11-06T00:00:00Z" }], edges: [] }, 200);
+			if (method === CHECK.method) sent.push(params);
+			return rpcAnswer({}, 200);
+		});
+		declareRegistry(stepsShown([CHECK, QUERY], {}, concerns));
+		const caller = document.createElement("shu-step-caller") as ShuStepCaller;
+		caller.setAttribute("step", CHECK.method);
+		document.body.appendChild(caller);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		await caller.updateComplete;
+		const select = caller.shadowRoot?.querySelector<HTMLSelectElement>('select[name="address.persistedAs"]');
+		if (!select) throw new Error("the address's type isn't offered as a choice");
+		expect(
+			[...select.options].map((option) => option.value),
+			"the declared types are offered",
+		).toContain(NOTE);
+		select.value = NOTE;
+		select.dispatchEvent(new Event("change"));
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		await caller.updateComplete;
+		const combo = caller.shadowRoot?.querySelector("shu-combobox") as (HTMLElement & { options: { value: string; label: string }[] }) | null;
+		if (!combo) throw new Error("the address's id doesn't render a picker");
+		expect(combo.getAttribute("testid")).toBe("individual-is-a-0-step-input-address-id");
+		expect(
+			combo.options.map(({ value, label }) => ({ value, label })),
+			"a record shows by its title and holds its id",
+		).toEqual([{ value: "note-1", label: "Shopping list" }]);
+		combo.dispatchEvent(new CustomEvent("combo-change", { detail: { value: "note-1", label: "Shopping list" } }));
+		const form = caller.shadowRoot?.querySelector<HTMLFormElement>("form");
+		const expression = caller.shadowRoot?.querySelector<HTMLInputElement>('input[name="expression"]');
+		if (!form || !expression) throw new Error("the claim's form doesn't render its expression");
+		expression.value = NOTE;
+		form.dispatchEvent(new Event("submit"));
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		await caller.updateComplete;
+		expect(sent).toEqual([{ address: { persistedAs: NOTE, id: "note-1" }, expression: NOTE }]);
 	});
 
 	it("carries its number among its step's callers in its inputs' test ids, joined with `-` so a variable doesn't read them as paths", async () => {

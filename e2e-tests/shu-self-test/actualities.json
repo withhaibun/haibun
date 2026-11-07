@@ -236,28 +236,28 @@
 			"actuality": {
 				"text": "e2e-tests/shu-self-test, node_modules/@haibun/web-playwright/waypoints, node_modules/@haibun/shu/waypoints",
 				"status": "passed",
-				"tookMs": 114800,
+				"tookMs": 103000,
 				"digest": {
 					"e2e-tests/shu-self-test": "442d23ff9142f40224a12dac257aecb9c2bc91df0900385b2c2c321a3f4b9967",
-					"modules/core/src": "ff401e3a47cdb712bfacb42facee13f911fba1ce166ee538662514a2f92b6227",
-					"modules/domain-storage/src": "6c04b672297af1df53c32a39196db7f9bd9b424b052f479e42bd2059825e035a",
-					"modules/logic/src": "56cbe1870839851e1a3e7f73ef165b85cf727479d2d0be6154226247f74556f3",
+					"modules/core/src": "adb6e67b8359f90e90723ed1a0d29d5065daa71524f0fc86505d1271b0372032",
+					"modules/domain-storage/src": "773576c24a378e7ecd07c1e4211495a5fd81d9dcfa8aec15e1cbeb8b9dc360f7",
+					"modules/logic/src": "add6d5921323ce071d5bb57837063eeea640015138be01033399a7774c4cbb80",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/shu/src": "6cf5fdc8ac1627ac3f78a75735eff06f0a35b9a51d98da906626133454cc630a",
+					"modules/shu/src": "d4501f0a3f94b3e1ee8703421ea8a9912d277ca056df683ca895e9c084a90604",
 					"modules/shu/waypoints": "bf3404dac6e40f8fee76ffc4327503c9b2ce7b61de89068a9bfc28ffefcd1604",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
-					"modules/web-playwright/src": "05c60c0681ae0e3515e2dc364a7ff2bb72c2955857ec66a1f90fb83d6e5a74d3",
+					"modules/web-playwright/src": "bf608b12b1a496a53ccd1039bc4329b80ac205d5f9f4669583c862003c71b457",
 					"modules/web-playwright/waypoints": "383e3b858b728ae0354b196cb44f66a61e33747a5d3fe420fae9c78ee6dfaf10",
-					"modules/web-server-hono/src": "88880f36498f725f493b80e710d1940de505f010af357e301c18d1fbf3b76c34"
+					"modules/web-server-hono/src": "16d93b1feb29ec6c8a344b033e22d66b574811a038c428a6fb942afe8e9e59ba"
 				}
 			},
 			"features": {
 				"/features/shu-self-test.feature.ts": {
 					"text": "Shu SPA Self-Test",
 					"status": "passed",
-					"tookMs": 111600,
-					"steps": 685
+					"tookMs": 100200,
+					"steps": 686
 				},
 				"/features/z-post.feature.ts": {
 					"text": "Verify Shu Standalone Output Doesn't Hold Secrets",

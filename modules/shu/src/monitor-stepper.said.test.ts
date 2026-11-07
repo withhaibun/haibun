@@ -17,6 +17,7 @@ import { RUN_AUTHORITY } from "@haibun/core/lib/domains/capability-context.js";
 import { StepRegistry, createStepTool } from "@haibun/core/lib/steps/pipelines/step-registry.js";
 import { buildFeatureStepForTransport } from "@haibun/core/lib/steps/pipelines/call-step.js";
 import { dispatchStep } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
+import { StoreClosingError } from "@haibun/core/lib/domains/store-closing.js";
 import MonitorStepper from "./monitor-stepper.js";
 
 const said = (over: Partial<THaibunEvent> = {}): THaibunEvent =>
@@ -130,6 +131,34 @@ describe("what a run logged, as a record", () => {
 		await expect(monitor.ended(), "the end of the feature fails with the write's error").rejects.toThrow(REFUSED);
 		expect(writes, "one write, and the failure doesn't start another").toBe(1);
 		expect(reported, "reported once").toHaveBeenCalledTimes(1);
+		reported.mockRestore();
+	});
+
+	it("doesn't record what a refused write logs, stops writing once the store closes while logs keep arriving, and reports that once", async () => {
+		const write = store.upsertIndividual.bind(store);
+		let closed = false;
+		let writes = 0;
+		let logged: (message: string) => void = () => undefined;
+		// A store whose engine logs each statement it refuses, as an instrumented engine logs a failed query.
+		store.upsertIndividual = (...args) => {
+			writes += 1;
+			if (!closed) return write(...args);
+			logged(`refused write ${writes}`);
+			return Promise.reject(new StoreClosingError("a write"));
+		};
+		const reported = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		const monitor = monitorOver(store, WARNINGS.IGNORED);
+		logged = (message) => monitor.onEvent(said({ message }));
+		monitor.onEvent(said({ message: "before the close" }));
+		closed = true;
+		for (const n of [1, 2, 3]) monitor.onEvent(said({ message: `while closing ${n}` }));
+		await monitor.ended();
+		for (const n of [4, 5]) monitor.onEvent(said({ message: `after the close ${n}` }));
+		await new Promise((ran) => setImmediate(ran));
+		expect(writes, "one write for each log before the refusals arrive, and a refused write's own log isn't written").toBe(4);
+		expect(reported, "reported once").toHaveBeenCalledTimes(1);
+		expect(reported).toHaveBeenCalledWith(expect.stringMatching(/the store closed, and 3 records .* weren't written/));
+		expect((await readEvery(store, { label: LOG_MESSAGE_LABEL })).map((r) => r[LOG_MESSAGE_FIELD.message])).toEqual(["before the close"]);
 		reported.mockRestore();
 	});
 
