@@ -104,3 +104,9 @@ export const reasoningDomainDefinitions: TDomainDefinition[] = [
 		description: "The records a class expression entails as its members. Others may exist that the records don't entail.",
 	},
 ];
+
+/** A rule set and its query as clauses of the engine that runs haibun.pl: the Prolog EYE's translation wrote, in a module of their own. */
+export type TTranslation = { module: string; clauses: string };
+
+/** The N3 built-ins that translated clauses call, which the package exports from its source folder. */
+export const N3_BUILTINS_SOURCE = "@haibun/logic/n3-builtins.pl";

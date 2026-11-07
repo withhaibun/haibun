@@ -9,11 +9,14 @@ import { createRequire } from "node:module";
 import SWIPL from "swipl-wasm";
 import { DIFFERENT_BUILDS, ProofStateSchema } from "../domains/logic.js";
 import type { TLogicEngine } from "../ports.js";
+import { N3_BUILTINS_SOURCE } from "../domains/reasoning.js";
 
-/** The program's file in the runtime's file system. */
-const PROGRAM = "haibun.pl";
+/** The program's file in the runtime's file system, and the file of the N3 built-ins that translated clauses call. */
+const [PROGRAM, N3_BUILTINS] = ["haibun.pl", "n3-builtins.pl"];
 /** The program's source, which the package exports from its source folder, since the TypeScript build copies only TypeScript. */
 const PROGRAM_SOURCE = "@haibun/logic/haibun.pl";
+/** The libraries translated clauses read: tabling for a recursive predicate's table. */
+const TRANSLATED_LIBRARIES = ["lists", "tabling"];
 
 type TRuntime = Awaited<ReturnType<typeof SWIPL>>;
 
@@ -32,8 +35,12 @@ function once(runtime: TRuntime, goal: string, input?: Record<string, unknown>):
 export async function startSwipl(): Promise<TLogicEngine> {
 	const runtime = await SWIPL({ arguments: ["-q"] });
 	once(runtime, "set_prolog_flag(autoload, false)");
-	runtime.FS.writeFile(PROGRAM, readFileSync(createRequire(import.meta.url).resolve(PROGRAM_SOURCE), "utf8"));
+	const resolve = createRequire(import.meta.url).resolve;
+	runtime.FS.writeFile(PROGRAM, readFileSync(resolve(PROGRAM_SOURCE), "utf8"));
 	once(runtime, `consult('${PROGRAM}')`);
+	for (const library of TRANSLATED_LIBRARIES) once(runtime, `use_module(library(${library}))`);
+	runtime.FS.writeFile(N3_BUILTINS, readFileSync(resolve(N3_BUILTINS_SOURCE), "utf8"));
+	once(runtime, `consult('${N3_BUILTINS}')`);
 	return {
 		prove: (top, term) => ProofStateSchema.parse(once(runtime, "haibun:prove(Top, Term, Outcome)", { Top: top, Term: term }).Outcome),
 		resume: (top, outcome) => ProofStateSchema.parse(once(runtime, "haibun:resume(Top, Outcome, Next)", { Top: top, Outcome: outcome }).Next),
@@ -41,5 +48,17 @@ export async function startSwipl(): Promise<TLogicEngine> {
 			once(runtime, "haibun:forget(Top)", { Top: top });
 		},
 		n3: (namespace, top) => String(once(runtime, "haibun:n3_export(Namespace, Top, Text)", { Namespace: namespace, Top: top }).Text),
+		load: ({ module, clauses }) => {
+			runtime.FS.writeFile(`${module}.pl`, clauses);
+			once(runtime, `consult('${module}.pl')`);
+		},
+		select: (module, facts) =>
+			String(
+				once(
+					runtime,
+					`atom_string(M, Module), forall(member(F, [${facts.join(", ")}]), assertz(M:F)), n3_builtins:n3_answers(M, Text), retractall(M:fact(_, _, _)), abolish_all_tables`,
+					{ Module: module },
+				).Text,
+			),
 	};
 }
