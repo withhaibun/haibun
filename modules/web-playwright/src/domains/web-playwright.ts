@@ -43,17 +43,32 @@ export const DOMAIN_PAGE_TITLE = "page-title";
 export const DOMAIN_PAGE_ALT_TEXT = "page-alt-text";
 /** Text a page shows, located by `getByText` with an exact match. */
 export const DOMAIN_PAGE_TEXT = "page-text";
-/** The locator domains. Each selects a Playwright `getBy` method, and each is a member of the page-target union. */
-const PAGE_LOCATOR_DOMAINS = [
-	DOMAIN_PAGE_ALT_TEXT,
-	DOMAIN_PAGE_LABEL,
-	DOMAIN_PAGE_LOCATOR,
-	DOMAIN_PAGE_PLACEHOLDER,
-	DOMAIN_PAGE_ROLE,
-	DOMAIN_PAGE_TEST_ID,
-	DOMAIN_PAGE_TEXT,
-	DOMAIN_PAGE_TITLE,
-];
+/** The ways a step locates an element on a page, in the order a union of locator domains selects one. Each row holds the
+ *  locator domain whose values it locates, the way a click by way names it, the Playwright method that locates it, whether a
+ *  value of its domain matches the element's whole text, and the prefix the method's argument takes. The row of a Playwright
+ *  selector doesn't name a way, and the row of a reference an accessibility snapshot names doesn't name a domain. */
+export const PAGE_LOCATORS = [
+	{ domain: DOMAIN_PAGE_TEXT, way: "text", method: "getByText", exact: true, prefix: "" },
+	{ domain: DOMAIN_PAGE_TEST_ID, way: "test id", method: "getByTestId", exact: false, prefix: "" },
+	{ domain: DOMAIN_PAGE_LABEL, way: "label", method: "getByLabel", exact: false, prefix: "" },
+	{ domain: DOMAIN_PAGE_PLACEHOLDER, way: "placeholder", method: "getByPlaceholder", exact: false, prefix: "" },
+	{ domain: DOMAIN_PAGE_ROLE, way: "role", method: "getByRole", exact: false, prefix: "" },
+	{ domain: DOMAIN_PAGE_TITLE, way: "title", method: "getByTitle", exact: false, prefix: "" },
+	{ domain: DOMAIN_PAGE_ALT_TEXT, way: "alt text", method: "getByAltText", exact: false, prefix: "" },
+	{ domain: DOMAIN_PAGE_LOCATOR, way: undefined, method: "locator", exact: false, prefix: "" },
+	{ domain: undefined, way: "reference", method: "locator", exact: false, prefix: "aria-ref=" },
+] as const;
+export type TPageLocator = (typeof PAGE_LOCATORS)[number];
+/** A row of `PAGE_LOCATORS` that locates the values of a domain. */
+export type TDomainLocator = Extract<TPageLocator, { domain: string }>;
+/** A row of `PAGE_LOCATORS` that a click by way names. */
+export type TWayLocator = Extract<TPageLocator, { way: string }>;
+export type TFindWay = TWayLocator["way"];
+export const isDomainLocator = (row: TPageLocator): row is TDomainLocator => row.domain !== undefined;
+const isWayLocator = (row: TPageLocator): row is TWayLocator => row.way !== undefined;
+const PAGE_LOCATOR_DOMAINS = PAGE_LOCATORS.filter(isDomainLocator).map(({ domain }) => domain);
+/** The ways to find what a click presses, each a way to read the page. */
+export const WAY_LOCATORS = PAGE_LOCATORS.filter(isWayLocator);
 /** An element on a page, identified by a value of any locator domain. A literal is page text. */
 export const DOMAIN_PAGE_TARGET = asDomainKey([...PAGE_LOCATOR_DOMAINS]);
 /** A key as Playwright names it, such as Enter or Control+A. */
@@ -109,9 +124,6 @@ const HTTP_METHODS_WITHOUT_BODY = ["GET", "DELETE", "HEAD"] as const;
 export const DOMAIN_HTTP_METHOD = "http-method";
 export const DOMAIN_HTTP_METHOD_WITH_BODY = "http-method-with-body";
 export const DOMAIN_HTTP_METHOD_WITHOUT_BODY = "http-method-without-body";
-/** The ways to find what a click presses, each a way to read the page. */
-const FIND_WAYS = ["alt text", "test id", "placeholder", "role", "label", "title", "text", "reference"] as const;
-export type TFindWay = (typeof FIND_WAYS)[number];
 export const DOMAIN_FIND_WAY = "page-find-way";
 /** The fate of the requests a page makes to a URL: refused, held without a response, or allowed. */
 export const REQUEST_STATE = { blocked: "blocked", unanswered: "unanswered", allowed: "allowed" } as const;
@@ -155,7 +167,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 	createEnumDomainDefinition({ name: DOMAIN_HTTP_METHOD_WITHOUT_BODY, values: [...HTTP_METHODS_WITHOUT_BODY], description: "An HTTP method whose request doesn't send a body" }),
 	createEnumDomainDefinition({
 		name: DOMAIN_FIND_WAY,
-		values: [...FIND_WAYS],
+		values: WAY_LOCATORS.map(({ way }) => way),
 		description: "A way to find what a click presses; a reference is one an accessibility snapshot names, such as e2",
 	}),
 	createEnumDomainDefinition({

@@ -3,7 +3,7 @@ import { HYPERMEDIA, OK, type TActionResult, type TStepValue } from "@haibun/cor
 import { globSource } from "@haibun/core/lib/domains/domains.js";
 import { actionNotOK, errorDetail } from "@haibun/core/lib/domains/util.js";
 import { DOMAIN_PAGE_TEST_ID } from "../domains/web-playwright.js";
-import { locatorDomainOf } from "../derivations/locators.js";
+import { locatorOf } from "../derivations/locators.js";
 import type { BrowserSession } from "./browser-session.js";
 import { locateByDomain } from "./locate.js";
 
@@ -34,17 +34,23 @@ export async function hasTestId(session: BrowserSession, testId: string): Promis
 	return found ? OK : actionNotOK(`Did not find test id ${testId}`);
 }
 
-/** Whether the element a selector finds holds the text, read once, waiting for the element as long as a step waits. */
+/** Whether the first element a selector finds holds the text, read once in the page, waiting for the element as long as a
+ *  step waits. The page returns whether the element's text contains the text and its length, rather than the text. */
 export async function sees(session: BrowserSession, text: string, selector: string): Promise<TActionResult> {
-	const content = await session.withPage((page) => page.textContent(selector));
-	if (content === null) return actionNotOK(`Did not find text "${text}" in ${selector}: its text is empty`);
-	return content.includes(text) ? OK : actionNotOK(`Did not find text "${text}" in ${selector} (${content.length} characters)`);
+	const read = await session.withPage((page) =>
+		page
+			.locator(selector)
+			.first()
+			.evaluate((element, sought) => (element.textContent === null ? null : { holds: element.textContent.includes(sought), length: element.textContent.length }), text),
+	);
+	if (read === null) return actionNotOK(`Did not find text "${text}" in ${selector}: its text is empty`);
+	return read.holds ? OK : actionNotOK(`Did not find text "${text}" in ${selector} (${read.length} characters)`);
 }
 
 /** Waits for a target: a test id until its first element attaches to the document, any other locator until its first element is visible. */
 export async function waitForTarget(session: BrowserSession, target: TStepValue): Promise<TActionResult> {
 	try {
-		const state = locatorDomainOf(target) === DOMAIN_PAGE_TEST_ID ? "attached" : "visible";
+		const state = locatorOf(target).domain === DOMAIN_PAGE_TEST_ID ? "attached" : "visible";
 		await session.withScope((scope) => locateByDomain(scope, target).first().waitFor({ state }));
 		return OK;
 	} catch (e) {

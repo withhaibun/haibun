@@ -1,10 +1,11 @@
 /** What a step does to the page: keys, text, fields, clicks, uploads, the window's size, the page's requests, its timeouts and its dialogs. */
-import type { Dialog, Locator, Page } from "playwright";
+import type { Dialog } from "playwright";
 import type { TActionResult, TStepValue } from "@haibun/core/lib/domains/protocol.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { REQUEST_STATE, type TFindWay } from "../domains/web-playwright.js";
-import type { BrowserSession, TPageScope } from "./browser-session.js";
-import { attempted, locateByDomain } from "./locate.js";
+import { wayLocator } from "../derivations/locators.js";
+import type { BrowserSession } from "./browser-session.js";
+import { attempted, locateByDomain, locateWith } from "./locate.js";
 
 /** What a dialog the page opened holds, as the step that accepts it keeps it. */
 export type TDialogSays = { defaultValue: string; message: string; type: string };
@@ -48,20 +49,9 @@ export const scrollUpAScreen = (session: BrowserSession, target: TStepValue): Pr
 		}),
 	);
 
-/** The locator of each way to find what a click presses. */
-const FINDS: Record<TFindWay, (scope: TPageScope, target: string) => Locator> = {
-	"alt text": (scope, target) => scope.getByAltText(target),
-	"test id": (scope, target) => scope.getByTestId(target),
-	placeholder: (scope, target) => scope.getByPlaceholder(target),
-	role: (scope, target) => scope.getByRole(target as Parameters<Page["getByRole"]>[0]),
-	label: (scope, target) => scope.getByLabel(target),
-	title: (scope, target) => scope.getByTitle(target),
-	text: (scope, target) => scope.getByText(target),
-	reference: (scope, target) => scope.locator(`aria-ref=${target}`),
-};
-
+/** Clicks what a way finds. A click by way matches part of the element's text, as Playwright does by default. */
 export const clickBy = (session: BrowserSession, target: string, way: TFindWay): Promise<TActionResult> =>
-	attempted(`click "${target}" by ${way}`, () => session.withScope((scope) => FINDS[way](scope, target).click()));
+	attempted(`click "${target}" by ${way}`, () => session.withScope((scope) => locateWith(scope, wayLocator(way), target, false).click()));
 
 export const blur = (session: BrowserSession, what: TStepValue): Promise<void> =>
 	session.withScope((scope) => locateByDomain(scope, what).evaluate((element) => (element as HTMLElement).blur()));

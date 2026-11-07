@@ -1,32 +1,31 @@
-/** The locator domain of a page target, which selects the Playwright `getBy` method that finds it. */
-import { domainParts } from "@haibun/core/lib/domains/domains.js";
+/** The row of `PAGE_LOCATORS` a page target's domain selects, which names the Playwright method that finds it. */
+import { DOMAIN_STRING, domainParts } from "@haibun/core/lib/domains/domains.js";
 import type { TStepValue } from "@haibun/core/lib/domains/protocol.js";
-import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import {
-	DOMAIN_PAGE_ALT_TEXT,
-	DOMAIN_PAGE_LABEL,
-	DOMAIN_PAGE_LOCATOR,
-	DOMAIN_PAGE_PLACEHOLDER,
-	DOMAIN_PAGE_ROLE,
-	DOMAIN_PAGE_TEST_ID,
+	DOMAIN_PAGE_TARGET,
 	DOMAIN_PAGE_TEXT,
-	DOMAIN_PAGE_TITLE,
+	isDomainLocator,
+	PAGE_LOCATORS,
+	type TDomainLocator,
+	type TFindWay,
+	type TWayLocator,
+	WAY_LOCATORS,
 } from "../domains/web-playwright.js";
 
-/** The specific locator domains, in the order a union of them selects one. */
-const SPECIFIC_LOCATORS = [DOMAIN_PAGE_TEST_ID, DOMAIN_PAGE_LABEL, DOMAIN_PAGE_PLACEHOLDER, DOMAIN_PAGE_ROLE, DOMAIN_PAGE_TITLE, DOMAIN_PAGE_ALT_TEXT, DOMAIN_PAGE_LOCATOR];
-
-/** Selects the locator domain for a value whose domain is a union of locator domains: page text where the union contains
- *  it, since a literal is text the page shows, and otherwise the first specific locator domain the union contains. */
-export function pickLocatorDomain(parts: string[]): string {
-	if (parts.includes(DOMAIN_PAGE_TEXT)) return DOMAIN_PAGE_TEXT;
-	const specific = SPECIFIC_LOCATORS.find((domain) => parts.includes(domain));
-	return specific === undefined ? itemAt(parts, 0) : specific;
+/** Selects the first row of `PAGE_LOCATORS` whose domain the parts of a domain key contain. Page text comes first, since a
+ *  literal's domain is the whole page-target union and a literal is text the page shows. */
+export function pickLocator(parts: string[]): TDomainLocator {
+	const row = PAGE_LOCATORS.filter(isDomainLocator).find(({ domain }) => parts.includes(domain));
+	if (row === undefined) throw new Error(`${parts.join(", ")} doesn't contain a locator domain. A page target takes a value of ${DOMAIN_PAGE_TARGET}.`);
+	return row;
 }
 
-/** The locator domain of a page target: its own domain when that is a single locator domain, and page text for a literal,
- *  whose domain is the whole page-target union. */
-export const locatorDomainOf = (target: TStepValue): string => {
-	const parts = domainParts(target.domain);
-	return parts.length === 1 ? itemAt(parts, 0) : pickLocatorDomain(parts);
-};
+/** The row of `PAGE_LOCATORS` that locates a page target. A value of a string variable is page text, as a literal is. */
+export const locatorOf = (target: TStepValue): TDomainLocator => pickLocator(target.domain === DOMAIN_STRING ? [DOMAIN_PAGE_TEXT] : domainParts(target.domain));
+
+/** The row of `PAGE_LOCATORS` a click by way names. */
+export function wayLocator(way: TFindWay): TWayLocator {
+	const row = WAY_LOCATORS.find((locator) => locator.way === way);
+	if (row === undefined) throw new Error(`${way} isn't a way to find what a click presses. A click by way takes one of ${WAY_LOCATORS.map((locator) => locator.way).join(", ")}.`);
+	return row;
+}

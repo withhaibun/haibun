@@ -107,3 +107,26 @@ chip.addEventListener("mouseenter", () => preview.hidden = false); chip.addEvent
 		}
 	});
 });
+
+describe("see", () => {
+	it("holds where the body's text contains the text, and refuses text it doesn't contain with the length of the body's text", { timeout: 20_000 }, async () => {
+		const shown = "A long page of text";
+		const server = createServer((_request, response) => response.end(`<p>${shown}</p>`));
+		await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+		const { port } = server.address() as AddressInfo;
+		const seen = `see "page of"`;
+		const unseen = `see "absent words"`;
+		try {
+			const res = await failWithDefaults(
+				[{ path: "/features/see.feature", content: [`go to the "http://127.0.0.1:${port}/" webpage`, seen, unseen].join("\n") }],
+				[WebPlaywright, VariablesStepper, StorageMem, LogicStepper],
+				{ options: { DEST: DEFAULT_DEST }, moduleOptions },
+			);
+			const outcome = (line: string) => res.featureResults?.[0]?.stepResults.findLast((step) => step.in === line);
+			expect(outcome(seen)?.ok, "the text the body contains").toBe(true);
+			expect(JSON.stringify(outcome(unseen)), "and the refusal names the text and the body's length").toContain(`in body (${shown.length} characters)`);
+		} finally {
+			server.close();
+		}
+	});
+});
