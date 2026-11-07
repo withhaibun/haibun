@@ -874,6 +874,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// before it loads releases it too.
 			scene.renderer?.dispose?.();
 			scene.renderer?.forceContextLoss?.();
+			// The ended scene leaves its holder, so the next connect builds a scene of its own in an empty holder.
+			container.replaceChildren();
 		});
 
 		this.autoListen(scene, "loaded", () => this.onSceneLoaded(scene, container, drawing, frameTime), { once: true });

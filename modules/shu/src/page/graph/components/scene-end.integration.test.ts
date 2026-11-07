@@ -16,6 +16,9 @@ import { modelIn, mountPolymorphicPage, quadsNamed, type TMountedPage, type TQua
 /** Animation frames the page runs after a scene's end, over which the ended scene mustn't draw. */
 const FRAMES_AFTER_END = 60;
 
+/** The text size a test's theme states, which differs from each size the app's themes state. */
+const THEMED_TEXT_PX = 21;
+
 let mounted: TMountedPage;
 
 beforeAll(async () => {
@@ -118,3 +121,43 @@ test("a scene scoped to the schema reveals it as its model arrives, though the m
 	expect(revealed, "the reveals the scene requested, before and after its model held the schema").toEqual({ beforeSchema: 0, asked: [schema] });
 	expect(mounted.errors(), "page errors").toEqual([]);
 });
+
+/** The moments a view leaves the page before its scene loads: as it connects, before its first update builds the scene, and once
+ *  the scene is built. */
+const DETACHED = { connecting: "connecting", built: "built" } as const;
+
+test.each(Object.values(DETACHED))(
+	"a scene detached while %s and attached again applies the theme once it loads in the page, without a page error",
+	{ timeout: 60_000 },
+	async (moment) => {
+		const themed = await mounted.page.evaluate(
+			({ textSize, moment, connecting }) =>
+				new Promise<{ textPx: number; scenes: number }>((done) => {
+					document.documentElement.style.setProperty("--shu-font-md", textSize);
+					const box = document.querySelector("#box") as HTMLElement;
+					box.replaceChildren();
+					const view: TViewElement = document.createElement("shu-polymorphic-graph-view");
+					view.setAttribute("style", "display:block;width:100%;height:100%");
+					box.appendChild(view);
+					const loaded = () => (view.querySelector("a-scene") as (HTMLElement & { hasLoaded?: boolean }) | null)?.hasLoaded === true;
+					// The view leaves the page as it connects or as soon as its scene exists, before the scene loads, and returns on the next frame.
+					const detachOnceBuilt = () => {
+						if (moment !== connecting && !view.querySelector("a-scene")) return requestAnimationFrame(detachOnceBuilt);
+						view.remove();
+						requestAnimationFrame(() => {
+							box.appendChild(view);
+							const themedOnceLoaded = () =>
+								loaded()
+									? done({ textPx: (view.scene as unknown as { focusTextPx: number }).focusTextPx, scenes: view.querySelectorAll("a-scene").length })
+									: requestAnimationFrame(themedOnceLoaded);
+							themedOnceLoaded();
+						});
+					};
+					detachOnceBuilt();
+				}),
+			{ textSize: `${THEMED_TEXT_PX}px`, moment, connecting: DETACHED.connecting },
+		);
+		expect(themed, "the label size the theme states, in the one scene the view holds").toEqual({ textPx: THEMED_TEXT_PX, scenes: 1 });
+		expect(mounted.errors(), "page errors").toEqual([]);
+	},
+);

@@ -544,7 +544,7 @@
 			"actuality": {
 				"text": "e2e-tests/requirements, node_modules/@haibun/cli/waypoints, node_modules/@haibun/logic/waypoints, node_modules/@haibun/core/waypoints",
 				"status": "passed",
-				"tookMs": 48000,
+				"tookMs": 47200,
 				"digest": {
 					"e2e-tests/requirements": "a97313b5d36c69de6bd71befc4fac1303e7ec1b8a9eae3df0bccca1501f26483",
 					"e2e-tests/src": "af005a350cebf7bace0c8de218d5012a617d2347dc19b706b80e17f97cd8ba7f",
@@ -559,7 +559,7 @@
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/out-junit/src": "22d1ca5d4f4449cae6186ff8d84c1f0b182e7591e1ffda9520a38daa3e8681d2",
 					"modules/recorder/src": "079caf826dbcad8943531b3f8f716e79a45d55f1668d29417e2a230978236208",
-					"modules/shu/src": "e418886a3704fb8c5eea14463fa8f56e2f3fd7b371c354ae1acbf3c07126fd96",
+					"modules/shu/src": "c37c36eb1b26fd02edc8d8886c25832102339ba8959fdf1bd3276453c62860be",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/utils/src": "9799d114ca397313863bfc29604199b02bc9daf1a4bfa26675dbfe7cfc30e36c",
@@ -596,7 +596,7 @@
 				"/features/05-goals.feature.ts": {
 					"text": "Goals over producer rules",
 					"status": "passed",
-					"tookMs": 1700,
+					"tookMs": 1600,
 					"steps": 41
 				},
 				"/features/06-world-and-products.feature.ts": {
@@ -620,13 +620,13 @@
 				"/features/09-surfaces.feature.ts": {
 					"text": "One path for every surface",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 600,
 					"steps": 77
 				},
 				"/features/10-cli.feature.ts": {
 					"text": "The command line",
 					"status": "passed",
-					"tookMs": 900,
+					"tookMs": 800,
 					"steps": 11
 				},
 				"/features/11-performance.feature.ts": {
@@ -638,13 +638,13 @@
 				"/features/12-conversations.feature.ts": {
 					"text": "Conversations as features",
 					"status": "passed",
-					"tookMs": 100,
+					"tookMs": 0,
 					"steps": 6
 				},
 				"/features/13-conjunctions.feature.ts": {
 					"text": "Conjunctions",
 					"status": "passed",
-					"tookMs": 200,
+					"tookMs": 100,
 					"steps": 18
 				},
 				"/features/14-model-loop.feature.ts": {
@@ -662,7 +662,7 @@
 				"/features/16-class-expressions.feature.ts": {
 					"text": "Class expressions",
 					"status": "passed",
-					"tookMs": 39400,
+					"tookMs": 38800,
 					"steps": 93
 				}
 			}
