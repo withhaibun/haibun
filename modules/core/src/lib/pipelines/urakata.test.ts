@@ -347,17 +347,20 @@ describe("UrakataRegistry persistence of transitions", () => {
 		// Writes a row from another actuality instance whose task didn't stop cleanly.
 		await world.shared
 			.getStore()
-			.upsertIndividual(URAKATA_LABEL, {
-				id: "worker.idle.acct/queue",
-				description: "from a prior instance",
-				actuality: "OTHER-INSTANCE",
-				seqPath: [0],
-				startedAt: new Date().toISOString(),
-				tickIndex: 5,
-				errorCount: 0,
-				actionStatus: RECORDED_STATUS.running,
-				holds: [],
-				generatedAtTime: new Date(),
+			.write({
+				label: URAKATA_LABEL,
+				record: {
+					id: "worker.idle.acct/queue",
+					description: "from a prior instance",
+					actuality: "OTHER-INSTANCE",
+					seqPath: [0],
+					startedAt: new Date().toISOString(),
+					tickIndex: 5,
+					errorCount: 0,
+					actionStatus: RECORDED_STATUS.running,
+					holds: [],
+					generatedAtTime: new Date(),
+				},
 			});
 		const registry = new UrakataRegistry(world, reporting());
 		const fresh = registry.register({ needs: [], id: "different.task", description: "new", intervalMs: 1000, tick: () => undefined });

@@ -22,18 +22,16 @@ import { callStatedStepFrom } from "@haibun/core/lib/call-step.js";
 import GraphSourceStepper from "./graph-source-stepper.js";
 import { ViewAxiomsProductsSchema, type TGraphView, type TViewAxioms } from "./domains/graph-view.js";
 import { augmentViewHypermedia } from "@haibun/core/lib/steps/derivations/step-hypermedia.js";
+import { EDGE_TARGET, edgesFrom } from "@haibun/core/lib/records/domains/unit.js";
 
 function mockQuadStore(overrides: Partial<IQuadStore> = {}): IQuadStore {
 	return {
-		set: vi.fn(async () => undefined),
+		write: vi.fn(async () => ""),
 		get: vi.fn(async () => undefined),
-		add: vi.fn(async () => undefined),
 		query: vi.fn(async () => []),
 		clear: vi.fn(async () => undefined),
 		remove: vi.fn(async () => undefined),
 		all: vi.fn(async () => []),
-		upsertIndividual: vi.fn(async () => ""),
-		deleteIndividual: vi.fn(async () => undefined),
 		readRecords: vi.fn(async () => ({ vertices: [], total: 0, saturated: false, order: [] })),
 		readRecord: vi.fn(async () => undefined),
 		distinctPropertyValues: vi.fn(async () => distinctOf([])),
@@ -114,9 +112,9 @@ describe("one individual with its edges, from the store this instance holds", ()
 		world.domains = { ...world.domains, ...mapDefinitionsToDomains([declared(EMAIL), declared(MESSAGE, { about: { rel: ABOUT, range: EMAIL } })]) };
 		await stepper.setWorld(world, []);
 		const store = world.shared.getStore();
-		await store.upsertIndividual(EMAIL, { id: "a@test.com", address: "a@test.com" });
-		await store.upsertIndividual(MESSAGE, { id: "m1" });
-		await store.add({ subject: "m1", predicate: ABOUT, object: "a@test.com", namedGraph: MESSAGE, objectType: EMAIL });
+		await store.write({ label: EMAIL, record: { id: "a@test.com", address: "a@test.com" } });
+		await store.write({ label: MESSAGE, record: { id: "m1" } });
+		await store.write(edgesFrom(MESSAGE, "m1", { rel: ABOUT, label: EMAIL, id: "a@test.com", target: EDGE_TARGET.held }));
 		return stepper;
 	};
 
@@ -270,8 +268,8 @@ describe("the counts a shape reads, and the rows of a graph query a time bounds"
 		const world = getTestWorldWithOptions();
 		const store = world.shared.getStore();
 		const comment = (id: string, generatedAtTime: string) => ({ id, author: "did:site:0", generatedAtTime, accessLevel: Access.public });
-		await store.upsertIndividual("Comment", comment("early", "2026-01-01T00:00:00.000Z"));
-		await store.upsertIndividual("Comment", comment("late", "2026-03-01T00:00:00.000Z"));
+		await store.write({ label: "Comment", record: comment("early", "2026-01-01T00:00:00.000Z") });
+		await store.write({ label: "Comment", record: comment("late", "2026-03-01T00:00:00.000Z") });
 		const query = JSON.stringify({ label: "Comment" });
 		const lines = [`since "2026-02-01", graph query ${query}`, `before "2026-02-01", graph query ${query}`];
 		const ran = await testWithWorld(world, lines.join("\n"), [Haibun, ResourcesStepper, GraphSourceStepper, LogicStepper]);
@@ -304,7 +302,7 @@ describe("the counts a shape reads, and the rows of a graph query a time bounds"
 			["early", "2026-01-01T00:00:00.000Z"],
 			["late", "2026-03-01T00:00:00.000Z"],
 		])
-			await store.upsertIndividual("Comment", { id, author: "did:site:0", generatedAtTime, accessLevel: Access.public });
+			await store.write({ label: "Comment", record: { id, author: "did:site:0", generatedAtTime, accessLevel: Access.public } });
 		const line = `limited to 1, ordered by "generatedAtTime", graph query ${JSON.stringify({ label: "Comment" })}`;
 		const ran = await testWithWorld(world, line, [Haibun, ResourcesStepper, GraphSourceStepper, LogicStepper]);
 		expect(ran.ok, JSON.stringify(ran.failure)).toBe(true);

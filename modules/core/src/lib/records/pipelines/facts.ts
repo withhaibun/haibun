@@ -7,21 +7,16 @@ import { EDGE, FACT_LABEL, SEQ_PATH_LABEL } from "../../domains/resources.js";
 import { type IQuadStore } from "../../steps/ports.js";
 import { factIdOf, formatRecordName, type TRecordName } from "../../actuality/domains/seq-path.js";
 import { FACT_FIELD } from "../domains/facts.js";
+import { EDGE_TARGET } from "../domains/unit.js";
 
 /** One product of a step: its domain, its value, the field of the product where the step declares a domain for each field, and when it was produced. */
 export type TProduct = { domain: string; value: unknown; field?: string; generatedAtTime: string };
 
-/** Writes the fact of one product of a step, and the fact's edge to the step's record. The edge is written as a reference,
+/** Writes the fact of one product of a step with its edge to the step's record, in one unit. The edge is written as a reference,
  *  since a step's caller may not hold a read action, and the fact is actuality's record of the step. Returns the fact's id. */
-export async function assertFact(store: Pick<IQuadStore, "upsertIndividual" | "referenceEdge">, step: TRecordName, product: TProduct): Promise<string> {
-	if (!store.referenceEdge) throw new Error(`the store doesn't write edges, so a fact can't link the step ${formatRecordName(step)} that produced it`);
+export async function assertFact(store: Pick<IQuadStore, "write">, step: TRecordName, product: TProduct): Promise<string> {
 	const id = factIdOf(step, product.field);
-	await store.upsertIndividual(FACT_LABEL, {
-		[FACT_FIELD.id]: id,
-		[FACT_FIELD.domain]: product.domain,
-		[FACT_FIELD.value]: product.value,
-		[FACT_FIELD.generatedAtTime]: product.generatedAtTime,
-	});
-	await store.referenceEdge(FACT_LABEL, id, EDGE.wasGeneratedBy, SEQ_PATH_LABEL, formatRecordName(step));
+	const record = { [FACT_FIELD.id]: id, [FACT_FIELD.domain]: product.domain, [FACT_FIELD.value]: product.value, [FACT_FIELD.generatedAtTime]: product.generatedAtTime };
+	await store.write({ label: FACT_LABEL, record, edges: [{ rel: EDGE.wasGeneratedBy, label: SEQ_PATH_LABEL, id: formatRecordName(step), target: EDGE_TARGET.reference }] });
 	return id;
 }

@@ -11,6 +11,7 @@ import { readAction, readCeilingOf, writeAction } from "../../domains/actions.js
 import { Access, type AccessLevel } from "../../domains/resources.js";
 import { itemAt } from "../../domains/item-at.js";
 import { COUNT_CEILING } from "../../domains/hypermedia.js";
+import { EDGE_TARGET, edgesFrom } from "../../records/domains/unit.js";
 
 describe("QuadStore Contexts", () => {
 	let store: QuadStore;
@@ -20,22 +21,22 @@ describe("QuadStore Contexts", () => {
 	});
 
 	it("should store and retrieve quads with default namedGraph", async () => {
-		await store.add({ subject: "s", predicate: "p", object: "o", namedGraph: "default" });
+		await store.write({ label: "default", id: "s", fields: { p: "o" } });
 		const results = await store.query({ subject: "s" });
 		expect(results).toHaveLength(1);
 		expect(itemAt(results, 0).namedGraph).toBe("default");
 	});
 
 	it("should store and retrieve quads with arbitrary namedGraph", async () => {
-		await store.add({ subject: "s", predicate: "p", object: "o", namedGraph: "trust-registry" });
+		await store.write({ label: "trust-registry", id: "s", fields: { p: "o" } });
 		const results = await store.query({ namedGraph: "trust-registry" });
 		expect(results).toHaveLength(1);
 		expect(itemAt(results, 0).namedGraph).toBe("trust-registry");
 	});
 
 	it("should isolate namedGraphs", async () => {
-		await store.add({ subject: "s", predicate: "p", object: "o1", namedGraph: "A" });
-		await store.add({ subject: "s", predicate: "p", object: "o2", namedGraph: "B" });
+		await store.write({ label: "A", id: "s", fields: { p: "o1" } });
+		await store.write({ label: "B", id: "s", fields: { p: "o2" } });
 		const resultsA = await store.query({ namedGraph: "A" });
 		expect(resultsA).toHaveLength(1);
 		expect(itemAt(resultsA, 0).object).toBe("o1");
@@ -45,37 +46,30 @@ describe("QuadStore Contexts", () => {
 	});
 
 	it("should query across namedGraphs if namedGraph not specified", async () => {
-		await store.add({ subject: "s", predicate: "p", object: "o1", namedGraph: "A" });
-		await store.add({ subject: "s", predicate: "p", object: "o2", namedGraph: "B" });
+		await store.write({ label: "A", id: "s", fields: { p: "o1" } });
+		await store.write({ label: "B", id: "s", fields: { p: "o2" } });
 		const results = await store.query({ subject: "s" });
 		expect(results).toHaveLength(2);
 	});
 
 	it("should clear specific namedGraph", async () => {
-		await store.add({ subject: "s", predicate: "p", object: "o1", namedGraph: "A" });
-		await store.add({ subject: "s", predicate: "p", object: "o2", namedGraph: "B" });
+		await store.write({ label: "A", id: "s", fields: { p: "o1" } });
+		await store.write({ label: "B", id: "s", fields: { p: "o2" } });
 		await store.clear("A");
 		expect(await store.query({ namedGraph: "A" })).toHaveLength(0);
 		expect(await store.query({ namedGraph: "B" })).toHaveLength(1);
 	});
 
 	it("should set and get values", async () => {
-		await store.set("x", "string", "hello", "variables");
+		await store.write({ label: "variables", id: "x", fields: { string: "hello" } });
 		expect(await store.get("x", "string")).toBe("hello");
 	});
 
 	it("should upsert on set", async () => {
-		await store.set("x", "string", "first", "variables");
-		await store.set("x", "string", "second", "variables");
+		await store.write({ label: "variables", id: "x", fields: { string: "first" } });
+		await store.write({ label: "variables", id: "x", fields: { string: "second" } });
 		expect(await store.get("x", "string")).toBe("second");
 		expect(await store.query({ subject: "x", namedGraph: "variables" })).toHaveLength(1);
-	});
-
-	it("should store properties on set", async () => {
-		await store.set("x", "string", "hello", "variables", { origin: "var", readonly: true });
-		const quads = await store.query({ subject: "x", namedGraph: "variables" });
-		expect(itemAt(quads, 0).properties?.origin).toBe("var");
-		expect(itemAt(quads, 0).properties?.readonly).toBe(true);
 	});
 });
 
@@ -101,9 +95,9 @@ describe("backing routing is shared along the store chain, and a registration ne
 
 	it("a backing that refuses a record isn't registered, and the records stay where they were", async () => {
 		const store = new QuadStore(newStoreChain());
-		await store.set("e1", "subject", "hello", "Letter");
+		await store.write({ label: "Letter", id: "e1", fields: { subject: "hello" } });
 		const refusal = new Error("the backing's pages are unreadable");
-		const refusing = { upsertIndividual: async () => Promise.reject(refusal) } as unknown as import("../ports.js").IQuadStore;
+		const refusing = { write: async () => Promise.reject(refusal) } as unknown as import("../ports.js").IQuadStore;
 		await expect(store.registerStore(refusing, ["Letter"])).rejects.toBe(refusal);
 		expect(await store.get("e1", "subject", "Letter"), "the record is read where it was written").toBe("hello");
 	});
@@ -134,14 +128,14 @@ describe("federated clustered reads (reads-first federation)", () => {
 
 	it("reads a relation its type declares to one type as an edge in a graph read, so the graph draws a record written whole", async () => {
 		const store = storeDeclaring({ Step: { relations: { isPartOf: ["Step"], seenBy: ["Step", "Other"] } } });
-		await store.upsertIndividual("Step", { id: "s1", isPartOf: "s0", seenBy: "s0", name: "one" });
+		await store.write({ label: "Step", record: { id: "s1", isPartOf: "s0", seenBy: "s0", name: "one" } });
 		const { quads } = await store.getClusteredQuads({ perTypeLimit: 10, accessLevel: "private" });
 		expect(Object.fromEntries(quads.map((q) => [q.predicate, q.objectType]))).toMatchObject({ isPartOf: "Step", seenBy: undefined, name: undefined });
 	});
 
 	it("merges a peer's clusters into getClusteredQuads with per-subject site stamps intact; local subjects stay unstamped", async () => {
 		const store = new QuadStore(newStoreChain());
-		await store.add({ subject: "local-1", predicate: "name", object: "local-1", namedGraph: "Document" });
+		await store.write({ label: "Document", id: "local-1", fields: { name: "local-1" } });
 		store.federate(peer("did:site:remote.1", "Document", "remote-1"));
 		const result = await store.getClusteredQuads({ perTypeLimit: 10, accessLevel: "private" });
 		const document = result.clusters.find((c) => c.type === "Document");
@@ -158,7 +152,7 @@ describe("federated clustered reads (reads-first federation)", () => {
 
 	it('serves scope "own" without reading peers: the scope a federated read states, so a federation cycle cannot recurse', async () => {
 		const store = new QuadStore(newStoreChain());
-		await store.add({ subject: "local-1", predicate: "name", object: "local-1", namedGraph: "Document" });
+		await store.write({ label: "Document", id: "local-1", fields: { name: "local-1" } });
 		store.federate(peer("did:site:remote.1", "Document", "remote-1"));
 		const own = await store.getClusteredQuads({ perTypeLimit: 10, accessLevel: "private", scope: "own" });
 		expect(own.clusters.find((c) => c.type === "Document")?.sampledSubjects).toEqual(["local-1"]);
@@ -188,8 +182,8 @@ describe("the page a store of quads returns for a graph query", () => {
 	const declared = { Letter: { filters: ["folder"] }, Note: { filters: ["generatedAtTime"] } };
 	const store = storeDeclaring(declared);
 	beforeAll(async () => {
-		await store.upsertIndividual("Letter", { id: "a", folder: "INBOX" });
-		await store.upsertIndividual("Letter", { id: "b", folder: "Sent" });
+		await store.write({ label: "Letter", record: { id: "a", folder: "INBOX" } });
+		await store.write({ label: "Letter", record: { id: "b", folder: "Sent" } });
 	});
 
 	it("lists a type's records, narrowed by equality and windowed", async () => {
@@ -209,9 +203,9 @@ describe("the page a store of quads returns for a graph query", () => {
 		const at = (t: string) =>
 			GraphQuerySchema.parse({ label: "Note", filters: [{ predicate: "generatedAtTime", operator: "gt", value: t }], sortBy: "generatedAtTime", sortOrder: "asc" });
 		const times = storeDeclaring(declared);
-		await times.upsertIndividual("Note", { id: "a", generatedAtTime: "2026-01-01T00:00:00.000Z" });
-		await times.upsertIndividual("Note", { id: "b", generatedAtTime: "2026-06-01T00:00:00.000Z" });
-		await times.upsertIndividual("Note", { id: "c", generatedAtTime: "2026-12-01T00:00:00.000Z" });
+		await times.write({ label: "Note", record: { id: "a", generatedAtTime: "2026-01-01T00:00:00.000Z" } });
+		await times.write({ label: "Note", record: { id: "b", generatedAtTime: "2026-06-01T00:00:00.000Z" } });
+		await times.write({ label: "Note", record: { id: "c", generatedAtTime: "2026-12-01T00:00:00.000Z" } });
 		expect((await times.readRecords(at("2026-05-01T00:00:00.000Z"))).vertices.map((v) => v.id)).toEqual(["b", "c"]);
 		const between = GraphQuerySchema.parse({
 			label: "Note",
@@ -227,7 +221,7 @@ describe("the page a store of quads returns for a graph query", () => {
 			["b", "06"],
 			["c", "12"],
 		])
-			await times.upsertIndividual("Note", { id, generatedAtTime: `2026-${month}-01T00:00:00.000Z` });
+			await times.write({ label: "Note", record: { id, generatedAtTime: `2026-${month}-01T00:00:00.000Z` } });
 		const after = { label: "Note", filters: [{ predicate: "generatedAtTime", operator: "gt", value: "2026-05-01T00:00:00.000Z" }], sortOrder: "asc", limit: 1 };
 		const page = await times.readRecords(GraphQuerySchema.parse(after));
 		expect(
@@ -244,7 +238,7 @@ describe("the page a store of quads returns for a graph query", () => {
 			["c", "12"],
 			["a", "01"],
 		])
-			await times.upsertIndividual("Note", { id, generatedAtTime: `2026-${month}-01T00:00:00.000Z` });
+			await times.write({ label: "Note", record: { id, generatedAtTime: `2026-${month}-01T00:00:00.000Z` } });
 		const newest = GraphQuerySchema.parse({ label: "Note", sortBy: "generatedAtTime", sortOrder: "desc", limit: 2 });
 		expect((await times.readRecords(newest)).vertices.map((v) => v.id)).toEqual(["c", "b"]);
 		const oldest = GraphQuerySchema.parse({ label: "Note", sortBy: "generatedAtTime", sortOrder: "asc", limit: 2 });
@@ -285,27 +279,27 @@ describe("the level each quad a run holds is written and read at", () => {
 	});
 
 	it("refuses a write that doesn't state a level to a graph that doesn't declare one", async () => {
-		await expect(store.set("note-1", "says", "kept", "undeclared")).rejects.toThrow("a write that doesn't state a level is refused");
+		await expect(store.write({ label: "undeclared", id: "note-1", fields: { says: "kept" } })).rejects.toThrow("a write that doesn't state a level is refused");
 	});
 
 	it("doesn't return actuality's own facts to a public reader", async () => {
-		await store.set("fact-1", "says", "kept", FACTS);
+		await store.write({ label: FACTS, id: "fact-1", fields: { says: "kept" } });
 		expect(await as(publicReader, () => store.query({ namedGraph: FACTS }))).toEqual([]);
 		expect((await store.getClusteredQuads({ perTypeLimit: 10, accessLevel: Access.public })).quads, "nor to a read at public").toEqual([]);
 		expect(await as(reader, () => store.get("fact-1", "says", FACTS)), "and to a private reader").toBe("kept");
 	});
 
 	it("writes at private a record whose level a private reader doesn't state, where its type is public, and actuality's at public", async () => {
-		await as(reader, () => store.upsertIndividual(NOTICE, { id: "notice-1", text: "read privately" }));
-		await store.upsertIndividual(NOTICE, { id: "notice-2", text: "actuality's" });
+		await as(reader, () => store.write({ label: NOTICE, record: { id: "notice-1", text: "read privately" } }));
+		await store.write({ label: NOTICE, record: { id: "notice-2", text: "actuality's" } });
 		const read = await as(publicReader, () => readEvery(store, { label: NOTICE }));
 		expect(read.map(({ id, accessLevel }) => [id, accessLevel])).toEqual([["notice-2", Access.public]]);
 	});
 
 	it("refuses a private reader a write into a public record, and a removal from one", async () => {
-		await store.upsertIndividual(NOTICE, { id: "notice-1", text: "published" });
-		await expect(as(reader, () => store.set("notice-1", "text", "read privately", NOTICE))).rejects.toThrow(writeAction(Access.public));
-		await expect(as(reader, () => store.remove({ subject: "notice-1", namedGraph: NOTICE }))).rejects.toThrow(writeAction(Access.public));
+		await store.write({ label: NOTICE, record: { id: "notice-1", text: "published" } });
+		await expect(as(reader, () => store.write({ label: NOTICE, id: "notice-1", fields: { text: "read privately" } }))).rejects.toThrow(writeAction(Access.public));
+		await expect(as(reader, () => store.remove({ label: NOTICE, id: "notice-1" }))).rejects.toThrow(writeAction(Access.public));
 		expect(await store.get("notice-1", "text", NOTICE), "and the record is as it was published").toBe("published");
 	});
 });
@@ -315,11 +309,11 @@ describe("the distinct values of a property", () => {
 	const FIELD = "folder";
 	it("counts the values to the ceiling, and states where the count stopped", async () => {
 		const store = new QuadStore(newStoreChain());
-		for (let n = 0; n <= COUNT_CEILING; n++) await store.add({ subject: `note-${n}`, predicate: FIELD, object: `folder-${String(n).padStart(4, "0")}`, namedGraph: GRAPH });
+		for (let n = 0; n <= COUNT_CEILING; n++) await store.write({ label: GRAPH, id: `note-${n}`, fields: { [FIELD]: `folder-${String(n).padStart(4, "0")}` } });
 		const held = await store.distinctPropertyValues(GRAPH, FIELD);
 		expect(held).toMatchObject({ total: COUNT_CEILING, saturated: true });
 		expect(held.values).toHaveLength(COUNT_CEILING);
-		for (const subject of ["note-0", "note-1"]) await store.remove({ subject, namedGraph: GRAPH });
+		for (const subject of ["note-0", "note-1"]) await store.remove({ label: GRAPH, id: subject });
 		expect(await store.distinctPropertyValues(GRAPH, FIELD), "a count below the ceiling states every value").toMatchObject({ total: COUNT_CEILING - 1, saturated: false });
 	});
 });
@@ -327,9 +321,11 @@ describe("the distinct values of a property", () => {
 describe("the edges a store of quads writes", () => {
 	it("writes an edge its type declares, and refuses one its type doesn't declare and the vocabulary doesn't hold", async () => {
 		const store = storeDeclaring({ Step: { relations: { isPartOf: ["Step"] } } });
-		await store.createEdge("Step", "a", "isPartOf", "Step", "b");
+		await store.write(edgesFrom("Step", "a", { rel: "isPartOf", label: "Step", id: "b", target: EDGE_TARGET.held }));
 		expect((await store.query({ subject: "a", predicate: "isPartOf" })).map(({ object }) => object)).toEqual(["b"]);
-		await expect(store.createEdge("Step", "a", "wroteBy", "Step", "b")).rejects.toThrow("Step doesn't declare the edge wroteBy");
+		await expect(store.write(edgesFrom("Step", "a", { rel: "wroteBy", label: "Step", id: "b", target: EDGE_TARGET.held }))).rejects.toThrow(
+			"Step doesn't declare the edge wroteBy",
+		);
 	});
 });
 
@@ -340,7 +336,7 @@ describe("a typed read of one record", () => {
 
 	it("returns the record as its type's schema parses it, and undefined where the store doesn't hold it", async () => {
 		const notes = store();
-		await notes.upsertIndividual(NOTE.label, { id: "n1", text: "a note", generatedAtTime: "2026-07-01T00:00:00.000Z" });
+		await notes.write({ label: NOTE.label, record: { id: "n1", text: "a note", generatedAtTime: "2026-07-01T00:00:00.000Z" } });
 		const read: z.output<typeof NoteSchema> | undefined = await notes.readRecord(NOTE, "n1");
 		expect(read).toEqual({ id: "n1", text: "a note", generatedAtTime: "2026-07-01T00:00:00.000Z" });
 		expect(await notes.readRecord(NOTE, "n2")).toBeUndefined();

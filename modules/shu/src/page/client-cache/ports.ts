@@ -3,7 +3,7 @@
  * view's rows of actuality.
  */
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
-import type { TDensityResult, TGraphQueryResult, TQuad } from "@haibun/core/lib/quad-types.js";
+import type { TDensityResult, TGraphQueryResult, TQuad, TQuadPattern } from "@haibun/core/lib/quad-types.js";
 import type { TPageDensity, TPageQuery } from "../pipelines/read-records.js";
 import type { THaibunLogLevel } from "@haibun/core/lib/domains/protocol.js";
 import type { WindowedSource } from "../derivations/windowed-source.js";
@@ -57,7 +57,11 @@ export const GRAPH_BOUND = 100_000;
 export type TCachedGraph = IQuadStore & { setMany(quads: TQuad[]): Promise<void> };
 
 /** The quads one actuality's database holds: the facts as the device writes and reads them, and how full it is. */
-export type TDeviceQuads = Pick<IQuadStore, "set" | "get" | "add" | "query" | "clear" | "remove" | "all"> & {
+export type TDeviceQuads = Pick<IQuadStore, "get" | "query" | "clear" | "all"> & {
+	/** Adds a quad without replacing a quad of the same subject and predicate. */
+	add(quad: Omit<TQuad, "timestamp">): Promise<void>;
+	/** Removes the quads a pattern matches. */
+	remove(pattern: TQuadPattern): Promise<void>;
 	/** The name of the database. */
 	readonly database: string;
 	setMany(quads: TQuad[]): Promise<void>;

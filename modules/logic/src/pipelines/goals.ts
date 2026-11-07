@@ -166,7 +166,7 @@ type TPlanRecord = { goal: string; owner?: string; factIds: string[] };
 
 /** Writes a plan's facts in place of the facts it held, at the read level of its caller, so its owner reads them back. */
 async function writePlan(store: IQuadStore, plan: string, { goal, owner, factIds }: TPlanRecord): Promise<void> {
-	await store.remove({ subject: plan, namedGraph: PLAN_GRAPH });
+	await store.remove({ label: PLAN_GRAPH, id: plan });
 	await writeFacts(store, plan, PLAN_GRAPH, { [PLAN.goal]: goal, [PLAN.factIds]: factIds, [PLAN.owner]: owner });
 }
 

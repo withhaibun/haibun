@@ -71,7 +71,7 @@ export async function deleteActuality({ actuality, store }: THeldActuality): Pro
 				const name = parseRecordName(id);
 				return name !== undefined && actualityOf(name.actuality) === actuality;
 			});
-		for (const id of ids) await store.deleteIndividual(type.label, id);
+		for (const id of ids) await store.remove({ label: type.label, id: id });
 		gone += ids.length;
 	}
 	return gone;

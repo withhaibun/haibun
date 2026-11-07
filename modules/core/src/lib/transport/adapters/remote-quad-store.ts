@@ -13,6 +13,7 @@ import type { z } from "zod";
 import type { AccessLevel, AccessQueryLevel } from "../../domains/resources.js";
 import { typedRecord } from "../../steps/domains/quad-types.js";
 import type { IQuadStore } from "../../steps/ports.js";
+import type { TRemoval, TUnit } from "../../records/domains/unit.js";
 import type {
 	TClusteredQuads,
 	TClusteredQuadsOpts,
@@ -54,16 +55,12 @@ export class RemoteQuadStore implements IQuadStore {
 		return (await this.remote.rpc.call<{ result: T }>(storeMethod, params, [], { action: requiredStoreCapability(storeMethod) })).result;
 	}
 
-	set(subject: string, predicate: string, object: unknown, namedGraph: string, properties?: Record<string, unknown>): Promise<void> {
-		return this.call("set", { subject, predicate, object, namedGraph, properties });
+	write(unit: TUnit): Promise<string> {
+		return this.call("write", { unit });
 	}
 
 	get(subject: string, predicate: string, namedGraph?: string): Promise<unknown | undefined> {
 		return this.call("get", { subject, predicate, namedGraph });
-	}
-
-	add(quad: Omit<TQuad, "timestamp">): Promise<void> {
-		return this.call("add", { quad });
 	}
 
 	query(pattern: TQuadPattern): Promise<TQuad[]> {
@@ -74,8 +71,8 @@ export class RemoteQuadStore implements IQuadStore {
 		return this.call("clear", { namedGraph });
 	}
 
-	remove(pattern: TQuadPattern): Promise<void> {
-		return this.call("remove", { pattern });
+	remove(removal: TRemoval): Promise<void> {
+		return this.call("remove", { removal });
 	}
 
 	/** Mount-scoped: the mounted graphs' quads, not the peer's whole store: one bounded query per mounted graph. */
@@ -91,14 +88,6 @@ export class RemoteQuadStore implements IQuadStore {
 	/** The far side reads the record by its label, and this side parses what it returns with the type's schema. */
 	readRecord<S extends z.ZodType>(type: TRecordType<S>, id: string, accessLevel?: AccessQueryLevel): Promise<z.output<S> | undefined> {
 		return typedRecord(type, id, accessLevel, (query) => this.readRecords(query));
-	}
-
-	upsertIndividual(label: string, data: unknown): Promise<string> {
-		return this.call("upsertIndividual", { label, data });
-	}
-
-	deleteIndividual(label: string, id: string): Promise<void> {
-		return this.call("deleteIndividual", { label, id });
 	}
 
 	distinctPropertyValues(label: string, property: string): Promise<TDistinctValues> {
@@ -123,9 +112,5 @@ export class RemoteQuadStore implements IQuadStore {
 		const defaultSite = r.site ?? site;
 		const clusters = r.clusters.map((c) => ({ ...c, sites: Object.fromEntries(c.sampledSubjects.map((s) => [s, c.sites?.[s] ?? defaultSite])) }));
 		return { quads: r.quads, clusters, site };
-	}
-
-	createEdge(fromLabel: string, fromId: string, edgeLabel: string, toLabel: string, toId: string): Promise<void> {
-		return this.call("createEdge", { fromLabel, fromId, edgeLabel, toLabel, toId });
 	}
 }

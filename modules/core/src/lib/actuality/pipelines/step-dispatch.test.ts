@@ -29,6 +29,7 @@ import { ActionSchema } from "../../domains/actions.js";
 import { DomainKeySchema } from "../../domains/domains.js";
 import { StepMethodSchema } from "../../steps/domains/step-method.js";
 import { TEST_STEP } from "../../test/test-step.js";
+import { isWholeRecord } from "../../records/domains/unit.js";
 
 // --- Test Steppers ---
 
@@ -665,7 +666,7 @@ describe("step-dispatch", () => {
 						description: TEST_STEP,
 						gwta: "write a notice",
 						contract: { products: TEST_DOMAIN.echoed },
-						action: async () => actionOKWithProducts({ echoed: await world.shared.getStore().upsertIndividual(NOTICE_LABEL, { id: NOTICE_ID }) }),
+						action: async () => actionOKWithProducts({ echoed: await world.shared.getStore().write({ label: NOTICE_LABEL, record: { id: NOTICE_ID } }) }),
 					},
 					readsAtCeiling: {
 						description: TEST_STEP,
@@ -934,13 +935,9 @@ describe("step-dispatch", () => {
 			if (!tool) throw new Error("Expected ProductStepper-failStep to be registered");
 			const store = world.shared.getStore();
 			const stepWrites: string[] = [];
-			const upsert = store.upsertIndividual.bind(store);
-			const set = store.set.bind(store);
+			const write = store.write.bind(store);
 			const get = store.get.bind(store);
-			store.upsertIndividual = (label, data) => (label === SEQ_PATH_LABEL && stepWrites.push("upsert"), upsert(label, data));
-			store.set = (subject, predicate, object, namedGraph, properties) => (
-				namedGraph === SEQ_PATH_LABEL && stepWrites.push("set"), set(subject, predicate, object, namedGraph, properties)
-			);
+			store.write = (unit) => (unit.label === SEQ_PATH_LABEL && stepWrites.push(isWholeRecord(unit) ? "upsert" : "set"), write(unit));
 			store.get = (subject, predicate, namedGraph) => (namedGraph === SEQ_PATH_LABEL && stepWrites.push("get"), get(subject, predicate, namedGraph));
 			await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, buildFeatureStepForTransport(tool, {}, [0, 9, 2]));
 			expect(stepWrites).toEqual(["upsert", "upsert"]);

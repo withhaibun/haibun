@@ -35,7 +35,8 @@ import { writeAnnotation } from "../records/pipelines/discourse-writes.js";
 import type { TRecordReader } from "../records/pipelines/record-reads.js";
 import { typedRecord } from "../steps/domains/quad-types.js";
 import type { IQuadStore } from "../steps/ports.js";
-import { ORDER_KEY, type TGraphQuery } from "../steps/domains/quad-types.js";
+import { ORDER_KEY, type TGraphQuery, type TQuad } from "../steps/domains/quad-types.js";
+import { isReferenced, isWholeRecord, unitsOf } from "../records/domains/unit.js";
 
 describe("LinkRelations extensions", () => {
 	// These tests don't restate the vocabulary. A copy would make every addition a two-file edit and would assert only
@@ -694,10 +695,10 @@ describe("getPropertyDefinitions", () => {
 /** A link vocabulary that doesn't type a link. These tests assert the annotation shape alone and not the facts a note's links state. */
 const noLinkVocabulary = { relRange: () => undefined, isType: () => false };
 
-/** A minimal in-memory quad store without createEdge, so the discourse helpers write edges as `add` quads. Its read of
+/** A minimal in-memory store that holds each record by its type and id, and each edge of a unit as a quad. Its read of
  *  records reads named records alone, and throws for another read. */
 function memStore() {
-	const quads: Array<{ subject: string; predicate: string; object: unknown; namedGraph: string }> = [];
+	const quads: TQuad[] = [];
 	const nodes = new Map<string, Record<string, unknown>>();
 	const matches = (
 		q: { subject: string; predicate: string; object: unknown; namedGraph: string },
@@ -708,10 +709,16 @@ function memStore() {
 		(p.object === undefined || q.object === p.object) &&
 		(p.namedGraph === undefined || q.namedGraph === p.namedGraph);
 	const store: TDiscourseStore & TRecordReader & Pick<IQuadStore, "readRecord"> = {
-		upsertIndividual: (label, data) => {
-			const d = data as Record<string, unknown>;
-			nodes.set(`${label}:${String(d.id)}`, d);
-			return Promise.resolve(String(d.id));
+		write: (unit) => {
+			const written = isWholeRecord(unit) ? String(unit.record.id) : unit.id;
+			for (const part of unitsOf(unit)) {
+				const id = isWholeRecord(part) ? String(part.record.id) : part.id;
+				const key = `${part.label}:${id}`;
+				if (isWholeRecord(part)) nodes.set(key, { ...part.record });
+				else if (!isReferenced(part)) nodes.set(key, { ...(nodes.get(key) ?? { id }), ...part.fields });
+				for (const edge of part.edges ?? []) quads.push({ subject: id, predicate: edge.rel, object: edge.id, namedGraph: part.label, timestamp: 0 });
+			}
+			return Promise.resolve(written);
 		},
 		readRecords: (query: TGraphQuery) => {
 			if (!query.named) throw new Error("this test store reads named records alone");
@@ -719,20 +726,9 @@ function memStore() {
 			return Promise.resolve({ vertices, ...counted(vertices.length), order: [{ key: ORDER_KEY.named, order: "asc" }] });
 		},
 		readRecord: (type, id, accessLevel) => typedRecord(type, id, accessLevel, store.readRecords),
-		deleteIndividual: (label, id) => {
-			nodes.delete(`${label}:${id}`);
-			return Promise.resolve();
-		},
-		set: (subject, predicate, object, namedGraph) => {
-			nodes.set(`${namedGraph}:${subject}`, { ...(nodes.get(`${namedGraph}:${subject}`) ?? { id: subject }), [predicate]: object });
-			return Promise.resolve();
-		},
-		add: (quad) => {
-			quads.push(quad);
-			return Promise.resolve();
-		},
-		remove: (pattern) => {
-			for (let i = quads.length - 1; i >= 0; i--) if (matches(itemAt(quads, i), pattern)) quads.splice(i, 1);
+		remove: ({ label, id, edge }) => {
+			if (edge === undefined) nodes.delete(`${label}:${id}`);
+			else for (let i = quads.length - 1; i >= 0; i--) if (matches(itemAt(quads, i), { subject: id, predicate: edge.rel, object: edge.to, namedGraph: label })) quads.splice(i, 1);
 			return Promise.resolve();
 		},
 		query: (pattern) => Promise.resolve(quads.filter((q) => matches(q, pattern))),
@@ -763,7 +759,7 @@ describe("assertCommentGrounded: every comment is grounded", () => {
 	});
 });
 
-describe("writeAnnotation, self-contained on a plain quad store (without createEdge)", () => {
+describe("writeAnnotation, self-contained on a plain store of units", () => {
 	it("writes a grounded Comment, hasTarget→ SpecificResource, hasSource→ doc and hasSelector→ TextQuoteSelector without editing the doc", async () => {
 		const { store, quads, nodes } = memStore();
 		const { commentId, specificResourceId } = await writeAnnotation(store, noLinkVocabulary, "did:site:0", {

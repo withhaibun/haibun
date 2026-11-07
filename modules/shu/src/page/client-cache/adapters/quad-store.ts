@@ -66,22 +66,6 @@ export class IndexedDbQuads implements TDeviceQuads {
 		return this.writes;
 	}
 
-	/** Holds `quads` among the facts that wait for the next replace, each in place of a waiting fact under its subject,
-	 *  predicate and graph, and returns that replace. Once it starts, the facts that arrive wait for the replace after it. */
-	private hold(quads: readonly TQuad[]): Promise<void> {
-		if (quads.length === 0) return Promise.resolve();
-		if (this.waiting === undefined) {
-			const facts = new Map<string, TQuad>();
-			const replace = () => {
-				this.waiting = undefined;
-				return this.replace([...facts.values()]);
-			};
-			this.waiting = { facts, written: this.inTurn(replace) };
-		}
-		for (const quad of quads) this.waiting.facts.set(spgKey(quad), quad);
-		return this.waiting.written;
-	}
-
 	/** The rows the database holds under each quad's subject, predicate and graph, read in one transaction. */
 	private held(quads: readonly Omit<TQuad, "timestamp">[]): Promise<THeld[] | undefined> {
 		return this.read((store) =>
@@ -138,10 +122,6 @@ export class IndexedDbQuads implements TDeviceQuads {
 		if (counted === undefined) return { held: 0, bound: this.bound, dropped: 0 };
 		const [held, dropped] = counted;
 		return { held, bound: this.bound, dropped: typeof dropped === "number" ? dropped : 0 };
-	}
-
-	set(subject: string, predicate: string, object: unknown, namedGraph: string, properties?: Record<string, unknown>): Promise<void> {
-		return this.hold([{ subject, predicate, object, namedGraph, timestamp: Date.now(), properties }]);
 	}
 
 	async get(subject: string, predicate: string, namedGraph?: string): Promise<unknown | undefined> {
@@ -203,9 +183,21 @@ export class IndexedDbQuads implements TDeviceQuads {
 		return heldOrEmpty(rows);
 	}
 
-	/** Hold each fact, replacing what is held under its subject, predicate and graph. A page reloaded over what it held doesn't
-	 *  rewrite a fact the device holds as it is, so the device's other reads don't queue behind a rewrite. */
+	/** Holds each fact, replacing what is held under its subject, predicate and graph. A page reloaded over what it held doesn't
+	 *  rewrite a fact the device holds as it is, so the device's other reads don't queue behind a rewrite. The facts wait for the
+	 *  next replace, each in place of a waiting fact under its subject, predicate and graph, and the replace is returned. Once it
+	 *  starts, the facts that arrive wait for the replace after it. */
 	setMany(quads: TQuad[]): Promise<void> {
-		return this.hold(quads);
+		if (quads.length === 0) return Promise.resolve();
+		if (this.waiting === undefined) {
+			const facts = new Map<string, TQuad>();
+			const replace = () => {
+				this.waiting = undefined;
+				return this.replace([...facts.values()]);
+			};
+			this.waiting = { facts, written: this.inTurn(replace) };
+		}
+		for (const quad of quads) this.waiting.facts.set(spgKey(quad), quad);
+		return this.waiting.written;
 	}
 }

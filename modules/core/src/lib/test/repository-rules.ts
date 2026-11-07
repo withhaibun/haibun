@@ -10,7 +10,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { expectWithinBaseline, REPOSITORY_SCAN_MS } from "./baseline.js";
-import { adapterAssertionFindings, codeKindFindings, UNPOSITIONED } from "./code-kinds.js";
+import { adapterAssertionFindings, codeKindFindings, privateImportFindings, UNPOSITIONED, type TPrivateModules } from "./code-kinds.js";
 import { composeFiles, defaultFindings } from "./default-rules.js";
 import { brokenPaths, linksAndParentPaths, optionAssignments, trackedFiles, untrackedRecords } from "./group-rules.js";
 import { proseFindings } from "./prose-baseline.js";
@@ -45,6 +45,8 @@ export type TRepositoryRules = {
 	codeSamples: readonly string[];
 	/** The workspace packages by name, through which one package imports another. */
 	packages: TPackages;
+	/** Each module private to an adapter, such as a store's writer, with the modules that may import it. */
+	privateModules?: TPrivateModules;
 	/** The roots of the steppers the step rules read. */
 	stepperRoots: readonly string[];
 	/** The steps whose pattern selects what they act on with a word a list operation also uses, each with why it isn't a list's. */
@@ -84,6 +86,16 @@ export function describeRepositoryRules(rules: TRepositoryRules): void {
 				const fix = `move a file that ${UNPOSITIONED} into its kind's directory, and import only the kinds its row of haibun's docs/architecture.md lists`;
 				await expectWithinBaseline({ baselineFile: baseline("code-kinds"), found: codeKindFindings(repository, { sources, packages: rules.packages }), testFile, fix });
 			});
+
+			const { privateModules } = rules;
+			if (privateModules !== undefined)
+				it("imports a module private to an adapter, such as a store's writer, only from the modules that adapter names", () => {
+					expect(
+						Object.keys(privateModules).filter((path) => !sources.has(path)),
+						"each private module is a source the rules read",
+					).toEqual([]);
+					expect(privateImportFindings(repository, { sources, packages: rules.packages }, privateModules)).toEqual([]);
+				});
 
 			it("parses what an adapter reads with its domain's schema, and doesn't assert a type with `as`, apart from what adapter-assertions.baseline.json records", async () => {
 				const fix = "parse the value with its domain's schema, as core's json-text.ts parses a stored record, and use the parsed value";

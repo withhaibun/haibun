@@ -100,10 +100,10 @@ describe("what a run logged, as a record", () => {
 		const held = new Promise<void>((release) => {
 			finish = release;
 		});
-		const writes = store.upsertIndividual.bind(store);
-		store.upsertIndividual = async (label: string, data: unknown) => {
+		const writes = store.write.bind(store);
+		store.write = async (unit) => {
 			await held;
-			return await writes(label, data);
+			return await writes(unit);
 		};
 		const monitor = monitorOver(store, WARNINGS.IGNORED);
 		monitor.onEvent(said({ message: "said just before the feature ends" }));
@@ -121,7 +121,7 @@ describe("what a run logged, as a record", () => {
 	it("reports a record write that fails once on the console, doesn't record the report, and fails the end of the feature", async () => {
 		const REFUSED = "the store refuses the write";
 		let writes = 0;
-		store.upsertIndividual = () => {
+		store.write = () => {
 			writes += 1;
 			return Promise.reject(new Error(REFUSED));
 		};
@@ -135,14 +135,14 @@ describe("what a run logged, as a record", () => {
 	});
 
 	it("doesn't record what a refused write logs, stops writing once the store closes while logs keep arriving, and reports that once", async () => {
-		const write = store.upsertIndividual.bind(store);
+		const write = store.write.bind(store);
 		let closed = false;
 		let writes = 0;
 		let logged: (message: string) => void = () => undefined;
 		// A store whose engine logs each statement it refuses, as an instrumented engine logs a failed query.
-		store.upsertIndividual = (...args) => {
+		store.write = (unit) => {
 			writes += 1;
-			if (!closed) return write(...args);
+			if (!closed) return write(unit);
 			logged(`refused write ${writes}`);
 			return Promise.reject(new StoreClosingError("a write"));
 		};

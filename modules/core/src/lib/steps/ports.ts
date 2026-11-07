@@ -19,6 +19,7 @@ import type {
 	TRecordsPage,
 	TRecordType,
 } from "./domains/quad-types.js";
+import type { TRemoval, TUnit } from "../records/domains/unit.js";
 
 /** A subscriber of the events hub. It receives each event once the hub has obscured its secrets and stated its level. */
 export type TEventSubscriber = (event: THaibunEvent) => void;
@@ -64,23 +65,22 @@ export interface IQuadStore {
 	 *  authoritative for, so it skips such a store: its records are the serving instance's own, in that instance's report. */
 	readonly isRemote?: boolean;
 
-	/** Writes a value, replacing the quad of the same subject, predicate and named graph. */
-	set(subject: string, predicate: string, object: unknown, namedGraph: string, properties?: Record<string, unknown>): Promise<void>;
+	/** Writes a unit in one operation: its record, its edges and the units it owns, each record at the level the store's rule
+	 *  states, and returns the id of the unit's record. A unit the store refuses isn't written, and a reader reads each unit
+	 *  whole or not at all. */
+	write(unit: TUnit): Promise<string>;
+
+	/** Removes what `removal` names: a record with the units it owns, one of its fields, or one of its edges. */
+	remove(removal: TRemoval): Promise<void>;
 
 	/** Reads the most recent value of a subject and a predicate. */
 	get(subject: string, predicate: string, namedGraph?: string): Promise<unknown | undefined>;
-
-	/** Adds a quad without replacing a quad of the same subject and predicate. */
-	add(quad: Omit<TQuad, "timestamp">): Promise<void>;
 
 	/** Reads the quads a pattern matches. */
 	query(pattern: TQuadPattern): Promise<TQuad[]>;
 
 	/** Removes the quads of a named graph, or every quad this store holds in its own layer. */
 	clear(namedGraph?: string): Promise<void>;
-
-	/** Removes the quads a pattern matches. */
-	remove(pattern: TQuadPattern): Promise<void>;
 
 	/** Reads every quad. */
 	all(): Promise<TQuad[]>;
@@ -95,9 +95,6 @@ export interface IQuadStore {
 	 *  label and parses what it receives with the schema. */
 	readRecord<S extends z.ZodType>(type: TRecordType<S>, id: string, accessLevel?: AccessQueryLevel): Promise<z.output<S> | undefined>;
 
-	/** Writes and deletes one record. The named graph is the record's persisted type. */
-	upsertIndividual(label: string, data: unknown): Promise<string>;
-	deleteIndividual(label: string, id: string): Promise<void>;
 	/** Returns the distinct values of a property, in order, up to `COUNT_CEILING`, and states where the count stopped. */
 	distinctPropertyValues(label: string, property: string): Promise<TDistinctValues>;
 
@@ -113,19 +110,6 @@ export interface IQuadStore {
 	 * it, so a view doesn't show a node its reader can't open.
 	 */
 	getClusteredQuads(opts: TClusteredQuadsOpts): Promise<TClusteredQuads>;
-
-	/**
-	 * Writes one edge between two records. A store with a graph engine writes the edge as a relationship a query walks, in
-	 * place of a property. The in-memory store writes an edge as a quad, and a caller writes it through `add` where a store
-	 * doesn't implement this method. A second write of the same edge doesn't add another.
-	 */
-	createEdge?(fromLabel: string, fromId: string, edgeLabel: string, toLabel: string, toId: string): Promise<void>;
-	/**
-	 * Writes an edge to a target that the store may not hold. A store that keeps edges strictly writes a reference in place
-	 * of an absent target, and a later write of the target replaces it. The write doesn't state whether the store held the
-	 * target, so a caller that doesn't hold a read action writes it.
-	 */
-	referenceEdge?(fromLabel: string, fromId: string, edgeLabel: string, toLabel: string, toId: string): Promise<void>;
 }
 
 /**

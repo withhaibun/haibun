@@ -313,7 +313,7 @@ describe("an individual the page holds a copy of", () => {
 	const pageHolding = async (answer: () => unknown) => {
 		setupShuTest({ dispatch: answer });
 		const store = storeDeclaring({ Email: { filters: ["folder"] } });
-		await store.upsertIndividual("Email", { id: "a", folder: "INBOX" });
+		await store.write({ label: "Email", record: { id: "a", folder: "INBOX" } });
 		installGraph(store);
 		declareRegistry(stepsShown([READ], {}, catalogOf({ types: ["Email"], rels: { Email: { folder: LinkRelations.CONTEXT.rel } } })));
 	};

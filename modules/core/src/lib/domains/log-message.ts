@@ -37,7 +37,7 @@ export const LOG_MESSAGE_EDGE = {
 } as const;
 
 // Non-strict for the same reason as SeqPathSchema. `isPartOf` is declared as an edge, and the writer sends it in the same
-// upsert as the properties. A strict schema would reject `isPartOf` before upsertIndividual routes it to an edge.
+// write as the properties. A strict schema would reject `isPartOf` before the store's write routes it to an edge.
 export const LogMessageSchema = PersistedVertexSchema.extend({
 	[LOG_MESSAGE_FIELD.id]: z.string(),
 	[LOG_MESSAGE_FIELD.message]: z.string(),

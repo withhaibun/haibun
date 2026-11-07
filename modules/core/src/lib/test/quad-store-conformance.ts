@@ -16,6 +16,7 @@ import { GraphQuerySchema, VIA_FIELD, type TQuad, type TSearchCondition } from "
 import { type IQuadStore } from "../steps/ports.js";
 import { COUNT_CEILING, MAX_PAGE_ROWS, readInPages } from "../domains/hypermedia.js";
 import { Access, AccessLevelSchema, EDGE, LinkRelations, type TRegisteredDomain } from "../domains/resources.js";
+import { EDGE_TARGET, edgesFrom } from "../records/domains/unit.js";
 
 /** The types the suite declares. */
 export const CONFORMANCE_TYPES = { comment: "Comment", issue: "Issue" } as const;
@@ -111,8 +112,8 @@ export function describeQuadStore(
 		});
 
 		it("reads back what it was given, by subject and by named graph", async () => {
-			await store.set("c1", "content", "hello", GRAPH);
-			await store.set("c1", "author", "did:example:a", GRAPH);
+			await store.write({ label: GRAPH, record: { id: "c1", content: "hello" } });
+			await store.write({ label: GRAPH, id: "c1", fields: { author: "did:example:a" } });
 			expect(await store.get("c1", "content", GRAPH)).toBe("hello");
 			// A store with a schema holds the fields the type declares, and a store without one holds the fields written. Both
 			// hold the facts set here.
@@ -123,15 +124,15 @@ export function describeQuadStore(
 		});
 
 		it("replaces a fact set again, and doesn't add a second row for it", async () => {
-			await store.set("c1", "content", "first", GRAPH);
-			await store.set("c1", "content", "second", GRAPH);
+			await store.write({ label: GRAPH, record: { id: "c1", content: "first" } });
+			await store.write({ label: GRAPH, id: "c1", fields: { content: "second" } });
 			expect((await store.query({ subject: "c1", predicate: "content", namedGraph: GRAPH })).length).toBe(1);
 			expect(await store.get("c1", "content", GRAPH)).toBe("second");
 		});
 
 		it("keeps named graphs apart: the same subject and predicate in two graphs are two facts", async () => {
-			await store.set("x", "content", "in the first", GRAPH);
-			await store.set("x", "content", "in the second", OTHER);
+			await store.write({ label: GRAPH, record: { id: "x", content: "in the first" } });
+			await store.write({ label: OTHER, record: { id: "x", content: "in the second" } });
 			expect(await store.get("x", "content", GRAPH)).toBe("in the first");
 			expect(await store.get("x", "content", OTHER)).toBe("in the second");
 		});
@@ -144,9 +145,9 @@ export function describeQuadStore(
 		it(
 			keyed ? "matches a pattern by its key, and refuses one without a key or a read of every quad" : "matches a pattern on any of subject, predicate, object and named graph",
 			async () => {
-				await store.set("a", "content", "one", GRAPH);
-				await store.set("a", "author", "did:example:a", GRAPH);
-				await store.set("b", "content", "one", OTHER);
+				await store.write({ label: GRAPH, record: { id: "a", content: "one" } });
+				await store.write({ label: GRAPH, id: "a", fields: { author: "did:example:a" } });
+				await store.write({ label: OTHER, record: { id: "b", content: "one" } });
 				expect((await store.query({ subject: "a", predicate: "author" })).length).toBe(1);
 				expect((await store.query({ subject: "b", namedGraph: OTHER, predicate: "content" })).length).toBe(1);
 				if (keyed) {
@@ -162,12 +163,10 @@ export function describeQuadStore(
 		);
 
 		it("reads the records whose relation reaches a record, by that record's id", async () => {
-			await store.upsertIndividual(ISSUE, { id: "i1", accessLevel: Access.public });
-			await store.upsertIndividual(COMMENT, { id: "c1", content: "about it", accessLevel: Access.public });
-			await store.upsertIndividual(COMMENT, { id: "c2", content: "about something else", accessLevel: Access.public });
-			await (store.createEdge
-				? store.createEdge(COMMENT, "c1", ABOUT, ISSUE, "i1")
-				: store.add({ subject: "c1", predicate: ABOUT, object: "i1", namedGraph: COMMENT, objectType: ISSUE }));
+			await store.write({ label: ISSUE, record: { id: "i1", accessLevel: Access.public } });
+			await store.write({ label: COMMENT, record: { id: "c1", content: "about it", accessLevel: Access.public } });
+			await store.write({ label: COMMENT, record: { id: "c2", content: "about something else", accessLevel: Access.public } });
+			await store.write(edgesFrom(COMMENT, "c1", { rel: ABOUT, label: ISSUE, id: "i1", target: EDGE_TARGET.held }));
 			expect((await store.query({ predicate: ABOUT, object: "i1", namedGraph: COMMENT })).map((q) => q.subject)).toEqual(["c1"]);
 		});
 
@@ -175,7 +174,7 @@ export function describeQuadStore(
 			const at = (minute: number): string => new Date(Date.UTC(2026, 0, 1, 0, minute)).toISOString();
 			const span = { label: GRAPH, timeField: "generatedAtTime", groupBy: "status", from: at(0), to: at(60), filters: [] as TSearchCondition[] };
 			const held = async (records: Array<{ id: string; minute: number; status?: string }>): Promise<void> => {
-				for (const r of records) await store.upsertIndividual(GRAPH, { id: r.id, generatedAtTime: at(r.minute), ...(r.status === undefined ? {} : { status: r.status }) });
+				for (const r of records) await store.write({ label: GRAPH, record: { id: r.id, generatedAtTime: at(r.minute), ...(r.status === undefined ? {} : { status: r.status }) } });
 			};
 
 			// The result holds the stated count of buckets whatever the span holds, so a read of a decade reads as much as a
@@ -219,18 +218,18 @@ export function describeQuadStore(
 		});
 
 		it("removes what a pattern names, and doesn't remove another quad", async () => {
-			await store.set("a", "content", "one", GRAPH);
-			await store.set("b", "content", "two", GRAPH);
-			await store.set("c", "content", "three", OTHER);
-			await store.remove({ subject: "a", namedGraph: GRAPH });
+			await store.write({ label: GRAPH, record: { id: "a", content: "one" } });
+			await store.write({ label: GRAPH, record: { id: "b", content: "two" } });
+			await store.write({ label: OTHER, record: { id: "c", content: "three" } });
+			await store.remove({ label: GRAPH, id: "a" });
 			expect(await store.get("a", "content", GRAPH), "the named quad is removed").toBeUndefined();
 			expect(await store.get("b", "content", GRAPH), "another quad is unchanged").toBe("two");
 			expect(await store.get("c", "content", OTHER)).toBe("three");
 		});
 
 		it(discards ? "discards one named graph, or every graph" : "keeps every graph after a clear of one named graph", async () => {
-			await store.set("a", "content", "one", GRAPH);
-			await store.set("c", "content", "three", OTHER);
+			await store.write({ label: GRAPH, record: { id: "a", content: "one" } });
+			await store.write({ label: OTHER, record: { id: "c", content: "three" } });
 			await store.clear(GRAPH);
 			if (!discards) {
 				expect(await store.get("a", "content", GRAPH), "the cleared graph").toBe("one");
@@ -245,14 +244,13 @@ export function describeQuadStore(
 		describe("samples each type's records in the order of their containment", () => {
 			const at = (minute: number): string => new Date(Date.UTC(2026, 0, 1, 0, minute)).toISOString();
 			/** Writes a public record of `label` generated at `minute`. */
-			const hold = (label: string, id: string, minute: number): Promise<string> => store.upsertIndividual(label, { id, generatedAtTime: at(minute), accessLevel: Access.public });
-			/** Writes the edge from an issue to the issue that contains it. A store without `createEdge` holds an edge as a quad that states its object's type. */
-			const partOf = (part: string, whole: string): Promise<void> =>
-				store.createEdge
-					? store.createEdge(ISSUE, part, PART_OF, ISSUE, whole)
-					: store.add({ subject: part, predicate: PART_OF, object: whole, namedGraph: ISSUE, objectType: ISSUE });
+			const hold = (label: string, id: string, minute: number): Promise<string> =>
+				store.write({ label: label, record: { id, generatedAtTime: at(minute), accessLevel: Access.public } });
+			/** Writes the edge from an issue to the issue that contains it. */
+			const partOf = (part: string, whole: string): Promise<string> => store.write(edgesFrom(ISSUE, part, { rel: PART_OF, label: ISSUE, id: whole, target: EDGE_TARGET.held }));
 			/** Writes an issue's edge to an issue the store doesn't hold. A store that keeps edges strictly holds a reference in its place. */
-			const partOfAbsent = (part: string, whole: string): Promise<void> => (store.referenceEdge ? store.referenceEdge(ISSUE, part, PART_OF, ISSUE, whole) : partOf(part, whole));
+			const partOfAbsent = (part: string, whole: string): Promise<string> =>
+				store.write(edgesFrom(ISSUE, part, { rel: PART_OF, label: ISSUE, id: whole, target: EDGE_TARGET.reference }));
 
 			it("holds each issue after the issue it is part of, the issues with parts before the leaves, and counts the parts it leaves out under each", async () => {
 				const parts = { "part-1": { minute: 1, leaves: [2, 3, 4] }, "part-2": { minute: 5, leaves: [6, 7, 8] } };
@@ -292,15 +290,13 @@ export function describeQuadStore(
 			const TIME = "2026-01-01T00:00:00.000Z";
 			/** Writes comments that state one time and the issue they reach. A comment is public unless `privately` names it. */
 			const held = async (comments: readonly string[], privately: readonly string[] = []): Promise<void> => {
-				await store.upsertIndividual(ISSUE, { id: "i1", generatedAtTime: TIME, accessLevel: Access.public });
+				await store.write({ label: ISSUE, record: { id: "i1", generatedAtTime: TIME, accessLevel: Access.public } });
 				for (const id of comments)
-					await store.upsertIndividual(COMMENT, { id, generatedAtTime: TIME, status: "open", accessLevel: privately.includes(id) ? Access.private : Access.public });
+					await store.write({ label: COMMENT, record: { id, generatedAtTime: TIME, status: "open", accessLevel: privately.includes(id) ? Access.private : Access.public } });
 			};
-			/** Writes an edge from a comment to the issue. A store without `createEdge` holds an edge as a quad that states its object's type. */
-			const relate = (from: string, relation: string): Promise<void> =>
-				store.createEdge
-					? store.createEdge(COMMENT, from, relation, ISSUE, "i1")
-					: store.add({ subject: from, predicate: relation, object: "i1", namedGraph: COMMENT, objectType: ISSUE });
+			/** Writes an edge from a comment to the issue. */
+			const relate = (from: string, relation: string): Promise<string> =>
+				store.write(edgesFrom(COMMENT, from, { rel: relation, label: ISSUE, id: "i1", target: EDGE_TARGET.held }));
 
 			it("rejects a limit or a perType of 0 and of MAX_PAGE_ROWS + 1, and a count ceiling above COUNT_CEILING", async () => {
 				for (const size of [0, MAX_PAGE_ROWS + 1]) {

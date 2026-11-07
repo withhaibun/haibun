@@ -26,6 +26,7 @@ import { z } from "zod";
 import { FRAGMENT_SPEC } from "./domains/media-fragments.js";
 import type { TLinkVocabulary } from "./domains/typed-links.js";
 import { itemAt } from "./domains/item-at.js";
+import { EDGE_TARGET, edgesFrom } from "./records/domains/unit.js";
 
 // A registered fixture type, as a consumer would declare one. Statements connect records of registered types only.
 const REPORT = "FieldReport";
@@ -58,7 +59,7 @@ describe("readTypedLinks", () => {
 	beforeEach(async () => {
 		store = storeDeclaring(DECLARED);
 		// A statement is made about a record that exists, so every record a test's text refers to is here first.
-		for (const id of [source.id, "spec-1", "gone-1", "stays-1", "by-hand-1"]) await store.upsertIndividual(REPORT, { id, generatedAtTime: "2026-07-01T00:00:00.000Z" });
+		for (const id of [source.id, "spec-1", "gone-1", "stays-1", "by-hand-1"]) await store.write({ label: REPORT, record: { id, generatedAtTime: "2026-07-01T00:00:00.000Z" } });
 	});
 
 	it("states a link between two records as an edge", async () => {
@@ -112,7 +113,7 @@ describe("readTypedLinks", () => {
 
 	it("retracts exactly the previous reading when the text is rewritten", async () => {
 		await readTypedLinks(store, vocab, source, "[the old one:cites](#FieldReport:gone-1) and [that clause:cites](#FieldReport:spec-1:~:text=a%20clause)");
-		await store.createEdge(REPORT, source.id, LinkRelations.MENTIONS.rel, REPORT, "by-hand-1");
+		await store.write(edgesFrom(REPORT, source.id, { rel: LinkRelations.MENTIONS.rel, label: REPORT, id: "by-hand-1", target: EDGE_TARGET.held }));
 		await readTypedLinks(store, vocab, source, "[the one that stays:cites](#FieldReport:stays-1)");
 		expect(await edgesOf(store, source.id, LinkRelations.CITES.rel)).toEqual(["stays-1"]);
 		expect(await edgesOf(store, source.id, LinkRelations.MENTIONS.rel)).toEqual(["by-hand-1"]);
@@ -142,7 +143,7 @@ describe("readTypedLinks", () => {
 describe("a note's own links", () => {
 	it("states a cross-record link from the note that made it", async () => {
 		const store = storeDeclaring(DECLARED);
-		await store.upsertIndividual(REPORT, { id: "spec-1", generatedAtTime: "2026-07-01T00:00:00.000Z" });
+		await store.write({ label: REPORT, record: { id: "spec-1", generatedAtTime: "2026-07-01T00:00:00.000Z" } });
 		const commentId = await createComment(
 			store,
 			vocab,

@@ -106,7 +106,7 @@ export class QuadGraphModel {
 		for (const q of quads) {
 			const key = quadKey(q);
 			const existingIdx = this.quadIndex.get(key);
-			// The stream can emit the same fact twice: a property quad on upsert and the edge quad on createEdge.
+			// The stream can emit the same fact twice: a property quad of a record's write and the edge quad of its unit.
 			// Replacing in place keeps the later quad.
 			if (existingIdx !== undefined) {
 				this.quads[existingIdx] = q;

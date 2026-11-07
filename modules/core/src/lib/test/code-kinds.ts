@@ -205,6 +205,25 @@ export function codeKindFindings(repository: string, { sources, packages }: TCod
 	});
 }
 
+/** The finding of an import of a module that is private to its adapter. */
+const importsPrivate = (specifier: string) => `imports a module private to its adapter: ${specifier}`;
+
+/** Each module that is private to an adapter, by its path from the repository's root, with the modules that may import it: its
+ *  adapter and the modules of its own operation. A store's writer is such a module, so every write reaches the store through
+ *  the adapter's one write operation. */
+export type TPrivateModules = Readonly<Record<string, readonly string[]>>;
+
+/** The value imports of each module that `privateTo` names, from a module it doesn't list. */
+export function privateImportFindings(repository: string, { sources, packages }: TCodeScope, privateTo: TPrivateModules): TFound[] {
+	return [...sources].flatMap(([file, source]) =>
+		importsOf(source).flatMap(({ specifier, typeOnly, line }): TFound[] => {
+			const target = typeOnly ? undefined : resolvedSource(repository, file, specifier, packages);
+			const importers = target === undefined ? undefined : privateTo[target];
+			return importers === undefined || importers.includes(file) ? [] : [{ file, finding: importsPrivate(specifier), line }];
+		}),
+	);
+}
+
 /** The finding of a type an adapter asserts on a value, which its schema doesn't parse. */
 export const ASSERTS_A_TYPE = "asserts a type with `as` where a schema parses the value";
 

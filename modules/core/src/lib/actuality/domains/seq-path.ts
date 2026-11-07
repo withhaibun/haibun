@@ -280,7 +280,7 @@ export const SEQ_PATH_EDGE = {
 // Non-strict: emitSeqPathStart writes isPartOf, precededBy and performedBy in the
 // same upsert as the individual properties. The topology declares them as edges,
 // and the start record inlines them. Strict mode would reject those keys before
-// upsertIndividual routes them. CommentSchema and BodySchema are non-strict for
+// the store's write routes them. CommentSchema and BodySchema are non-strict for
 // the same reason.
 /** Where a step ran: in this process, or on another host. */
 const RAN_VIA = ["local", "remote"] as const;

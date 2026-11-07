@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { adapterAssertionFindings, ASSERTS_A_TYPE, codeKindFindings, kindOf, UNPOSITIONED } from "./code-kinds.js";
+import { adapterAssertionFindings, ASSERTS_A_TYPE, codeKindFindings, kindOf, privateImportFindings, UNPOSITIONED } from "./code-kinds.js";
 import { parsedSources } from "./repository-files.js";
 
 const PIPELINE = "src/area/pipelines/read.ts";
@@ -212,5 +212,28 @@ describe("an adapter's type assertions", () => {
 		const source = "const a = JSON.parse('1') as number;\nconst b = JSON.parse('2') as unknown as string;\nconst c = [1] as const;\n";
 		expect(assertionsOf(ADAPTER, source)).toEqual([ASSERTS_A_TYPE, ASSERTS_A_TYPE]);
 		expect(assertionsOf(PIPELINE, source)).toEqual([]);
+	});
+});
+
+describe("the imports of a module private to an adapter", () => {
+	const WRITER = "src/area/adapters/writer.ts";
+	const privateOf = (sources: Record<string, string>): string[] => {
+		const repository = mkdtempSync(join(tmpdir(), "haibun-code-kinds-"));
+		made.push(repository);
+		for (const [path, source] of Object.entries(sources)) {
+			mkdirSync(join(repository, dirname(path)), { recursive: true });
+			writeFileSync(join(repository, path), source);
+		}
+		const scope = { sources: parsedSources(repository, Object.keys(sources)), packages: PACKAGES };
+		return privateImportFindings(repository, scope, { [WRITER]: [ADAPTER] }).map(({ file, finding }) => `${file} ${finding}`);
+	};
+
+	it("refuses an import of a store's writer from a module other than its adapter, and leaves its adapter's import and a type import alone", () => {
+		const sources = {
+			[WRITER]: "export const write = 1;\nexport type TWritten = number;\n",
+			[ADAPTER]: 'import { write } from "./writer.js";\nexport const store = write;\n',
+			[PIPELINE]: 'import { write } from "../adapters/writer.js";\nimport type { TWritten } from "../adapters/writer.js";\nexport const read = write;\n',
+		};
+		expect(privateOf(sources)).toEqual([`${PIPELINE} imports a module private to its adapter: ../adapters/writer.js`]);
 	});
 });

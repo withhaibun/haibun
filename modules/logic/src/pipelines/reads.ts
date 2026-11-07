@@ -66,10 +66,11 @@ export function readerOf(store: IQuadStore, asOf?: readonly number[]): TReader {
 export const recordsWhere = (store: IQuadStore, label: string, field: string, value: string): Promise<Record<string, unknown>[]> =>
 	readEvery(store, { label, filters: equalTo({ [field]: value }) });
 
-/** Writes a subject's facts in a graph, each field that holds a value, at the read level of its caller so the caller reads
+/** Writes a subject's facts in a graph as one record, each field that holds a value, at the read level of its caller so the caller reads
  *  them back. A write outside a call is actuality's own, which reads at private. */
 export async function writeFacts(store: IQuadStore, subject: string, namedGraph: string, fields: Record<string, unknown>): Promise<void> {
 	const ceiling = readingAt();
 	const accessLevel = ceiling === undefined ? Access.private : ceiling;
-	for (const { predicate, object } of observedOf(subject, fields)) await store.add({ subject, predicate, object, namedGraph, accessLevel });
+	const facts = Object.fromEntries(observedOf(subject, fields).map(({ predicate, object }) => [predicate, object]));
+	await store.write({ label: namedGraph, record: { id: subject, ...facts, accessLevel } });
 }

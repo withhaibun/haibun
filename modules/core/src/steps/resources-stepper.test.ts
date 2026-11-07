@@ -25,7 +25,7 @@ describe("ResourcesStepper comment (reply-threaded)", () => {
 
 	it("comment creates an individual and a narrate (reply) edge that grounds it", async () => {
 		const store = world.shared.getStore();
-		await store.upsertIndividual("Letter", { id: "letter-1", subject: "Test", accessLevel: Access.private });
+		await store.write({ label: "Letter", record: { id: "letter-1", subject: "Test", accessLevel: Access.private } });
 
 		const result = await stepper.steps.comment.action({ label: "Letter", id: "letter-1", text: "A note" });
 		expect(result.ok).toBe(true);
@@ -40,7 +40,7 @@ describe("ResourcesStepper comment (reply-threaded)", () => {
 
 	it("a top-level comment's conversation root is the subject it is about", async () => {
 		const store = world.shared.getStore();
-		await store.upsertIndividual("Letter", { id: "letter-1", subject: "Test", accessLevel: Access.private });
+		await store.write({ label: "Letter", record: { id: "letter-1", subject: "Test", accessLevel: Access.private } });
 
 		const result = await stepper.steps.comment.action({ label: "Letter", id: "letter-1", text: "A note" });
 		expect(result.products?.contextRoot).toBe("letter-1");
@@ -48,7 +48,7 @@ describe("ResourcesStepper comment (reply-threaded)", () => {
 
 	it("a reply's conversation root is walked up the reply chain", async () => {
 		const store = world.shared.getStore();
-		await store.upsertIndividual("Letter", { id: "root-letter", subject: "Root", accessLevel: Access.private });
+		await store.write({ label: "Letter", record: { id: "root-letter", subject: "Root", accessLevel: Access.private } });
 
 		const first = await stepper.steps.comment.action({ label: "Letter", id: "root-letter", text: "First" });
 		const reply = await stepper.steps.comment.action({ label: "Comment", id: first.products?.commentId as string, text: "A reply to the first" });
@@ -62,7 +62,7 @@ describe("ResourcesStepper typed links in a feature's prose", () => {
 	const worldHoldingPassage = async () => {
 		const world = getTestWorldWithOptions();
 		const body = { id: "practice", content: PASSAGE, mediaType: MEDIA_TYPE.markdown, generatedAtTime: new Date(0).toISOString(), accessLevel: Access.public };
-		await world.shared.getStore().upsertIndividual(BODY_LABEL, body);
+		await world.shared.getStore().write({ label: BODY_LABEL, record: body });
 		return world;
 	};
 

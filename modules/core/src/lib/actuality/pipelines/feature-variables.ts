@@ -29,6 +29,7 @@ import { EDGE, SEQ_PATH_LABEL, declaredAccessLevel } from "../../domains/resourc
 import { actualityFeatureOf, formatRecordName } from "../domains/seq-path.js";
 import { IQuadStore } from "../../steps/ports.js";
 import { quadObservation, SHARED_GRAPH } from "../../steps/domains/quad-types.js";
+import { EDGE_TARGET } from "../../records/domains/unit.js";
 
 export { SHARED_GRAPH };
 
@@ -147,7 +148,7 @@ export class FeatureVariables {
 	}
 
 	async unset(name: string) {
-		await this.store.remove({ subject: name, namedGraph: SHARED_GRAPH });
+		await this.store.remove({ label: SHARED_GRAPH, id: name });
 		this.secretValues.delete(name);
 	}
 
@@ -416,9 +417,7 @@ export class FeatureVariables {
 			...(sv.readonly ? { [VARIABLE_FIELD.readonly]: true } : {}),
 			...(secret ? { [VARIABLE_FIELD.secret]: true } : {}),
 		};
-		await Promise.all([
-			this.store.upsertIndividual(SHARED_GRAPH, record),
-			...generatedBy.map((step) => this.store.createEdge(SHARED_GRAPH, name, EDGE.wasGeneratedBy, SEQ_PATH_LABEL, step)),
-		]);
+		const edges = generatedBy.map((step) => ({ rel: EDGE.wasGeneratedBy, label: SEQ_PATH_LABEL, id: step, target: EDGE_TARGET.held }));
+		await this.store.write({ label: SHARED_GRAPH, record, edges });
 	}
 }

@@ -9,7 +9,7 @@ import { recordOfIri } from "@haibun/core/lib/records/derivations/record-iri.js"
  *  same quads a single upsert would have written. A record's identity is the id its served `@id` states, read back through
  *  recordOfIri, else the `id` it states: the page holds what a site serves and what a site records, and both are one record.
  *  The served `@id` is held with the record, and a read states it again; the page doesn't derive an `@id`. */
-export function individualAsQuads(label: string, individual: Record<string, unknown>): [string, TQuad[]] {
+export function individualAsQuads(label: string, individual: Readonly<Record<string, unknown>>): [string, TQuad[]] {
 	const named = recordOfIri(individual["@id"]);
 	const id = named === undefined ? individual.id : named.id;
 	if (typeof id !== "string") throw new Error(`this individual doesn't state an identity to hold it by (got ${JSON.stringify(individual["@id"] ?? individual.id)}).`);

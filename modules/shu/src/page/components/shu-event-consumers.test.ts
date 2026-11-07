@@ -64,9 +64,9 @@ const SEQ_PATH_OPENS = { [SEQ_PATH_LABEL]: { component: SHU_TAG.STEP_DETAIL } };
 
 async function anActuality(records: Array<Record<string, unknown>>, said: Array<Record<string, unknown>> = [], produced: Array<Record<string, unknown>> = []): Promise<void> {
 	const store = actualityStore();
-	for (const record of records) await store.upsertIndividual(SEQ_PATH_LABEL, record);
-	for (const record of said) await store.upsertIndividual(LOG_MESSAGE_LABEL, record);
-	for (const record of produced) await store.upsertIndividual(RUN_ARTIFACT_LABEL, record);
+	for (const record of records) await store.write({ label: SEQ_PATH_LABEL, record: record });
+	for (const record of said) await store.write({ label: LOG_MESSAGE_LABEL, record: record });
+	for (const record of produced) await store.write({ label: RUN_ARTIFACT_LABEL, record: record });
 	installGraph(store);
 	declareGraphSpec({ types: [SEQ_PATH_LABEL, LOG_MESSAGE_LABEL, RUN_ARTIFACT_LABEL], rels: ACTUALITY_RELS, ui: SEQ_PATH_OPENS });
 }

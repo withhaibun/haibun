@@ -3,7 +3,6 @@
  * the page holds by the reads it sends the site, so a view offline reads the records the site already served this reader.
  */
 import type { z } from "zod";
-import { RecordSchema } from "@haibun/core/lib/domains/json-text.js";
 import { storeScopeFor, withinAccess, type AccessQueryLevel } from "@haibun/core/lib/domains/resources.js";
 import type { TClusteredQuads, TDensityQuery, TDensityResult, TDistinctValues, TGraphQuery, TQuad, TQuadPattern, TRecordsPage, TRecordType } from "@haibun/core/lib/quad-types.js";
 import { distinctOf, type TReadDeclarations } from "@haibun/core/lib/records/derivations/read-records.js";
@@ -13,6 +12,7 @@ import { densityOverQuadStore } from "@haibun/core/lib/quad-store.js";
 import { sliceQuadsPerType } from "@haibun/core/lib/steps/derivations/quad-sample.js";
 import type { TDeviceGraph, TDeviceQuads, TGraphSaturation } from "../ports.js";
 import { individualAsQuads, levelsOf, subjectKey } from "../derivations/quads.js";
+import { EDGE_TARGET, type TRemoval, type TUnit } from "@haibun/core/lib/records/domains/unit.js";
 
 export class DeviceGraph implements TDeviceGraph {
 	readonly database: string;
@@ -29,16 +29,8 @@ export class DeviceGraph implements TDeviceGraph {
 		return this.quads.saturation();
 	}
 
-	set(subject: string, predicate: string, object: unknown, namedGraph: string, properties?: Record<string, unknown>): Promise<void> {
-		return this.quads.set(subject, predicate, object, namedGraph, properties);
-	}
-
 	get(subject: string, predicate: string, namedGraph?: string): Promise<unknown | undefined> {
 		return this.quads.get(subject, predicate, namedGraph);
-	}
-
-	add(quad: Omit<TQuad, "timestamp">): Promise<void> {
-		return this.quads.add(quad);
 	}
 
 	query(pattern: TQuadPattern): Promise<TQuad[]> {
@@ -49,8 +41,9 @@ export class DeviceGraph implements TDeviceGraph {
 		return this.quads.clear(namedGraph);
 	}
 
-	remove(pattern: TQuadPattern): Promise<void> {
-		return this.quads.remove(pattern);
+	/** Removes what `removal` names: a record's quads, one of its fields, or one of its edges. */
+	remove({ label, id, field, edge }: TRemoval): Promise<void> {
+		return this.quads.remove({ subject: id, namedGraph: label, predicate: field === undefined ? edge?.rel : field, object: edge?.to });
 	}
 
 	all(): Promise<TQuad[]> {
@@ -61,14 +54,23 @@ export class DeviceGraph implements TDeviceGraph {
 		return this.quads.setMany(quads);
 	}
 
-	async upsertIndividual(label: string, data: unknown): Promise<string> {
-		const [id, quads] = individualAsQuads(label, RecordSchema.parse(data));
-		await this.quads.setMany(quads);
+	/** Writes the units a unit owns, then its record, each field in place of the quad of its predicate and a null removing it,
+	 *  then its edges. Returns the id of the unit's record. */
+	async write(unit: TUnit): Promise<string> {
+		const { label, edges, owns } = unit;
+		if (owns !== undefined) for (const owned of owns) await this.write(owned);
+		const [id, quads] = individualAsQuads(label, "record" in unit ? unit.record : { id: unit.id, ...("fields" in unit ? unit.fields : {}) });
+		const held: TQuad[] = [];
+		for (const quad of quads)
+			if (quad.object === null) await this.remove({ label, id, field: quad.predicate });
+			else held.push(quad);
+		await this.quads.setMany(held);
+		if (edges !== undefined)
+			for (const { rel, label: objectType, id: object, target } of edges) {
+				if (target === EDGE_TARGET.only) await this.remove({ label, id, field: rel });
+				await this.quads.add({ subject: id, predicate: rel, object, namedGraph: label, objectType });
+			}
 		return id;
-	}
-
-	deleteIndividual(label: string, id: string): Promise<void> {
-		return this.quads.remove({ subject: id, namedGraph: label });
 	}
 
 	/** Reads a page of the records the device holds, without a search of their text. */

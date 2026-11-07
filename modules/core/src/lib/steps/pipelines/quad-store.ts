@@ -37,6 +37,7 @@ import { distinctOf, readFromRecords, recordsOfQuads, type THeldRecord, type TRe
 import { quadsOfRead, readEvery, type TRecordReader } from "../../records/pipelines/record-reads.js";
 import { QuadLayer } from "../../records/machines/quad-layer.js";
 import { bucketOf, sliceQuadsPerType } from "../derivations/quad-sample.js";
+import { EDGE_TARGET, isReferenced, isWholeRecord, unitsOf, type TRecordName, type TRemoval, type TUnit, type TWholeRecord } from "../../records/domains/unit.js";
 
 /**
  * The backing stores and federated peers that a chain of stores shares by reference. Each store of a scenario and a
@@ -92,6 +93,15 @@ function declaredRecord(schema: z.ZodType, { surface }: TReadDeclaration, label:
 	const edges = Object.entries(recordOf(data, `a ${label} record`)).filter(([field]) => field in surface.references);
 	return { ...schemaRecord(schema, label, data, true), ...Object.fromEntries(edges) };
 }
+
+/** A change of this store's own layer: it removes the quads of a subject that `replaces` selects, and then holds `holds`. */
+type TChange = { namedGraph: string; subject: string; replaces: (held: TQuad) => boolean; holds?: Omit<TQuad, "timestamp"> };
+
+/** Returns the change that holds a quad, after it removes the quads of its subject that `replaces` selects. */
+const holding = (quad: Omit<TQuad, "timestamp">, replaces: (held: TQuad) => boolean): TChange => ({ namedGraph: quad.namedGraph, subject: quad.subject, replaces, holds: quad });
+
+/** Doesn't select a quad, for a change that only adds one. */
+const keepsEvery = (): boolean => false;
 
 export class QuadStore implements IQuadStore {
 	private readonly quads = new QuadLayer();
@@ -180,7 +190,7 @@ export class QuadStore implements IQuadStore {
 		// A store that refuses a record this one holds isn't registered: this one keeps every record it holds, so the
 		// next write of one of them reads it here, and the caller receives the store's refusal.
 		try {
-			for (const { ng, record } of bySubject.values()) await store.upsertIndividual(ng, record);
+			for (const { ng, record } of bySubject.values()) await store.write({ label: ng, record });
 		} catch (err) {
 			this.unregisterStore(store);
 			throw err;
@@ -219,27 +229,122 @@ export class QuadStore implements IQuadStore {
 		return [...new Set(this.chain.routing.values())];
 	}
 
-	/** Writes a batch as one act: each quad replaces any prior quad with the same subject, predicate and named graph, so
-	 *  caching a batch keeps one row per fact rather than appending. The client's store does the same in one transaction. */
+	/** Holds a batch of quads a site served: each quad replaces any prior quad with the same subject, predicate and named graph,
+	 *  so caching a batch keeps one row per fact rather than appending. A quad of a declared type is a field its schema parses
+	 *  or an edge its topology declares. The client's store does the same in one transaction. */
+	// biome-ignore lint/suspicious/useAwait: a write, so a refused level rejects rather than throws, as every write here does
 	async setMany(quads: TQuad[]): Promise<void> {
-		for (const { timestamp: _, ...q } of quads) await this.setQuad(q);
+		const changes = quads.map(({ timestamp: _, ...quad }) => {
+			this.refuseDerived(quad.namedGraph);
+			const declaration = this.declarations?.().of(quad.namedGraph);
+			if (declaration?.schema !== undefined) declaredField(declaration.schema, declaration, quad);
+			return holding(this.classified(quad), (q) => q.predicate === quad.predicate);
+		});
+		this.apply(changes);
 	}
 
-	set(subject: string, predicate: string, object: unknown, namedGraph: string, properties?: Record<string, unknown>): Promise<void> {
-		return this.setQuad({ subject, predicate, object, namedGraph, ...(properties ? { properties } : {}) });
+	/**
+	 * Writes a unit: to the backing store of its record's type, or into this store's own layer. Each change of the unit is
+	 * computed and checked first and then applied without an await, so a reader, a carry at a scenario's end or a backing
+	 * registration during the write never reads a unit that is half written.
+	 */
+	async write(unit: TUnit): Promise<string> {
+		const units = unitsOf(unit);
+		for (const part of units) this.refuseDerived(part.label);
+		const backing = this.storeFor(unit.label);
+		if (backing) return await backing.write(unit);
+		this.apply(units.flatMap((part) => this.changesOf(part)));
+		return this.idOf(unit);
 	}
 
-	// async, as every write here is, so a refused level reaches a caller's .catch rather than throwing out of a method that
-	// returns a promise.
-	private async setQuad(quad: Omit<TQuad, "timestamp">): Promise<void> {
-		this.refuseDerived(quad.namedGraph);
-		const backing = this.storeFor(quad.namedGraph);
-		if (backing) return await backing.set(quad.subject, quad.predicate, quad.object, quad.namedGraph, quad.properties);
-		const declaration = this.declarations?.().of(quad.namedGraph);
-		if (declaration?.schema !== undefined) declaredField(declaration.schema, declaration, quad);
-		const classified = this.classified(quad);
-		this.quads.removeWhere(this.quads.ofSubject(quad.namedGraph, quad.subject), (q) => q.predicate === quad.predicate);
-		this.quads.add({ ...classified, timestamp: Date.now() });
+	/** The id of a unit's record: the id its whole record states, or the id it names. */
+	private idOf(unit: TUnit): string {
+		return isWholeRecord(unit) ? this.identityOf(unit) : unit.id;
+	}
+
+	/** Applies changes in order, without an await between them. */
+	private apply(changes: readonly TChange[]): void {
+		const timestamp = Date.now();
+		for (const { namedGraph, subject, replaces, holds } of changes) {
+			this.quads.removeWhere(this.quads.ofSubject(namedGraph, subject), replaces);
+			if (holds !== undefined) this.quads.add({ ...holds, timestamp });
+		}
+	}
+
+	/** Returns the changes one unit's record and edges make in this store's own layer. Throws for a record its type refuses. */
+	private changesOf(unit: TUnit): TChange[] {
+		const { label } = unit;
+		const declaration = this.declarations?.().of(label);
+		const id = this.idOf(unit);
+		// A quad doesn't require its subject to be held, so a referenced record changes only its edges here.
+		const records = isWholeRecord(unit) ? this.recordChanges(unit, id) : isReferenced(unit) ? [] : this.fieldChanges(label, id, unit.fields);
+		const edges = (unit.edges === undefined ? [] : unit.edges).map(({ rel, label: toLabel, id: toId, target }): TChange => {
+			if (declaration !== undefined) assertDeclaredEdge(declaration.surface, rel);
+			// objectType states the target's type, so the quad reads back as an edge rather than a literal property.
+			const quad = this.classified({ subject: id, predicate: rel, object: toId, namedGraph: label, objectType: toLabel });
+			return holding(quad, target === EDGE_TARGET.only ? (q) => q.predicate === rel : keepsEvery);
+		});
+		return [...records, ...edges];
+	}
+
+	/** The id a whole record states in its type's id field. Throws where the record doesn't state it. */
+	private identityOf({ label, record }: TWholeRecord): string {
+		const idField = this.idFieldOf(label);
+		// The identity is read before it is stringified: String(undefined) is "undefined", which would write the record
+		// under that literal subject, where a read doesn't reach it and the next such record overwrites it.
+		const identity = record[idField];
+		if (identity === undefined || identity === null || String(identity).trim() === "")
+			throw new Error(`a ${label} record is identified by its "${idField}" field, and this record doesn't state it; state the record's ${idField}`);
+		return String(identity);
+	}
+
+	/**
+	 * Returns the changes of a whole record. A record states its level, as every persisted type's record does, and each of its
+	 * quads is held at that level. A write replaces the record's properties and keeps its edges, as a graph store does; a merge
+	 * replaces only the properties it states. A record a name names takes the level of the record that names it, and isn't
+	 * written where this store holds it.
+	 */
+	private recordChanges({ label, record, merge, namedBy }: TWholeRecord, id: string): TChange[] {
+		const held = this.quads.ofSubject(label, id);
+		if (namedBy !== undefined && held.size > 0) return [];
+		const declared = this.levels?.declared(label);
+		const statedLevel = namedBy === undefined ? record.accessLevel : this.levelOf(namedBy);
+		const parsedLevel = statedLevel === undefined ? undefined : AccessLevelSchema.parse(statedLevel);
+		const accessLevel = this.levels ? writtenAt(parsedLevel, declared, this.levels.writeBound()) : parsedLevel;
+		const leveled = declared ? { ...record, accessLevel } : record;
+		const declaration = this.declarations?.().of(label);
+		// A type that declares its schema writes the fields its schema parsed and the edges its topology declares; a type a store
+		// holds without a declaration, such as a test's own, is a record of fields.
+		const validated = declaration?.schema === undefined ? RecordSchema.parse(leveled) : declaredRecord(declaration.schema, declaration, label, leveled);
+		const stated = Object.entries(validated).filter(([, value]) => value !== undefined && value !== null);
+		const replaced: TChange = { namedGraph: label, subject: id, replaces: (q) => !q.objectType && (merge === undefined || q.predicate in validated) };
+		const level = accessLevel ? { accessLevel } : {};
+		return [replaced, ...stated.map(([predicate, object]) => holding({ subject: id, predicate, object, namedGraph: label, ...level }, keepsEvery))];
+	}
+
+	/** Returns the level the record `name` names is held at in this store's own layer. Throws where this store doesn't hold it. */
+	private levelOf({ label, id }: TRecordName): AccessLevel | undefined {
+		const [first] = this.quads.ofSubject(label, id);
+		if (first === undefined) throw new Error(`${label} ${id} isn't recorded, so a record it names can't take its level`);
+		return first.accessLevel;
+	}
+
+	/** Returns the changes of fields of a record: a value replaces the field, and a null removes it. Each field is held at the
+	 *  level the fields state, else at the record's. A field of a declared type is one its schema parses or an edge its topology
+	 *  declares, so a field written alone fits the type as a whole record does. */
+	private fieldChanges(label: string, id: string, fields: Readonly<Record<string, unknown>>): TChange[] {
+		const declaration = this.declarations?.().of(label);
+		const level = fields.accessLevel === undefined || fields.accessLevel === null ? {} : { accessLevel: AccessLevelSchema.parse(fields.accessLevel) };
+		// The level a type's schema doesn't declare as a field is the level of the quads alone, as a whole record's is.
+		const levelField = declaration?.schema === undefined || fieldSchemaOf(declaration.schema, LinkRelations.ACCESS_LEVEL.rel) !== undefined;
+		return Object.entries(fields).flatMap(([predicate, object]): TChange[] => {
+			if (object === undefined || (predicate === LinkRelations.ACCESS_LEVEL.rel && !levelField)) return [];
+			const replaces = (q: TQuad): boolean => q.predicate === predicate;
+			if (object === null) return [{ namedGraph: label, subject: id, replaces }];
+			const quad = { subject: id, predicate, object, namedGraph: label, ...level };
+			if (declaration?.schema !== undefined) declaredField(declaration.schema, declaration, quad);
+			return [holding(this.classified(quad), replaces)];
+		});
 	}
 
 	/**
@@ -295,38 +400,6 @@ export class QuadStore implements IQuadStore {
 		return undefined;
 	}
 
-	async add(quad: Omit<TQuad, "timestamp">): Promise<void> {
-		this.refuseDerived(quad.namedGraph);
-		const backing = this.storeFor(quad.namedGraph);
-		if (backing) return await backing.add(quad);
-		this.quads.add({ ...this.classified(quad), timestamp: Date.now() });
-	}
-
-	/**
-	 * Writes an edge. A backing store with a graph engine writes it as a relationship a query walks. Without such a
-	 * backing store the edge is a quad in the source's named graph. The edge is routed as `add`, `set` and `query` are, so a
-	 * caller writes it the same way whether a graph engine holds the source's named graph or not.
-	 */
-	async createEdge(fromLabel: string, fromId: string, edgeLabel: string, toLabel: string, toId: string): Promise<void> {
-		const backing = this.storeFor(fromLabel);
-		if (backing?.createEdge) return await backing.createEdge(fromLabel, fromId, edgeLabel, toLabel, toId);
-		const surface = this.declarations?.().of(fromLabel)?.surface;
-		if (surface !== undefined) assertDeclaredEdge(surface, edgeLabel);
-		// objectType states the target's type, so the quad reads back as an edge rather than a literal property.
-		return await this.add({ subject: fromId, predicate: edgeLabel, object: toId, namedGraph: fromLabel, objectType: toLabel });
-	}
-
-	/**
-	 * Writes an edge to a target that the store may not hold yet. A backing store that keeps edges strictly holds a
-	 * reference with the target's id until the target is written. Without such a backing store this is an ordinary edge,
-	 * since a quad doesn't require its target. It is routed as `createEdge` is.
-	 */
-	referenceEdge(fromLabel: string, fromId: string, edgeLabel: string, toLabel: string, toId: string): Promise<void> {
-		const backing = this.storeFor(fromLabel);
-		if (backing?.referenceEdge) return backing.referenceEdge(fromLabel, fromId, edgeLabel, toLabel, toId);
-		return this.createEdge(fromLabel, fromId, edgeLabel, toLabel, toId);
-	}
-
 	async query(pattern: TQuadPattern): Promise<TQuad[]> {
 		if (pattern.namedGraph) {
 			const backing = this.storeFor(pattern.namedGraph);
@@ -356,13 +429,19 @@ export class QuadStore implements IQuadStore {
 		}
 	}
 
-	async remove(pattern: TQuadPattern): Promise<void> {
-		if (pattern.namedGraph) {
-			this.refuseDerived(pattern.namedGraph);
-			const backing = this.storeFor(pattern.namedGraph);
-			if (backing) return await backing.remove(pattern);
-		}
-		const removed = this.removable([...this.quads.candidates(pattern)].filter((q) => matchesQuadPattern(q, pattern)));
+	/** Removes what `removal` names from the backing store of its type, or from this store's own layer. */
+	async remove(removal: TRemoval): Promise<void> {
+		const { label, id } = removal;
+		this.refuseDerived(label);
+		const backing = this.storeFor(label);
+		if (backing) return await backing.remove(removal);
+		const matches =
+			removal.field !== undefined
+				? (q: TQuad) => q.predicate === removal.field
+				: removal.edge !== undefined
+					? (q: TQuad) => q.predicate === removal.edge.rel && q.object === removal.edge.to
+					: () => true;
+		const removed = this.removable([...this.quads.ofSubject(label, id)].filter(matches));
 		for (const q of removed) this.quads.delete(q);
 	}
 
@@ -500,49 +579,6 @@ export class QuadStore implements IQuadStore {
 
 		allQuads.sort((a, b) => a.timestamp - b.timestamp);
 		return { quads: allQuads, clusters: [...clustersByType.values()] };
-	}
-
-	// async so a rejected identity reaches a caller's .catch like every other failure, rather than throwing
-	// synchronously out of a method that returns a promise.
-	async upsertIndividual(label: string, data: unknown): Promise<string> {
-		this.refuseDerived(label);
-		const backing = this.storeFor(label);
-		if (backing) return await backing.upsertIndividual(label, data);
-		const stated = recordOf(data, `a ${label} record`);
-		// A record states its level, as every persisted type's record does, and each of its quads is held at that level. The store
-		// states the level a record of a declared type doesn't, before the type's schema reads it.
-		const declared = this.levels?.declared(label);
-		const statedLevel = stated.accessLevel === undefined ? undefined : AccessLevelSchema.parse(stated.accessLevel);
-		const accessLevel = this.levels ? writtenAt(statedLevel, declared, this.levels.writeBound()) : statedLevel;
-		const leveled = declared ? { ...stated, accessLevel } : stated;
-		const declaration = this.declarations?.().of(label);
-		// A type that declares its schema writes the fields its schema parsed and the edges its topology declares; a type a store
-		// holds without a declaration, such as a test's own, is a record of fields.
-		const validated = declaration?.schema === undefined ? RecordSchema.parse(leveled) : declaredRecord(declaration.schema, declaration, label, leveled);
-		const idField = this.idFieldOf(label);
-		// The identity is read before it is stringified: String(undefined) is "undefined", which would write the record
-		// under that literal subject, where a read doesn't reach it and the next such record overwrites it.
-		const identity = validated[idField];
-		if (identity === undefined || identity === null || String(identity).trim() === "")
-			throw new Error(`a ${label} record is identified by its "${idField}" field, and this record doesn't state it; state the record's ${idField}`);
-		const id = String(identity);
-		// The code doesn't await between the removal and the additions, so a concurrent write, a carry at a scenario's end or a
-		// backing registration during the write never reads a record that is half written.
-		// A write replaces the record's properties and keeps its edges, as a graph store does.
-		this.quads.removeWhere(this.quads.ofSubject(label, id), (q) => !q.objectType);
-		const timestamp = Date.now();
-		for (const [key, value] of Object.entries(validated)) {
-			if (value !== undefined && value !== null)
-				this.quads.add({ subject: id, predicate: key, object: value, namedGraph: label, timestamp, ...(accessLevel ? { accessLevel } : {}) });
-		}
-		return id;
-	}
-
-	async deleteIndividual(label: string, id: string): Promise<void> {
-		this.refuseDerived(label);
-		const backing = this.storeFor(label);
-		if (backing) return backing.deleteIndividual(label, id);
-		await this.remove({ subject: id, namedGraph: label });
 	}
 
 	density(query: TDensityQuery): Promise<TDensityResult> {

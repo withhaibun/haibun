@@ -40,7 +40,7 @@ const FACTS: [string, string, string, string][] = [
 
 async function storeWith(): Promise<IQuadStore> {
 	const store = storeOfDomains(definitions);
-	for (const [subject, predicate, object, namedGraph] of FACTS) await store.add({ subject, predicate, object, namedGraph, accessLevel: Access.private });
+	for (const [subject, predicate, object, namedGraph] of FACTS) await store.write({ label: namedGraph, id: subject, fields: { [predicate]: object, accessLevel: Access.private } });
 	return store;
 }
 /** A store that refuses a read of quads without a key, as a store that indexes its records by key does, and serves reads of records. */
@@ -122,7 +122,7 @@ describe("a record query's expression", () => {
 			["id", "n2"],
 			["kind", "kept"],
 		] as const)
-			await store.add({ subject: "n2", predicate, object, namedGraph: NOTE, accessLevel: Access.private });
+			await store.write({ label: NOTE, id: "n2", fields: { [predicate]: object, accessLevel: Access.private } });
 		const read = (text: string) => readRecordQuery(worldOver(store), { label: NOTE, expression: text }, (query) => store.readRecords(query));
 		expect(await read('kind value "kept"')).toMatchObject({ vertices: [{ id: "n2" }], ran: { index: 'kind value "kept"' } });
 		expect(await read("about some Step")).toMatchObject({ vertices: [{ id: "n1" }], ran: { reasoner: "about some Step" } });

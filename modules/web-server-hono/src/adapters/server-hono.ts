@@ -304,14 +304,17 @@ export class ServerHono implements IWebServer {
 	private persistEndpoint(type: TRouteTypes, path: string, purpose: TRoutePurpose): void {
 		// fire-and-forget from this sync mount path; a persist failure is a real error and must surface.
 		this.getStore()
-			.upsertIndividual(EndpointLabels.Endpoint, {
-				id: path,
-				url: path,
-				method: type.toUpperCase(),
-				description: purpose.description,
-				endpointClass: purpose.service ? ENDPOINT_CLASS.service : ENDPOINT_CLASS.route,
-				reads: purpose.reads,
-				generatedAtTime: new Date().toISOString(),
+			.write({
+				label: EndpointLabels.Endpoint,
+				record: {
+					id: path,
+					url: path,
+					method: type.toUpperCase(),
+					description: purpose.description,
+					endpointClass: purpose.service ? ENDPOINT_CLASS.service : ENDPOINT_CLASS.route,
+					reads: purpose.reads,
+					generatedAtTime: new Date().toISOString(),
+				},
 			})
 			.catch((e) => this.eventLogger.error(`persistEndpoint ${type} ${path}: ${e}`));
 	}

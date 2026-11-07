@@ -17,18 +17,6 @@ export class MemoryQuads implements TDeviceQuads {
 		private readonly bound: number,
 	) {}
 
-	/** Holds a fact, replacing what is held under its subject, predicate and graph. */
-	#hold(quad: TQuad): void {
-		const { subject, predicate, namedGraph } = quad;
-		this.#layer.removeWhere(this.#layer.ofSubject(namedGraph, subject), (held) => held.predicate === predicate);
-		this.#layer.add(quad);
-	}
-
-	set(subject: string, predicate: string, object: unknown, namedGraph: string, properties?: Record<string, unknown>): Promise<void> {
-		this.#hold({ ...properties, subject, predicate, object, namedGraph, timestamp: Date.now() });
-		return Promise.resolve();
-	}
-
 	get(subject: string, predicate: string, namedGraph?: string): Promise<unknown | undefined> {
 		return this.query({ subject, predicate, namedGraph }).then((held) => held.at(-1)?.object);
 	}
@@ -57,8 +45,12 @@ export class MemoryQuads implements TDeviceQuads {
 		return Promise.resolve([...this.#layer]);
 	}
 
+	/** Holds each fact, replacing what is held under its subject, predicate and graph. */
 	setMany(quads: TQuad[]): Promise<void> {
-		for (const quad of quads) this.#hold(quad);
+		for (const quad of quads) {
+			this.#layer.removeWhere(this.#layer.ofSubject(quad.namedGraph, quad.subject), (held) => held.predicate === quad.predicate);
+			this.#layer.add(quad);
+		}
 		return Promise.resolve();
 	}
 

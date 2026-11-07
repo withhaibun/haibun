@@ -12,5 +12,5 @@ export async function persistPrincipalIndividual(world: TWorld, p: TPrincipal): 
 	if (!world.domains?.[PRINCIPAL_DOMAIN]) return;
 	const store = world.shared?.getStore();
 	if (!store) return;
-	await store.upsertIndividual(PRINCIPAL_LABEL, p);
+	await store.write({ label: PRINCIPAL_LABEL, record: p });
 }

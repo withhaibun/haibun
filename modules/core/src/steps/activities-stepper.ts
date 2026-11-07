@@ -346,7 +346,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		}
 		const saved: TSavedWaypoint = { id: outcome, lines, source, generatedAtTime: new Date().toISOString() };
 		this.registerSavedWaypoints([saved]);
-		await store.upsertIndividual(SAVED_WAYPOINT_LABEL, saved);
+		await store.write({ label: SAVED_WAYPOINT_LABEL, record: saved });
 		return saved;
 	}
 

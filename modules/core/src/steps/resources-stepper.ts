@@ -25,7 +25,6 @@ import {
 	TEXT_QUOTE_SELECTOR_LABEL,
 	ANNOTATION_NOTE_DOMAIN,
 	commentDomainDefinition,
-	writeEdge,
 	conversationRoot,
 	assertCommentGrounded,
 	TextQuoteSelectorSchema,
@@ -53,6 +52,7 @@ import { actualityFeatureOf, formatRecordName } from "../lib/actuality/domains/s
 import { logMessageDomainDefinition } from "../lib/domains/log-message.js";
 import { runArtifactDomainDefinition } from "../lib/domains/run-artifact.js";
 import { statementsWith, type TStatementRow } from "../lib/steps/pipelines/statements.js";
+import { EDGE_TARGET, edgesFrom } from "../lib/records/domains/unit.js";
 
 /** Describes an anchored passage for a message: the quote, and the recorded words before and after it. */
 function describeAnchor(selector: TQuoteAnchor): string {
@@ -220,7 +220,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 				const store = this.getWorld().shared.getStore();
 				const commentId = await createComment(store, this.linkVocabulary, author, text, new Date().toISOString());
 				// Writes the comment's narrate edge to its subject. narrate is a sub-property of inReplyTo, so the edge grounds the comment and threads it.
-				await writeEdge(store, COMMENT_LABEL, commentId, LinkRelations.NARRATE.rel, label, id);
+				await store.write(edgesFrom(COMMENT_LABEL, commentId, { rel: LinkRelations.NARRATE.rel, label, id, target: EDGE_TARGET.held }));
 				await assertCommentGrounded(store, commentId);
 				const contextRoot = await conversationRoot(store, id);
 				return actionOKWithProducts({ commentId, contextRoot });

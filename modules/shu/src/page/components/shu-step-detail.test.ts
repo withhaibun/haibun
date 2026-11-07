@@ -38,16 +38,19 @@ describe("shu-step-detail", () => {
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
 		// One step of the actuality feature being read: what it requested, what ran, how it went and where.
 		const store = actualityStore();
-		await store.upsertIndividual(SEQ_PATH_LABEL, {
-			id: STEP,
-			stepText: "a step",
-			called: "S.does",
-			actionStatus: "passed",
-			accessLevel: "private",
-			ranVia: "remote",
-			level: "info",
-			generatedAtTime: new Date(1000).toISOString(),
-			endedAtTime: new Date(1005).toISOString(),
+		await store.write({
+			label: SEQ_PATH_LABEL,
+			record: {
+				id: STEP,
+				stepText: "a step",
+				called: "S.does",
+				actionStatus: "passed",
+				accessLevel: "private",
+				ranVia: "remote",
+				level: "info",
+				generatedAtTime: new Date(1000).toISOString(),
+				endedAtTime: new Date(1005).toISOString(),
+			},
 		});
 		installGraph(store);
 		declareGraphSpec({ types: [SEQ_PATH_LABEL], rels: ACTUALITY_RELS, ui: { [SEQ_PATH_LABEL]: { component: SHU_TAG.STEP_DETAIL } } });

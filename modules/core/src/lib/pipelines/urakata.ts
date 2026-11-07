@@ -111,7 +111,7 @@ export class UrakataRegistry implements IUrakataRegistry {
 	private persist(urakata: TUrakata): void {
 		const store = this.world.shared?.getStore();
 		if (!store) return;
-		void store.upsertIndividual(URAKATA_LABEL, { ...urakata }).catch((err: unknown) => {
+		void store.write({ label: URAKATA_LABEL, record: { ...urakata } }).catch((err: unknown) => {
 			this.world.eventLogger.warn(`[urakata] could not persist "${urakata.id}": ${errorDetail(err)}`);
 		});
 	}

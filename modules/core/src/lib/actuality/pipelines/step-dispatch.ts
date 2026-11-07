@@ -412,11 +412,11 @@ async function autoAssertProducts(world: TWorld, stepName: TRecordName, step: TS
  */
 async function writeStepStart(world: TWorld, featureStep: TFeatureStep, authorization: TStepAuthorization, ran: TStepRan, call: TStepCall): Promise<TStepRecord> {
 	const record = startRecord(actualityFeatureOf(world.tag), featureStep, authorization, ran, call, recordTime(world));
-	await world.shared.getStore().upsertIndividual(SEQ_PATH_LABEL, record);
+	await world.shared.getStore().write({ label: SEQ_PATH_LABEL, record: record });
 	return record;
 }
 
 /** Writes a step's record when the step ends: its start with how it ended, in one upsert. */
 async function writeStepEnd(world: TWorld, start: TStepRecord, ended: TStepEnded): Promise<void> {
-	await world.shared.getStore().upsertIndividual(SEQ_PATH_LABEL, endRecord(start, ended, recordTime(world)));
+	await world.shared.getStore().write({ label: SEQ_PATH_LABEL, record: endRecord(start, ended, recordTime(world)) });
 }

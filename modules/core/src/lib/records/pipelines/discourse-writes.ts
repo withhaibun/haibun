@@ -16,8 +16,6 @@ import {
 	anchorPart,
 	assertCommentGrounded,
 	commentName,
-	writeEdge,
-	writeReferenceEdge,
 	type TDiscourseStore,
 	type TPart,
 	type TQuoteAnchor,
@@ -29,6 +27,7 @@ import { typedLinkFacts } from "../derivations/typed-link-facts.js";
 import type { TLinkVocabulary, TTypedLinkFact } from "../../domains/typed-links.js";
 import { recordOf, type TRecordReader } from "./record-reads.js";
 import type { IQuadStore } from "../../steps/ports.js";
+import { EDGE_TARGET, edgesFrom } from "../domains/unit.js";
 
 /** The store a reading writes and reads: the discourse writes and the read of records. */
 type TReadingStore = TDiscourseStore & TRecordReader & Pick<IQuadStore, "readRecord">;
@@ -44,10 +43,10 @@ async function retractReading(store: TReadingStore, readingId: string): Promise<
 	if (!prior) return;
 	for (const entry of prior.stated) {
 		const record = fromJsonText(StatedRecordSchema).parse(entry);
-		if (record.kind === "edge") await store.remove({ subject: record.s, predicate: record.rel, object: record.o, namedGraph: record.sLabel });
-		else await store.deleteIndividual(record.label, record.id);
+		if (record.kind === "edge") await store.remove({ label: record.sLabel, id: record.s, edge: { rel: record.rel, to: record.o } });
+		else await store.remove(record);
 	}
-	await store.deleteIndividual(READING_LABEL, readingId);
+	await store.remove({ label: READING_LABEL, id: readingId });
 }
 
 /**
@@ -77,7 +76,7 @@ export async function readTypedLinks(
 	const now = new Date().toISOString();
 	const stated: TStatedRecord[] = [];
 	// The reading is written first because the records below point at it, and a strict store requires an edge's target to exist. Its `stated` list is set at the end.
-	await store.upsertIndividual(READING_LABEL, { id: readingId, generatedAtTime: now, ...(provenance?.seqPath ? { seqPath: provenance.seqPath } : {}), stated: [] });
+	await store.write({ label: READING_LABEL, record: { id: readingId, generatedAtTime: now, ...(provenance?.seqPath ? { seqPath: provenance.seqPath } : {}), stated: [] } });
 	/** Anchors a part inside a record and returns the SpecificResource an edge can target. This reading owns the anchor pair. */
 	const anchored = async (base: { label: string; id: string }, part: TPart, linkText?: string): Promise<{ label: string; id: string }> => {
 		const { specificResourceId, selectorId, selectorLabel } = await anchorPart(store, base.label, base.id, part, now, linkText ? { label: linkText } : undefined);
@@ -85,7 +84,7 @@ export async function readTypedLinks(
 			{ label: selectorLabel, id: selectorId },
 			{ label: SPECIFIC_RESOURCE_LABEL, id: specificResourceId },
 		]) {
-			await writeEdge(store, written.label, written.id, LinkRelations.WAS_GENERATED_BY.rel, READING_LABEL, readingId);
+			await store.write(edgesFrom(written.label, written.id, { rel: LinkRelations.WAS_GENERATED_BY.rel, label: READING_LABEL, id: readingId, target: EDGE_TARGET.held }));
 			stated.push({ kind: "individual", ...written });
 		}
 		return { label: SPECIFIC_RESOURCE_LABEL, id: specificResourceId };
@@ -100,17 +99,12 @@ export async function readTypedLinks(
 		// Only a typed link anchors its passage. An untyped link derives only the record-level edge, and its passage stays
 		// in the link, so plain cross-references don't add anchor records.
 		const target = fact.typed && fact.target.anchor ? await anchored(named, fact.target.anchor, fact.linkText) : named;
-		await writeEdge(store, source.label, source.id, fact.rel, target.label, target.id);
+		await store.write(edgesFrom(source.label, source.id, { rel: fact.rel, label: target.label, id: target.id, target: EDGE_TARGET.held }));
 		stated.push({ kind: "edge", s: source.id, sLabel: source.label, rel: fact.rel, o: target.id, oLabel: target.label });
 	}
-	// Sets the reading's record of its statements on the individual written before the facts.
-	await store.set(
-		readingId,
-		"stated",
-		stated.map((record) => JSON.stringify(record)),
-		READING_LABEL,
-	);
-	await writeReferenceEdge(store, READING_LABEL, readingId, LinkRelations.USED.rel, source.label, source.id);
+	// Sets the reading's record of its statements on the individual written before the facts, with the text it read.
+	const used = { rel: LinkRelations.USED.rel, label: source.label, id: source.id, target: EDGE_TARGET.reference };
+	await store.write({ label: READING_LABEL, id: readingId, fields: { stated: stated.map((record) => JSON.stringify(record)) }, edges: [used] });
 	return { readingId, statements: stated.filter((d) => d.kind === "edge").length };
 }
 
@@ -144,17 +138,17 @@ export async function createComment(
 	provenance?: { seqPath?: string },
 ): Promise<string> {
 	const commentId = crypto.randomUUID();
-	await store.upsertIndividual(COMMENT_LABEL, {
+	const bodyId = commentBodyIdOf(commentId);
+	const record = {
 		id: commentId,
 		author,
 		generatedAtTime: now,
 		...(period?.start ? { startedAtTime: period.start } : {}),
 		...(period?.end ? { endedAtTime: period.end } : {}),
 		name: commentName(text),
-	});
-	const bodyId = commentBodyIdOf(commentId);
-	await store.upsertIndividual(BODY_LABEL, { id: bodyId, content: text, mediaType: MEDIA_TYPE.markdown, generatedAtTime: now });
-	await writeEdge(store, COMMENT_LABEL, commentId, LinkRelations.HAS_BODY.rel, BODY_LABEL, bodyId);
+	};
+	const body = { label: BODY_LABEL, record: { id: bodyId, content: text, mediaType: MEDIA_TYPE.markdown, generatedAtTime: now } };
+	await store.write({ label: COMMENT_LABEL, record, owns: [body], edges: [{ rel: LinkRelations.HAS_BODY.rel, label: BODY_LABEL, id: bodyId, target: EDGE_TARGET.held }] });
 	await readTypedLinks(store, vocab, { label: COMMENT_LABEL, id: commentId }, text, provenance);
 	return commentId;
 }
@@ -176,11 +170,13 @@ export async function writeAnnotation(
 	// the anchor as the note's statement and not as the bare quote.
 	const { specificResourceId } = await anchorPart(store, a.label, a.id, a, now, { label: commentName(a.text) });
 	const commentId = await createComment(store, vocab, author, a.text, now, { start: a.at, end: a.until });
-	await writeEdge(store, COMMENT_LABEL, commentId, LinkRelations.TARGET.rel, SPECIFIC_RESOURCE_LABEL, specificResourceId);
+	await store.write(edgesFrom(COMMENT_LABEL, commentId, { rel: LinkRelations.TARGET.rel, label: SPECIFIC_RESOURCE_LABEL, id: specificResourceId, target: EDGE_TARGET.held }));
 	const linkedSpecificResourceIds: string[] = [];
 	for (const link of a.links ?? []) {
 		const linked = await anchorPart(store, a.label, a.id, link, now);
-		await writeEdge(store, COMMENT_LABEL, commentId, LinkRelations.LINKS_TO.rel, SPECIFIC_RESOURCE_LABEL, linked.specificResourceId);
+		await store.write(
+			edgesFrom(COMMENT_LABEL, commentId, { rel: LinkRelations.LINKS_TO.rel, label: SPECIFIC_RESOURCE_LABEL, id: linked.specificResourceId, target: EDGE_TARGET.held }),
+		);
 		linkedSpecificResourceIds.push(linked.specificResourceId);
 	}
 	await assertCommentGrounded(store, commentId);

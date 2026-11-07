@@ -23,6 +23,8 @@ import { MEDIA_TYPE } from "./media-types.js";
 import { FragmentSchema, isFragment } from "./media-fragments.js";
 import type { TListDeclaration } from "./lists.js";
 import type { TRecordType } from "../steps/domains/quad-types.js";
+import type { IQuadStore } from "../steps/ports.js";
+import { EDGE_TARGET, type TUnitEdge } from "../records/domains/unit.js";
 
 // ============================================================================
 // Resource identity
@@ -460,7 +462,7 @@ export const REL_CONTEXT: Record<TRel, string> = Object.fromEntries(Object.value
 /**
  * Standard edge predicates for graph nodes.
  * Each carries its LinkRelation rel, and predicate→rel resolution reads only this map.
- * Steppers use these as edge keys in getConcerns().edges and in createEdge() calls.
+ * Steppers use these as edge keys in getConcerns().edges and in the edges of the units they write.
  */
 export const EdgePredicates = {
 	from: { rel: LinkRelations.ATTRIBUTED_TO.rel },
@@ -658,6 +660,9 @@ export type TEdgeDef = {
 	roleNoun?: string;
 	/** Set where the edge's target may be absent when a record is written. A store writes such an edge to a reference. */
 	reference?: boolean;
+	/** Set where the edge's target is part of the record, such as a Comment's Body. A unit holds the record and each record it
+	 *  owns, and a store writes them in one operation. */
+	owns?: true;
 };
 
 /**
@@ -897,7 +902,7 @@ export type TRegisteredDomain = TDomainDefinition & { coerce: TDomainCoercer };
  * "llm:gpt-x", so every Comment is attributed. Structured-Actor hydration is a query-time projection and isn't stored.
  */
 // Persisted schemas don't use strict mode, so they accept extra fields. Callers attach edge-construction rels
-// (`discourse`, `inReplyTo`, …) that upsertIndividual's partition step writes as edges and not as the individual's
+// (`discourse`, `inReplyTo`, …) that the store's write partitions into edges and not into the individual's
 // properties. Strict mode would reject those fields before the partition runs.
 export const CommentSchema = PersistedVertexSchema.extend({
 	id: z.string(),
@@ -964,7 +969,7 @@ export const COMMENT_TOPOLOGY: THypermediaTopology = {
 		[LinkRelations.CONTEXT.rel]: LinkRelations.CONTEXT.rel,
 	},
 	edges: {
-		[HAS_BODY_EDGE]: { rel: LinkRelations.HAS_BODY.rel, range: BODY_LABEL },
+		[HAS_BODY_EDGE]: { rel: LinkRelations.HAS_BODY.rel, range: BODY_LABEL, owns: true },
 		// The author as a navigable edge to that agent. A comment links to the person, service or model that wrote it
 		// and doesn't only name it in a string. The edge ranges over Principal, which is a sec:Controller and a
 		// prov:Agent, so every kind of author is well-formed against it. The property with the same rel remains
@@ -1166,44 +1171,15 @@ export const ANNOTATION_NOTE_DOMAIN = "annotation-note";
 // Discourse write helpers, comment and annotation acts over a quad store
 // ============================================================================
 
-/** The store surface the discourse write helpers call: node upsert and delete, single-property set, quad add,
- *  query and remove, and the navigable createEdge and referenceEdge of a property-graph store. Every member is an
- *  `IQuadStore` member, so every consumer store implements it. Naming only the members these helpers call keeps them
- *  store-agnostic. */
-export type TDiscourseStore = {
-	upsertIndividual(label: string, data: unknown): Promise<string>;
-	deleteIndividual(label: string, id: string): Promise<void>;
-	set(subject: string, predicate: string, object: unknown, namedGraph: string): Promise<void>;
-	query(pattern: { subject?: string; predicate?: string; object?: unknown; namedGraph?: string }): Promise<Array<{ subject: string; predicate: string; object: unknown }>>;
-	add(quad: { subject: string; predicate: string; object: unknown; namedGraph: string; objectType?: string }): Promise<void>;
-	remove(pattern: { subject?: string; predicate?: string; object?: unknown; namedGraph?: string }): Promise<void>;
-	createEdge?(fromLabel: string, fromId: string, edgeLabel: string, toLabel: string, toId: string): Promise<void>;
-	/** Writes an edge to a target that may not exist yet, such as a document not yet read or a record not yet written. A
-	 *  store with strict edges holds an id-only placeholder until the target is written. A store that models edges as quads
-	 *  doesn't need the distinction. */
-	referenceEdge?(fromLabel: string, fromId: string, edgeLabel: string, toLabel: string, toId: string): Promise<void>;
-};
+/** The store surface the discourse write helpers call: the write and the removal of units, and the read of quads. Every
+ *  member is an `IQuadStore` member, so every consumer store implements it. */
+export type TDiscourseStore = Pick<IQuadStore, "write" | "remove" | "query">;
 
 /** The maximum length of a Comment's display name. The name is the note text on one line, truncated, so a graph view titles the Comment by its text and not its id. */
 const COMMENT_NAME_MAX = 60;
 export function commentName(text: string): string {
 	const oneLine = text.replace(/\s+/g, " ").trim();
 	return oneLine.length > COMMENT_NAME_MAX ? `${oneLine.slice(0, COMMENT_NAME_MAX - 1)}…` : oneLine;
-}
-
-/** Writes a navigable edge. A property-graph store creates an edge that traversal follows, and a quad store writes it as a quad. */
-export async function writeEdge(store: TDiscourseStore, fromLabel: string, fromId: string, rel: string, toLabel: string, toId: string): Promise<void> {
-	if (store.createEdge) await store.createEdge(fromLabel, fromId, rel, toLabel, toId);
-	// objectType records the target's type, so the quad reads back as an edge rather than a literal property.
-	else await store.add({ subject: fromId, predicate: rel, object: toId, namedGraph: fromLabel, objectType: toLabel });
-}
-
-/** Writes an edge to a target that may not exist yet. A text that refers to an unread document states one, and so does
- *  an observation of a request that names an endpoint whose record isn't written yet. A store that doesn't keep
- *  placeholders receives the ordinary edge write, because an edge to an absent target is a quad there. */
-export async function writeReferenceEdge(store: TDiscourseStore, fromLabel: string, fromId: string, rel: string, toLabel: string, toId: string): Promise<void> {
-	if (store.referenceEdge) await store.referenceEdge(fromLabel, fromId, rel, toLabel, toId);
-	else await writeEdge(store, fromLabel, fromId, rel, toLabel, toId);
 }
 
 /** Returns the selector record that locates a part and the text the part reads as. A quoted passage gets a
@@ -1235,14 +1211,16 @@ export async function anchorPart(
 ): Promise<{ specificResourceId: string; selectorId: string; selectorLabel: string }> {
 	const selector = selectorOf(part);
 	const selectorId = crypto.randomUUID();
-	await store.upsertIndividual(selector.label, { id: selectorId, ...selector.fields, generatedAtTime: now });
+	await store.write({ label: selector.label, record: { id: selectorId, ...selector.fields, generatedAtTime: now } });
 	const specificResourceId = crypto.randomUUID();
 	// An anchor reads as the part it represents. Its id is a generated string. Resolving the title through its selector
 	// is a hop through a second proxy, and that hop ends at the id. A node without a label reads as that string.
-	await store.upsertIndividual(SPECIFIC_RESOURCE_LABEL, { id: specificResourceId, generatedAtTime: now, label: opts?.label ?? selector.reads });
-	const writeSourceEdge = opts?.sourceMayBeAbsent ? writeReferenceEdge : writeEdge;
-	await writeSourceEdge(store, SPECIFIC_RESOURCE_LABEL, specificResourceId, LinkRelations.HAS_SOURCE.rel, sourceLabel, sourceId);
-	await writeEdge(store, SPECIFIC_RESOURCE_LABEL, specificResourceId, LinkRelations.HAS_SELECTOR.rel, selector.label, selectorId);
+	const record = { id: specificResourceId, generatedAtTime: now, label: opts?.label ?? selector.reads };
+	const edges: TUnitEdge[] = [
+		{ rel: LinkRelations.HAS_SOURCE.rel, label: sourceLabel, id: sourceId, target: opts?.sourceMayBeAbsent ? EDGE_TARGET.reference : EDGE_TARGET.held },
+		{ rel: LinkRelations.HAS_SELECTOR.rel, label: selector.label, id: selectorId, target: EDGE_TARGET.held },
+	];
+	await store.write({ label: SPECIFIC_RESOURCE_LABEL, record, edges });
 	return { specificResourceId, selectorId, selectorLabel: selector.label };
 }
 

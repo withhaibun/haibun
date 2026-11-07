@@ -8,7 +8,8 @@
 import { RPC_ROUTE, SSE_ROUTE } from "../transport/domains/rpc-wire.js";
 import { z } from "zod";
 import type { TWorld } from "../actuality/domains/world.js";
-import { ENDPOINT_CLASS, ENDPOINT_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL, HTTP_REQUEST_LABEL, LinkRelations, writeEdge, writeReferenceEdge } from "../domains/resources.js";
+import { ENDPOINT_CLASS, ENDPOINT_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL, HTTP_REQUEST_LABEL, LinkRelations } from "../domains/resources.js";
+import { EDGE_TARGET, edgesFrom } from "../records/domains/unit.js";
 import { activeSitePrincipal } from "../domains/host-id.js";
 import { declareBlips } from "../domains/blips.js";
 import { recordBlip } from "./record-blip.js";
@@ -106,7 +107,7 @@ export async function trackHttpRequest(world: TWorld, observation: THttpRequestO
 		let count = memo.counts.get(id);
 		if (count === undefined) count = HostCountSchema.parse((await recordOf(store, HTTP_HOST_LABEL, id)) ?? {}).requestCount;
 		memo.counts.set(id, count + delta);
-		await store.upsertIndividual(HTTP_HOST_LABEL, { id, name: id === site ? SITE_NAME : id, requestCount: count + delta, generatedAtTime });
+		await store.write({ label: HTTP_HOST_LABEL, record: { id, name: id === site ? SITE_NAME : id, requestCount: count + delta, generatedAtTime } });
 	};
 	const once = async (key: string, write: () => Promise<unknown>) => {
 		if (memo.ensured.has(key)) return;
@@ -114,38 +115,39 @@ export async function trackHttpRequest(world: TWorld, observation: THttpRequestO
 		await write();
 	};
 
-	// Writes the participants and the request record in parallel, then the actor edges that target them.
+	// Writes the participants in parallel, then the request with its edges to them in one unit.
 	await Promise.all([
 		upsertHost(hostId, 1),
 		origin === "client"
-			? once(CLIENT_ID, () => store.upsertIndividual(HTTP_CLIENT_LABEL, { id: CLIENT_ID, name: "Client", generatedAtTime }))
+			? once(CLIENT_ID, () => store.write({ label: HTTP_CLIENT_LABEL, record: { id: CLIENT_ID, name: "Client", generatedAtTime } }))
 			: hostId === site
 				? Promise.resolve()
 				: once(`host:${site}`, () => upsertHost(site, 0)),
-		store.upsertIndividual(HTTP_REQUEST_LABEL, {
-			id: requestId,
-			method: observation.method,
-			status: observation.status,
-			durationMs: observation.durationMs,
-			url: observation.url,
-			endpointClass,
-			generatedAtTime,
-		}),
 	]);
 	recordBlip(world, HTTP_REQUEST_BLIP, observation.durationMs, { method: observation.method, status: observation.status, endpointClass, url: observation.url });
 	const [sourceLabel, sourceId] = origin === "site" ? [HTTP_HOST_LABEL, site] : [HTTP_CLIENT_LABEL, CLIENT_ID];
-	await Promise.all([
-		writeEdge(store, HTTP_REQUEST_LABEL, requestId, LinkRelations.PERFORMED_BY.rel, sourceLabel, sourceId),
-		external
-			? writeReferenceEdge(store, HTTP_REQUEST_LABEL, requestId, LinkRelations.AS_TARGET.rel, HTTP_HOST_LABEL, hostId)
-			: // The web server writes the endpoint's record when it mounts the route. The first request can arrive before
-				// that write. A reference edge holds the observation until the record exists, so the request isn't lost.
-				writeReferenceEdge(store, HTTP_REQUEST_LABEL, requestId, LinkRelations.AS_TARGET.rel, ENDPOINT_LABEL, endpointPath).then(() =>
-					once(`endpoint:${endpointPath}`, async () => {
-						// An earlier scenario's carried quads may already hold the link, so the store is checked once per endpoint.
-						const linked = await store.query({ subject: endpointPath, predicate: LinkRelations.PART_OF.rel, namedGraph: ENDPOINT_LABEL });
-						if (linked.length === 0) await writeEdge(store, ENDPOINT_LABEL, endpointPath, LinkRelations.PART_OF.rel, HTTP_HOST_LABEL, site);
-					}),
-				),
-	]);
+	// The web server writes the endpoint's record when it mounts the route. The first request can arrive before that write. A
+	// reference edge holds the observation until the record exists, so the request isn't lost.
+	const [targetLabel, targetId] = external ? [HTTP_HOST_LABEL, hostId] : [ENDPOINT_LABEL, endpointPath];
+	const record = {
+		id: requestId,
+		method: observation.method,
+		status: observation.status,
+		durationMs: observation.durationMs,
+		url: observation.url,
+		endpointClass,
+		generatedAtTime,
+	};
+	const edges = [
+		{ rel: LinkRelations.PERFORMED_BY.rel, label: sourceLabel, id: sourceId, target: EDGE_TARGET.held },
+		{ rel: LinkRelations.AS_TARGET.rel, label: targetLabel, id: targetId, target: EDGE_TARGET.reference },
+	];
+	await store.write({ label: HTTP_REQUEST_LABEL, record, edges });
+	if (!external)
+		await once(`endpoint:${endpointPath}`, async () => {
+			// An earlier scenario's carried quads may already hold the link, so the store is checked once per endpoint.
+			const linked = await store.query({ subject: endpointPath, predicate: LinkRelations.PART_OF.rel, namedGraph: ENDPOINT_LABEL });
+			if (linked.length === 0)
+				await store.write(edgesFrom(ENDPOINT_LABEL, endpointPath, { rel: LinkRelations.PART_OF.rel, label: HTTP_HOST_LABEL, id: site, target: EDGE_TARGET.held }));
+		});
 }

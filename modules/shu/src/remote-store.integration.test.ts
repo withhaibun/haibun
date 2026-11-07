@@ -62,7 +62,7 @@ class StoreDelegationProbeStepper extends AStepper {
 				heldByMain = held.result.vertices;
 				const stranger = new RpcClient({ baseUrl: `http://localhost:${PEER_PORT}`, timeoutMs: 2_000, retry: { maxAttempts: 1 } });
 				deniedRead = await reasonRefused(stranger.call("store.readRecords", { query: { label: PRINCIPAL_LABEL } }, []));
-				deniedWrite = await reasonRefused(stranger.call("store.upsertIndividual", { label: PRINCIPAL_LABEL, data: { id: "intruder" } }, []));
+				deniedWrite = await reasonRefused(stranger.call("store.write", { unit: { label: PRINCIPAL_LABEL, record: { id: "intruder" } } }, []));
 				return OK;
 			},
 		},
@@ -108,6 +108,6 @@ probe the delegated store surface
 		expect(heldByMain).toHaveLength(1);
 		// Without a grant a caller doesn't have access: reads and writes are refused a caller that doesn't present one, and the refusal doesn't state more.
 		expect(deniedRead).toBe(refusalSaid(refusal("store.readRecords", undefined, undefined)));
-		expect(deniedWrite).toBe(refusalSaid(refusal("store.upsertIndividual", undefined, undefined)));
+		expect(deniedWrite).toBe(refusalSaid(refusal("store.write", undefined, undefined)));
 	});
 });

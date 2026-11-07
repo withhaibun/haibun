@@ -25,23 +25,22 @@ const iso = (n: number): string => new Date(n).toISOString();
 async function anActualityOf(steps: number, saying: string = "info"): Promise<QuadStore> {
 	const store = actualityStore();
 	for (let i = 0; i < steps; i++) {
-		await store.upsertIndividual(SEQ_PATH_LABEL, {
-			id: `${RUN}.0.${i}`,
-			stepText: `step ${i}`,
-			actionStatus: "passed",
-			accessLevel: "private",
-			level: "info",
-			generatedAtTime: iso(1000 + i * 2),
-			endedAtTime: iso(1001 + i * 2),
-			recordedAtTime: iso(1001 + i * 2),
+		await store.write({
+			label: SEQ_PATH_LABEL,
+			record: {
+				id: `${RUN}.0.${i}`,
+				stepText: `step ${i}`,
+				actionStatus: "passed",
+				accessLevel: "private",
+				level: "info",
+				generatedAtTime: iso(1000 + i * 2),
+				endedAtTime: iso(1001 + i * 2),
+				recordedAtTime: iso(1001 + i * 2),
+			},
 		});
-		await store.upsertIndividual(LOG_MESSAGE_LABEL, {
-			id: `${RUN}.0.${i}@${i}`,
-			message: `said ${i}`,
-			level: saying,
-			generatedAtTime: iso(1001 + i * 2),
-			recordedAtTime: iso(1001 + i * 2),
-			isPartOf: `${RUN}.0.${i}`,
+		await store.write({
+			label: LOG_MESSAGE_LABEL,
+			record: { id: `${RUN}.0.${i}@${i}`, message: `said ${i}`, level: saying, generatedAtTime: iso(1001 + i * 2), recordedAtTime: iso(1001 + i * 2), isPartOf: `${RUN}.0.${i}` },
 		});
 	}
 	return store;
@@ -117,13 +116,9 @@ describe("the order an actuality put its records in", () => {
 		const store = actualityStore();
 		// Written newest first, as a store reading the newest of an actuality returns them, and all within one millisecond.
 		for (const i of [30, 29, 28, 27, 26])
-			await store.upsertIndividual(SEQ_PATH_LABEL, {
-				id: `${RUN}.0.${i}`,
-				stepText: `step ${i}`,
-				actionStatus: "passed",
-				accessLevel: "private",
-				level: "info",
-				generatedAtTime: iso(1000),
+			await store.write({
+				label: SEQ_PATH_LABEL,
+				record: { id: `${RUN}.0.${i}`, stepText: `step ${i}`, actionStatus: "passed", accessLevel: "private", level: "info", generatedAtTime: iso(1000) },
 			});
 		const graph = actualityGraphOver(store);
 		const window = await windowOn(graph, { size: 10 });
@@ -141,19 +136,13 @@ describe("what an actuality reports outside every step", () => {
 		const store = actualityStore();
 		const actualityFeature = RUN;
 		for (const i of [1, 2, 3])
-			await store.upsertIndividual(SEQ_PATH_LABEL, {
-				id: `${actualityFeature}.0.${i}`,
-				stepText: `step ${i}`,
-				actionStatus: "passed",
-				accessLevel: "private",
-				level: "info",
-				generatedAtTime: iso(1000 + i),
+			await store.write({
+				label: SEQ_PATH_LABEL,
+				record: { id: `${actualityFeature}.0.${i}`, stepText: `step ${i}`, actionStatus: "passed", accessLevel: "private", level: "info", generatedAtTime: iso(1000 + i) },
 			});
-		await store.upsertIndividual(LOG_MESSAGE_LABEL, {
-			id: `${actualityFeature}.log.1700000009999`,
-			message: 'create: "ee" is not a declared type',
-			level: "error",
-			generatedAtTime: iso(1010),
+		await store.write({
+			label: LOG_MESSAGE_LABEL,
+			record: { id: `${actualityFeature}.log.1700000009999`, message: 'create: "ee" is not a declared type', level: "error", generatedAtTime: iso(1010) },
 		});
 		const graph = actualityGraphOver(store);
 		const window = await windowOn(graph, { size: 10 });
@@ -165,15 +154,11 @@ describe("what an actuality reports outside every step", () => {
 
 	it("is read even when it doesn't name an actuality feature", async () => {
 		const store = actualityStore();
-		await store.upsertIndividual(SEQ_PATH_LABEL, {
-			id: "1700000000000-1.0.1",
-			stepText: "a step",
-			actionStatus: "passed",
-			accessLevel: "private",
-			level: "info",
-			generatedAtTime: iso(1000),
+		await store.write({
+			label: SEQ_PATH_LABEL,
+			record: { id: "1700000000000-1.0.1", stepText: "a step", actionStatus: "passed", accessLevel: "private", level: "info", generatedAtTime: iso(1000) },
 		});
-		await store.upsertIndividual(LOG_MESSAGE_LABEL, { id: "log.1700000009999", message: "said by nothing in particular", level: "warn", generatedAtTime: iso(1010) });
+		await store.write({ label: LOG_MESSAGE_LABEL, record: { id: "log.1700000009999", message: "said by nothing in particular", level: "warn", generatedAtTime: iso(1010) } });
 		const graph = actualityGraphOver(store);
 		const window = await windowOn(graph, { size: 10 });
 		expect(window.rows.map((r) => r.text)).toEqual(["a step", "said by nothing in particular"]);
@@ -184,15 +169,18 @@ describe("following an actuality that is still happening", () => {
 	// A view holding the window reads only what was recorded since the newest recording it holds. Reading the whole
 	// window again to find a few new records is what makes following a long actuality take as long as its whole length.
 	const step = (store: QuadStore, i: number, at: number, recordedAt: number, more: Record<string, unknown> = {}) =>
-		store.upsertIndividual(SEQ_PATH_LABEL, {
-			id: `${RUN}.0.${i}`,
-			stepText: `step ${i}`,
-			actionStatus: "passed",
-			accessLevel: "private",
-			level: "info",
-			generatedAtTime: iso(at),
-			recordedAtTime: iso(recordedAt),
-			...more,
+		store.write({
+			label: SEQ_PATH_LABEL,
+			record: {
+				id: `${RUN}.0.${i}`,
+				stepText: `step ${i}`,
+				actionStatus: "passed",
+				accessLevel: "private",
+				level: "info",
+				generatedAtTime: iso(at),
+				recordedAtTime: iso(recordedAt),
+				...more,
+			},
 		});
 	const newestRecording = (rows: TActualityRow[]) => Math.max(...rows.map((r) => r.recordedAt ?? 0));
 
@@ -220,13 +208,9 @@ describe("following an actuality that is still happening", () => {
 		const graph = actualityGraphOver(store);
 		const first = await windowOn(graph, { size: 10 });
 		expect(first.rows.map((r) => r.text)).toEqual(["step 1", "step 2"]);
-		await store.upsertIndividual(LOG_MESSAGE_LABEL, {
-			id: `${RUN}.0.1@0`,
-			message: "said during step 1, recorded late",
-			level: "info",
-			generatedAtTime: iso(1002),
-			recordedAtTime: iso(1006),
-			isPartOf: `${RUN}.0.1`,
+		await store.write({
+			label: LOG_MESSAGE_LABEL,
+			record: { id: `${RUN}.0.1@0`, message: "said during step 1, recorded late", level: "info", generatedAtTime: iso(1002), recordedAtTime: iso(1006), isPartOf: `${RUN}.0.1` },
 		});
 		const since = await windowOn(graph, { size: 10, since: newestRecording(first.rows) });
 		expect(since.rows.map((r) => r.text)).toEqual(["said during step 1, recorded late", "step 2"]);
@@ -250,24 +234,30 @@ describe("following an actuality that is still happening", () => {
 	it("names the step whose row carries what it produced, and keeps the produced row for the views that place it", async () => {
 		const store = actualityStore();
 		await step(store, 1, 1000, 1002, { stepText: "a step of the feature" });
-		await store.upsertIndividual(SEQ_PATH_LABEL, {
-			id: `${RUN}.0.1.-1`,
-			isPartOf: `${RUN}.0.1`,
-			stepText: "take a screenshot",
-			actionStatus: "passed",
-			accessLevel: "private",
-			level: "trace",
-			generatedAtTime: iso(1001),
-			recordedAtTime: iso(1001),
+		await store.write({
+			label: SEQ_PATH_LABEL,
+			record: {
+				id: `${RUN}.0.1.-1`,
+				isPartOf: `${RUN}.0.1`,
+				stepText: "take a screenshot",
+				actionStatus: "passed",
+				accessLevel: "private",
+				level: "trace",
+				generatedAtTime: iso(1001),
+				recordedAtTime: iso(1001),
+			},
 		});
-		await store.upsertIndividual(RUN_ARTIFACT_LABEL, {
-			id: `${RUN}.0.1.-1@0`,
-			isPartOf: `${RUN}.0.1.-1`,
-			artifactType: "image",
-			path: "./image/shot.png",
-			level: "trace",
-			generatedAtTime: iso(1001),
-			recordedAtTime: iso(1001),
+		await store.write({
+			label: RUN_ARTIFACT_LABEL,
+			record: {
+				id: `${RUN}.0.1.-1@0`,
+				isPartOf: `${RUN}.0.1.-1`,
+				artifactType: "image",
+				path: "./image/shot.png",
+				level: "trace",
+				generatedAtTime: iso(1001),
+				recordedAtTime: iso(1001),
+			},
 		});
 		// The claim is made where a window is assembled from what more than one read returned, so this reads a window.
 		const window = await windowOn(actualityGraphOver(store), { size: 10 });
@@ -283,15 +273,18 @@ describe("following an actuality that is still happening", () => {
 	it("leaves out the steps run to carry other steps out, and reads them when a reader asks for them", async () => {
 		const store = actualityStore();
 		await step(store, 1, 1000, 1002, { stepText: "a step of the feature" });
-		await store.upsertIndividual(SEQ_PATH_LABEL, {
-			id: `${RUN}.0.1.-1`,
-			isPartOf: `${RUN}.0.1`,
-			stepText: "take a screenshot",
-			actionStatus: "passed",
-			accessLevel: "private",
-			level: "trace",
-			generatedAtTime: iso(1001),
-			recordedAtTime: iso(1001),
+		await store.write({
+			label: SEQ_PATH_LABEL,
+			record: {
+				id: `${RUN}.0.1.-1`,
+				isPartOf: `${RUN}.0.1`,
+				stepText: "take a screenshot",
+				actionStatus: "passed",
+				accessLevel: "private",
+				level: "trace",
+				generatedAtTime: iso(1001),
+				recordedAtTime: iso(1001),
+			},
 		});
 		const graph = actualityGraphOver(store);
 		expect(

@@ -34,14 +34,17 @@ export async function recordSaid(world: TWorld, e: Extract<THaibunEvent, { kind:
 	const said = underStep(world.tag, e);
 	await world.shared
 		.getStore()
-		.upsertIndividual(LOG_MESSAGE_LABEL, {
-			[LOG_MESSAGE_FIELD.id]: recordName(world.tag, e, ordinal),
-			[LOG_MESSAGE_FIELD.actuality]: actualityFeatureOf(world.tag),
-			[LOG_MESSAGE_FIELD.recordedAtTime]: new Date().toISOString(),
-			[LOG_MESSAGE_FIELD.message]: e.message,
-			[LOG_MESSAGE_FIELD.level]: e.level,
-			[LOG_MESSAGE_FIELD.generatedAtTime]: new Date(e.timestamp).toISOString(),
-			...(said === undefined ? {} : { [LOG_MESSAGE_EDGE.isPartOf]: said }),
+		.write({
+			label: LOG_MESSAGE_LABEL,
+			record: {
+				[LOG_MESSAGE_FIELD.id]: recordName(world.tag, e, ordinal),
+				[LOG_MESSAGE_FIELD.actuality]: actualityFeatureOf(world.tag),
+				[LOG_MESSAGE_FIELD.recordedAtTime]: new Date().toISOString(),
+				[LOG_MESSAGE_FIELD.message]: e.message,
+				[LOG_MESSAGE_FIELD.level]: e.level,
+				[LOG_MESSAGE_FIELD.generatedAtTime]: new Date(e.timestamp).toISOString(),
+				...(said === undefined ? {} : { [LOG_MESSAGE_EDGE.isPartOf]: said }),
+			},
 		});
 }
 
@@ -55,16 +58,19 @@ export async function recordProduced(world: TWorld, e: TArtifactEvent, ordinal: 
 	const under = underStep(world.tag, e);
 	await world.shared
 		.getStore()
-		.upsertIndividual(RUN_ARTIFACT_LABEL, {
-			[RUN_ARTIFACT_FIELD.id]: recordName(world.tag, e, ordinal),
-			[RUN_ARTIFACT_FIELD.actuality]: actualityFeatureOf(world.tag),
-			[RUN_ARTIFACT_FIELD.recordedAtTime]: new Date().toISOString(),
-			[RUN_ARTIFACT_FIELD.artifactType]: e.artifactType,
-			[RUN_ARTIFACT_FIELD.path]: e.path,
-			...(typeof e.featureRelativePath === "string" ? { [RUN_ARTIFACT_FIELD.featureRelativePath]: e.featureRelativePath } : {}),
-			...(typeof e.mimetype === "string" ? { [RUN_ARTIFACT_FIELD.mediaType]: e.mimetype } : {}),
-			[RUN_ARTIFACT_FIELD.generatedAtTime]: new Date(e.timestamp).toISOString(),
-			[RUN_ARTIFACT_FIELD.level]: e.level,
-			...(under === undefined ? {} : { [RUN_ARTIFACT_EDGE.isPartOf]: under }),
+		.write({
+			label: RUN_ARTIFACT_LABEL,
+			record: {
+				[RUN_ARTIFACT_FIELD.id]: recordName(world.tag, e, ordinal),
+				[RUN_ARTIFACT_FIELD.actuality]: actualityFeatureOf(world.tag),
+				[RUN_ARTIFACT_FIELD.recordedAtTime]: new Date().toISOString(),
+				[RUN_ARTIFACT_FIELD.artifactType]: e.artifactType,
+				[RUN_ARTIFACT_FIELD.path]: e.path,
+				...(typeof e.featureRelativePath === "string" ? { [RUN_ARTIFACT_FIELD.featureRelativePath]: e.featureRelativePath } : {}),
+				...(typeof e.mimetype === "string" ? { [RUN_ARTIFACT_FIELD.mediaType]: e.mimetype } : {}),
+				[RUN_ARTIFACT_FIELD.generatedAtTime]: new Date(e.timestamp).toISOString(),
+				[RUN_ARTIFACT_FIELD.level]: e.level,
+				...(under === undefined ? {} : { [RUN_ARTIFACT_EDGE.isPartOf]: under }),
+			},
 		});
 }

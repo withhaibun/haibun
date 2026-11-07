@@ -12,32 +12,39 @@ import { z } from "zod";
 import { AccessLevelSchema } from "./resources.js";
 import type { IQuadStore } from "../steps/ports.js";
 import type { TRpcMethod } from "../transport/ports.js";
+import { EDGE_TARGET, type TRemoval, type TUnit } from "../records/domains/unit.js";
 
 export const STORE_METHOD_PREFIX = "store.";
 
 export const STORE_READ: TAction = ActionSchema.parse("store.read");
 export const STORE_WRITE: TAction = ActionSchema.parse("store.write");
 
-const QuadInputSchema = z.object({
-	subject: z.string(),
-	predicate: z.string(),
-	object: z.unknown(),
-	namedGraph: z.string(),
-	objectType: z.string().optional(),
-	properties: z.record(z.string(), z.unknown()).optional(),
-});
-
 const PatternSchema = z.object({ subject: z.string().optional(), predicate: z.string().optional(), object: z.unknown().optional(), namedGraph: z.string().optional() });
+
+const EdgeTargetSchema = z.enum([EDGE_TARGET.held, EDGE_TARGET.reference, EDGE_TARGET.only]);
+const RecordNameSchema = z.object({ label: z.string(), id: z.string() });
+const UnitEdgeSchema = z.object({ rel: z.string(), label: z.string(), id: z.string(), target: EdgeTargetSchema });
+const UnitPartsSchema = z.object({ edges: z.array(UnitEdgeSchema).optional(), owns: z.array(z.lazy((): z.ZodType<TUnit> => UnitSchema)).optional() });
+
+/** A unit as a transport carries it. */
+const UnitSchema: z.ZodType<TUnit> = z.union([
+	UnitPartsSchema.extend({ label: z.string(), record: z.record(z.string(), z.unknown()), merge: z.literal(true).optional(), namedBy: RecordNameSchema.optional() }),
+	UnitPartsSchema.extend({ label: z.string(), id: z.string(), fields: z.record(z.string(), z.unknown()) }),
+	UnitPartsSchema.extend({ label: z.string(), id: z.string(), referenced: z.literal(true) }),
+]);
+
+/** A removal as a transport carries it. */
+const RemovalSchema: z.ZodType<TRemoval> = z.union([
+	RecordNameSchema.extend({ field: z.string() }),
+	RecordNameSchema.extend({ edge: z.object({ rel: z.string(), to: z.string() }) }),
+	RecordNameSchema,
+]);
 
 /** Each method's param schema and read/write classification. This map is the one wire contract. */
 const STORE_METHODS = {
-	set: { write: true, params: QuadInputSchema },
-	add: { write: true, params: z.object({ quad: QuadInputSchema }) },
-	remove: { write: true, params: z.object({ pattern: PatternSchema }) },
+	write: { write: true, params: z.object({ unit: UnitSchema }) },
+	remove: { write: true, params: z.object({ removal: RemovalSchema }) },
 	clear: { write: true, params: z.object({ namedGraph: z.string().optional() }) },
-	upsertIndividual: { write: true, params: z.object({ label: z.string(), data: z.unknown() }) },
-	deleteIndividual: { write: true, params: z.object({ label: z.string(), id: z.string() }) },
-	createEdge: { write: true, params: z.object({ fromLabel: z.string(), fromId: z.string(), edgeLabel: z.string(), toLabel: z.string(), toId: z.string() }) },
 	get: { write: false, params: z.object({ subject: z.string(), predicate: z.string(), namedGraph: z.string().optional() }) },
 	query: { write: false, params: z.object({ pattern: PatternSchema }) },
 	all: { write: false, params: z.object({}) },
@@ -78,41 +85,22 @@ export function requiredStoreCapability(method: string): TAction {
 
 /**
  * Execute one store call against `store`. Params are validated against the wire contract, and an invalid shape throws.
- * `createEdge` implements the IQuadStore contract for the caller. It calls the documented `add` fallback for a store
- * without `createEdge`, so a remote caller receives the same behaviour from every store.
  */
 export async function handleStoreCall(store: IQuadStore, method: string, rawParams: unknown): Promise<{ result: unknown }> {
 	const name = method.slice(STORE_METHOD_PREFIX.length) as TStoreMethod;
 	if (!STORE_METHODS[name]) throw new Error(`${method} isn't a store method; the store methods are ${Object.keys(STORE_METHODS).join(", ")}`);
 	switch (name) {
-		case "set": {
-			const { subject, predicate, object, namedGraph, properties } = STORE_METHODS.set.params.parse(rawParams);
-			return { result: await store.set(subject, predicate, object, namedGraph, properties) };
-		}
-		case "add": {
-			const { quad } = STORE_METHODS.add.params.parse(rawParams);
-			return { result: await store.add(quad) };
+		case "write": {
+			const { unit } = STORE_METHODS.write.params.parse(rawParams);
+			return { result: await store.write(unit) };
 		}
 		case "remove": {
-			const { pattern } = STORE_METHODS.remove.params.parse(rawParams);
-			return { result: await store.remove(pattern) };
+			const { removal } = STORE_METHODS.remove.params.parse(rawParams);
+			return { result: await store.remove(removal) };
 		}
 		case "clear": {
 			const { namedGraph } = STORE_METHODS.clear.params.parse(rawParams);
 			return { result: await store.clear(namedGraph) };
-		}
-		case "upsertIndividual": {
-			const { label, data } = STORE_METHODS.upsertIndividual.params.parse(rawParams);
-			return { result: await store.upsertIndividual(label, data) };
-		}
-		case "deleteIndividual": {
-			const { label, id } = STORE_METHODS.deleteIndividual.params.parse(rawParams);
-			return { result: await store.deleteIndividual(label, id) };
-		}
-		case "createEdge": {
-			const { fromLabel, fromId, edgeLabel, toLabel, toId } = STORE_METHODS.createEdge.params.parse(rawParams);
-			if (store.createEdge) return { result: await store.createEdge(fromLabel, fromId, edgeLabel, toLabel, toId) };
-			return { result: await store.add({ subject: fromId, predicate: edgeLabel, object: toId, namedGraph: fromLabel, objectType: toLabel }) };
 		}
 		case "get": {
 			const { subject, predicate, namedGraph } = STORE_METHODS.get.params.parse(rawParams);
