@@ -24,6 +24,7 @@ import {
 	oneCallSite,
 	startsWithoutParameters,
 	stepCount,
+	unlistedChanges,
 	steppersUnder,
 	undeclaredLists,
 	unexercised,
@@ -158,6 +159,12 @@ export function describeRepositoryRules(rules: TRepositoryRules): void {
 				const fix =
 					"start it as a feature starts where an option states it, make it a waypoint of a module's library, give a primitive the difference as a parameter, or exercise it in a feature or a unit test";
 				await expectWithinBaseline({ baselineFile: baseline("steps"), found, testFile, fix });
+			});
+
+			it("list each write beyond a step's products in its contract's changes, apart from the steps contracts.baseline.json records", async () => {
+				const steps = declaredSteps(await steppersUnder(repository, rules.stepperRoots));
+				const fix = "declare contract.changes on the step: the field of each record type it writes beyond its products, or an empty list where it writes only its products";
+				await expectWithinBaseline({ baselineFile: baseline("contracts"), found: unlistedChanges(steps), testFile, fix });
 			});
 		},
 		REPOSITORY_SCAN_MS,

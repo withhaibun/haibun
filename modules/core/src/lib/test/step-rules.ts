@@ -28,6 +28,7 @@ export const ONE_CALL_SITE = "has at most one call site";
 export const NEAR_DUPLICATE = "states another step's pattern with a word more or less";
 export const UNEXERCISED = "isn't exercised by a feature line, a kireji call, a waypoint or a unit test";
 export const DECLARED_STEPS = "declares steps";
+export const UNLISTED_CHANGES = "writes without listing its writes beyond its products in contract.changes";
 export const LIST_OPERATION = "filters, bounds, pages, orders or counts its own list";
 export const UNDECLARED_LIST = "returns a list of records or a count its domain doesn't declare as a list";
 export const FIXED_STATEMENT = "only states other steps with fixed arguments";
@@ -52,6 +53,8 @@ export type TDeclaredStep = {
 	combinator: boolean;
 	/** The domains its products are, by name. */
 	productDomains: readonly string[];
+	/** Whether its contract lists the writes beyond its products in `changes`. */
+	listsChanges: boolean;
 };
 
 /** A line that starts or keeps something, which a stepper's start cycle does where an option states it. */
@@ -91,7 +94,7 @@ export function declaredSteps(steppers: readonly { file: string; stepper: AStepp
 			const declaredDomains = productDomains(step);
 			const combinator = step.transformsList !== undefined;
 			const declared = { file, stepper: declaredBy, key, kind, pattern, parameters: pattern.includes("{"), read: step.read === true, products: declaredDomains.length > 0 };
-			return [{ ...declared, precludes: step.precludes ?? [], combinator, productDomains: declaredDomains }];
+			return [{ ...declared, precludes: step.precludes ?? [], combinator, productDomains: declaredDomains, listsChanges: step.contract?.changes !== undefined }];
 		}),
 	);
 }
@@ -354,6 +357,10 @@ export function unexercised(repository: string, steps: readonly TDeclaredStep[])
 }
 
 /** One finding for each declared step, under the repository, so its baseline holds the count of steps, which only falls. */
+/** Each step that isn't a read and doesn't list its writes beyond its products in its contract's `changes`. */
+export const unlistedChanges = (steps: readonly TDeclaredStep[]): TFound[] =>
+	steps.filter(({ read, listsChanges }) => !read && !listsChanges).map(({ file, stepper, key }) => ({ file, finding: `${UNLISTED_CHANGES}: ${stepper}.${key}` }));
+
 export const stepCount = (steps: readonly TDeclaredStep[]): TFound[] => steps.map(() => ({ file: REPOSITORY_FILE, finding: DECLARED_STEPS }));
 
 /** A word of a pattern, outside its placeholders, that filters, bounds, pages, orders or counts a list. A web page and an ordered

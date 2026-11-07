@@ -2,7 +2,8 @@
  * The predicate registry's check of the steppers' declarations: each step declared once with every face the registry derives
  * from it. A step's faces are its pattern, which parses a line, its functor (an action or a reading), the IRI its method
  * names, and the renderer its pattern gives. A finding is a missing face, a pattern another step declares unless a precludes
- * settles it, a pattern whose own line parses to another step or to more than one, or a parameter whose domain is string.
+ * settles it, a pattern whose own line parses to another step or to more than one, a parameter whose domain is string, or a
+ * contract whose terms the registry doesn't list (`contract-declarations.ts`).
  */
 import { hasCycles, type AStepper, type TStepAction, type TStepperStep } from "@haibun/core/lib/steps/domains/stepper.js";
 import { DOMAIN_STRING, domainParts } from "@haibun/core/lib/domains/domains.js";
@@ -10,6 +11,7 @@ import { declaredSteps } from "@haibun/core/lib/steps/derivations/predicate-regi
 import { placeholderOf, stepParts } from "@haibun/core/lib/steps/domains/phrase.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
+import { contractFindings } from "./contract-declarations.js";
 
 export type TDeclarationFinding = { method: string; finding: string };
 
@@ -37,6 +39,11 @@ const sampleLine = (gwta: string, termOf: (domain: string) => string): string =>
 
 /** The findings of the steppers' declarations. `resolve` returns the step a line parses to, and throws where it doesn't parse to one. */
 export function declarationFindings(steppers: readonly AStepper[], resolve: (line: string) => TStepAction): TDeclarationFinding[] {
+	return [...stepFindings(steppers, resolve), ...contractFindings(steppers)];
+}
+
+/** The findings of each step's faces. */
+function stepFindings(steppers: readonly AStepper[], resolve: (line: string) => TStepAction): TDeclarationFinding[] {
 	const declared = declaredSteps(steppers);
 	const completions = new Map(
 		steppers.flatMap((stepper) => {
