@@ -24,6 +24,14 @@ describe("report inlines a component's JS only when its view is in the final rep
 		expect(scripts).toEqual([]); // the shown components don't carry jsContent
 	});
 
+	it("carries a bundle that defines several shown components once", () => {
+		const shared = {
+			"x-scene-a": { ui: { component: "x-scene-a", js: "/assets/x-scenes.js", jsContent: VIEWER_JS } },
+			"x-scene-b": { ui: { component: "x-scene-b", js: "/assets/x-scenes.js", jsContent: VIEWER_JS } },
+		};
+		expect(inlineScriptsForView(shared, new Set(["x-scene-a", "x-scene-b"]))).toEqual([VIEWER_JS]);
+	});
+
 	it("includes only the in-view components that carry jsContent (skips main-bundle and ui-less domains)", () => {
 		const scripts = inlineScriptsForView(domains, new Set(["x-heavy-viewer", "x-status-badge", "shu-polymorphic-graph-view", "graph-query"]));
 		expect(scripts.sort()).toEqual([VIEWER_JS, "/* badge */"].sort());
