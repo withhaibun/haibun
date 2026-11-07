@@ -1,0 +1,218 @@
+{
+	"modules/cli/src/instance-stepper.ts": {
+		"writes without listing its writes beyond its products in contract.changes: InstanceStepper.reachInstance": 1,
+		"writes without listing its writes beyond its products in contract.changes: InstanceStepper.readRun": 1,
+		"writes without listing its writes beyond its products in contract.changes: InstanceStepper.restartInstance": 1,
+		"writes without listing its writes beyond its products in contract.changes: InstanceStepper.startInstance": 1,
+		"writes without listing its writes beyond its products in contract.changes: InstanceStepper.startRun": 1,
+		"writes without listing its writes beyond its products in contract.changes: InstanceStepper.stopRun": 1,
+		"writes without listing its writes beyond its products in contract.changes: InstanceStepper.waitRun": 1
+	},
+	"modules/cli/src/test-runner-stepper.ts": {
+		"writes without listing its writes beyond its products in contract.changes: TestRunnerStepper.askTestRun": 1,
+		"writes without listing its writes beyond its products in contract.changes: TestRunnerStepper.awaitTestRun": 1,
+		"writes without listing its writes beyond its products in contract.changes: TestRunnerStepper.examineTestRun": 1,
+		"writes without listing its writes beyond its products in contract.changes: TestRunnerStepper.noteEverythingChanged": 1,
+		"writes without listing its writes beyond its products in contract.changes: TestRunnerStepper.noteSourceChanged": 1,
+		"writes without listing its writes beyond its products in contract.changes: TestRunnerStepper.readTestRun": 1,
+		"writes without listing its writes beyond its products in contract.changes: TestRunnerStepper.runAllTests": 1,
+		"writes without listing its writes beyond its products in contract.changes: TestRunnerStepper.runTest": 1,
+		"writes without listing its writes beyond its products in contract.changes: TestRunnerStepper.stopTestRun": 1
+	},
+	"modules/core/src/steps/activities-stepper.ts": {
+		"writes without listing its writes beyond its products in contract.changes: ActivitiesStepper.activity": 1,
+		"writes without listing its writes beyond its products in contract.changes: ActivitiesStepper.afterEvery": 1,
+		"writes without listing its writes beyond its products in contract.changes: ActivitiesStepper.ensure": 1,
+		"writes without listing its writes beyond its products in contract.changes: ActivitiesStepper.forEvery": 1,
+		"writes without listing its writes beyond its products in contract.changes: ActivitiesStepper.runSavedWaypoint": 1,
+		"writes without listing its writes beyond its products in contract.changes: ActivitiesStepper.saveWaypoint": 1,
+		"writes without listing its writes beyond its products in contract.changes: ActivitiesStepper.waypointLabel": 1,
+		"writes without listing its writes beyond its products in contract.changes: ActivitiesStepper.waypointWithProof": 1
+	},
+	"modules/core/src/steps/authority-stepper.ts": {
+		"writes without listing its writes beyond its products in contract.changes: AuthorityStepper.holdingCapability": 1,
+		"writes without listing its writes beyond its products in contract.changes: AuthorityStepper.holdingOnly": 1,
+		"writes without listing its writes beyond its products in contract.changes: AuthorityStepper.nameConnectingSite": 1
+	},
+	"modules/core/src/steps/blips-stepper.ts": {
+		"writes without listing its writes beyond its products in contract.changes: BlipsStepper.showDeclaredBlips": 1,
+		"writes without listing its writes beyond its products in contract.changes: BlipsStepper.showWatchedBlips": 1,
+		"writes without listing its writes beyond its products in contract.changes: BlipsStepper.stopWatchingBlips": 1,
+		"writes without listing its writes beyond its products in contract.changes: BlipsStepper.watchBlips": 1
+	},
+	"modules/core/src/steps/debugger-stepper.ts": {
+		"writes without listing its writes beyond its products in contract.changes: DebuggerStepper.continue": 1,
+		"writes without listing its writes beyond its products in contract.changes: DebuggerStepper.debugStepByStep": 1,
+		"writes without listing its writes beyond its products in contract.changes: DebuggerStepper.fail": 1,
+		"writes without listing its writes beyond its products in contract.changes: DebuggerStepper.next": 1,
+		"writes without listing its writes beyond its products in contract.changes: DebuggerStepper.retry": 1,
+		"writes without listing its writes beyond its products in contract.changes: DebuggerStepper.step": 1
+	},
+	"modules/core/src/steps/haibun-stepper.ts": {
+		"writes without listing its writes beyond its products in contract.changes: Haibun.backgrounds": 1,
+		"writes without listing its writes beyond its products in contract.changes: Haibun.comment": 1,
+		"writes without listing its writes beyond its products in contract.changes: Haibun.endsWith": 1,
+		"writes without listing its writes beyond its products in contract.changes: Haibun.feature": 1,
+		"writes without listing its writes beyond its products in contract.changes: Haibun.forEach": 1,
+		"writes without listing its writes beyond its products in contract.changes: Haibun.nothing": 1,
+		"writes without listing its writes beyond its products in contract.changes: Haibun.onHost": 1,
+		"writes without listing its writes beyond its products in contract.changes: Haibun.pause": 1,
+		"writes without listing its writes beyond its products in contract.changes: Haibun.scenario": 1,
+		"writes without listing its writes beyond its products in contract.changes: Haibun.until": 1,
+		"writes without listing its writes beyond its products in contract.changes: Haibun.useStoreAt": 1
+	},
+	"modules/core/src/steps/narrator-stepper.ts": {
+		"writes without listing its writes beyond its products in contract.changes: Narrator.feature": 1,
+		"writes without listing its writes beyond its products in contract.changes: Narrator.scenario": 1
+	},
+	"modules/core/src/steps/resources-stepper.ts": {
+		"writes without listing its writes beyond its products in contract.changes: ResourcesStepper.annotate": 1,
+		"writes without listing its writes beyond its products in contract.changes: ResourcesStepper.annotateLinking": 1,
+		"writes without listing its writes beyond its products in contract.changes: ResourcesStepper.annotateNote": 1,
+		"writes without listing its writes beyond its products in contract.changes: ResourcesStepper.checkCitations": 1,
+		"writes without listing its writes beyond its products in contract.changes: ResourcesStepper.comment": 1,
+		"writes without listing its writes beyond its products in contract.changes: ResourcesStepper.statements": 1
+	},
+	"modules/core/src/steps/urakata-stepper.ts": {
+		"writes without listing its writes beyond its products in contract.changes: UrakataStepper.forgetUrakata": 1,
+		"writes without listing its writes beyond its products in contract.changes: UrakataStepper.showUrakata": 1,
+		"writes without listing its writes beyond its products in contract.changes: UrakataStepper.stopUrakata": 1,
+		"writes without listing its writes beyond its products in contract.changes: UrakataStepper.urakataIsRunning": 1
+	},
+	"modules/core/src/steps/variables-stepper.ts": {
+		"writes without listing its writes beyond its products in contract.changes: VariablesStepper.compose": 1,
+		"writes without listing its writes beyond its products in contract.changes: VariablesStepper.composeAs": 1,
+		"writes without listing its writes beyond its products in contract.changes: VariablesStepper.defineHypermediaDomain": 1,
+		"writes without listing its writes beyond its products in contract.changes: VariablesStepper.defineOpenSet": 1,
+		"writes without listing its writes beyond its products in contract.changes: VariablesStepper.defineOrderedSet": 1,
+		"writes without listing its writes beyond its products in contract.changes: VariablesStepper.defineValuesSet": 1,
+		"writes without listing its writes beyond its products in contract.changes: VariablesStepper.exists": 1,
+		"writes without listing its writes beyond its products in contract.changes: VariablesStepper.increment": 1,
+		"writes without listing its writes beyond its products in contract.changes: VariablesStepper.is": 1,
+		"writes without listing its writes beyond its products in contract.changes: VariablesStepper.isIn": 1,
+		"writes without listing its writes beyond its products in contract.changes: VariablesStepper.isLessThan": 1,
+		"writes without listing its writes beyond its products in contract.changes: VariablesStepper.isMoreThan": 1,
+		"writes without listing its writes beyond its products in contract.changes: VariablesStepper.matches": 1,
+		"writes without listing its writes beyond its products in contract.changes: VariablesStepper.set": 1,
+		"writes without listing its writes beyond its products in contract.changes: VariablesStepper.setAs": 1,
+		"writes without listing its writes beyond its products in contract.changes: VariablesStepper.setFromStatement": 1,
+		"writes without listing its writes beyond its products in contract.changes: VariablesStepper.setRandom": 1,
+		"writes without listing its writes beyond its products in contract.changes: VariablesStepper.showVar": 1,
+		"writes without listing its writes beyond its products in contract.changes: VariablesStepper.showVars": 1,
+		"writes without listing its writes beyond its products in contract.changes: VariablesStepper.statementSetValues": 1,
+		"writes without listing its writes beyond its products in contract.changes: VariablesStepper.unset": 1
+	},
+	"modules/logic/src/logic-stepper.ts": {
+		"writes without listing its writes beyond its products in contract.changes: LogicStepper.advancePlan": 1,
+		"writes without listing its writes beyond its products in contract.changes: LogicStepper.anyOf": 1,
+		"writes without listing its writes beyond its products in contract.changes: LogicStepper.didnt": 1,
+		"writes without listing its writes beyond its products in contract.changes: LogicStepper.ensure": 1,
+		"writes without listing its writes beyond its products in contract.changes: LogicStepper.every": 1,
+		"writes without listing its writes beyond its products in contract.changes: LogicStepper.everyObserved": 1,
+		"writes without listing its writes beyond its products in contract.changes: LogicStepper.maybe": 1,
+		"writes without listing its writes beyond its products in contract.changes: LogicStepper.plan": 1,
+		"writes without listing its writes beyond its products in contract.changes: LogicStepper.resolve": 1,
+		"writes without listing its writes beyond its products in contract.changes: LogicStepper.showApplicableSteps": 1,
+		"writes without listing its writes beyond its products in contract.changes: LogicStepper.showDerivation": 1,
+		"writes without listing its writes beyond its products in contract.changes: LogicStepper.some": 1,
+		"writes without listing its writes beyond its products in contract.changes: LogicStepper.someObserved": 1,
+		"writes without listing its writes beyond its products in contract.changes: LogicStepper.whenever": 1,
+		"writes without listing its writes beyond its products in contract.changes: LogicStepper.where": 1
+	},
+	"modules/recorder/src/recorder-stepper.ts": {
+		"writes without listing its writes beyond its products in contract.changes: RecorderStepper.startRecording": 1,
+		"writes without listing its writes beyond its products in contract.changes: RecorderStepper.stopRecording": 1
+	},
+	"modules/shu/src/client-cache-stepper.ts": {
+		"writes without listing its writes beyond its products in contract.changes: ClientCacheStepper.showClientCache": 1
+	},
+	"modules/shu/src/graph-source-stepper.ts": {
+		"writes without listing its writes beyond its products in contract.changes: GraphSourceStepper.clusteredGraphHoldsFromSite": 1,
+		"writes without listing its writes beyond its products in contract.changes: GraphSourceStepper.federateGraphReads": 1
+	},
+	"modules/shu/src/monitor-stepper.ts": {
+		"writes without listing its writes beyond its products in contract.changes: MonitorStepper.savesShuTo": 1,
+		"writes without listing its writes beyond its products in contract.changes: MonitorStepper.showDocument": 1,
+		"writes without listing its writes beyond its products in contract.changes: MonitorStepper.showMonitor": 1
+	},
+	"modules/shu/src/shu-stepper.ts": {
+		"writes without listing its writes beyond its products in contract.changes: ShuStepper.getGraphLayout": 1,
+		"writes without listing its writes beyond its products in contract.changes: ShuStepper.serveShuApp": 1,
+		"writes without listing its writes beyond its products in contract.changes: ShuStepper.showPolymorphicGraphView": 1
+	},
+	"modules/storage-fs/src/storage-fs-stepper.ts": {
+		"writes without listing its writes beyond its products in contract.changes: AStorage.createDirectory": 1,
+		"writes without listing its writes beyond its products in contract.changes: AStorage.fileExists": 1,
+		"writes without listing its writes beyond its products in contract.changes: AStorage.fileIsRecent": 1,
+		"writes without listing its writes beyond its products in contract.changes: AStorage.isTheSame": 1,
+		"writes without listing its writes beyond its products in contract.changes: AStorage.listFiles": 1,
+		"writes without listing its writes beyond its products in contract.changes: AStorage.readFile": 1,
+		"writes without listing its writes beyond its products in contract.changes: AStorage.testContains": 1,
+		"writes without listing its writes beyond its products in contract.changes: AStorage.testIs": 1
+	},
+	"modules/web-accessibility-axe/src/a11y-axe-stepper.ts": {
+		"writes without listing its writes beyond its products in contract.changes: A11yStepper.checkA11yRuntime": 1
+	},
+	"modules/web-playwright/src/web-playwright-stepper.ts": {
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.acceptEndpointRequest": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.blur": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.canvasIsEmpty": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.captureDialog": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.click": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.clickBy": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.closeBrowserTab": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.connectToBrowser": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.cookieIs": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.currentTabIs": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.expectDownload": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.goBack": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.gotoPage": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.hoverOver": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.inElement": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.loadBrowserExtension": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.onNewTab": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.onTabX": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.openBrowserTab": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.pageHasSettled": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.press": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.receiveDownload": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.reloadPage": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.requestsMatching": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.resizeWindow": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.restEndpointRequest": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.restEndpointRequestWithPayload": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.restLastStatusIs": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.restTokenLogout": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.restTokenRequest": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.saveTextFrom": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.saveURI": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.saveURIQueryParameter": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.scrollUpAScreen": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.seeText": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.selectionOption": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.setApiUserAgent": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.setValue": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.shouldSeeTestId": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.showJsonResponse": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.takeScreenshot": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.takeScreenshotOf": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.type": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.uploadFile": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.useAuthorization": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.usingBrowserVar": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.usingTimeout": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.waitFor": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.waitForURIMatch": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebPlaywright.waitUntilGone": 1
+	},
+	"modules/web-server-hono/src/mcp-stepper.ts": {
+		"writes without listing its writes beyond its products in contract.changes: McpStepper.serveMcpTools": 1
+	},
+	"modules/web-server-hono/src/web-server-stepper.ts": {
+		"writes without listing its writes beyond its products in contract.changes: WebServerStepper.asksToSignIn": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebServerStepper.indexFiles": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebServerStepper.isListening": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebServerStepper.serveFilesAt": 1,
+		"writes without listing its writes beyond its products in contract.changes: WebServerStepper.stopInstance": 1
+	}
+}

@@ -11,7 +11,7 @@ import type { TStepReads } from "../../domains/actions.js";
 import type { TListing, TListQuery, TListStage } from "../../domains/lists.js";
 import type { IQuadStore } from "../ports.js";
 import type { TEntailment } from "../../records/domains/claim.js";
-import type { TStepContract } from "./contract.js";
+import type { TRelation, TStepContract } from "./contract.js";
 import { constructorName } from "../../domains/util.js";
 import { DOMAIN_TITLE } from "../../domains/domains.js";
 
@@ -332,6 +332,8 @@ export const observedOf = (subject: string, fields: Record<string, unknown>): TO
 
 export interface IStepperConcerns {
 	domains?: TDomainDefinition[];
+	/** The relations the stepper's contract statements share, each declared once. */
+	relations?: TRelation[];
 	sources?: IObservationSource[];
 	quadStore?: { store: IQuadStore; namedGraphs: string[] };
 }

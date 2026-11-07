@@ -4,10 +4,12 @@
 	"version": "4.0.0-alpha.3",
 	"description": "The logic engine that proves every step: SWI-Prolog through swipl-wasm, and EYE as the N3 reasoner on the same runtime",
 	"main": "build/logic-stepper.js",
-	"files": ["build/**", "src/adapters/haibun.pl", "src/rules/**", "eye/**", "waypoints/**", "vocabularies/**"],
+	"files": ["build/**", "src/adapters/haibun.pl", "src/adapters/n3-translation.pl", "src/adapters/n3-builtins.pl", "src/rules/**", "eye/**", "waypoints/**", "vocabularies/**"],
 	"exports": {
 		".": "./build/logic-stepper.js",
 		"./haibun.pl": "./src/adapters/haibun.pl",
+		"./n3-translation.pl": "./src/adapters/n3-translation.pl",
+		"./n3-builtins.pl": "./src/adapters/n3-builtins.pl",
 		"./eye.qlf": "./eye/eye.qlf",
 		"./rules/*": "./src/rules/*",
 		"./vocabularies/*": "./vocabularies/*",

@@ -72,15 +72,16 @@ export function buildReportHtml(basePath: string, payload: { gzipped: string } |
 }
 
 /**
- * The component scripts a report inlines: each domain's `ui.jsContent`, for the components of the views the report shows.
- * A component's bundle is carried only where its view is shown.
+ * The component scripts a report inlines: each domain's `ui.jsContent`, for the components of the views the report shows. A
+ * component's bundle is carried only where its view is shown, and a bundle that defines several components, which their domains
+ * name by one `ui.js`, is carried once, since a second run of it defines its elements again.
  */
-export function inlineScriptsForView(domains: Record<string, unknown>, finalViewComponents: Set<string>): string[] {
-	return Object.values(domains)
-		.map((d) => (d as { ui?: { component?: string; jsContent?: string } } | undefined)?.ui)
+export function inlineScriptsForView(domains: Record<string, unknown>, shownComponents: Set<string>): string[] {
+	const shown = Object.values(domains)
+		.map((d) => (d as { ui?: { component?: string; js?: string; jsContent?: string } } | undefined)?.ui)
 		.filter(
-			(u): u is { component: string; jsContent: string } =>
-				typeof u?.jsContent === "string" && u.jsContent.length > 0 && typeof u.component === "string" && finalViewComponents.has(u.component),
-		)
-		.map((u) => u.jsContent);
+			(u): u is { component: string; js: string; jsContent: string } =>
+				typeof u?.jsContent === "string" && u.jsContent.length > 0 && typeof u.js === "string" && typeof u.component === "string" && shownComponents.has(u.component),
+		);
+	return [...new Map(shown.map((u) => [u.js, u.jsContent])).values()];
 }

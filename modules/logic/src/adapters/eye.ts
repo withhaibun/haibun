@@ -15,17 +15,18 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { createRequire } from "node:module";
 import { DataFactory } from "n3";
 import { z } from "zod";
-import type { Term } from "@rdfjs/types";
-import { XSD } from "@haibun/core/lib/domains/vocabularies.js";
-import { REASONER_BUILTIN, type TReasonerState, type TReasonerValue } from "../domains/reasoning.js";
+import { N3_BUILTINS_SOURCE, REASONER_BUILTIN, type TReasonerState, type TReasonerValue } from "../domains/reasoning.js";
 import type { TReasoner, TReasonerSession } from "../ports.js";
 import type { IWorkerPool } from "@haibun/core/lib/workers/ports.js";
 import { siblingModule, type TWorkerTask } from "@haibun/core/lib/workers/domains/worker-task.js";
 import { converse, type TConversation, type TTurn } from "@haibun/core/lib/workers/adapters/conversation.js";
 import { serialQueue } from "@haibun/core/lib/domains/serial-queue.js";
-import { EyeNeedSchema, EyeSessionSchema, EyeSteppedSchema } from "./eye-task.js";
+import { prologOf } from "../domains/prolog-terms.js";
+import { EyeNeedSchema, EyeSessionSchema, EyeSteppedSchema, EyeTranslatedSchema, EyeTranslationSchema } from "./eye-task.js";
 
 const EYE_SOURCE = "@haibun/logic/eye.qlf";
+/** The translation of N3 rule sets into the engine's clauses. */
+const TRANSLATOR_SOURCE = "@haibun/logic/n3-translation.pl";
 /** A session of EYE as a task of the worker pool. */
 const EYE_TASK: TWorkerTask<z.infer<typeof EyeSessionSchema>, TStepped> = {
 	name: "an EYE session",
@@ -33,6 +34,8 @@ const EYE_TASK: TWorkerTask<z.infer<typeof EyeSessionSchema>, TStepped> = {
 	input: EyeSessionSchema,
 	output: EyeSteppedSchema,
 };
+/** A translation of a rule set by EYE as a task of the worker pool. Its runtime is a session's. */
+const TRANSLATION_TASK: TWorkerTask<z.infer<typeof EyeTranslationSchema>, TStepped> = { ...EYE_TASK, name: "an EYE translation", input: EyeTranslationSchema };
 /** The read built-in, which yields the subject and the predicate and binds its object to each row the host posts; the effect
  *  built-in, which yields its request and binds its outcome to the row the host posts; the record of
  *  each predicate, the clauses of each dynamic one, and each Prolog flag a runtime holds before its first session; and the reset to that record. EYE's
@@ -54,27 +57,6 @@ reset_runtime :- forall((current_predicate(user:N/A), \\+ held_predicate(N/A)), 
 `;
 /** The depth of the session whose effect runs now, where one does. */
 const nesting = new AsyncLocalStorage<number>();
-/** The datatypes EYE holds as Prolog numbers and booleans, in place of `literal/2`. */
-const NATIVE: ReadonlySet<string> = new Set([XSD.integer, XSD.decimal, XSD.boolean]);
-const quotedAtom = (text: string): string => `'${text.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
-
-/** Returns a value as EYE holds it in Prolog: an IRI as a quoted atom in angle brackets, a number or a boolean as itself, a list
- *  as a list, and another literal or a string as `literal/2` with its language or datatype. */
-function prologOf(value: TReasonerValue): string {
-	if (typeof value === "number") return String(value);
-	if (typeof value === "string") return `literal(${quotedAtom(value)}, type(${quotedAtom(`<${XSD.string}>`)}))`;
-	if (!isTerm(value)) return `[${value.map(prologOf).join(", ")}]`;
-	if (value.termType === "NamedNode") return quotedAtom(`<${value.value}>`);
-	if (value.termType !== "Literal") throw new Error(`a value ${value.value} the host returned is a ${value.termType}, and a session reads a named node or a literal.`);
-	if (NATIVE.has(value.datatype.value)) return value.value;
-	const text = quotedAtom(value.value);
-	if (value.language !== "") return `literal(${text}, lang(${quotedAtom(value.language)}))`;
-	return `literal(${text}, type(${quotedAtom(`<${value.datatype.value}>`)}))`;
-}
-
-/** Whether a value is an IRI or a literal, rather than a string, a number or a list. */
-const isTerm = (value: TReasonerValue): value is Term => typeof value === "object" && "termType" in value;
-
 /** A Prolog term as the runtime returns it: an atom or a string, a number, a list, or a compound term by its functor. */
 type TProlog = string | number | TProlog[] | { [functor: string]: unknown };
 const PrologSchema: z.ZodType<TProlog> = z.lazy(() => z.union([z.string(), z.number(), z.array(PrologSchema), z.record(z.string(), z.unknown())]));
@@ -121,14 +103,19 @@ const turnState = (turn: TTurn<TStepped>): TReasonerState => stateOf("output" in
 /** Runs a session as a conversation with a task of the worker pool, which its caller steps through: the start returns the state of
  *  the engine's first step, and each resume posts the rows of the need before it and returns the state of the next. A caller that
  *  returns or throws before the session ends, on a need it refuses, ends it, and each need that follows reads empty rows. */
+/** What every task of EYE loads in its worker's runtime: EYE's program, the built-ins, the translation and the N3 built-ins. */
+function runtimeFields() {
+	const resolve = createRequire(import.meta.url).resolve;
+	return { program: resolve(EYE_SOURCE), builtins: BUILTINS, translator: resolve(TRANSLATOR_SOURCE), n3Builtins: resolve(N3_BUILTINS_SOURCE) };
+}
+
 async function pooledSession<T>(pool: IWorkerPool, run: (held: TReasonerSession) => Promise<T>): Promise<T> {
-	const program = createRequire(import.meta.url).resolve(EYE_SOURCE);
 	let conversation: TConversation<TStepped> | undefined;
 	try {
 		return await run({
 			start: async (sources, query, explained) => {
 				if (conversation !== undefined) throw new Error("a session started twice. Start a session of its own for each query.");
-				conversation = converse(pool, EYE_TASK, { program, builtins: BUILTINS, sources, query, explained });
+				conversation = converse(pool, EYE_TASK, { kind: "session", ...runtimeFields(), sources, query, explained });
 				return turnState(await conversation.first);
 			},
 			resume: async (posted) => {
@@ -143,9 +130,18 @@ async function pooledSession<T>(pool: IWorkerPool, run: (held: TReasonerSession)
 
 /** Returns the reasoner over the worker pool `pool`. Each session runs once the sessions before it ended, and a session started
  *  within an effect of a session runs at once beside it. */
-export function eyeReasoner(pool: IWorkerPool): Pick<TReasoner, "session"> {
+export function eyeReasoner(pool: IWorkerPool): Pick<TReasoner, "session" | "translate"> {
 	const inTurn = serialQueue();
 	return {
+		translate: async (sources, query, module) => {
+			const { answer } = await inTurn(() => pool.run(TRANSLATION_TASK, { kind: "translation", ...runtimeFields(), sources, query, module }));
+			const { clauses, refusals } = EyeTranslatedSchema.parse(answer);
+			if (refusals.length > 0) {
+				const refused = refusals.map(({ rule, reason }) => `the rule ${rule} ${reason}`).join("; ");
+				throw new Error(`The rule set of ${module} isn't translated to the engine's clauses: ${refused}. Its checks stay on EYE.`);
+			}
+			return { module, clauses };
+		},
 		session: <T>(run: (held: TReasonerSession) => Promise<T>): Promise<T> => {
 			const enclosing = nesting.getStore();
 			const depth = enclosing === undefined ? 0 : enclosing + 1;

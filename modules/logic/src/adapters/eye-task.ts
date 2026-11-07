@@ -10,8 +10,16 @@ import SWIPL from "swipl-wasm";
 import { z } from "zod";
 import { runTask } from "@haibun/core/lib/workers/adapters/run-task.js";
 
-/** A session: the path of EYE's program, the built-ins' Prolog text, the sources, the query and whether it explains. */
-export const EyeSessionSchema = z.object({ program: z.string(), builtins: z.string(), sources: z.string(), query: z.string(), explained: z.boolean() });
+/** What a worker's runtime loads: the path of EYE's program, the built-ins' Prolog text, and the paths of the translation and of the
+ *  N3 built-ins the translated clauses call. */
+const RuntimeFields = { program: z.string(), builtins: z.string(), translator: z.string(), n3Builtins: z.string() };
+/** A session: the sources, the query and whether it explains. */
+export const EyeSessionSchema = z.object({ kind: z.literal("session"), ...RuntimeFields, sources: z.string(), query: z.string(), explained: z.boolean() });
+/** A translation: a rule set, its query, and the engine's module that holds its clauses. */
+export const EyeTranslationSchema = z.object({ kind: z.literal("translation"), ...RuntimeFields, sources: z.string(), query: z.string(), module: z.string() });
+const EyeTaskSchema = z.discriminatedUnion("kind", [EyeSessionSchema, EyeTranslationSchema]);
+/** A translation's result: the clauses, and each rule the translation refused with the reason. */
+export const EyeTranslatedSchema = z.object({ clauses: z.string(), refusals: z.array(z.object({ rule: z.string(), reason: z.string() })) });
 /** What an engine step returned, which a read or an effect requests of the process, or the session's end: with what EYE printed
  *  and reported. */
 export const EyeSteppedSchema = z.object({ answer: z.unknown(), printed: z.array(z.string()), errors: z.array(z.string()) });
@@ -26,7 +34,14 @@ type TEye = { runtime: TRuntime; printed: string[]; errors: string[] };
 
 /** The libraries EYE reaches through autoload, which the runtime's library holds as .qlf files that autoload doesn't read. */
 const EYE_LIBRARIES = ["varnumbers", "when"];
-const [EYE_FILE, BUILTINS_FILE, SOURCES_FILE, QUERY_FILE] = ["eye.qlf", "builtins.pl", "sources.n3", "query.n3"];
+const [EYE_FILE, BUILTINS_FILE, TRANSLATOR_FILE, N3_BUILTINS_FILE, SOURCES_FILE, QUERY_FILE] = [
+	"eye.qlf",
+	"builtins.pl",
+	"n3-translation.pl",
+	"n3-builtins.pl",
+	"sources.n3",
+	"query.n3",
+];
 /** The engine a session runs EYE in, by its alias, and what an engine that ended returns. */
 const ENGINE = "eye";
 const DONE = "done";
@@ -37,12 +52,14 @@ const eyeArguments = (explained: boolean): string => `[${explained ? "" : "'--no
 const AnswerSchema = z
 	.custom<object>((value) => typeof value === "object" && value !== null)
 	.pipe(z.looseObject({ success: z.boolean().optional(), error: z.unknown().optional(), A: z.unknown().optional() }));
+/** A Prolog string as the runtime returns it, as its text. */
+const PrologTextSchema = z.union([z.string(), z.object({ v: z.string() }).transform(({ v }) => v)]);
 
 /** The worker's runtime, started on its first session. */
 let held: Promise<TEye> | undefined;
 
 /** Runs a goal once, and returns what it bound. Throws with the goal and the runtime's error where it doesn't succeed. */
-function once(runtime: TRuntime, goal: string, input?: Record<string, unknown>): { A?: unknown } {
+function once(runtime: TRuntime, goal: string, input?: Record<string, unknown>): z.infer<typeof AnswerSchema> {
 	const answered: unknown = runtime.prolog.query(goal, input).once();
 	const answer = AnswerSchema.safeParse(answered);
 	if (!answer.success || answer.data.success !== true)
@@ -52,8 +69,9 @@ function once(runtime: TRuntime, goal: string, input?: Record<string, unknown>):
 	return answer.data;
 }
 
-/** Starts a runtime with EYE and the built-ins loaded, and records the predicates and flags it holds before its first session. */
-async function startedEye(program: string, builtins: string): Promise<TEye> {
+/** Starts a runtime with EYE, the built-ins and the translation loaded, and records the predicates and flags it holds before its
+ *  first session. */
+async function startedEye({ program, builtins, translator, n3Builtins }: z.infer<typeof EyeTaskSchema>): Promise<TEye> {
 	const printed: string[] = [];
 	const errors: string[] = [];
 	const runtime = await SWIPL({ arguments: ["-q"], print: (line: string) => printed.push(line), printErr: (line: string) => errors.push(line) });
@@ -62,6 +80,13 @@ async function startedEye(program: string, builtins: string): Promise<TEye> {
 	once(runtime, `load_files('${EYE_FILE}', [])`);
 	runtime.FS.writeFile(BUILTINS_FILE, builtins);
 	once(runtime, `consult('${BUILTINS_FILE}')`);
+	for (const [file, path] of [
+		[N3_BUILTINS_FILE, n3Builtins],
+		[TRANSLATOR_FILE, translator],
+	] as const) {
+		runtime.FS.writeFile(file, readFileSync(path, "utf8"));
+		once(runtime, `consult('${file}')`);
+	}
 	once(runtime, "hold_runtime");
 	return { runtime, printed, errors };
 }
@@ -79,23 +104,34 @@ function ended({ runtime }: TEye): void {
 	}
 }
 
-export default runTask(EyeSessionSchema, async ({ program, builtins, sources, query, explained }, effect) => {
-	if (held === undefined) held = startedEye(program, builtins);
+/** Translates a rule set and its query: EYE reads them, holding each rule as Prolog terms, and the translation writes the clauses. The
+ *  translation reads only what EYE read from this rule set, since it records the clauses EYE held before. */
+function translated({ runtime }: TEye, module: string): z.infer<typeof EyeTranslatedSchema> {
+	once(runtime, "n3_translation:hold_eye");
+	once(runtime, `user:main(${eyeArguments(false)})`);
+	const answer = once(runtime, "atom_string(Module, M), n3_translation:translate(Module, Clauses, Rs), findall([R, W], member(R-W, Rs), Refusals)", { M: module });
+	const refusals = z.array(z.tuple([PrologTextSchema, PrologTextSchema])).parse(answer.Refusals);
+	return { clauses: PrologTextSchema.parse(answer.Clauses), refusals: refusals.map(([rule, reason]) => ({ rule, reason })) };
+}
+
+export default runTask(EyeTaskSchema, async (input, effect) => {
+	if (held === undefined) held = startedEye(input);
 	const eye = await held;
 	const { runtime, printed, errors } = eye;
-	const stepped = (answer: { A?: unknown }) => ({ answer: answer.A, printed: [...printed], errors: [...errors] });
+	const stepped = (answer: unknown) => ({ answer, printed: [...printed], errors: [...errors] });
 	printed.length = 0;
 	errors.length = 0;
-	runtime.FS.writeFile(SOURCES_FILE, sources);
-	runtime.FS.writeFile(QUERY_FILE, query);
+	runtime.FS.writeFile(SOURCES_FILE, input.sources);
+	runtime.FS.writeFile(QUERY_FILE, input.query);
 	try {
-		once(runtime, `engine_create(${DONE}, user:main(${eyeArguments(explained)}), _, [alias(${ENGINE})])`);
+		if (input.kind === "translation") return stepped(translated(eye, input.module));
+		once(runtime, `engine_create(${DONE}, user:main(${eyeArguments(input.explained)}), _, [alias(${ENGINE})])`);
 		let answer = once(runtime, `engine_next(${ENGINE}, A)`);
 		while (answer.A !== DONE && typeof answer.A === "object" && answer.A !== null && "need" in answer.A) {
 			const rows = RowsSchema.parse(await effect({ answer: answer.A }));
 			answer = once(runtime, `term_string(Rows, Text), engine_post(${ENGINE}, rows(Rows), A)`, { Text: rows });
 		}
-		return stepped(answer);
+		return stepped(answer.A);
 	} finally {
 		ended(eye);
 	}

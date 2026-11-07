@@ -4,6 +4,8 @@
 // beside it, and the component bundles of the views that were open. It doesn't carry the responses a live page happened to
 // receive, since every read a view makes is served from what the page holds.
 import { describe, it, expect } from "vitest";
+import { chromium } from "playwright";
+import { SHU_TAG } from "./domains/elements.js";
 import type { IStepperCycles, TFeatureStep } from "@haibun/core/lib/astepper.js";
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
@@ -54,9 +56,12 @@ const queryEvent = (stepperName: string, label: string) => ({
 	stepValuesMap: { query: { term: JSON.stringify({ label }), value: { label }, origin: 3, domain: DOMAIN_GRAPH_QUERY } },
 });
 
-/** Generate a report with `finalView` (a domain key) as the final-view column, using the real GraphStepper domains.
+/** Returns the file of the report of the views `shown`. */
+const reportPath = (shown: readonly string[]): string => join(tmpdir(), `polymorphic-report-${process.pid}-${shown.join("_") || "none"}.html`);
+
+/** Generate a report of actuality whose steps showed `shown` (domain keys) in order, using the real GraphStepper domains.
  *  `writes` is how many reports the same run writes, since a run writes one on each request and one at its end. */
-async function generateReport(finalView: string | undefined, writes = 1, queries: Array<Record<string, unknown>> = []): Promise<string> {
+async function generateReport(shown: readonly string[], writes = 1, queries: Array<Record<string, unknown>> = []): Promise<string> {
 	const world = getDefaultWorld();
 	const shu = new ShuStepper();
 	const monitor = new MonitorStepper();
@@ -72,18 +77,18 @@ async function generateReport(finalView: string | undefined, writes = 1, queries
 	for (const s of steppers) await s.setWorld(world, steppers);
 	world.runtime.steppers = steppers;
 	openRunRegistry(world, steppers);
-	// The step that showed the view, as actuality records it: what the report reads to determine which column was open.
-	if (finalView)
+	// Each step that showed a view, as actuality records it: what the report reads to determine which columns were open.
+	for (const [at, view] of shown.entries())
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
-			id: "1700000000000-1.0.1",
+			id: `1700000000000-1.0.${at + 1}`,
 			stepText: "show it",
 			actionStatus: "passed",
 			level: "info",
-			generatedAtTime: new Date(1000).toISOString(),
-			showed: finalView,
+			generatedAtTime: new Date(1000 + at).toISOString(),
+			showed: view,
 		});
 	for (const q of queries) await monitor.cycles.onEvent?.(q as unknown as Parameters<NonNullable<typeof monitor.cycles.onEvent>>[0]);
-	const out = join(tmpdir(), `polymorphic-report-${process.pid}-${finalView ?? "none"}.html`);
+	const out = reportPath(shown);
 	// Actuality writes its report as itself, as its feature line and its end do.
 	const line = { in: `saves shu to "${out}"` } as TFeatureStep;
 	for (let i = 0; i < writes; i++) await runAuthorizedWith(RUN_AUTHORITY, () => monitor.steps.savesShuTo.action({ where: out }, line));
@@ -92,27 +97,52 @@ async function generateReport(finalView: string | undefined, writes = 1, queries
 
 describe("serialized report bundles an external component's JS iff its view is used", () => {
 	it("EMBEDS the real graph view's bundle when the polymorphic view is the final view", async () => {
-		const scripts = reportScripts(await generateReport(GRAPH_VIEW));
+		const scripts = reportScripts(await generateReport([GRAPH_VIEW]));
 		const viewScript = scripts.find((s) => s.includes(GRAPH_VIEW));
 		expect(viewScript).toBeDefined();
 		expect((viewScript ?? "").length).toBeGreaterThan(100_000); // the actual bundle, not a stray reference
 	});
 
+	it("embeds the bundle once where the graph view is shown before another view the same bundle defines", async () => {
+		const scripts = reportScripts(await generateReport([GRAPH_VIEW, SHU_TAG.CLASS_BROWSER]));
+		expect(scripts.filter((s) => s.includes(GRAPH_VIEW))).toHaveLength(1);
+	});
+
 	it("OMITS the graph view's bundle when a polymorphic view isn't shown", async () => {
-		const scripts = reportScripts(await generateReport(undefined));
+		const scripts = reportScripts(await generateReport([]));
 		expect(scripts.some((s) => s.includes(GRAPH_VIEW))).toBe(false);
+	});
+});
+
+describe("a report opened from its file", () => {
+	it("draws the graph view where the graph view isn't the report's last view, without a page error", { timeout: 60_000 }, async () => {
+		const shown = [GRAPH_VIEW, SHU_TAG.CLASS_BROWSER];
+		await generateReport(shown);
+		const browser = await chromium.launch();
+		try {
+			const page = await browser.newPage();
+			const errors: string[] = [];
+			page.on("pageerror", (error) => errors.push(error.message));
+			await page.goto(`file://${reportPath(shown)}`);
+			await page.waitForFunction((tag) => (document.querySelector(`${tag} a-scene`) as (Element & { hasLoaded?: boolean }) | null)?.hasLoaded === true, GRAPH_VIEW);
+			const panes = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>("[data-column-key]")].map((pane) => pane.dataset.columnKey));
+			expect(panes.indexOf(GRAPH_VIEW), "the graph view opens before the class browser").toBeLessThan(panes.indexOf(SHU_TAG.CLASS_BROWSER));
+			expect(errors).toEqual([]);
+		} finally {
+			await browser.close();
+		}
 	});
 });
 
 describe("a report carries actuality and the site's declarations, and doesn't carry a captured response", () => {
 	it("carries actuality's declarations, as a page reads them, and still does when actuality writes a second report", async () => {
 		const declared = (html: string) => (reportHydration(html).cache.registry as { steps: Array<{ method: string }> }).steps.map((step) => step.method);
-		expect(declared(await generateReport(undefined)), "the first report").toContain("MonitorStepper-savesShuTo");
-		expect(declared(await generateReport(undefined, 2)), "and the one written when actuality ends").toContain("MonitorStepper-savesShuTo");
+		expect(declared(await generateReport([])), "the first report").toContain("MonitorStepper-savesShuTo");
+		expect(declared(await generateReport([], 2)), "and the one written when actuality ends").toContain("MonitorStepper-savesShuTo");
 	});
 
 	it("carries what its views showed, and doesn't carry a response a live page received", async () => {
-		const carried = Object.keys(reportHydration(await generateReport(undefined)).viewProducts);
+		const carried = Object.keys(reportHydration(await generateReport([])).viewProducts);
 		expect(
 			carried.filter((k) => k.includes("graphQuery")),
 			"the rows a query returned are the graph, which rides in the cache",
@@ -127,15 +157,15 @@ describe("a report opens on the type the reader was looking at", () => {
 	const viewHash = (html: string): string | undefined => (reportHydration(html) as unknown as { viewHash?: string }).viewHash;
 
 	it("opens on the type the last query named, whichever step served it", async () => {
-		expect(viewHash(await generateReport(undefined, 1, [queryEvent("MonitorStepper", "Comment")]))).toContain("label=Comment");
-		expect(viewHash(await generateReport(undefined, 1, [queryEvent("GraphStepper", "Email")]))).toContain("label=Email");
+		expect(viewHash(await generateReport([], 1, [queryEvent("MonitorStepper", "Comment")]))).toContain("label=Comment");
+		expect(viewHash(await generateReport([], 1, [queryEvent("GraphStepper", "Email")]))).toContain("label=Email");
 	});
 
 	it("opens on the type switched to, not the one switched away from", async () => {
-		expect(viewHash(await generateReport(undefined, 1, [queryEvent("GraphStepper", "Email"), queryEvent("GraphStepper", "Person")]))).toContain("label=Person");
+		expect(viewHash(await generateReport([], 1, [queryEvent("GraphStepper", "Email"), queryEvent("GraphStepper", "Person")]))).toContain("label=Person");
 	});
 
 	it("doesn't state a hash to open at when actuality never queried a type", async () => {
-		expect(viewHash(await generateReport(undefined))).toBeUndefined();
+		expect(viewHash(await generateReport([]))).toBeUndefined();
 	});
 });
