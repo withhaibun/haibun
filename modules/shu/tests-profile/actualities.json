@@ -195,9 +195,9 @@
 			"actuality": {
 				"text": "modules/shu/tests-profile, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 15500,
+				"tookMs": 16000,
 				"digest": {
-					"modules/core/src": "531afc580f125e67b71335125a15061a6fdb1d902809e580bda9b020b1b7ce21",
+					"modules/core/src": "4a2b197f4d221746d3140e372960e146ca2031307dbb07b181be1b1e2e475951",
 					"modules/domain-storage/src": "0774ebfedf37f5cffb3ef84ed5a7fc859ed90fedf1887299cfe903e34b6910c3",
 					"modules/logic/src": "c9013d7d2aed759b529d4930a47185915b874da40e5f863f46ed4206f9e73a91",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
@@ -214,25 +214,25 @@
 				"/features/b-reading-a-cached-actuality.feature.ts": {
 					"text": "Reading an actuality this device holds",
 					"status": "passed",
-					"tookMs": 3000,
+					"tookMs": 2900,
 					"steps": 219
 				},
 				"/features/c-reading-a-report.feature.ts": {
 					"text": "Reading a report of this actuality",
 					"status": "passed",
-					"tookMs": 2000,
+					"tookMs": 2200,
 					"steps": 223
 				},
 				"/features/d-two-origins.feature.ts": {
 					"text": "What a reader holds is held per address",
 					"status": "passed",
-					"tookMs": 2500,
+					"tookMs": 2700,
 					"steps": 214
 				},
 				"/features/e-deleting-an-actuality.feature.ts": {
 					"text": "Deleting an actuality this device holds",
 					"status": "passed",
-					"tookMs": 5700,
+					"tookMs": 5800,
 					"steps": 210
 				}
 			}
@@ -459,9 +459,9 @@
 			"actuality": {
 				"text": "modules/shu/tests-profile, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 3500,
+				"tookMs": 3600,
 				"digest": {
-					"modules/core/src": "531afc580f125e67b71335125a15061a6fdb1d902809e580bda9b020b1b7ce21",
+					"modules/core/src": "4a2b197f4d221746d3140e372960e146ca2031307dbb07b181be1b1e2e475951",
 					"modules/domain-storage/src": "0774ebfedf37f5cffb3ef84ed5a7fc859ed90fedf1887299cfe903e34b6910c3",
 					"modules/logic/src": "c9013d7d2aed759b529d4930a47185915b874da40e5f863f46ed4206f9e73a91",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",

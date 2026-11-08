@@ -105,6 +105,18 @@ export const statementN3 = ({ relation, args }: TStatement, termOf: (argument: T
 /** Returns a statement in Unicode notation, as the views show it: `name(a, b)`, with `¬` before a negation. */
 export const statementNotation = ({ relation, args, negated }: TStatement): string => `${negated ? "¬" : ""}${relation.name}(${args.map(argumentText).join(", ")})`;
 
+/** The writes the contract of a step in progress allows: the stored label of each type its products are written as, whose
+ *  records the step writes whole or in part, and each field `changes` lists. `step` names the step. */
+export type TStepWrites = { readonly step: string; readonly products: readonly string[]; readonly changes: readonly TField[] };
+
+/** Returns the writes a step's contract allows, or undefined where the contract doesn't declare `changes`. A step that doesn't
+ *  declare `changes` is one that `contracts.baseline.json` records, and its writes aren't checked. */
+export function stepWrites(step: { readonly contract?: TStepContract }, name: string, persistedAsOf: (domain: string) => string | undefined): TStepWrites | undefined {
+	const changes = step.contract?.changes;
+	if (changes === undefined) return undefined;
+	return { step: name, products: contractWrites({ contract: { products: step.contract?.products } }, persistedAsOf), changes };
+}
+
 /** Returns each record type a step's call writes: the stored label of each product domain that `persistedAsOf` returns one for,
  *  and the type of each field the contract lists in `changes`. */
 export function contractWrites(step: { readonly contract?: TStepContract }, persistedAsOf: (domain: string) => string | undefined): string[] {

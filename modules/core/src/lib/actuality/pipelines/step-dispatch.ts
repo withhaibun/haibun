@@ -61,7 +61,7 @@ import {
 } from "../derivations/step-records.js";
 import { stepEndEvent, stepStartEvent } from "../derivations/lifecycle-events.js";
 import { moveActuality } from "./move-actuality.js";
-import { contractProducts } from "../../steps/domains/contract.js";
+import { contractProducts, stepWrites } from "../../steps/domains/contract.js";
 
 /** How a step is proved and its calls dispatched. `grantedCapability` is the action the call invoked. `held` is what its caller holds, and it
  *  bounds what the step reads. A holder in this process invokes from what it holds, so it passes one list for both.
@@ -294,7 +294,8 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	// A log written while a substep runs doesn't report above the substep's level, except a warning or an error. The web
 	// server marks an RPC call into a running instance as a substep, so the caller's narration doesn't appear among
 	// actuality's steps.
-	const step = { seqPath: featureStep.seqPath.join("."), reportsAt: featureStep.isSubStep ? SUBSTEP_LEVEL : undefined };
+	const persistedAsOf = (domain: string) => world.domains[normalizeDomainKey(domain)]?.topology?.persistedAs;
+	const step = { seqPath: featureStep.seqPath.join("."), reportsAt: featureStep.isSubStep ? SUBSTEP_LEVEL : undefined, writes: stepWrites(action.step, method, persistedAsOf) };
 	let actionResult: TActionResult | undefined;
 	let lastStepResult: TStepResult | undefined;
 	await runInStep(step, () =>

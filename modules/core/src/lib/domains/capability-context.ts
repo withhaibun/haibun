@@ -19,6 +19,7 @@ import { Access, ACCESS_BROADEST_FIRST, narrowerCeiling, type AccessLevel } from
 import { capabilityAllows, EVERY_ACTION, readAction, readCeilingOf, writtenAt, type TAccessBound, type TCallAuthority } from "./actions.js";
 import type { TActingFor, TRestsOn } from "./authority-types.js";
 import type { THaibunLogLevel } from "./protocol.js";
+import type { TStepWrites } from "../steps/domains/contract.js";
 import { RefusedCall, refusalSaid, type TRpcRefusal } from "../transport/domains/rpc-wire.js";
 
 const capabilityStore = new AsyncLocalStorage<TCallAuthority>();
@@ -139,9 +140,10 @@ export function actingFor(): TActingFor | undefined {
 	return controller ? { root: false, controller } : undefined;
 }
 
-/** The running step. It holds the step's seqPath, the log level at which the step's logs report, and the seqPath of the
- *  outermost step of its call. A step that another step didn't dispatch is its own outermost step. */
-type TStepInFlight = { seqPath: string; reportsAt: THaibunLogLevel | undefined; outermost: string };
+/** The running step. It holds the step's seqPath, the log level at which the step's logs report, the writes its contract
+ *  allows where it declares them, and the seqPath of the outermost step of its call. A step that another step didn't dispatch
+ *  is its own outermost step. */
+type TStepInFlight = { seqPath: string; reportsAt: THaibunLogLevel | undefined; writes?: TStepWrites; outermost: string };
 
 const stepStore = new AsyncLocalStorage<TStepInFlight | undefined>();
 

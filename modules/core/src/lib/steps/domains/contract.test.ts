@@ -18,6 +18,7 @@ import {
 	statementN3,
 	statementNotation,
 	StepContractSchema,
+	stepWrites,
 	type TRelation,
 } from "./contract.js";
 
@@ -66,5 +67,16 @@ describe("contract terms", () => {
 		expect(contractWrites({ contract: { products: "capability", changes: [] } }, persistedAs)).toEqual(["Capability"]);
 		expect(contractWrites({ contract: { products: "text", changes: [field(CAPABILITY, "revoked")] } }, persistedAs)).toEqual(["Capability"]);
 		expect(contractWrites({ contract: { products: "text" } }, persistedAs)).toEqual([]);
+	});
+
+	it("states the writes a step in progress may make where its contract declares changes, and doesn't where the step is on the baseline", () => {
+		const persistedAs = (domain: string) => (domain === "capability" ? "Capability" : undefined);
+		const revoked = field(CAPABILITY, "revoked");
+		expect(stepWrites({ contract: { products: "capability", changes: [revoked] } }, "S-delegate", persistedAs)).toEqual({
+			step: "S-delegate",
+			products: ["Capability"],
+			changes: [revoked],
+		});
+		expect(stepWrites({ contract: { products: "capability" } }, "S-delegate", persistedAs)).toBeUndefined();
 	});
 });

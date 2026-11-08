@@ -20,6 +20,7 @@ import type {
 	TRecordType,
 } from "./domains/quad-types.js";
 import type { TReadVersion, TRecordName, TRemoval, TUnit } from "../records/domains/unit.js";
+import type { TStepWrites } from "./domains/contract.js";
 
 /** A subscriber of the events hub. It receives each event once the hub has obscured its secrets and stated its level. */
 export type TEventSubscriber = (event: THaibunEvent) => void;
@@ -56,7 +57,15 @@ export interface IEventLogger {
 /** The levels a store applies: the bound a read is read within, the bound a write is written within, and the level each
  *  type declares its records at, undefined for a name that isn't a persisted type. A store that isn't given levels holds a
  *  copy of what a site served, which was bounded where it was served. */
-export type TStoreLevels = { bound: () => TAccessBound; writeBound: () => TAccessBound; declared: (label: string) => AccessLevel | undefined };
+/** What a store reads of each write's call: the read bound and the write bound, the level each type declares, the writes the
+ *  contract of the step in progress allows, and whether a type records actuality itself, whose writes a contract doesn't hold. */
+export type TStoreLevels = {
+	bound: () => TAccessBound;
+	writeBound: () => TAccessBound;
+	declared: (label: string) => AccessLevel | undefined;
+	stepWrites: () => TStepWrites | undefined;
+	recordsActuality: (label: string) => boolean;
+};
 
 /** A store of quads: core's in-memory store, a backing store with a query engine, a page's copy of what a site served, or another
  *  instance's store. Every method is async, so an in-memory store and a store with a database implement one port. */

@@ -269,7 +269,7 @@ describe("which division of a span an instant falls in", () => {
 describe("the level each quad a run holds is written and read at", () => {
 	const [NOTICE, FACTS] = ["Notice", "facts"];
 	const DECLARED: Record<string, AccessLevel> = { [NOTICE]: Access.public, [FACTS]: Access.private };
-	const levels = { bound: accessBound, writeBound, declared: (label: string) => DECLARED[label] };
+	const levels = { bound: accessBound, writeBound, declared: (label: string) => DECLARED[label], stepWrites: () => undefined, recordsActuality: () => false };
 	const [reader, publicReader] = [[readAction(Access.private)], [readAction(Access.public)]];
 	const as = <T>(held: string[], within: () => Promise<T>): Promise<T> => runAuthorizedWith(held, () => runReadingAt(readCeilingOf(held), within));
 	let store: QuadStore;

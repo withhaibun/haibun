@@ -24,7 +24,7 @@ import { VARIABLE_FIELD, VariableSchema, type TVariable } from "../../records/do
 import { QuadStore, newStoreChain } from "../../steps/pipelines/quad-store.js";
 import { OBSCURED_VALUE, isSecretName } from "../../steps/domains/secrets.js";
 import type { TSecrets } from "../../steps/ports.js";
-import { accessBound, readingAsStated, writeBound } from "../../domains/capability-context.js";
+import { accessBound, readingAsStated, stepInFlight, writeBound } from "../../domains/capability-context.js";
 import { EDGE, SEQ_PATH_LABEL, declaredAccessLevel } from "../../domains/resources.js";
 import { actualityFeatureOf, formatRecordName } from "../domains/seq-path.js";
 import { IQuadStore } from "../../steps/ports.js";
@@ -91,7 +91,13 @@ export class FeatureVariables {
 		const prevStore = prev instanceof QuadStore ? prev : undefined;
 		this.store = new QuadStore(
 			prevStore === undefined ? newStoreChain() : prevStore.storeChain(),
-			{ bound: accessBound, writeBound, declared: (label: string) => declaredAccessLevel(persistedDomainOf(world.domains, label)) },
+			{
+				bound: accessBound,
+				writeBound,
+				declared: (label: string) => declaredAccessLevel(persistedDomainOf(world.domains, label)),
+				stepWrites: () => stepInFlight()?.writes,
+				recordsActuality: (label: string) => persistedDomainOf(world.domains, label)?.topology.instrumentation === true,
+			},
 			() => readDeclarationsOf(world.domains, world.runtime.records),
 			declaredRecordsReader(
 				() => world.domains,

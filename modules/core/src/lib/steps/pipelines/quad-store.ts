@@ -49,6 +49,7 @@ import {
 	type TWholeRecord,
 } from "../../records/domains/unit.js";
 import { RecordVersions } from "../../records/pipelines/record-versions.js";
+import { assertWritesWithin } from "../../records/derivations/contract-writes.js";
 
 /**
  * The backing stores and federated peers that a chain of stores shares by reference. Each store of a scenario and a
@@ -263,6 +264,7 @@ export class QuadStore implements IQuadStore {
 	async write(unit: TUnit): Promise<string> {
 		const units = unitsOf(unit);
 		for (const part of units) this.refuseDerived(part.label);
+		if (this.levels) assertWritesWithin(unit, this.levels.stepWrites(), this.levels.recordsActuality);
 		const backing = this.storeFor(unit.label);
 		if (backing) return await backing.write(unit);
 		const parts = units.map((part) => {
