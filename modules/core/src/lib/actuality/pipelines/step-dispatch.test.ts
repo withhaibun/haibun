@@ -650,6 +650,36 @@ describe("step-dispatch", () => {
 			expect(await fieldOf([0, 30, 3], SEQ_PATH_FIELD.error), "with the refusal").toMatch(/capability CapabilityStepper:protected required/);
 		});
 
+		it("lists on the step's record each write a store refused during the step, where the step continues past the refusal", async () => {
+			const stepper = new (class ImportsNotes extends AStepper {
+				description = "A step whose contract lists an empty set of changes, which writes a note outside its contract and continues.";
+				steps = {
+					importNotes: {
+						description: TEST_STEP,
+						gwta: "import notes",
+						contract: { products: TEST_DOMAIN.count, changes: [] },
+						action: async () => {
+							const refusal = await world.shared
+								.getStore()
+								.write({ label: "Note", record: { id: "note-1", says: "outside" } })
+								.then(
+									() => undefined,
+									(err: unknown) => err,
+								);
+							return refusal === undefined ? actionNotOK("the store wrote a note outside the step's contract") : actionOKWithProducts({ count: 0 });
+						},
+					},
+				};
+			})();
+			const steppers = [stepper];
+			const registry = new StepRegistry(steppers, world);
+			const tool = registry.get("ImportsNotes-importNotes");
+			if (!tool) throw new Error("Expected the step to be registered");
+			expect((await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, buildFeatureStepForTransport(tool, {}, [0, 31, 1]))).ok).toBe(true);
+			const fieldOf = (field: string) => world.shared.getStore().get(formatRecordName({ actuality: actualityFeatureOf(world.tag), path: [0, 31, 1] }), field, SEQ_PATH_LABEL);
+			expect(await fieldOf(SEQ_PATH_FIELD.refusedWrites), "each refused write").toEqual(["Note.id", "Note.says"]);
+		});
+
 		describe("what the caller holds", () => {
 			const NOTICE_LABEL = "HeldNotice";
 			const NOTICE_ID = "notice-1";

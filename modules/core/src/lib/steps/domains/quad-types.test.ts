@@ -3,40 +3,22 @@ import { extractQuadsFromEvents, eventsAffectLabel } from "../derivations/quad-e
 import { type TQuad, matchesQuadPattern, OBSERVATION_VALUE_MAX, quadObservation } from "./quad-types.js";
 import { itemAt } from "../../domains/item-at.js";
 
-const quadEvent = (namedGraph: string) => ({
-	id: `q-${namedGraph}`,
-	timestamp: 1000,
-	kind: "artifact",
-	artifactType: "json",
-	json: { quadObservation: { subject: "s", predicate: "name", object: "v", namedGraph, timestamp: 1000 } },
-});
+const quad = (subject: string, object: unknown, namedGraph: string, timestamp: number): TQuad => ({ subject, predicate: "name", object, namedGraph, timestamp });
+const quadEvent = (namedGraph: string) => quadObservation(`unit-${namedGraph}`, 1000, [quad("s", "v", namedGraph, 1000)]);
 
 describe("extractQuadsFromEvents", () => {
-	it("extracts quadObservation from artifact events", () => {
+	it("extracts the quads of each unit's observation, in the order of the events and of each unit's changes", () => {
 		const events = [
 			{ id: "log-1", timestamp: 1000, kind: "log", level: "info", source: "test" },
-			{
-				id: "quad-http-1",
-				timestamp: 2000,
-				kind: "artifact",
-				artifactType: "json",
-				source: "haibun",
-				json: { quadObservation: { subject: "/api/test", predicate: "name", object: "GET 200 5ms", namedGraph: "observation/http", timestamp: 2000 } },
-			},
-			{
-				id: "quad-http-2",
-				timestamp: 3000,
-				kind: "artifact",
-				artifactType: "json",
-				source: "haibun",
-				json: { quadObservation: { subject: "/api/other", predicate: "name", object: "POST 201 12ms", namedGraph: "observation/http", timestamp: 3000 } },
-			},
+			quadObservation("unit-1", 2000, [quad("/api/test", "GET 200 5ms", "observation/http", 2000), quad("/api/test", "GET", "observation/http", 2000)]),
+			quadObservation("unit-2", 3000, [quad("/api/other", "POST 201 12ms", "observation/http", 3000)]),
 			{ id: "artifact-1", timestamp: 4000, kind: "artifact", artifactType: "screenshot", source: "test" },
 		];
-		const quads = extractQuadsFromEvents(events);
-		expect(quads).toHaveLength(2);
-		expect(quads[0]).toMatchObject({ subject: "/api/test", predicate: "name", object: "GET 200 5ms", namedGraph: "observation/http" });
-		expect(quads[1]).toMatchObject({ subject: "/api/other", predicate: "name", object: "POST 201 12ms", namedGraph: "observation/http" });
+		expect(extractQuadsFromEvents(events).map(({ subject, object }) => [subject, object])).toEqual([
+			["/api/test", "GET 200 5ms"],
+			["/api/test", "GET"],
+			["/api/other", "POST 201 12ms"],
+		]);
 	});
 
 	it("returns empty array for events without quadObservations", () => {
@@ -47,10 +29,11 @@ describe("extractQuadsFromEvents", () => {
 		expect(extractQuadsFromEvents(events)).toEqual([]);
 	});
 
-	it("skips malformed quadObservations missing required fields", () => {
+	it("skips an observation whose quad lacks a required field", () => {
+		const unit = (quads: unknown[]) => ({ id: "bad", timestamp: 1000, kind: "artifact", artifactType: "json", json: { quadObservation: { timestamp: 1000, quads } } });
 		const events = [
-			{ id: "bad-1", timestamp: 1000, kind: "artifact", artifactType: "json", json: { quadObservation: { subject: "", predicate: "name", namedGraph: "test" } } },
-			{ id: "bad-2", timestamp: 2000, kind: "artifact", artifactType: "json", json: { quadObservation: { subject: "x", predicate: "", namedGraph: "test" } } },
+			unit([{ subject: "", predicate: "name", namedGraph: "test", timestamp: 1000 }]),
+			unit([{ subject: "x", predicate: "", namedGraph: "test", timestamp: 1000 }]),
 			{ id: "bad-3", timestamp: 3000, kind: "artifact", artifactType: "json", json: { other: "data" } },
 		];
 		expect(extractQuadsFromEvents(events)).toEqual([]);
@@ -58,7 +41,13 @@ describe("extractQuadsFromEvents", () => {
 
 	it("doesn't read an observation of a quad that doesn't state when it was written, which a store's write always states", () => {
 		const events = [
-			{ id: "q-1", timestamp: 5000, kind: "artifact", artifactType: "json", json: { quadObservation: { subject: "/x", predicate: "name", object: "val", namedGraph: "test" } } },
+			{
+				id: "q-1",
+				timestamp: 5000,
+				kind: "artifact",
+				artifactType: "json",
+				json: { quadObservation: { timestamp: 5000, quads: [{ subject: "/x", predicate: "name", object: "val", namedGraph: "test" }] } },
+			},
 		];
 		expect(extractQuadsFromEvents(events)).toEqual([]);
 	});
@@ -87,13 +76,14 @@ describe("a quad observation carries previews, never payloads", () => {
 	it("bounds a long string value to OBSERVATION_VALUE_MAX, marks it a preview, and passes short values by reference", () => {
 		const body = "x".repeat(OBSERVATION_VALUE_MAX * 200);
 		const short: TQuad = { subject: "e1", predicate: "subject", object: "short", namedGraph: "Letter", timestamp: 2 };
-		const emitted = [quadObservation("q1", { subject: "e1", predicate: "content", object: body, namedGraph: "Body", timestamp: 1 }), quadObservation("q2", short)];
-		const observations = emitted.map((e) => e.json.quadObservation as TQuad);
-		const preview = itemAt(observations, 0);
-		expect(String(preview.object).length).toBe(OBSERVATION_VALUE_MAX);
-		expect(String(preview.object).endsWith("\u2026")).toBe(true);
-		expect(preview.properties?.preview).toBe(true);
-		expect(observations[1]).toBe(short);
+		const [preview, kept] = extractQuadsFromEvents([
+			quadObservation("unit-1", 1, [{ subject: "e1", predicate: "content", object: body, namedGraph: "Body", timestamp: 1 }, short]),
+		]);
+		expect(String(preview?.object).length).toBe(OBSERVATION_VALUE_MAX);
+		expect(String(preview?.object).endsWith("\u2026")).toBe(true);
+		expect(preview?.properties?.preview).toBe(true);
+		expect(itemAt((quadObservation("unit-2", 2, [short]).json.quadObservation as { quads: TQuad[] }).quads, 0)).toBe(short);
+		expect(kept).toEqual(short);
 	});
 });
 

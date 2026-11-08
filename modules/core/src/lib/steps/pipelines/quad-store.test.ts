@@ -8,7 +8,7 @@ import { storeDeclaring } from "../../test/declared-types.js";
 import { describe, it, expect, beforeEach, beforeAll } from "vitest";
 import { accessBound, runAuthorizedWith, runReadingAt, writeBound } from "../../domains/capability-context.js";
 import { readAction, readCeilingOf, writeAction } from "../../domains/actions.js";
-import { Access, type AccessLevel } from "../../domains/resources.js";
+import { Access, LinkRelations, SEQ_PATH_LABEL, type AccessLevel } from "../../domains/resources.js";
 import { itemAt } from "../../domains/item-at.js";
 import { COUNT_CEILING } from "../../domains/hypermedia.js";
 import { EDGE_TARGET, edgesFrom } from "../../records/domains/unit.js";
@@ -269,7 +269,14 @@ describe("which division of a span an instant falls in", () => {
 describe("the level each quad a run holds is written and read at", () => {
 	const [NOTICE, FACTS] = ["Notice", "facts"];
 	const DECLARED: Record<string, AccessLevel> = { [NOTICE]: Access.public, [FACTS]: Access.private };
-	const levels = { bound: accessBound, writeBound, declared: (label: string) => DECLARED[label], stepWrites: () => undefined, recordsActuality: () => false };
+	const levels = {
+		bound: accessBound,
+		writeBound,
+		declared: (label: string) => DECLARED[label],
+		stepWrites: () => undefined,
+		recordsActuality: () => false,
+		currentStep: () => undefined,
+	};
 	const [reader, publicReader] = [[readAction(Access.private)], [readAction(Access.public)]];
 	const as = <T>(held: string[], within: () => Promise<T>): Promise<T> => runAuthorizedWith(held, () => runReadingAt(readCeilingOf(held), within));
 	let store: QuadStore;
@@ -301,6 +308,42 @@ describe("the level each quad a run holds is written and read at", () => {
 		await expect(as(reader, () => store.write({ label: NOTICE, id: "notice-1", fields: { text: "read privately" } }))).rejects.toThrow(writeAction(Access.public));
 		await expect(as(reader, () => store.remove({ label: NOTICE, id: "notice-1" }))).rejects.toThrow(writeAction(Access.public));
 		expect(await store.get("notice-1", "text", NOTICE), "and the record is as it was published").toBe("published");
+	});
+});
+
+describe("the provenance a store states for each record a unit writes", () => {
+	const [NOTICE, MESSAGE] = ["Notice", "Message"];
+	const STEP = "actuality-1:0.1";
+	const levels = { bound: accessBound, writeBound, declared: () => Access.public, stepWrites: () => undefined, recordsActuality: () => false, currentStep: () => STEP };
+	const generatedBy = (store: QuadStore, label: string, id: string) => store.query({ subject: id, predicate: LinkRelations.WAS_GENERATED_BY.rel, namedGraph: label });
+
+	it("links a record's first write to the step in progress, and not a later write", async () => {
+		const store = storeDeclaring({ [NOTICE]: {} }, levels);
+		await store.write({ label: NOTICE, record: { id: "notice-1", text: "first" } });
+		await store.write({ label: NOTICE, record: { id: "notice-1", text: "second" } });
+		expect((await generatedBy(store, NOTICE, "notice-1")).map(({ object, objectType }) => [object, objectType])).toEqual([[STEP, SEQ_PATH_LABEL]]);
+	});
+
+	it("holds the link of a new record at the level the record states, where its type doesn't declare one", async () => {
+		const store = storeDeclaring({ [NOTICE]: {} }, { ...levels, declared: () => undefined });
+		await store.write({ label: NOTICE, record: { id: "notice-1", text: "stated", accessLevel: Access.private } });
+		expect((await generatedBy(store, NOTICE, "notice-1")).map(({ accessLevel }) => accessLevel)).toEqual([Access.private]);
+	});
+
+	it("doesn't link a write outside a step", async () => {
+		const store = storeDeclaring({ [NOTICE]: {} }, { ...levels, currentStep: () => undefined });
+		await store.write({ label: NOTICE, record: { id: "notice-1", text: "outside a step" } });
+		expect(await generatedBy(store, NOTICE, "notice-1")).toEqual([]);
+	});
+
+	it("stamps the time of the write where the type's time is the time of its write, and not where the type declares a domain time field", async () => {
+		const store = storeDeclaring({ [NOTICE]: {}, [MESSAGE]: { time: "receivedAt" } }, levels);
+		await store.write({ label: NOTICE, record: { id: "notice-1", text: "stamped" } });
+		await store.write({ label: NOTICE, record: { id: "notice-2", text: "stated", generatedAtTime: "2026-01-01T00:00:00.000Z" } });
+		await store.write({ label: MESSAGE, record: { id: "message-1", receivedAt: "2026-02-01T00:00:00.000Z" } });
+		expect(await store.get("notice-1", LinkRelations.GENERATED_AT_TIME.rel, NOTICE), "the time of the write").toEqual(expect.any(String));
+		expect(await store.get("notice-2", LinkRelations.GENERATED_AT_TIME.rel, NOTICE), "the time the record states").toBe("2026-01-01T00:00:00.000Z");
+		expect(await store.get("message-1", LinkRelations.GENERATED_AT_TIME.rel, MESSAGE), "a record placed in time by its domain time field").toBeUndefined();
 	});
 });
 

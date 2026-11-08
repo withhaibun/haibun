@@ -10,6 +10,7 @@ import { ShuActionsBar } from "./shu-actions-bar.js";
 import { SHU_EVENT } from "../../domains/elements.js";
 import { persistedTypeDefinition, serveThePage, setupShuTest, type TShuTestHandle } from "../../test/setup.js";
 import { CHAT_STEP, chatDispatch } from "../ask/components/chat-pane.test-fake.js";
+import { quadObservation } from "@haibun/core/lib/steps/domains/quad-types.js";
 
 const TYPE = "Email";
 const SELECT_VALUES = "getSelectValues";
@@ -22,13 +23,7 @@ const A_TYPE = chatDispatch(
 );
 
 /** A quad actuality recorded in `namedGraph`, as the stream carries it. */
-const recorded = (namedGraph: string) => ({
-	id: `q-${namedGraph}`,
-	timestamp: 1000,
-	kind: "artifact",
-	artifactType: "json",
-	json: { quadObservation: { subject: "s", predicate: "name", object: "v", namedGraph, timestamp: 1000 } },
-});
+const recorded = (namedGraph: string) => quadObservation(`q-${namedGraph}`, 1000, [{ subject: "s", predicate: "name", object: "v", namedGraph, timestamp: 1000 }]);
 
 const aFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 

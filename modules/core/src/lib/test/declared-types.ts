@@ -11,13 +11,13 @@ import { mapDefinitionsToDomains } from "../domains/domains.js";
 import { readDeclarationsOf, servedIdOf, type TReadDeclarations } from "../records/derivations/read-records.js";
 import { recordIri } from "../records/derivations/record-iri.js";
 
-/** The fields and relations of one test type, and the field that identifies its records where it isn't `id`. A relation
- *  maps to the types at its other end. */
-export type TDeclaredType = { id?: string; filters?: readonly string[]; relations?: Record<string, readonly string[]>; schema?: z.ZodType };
+/** The fields and relations of one test type, the field that identifies its records where it isn't `id`, and the domain time
+ *  field that places its records in time where it isn't `generatedAtTime`. A relation maps to the types at its other end. */
+export type TDeclaredType = { id?: string; time?: string; filters?: readonly string[]; relations?: Record<string, readonly string[]>; schema?: z.ZodType };
 
 /** Returns read declarations of the types `types` names. Each type's id field is the one it names or `id`, its filters
- *  compare the fields it names, a page of it orders by `generatedAtTime`, and a read states each record's IRI, derived under
- *  haibun's namespace. */
+ *  compare the fields it names, a page of it orders by its domain time field or `generatedAtTime`, and a read states each
+ *  record's IRI, derived under haibun's namespace. */
 export function declaredTypes(types: Record<string, TDeclaredType>): TReadDeclarations {
 	const relations = [...new Set(Object.values(types).flatMap((type) => (type.relations === undefined ? [] : Object.keys(type.relations))))].sort();
 	return {
@@ -29,7 +29,11 @@ export function declaredTypes(types: Record<string, TDeclaredType>): TReadDeclar
 			if (!type) return undefined;
 			const properties = Object.fromEntries((type.filters ?? []).map((field) => [field, [REACHED_BY.filter]]));
 			const references = Object.fromEntries((type.relations === undefined ? [] : Object.entries(type.relations)).map(([relation, ranges]) => [relation, [...ranges]]));
-			const declared = { id: type.id === undefined ? "id" : type.id, surface: { label, properties, references }, defaultSort: LinkRelations.GENERATED_AT_TIME.rel };
+			const declared = {
+				id: type.id === undefined ? "id" : type.id,
+				surface: { label, properties, references },
+				defaultSort: type.time === undefined ? LinkRelations.GENERATED_AT_TIME.rel : type.time,
+			};
 			return type.schema === undefined ? declared : { ...declared, schema: type.schema };
 		},
 	};

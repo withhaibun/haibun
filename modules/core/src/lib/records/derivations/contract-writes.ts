@@ -28,11 +28,3 @@ export class WriteOutsideContract extends Error {
 		);
 	}
 }
-
-/** Refuses a unit that writes outside `writes`. A write outside a step, or in a step whose contract doesn't declare `changes`,
- *  isn't checked. */
-export function assertWritesWithin(unit: TUnit, writes: TStepWrites | undefined, recordsActuality: (label: string) => boolean): void {
-	if (writes === undefined) return;
-	const outside = writesOutside(unit, writes, recordsActuality);
-	if (outside.length > 0) throw new WriteOutsideContract(writes.step, outside);
-}

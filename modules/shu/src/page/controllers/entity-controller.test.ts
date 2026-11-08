@@ -9,18 +9,12 @@ import { setupShuTest, makeEntityDispatch, annotationList, type TShuTestHandle }
 import type { TEvent } from "../ports.js";
 import { endPage } from "../adapters/page-held.js";
 import { LOAD_STATUS } from "../domains/load.js";
+import { quadObservation } from "@haibun/core/lib/steps/domains/quad-types.js";
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 20));
 
 const quadEvent = (subject: string, predicate: string, object: unknown): TEvent =>
-	({
-		id: `${subject}.q`,
-		timestamp: 1,
-		kind: "artifact",
-		artifactType: "json",
-		mimetype: "application/json",
-		json: { quadObservation: { subject, predicate, object, namedGraph: "Email", timestamp: 1 } },
-	}) as unknown as TEvent;
+	quadObservation(`${subject}.q`, 1, [{ subject, predicate, object, namedGraph: "Email", timestamp: 1 }]) as unknown as TEvent;
 
 class TestHost extends LitElement {
 	views: TEntityView[] = [];

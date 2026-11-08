@@ -349,6 +349,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		verdict,
 		...(error === undefined ? {} : { error }),
 		...entailmentRecorded(actionResult.products),
+		...(step.writes === undefined ? {} : { refusedWrites: step.writes.refused }),
 		...shown(viewShown(actionResult.products)),
 		...result,
 	});

@@ -58,13 +58,15 @@ export interface IEventLogger {
  *  type declares its records at, undefined for a name that isn't a persisted type. A store that isn't given levels holds a
  *  copy of what a site served, which was bounded where it was served. */
 /** What a store reads of each write's call: the read bound and the write bound, the level each type declares, the writes the
- *  contract of the step in progress allows, and whether a type records actuality itself, whose writes a contract doesn't hold. */
+ *  contract of the step in progress allows, whether a type records actuality itself, whose writes a contract doesn't hold, and
+ *  the record name of the step in progress, which each record's first write links through `prov:wasGeneratedBy`. */
 export type TStoreLevels = {
 	bound: () => TAccessBound;
 	writeBound: () => TAccessBound;
 	declared: (label: string) => AccessLevel | undefined;
 	stepWrites: () => TStepWrites | undefined;
 	recordsActuality: (label: string) => boolean;
+	currentStep: () => string | undefined;
 };
 
 /** A store of quads: core's in-memory store, a backing store with a query engine, a page's copy of what a site served, or another

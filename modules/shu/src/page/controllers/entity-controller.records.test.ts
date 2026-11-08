@@ -15,6 +15,7 @@ import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import type { TEvent } from "../ports.js";
 import { endPage } from "../adapters/page-held.js";
 import { LOAD_STATUS } from "../domains/load.js";
+import { quadObservation } from "@haibun/core/lib/steps/domains/quad-types.js";
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 20));
 
@@ -26,14 +27,7 @@ const withBody = (read: ReturnType<typeof entity>) => ({ ...read, vertex: { ...r
 const note = (commentId: string, body: string) => ({ commentId, specificResourceId: `sr-${commentId}`, exact: "a passage", body });
 
 const quadEvent = (namedGraph: string, subject: string, predicate: string, object: unknown, objectType?: string): TEvent =>
-	({
-		id: `${subject}.q`,
-		timestamp: 1,
-		kind: "artifact",
-		artifactType: "json",
-		mimetype: "application/json",
-		json: { quadObservation: { subject, predicate, object, namedGraph, ...(objectType ? { objectType } : {}), timestamp: 1 } },
-	}) as unknown as TEvent;
+	quadObservation(`${subject}.q`, 1, [{ subject, predicate, object, namedGraph, ...(objectType ? { objectType } : {}), timestamp: 1 }]) as unknown as TEvent;
 
 /** Returns a dispatch for the two steps the store calls. It counts each call. A test can supply each step's result. */
 function stubDispatch(over: { entity?: () => unknown; annotations?: () => unknown } = {}) {

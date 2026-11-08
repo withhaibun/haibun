@@ -25,6 +25,7 @@ import { QuadStore, newStoreChain } from "../../steps/pipelines/quad-store.js";
 import { OBSCURED_VALUE, isSecretName } from "../../steps/domains/secrets.js";
 import type { TSecrets } from "../../steps/ports.js";
 import { accessBound, readingAsStated, stepInFlight, writeBound } from "../../domains/capability-context.js";
+import { stepRecordInFlight } from "../domains/step-in-flight.js";
 import { EDGE, SEQ_PATH_LABEL, declaredAccessLevel } from "../../domains/resources.js";
 import { actualityFeatureOf, formatRecordName } from "../domains/seq-path.js";
 import { IQuadStore } from "../../steps/ports.js";
@@ -97,6 +98,7 @@ export class FeatureVariables {
 				declared: (label: string) => declaredAccessLevel(persistedDomainOf(world.domains, label)),
 				stepWrites: () => stepInFlight()?.writes,
 				recordsActuality: (label: string) => persistedDomainOf(world.domains, label)?.topology.instrumentation === true,
+				currentStep: () => stepRecordInFlight(actualityFeatureOf(world.tag)),
 			},
 			() => readDeclarationsOf(world.domains, world.runtime.records),
 			declaredRecordsReader(
@@ -166,7 +168,7 @@ export class FeatureVariables {
 		return await this._set(sv, provenance);
 	}
 
-	/** Writes a variable's record with an edge to the step that set it, and emits the record's quads as the graph holds them. */
+	/** Writes a variable's record with an edge to the step that set it, and emits one observation of the record's quads as the graph holds them. */
 	async _set(sv: TStepValue, provenance: TProvenanceIdentifier) {
 		const domainKey = normalizeDomainKey(sv.domain);
 		const domain = this.world.domains[domainKey];
@@ -177,8 +179,9 @@ export class FeatureVariables {
 		// A record's write keeps its edges, so only an edge to a step that hadn't set the variable is written.
 		const held = stepsOf(await this.stepsThatSet([sv.term]), sv.term);
 		await this.writeRecord(sv.term, normalized, held.includes(setBy) ? [] : [setBy]);
-		for (const [index, quad] of (await this.store.query({ subject: sv.term, namedGraph: SHARED_GRAPH })).entries())
-			this.world.eventLogger.emit(quadObservation(`quad-${quad.timestamp}-${index}`, quad));
+		const quads = await this.store.query({ subject: sv.term, namedGraph: SHARED_GRAPH });
+		const timestamp = this.world.clock.now();
+		this.world.eventLogger.emit(quadObservation(`unit-${SHARED_GRAPH}-${sv.term}-${timestamp}`, timestamp, quads));
 	}
 
 	/** Look up a variable from store or dot-path. Shared by Origin.var, Origin.defined, Origin.quoted. */

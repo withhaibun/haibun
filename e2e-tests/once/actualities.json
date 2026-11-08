@@ -121,12 +121,7 @@
 			"actuality": {
 				"text": "e2e-tests/once",
 				"status": "passed",
-				"tookMs": 0,
-				"digest": {
-					"e2e-tests/once": "aa76efd39289af80e2a6d1122f1b1be86d79141a1ce60f59a64e68146a41b1cf",
-					"modules/core/src": "4a2b197f4d221746d3140e372960e146ca2031307dbb07b181be1b1e2e475951",
-					"modules/logic/src": "c9013d7d2aed759b529d4930a47185915b874da40e5f863f46ed4206f9e73a91"
-				}
+				"tookMs": 0
 			},
 			"features": {
 				"/features/once.feature": {
@@ -192,7 +187,12 @@
 			"actuality": {
 				"text": "e2e-tests/once",
 				"status": "passed",
-				"tookMs": 0
+				"tookMs": 0,
+				"digest": {
+					"e2e-tests/once": "aa76efd39289af80e2a6d1122f1b1be86d79141a1ce60f59a64e68146a41b1cf",
+					"modules/core/src": "3ecb0562f2571943fd9d0aaca4c1357db1f9ccd6600259a2defea35838ce377e",
+					"modules/logic/src": "c9013d7d2aed759b529d4930a47185915b874da40e5f863f46ed4206f9e73a91"
+				}
 			},
 			"features": {
 				"/features/once.feature": {

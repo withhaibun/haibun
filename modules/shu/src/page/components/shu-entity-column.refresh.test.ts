@@ -8,13 +8,11 @@ import { ShuEntityColumn } from "./shu-entity-column.js";
 
 import { setupShuTest, makeEntityDispatch, type TShuTestHandle } from "../../test/setup.js";
 import { endPage } from "../adapters/page-held.js";
+import { quadObservation } from "@haibun/core/lib/steps/domains/quad-types.js";
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 20));
-const observation = (subject: string, predicate: string, object: string): Record<string, unknown> => ({
-	kind: "artifact",
-	artifactType: "json",
-	json: { quadObservation: { subject, predicate, object, namedGraph: "Task", timestamp: 1 } },
-});
+const observation = (subject: string, predicate: string, object: string): Record<string, unknown> =>
+	quadObservation(`${subject}.q`, 1, [{ subject, predicate, object, namedGraph: "Task", timestamp: 1 }]);
 
 describe("shu-entity-column live refresh", () => {
 	let handle: TShuTestHandle;

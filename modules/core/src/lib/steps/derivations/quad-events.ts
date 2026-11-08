@@ -4,19 +4,24 @@
 import { z } from "zod";
 import { QuadSchema, type TQuad } from "../domains/quad-types.js";
 
-/** A quad observation event: a json artifact whose json holds the quad a store wrote. */
+/** A quad observation event: a json artifact whose json holds the quads of the fields and edges one unit a store committed changed. */
 const QuadObservationSchema = z.object({
 	kind: z.literal("artifact"),
 	artifactType: z.literal("json"),
-	json: z.object({ quadObservation: z.object({ ...QuadSchema.shape, subject: z.string().min(1), predicate: z.string().min(1), namedGraph: z.string().min(1) }) }),
+	json: z.object({
+		quadObservation: z.object({
+			timestamp: z.number(),
+			quads: z.array(z.object({ ...QuadSchema.shape, subject: z.string().min(1), predicate: z.string().min(1), namedGraph: z.string().min(1) })),
+		}),
+	}),
 });
 
-/** The quads a batch of events announces, in the order of the events. An event that isn't a quad observation doesn't
- *  announce a quad. */
+/** The quads a batch of events announces, in the order of the events and of each unit's changes. An event that isn't a quad
+ *  observation doesn't announce a quad. */
 export function extractQuadsFromEvents(events: Record<string, unknown>[]): TQuad[] {
 	return events.flatMap((event) => {
 		const observed = QuadObservationSchema.safeParse(event);
-		return observed.success ? [observed.data.json.quadObservation] : [];
+		return observed.success ? observed.data.json.quadObservation.quads : [];
 	});
 }
 

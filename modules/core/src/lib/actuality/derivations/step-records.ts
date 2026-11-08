@@ -77,10 +77,10 @@ export function startRecord(actualityFeature: string, featureStep: TFeatureStep,
 	return record;
 }
 
-/** How a step ended, as its record states it: its status, its goal's verdict, why where it failed, a claim's result, the view it showed where it
- *  showed one, and the whole text a call carried by a transport read back where the step produced products, which the
- *  record's result Body holds. */
-export type TStepEnded = { status: TRecordedStatus; verdict?: TVerdict; error?: string; entailment?: string; showed?: string; result?: string };
+/** How a step ended, as its record states it: its status, its goal's verdict, why where it failed, a claim's result, each write a
+ *  store refused during it, the view it showed where it showed one, and the whole text a call carried by a transport read back
+ *  where the step produced products, which the record's result Body holds. */
+export type TStepEnded = { status: TRecordedStatus; verdict?: TVerdict; error?: string; entailment?: string; refusedWrites?: readonly string[]; showed?: string; result?: string };
 
 /** A step's record at its end, written at `at` (an ISO time): its start with how it ended. The record's time of writing is
  *  its end, so a read of the records written since a given time returns the step's end. */
@@ -92,6 +92,7 @@ export const endRecord = (start: TStepRecord, ended: TStepEnded, at: string): TS
 	...(ended.verdict === undefined ? {} : { [SEQ_PATH_FIELD.verdict]: ended.verdict }),
 	...(ended.error ? { [SEQ_PATH_FIELD.error]: ended.error } : {}),
 	...(ended.entailment === undefined ? {} : { [SEQ_PATH_FIELD.entailment]: ended.entailment }),
+	...(ended.refusedWrites === undefined || ended.refusedWrites.length === 0 ? {} : { [SEQ_PATH_FIELD.refusedWrites]: [...ended.refusedWrites] }),
 	...(ended.showed ? { [SEQ_PATH_FIELD.showed]: ended.showed } : {}),
 	...(ended.result === undefined ? {} : { [SEQ_PATH_FIELD.result]: ended.result }),
 });

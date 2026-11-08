@@ -331,22 +331,26 @@ export interface TClusteredQuads {
  *  mailbox measured in gigabytes). The store keeps the full value; a consumer that needs it dereferences. */
 export const OBSERVATION_VALUE_MAX = 512;
 
-/** The quadObservation event of a quad a store wrote, the canonical envelope for all quad emissions. String values are
- *  bounded to OBSERVATION_VALUE_MAX and marked `preview: true` (the store holds the payload: a consumer that needs
- *  it dereferences deliberately, and a merge can prefer a full value over a preview). Untruncated quads pass by
- *  reference: the write path doesn't clone per emission. */
-export function quadObservation(id: string, quad: TQuad): TJsonArtifact {
-	const bounded = typeof quad.object === "string" && quad.object.length > OBSERVATION_VALUE_MAX;
-	const observed = bounded ? { ...quad, object: ellipsize(quad.object as string, OBSERVATION_VALUE_MAX), properties: { ...quad.properties, preview: true } } : quad;
+/** A quad an observation carries: a string value bounded to OBSERVATION_VALUE_MAX and marked `preview: true` (the store holds the
+ *  payload: a consumer that needs it dereferences deliberately, and a merge can prefer a full value over a preview). An
+ *  untruncated quad passes by reference: the write path doesn't clone per emission. */
+function observedQuad(quad: TQuad): TQuad {
+	if (typeof quad.object !== "string" || quad.object.length <= OBSERVATION_VALUE_MAX) return quad;
+	return { ...quad, object: ellipsize(quad.object, OBSERVATION_VALUE_MAX), properties: { ...quad.properties, preview: true } };
+}
+
+/** The quadObservation event of one unit a store committed, the canonical envelope for all quad emissions: the quads of the
+ *  fields and the edges the unit changed, at the time of its commit. */
+export function quadObservation(id: string, timestamp: number, quads: readonly TQuad[]): TJsonArtifact {
 	return {
 		id,
-		timestamp: quad.timestamp,
+		timestamp,
 		source: "haibun",
 		level: "debug",
 		kind: "artifact",
 		artifactType: "json",
 		mimetype: MEDIA_TYPE.json,
-		json: { quadObservation: observed },
+		json: { quadObservation: { timestamp, quads: quads.map(observedQuad) } },
 	};
 }
 

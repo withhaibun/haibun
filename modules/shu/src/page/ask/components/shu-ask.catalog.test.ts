@@ -14,6 +14,7 @@ import { persistedTypeDefinition, setupShuTest, type TShuTestHandle } from "../.
 import "../../components/shu-combobox.js";
 import { ShuAsk } from "./shu-ask.js";
 import { SHU_ATTR } from "../../../domains/elements.js";
+import { quadObservation } from "@haibun/core/lib/steps/domains/quad-types.js";
 
 /** The models actuality holds, which a read of the catalog lists. */
 let models: Array<{ id: string; displayName: string }> = [];
@@ -55,11 +56,7 @@ describe("the models the ask pane offers", () => {
 		expect(pane.shadowRoot?.querySelector(".model-select")).toBeNull();
 
 		models = [MODEL];
-		t.emit({
-			kind: "artifact",
-			artifactType: "json",
-			json: { quadObservation: { subject: MODEL.id, predicate: "name", object: MODEL.displayName, namedGraph: MODELS, timestamp: 1 } },
-		});
+		t.emit(quadObservation(`${MODEL.id}.q`, 1, [{ subject: MODEL.id, predicate: "name", object: MODEL.displayName, namedGraph: MODELS, timestamp: 1 }]));
 		await flush();
 		await pane.updateComplete;
 		expect(pane.shadowRoot?.querySelector('[data-testid$="no-models"]')).toBeNull();

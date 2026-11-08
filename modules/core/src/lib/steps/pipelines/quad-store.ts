@@ -49,7 +49,8 @@ import {
 	type TWholeRecord,
 } from "../../records/domains/unit.js";
 import { RecordVersions } from "../../records/pipelines/record-versions.js";
-import { assertWritesWithin } from "../../records/derivations/contract-writes.js";
+import { assertWritesWithin } from "../../records/pipelines/step-writes.js";
+import { withProvenance, type TProvenance } from "../../records/derivations/provenance.js";
 
 /**
  * The backing stores and federated peers that a chain of stores shares by reference. Each store of a scenario and a
@@ -267,9 +268,12 @@ export class QuadStore implements IQuadStore {
 		if (this.levels) assertWritesWithin(unit, this.levels.stepWrites(), this.levels.recordsActuality);
 		const backing = this.storeFor(unit.label);
 		if (backing) return await backing.write(unit);
+		const provenance: TProvenance | undefined = this.levels && { generatedAtTime: new Date().toISOString(), step: this.levels.currentStep() };
 		const parts = units.map((part) => {
 			const name = { label: part.label, id: this.idOf(part) };
-			return { name, unit: part, held: this.holds(name), changes: this.changesOf(part) };
+			const held = this.holds(name);
+			const stated = provenance === undefined ? part : withProvenance(part, held, this.declarations?.().of(part.label)?.defaultSort, provenance);
+			return { name, unit: stated, held, changes: this.changesOf(stated) };
 		});
 		this.versions.check(parts);
 		this.apply(parts.flatMap(({ changes }) => changes));
@@ -311,10 +315,13 @@ export class QuadStore implements IQuadStore {
 		const id = this.idOf(unit);
 		// A quad doesn't require its subject to be held, so a referenced record changes only its edges here.
 		const records = isWholeRecord(unit) ? this.recordChanges(unit, id) : isReferenced(unit) ? [] : this.fieldChanges(label, id, unit.fields);
+		// An edge of a record the unit writes is held at the record's level, which the store doesn't hold before the unit is applied.
+		const written = records.find(({ holds }) => holds?.accessLevel !== undefined)?.holds?.accessLevel;
+		const level = written === undefined ? {} : { accessLevel: written };
 		const edges = (unit.edges === undefined ? [] : unit.edges).map(({ rel, label: toLabel, id: toId, target }): TChange => {
 			if (declaration !== undefined) assertDeclaredEdge(declaration.surface, rel);
 			// objectType states the target's type, so the quad reads back as an edge rather than a literal property.
-			const quad = this.classified({ subject: id, predicate: rel, object: toId, namedGraph: label, objectType: toLabel });
+			const quad = this.classified({ subject: id, predicate: rel, object: toId, namedGraph: label, objectType: toLabel, ...level });
 			return holding(quad, target === EDGE_TARGET.only ? (q) => q.predicate === rel : keepsEvery);
 		});
 		return [...records, ...edges];
