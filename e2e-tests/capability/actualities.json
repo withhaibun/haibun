@@ -190,7 +190,7 @@
 			"actuality": {
 				"text": "e2e-tests/capability, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
 				"status": "passed",
-				"tookMs": 900,
+				"tookMs": 700,
 				"digest": {
 					"e2e-tests/capability": "f60a467b1916bade9b199593dc655ac9b6694b0c489cd1975c9c83bf14918d77",
 					"e2e-tests/src": "af005a350cebf7bace0c8de218d5012a617d2347dc19b706b80e17f97cd8ba7f",
@@ -209,7 +209,7 @@
 					"modules/utils/src": "9799d114ca397313863bfc29604199b02bc9daf1a4bfa26675dbfe7cfc30e36c",
 					"modules/web-accessibility-axe/src": "7d3b6b430df3eb563b902515dbbb0909d2f5f49d371c95daeee83cd46913abf0",
 					"modules/web-playwright/src": "6b2bb22bc74732eab8fc5b62da9b90a1081e67c676360c79bb5904208409285e",
-					"modules/web-server-hono/src": "256e4bc78ffc7dfa972fe677db68e11774abe16c511848dea4520cd8b72f886d",
+					"modules/web-server-hono/src": "f3feecea6f84624e6c24a8bc5c91a84fe5111b1fd2210ae654e2b7b4867581be",
 					"modules/web-server-hono/waypoints": "fa5853749829db27d77867eb4c13e1860184beafed284ebff8f0672c617affe3"
 				}
 			},
@@ -217,7 +217,7 @@
 				"/features/identity-and-capability.feature.ts": {
 					"text": "Identity and capability authorization",
 					"status": "passed",
-					"tookMs": 800,
+					"tookMs": 600,
 					"steps": 30
 				}
 			}

@@ -696,7 +696,7 @@
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/web-playwright/src": "6b2bb22bc74732eab8fc5b62da9b90a1081e67c676360c79bb5904208409285e",
-					"modules/web-server-hono/src": "256e4bc78ffc7dfa972fe677db68e11774abe16c511848dea4520cd8b72f886d"
+					"modules/web-server-hono/src": "f3feecea6f84624e6c24a8bc5c91a84fe5111b1fd2210ae654e2b7b4867581be"
 				}
 			},
 			"features": {
@@ -777,7 +777,7 @@
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/web-playwright/src": "6b2bb22bc74732eab8fc5b62da9b90a1081e67c676360c79bb5904208409285e",
-					"modules/web-server-hono/src": "256e4bc78ffc7dfa972fe677db68e11774abe16c511848dea4520cd8b72f886d"
+					"modules/web-server-hono/src": "f3feecea6f84624e6c24a8bc5c91a84fe5111b1fd2210ae654e2b7b4867581be"
 				}
 			},
 			"features": {
@@ -858,7 +858,7 @@
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/web-playwright/src": "6b2bb22bc74732eab8fc5b62da9b90a1081e67c676360c79bb5904208409285e",
-					"modules/web-server-hono/src": "256e4bc78ffc7dfa972fe677db68e11774abe16c511848dea4520cd8b72f886d"
+					"modules/web-server-hono/src": "f3feecea6f84624e6c24a8bc5c91a84fe5111b1fd2210ae654e2b7b4867581be"
 				}
 			},
 			"features": {
@@ -939,7 +939,7 @@
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/web-playwright/src": "6b2bb22bc74732eab8fc5b62da9b90a1081e67c676360c79bb5904208409285e",
-					"modules/web-server-hono/src": "256e4bc78ffc7dfa972fe677db68e11774abe16c511848dea4520cd8b72f886d"
+					"modules/web-server-hono/src": "f3feecea6f84624e6c24a8bc5c91a84fe5111b1fd2210ae654e2b7b4867581be"
 				}
 			},
 			"features": {

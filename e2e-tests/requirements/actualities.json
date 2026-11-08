@@ -802,7 +802,7 @@
 			"actuality": {
 				"text": "e2e-tests/requirements, node_modules/@haibun/cli/waypoints, node_modules/@haibun/logic/waypoints, node_modules/@haibun/core/waypoints",
 				"status": "passed",
-				"tookMs": 42700,
+				"tookMs": 40700,
 				"digest": {
 					"e2e-tests/requirements": "a97313b5d36c69de6bd71befc4fac1303e7ec1b8a9eae3df0bccca1501f26483",
 					"e2e-tests/src": "af005a350cebf7bace0c8de218d5012a617d2347dc19b706b80e17f97cd8ba7f",
@@ -823,7 +823,7 @@
 					"modules/utils/src": "9799d114ca397313863bfc29604199b02bc9daf1a4bfa26675dbfe7cfc30e36c",
 					"modules/web-accessibility-axe/src": "7d3b6b430df3eb563b902515dbbb0909d2f5f49d371c95daeee83cd46913abf0",
 					"modules/web-playwright/src": "6b2bb22bc74732eab8fc5b62da9b90a1081e67c676360c79bb5904208409285e",
-					"modules/web-server-hono/src": "256e4bc78ffc7dfa972fe677db68e11774abe16c511848dea4520cd8b72f886d"
+					"modules/web-server-hono/src": "f3feecea6f84624e6c24a8bc5c91a84fe5111b1fd2210ae654e2b7b4867581be"
 				}
 			},
 			"features": {
@@ -836,7 +836,7 @@
 				"/features/02-authority.feature.ts": {
 					"text": "Capabilities authorize every call",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 400,
 					"steps": 59
 				},
 				"/features/03-activities.feature.ts": {
@@ -878,13 +878,13 @@
 				"/features/09-surfaces.feature.ts": {
 					"text": "One path for every surface",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 500,
 					"steps": 77
 				},
 				"/features/10-cli.feature.ts": {
 					"text": "The command line",
 					"status": "passed",
-					"tookMs": 1000,
+					"tookMs": 800,
 					"steps": 11
 				},
 				"/features/11-performance.feature.ts": {
@@ -914,13 +914,13 @@
 				"/features/15-combined-statements.feature.ts": {
 					"text": "Combined statements",
 					"status": "passed",
-					"tookMs": 400,
+					"tookMs": 300,
 					"steps": 44
 				},
 				"/features/16-class-expressions.feature.ts": {
 					"text": "Class expressions",
 					"status": "passed",
-					"tookMs": 33900,
+					"tookMs": 32700,
 					"steps": 93
 				}
 			}
