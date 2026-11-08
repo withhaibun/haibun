@@ -19,7 +19,7 @@ import type {
 	TRecordsPage,
 	TRecordType,
 } from "./domains/quad-types.js";
-import type { TRemoval, TUnit } from "../records/domains/unit.js";
+import type { TReadVersion, TRecordName, TRemoval, TUnit } from "../records/domains/unit.js";
 
 /** A subscriber of the events hub. It receives each event once the hub has obscured its secrets and stated its level. */
 export type TEventSubscriber = (event: THaibunEvent) => void;
@@ -72,6 +72,11 @@ export interface IQuadStore {
 
 	/** Removes what `removal` names: a record with the units it owns, one of its fields, or one of its edges. */
 	remove(removal: TRemoval): Promise<void>;
+
+	/** Returns the version of the fields of the record `name` names, at the levels the reader reads, or null where the store
+	 *  doesn't hold the record. A unit that states the version is refused where the fields changed since. `readVersioned` reads
+	 *  the version and then the record. */
+	versionOf(name: TRecordName): Promise<TReadVersion>;
 
 	/** Reads the most recent value of a subject and a predicate. */
 	get(subject: string, predicate: string, namedGraph?: string): Promise<unknown | undefined>;

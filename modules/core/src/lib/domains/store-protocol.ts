@@ -12,7 +12,7 @@ import { z } from "zod";
 import { AccessLevelSchema } from "./resources.js";
 import type { IQuadStore } from "../steps/ports.js";
 import type { TRpcMethod } from "../transport/ports.js";
-import { EDGE_TARGET, type TRemoval, type TUnit } from "../records/domains/unit.js";
+import { ChangedSinceRead, EDGE_TARGET, type TRemoval, type TUnit } from "../records/domains/unit.js";
 
 export const STORE_METHOD_PREFIX = "store.";
 
@@ -24,13 +24,24 @@ const PatternSchema = z.object({ subject: z.string().optional(), predicate: z.st
 const EdgeTargetSchema = z.enum([EDGE_TARGET.held, EDGE_TARGET.reference, EDGE_TARGET.only]);
 const RecordNameSchema = z.object({ label: z.string(), id: z.string() });
 const UnitEdgeSchema = z.object({ rel: z.string(), label: z.string(), id: z.string(), target: EdgeTargetSchema });
-const UnitPartsSchema = z.object({ edges: z.array(UnitEdgeSchema).optional(), owns: z.array(z.lazy((): z.ZodType<TUnit> => UnitSchema)).optional() });
+const UnitPartsSchema = z.object({
+	edges: z.array(UnitEdgeSchema).optional(),
+	owns: z.array(z.lazy((): z.ZodType<TUnit> => UnitSchema)).optional(),
+	version: z.string().nullable().optional(),
+});
 
 /** A unit as a transport carries it. */
 const UnitSchema: z.ZodType<TUnit> = z.union([
 	UnitPartsSchema.extend({ label: z.string(), record: z.record(z.string(), z.unknown()), merge: z.literal(true).optional(), namedBy: RecordNameSchema.optional() }),
 	UnitPartsSchema.extend({ label: z.string(), id: z.string(), fields: z.record(z.string(), z.unknown()) }),
 	UnitPartsSchema.extend({ label: z.string(), id: z.string(), referenced: z.literal(true) }),
+]);
+
+/** What a write returns over a transport: the id of the unit's record, or the refusal of a unit whose record changed since
+ *  its caller read it, which the calling side throws as the store threw it. */
+export const StoreWriteResultSchema = z.union([
+	z.string(),
+	z.object({ changedSinceRead: z.object({ record: RecordNameSchema, read: z.string().nullable(), held: z.string().nullable() }) }),
 ]);
 
 /** A removal as a transport carries it. */
@@ -44,6 +55,7 @@ const RemovalSchema: z.ZodType<TRemoval> = z.union([
 const STORE_METHODS = {
 	write: { write: true, params: z.object({ unit: UnitSchema }) },
 	remove: { write: true, params: z.object({ removal: RemovalSchema }) },
+	versionOf: { write: false, params: z.object({ name: RecordNameSchema }) },
 	clear: { write: true, params: z.object({ namedGraph: z.string().optional() }) },
 	get: { write: false, params: z.object({ subject: z.string(), predicate: z.string(), namedGraph: z.string().optional() }) },
 	query: { write: false, params: z.object({ pattern: PatternSchema }) },
@@ -92,11 +104,20 @@ export async function handleStoreCall(store: IQuadStore, method: string, rawPara
 	switch (name) {
 		case "write": {
 			const { unit } = STORE_METHODS.write.params.parse(rawParams);
-			return { result: await store.write(unit) };
+			try {
+				return { result: await store.write(unit) };
+			} catch (error) {
+				if (!(error instanceof ChangedSinceRead)) throw error;
+				return { result: StoreWriteResultSchema.parse({ changedSinceRead: { record: error.record, read: error.read, held: error.held } }) };
+			}
 		}
 		case "remove": {
 			const { removal } = STORE_METHODS.remove.params.parse(rawParams);
 			return { result: await store.remove(removal) };
+		}
+		case "versionOf": {
+			const { name: record } = STORE_METHODS.versionOf.params.parse(rawParams);
+			return { result: await store.versionOf(record) };
 		}
 		case "clear": {
 			const { namedGraph } = STORE_METHODS.clear.params.parse(rawParams);

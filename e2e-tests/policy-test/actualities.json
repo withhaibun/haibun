@@ -367,7 +367,7 @@
 				"tookMs": 100,
 				"digest": {
 					"e2e-tests/policy-test": "926b6ca236fb5c169cbd325b1a019947d5e11622ce559212af1fad0aaa6146d6",
-					"modules/core/src": "e926cbb0a83812333b0faf68879f6948e61301ef4ceb8aa6a736fb66bbe7bf4a",
+					"modules/core/src": "531afc580f125e67b71335125a15061a6fdb1d902809e580bda9b020b1b7ce21",
 					"modules/logic/src": "c9013d7d2aed759b529d4930a47185915b874da40e5f863f46ed4206f9e73a91"
 				}
 			},
@@ -394,7 +394,7 @@
 				"tookMs": 100,
 				"digest": {
 					"e2e-tests/policy-test": "926b6ca236fb5c169cbd325b1a019947d5e11622ce559212af1fad0aaa6146d6",
-					"modules/core/src": "e926cbb0a83812333b0faf68879f6948e61301ef4ceb8aa6a736fb66bbe7bf4a",
+					"modules/core/src": "531afc580f125e67b71335125a15061a6fdb1d902809e580bda9b020b1b7ce21",
 					"modules/logic/src": "c9013d7d2aed759b529d4930a47185915b874da40e5f863f46ed4206f9e73a91"
 				}
 			},
@@ -421,7 +421,7 @@
 				"tookMs": 100,
 				"digest": {
 					"e2e-tests/policy-test": "926b6ca236fb5c169cbd325b1a019947d5e11622ce559212af1fad0aaa6146d6",
-					"modules/core/src": "e926cbb0a83812333b0faf68879f6948e61301ef4ceb8aa6a736fb66bbe7bf4a",
+					"modules/core/src": "531afc580f125e67b71335125a15061a6fdb1d902809e580bda9b020b1b7ce21",
 					"modules/logic/src": "c9013d7d2aed759b529d4930a47185915b874da40e5f863f46ed4206f9e73a91"
 				}
 			},
@@ -500,7 +500,7 @@
 				"tookMs": 100,
 				"digest": {
 					"e2e-tests/policy-test": "926b6ca236fb5c169cbd325b1a019947d5e11622ce559212af1fad0aaa6146d6",
-					"modules/core/src": "e926cbb0a83812333b0faf68879f6948e61301ef4ceb8aa6a736fb66bbe7bf4a",
+					"modules/core/src": "531afc580f125e67b71335125a15061a6fdb1d902809e580bda9b020b1b7ce21",
 					"modules/logic/src": "c9013d7d2aed759b529d4930a47185915b874da40e5f863f46ed4206f9e73a91"
 				}
 			},

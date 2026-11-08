@@ -25,8 +25,42 @@ export type TRecordFields = { readonly label: string; readonly id: string; reado
  *  reference in place of an absent record until a write of the record replaces it. */
 export type TReferencedRecord = { readonly label: string; readonly id: string; readonly referenced: true };
 
-/** A unit: a record, the edges it writes beyond its declared edge fields, and the units it owns. */
-export type TUnit = (TWholeRecord | TRecordFields | TReferencedRecord) & { readonly edges?: readonly TUnitEdge[]; readonly owns?: readonly TUnit[] };
+/** The version of a record that a caller read: the version a store returned for it, or null where the store didn't hold it. */
+export type TReadVersion = string | null;
+
+/** A unit: a record, the edges it writes beyond its declared edge fields, and the units it owns. `version` is the version of
+ *  the record that the caller read, and the store refuses the unit where the record's fields changed since that read. */
+export type TUnit = (TWholeRecord | TRecordFields | TReferencedRecord) & {
+	readonly edges?: readonly TUnitEdge[];
+	readonly owns?: readonly TUnit[];
+	readonly version?: TReadVersion;
+};
+
+/** A record a caller read with its version, which a unit written from the record states. */
+export type TVersionedRead<T> = { readonly record: T | undefined; readonly version: TReadVersion };
+
+/** Returns the version a write states, and the version the store holds, as a refusal names them. */
+const statedText = (version: TReadVersion): string => (version === null ? "that the store didn't hold the record" : `version ${version}`);
+const heldText = (version: TReadVersion): string => (version === null ? "the store doesn't hold it" : `the store holds version ${version}`);
+
+/** The refusal of a unit whose record changed since its caller read it. The caller reads the record again and writes from
+ *  what the store holds. */
+export class ChangedSinceRead extends Error {
+	constructor(
+		readonly record: TRecordName,
+		readonly read: TReadVersion,
+		readonly held: TReadVersion,
+	) {
+		super(
+			`${record.label} "${record.id}" changed since it was read: the write states ${statedText(read)}, and ${heldText(held)}. Read the record again and write from what the store holds`,
+		);
+	}
+}
+
+/** Refuses the unit whose record `record` names where the version its caller read isn't the version the store holds. */
+export function assertReadVersion(record: TRecordName, read: TReadVersion | undefined, held: TReadVersion): void {
+	if (read !== undefined && read !== held) throw new ChangedSinceRead(record, read, held);
+}
 
 /** A record by its type and its id. */
 export type TRecordName = { readonly label: string; readonly id: string };
@@ -45,6 +79,9 @@ export const isWholeRecord = (unit: TUnit): unit is TWholeRecord & TUnit => "rec
 
 /** Returns whether a unit names a record the store may not hold, as the source of its edges. */
 export const isReferenced = (unit: TUnit): unit is TReferencedRecord & TUnit => "referenced" in unit;
+
+/** Returns whether a unit writes fields of its record, which gives the record its next version. */
+export const writesFields = (unit: TUnit): boolean => isWholeRecord(unit) || (!isReferenced(unit) && Object.keys(unit.fields).length > 0);
 
 /** Returns the unit that writes edges from the record `label` and `id` name, which the store holds, and doesn't change its fields. */
 export const edgesFrom = (label: string, id: string, ...edges: TUnitEdge[]): TUnit => ({ label, id, fields: {}, edges });

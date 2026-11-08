@@ -7,13 +7,13 @@
  * Mount-scoped: clustered reads and all() cover only the mounted graphs, never the peer's whole store.
  */
 import { RemoteInstance } from "./rpc-client.js";
-import { STORE_METHOD_PREFIX, requiredStoreCapability } from "../../domains/store-protocol.js";
+import { STORE_METHOD_PREFIX, StoreWriteResultSchema, requiredStoreCapability } from "../../domains/store-protocol.js";
 import type { TRequestSigner } from "../../domains/authority-types.js";
 import type { z } from "zod";
 import type { AccessLevel, AccessQueryLevel } from "../../domains/resources.js";
 import { typedRecord } from "../../steps/domains/quad-types.js";
 import type { IQuadStore } from "../../steps/ports.js";
-import type { TRemoval, TUnit } from "../../records/domains/unit.js";
+import { ChangedSinceRead, type TReadVersion, type TRecordName, type TRemoval, type TUnit } from "../../records/domains/unit.js";
 import type {
 	TClusteredQuads,
 	TClusteredQuadsOpts,
@@ -55,8 +55,13 @@ export class RemoteQuadStore implements IQuadStore {
 		return (await this.remote.rpc.call<{ result: T }>(storeMethod, params, [], { action: requiredStoreCapability(storeMethod) })).result;
 	}
 
-	write(unit: TUnit): Promise<string> {
-		return this.call("write", { unit });
+	/** Writes a unit at the serving instance, and throws a refusal of a unit whose record changed since its read as that
+	 *  instance's store threw it. */
+	async write(unit: TUnit): Promise<string> {
+		const written = StoreWriteResultSchema.parse(await this.call("write", { unit }));
+		if (typeof written === "string") return written;
+		const { record, read, held } = written.changedSinceRead;
+		throw new ChangedSinceRead(record, read, held);
 	}
 
 	get(subject: string, predicate: string, namedGraph?: string): Promise<unknown | undefined> {
@@ -73,6 +78,10 @@ export class RemoteQuadStore implements IQuadStore {
 
 	remove(removal: TRemoval): Promise<void> {
 		return this.call("remove", { removal });
+	}
+
+	versionOf(name: TRecordName): Promise<TReadVersion> {
+		return this.call("versionOf", { name });
 	}
 
 	/** Mount-scoped: the mounted graphs' quads, not the peer's whole store: one bounded query per mounted graph. */

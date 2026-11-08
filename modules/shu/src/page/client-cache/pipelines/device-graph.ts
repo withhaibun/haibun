@@ -12,10 +12,14 @@ import { densityOverQuadStore } from "@haibun/core/lib/quad-store.js";
 import { sliceQuadsPerType } from "@haibun/core/lib/steps/derivations/quad-sample.js";
 import type { TDeviceGraph, TDeviceQuads, TGraphSaturation } from "../ports.js";
 import { individualAsQuads, levelsOf, subjectKey } from "../derivations/quads.js";
-import { EDGE_TARGET, type TRemoval, type TUnit } from "@haibun/core/lib/records/domains/unit.js";
+import { EDGE_TARGET, unitsOf, type TReadVersion, type TRecordName, type TRemoval, type TUnit } from "@haibun/core/lib/records/domains/unit.js";
+import { RecordVersions } from "@haibun/core/lib/records/pipelines/record-versions.js";
 
 export class DeviceGraph implements TDeviceGraph {
 	readonly database: string;
+	private readonly versions = new RecordVersions();
+	/** The write the device holds in progress. Writes run in turn, so a write checks versions against every write before it. */
+	private writing: Promise<unknown> = Promise.resolve();
 
 	/** `quads` holds the facts, and `declarations` returns the declarations of the types whose records it reads. */
 	constructor(
@@ -42,8 +46,34 @@ export class DeviceGraph implements TDeviceGraph {
 	}
 
 	/** Removes what `removal` names: a record's quads, one of its fields, or one of its edges. */
-	remove({ label, id, field, edge }: TRemoval): Promise<void> {
+	remove(removal: TRemoval): Promise<void> {
+		return this.inTurn(() => this.removeNow(removal));
+	}
+
+	/** Runs `change` after every write and removal before it. */
+	private inTurn<T>(change: () => Promise<T>): Promise<T> {
+		const made = this.writing.then(change);
+		this.writing = made.catch(() => undefined);
+		return made;
+	}
+
+	private removeNow({ label, id, field, edge }: TRemoval): Promise<void> {
+		if (edge === undefined) this.versions[field === undefined ? "removed" : "changed"]({ label, id });
 		return this.quads.remove({ subject: id, namedGraph: label, predicate: field === undefined ? edge?.rel : field, object: edge?.to });
+	}
+
+	/** Returns the id of a unit's record. */
+	private idOf(unit: TUnit): string {
+		return individualAsQuads(unit.label, "record" in unit ? unit.record : { id: unit.id })[0];
+	}
+
+	/** Returns whether the device holds a quad of the record `name` names. */
+	private async holds({ label, id }: TRecordName): Promise<boolean> {
+		return (await this.quads.query({ subject: id, namedGraph: label })).length > 0;
+	}
+
+	async versionOf(name: TRecordName): Promise<TReadVersion> {
+		return this.versions.of(name, await this.holds(name));
 	}
 
 	all(): Promise<TQuad[]> {
@@ -56,21 +86,36 @@ export class DeviceGraph implements TDeviceGraph {
 
 	/** Writes the units a unit owns, then its record, each field in place of the quad of its predicate and a null removing it,
 	 *  then its edges. Returns the id of the unit's record. */
-	async write(unit: TUnit): Promise<string> {
-		const { label, edges, owns } = unit;
-		if (owns !== undefined) for (const owned of owns) await this.write(owned);
-		const [id, quads] = individualAsQuads(label, "record" in unit ? unit.record : { id: unit.id, ...("fields" in unit ? unit.fields : {}) });
+	write(unit: TUnit): Promise<string> {
+		return this.inTurn(() => this.writeNow(unit));
+	}
+
+	private async writeNow(unit: TUnit): Promise<string> {
+		const parts = await Promise.all(
+			unitsOf(unit).map(async (part) => {
+				const quads = individualAsQuads(part.label, "record" in part ? part.record : { id: part.id, ...("fields" in part ? part.fields : {}) });
+				const name = { label: part.label, id: quads[0] };
+				return { unit: part, quads, name, held: part.version !== undefined && (await this.holds(name)) };
+			}),
+		);
+		this.versions.check(parts);
+		for (const part of [...parts].reverse()) await this.writePart(part.unit, part.quads);
+		this.versions.wrote(parts);
+		return this.idOf(unit);
+	}
+
+	/** Writes one unit's record, each field in place of the quad of its predicate and a null removing it, then its edges. */
+	private async writePart({ label, edges }: TUnit, [id, quads]: ReturnType<typeof individualAsQuads>): Promise<void> {
 		const held: TQuad[] = [];
 		for (const quad of quads)
-			if (quad.object === null) await this.remove({ label, id, field: quad.predicate });
+			if (quad.object === null) await this.removeNow({ label, id, field: quad.predicate });
 			else held.push(quad);
 		await this.quads.setMany(held);
 		if (edges !== undefined)
 			for (const { rel, label: objectType, id: object, target } of edges) {
-				if (target === EDGE_TARGET.only) await this.remove({ label, id, field: rel });
+				if (target === EDGE_TARGET.only) await this.removeNow({ label, id, field: rel });
 				await this.quads.add({ subject: id, predicate: rel, object, namedGraph: label, objectType });
 			}
-		return id;
 	}
 
 	/** Reads a page of the records the device holds, without a search of their text. */

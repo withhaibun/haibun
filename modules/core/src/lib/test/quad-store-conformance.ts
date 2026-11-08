@@ -16,7 +16,8 @@ import { GraphQuerySchema, VIA_FIELD, type TQuad, type TSearchCondition } from "
 import { type IQuadStore } from "../steps/ports.js";
 import { COUNT_CEILING, MAX_PAGE_ROWS, readInPages } from "../domains/hypermedia.js";
 import { Access, AccessLevelSchema, EDGE, LinkRelations, type TRegisteredDomain } from "../domains/resources.js";
-import { EDGE_TARGET, edgesFrom } from "../records/domains/unit.js";
+import { ChangedSinceRead, EDGE_TARGET, edgesFrom } from "../records/domains/unit.js";
+import { rereadAndRetry } from "../records/pipelines/record-versions.js";
 
 /** The types the suite declares. */
 export const CONFORMANCE_TYPES = { comment: "Comment", issue: "Issue" } as const;
@@ -121,6 +122,40 @@ export function describeQuadStore(
 				expect.arrayContaining([`${GRAPH}|c1|author="did:example:a"`, `${GRAPH}|c1|content="hello"`]),
 			);
 			expect((await store.query({ subject: "c1", namedGraph: GRAPH, predicate: "content" })).length).toBe(1);
+		});
+
+		it("writes a unit that states the version its caller read, and refuses one whose record changed since, naming both versions", async () => {
+			const name = { label: GRAPH, id: "versioned" };
+			expect(await store.versionOf(name), "a record the store doesn't hold").toBeNull();
+			await store.write({ label: GRAPH, record: { id: "versioned", content: "first" }, version: null });
+			const read = await store.versionOf(name);
+			expect(read).not.toBeNull();
+			await expect(store.write({ label: GRAPH, record: { id: "versioned", content: "again" }, version: null }), "a unit written as if the record weren't held").rejects.toThrow(
+				ChangedSinceRead,
+			);
+			await store.write({ label: GRAPH, id: "versioned", fields: { content: "second" }, version: read });
+			const held = await store.versionOf(name);
+			expect(held).not.toBe(read);
+			const refused = store.write({ label: GRAPH, id: "versioned", fields: { content: "stale" }, version: read });
+			await expect(refused).rejects.toThrow(`${GRAPH} "versioned" changed since it was read: the write states version ${read}, and the store holds version ${held}`);
+			expect(await store.get("versioned", "content", GRAPH), "the refused unit isn't written").toBe("second");
+		});
+
+		it("keeps the change of each of two writers that read, change and write one record at once", async () => {
+			await store.write({ label: GRAPH, record: { id: "counted", content: "" } });
+			const append = (mark: string) =>
+				rereadAndRetry(3, async () => {
+					// The version is read before the record, as `readVersioned` reads it.
+					const version = await store.versionOf({ label: GRAPH, id: "counted" });
+					const content = String(await store.get("counted", "content", GRAPH));
+					await store.write({ label: GRAPH, id: "counted", fields: { content: `${content}${mark}` }, version });
+				});
+			await Promise.all([append("a"), append("b")]);
+			expect(
+				String(await store.get("counted", "content", GRAPH))
+					.split("")
+					.sort(),
+			).toEqual(["a", "b"]);
 		});
 
 		it("replaces a fact set again, and doesn't add a second row for it", async () => {

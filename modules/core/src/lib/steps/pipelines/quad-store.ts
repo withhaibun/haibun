@@ -37,7 +37,18 @@ import { distinctOf, readFromRecords, recordsOfQuads, type THeldRecord, type TRe
 import { quadsOfRead, readEvery, type TRecordReader } from "../../records/pipelines/record-reads.js";
 import { QuadLayer } from "../../records/machines/quad-layer.js";
 import { bucketOf, sliceQuadsPerType } from "../derivations/quad-sample.js";
-import { EDGE_TARGET, isReferenced, isWholeRecord, unitsOf, type TRecordName, type TRemoval, type TUnit, type TWholeRecord } from "../../records/domains/unit.js";
+import {
+	EDGE_TARGET,
+	isReferenced,
+	isWholeRecord,
+	unitsOf,
+	type TReadVersion,
+	type TRecordName,
+	type TRemoval,
+	type TUnit,
+	type TWholeRecord,
+} from "../../records/domains/unit.js";
+import { RecordVersions } from "../../records/pipelines/record-versions.js";
 
 /**
  * The backing stores and federated peers that a chain of stores shares by reference. Each store of a scenario and a
@@ -105,6 +116,7 @@ const keepsEvery = (): boolean => false;
 
 export class QuadStore implements IQuadStore {
 	private readonly quads = new QuadLayer();
+	private readonly versions = new RecordVersions();
 
 	/**
 	 * `chain` holds the backing stores and peers this store shares with its chain. `levels` classifies what this store writes
@@ -253,8 +265,27 @@ export class QuadStore implements IQuadStore {
 		for (const part of units) this.refuseDerived(part.label);
 		const backing = this.storeFor(unit.label);
 		if (backing) return await backing.write(unit);
-		this.apply(units.flatMap((part) => this.changesOf(part)));
+		const parts = units.map((part) => {
+			const name = { label: part.label, id: this.idOf(part) };
+			return { name, unit: part, held: this.holds(name), changes: this.changesOf(part) };
+		});
+		this.versions.check(parts);
+		this.apply(parts.flatMap(({ changes }) => changes));
+		this.versions.wrote(parts);
 		return this.idOf(unit);
+	}
+
+	/** Returns the version of a record's fields: in the backing store of its type, or in this store's own layer. */
+	async versionOf(name: TRecordName): Promise<TReadVersion> {
+		this.refuseDerived(name.label);
+		const backing = this.storeFor(name.label);
+		if (backing) return await backing.versionOf(name);
+		return this.versions.of(name, this.holds(name));
+	}
+
+	/** Returns whether this store's own layer holds a quad of the record `name` names. */
+	private holds({ label, id }: TRecordName): boolean {
+		return this.quads.ofSubject(label, id).size > 0;
 	}
 
 	/** The id of a unit's record: the id its whole record states, or the id it names. */
@@ -443,6 +474,8 @@ export class QuadStore implements IQuadStore {
 					: () => true;
 		const removed = this.removable([...this.quads.ofSubject(label, id)].filter(matches));
 		for (const q of removed) this.quads.delete(q);
+		if (removal.field !== undefined) this.versions.changed(removal);
+		else if (removal.edge === undefined) this.versions.removed(removal);
 	}
 
 	async all(): Promise<TQuad[]> {

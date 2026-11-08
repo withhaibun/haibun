@@ -590,20 +590,20 @@
 			"actuality": {
 				"text": "e2e-tests/tests, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
 				"status": "passed",
-				"tookMs": 19300,
+				"tookMs": 18900,
 				"digest": {
 					"e2e-tests/src": "af005a350cebf7bace0c8de218d5012a617d2347dc19b706b80e17f97cd8ba7f",
 					"e2e-tests/tests": "7b66e2bfdd3952df8d78b342072e8c23d95420dda1722cd3817371690f642808",
 					"modules/cli/src": "662c8a5785716842b930ae0a1d26076913a5c22d9cea1c66241957a172d77c98",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "e926cbb0a83812333b0faf68879f6948e61301ef4ceb8aa6a736fb66bbe7bf4a",
+					"modules/core/src": "531afc580f125e67b71335125a15061a6fdb1d902809e580bda9b020b1b7ce21",
 					"modules/domain-storage/src": "0774ebfedf37f5cffb3ef84ed5a7fc859ed90fedf1887299cfe903e34b6910c3",
 					"modules/logic/src": "c9013d7d2aed759b529d4930a47185915b874da40e5f863f46ed4206f9e73a91",
 					"modules/monitor-otel/src": "4fbef0f2c78fed7b3e2d03ec4ab094bef11766724e5f5f6efb73491ea1d4dea6",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/out-junit/src": "22d1ca5d4f4449cae6186ff8d84c1f0b182e7591e1ffda9520a38daa3e8681d2",
 					"modules/recorder/src": "079caf826dbcad8943531b3f8f716e79a45d55f1668d29417e2a230978236208",
-					"modules/shu/src": "a7bf29d7f8cfd8d03432d9aa572ae211866fb564afa5ef0a9c5533b4b6aff8d9",
+					"modules/shu/src": "58b1be3f7c456495f99fd67903d60d0846398dd8b2af41931bcce15944c1e67f",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/utils/src": "9799d114ca397313863bfc29604199b02bc9daf1a4bfa26675dbfe7cfc30e36c",
@@ -623,7 +623,7 @@
 				"/features/a11y-pass.feature": {
 					"text": "/features/a11y-pass",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 600,
 					"steps": 13
 				},
 				"/features/after-every.feature": {
@@ -635,7 +635,7 @@
 				"/features/auth-basic.feature": {
 					"text": "/features/auth-basic",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 700,
 					"steps": 55
 				},
 				"/features/auth-bearer.feature": {
@@ -653,13 +653,13 @@
 				"/features/counter.feature": {
 					"text": "/features/counter",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 500,
 					"steps": 21
 				},
 				"/features/counter.feature.ts": {
 					"text": "Counts feature",
 					"status": "passed",
-					"tookMs": 1400,
+					"tookMs": 800,
 					"steps": 21
 				},
 				"/features/counts.feature.ts": {
@@ -683,7 +683,7 @@
 				"/features/feature-variables.feature": {
 					"text": "/features/feature-variables",
 					"status": "passed",
-					"tookMs": 100,
+					"tookMs": 0,
 					"steps": 19
 				},
 				"/features/if-set.feature": {
@@ -713,7 +713,7 @@
 				"/features/popup.feature": {
 					"text": "/features/popup",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 600,
 					"steps": 14
 				},
 				"/features/qrcode.feature": {
