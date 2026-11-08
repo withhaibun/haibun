@@ -101,7 +101,7 @@ export function serveRpc({ world, steppers, webserver, transport, verifier, sess
 			const baseIri = requestBaseIri(request?.headers, webserver.origins);
 			const hr = await runWithRequestContext({ baseIri }, () => dispatchCall(within, caller, featureStep, msg.readingAt));
 			// A step that isn't a read leaves its record, from which a reader reads why it was refused.
-			if (!hr.ok) return callFailed(method, hr.errorMessage, hr.remedy, tool.descriptor.read ? undefined : stepRecordOf(world.tag, featureStep.seqPath));
+			if (!hr.ok) return callFailed(method, hr.errorMessage, hr.remedy, tool.descriptor.read ? undefined : stepRecordOf(world.tag, featureStep.seqPath), hr.contract?.statement);
 			// A step without products that isn't a read states the path of its record, from which a reader reads why it holds.
 			if (hr.products !== undefined) return hr.products;
 			return tool.descriptor.read ? ANSWERED_WITHOUT_PRODUCTS : { ...ANSWERED_WITHOUT_PRODUCTS, [TRACE_SEQ_PATH]: featureStep.seqPath };

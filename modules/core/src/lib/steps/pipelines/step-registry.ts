@@ -15,7 +15,9 @@ import type { TStepDescriptor } from "../domains/step-discovery.js";
 import { stepDeclaration } from "../derivations/step-tools.js";
 import { StatementStepsSchema, validateProducts } from "../derivations/tool-validation.js";
 import { argumentsOf } from "./populate-action-args.js";
-import { contractProducts } from "../domains/contract.js";
+import { CONTRACT_CHECK, contractProducts } from "../domains/contract.js";
+import { contractRefusal } from "./contract-check.js";
+import { actingAs } from "../../domains/capability-context.js";
 
 /** A registered step tool. Every transport (RPC, MCP, a model's turn) dispatches a step through one. */
 export type StepTool = {
@@ -223,8 +225,8 @@ function listedResult(result: TActionResult & { ok: true }, declared: TListDecla
 }
 
 /**
- * Returns a handler that populates a step's arguments from featureStep.action.stepValuesMap, calls stepDef.action, and
- * returns its TActionResult. The logic engine's prover calls each built-in through this handler. A step that declares a
+ * Returns a handler that populates a step's arguments from featureStep.action.stepValuesMap, checks them against the step's
+ * contract's `requires`, calls stepDef.action, checks its products against the contract's `states`, and returns its TActionResult. The logic engine's prover calls each built-in through this handler. A step that declares a
  * reading doesn't have an action, and its handler refuses, since the prover performs its proof.
  */
 export function createStepHandler(stepperName: string, stepName: string, stepDef: TStepperStep): (featureStep: TFeatureStep, world: TWorld) => Promise<TActionResult> {
@@ -239,6 +241,10 @@ export function createStepHandler(stepperName: string, stepName: string, stepDef
 			const stages = featureStep.listings === undefined ? own : [...own, ...featureStep.listings];
 			const call = stages.length === 0 ? { args: read.args, stages } : listedCall(world, stepDef, read.args, stages);
 			if ("refused" in call) return actionNotOK(call.refused);
+			const principal = actingAs();
+			const checked = { parameters: read.args, ...(principal === undefined ? {} : { principal }) };
+			const required = await contractRefusal(world, stepDef, CONTRACT_CHECK.requires, checked);
+			if (required !== undefined) return required;
 			const acted = await stepDef.action(call.args, featureStep);
 			const result = acted.ok && call.declared !== undefined ? listedResult(acted, call.declared, call.stages) : acted;
 			// A failed result states its reason in errorMessage. Code that the types don't check can omit it, and that failure
@@ -247,7 +253,10 @@ export function createStepHandler(stepperName: string, stepName: string, stepDef
 			// Products are validated here, where the arguments are resolved, since a statement the step ran names the domain
 			// of the products the step returns as its own.
 			const productsError = result.ok ? validateProducts(stepperName, stepName, stepDef, world, result.products, read.args) : undefined;
-			return productsError ? actionNotOK(productsError) : result;
+			if (productsError) return actionNotOK(productsError);
+			const stated =
+				result.ok && result.products !== undefined ? await contractRefusal(world, stepDef, CONTRACT_CHECK.states, { ...checked, products: result.products }) : undefined;
+			return stated === undefined ? result : stated;
 		} catch (caught) {
 			// A thrown error becomes a failed result that states the step threw and carries the error's message, and the remedy
 			// where a refused call carries one. The code that presents the failure names the step, as an RPC response names

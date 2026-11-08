@@ -4,21 +4,9 @@
  * engine's prover dispatches each call and each node of the proof here.
  */
 import type { AStepper, TStepperStep, TFeatureStep, TBeforeStep, TAfterStep, TAfterStepResult } from "../../steps/domains/stepper.js";
-import type { TWorld } from "../domains/world.js";
+import { proverOf, type TWorld } from "../domains/world.js";
 import type { TActionResult, TStepResult, TSeqPath } from "../../domains/protocol.js";
-import {
-	TRACE_SEQ_PATH,
-	Timer,
-	FEATURE_START,
-	SCENARIO_START,
-	SUBSTEP_LEVEL,
-	STATUS,
-	RECORDED_STATUS,
-	LOGIC_STEPPER,
-	verdictOf,
-	VERDICT,
-	type TStepEnd,
-} from "../../domains/protocol.js";
+import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, SUBSTEP_LEVEL, STATUS, RECORDED_STATUS, verdictOf, VERDICT, type TStepEnd } from "../../domains/protocol.js";
 import { streamContext } from "../../transport/domains/step-stream-context.js";
 import { actionNotOK } from "../../domains/util.js";
 import { normalizeDomainKey } from "../../domains/domains.js";
@@ -46,7 +34,6 @@ import { stepMethodName, hostScopedMethodName } from "../../steps/domains/step-m
 import { authorizeToolCapability } from "../../steps/pipelines/gate.js";
 import { augmentViewHypermedia, isViewOnlyDomain, productsRetained } from "../../steps/derivations/step-hypermedia.js";
 import { RESULTS_READ_IN_FULL, afterStepOutcome, foldStep, retainedProducts, stepResultOf } from "../derivations/step-results.js";
-import type { TProver } from "../ports.js";
 import {
 	asRecorded,
 	endRecord,
@@ -180,14 +167,6 @@ export function runAsDispatched<T>(ctx: DispatchContext, run: () => Promise<T>):
 
 /** What a node of a proof performs in place of a step's action: the proof of its statements, which its caller resolves. */
 export type TPerform = () => Promise<TActionResult>;
-
-/** Returns the prover that a stepper of the configuration supplies. Throws where a stepper doesn't supply one, since every line is proved by
- *  the logic engine. */
-export function proverOf(world: TWorld): TProver {
-	const prover = world.runtime.prover;
-	if (prover === undefined) throw new Error(`every step is proved by the logic engine, and a stepper doesn't supply it. List ${LOGIC_STEPPER} in the configuration's steppers.`);
-	return prover;
-}
 
 /** Proves a step: a feature's line, a statement a step states, or a call a transport carries. Every surface calls it. */
 export const proveStep = (ctx: DispatchContext, featureStep: TFeatureStep): Promise<TStepResult> => proverOf(ctx.world).prove(ctx, featureStep);
@@ -350,6 +329,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		...(error === undefined ? {} : { error }),
 		...entailmentRecorded(actionResult.products),
 		...(step.writes === undefined ? {} : { refusedWrites: step.writes.refused }),
+		...(actionResult.ok || actionResult.contract === undefined ? {} : { proof: actionResult.contract.proof }),
 		...shown(viewShown(actionResult.products)),
 		...result,
 	});

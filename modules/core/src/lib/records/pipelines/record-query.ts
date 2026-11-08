@@ -2,8 +2,7 @@
  * Reads the records a caller's query states: its class expression compiles to the filters a store's index runs, and where a part
  * needs entailment, the reasoner reads the members it entails and the read narrows to them. The page states where each part ran.
  */
-import type { TWorld } from "../../actuality/domains/world.js";
-import { proverOf } from "../../actuality/pipelines/step-dispatch.js";
+import { proverOf, type TWorld } from "../../actuality/domains/world.js";
 import { counted } from "../../domains/hypermedia.js";
 import { errorDetail } from "../../domains/util.js";
 import {

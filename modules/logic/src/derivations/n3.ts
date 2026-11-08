@@ -39,7 +39,7 @@ export type TN3Formula = { formula: readonly TN3Pattern[] };
 /** A list, which N3 writes in parentheses: each item a term, a formula or a list. */
 export type TN3List = { list: readonly TN3Part[] };
 /** A part of a pattern N3 writes: a term, a formula or a list. */
-type TN3Part = Term | TN3Formula | TN3List;
+export type TN3Part = Term | TN3Formula | TN3List;
 /** A triple pattern of a formula, whose subject or object may be a formula or a list of its own. */
 export type TN3Pattern = { subject: Quad_Subject | TN3Formula | TN3List; predicate: Quad_Predicate; object: Quad_Object | TN3Formula | TN3List };
 

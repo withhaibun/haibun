@@ -4,7 +4,7 @@ import type { TSpecl } from "../actuality/domains/actuality.js";
 import type { TWorld, TRuntime, TModuleOptions } from "../actuality/domains/world.js";
 import { TActionResult, OK, TDebugSignal, MODULE_OPTION_PREFIX, VERDICT } from "./protocol.js";
 import { IHasOptions, AStepper, CStepper, TFeatureStep } from "../steps/domains/stepper.js";
-import { TArtifactEvent, type TJsonArtifact } from "./protocol.js";
+import { TArtifactEvent, type TContractRefusal, type TJsonArtifact } from "./protocol.js";
 import type { TRemedy } from "../transport/domains/rpc-wire.js";
 
 /** Returns `s` where it fits in `max` characters. Otherwise returns its first `max - 1` characters and an ellipsis.
@@ -20,14 +20,22 @@ export function getStepTerm(featureStep: TFeatureStep, key: string): string | un
 
 export const basesFrom = (s: string | undefined): string[] => (s === undefined ? [] : s.split(",").map((b) => b.trim()));
 
-export function actionNotOK(errorMessage: string, w?: { artifact?: TArtifactEvent; controlSignal?: TDebugSignal; remedy?: TRemedy }): TActionResult {
+export function actionNotOK(errorMessage: string, w?: { artifact?: TArtifactEvent; controlSignal?: TDebugSignal; remedy?: TRemedy; contract?: TContractRefusal }): TActionResult {
 	const remedy = w?.remedy;
+	const contract = w?.contract;
 	// The parameter is typed string. A caller can pass a caught Error through a cast or an `any` value.
 	// This converts an Error to its message and converts any other non-string with String().
 	// TActionResult declares errorMessage as a string, so each reader of a step's result reads a string.
 	const raw = errorMessage as unknown;
 	const message = typeof raw === "string" ? raw : raw instanceof Error ? raw.message : String(raw);
-	return { ok: false, errorMessage: message, artifact: w?.artifact, controlSignal: w?.controlSignal, ...(remedy === undefined ? {} : { remedy }) };
+	return {
+		ok: false,
+		errorMessage: message,
+		artifact: w?.artifact,
+		controlSignal: w?.controlSignal,
+		...(remedy === undefined ? {} : { remedy }),
+		...(contract === undefined ? {} : { contract }),
+	};
 }
 /** The result of a step whose claim the records don't prove: unknown, which isn't false in the open world. */
 export const actionUnknown = (errorMessage: string): TActionResult => ({ ...actionNotOK(errorMessage), verdict: VERDICT.unknown });

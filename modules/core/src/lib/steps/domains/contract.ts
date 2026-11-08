@@ -8,6 +8,7 @@
  */
 import { z } from "zod";
 import { DomainKeySchema } from "../../domains/domains.js";
+import type { TVerdict } from "../../domains/protocol.js";
 
 /** The key of the form that names the statement parameter whose products a step returns as its own. */
 const OF = "of";
@@ -96,6 +97,8 @@ const argumentText = (argument: TContractArgument): string => {
 
 /** The namespace of the predicate each relation names. */
 export const RELATION_NAMESPACE = "urn:haibun:relation:";
+/** The namespace of the term a field names in a statement, by its type's stored label and its key. */
+export const FIELD_NAMESPACE = "urn:haibun:field:";
 
 /** Returns the N3 triple a statement asserts, with each argument as `termOf` writes it: the list of its arguments related to true by
  *  the relation's predicate. A negated statement asserts the same triple, which its check proves absent. */
@@ -104,6 +107,26 @@ export const statementN3 = ({ relation, args }: TStatement, termOf: (argument: T
 
 /** Returns a statement in Unicode notation, as the views show it: `name(a, b)`, with `¬` before a negation. */
 export const statementNotation = ({ relation, args, negated }: TStatement): string => `${negated ? "¬" : ""}${relation.name}(${args.map(argumentText).join(", ")})`;
+
+/** The statements a call is checked against: those that hold before its action, and those that hold over its products. */
+export const CONTRACT_CHECK = { requires: "requires", states: "states" } as const;
+export type TContractCheck = (typeof CONTRACT_CHECK)[keyof typeof CONTRACT_CHECK];
+
+/** What a check reads a call by: its arguments by parameter name, its principal, and its products once its action returned them.
+ *  A check replaces each argument of a statement by the call's value of it; actuality acting as itself doesn't state a principal. */
+export type TContractCall = { readonly parameters: Readonly<Record<string, unknown>>; readonly principal?: string; readonly products?: Readonly<Record<string, unknown>> };
+
+/** A statement's verdict in a call's check: proved, refuted or unknown, and the triple that determined it. */
+export type TStatementVerdict = { readonly statement: TStatement; readonly verdict: TVerdict; readonly decidedBy: string };
+
+/** A call's check: each statement's verdict, and EYE's proof of the check where a statement isn't proved. */
+export type TContractChecked = { readonly verdicts: readonly TStatementVerdict[]; readonly proof?: string };
+
+/** Returns the statements of a step's contract that a check of `check` reads, empty where the contract doesn't state them. */
+export function contractStatements(step: { readonly contract?: TStepContract }, check: TContractCheck): readonly TStatement[] {
+	const statements = step.contract?.[check];
+	return statements === undefined ? [] : statements;
+}
 
 /** The writes the contract of a step in progress allows: the stored label of each type its products are written as, whose
  *  records the step writes whole or in part, and each field `changes` lists. `step` names the step, and `refused` holds each

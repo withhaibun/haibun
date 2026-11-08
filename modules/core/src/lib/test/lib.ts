@@ -1,4 +1,4 @@
-import type { TWorld, TProtoOptions } from "../actuality/domains/world.js";
+import { proverOf, type TWorld, type TProtoOptions } from "../actuality/domains/world.js";
 import { newActualityId } from "../transport/domains/rpc-wire.js";
 import { CStepper } from "../steps/domains/stepper.js";
 import { DEFAULT_DEST, LOGIC_STEPPER, TExecutorResult } from "../domains/protocol.js";
@@ -12,7 +12,6 @@ import { actualityClock } from "../actuality/root.js";
 import { actualityMachine } from "../actuality/machines/actuality.js";
 import { asFeatures, TEST_BASE } from "./resolver-features.js";
 import { Runner } from "../pipelines/runner.js";
-import { proverOf } from "../actuality/pipelines/step-dispatch.js";
 import type { TProver } from "../actuality/ports.js";
 import { FeatureVariables, secretsOf } from "../actuality/pipelines/feature-variables.js";
 import { Prompter } from "../prompts/pipelines/prompter.js";
@@ -107,6 +106,7 @@ function testProver(): TProver {
 		proveStatements: async (ctx, parent, statements, targetHostId) => (await prover()).proveStatements(ctx, parent, statements, targetHostId),
 		exceeding: async (candidate, bound) => (await prover()).exceeding(candidate, bound),
 		entailed: async (world, expression) => (await prover()).entailed(world, expression),
+		checkContract: async (statements, call) => (await prover()).checkContract(statements, call),
 	};
 }
 

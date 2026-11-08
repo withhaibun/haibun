@@ -16,14 +16,17 @@ import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import type { TProver } from "@haibun/core/lib/actuality/ports.js";
 import { findFeatureStepsFromStatement } from "@haibun/core/lib/actuality/pipelines/resolver.js";
 import { argumentsOf } from "@haibun/core/lib/steps/pipelines/populate-action-args.js";
-import { VERDICT, verdictOf, type TActionResult, type TStepArgs, type TStepResult, type TVerdict } from "@haibun/core/lib/domains/protocol.js";
+import { VERDICT, verdictOf, type TActionResult, type TContractRefusal, type TStepArgs, type TStepResult, type TVerdict } from "@haibun/core/lib/domains/protocol.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { refusalCarried, type TRemedy } from "@haibun/core/lib/rpc-wire.js";
+import { declaredRelations } from "../derivations/contract-declarations.js";
+import { contractChecks } from "./contract-checks.js";
 import {
 	hasCycles,
 	READING,
 	UNTIL_DURATION,
 	untilWithoutDuration,
+	type AStepper,
 	type TCallContext,
 	type TFeatureStep,
 	type TObserved,
@@ -345,7 +348,7 @@ class Proof {
 		opened.close(
 			request.verdict === VERDICT.proved
 				? { ok: true, verdict: request.verdict, ...(products === undefined ? {} : { products }) }
-				: { ok: false, verdict: request.verdict, errorMessage: this.why(path, request, opened.step), ...this.remedyOf(request) },
+				: { ok: false, verdict: request.verdict, errorMessage: this.why(path, request, opened.step), ...this.refusedBy(request) },
 		);
 		this.hold(path, await opened.dispatched);
 		return "closed";
@@ -362,10 +365,12 @@ class Proof {
 		return refusalOf(last);
 	}
 
-	/** The remedy of the part that determined a node's verdict, where that part carries one, so a refusal's type reaches the line. */
-	private remedyOf({ why }: TCloseRequest): { remedy?: TRemedy } {
+	/** The remedy and the contract's refusing statement of the part that determined a node's verdict, where that part carries them,
+	 *  so a refusal's type and its statement reach the line. */
+	private refusedBy({ why }: TCloseRequest): { remedy?: TRemedy; contract?: TContractRefusal } {
 		const part = Array.isArray(why) ? this.results.get(keyOf(why)) : undefined;
-		return part === undefined || part.ok || part.remedy === undefined ? {} : { remedy: part.remedy };
+		if (part === undefined || part.ok) return {};
+		return { ...(part.remedy === undefined ? {} : { remedy: part.remedy }), ...(part.contract === undefined ? {} : { contract: part.contract }) };
 	}
 
 	/** Why a node's verdict isn't proved: the part that determined it, with that part's own reason, or the reason the engine states. */
@@ -632,9 +637,11 @@ function refusalOf(failed: TStepResult & { ok: false }): TRefusal {
 /** The products of a refused claim, which hold its witness: a subsumption's, or the disjointness of a refuted membership. */
 const WitnessProductsSchema = z.object({ witness: z.union([ClaimWitnessSchema, DisjointnessWitnessSchema]) });
 
-/** The prover of an engine, which proves a permission's containment through the reasoner. */
-export function proverOf(engine: TLogicEngine, reasoner: TReasoner): TProver {
+/** The prover of an engine, which proves a permission's containment through the reasoner and checks a call against its step's
+ *  contract over the rules of the relations `steppers` declare. */
+export function proverOf(engine: TLogicEngine, reasoner: TReasoner, steppers: readonly AStepper[]): TProver {
 	return {
+		checkContract: contractChecks([...declaredRelations(steppers)], reasoner, engine),
 		exceeding: async (candidate, bound) => (await containment(reasoner, candidate, bound)).exceeds,
 		entailed: (world, expression) => entailedMembers(reasoner, world.shared.getStore(), world.domains, world.runtime.records, expression),
 		prove: async (ctx, line) => {

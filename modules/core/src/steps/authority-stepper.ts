@@ -2,7 +2,7 @@ import { listOf } from "../lib/domains/lists.js";
 import { z } from "zod";
 import { fromJsonText } from "../lib/domains/json-text.js";
 import { persistPrincipalIndividual } from "../lib/domains/principal-individual.js";
-import type { TWorld } from "../lib/actuality/domains/world.js";
+import { proverOf, type TWorld } from "../lib/actuality/domains/world.js";
 import { AStepper, READING, type IHasCycles, type IStepperCycles, type TCallContext, type TEndFeature, type TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/domains/util.js";
 import { counted, CountedFields } from "../lib/domains/hypermedia.js";
@@ -12,7 +12,6 @@ import { DELEGATIONS_READ_ACTION, DOMAIN_HELD_CALLS, HeldCallsSchema, type IAuth
 import { DOMAIN_ACTIONS, DOMAIN_JSON, DOMAIN_LINK, DOMAIN_PRINCIPAL_REF } from "../lib/domains/domains.js";
 import { actingAs, actingFor, callerHolds, runActingAs, runAuthorizedWith } from "../lib/domains/capability-context.js";
 import { AUTHORITY_CAPABILITIES, delegatedActions, permissionOf, readAction, witnessOf } from "../lib/domains/actions.js";
-import { proverOf } from "../lib/actuality/pipelines/step-dispatch.js";
 import { activeSitePrincipal, SITE_DID_PREFIX } from "../lib/domains/host-id.js";
 import { Access, AccessLevelSchema, PRINCIPAL_LABEL } from "../lib/domains/resources.js";
 import { principalDomainDefinition } from "../lib/domains/resource-domains.js";

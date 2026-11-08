@@ -1480,15 +1480,15 @@
 			"actuality": {
 				"text": "e2e-tests/tests, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
 				"status": "passed",
-				"tookMs": 19500,
+				"tookMs": 20200,
 				"digest": {
 					"e2e-tests/src": "af005a350cebf7bace0c8de218d5012a617d2347dc19b706b80e17f97cd8ba7f",
 					"e2e-tests/tests": "7b66e2bfdd3952df8d78b342072e8c23d95420dda1722cd3817371690f642808",
 					"modules/cli/src": "662c8a5785716842b930ae0a1d26076913a5c22d9cea1c66241957a172d77c98",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "dade848d7c1588d70996dc0f73a77f5fa96429ec7bd8553136b2a8c59b154022",
+					"modules/core/src": "297999dc212f9a9822b0b57096dd7dae41da102344cb77473355e026f372a0e8",
 					"modules/domain-storage/src": "0774ebfedf37f5cffb3ef84ed5a7fc859ed90fedf1887299cfe903e34b6910c3",
-					"modules/logic/src": "c9013d7d2aed759b529d4930a47185915b874da40e5f863f46ed4206f9e73a91",
+					"modules/logic/src": "2bef4262849da4b2ee3fc6b5d10922c0939c56a759bb43b82915263879186d7d",
 					"modules/monitor-otel/src": "4fbef0f2c78fed7b3e2d03ec4ab094bef11766724e5f5f6efb73491ea1d4dea6",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/out-junit/src": "22d1ca5d4f4449cae6186ff8d84c1f0b182e7591e1ffda9520a38daa3e8681d2",
@@ -1499,7 +1499,7 @@
 					"modules/utils/src": "9799d114ca397313863bfc29604199b02bc9daf1a4bfa26675dbfe7cfc30e36c",
 					"modules/web-accessibility-axe/src": "88242e926e593df199830dfc082a2bf16d40873f6eb85e4e5cb3b0fa5c466536",
 					"modules/web-playwright/src": "c348fff62a28037e4b4ec74b4c22425a20bd3d54d4e44d7d75e69a4ccaba5a8c",
-					"modules/web-server-hono/src": "c7b9ae1572dfe60954edb80741344cc5ffdd5c5ce6cec9dcb4afa762a6d2e8e1",
+					"modules/web-server-hono/src": "9e0b90c47ff424cad634f3d9489eeb59555041cf011e89593a55813779b50625",
 					"modules/web-server-hono/waypoints": "fa5853749829db27d77867eb4c13e1860184beafed284ebff8f0672c617affe3"
 				}
 			},
@@ -1537,19 +1537,19 @@
 				"/features/auth-form.feature": {
 					"text": "/features/auth-form",
 					"status": "passed",
-					"tookMs": 900,
+					"tookMs": 1000,
 					"steps": 24
 				},
 				"/features/counter.feature": {
 					"text": "/features/counter",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 900,
 					"steps": 21
 				},
 				"/features/counter.feature.ts": {
 					"text": "Counts feature",
 					"status": "passed",
-					"tookMs": 1900,
+					"tookMs": 1100,
 					"steps": 21
 				},
 				"/features/counts.feature.ts": {
@@ -1573,7 +1573,7 @@
 				"/features/feature-variables.feature": {
 					"text": "/features/feature-variables",
 					"status": "passed",
-					"tookMs": 0,
+					"tookMs": 100,
 					"steps": 19
 				},
 				"/features/if-set.feature": {
@@ -1609,7 +1609,7 @@
 				"/features/qrcode.feature": {
 					"text": "/features/qrcode",
 					"status": "passed",
-					"tookMs": 2500,
+					"tookMs": 2600,
 					"steps": 19
 				},
 				"/features/recurse.feature": {
@@ -1621,19 +1621,19 @@
 				"/features/run-policy-refusals.feature.ts": {
 					"text": "A run refuses a run policy its config doesn't allow",
 					"status": "passed",
-					"tookMs": 1400,
+					"tookMs": 1600,
 					"steps": 16
 				},
 				"/features/trauma_center.feature": {
 					"text": "/features/trauma_center",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 800,
 					"steps": 93
 				},
 				"/features/upload-verify.feature": {
 					"text": "/features/upload-verify",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 600,
 					"steps": 20
 				},
 				"/features/visited-pages.feature": {
@@ -1645,7 +1645,7 @@
 				"/features/workflow.feature.ts": {
 					"text": "workflow",
 					"status": "passed",
-					"tookMs": 200,
+					"tookMs": 300,
 					"steps": 64
 				},
 				"/features/xss.feature": {

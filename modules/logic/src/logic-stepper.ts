@@ -82,7 +82,7 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 		await super.setWorld(world, steppers);
 		this.steppers = steppers;
 		refuseDeclarations(steppers);
-		world.runtime.prover = proverOf(await logicEngine(), reasoner());
+		world.runtime.prover = proverOf(await logicEngine(), reasoner(), steppers);
 	}
 
 	cycles: IStepperCycles = {

@@ -5,7 +5,7 @@ import type { FeatureVariables } from "../pipelines/feature-variables.js";
 import type { Prompter } from "../../prompts/pipelines/prompter.js";
 import type { IEventLogger } from "../../steps/ports.js";
 import type { TStepResult, TFeatureSteps } from "../../domains/protocol.js";
-import { CONTINUE_AFTER_ERROR, NDJSON, ShownLogLevelSchema } from "../../domains/protocol.js";
+import { CONTINUE_AFTER_ERROR, LOGIC_STEPPER, NDJSON, ShownLogLevelSchema } from "../../domains/protocol.js";
 import type { TRecordNamespace, TRegisteredDomain } from "../../domains/resources.js";
 import type { StepRegistry } from "../../steps/pipelines/step-registry.js";
 import type { TFeature } from "./actuality.js";
@@ -115,3 +115,11 @@ export type TModuleOptions = { [name: string]: string };
 export type TProtoOptions = { options: TBaseOptions; moduleOptions: TModuleOptions };
 
 export type TBase = string[];
+
+/** Returns the prover that a stepper of the configuration supplies. Throws where a stepper doesn't supply one, since every line is proved by
+ *  the logic engine. */
+export function proverOf(world: TWorld): TProver {
+	const prover = world.runtime.prover;
+	if (prover === undefined) throw new Error(`every step is proved by the logic engine, and a stepper doesn't supply it. List ${LOGIC_STEPPER} in the configuration's steppers.`);
+	return prover;
+}

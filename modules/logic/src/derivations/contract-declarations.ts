@@ -32,7 +32,7 @@ function declaredFields(steppers: readonly AStepper[]): Map<string, ReadonlySet<
 }
 
 /** The relations the steppers declare in their concerns. */
-function declaredRelations(steppers: readonly AStepper[]): ReadonlySet<TRelation> {
+export function declaredRelations(steppers: readonly AStepper[]): ReadonlySet<TRelation> {
 	return new Set(
 		steppers.flatMap((stepper) => {
 			const relations = hasCycles(stepper) ? stepper.cycles.getConcerns?.().relations : undefined;

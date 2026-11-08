@@ -802,16 +802,16 @@
 			"actuality": {
 				"text": "e2e-tests/requirements, node_modules/@haibun/cli/waypoints, node_modules/@haibun/logic/waypoints, node_modules/@haibun/core/waypoints",
 				"status": "passed",
-				"tookMs": 42200,
+				"tookMs": 41800,
 				"digest": {
 					"e2e-tests/requirements": "a97313b5d36c69de6bd71befc4fac1303e7ec1b8a9eae3df0bccca1501f26483",
 					"e2e-tests/src": "af005a350cebf7bace0c8de218d5012a617d2347dc19b706b80e17f97cd8ba7f",
 					"modules/cli/src": "662c8a5785716842b930ae0a1d26076913a5c22d9cea1c66241957a172d77c98",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "dade848d7c1588d70996dc0f73a77f5fa96429ec7bd8553136b2a8c59b154022",
+					"modules/core/src": "297999dc212f9a9822b0b57096dd7dae41da102344cb77473355e026f372a0e8",
 					"modules/core/waypoints": "f573c51de6e8154e49adbb5d98a25b3fd1872742dfdab0f3d6ec8f6164759860",
 					"modules/domain-storage/src": "0774ebfedf37f5cffb3ef84ed5a7fc859ed90fedf1887299cfe903e34b6910c3",
-					"modules/logic/src": "c9013d7d2aed759b529d4930a47185915b874da40e5f863f46ed4206f9e73a91",
+					"modules/logic/src": "2bef4262849da4b2ee3fc6b5d10922c0939c56a759bb43b82915263879186d7d",
 					"modules/logic/waypoints": "93e972f98438aa5cbe8f36d93e6aa45924af65df9fdb2846bf209209421a4671",
 					"modules/monitor-otel/src": "4fbef0f2c78fed7b3e2d03ec4ab094bef11766724e5f5f6efb73491ea1d4dea6",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
@@ -823,7 +823,7 @@
 					"modules/utils/src": "9799d114ca397313863bfc29604199b02bc9daf1a4bfa26675dbfe7cfc30e36c",
 					"modules/web-accessibility-axe/src": "88242e926e593df199830dfc082a2bf16d40873f6eb85e4e5cb3b0fa5c466536",
 					"modules/web-playwright/src": "c348fff62a28037e4b4ec74b4c22425a20bd3d54d4e44d7d75e69a4ccaba5a8c",
-					"modules/web-server-hono/src": "c7b9ae1572dfe60954edb80741344cc5ffdd5c5ce6cec9dcb4afa762a6d2e8e1"
+					"modules/web-server-hono/src": "9e0b90c47ff424cad634f3d9489eeb59555041cf011e89593a55813779b50625"
 				}
 			},
 			"features": {
@@ -854,19 +854,19 @@
 				"/features/05-goals.feature.ts": {
 					"text": "Goals over producer rules",
 					"status": "passed",
-					"tookMs": 1400,
+					"tookMs": 1500,
 					"steps": 41
 				},
 				"/features/06-world-and-products.feature.ts": {
 					"text": "The world's data and a step's products",
 					"status": "passed",
-					"tookMs": 300,
+					"tookMs": 400,
 					"steps": 21
 				},
 				"/features/07-records.feature.ts": {
 					"text": "Records, events and actualities",
 					"status": "passed",
-					"tookMs": 1800,
+					"tookMs": 2000,
 					"steps": 125
 				},
 				"/features/08-timing.feature.ts": {
@@ -884,7 +884,7 @@
 				"/features/10-cli.feature.ts": {
 					"text": "The command line",
 					"status": "passed",
-					"tookMs": 1000,
+					"tookMs": 900,
 					"steps": 11
 				},
 				"/features/11-performance.feature.ts": {
@@ -914,13 +914,13 @@
 				"/features/15-combined-statements.feature.ts": {
 					"text": "Combined statements",
 					"status": "passed",
-					"tookMs": 400,
+					"tookMs": 300,
 					"steps": 44
 				},
 				"/features/16-class-expressions.feature.ts": {
 					"text": "Class expressions",
 					"status": "passed",
-					"tookMs": 34200,
+					"tookMs": 33600,
 					"steps": 93
 				}
 			}

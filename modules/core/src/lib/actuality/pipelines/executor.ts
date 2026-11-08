@@ -7,12 +7,12 @@
 import { MEDIA_TYPE } from "../../domains/media-types.js";
 import { basename } from "path";
 import { RUN_AUTHORITY, runAuthorizedWith } from "../../domains/capability-context.js";
-import type { TWorld } from "../domains/world.js";
+import { proverOf, type TWorld } from "../domains/world.js";
 import { hasCycles, type AStepper, type TResolvedFeature, type TEndFeature, type TEndActuality } from "../../steps/domains/stepper.js";
 import { STAY, STEP_DELAY, CONTINUE_AFTER_ERROR, FEATURE_START, SCENARIO_START, STATUS, ResolvedFeaturesArtifact, isPendingScenario } from "../../domains/protocol.js";
 import type { TExecutorResult, TFeatureResult, TStepResult, THaibunEvent } from "../../domains/protocol.js";
 import { setStepperWorldsAndDomains, constructorName } from "../../domains/util.js";
-import { proveStep, proverOf } from "./step-dispatch.js";
+import { proveStep } from "./step-dispatch.js";
 import { openRunRegistry, type StepRegistry } from "../../steps/pipelines/step-registry.js";
 import { featureAsData } from "../../domains/features.js";
 import { FeatureVariables } from "./feature-variables.js";

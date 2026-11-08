@@ -47,7 +47,7 @@ class WaitingEngine extends AStepper implements IHasCycles {
 	description = "Proves through an engine that yields until's wait for the line that applies a waypoint";
 	cycles = {
 		startFeature: async () => {
-			this.getWorld().runtime.prover = proverOf(waitingAt(await logicEngine()), reasoner());
+			this.getWorld().runtime.prover = proverOf(waitingAt(await logicEngine()), reasoner(), []);
 		},
 	};
 	steps = {} as const satisfies TStepperSteps;
