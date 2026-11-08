@@ -145,8 +145,8 @@ export const specificResourceDomainDefinition: TDomainDefinition = {
 		id: "id",
 		properties: { id: LinkRelations.IDENTIFIER.rel, label: LinkRelations.LABEL.rel },
 		edges: {
-			hasSource: { rel: LinkRelations.HAS_SOURCE.rel, range: RESOURCE_LABEL },
-			hasSelector: { rel: LinkRelations.HAS_SELECTOR.rel, range: [TEXT_QUOTE_SELECTOR_LABEL, FRAGMENT_SELECTOR_LABEL] },
+			hasSource: { rel: LinkRelations.HAS_SOURCE.rel, range: RESOURCE_LABEL, reference: true },
+			hasSelector: { rel: LinkRelations.HAS_SELECTOR.rel, range: [TEXT_QUOTE_SELECTOR_LABEL, FRAGMENT_SELECTOR_LABEL], owns: true },
 			wasGeneratedBy: GENERATED_BY_READING,
 		},
 		// Titled through its selector where the individual doesn't carry an rdfs:label.

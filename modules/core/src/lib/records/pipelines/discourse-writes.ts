@@ -5,7 +5,6 @@
  */
 import { fromJsonText } from "../../domains/json-text.js";
 import {
-	BODY_LABEL,
 	COMMENT_LABEL,
 	COMMENT_TOPOLOGY,
 	LinkRelations,
@@ -27,7 +26,6 @@ import { typedLinkFacts } from "../derivations/typed-link-facts.js";
 import type { TLinkVocabulary, TTypedLinkFact } from "../../domains/typed-links.js";
 import { recordOf, type TRecordReader } from "./record-reads.js";
 import type { IQuadStore } from "../../steps/ports.js";
-import { EDGE_TARGET, edgesFrom } from "../domains/unit.js";
 
 /** The store a reading writes and reads: the discourse writes and the read of records. */
 type TReadingStore = TDiscourseStore & TRecordReader & Pick<IQuadStore, "readRecord">;
@@ -58,8 +56,9 @@ async function retractReading(store: TReadingStore, readingId: string): Promise<
  * throws. A typed link's part is a passage or a fragment of media. `anchorPart` anchors it on the W3C Web Annotation
  * types and labels it with the link text.
  *
- * A Reading records what it read (`prov:used`), the step that read it and every statement it made. Reading a rewritten
- * text then undoes the previous reading and leaves statements asserted by hand unchanged.
+ * A Reading records what it read (`prov:used`), the step that read it and every statement it made, and each anchor it wrote
+ * links it through `prov:wasGeneratedBy`. Reading a rewritten text then undoes the previous reading and leaves statements
+ * asserted by hand unchanged.
  */
 export async function readTypedLinks(
 	store: TReadingStore,
@@ -73,21 +72,15 @@ export async function readTypedLinks(
 	// A caller that already parsed the text passes its facts, so a prose line is parsed once.
 	const facts = provenance?.facts ?? (markdown ? typedLinkFacts(markdown, vocab) : []);
 	if (facts.length === 0) return undefined;
-	const now = new Date().toISOString();
 	const stated: TStatedRecord[] = [];
-	// The reading is written first because the records below point at it, and a strict store requires an edge's target to exist. Its `stated` list is set at the end.
-	await store.write({ label: READING_LABEL, record: { id: readingId, generatedAtTime: now, ...(provenance?.seqPath ? { seqPath: provenance.seqPath } : {}), stated: [] } });
-	/** Anchors a part inside a record and returns the SpecificResource an edge can target. This reading owns the anchor pair. */
+	const reading = { label: READING_LABEL, id: readingId };
+	/** Anchors a part inside a record and returns the SpecificResource an edge can target. The SpecificResource owns its selector,
+	 *  so the reading's removal of it removes the anchor pair. */
 	const anchored = async (base: { label: string; id: string }, part: TPart, linkText?: string): Promise<{ label: string; id: string }> => {
-		const { specificResourceId, selectorId, selectorLabel } = await anchorPart(store, base.label, base.id, part, now, linkText ? { label: linkText } : undefined);
-		for (const written of [
-			{ label: selectorLabel, id: selectorId },
-			{ label: SPECIFIC_RESOURCE_LABEL, id: specificResourceId },
-		]) {
-			await store.write(edgesFrom(written.label, written.id, { rel: LinkRelations.WAS_GENERATED_BY.rel, label: READING_LABEL, id: readingId, target: EDGE_TARGET.held }));
-			stated.push({ kind: "individual", ...written });
-		}
-		return { label: SPECIFIC_RESOURCE_LABEL, id: specificResourceId };
+		const { specificResourceId } = await anchorPart(store, base.label, base.id, part, { ...(linkText ? { label: linkText } : {}), generatedBy: reading });
+		const written = { label: SPECIFIC_RESOURCE_LABEL, id: specificResourceId };
+		stated.push({ kind: "individual", ...written });
+		return written;
 	};
 	for (const fact of facts) {
 		const named = { label: fact.target.persistedAs, id: fact.target.id };
@@ -99,12 +92,17 @@ export async function readTypedLinks(
 		// Only a typed link anchors its passage. An untyped link derives only the record-level edge, and its passage stays
 		// in the link, so plain cross-references don't add anchor records.
 		const target = fact.typed && fact.target.anchor ? await anchored(named, fact.target.anchor, fact.linkText) : named;
-		await store.write(edgesFrom(source.label, source.id, { rel: fact.rel, label: target.label, id: target.id, target: EDGE_TARGET.held }));
+		await store.merge({ "@type": source.label, "@id": source.id, [fact.rel]: { "@type": target.label, "@id": target.id } });
 		stated.push({ kind: "edge", s: source.id, sLabel: source.label, rel: fact.rel, o: target.id, oLabel: target.label });
 	}
-	// Sets the reading's record of its statements on the individual written before the facts, with the text it read.
-	const used = { rel: LinkRelations.USED.rel, label: source.label, id: source.id, target: EDGE_TARGET.reference };
-	await store.write({ label: READING_LABEL, id: readingId, fields: { stated: stated.map((record) => JSON.stringify(record)) }, edges: [used] });
+	// The reading records its statements and the text it read once it has made them.
+	await store.create({
+		"@type": READING_LABEL,
+		id: readingId,
+		...(provenance?.seqPath ? { seqPath: provenance.seqPath } : {}),
+		stated: stated.map((record) => JSON.stringify(record)),
+		[LinkRelations.USED.rel]: { "@type": source.label, "@id": source.id },
+	});
 	return { readingId, statements: stated.filter((d) => d.kind === "edge").length };
 }
 
@@ -125,30 +123,28 @@ export function commentBodyIdOf(commentId: string): string {
 	return bodyIdOf(commentId, DEFAULT_BODY_KIND, COMMENT_BODY);
 }
 
-/** Creates a Comment individual with its markdown body as a Body sub-resource. The `comment` and `annotate` acts both
- *  call it. `name` titles the node by the truncated note text and not by its id. The note is markdown, so readTypedLinks
- *  derives the facts its links state with the Comment as their subject. */
+/** Creates a Comment individual that owns its markdown body as a Body, with the period it describes and the edges `stated` adds.
+ *  The `comment` and `annotate` acts both call it. `name` titles the node by the truncated note text and not by its id. The note
+ *  is markdown, so readTypedLinks derives the facts its links state with the Comment as their subject. */
 export async function createComment(
 	store: TReadingStore,
 	vocab: TLinkVocabulary,
 	author: string,
 	text: string,
-	now: string,
-	period?: { start?: string; end?: string },
+	stated?: { start?: string; end?: string; edges?: Readonly<Record<string, unknown>> },
 	provenance?: { seqPath?: string },
 ): Promise<string> {
 	const commentId = crypto.randomUUID();
-	const bodyId = commentBodyIdOf(commentId);
-	const record = {
+	await store.create({
+		"@type": COMMENT_LABEL,
 		id: commentId,
 		author,
-		generatedAtTime: now,
-		...(period?.start ? { startedAtTime: period.start } : {}),
-		...(period?.end ? { endedAtTime: period.end } : {}),
+		...(stated?.start ? { startedAtTime: stated.start } : {}),
+		...(stated?.end ? { endedAtTime: stated.end } : {}),
 		name: commentName(text),
-	};
-	const body = { label: BODY_LABEL, record: { id: bodyId, content: text, mediaType: MEDIA_TYPE.markdown, generatedAtTime: now } };
-	await store.write({ label: COMMENT_LABEL, record, owns: [body], edges: [{ rel: LinkRelations.HAS_BODY.rel, label: BODY_LABEL, id: bodyId, target: EDGE_TARGET.held }] });
+		[LinkRelations.HAS_BODY.rel]: { id: commentBodyIdOf(commentId), content: text, mediaType: MEDIA_TYPE.markdown },
+		...stated?.edges,
+	});
 	await readTypedLinks(store, vocab, { label: COMMENT_LABEL, id: commentId }, text, provenance);
 	return commentId;
 }
@@ -165,20 +161,15 @@ export async function writeAnnotation(
 	// `at` and `until` bound the period the note describes, such as a milestone's week. They are stored as
 	// startedAtTime and endedAtTime so time-placed views such as gantt show the note over its period. `generatedAtTime`
 	// holds the time the record was written. The two are different facts.
-	const now = new Date().toISOString();
 	// The anchored passage is titled by the note's text, by the same rule that titles a Comment. Every view then shows
 	// the anchor as the note's statement and not as the bare quote.
-	const { specificResourceId } = await anchorPart(store, a.label, a.id, a, now, { label: commentName(a.text) });
-	const commentId = await createComment(store, vocab, author, a.text, now, { start: a.at, end: a.until });
-	await store.write(edgesFrom(COMMENT_LABEL, commentId, { rel: LinkRelations.TARGET.rel, label: SPECIFIC_RESOURCE_LABEL, id: specificResourceId, target: EDGE_TARGET.held }));
+	const { specificResourceId } = await anchorPart(store, a.label, a.id, a, { label: commentName(a.text) });
 	const linkedSpecificResourceIds: string[] = [];
-	for (const link of a.links ?? []) {
-		const linked = await anchorPart(store, a.label, a.id, link, now);
-		await store.write(
-			edgesFrom(COMMENT_LABEL, commentId, { rel: LinkRelations.LINKS_TO.rel, label: SPECIFIC_RESOURCE_LABEL, id: linked.specificResourceId, target: EDGE_TARGET.held }),
-		);
-		linkedSpecificResourceIds.push(linked.specificResourceId);
-	}
+	for (const link of a.links === undefined ? [] : a.links) linkedSpecificResourceIds.push((await anchorPart(store, a.label, a.id, link)).specificResourceId);
+	const reference = (id: string) => ({ "@type": SPECIFIC_RESOURCE_LABEL, "@id": id });
+	const links = linkedSpecificResourceIds.length === 0 ? {} : { [LinkRelations.LINKS_TO.rel]: linkedSpecificResourceIds.map(reference) };
+	const edges = { [LinkRelations.TARGET.rel]: reference(specificResourceId), ...links };
+	const commentId = await createComment(store, vocab, author, a.text, { start: a.at, end: a.until, edges });
 	await assertCommentGrounded(store, commentId);
 	return { commentId, specificResourceId, ...(linkedSpecificResourceIds.length > 0 ? { linkedSpecificResourceIds } : {}) };
 }

@@ -534,9 +534,7 @@ class NoticeStepper extends AStepper {
 			description: TEST_STEP,
 			exact: "public notice is held",
 			action: async () => {
-				await this.getWorld()
-					.shared.getStore()
-					.write({ label: NOTICE_LABEL, record: { id: NOTICE_ID } });
+				await this.getWorld().shared.getStore().merge({ "@type": NOTICE_LABEL, id: NOTICE_ID });
 				return OK;
 			},
 		},

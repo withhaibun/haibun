@@ -1,13 +1,13 @@
 /**
  * Versions of records and the writes made from a read of them. A store returns a record's version beside it, a unit written
- * from that read states the version, and the store refuses the unit where the record's fields changed since. A writer that
+ * from that read states the version in an update, and the store refuses the update where the record's fields changed since. A writer that
  * reads a record, changes it and writes it back reads again and writes again on that refusal, so a change made between its
  * read and its write isn't lost, and the store doesn't hold a lock or a transaction across the writer's read.
  */
 import type { z } from "zod";
 import type { IQuadStore } from "../../steps/ports.js";
 import type { TRecordType } from "../../steps/domains/quad-types.js";
-import { assertReadVersion, ChangedSinceRead, writesFields, type TReadVersion, type TRecordName, type TUnit, type TVersionedRead } from "../domains/unit.js";
+import { assertReadVersion, ChangedSinceRead, type TReadVersion, type TRecordName, type TVersionedRead } from "../domains/unit.js";
 
 /** Reads the record `type` and `id` name with its version: the version first, then the record. A write between the two reads
  *  leaves the record newer than its version, so a unit written from it is refused and the caller reads again. */
@@ -20,8 +20,8 @@ export async function readVersioned<S extends z.ZodType>(
 	return { version, record: await store.readRecord(type, id) };
 }
 
-/** Runs `attempt`, which reads records with their versions and writes units that state them, again where a store refuses one
- *  of its units because the unit's record changed since its read, up to `attempts` runs. Throws the last refusal, with the
+/** Runs `attempt`, which reads records with their versions and updates them from those versions, again where a store refuses
+ *  one of its updates because the record changed since its read, up to `attempts` runs. Throws the last refusal, with the
  *  number of runs, where every run is refused. */
 export async function rereadAndRetry<T>(attempts: number, attempt: () => Promise<T>): Promise<T> {
 	for (let run = 1; ; run++) {
@@ -60,19 +60,14 @@ export class RecordVersions {
 		return counted === undefined ? UNCOUNTED : String(counted);
 	}
 
-	/** Refuses the units whose records changed since their callers read them. `held` states whether the store holds a unit's
-	 *  record. */
-	check(units: ReadonlyArray<{ name: TRecordName; unit: TUnit; held: boolean }>): void {
-		for (const { name, unit, held } of units) assertReadVersion(name, unit.version, this.of(name, held));
+	/** Refuses the units whose records changed since their callers read them: each states the version its verb states, and
+	 *  whether the store holds its record. */
+	check(units: ReadonlyArray<{ name: TRecordName; version: TReadVersion | undefined; held: boolean }>): void {
+		for (const { name, version, held } of units) assertReadVersion(name, version, this.of(name, held));
 	}
 
-	/** Gives each record whose fields the units wrote its next version. A store calls it once the units are held, so a read of
+	/** Gives the record `name` names its next version, after a write of it. A store calls it once the write is held, so a read of
 	 *  a version never precedes the fields it versions. */
-	wrote(units: ReadonlyArray<{ name: TRecordName; unit: TUnit }>): void {
-		for (const { name, unit } of units) if (writesFields(unit)) this.changed(name);
-	}
-
-	/** Gives the record `name` names its next version, after a write that changes its fields. */
 	changed(name: TRecordName): void {
 		this.versions.set(keyOf(name), ++this.writes);
 	}

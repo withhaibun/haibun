@@ -12,7 +12,9 @@ import { z } from "zod";
 import { AccessLevelSchema } from "./resources.js";
 import type { IQuadStore } from "../steps/ports.js";
 import type { TRpcMethod } from "../transport/ports.js";
-import { ChangedSinceRead, EDGE_TARGET, type TRemoval, type TUnit } from "../records/domains/unit.js";
+import { ChangedSinceRead, NODE_KEY, WRITE_VERB, WriteOutsideContract, type TNode, type TRemoval } from "../records/domains/unit.js";
+import { runWritingWithin } from "./capability-context.js";
+import type { TStepWrites } from "../steps/domains/contract.js";
 
 export const STORE_METHOD_PREFIX = "store.";
 
@@ -21,39 +23,38 @@ export const STORE_WRITE: TAction = ActionSchema.parse("store.write");
 
 const PatternSchema = z.object({ subject: z.string().optional(), predicate: z.string().optional(), object: z.unknown().optional(), namedGraph: z.string().optional() });
 
-const EdgeTargetSchema = z.enum([EDGE_TARGET.held, EDGE_TARGET.reference, EDGE_TARGET.only]);
 const RecordNameSchema = z.object({ label: z.string(), id: z.string() });
-const UnitEdgeSchema = z.object({ rel: z.string(), label: z.string(), id: z.string(), target: EdgeTargetSchema });
-const UnitPartsSchema = z.object({
-	edges: z.array(UnitEdgeSchema).optional(),
-	owns: z.array(z.lazy((): z.ZodType<TUnit> => UnitSchema)).optional(),
-	version: z.string().nullable().optional(),
-});
 
-/** A unit as a transport carries it. */
-const UnitSchema: z.ZodType<TUnit> = z.union([
-	UnitPartsSchema.extend({ label: z.string(), record: z.record(z.string(), z.unknown()), merge: z.literal(true).optional(), namedBy: RecordNameSchema.optional() }),
-	UnitPartsSchema.extend({ label: z.string(), id: z.string(), fields: z.record(z.string(), z.unknown()) }),
-	UnitPartsSchema.extend({ label: z.string(), id: z.string(), referenced: z.literal(true) }),
-]);
+/** A node as a transport carries it: the type of its record, and its fields and edges. */
+const NodeSchema: z.ZodType<TNode> = z.object({ [NODE_KEY.type]: z.string() }).catchall(z.unknown());
 
-/** What a write returns over a transport: the id of the unit's record, or the refusal of a unit whose record changed since
- *  its caller read it, which the calling side throws as the store threw it. */
+/** The writes the contract of the caller's step in progress allows, which the serving store checks a write against. */
+const StepWritesSchema = z.object({ step: z.string(), products: z.array(z.string()), changes: z.array(z.object({ persistedAs: z.string(), key: z.string() })) });
+
+/** What a write sends over a transport: the node, and the writes of the caller's step in progress where it is in one. */
+const WriteParamsSchema = z.object({ node: NodeSchema, writes: StepWritesSchema.optional() });
+
+/** What a write returns over a transport: the id of the unit's record, the refusal of a unit whose record changed since its caller
+ *  read it, or the refusal of a unit outside the contract of the caller's step, which the calling side throws as the store threw it. */
 export const StoreWriteResultSchema = z.union([
 	z.string(),
 	z.object({ changedSinceRead: z.object({ record: RecordNameSchema, read: z.string().nullable(), held: z.string().nullable() }) }),
+	z.object({ outsideContract: z.object({ step: z.string(), outside: z.array(z.string()) }) }),
 ]);
+export type TStoreWriteResult = z.infer<typeof StoreWriteResultSchema>;
+
+/** Returns the writes of a step as a transport carries them, without the refusals the calling side records. */
+export const sentWrites = (writes: TStepWrites | undefined) =>
+	writes === undefined ? {} : { writes: { step: writes.step, products: [...writes.products], changes: writes.changes.map(({ persistedAs, key }) => ({ persistedAs, key })) } };
 
 /** A removal as a transport carries it. */
-const RemovalSchema: z.ZodType<TRemoval> = z.union([
-	RecordNameSchema.extend({ field: z.string() }),
-	RecordNameSchema.extend({ edge: z.object({ rel: z.string(), to: z.string() }) }),
-	RecordNameSchema,
-]);
+const RemovalSchema: z.ZodType<TRemoval> = RecordNameSchema.extend({ edge: z.object({ rel: z.string(), to: z.string() }).optional() });
 
 /** Each method's param schema and read/write classification. This map is the one wire contract. */
 const STORE_METHODS = {
-	write: { write: true, params: z.object({ unit: UnitSchema }) },
+	create: { write: true, params: WriteParamsSchema },
+	update: { write: true, params: WriteParamsSchema.extend({ version: z.string().nullable() }) },
+	merge: { write: true, params: WriteParamsSchema },
 	remove: { write: true, params: z.object({ removal: RemovalSchema }) },
 	versionOf: { write: false, params: z.object({ name: RecordNameSchema }) },
 	clear: { write: true, params: z.object({ namedGraph: z.string().optional() }) },
@@ -102,14 +103,14 @@ export async function handleStoreCall(store: IQuadStore, method: string, rawPara
 	const name = method.slice(STORE_METHOD_PREFIX.length) as TStoreMethod;
 	if (!STORE_METHODS[name]) throw new Error(`${method} isn't a store method; the store methods are ${Object.keys(STORE_METHODS).join(", ")}`);
 	switch (name) {
-		case "write": {
-			const { unit } = STORE_METHODS.write.params.parse(rawParams);
-			try {
-				return { result: await store.write(unit) };
-			} catch (error) {
-				if (!(error instanceof ChangedSinceRead)) throw error;
-				return { result: StoreWriteResultSchema.parse({ changedSinceRead: { record: error.record, read: error.read, held: error.held } }) };
-			}
+		case WRITE_VERB.create:
+		case WRITE_VERB.merge: {
+			const { node, writes } = STORE_METHODS[name].params.parse(rawParams);
+			return { result: await writtenOver(writes, () => (name === WRITE_VERB.create ? store.create(node) : store.merge(node))) };
+		}
+		case WRITE_VERB.update: {
+			const { node, writes, version } = STORE_METHODS.update.params.parse(rawParams);
+			return { result: await writtenOver(writes, () => store.update(node, version)) };
 		}
 		case "remove": {
 			const { removal } = STORE_METHODS.remove.params.parse(rawParams);
@@ -150,4 +151,26 @@ export async function handleStoreCall(store: IQuadStore, method: string, rawPara
 			return { result: await store.getClusteredQuads({ perTypeLimit, types, accessLevel, scope }) };
 		}
 	}
+}
+
+/** Runs a write within the writes of the caller's step, and returns its result as a transport carries it: the record's id, or the
+ *  refusal of a record that changed since its read or of a write outside the step's contract. */
+async function writtenOver(writes: z.infer<typeof StepWritesSchema> | undefined, write: () => Promise<string>): Promise<TStoreWriteResult> {
+	try {
+		return await runWritingWithin(writes === undefined ? undefined : { ...writes, refused: [] }, write);
+	} catch (error) {
+		if (error instanceof ChangedSinceRead) return { changedSinceRead: { record: error.record, read: error.read, held: error.held } };
+		if (error instanceof WriteOutsideContract) return { outsideContract: { step: error.step, outside: [...error.outside] } };
+		throw error;
+	}
+}
+
+/** Returns the id a write's result over a transport holds, and throws the refusal it holds as the serving store threw it, adding a
+ *  write outside the contract to the refused writes of the caller's step. */
+export function writtenId(result: unknown, writes: TStepWrites | undefined): string {
+	const written = StoreWriteResultSchema.parse(result);
+	if (typeof written === "string") return written;
+	if ("changedSinceRead" in written) throw new ChangedSinceRead(written.changedSinceRead.record, written.changedSinceRead.read, written.changedSinceRead.held);
+	writes?.refused.push(...written.outsideContract.outside);
+	throw new WriteOutsideContract(written.outsideContract.step, written.outsideContract.outside);
 }

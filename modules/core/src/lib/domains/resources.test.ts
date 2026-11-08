@@ -27,16 +27,18 @@ import {
 	isPersisted,
 	type TDiscourseStore,
 } from "./resources.js";
-import { principalDomainDefinition, specificResourceDomainDefinition, textQuoteSelectorDomainDefinition } from "./resource-domains.js";
-import { RelSchema, getJsonLdContext, buildConcernCatalog, counted } from "./hypermedia.js";
+import {
+	bodyDomainDefinition,
+	principalDomainDefinition,
+	readingDomainDefinition,
+	specificResourceDomainDefinition,
+	textQuoteSelectorDomainDefinition,
+} from "./resource-domains.js";
+import { storeOfDomains, TEST_LEVELS } from "../test/declared-types.js";
+import { recordOf } from "../records/pipelines/record-reads.js";
+import { RelSchema, getJsonLdContext, buildConcernCatalog } from "./hypermedia.js";
 import { mapDefinitionsToDomains } from "./domains.js";
-import { itemAt } from "./item-at.js";
 import { writeAnnotation } from "../records/pipelines/discourse-writes.js";
-import type { TRecordReader } from "../records/pipelines/record-reads.js";
-import { typedRecord } from "../steps/domains/quad-types.js";
-import type { IQuadStore } from "../steps/ports.js";
-import { ORDER_KEY, type TGraphQuery, type TQuad } from "../steps/domains/quad-types.js";
-import { isReferenced, isWholeRecord, unitsOf } from "../records/domains/unit.js";
 
 describe("LinkRelations extensions", () => {
 	// These tests don't restate the vocabulary. A copy would make every addition a two-file edit and would assert only
@@ -546,10 +548,11 @@ describe("Web Annotation domain definitions", () => {
 		if (!isPersisted(t)) throw new Error("specificResourceDomainDefinition must declare a persisted topology");
 		expect(t.persistedAs).toBe(SPECIFIC_RESOURCE_LABEL);
 		expect(t.type).toBe("oa:SpecificResource");
-		expect(t.edges?.hasSource).toEqual({ rel: LinkRelations.HAS_SOURCE.rel, range: "Resource" });
-		expect(t.edges?.hasSelector, "a passage it quotes, or a fragment of its media").toEqual({
+		expect(t.edges?.hasSource, "a source the store may not hold yet").toEqual({ rel: LinkRelations.HAS_SOURCE.rel, range: "Resource", reference: true });
+		expect(t.edges?.hasSelector, "a passage it quotes, or a fragment of its media, which it owns").toEqual({
 			rel: LinkRelations.HAS_SELECTOR.rel,
 			range: [TEXT_QUOTE_SELECTOR_LABEL, FRAGMENT_SELECTOR_LABEL],
+			owns: true,
 		});
 	});
 
@@ -697,45 +700,6 @@ const noLinkVocabulary = { relRange: () => undefined, isType: () => false };
 
 /** A minimal in-memory store that holds each record by its type and id, and each edge of a unit as a quad. Its read of
  *  records reads named records alone, and throws for another read. */
-function memStore() {
-	const quads: TQuad[] = [];
-	const nodes = new Map<string, Record<string, unknown>>();
-	const matches = (
-		q: { subject: string; predicate: string; object: unknown; namedGraph: string },
-		p: { subject?: string; predicate?: string; object?: unknown; namedGraph?: string },
-	) =>
-		(p.subject === undefined || q.subject === p.subject) &&
-		(p.predicate === undefined || q.predicate === p.predicate) &&
-		(p.object === undefined || q.object === p.object) &&
-		(p.namedGraph === undefined || q.namedGraph === p.namedGraph);
-	const store: TDiscourseStore & TRecordReader & Pick<IQuadStore, "readRecord"> = {
-		write: (unit) => {
-			const written = isWholeRecord(unit) ? String(unit.record.id) : unit.id;
-			for (const part of unitsOf(unit)) {
-				const id = isWholeRecord(part) ? String(part.record.id) : part.id;
-				const key = `${part.label}:${id}`;
-				if (isWholeRecord(part)) nodes.set(key, { ...part.record });
-				else if (!isReferenced(part)) nodes.set(key, { ...(nodes.get(key) ?? { id }), ...part.fields });
-				for (const edge of part.edges ?? []) quads.push({ subject: id, predicate: edge.rel, object: edge.id, namedGraph: part.label, timestamp: 0 });
-			}
-			return Promise.resolve(written);
-		},
-		readRecords: (query: TGraphQuery) => {
-			if (!query.named) throw new Error("this test store reads named records alone");
-			const vertices = query.named.flatMap((id) => [nodes.get(`${query.label}:${id}`)].flatMap((node) => (node ? [node] : [])));
-			return Promise.resolve({ vertices, ...counted(vertices.length), order: [{ key: ORDER_KEY.named, order: "asc" }] });
-		},
-		readRecord: (type, id, accessLevel) => typedRecord(type, id, accessLevel, store.readRecords),
-		remove: ({ label, id, edge }) => {
-			if (edge === undefined) nodes.delete(`${label}:${id}`);
-			else for (let i = quads.length - 1; i >= 0; i--) if (matches(itemAt(quads, i), { subject: id, predicate: edge.rel, object: edge.to, namedGraph: label })) quads.splice(i, 1);
-			return Promise.resolve();
-		},
-		query: (pattern) => Promise.resolve(quads.filter((q) => matches(q, pattern))),
-	};
-	return { store, quads, nodes };
-}
-
 describe("assertCommentGrounded: every comment is grounded", () => {
 	const withEdges = (predicates: string[]) =>
 		({ query: () => Promise.resolve(predicates.map((predicate) => ({ subject: "c1", predicate, object: "x" }))) }) as unknown as TDiscourseStore;
@@ -759,9 +723,12 @@ describe("assertCommentGrounded: every comment is grounded", () => {
 	});
 });
 
-describe("writeAnnotation, self-contained on a plain store of units", () => {
+describe("writeAnnotation, self-contained on a store of the discourse types", () => {
 	it("writes a grounded Comment, hasTarget→ SpecificResource, hasSource→ doc and hasSelector→ TextQuoteSelector without editing the doc", async () => {
-		const { store, quads, nodes } = memStore();
+		const store = storeOfDomains(
+			[commentDomainDefinition, bodyDomainDefinition, specificResourceDomainDefinition, textQuoteSelectorDomainDefinition, readingDomainDefinition],
+			TEST_LEVELS,
+		);
 		const { commentId, specificResourceId } = await writeAnnotation(store, noLinkVocabulary, "did:site:0", {
 			label: "File",
 			id: "doc-1",
@@ -769,15 +736,11 @@ describe("writeAnnotation, self-contained on a plain store of units", () => {
 			suffix: " of the document",
 			text: "A note.",
 		});
-
-		const target = quads.find((q) => q.subject === commentId && q.predicate === LinkRelations.TARGET.rel);
-		expect(target?.object).toBe(specificResourceId);
-		const source = quads.find((q) => q.subject === specificResourceId && q.predicate === LinkRelations.HAS_SOURCE.rel);
-		expect(source?.object).toBe("doc-1"); // the SpecificResource points at the document; the document itself doesn't get a quad
-		expect(quads.some((q) => q.subject === "doc-1")).toBe(false);
-		const selEdge = quads.find((q) => q.subject === specificResourceId && q.predicate === LinkRelations.HAS_SELECTOR.rel);
-		const selector = nodes.get(`${TEXT_QUOTE_SELECTOR_LABEL}:${String(selEdge?.object)}`);
-		expect(selector?.exact).toBe("a passage");
-		expect(selector?.suffix).toBe(" of the document");
+		const edgeOf = async (label: string, subject: string, predicate: string) => (await store.query({ subject, predicate, namedGraph: label })).at(0)?.object;
+		expect(await edgeOf(COMMENT_LABEL, commentId, LinkRelations.TARGET.rel)).toBe(specificResourceId);
+		expect(await edgeOf(SPECIFIC_RESOURCE_LABEL, specificResourceId, LinkRelations.HAS_SOURCE.rel), "the SpecificResource points at the document").toBe("doc-1");
+		expect(await store.query({ subject: "doc-1" }), "the document itself doesn't get a quad").toEqual([]);
+		const selector = await recordOf(store, TEXT_QUOTE_SELECTOR_LABEL, String(await edgeOf(SPECIFIC_RESOURCE_LABEL, specificResourceId, LinkRelations.HAS_SELECTOR.rel)));
+		expect(selector).toMatchObject({ exact: "a passage", suffix: " of the document" });
 	});
 });

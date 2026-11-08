@@ -31,12 +31,9 @@ const iso = (n: number): string => new Date(n).toISOString();
 /** Writes an actuality feature: the step that declared it, a step, and what that step logged. */
 const aFeature = async (store: QuadStore, actualityFeature: string, feature: string, at: number): Promise<void> => {
 	const record = { actionStatus: "passed", accessLevel: "private", level: "info" };
-	await store.write({
-		label: SEQ_PATH_LABEL,
-		record: { ...record, id: `${actualityFeature}.0`, stepText: `Feature: ${feature}`, called: "Haibun.feature", generatedAtTime: iso(at) },
-	});
-	await store.write({ label: SEQ_PATH_LABEL, record: { ...record, id: `${actualityFeature}.0.1`, stepText: "a step", called: "Stepper.act", generatedAtTime: iso(at + 100) } });
-	await store.write({ label: LOG_MESSAGE_LABEL, record: { id: `${actualityFeature}.0.1@0`, message: "it said this", level: "info", generatedAtTime: iso(at + 200) } });
+	await store.merge({ "@type": SEQ_PATH_LABEL, ...record, id: `${actualityFeature}.0`, stepText: `Feature: ${feature}`, called: "Haibun.feature", generatedAtTime: iso(at) });
+	await store.merge({ "@type": SEQ_PATH_LABEL, ...record, id: `${actualityFeature}.0.1`, stepText: "a step", called: "Stepper.act", generatedAtTime: iso(at + 100) });
+	await store.merge({ "@type": LOG_MESSAGE_LABEL, id: `${actualityFeature}.0.1@0`, message: "it said this", level: "info", generatedAtTime: iso(at + 200) });
 };
 
 /** A device holding two actualities: the older ran one feature, and the newer ran two. Each actuality's own record is
@@ -47,17 +44,15 @@ const aDevice = async (): Promise<QuadStore> => {
 		[OLDER_ACTUALITY, 900],
 		[NEWER_ACTUALITY, 9900],
 	] as const)
-		await store.write({
-			label: SEQ_PATH_LABEL,
-			record: {
-				id: actualityFeatureOf({ key, featureNum: 0 }),
-				stepText: "tests",
-				actionStatus: "passed",
-				accessLevel: "private",
-				level: "info",
-				actualityLevel: "actuality",
-				generatedAtTime: iso(at),
-			},
+		await store.merge({
+			"@type": SEQ_PATH_LABEL,
+			id: actualityFeatureOf({ key, featureNum: 0 }),
+			stepText: "tests",
+			actionStatus: "passed",
+			accessLevel: "private",
+			level: "info",
+			actualityLevel: "actuality",
+			generatedAtTime: iso(at),
 		});
 	await aFeature(store, OLDER, "the older one", 1000);
 	await aFeature(store, NEWER, "the first of the newer", 10000);

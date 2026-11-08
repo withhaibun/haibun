@@ -12,7 +12,7 @@ import { whyNotSignedInOnly } from "./auth.js";
 import { basicAuthUsers } from "@haibun/core/lib/domains/basic-auth.js";
 import { eventHubOfTest, freePort } from "@haibun/core/lib/test/lib.js";
 import { recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
-import { storeDeclaring } from "@haibun/core/lib/test/declared-types.js";
+import { storeDeclaring, TEST_LEVELS } from "@haibun/core/lib/test/declared-types.js";
 import { ActionSchema, readAction } from "@haibun/core/lib/domains/actions.js";
 import { Access } from "@haibun/core/lib/domains/resources.js";
 import { actingAs, callerHolds, readingAt, runActingAs, runAuthorizedWith, runInStep, runReadingAt, stepInFlight } from "@haibun/core/lib/domains/capability-context.js";
@@ -30,7 +30,7 @@ describe("ServerHono", () => {
 	let store: QuadStore;
 
 	beforeEach(() => {
-		store = storeDeclaring({ [EndpointLabels.Endpoint]: {} });
+		store = storeDeclaring({ [EndpointLabels.Endpoint]: { id: "url" } }, TEST_LEVELS);
 		server = new ServerHono(mockLogger, "/tmp", () => store, OPEN);
 	});
 

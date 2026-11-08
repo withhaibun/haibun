@@ -24,13 +24,13 @@ import { VARIABLE_FIELD, VariableSchema, type TVariable } from "../../records/do
 import { QuadStore, newStoreChain } from "../../steps/pipelines/quad-store.js";
 import { OBSCURED_VALUE, isSecretName } from "../../steps/domains/secrets.js";
 import type { TSecrets } from "../../steps/ports.js";
-import { accessBound, readingAsStated, stepInFlight, writeBound } from "../../domains/capability-context.js";
+import { accessBound, readingAsStated, writeBound, writesInFlight } from "../../domains/capability-context.js";
 import { stepRecordInFlight } from "../domains/step-in-flight.js";
 import { EDGE, SEQ_PATH_LABEL, declaredAccessLevel } from "../../domains/resources.js";
+import { recordTime } from "../domains/record-time.js";
 import { actualityFeatureOf, formatRecordName } from "../domains/seq-path.js";
 import { IQuadStore } from "../../steps/ports.js";
 import { quadObservation, SHARED_GRAPH } from "../../steps/domains/quad-types.js";
-import { EDGE_TARGET } from "../../records/domains/unit.js";
 
 export { SHARED_GRAPH };
 
@@ -96,9 +96,9 @@ export class FeatureVariables {
 				bound: accessBound,
 				writeBound,
 				declared: (label: string) => declaredAccessLevel(persistedDomainOf(world.domains, label)),
-				stepWrites: () => stepInFlight()?.writes,
-				recordsActuality: (label: string) => persistedDomainOf(world.domains, label)?.topology.instrumentation === true,
+				stepWrites: writesInFlight,
 				currentStep: () => stepRecordInFlight(actualityFeatureOf(world.tag)),
+				recordTime: () => recordTime(world),
 			},
 			() => readDeclarationsOf(world.domains, world.runtime.records),
 			declaredRecordsReader(
@@ -417,16 +417,15 @@ export class FeatureVariables {
 		const secret = sv.secret === true || this.isSecret(name);
 		if (secret) this.secretValues.set(name, sv.value);
 		else this.secretValues.delete(name);
-		const record = {
+		await this.store.merge({
+			"@type": SHARED_GRAPH,
 			[VARIABLE_FIELD.name]: name,
 			[VARIABLE_FIELD.domain]: normalizeDomainKey(sv.domain),
 			[VARIABLE_FIELD.value]: statedValue(sv.value, secret),
 			[VARIABLE_FIELD.origin]: sv.origin,
-			[VARIABLE_FIELD.generatedAtTime]: new Date().toISOString(),
-			...(sv.readonly ? { [VARIABLE_FIELD.readonly]: true } : {}),
-			...(secret ? { [VARIABLE_FIELD.secret]: true } : {}),
-		};
-		const edges = generatedBy.map((step) => ({ rel: EDGE.wasGeneratedBy, label: SEQ_PATH_LABEL, id: step, target: EDGE_TARGET.held }));
-		await this.store.write({ label: SHARED_GRAPH, record, edges });
+			[VARIABLE_FIELD.readonly]: sv.readonly ? true : null,
+			[VARIABLE_FIELD.secret]: secret ? true : null,
+			[EDGE.wasGeneratedBy]: generatedBy.map((step) => ({ "@id": step })),
+		});
 	}
 }

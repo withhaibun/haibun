@@ -17,6 +17,7 @@ import { CACHE_SHAPE, DEVICE_STORES, META_KEY } from "../ports.js";
 import { GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
 import { equalTo, readEvery, recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { heldRecordIri, servedTypes } from "@haibun/core/lib/test/declared-types.js";
+import { ChangedSinceRead } from "@haibun/core/lib/records/domains/unit.js";
 
 /** The types these tests write, declared so the device store reads their records. */
 const declared = () => servedTypes({ Email: { filters: ["folder"] }, Comment: {}, SeqPath: {} });
@@ -33,15 +34,15 @@ describe("the reads the site serves, made of the graph this page caches", () => 
 	beforeEach(async () => {
 		store = servedGraph();
 		await store.clear();
-		await store.write({ label: "Email", record: { "@id": heldRecordIri("Email", "a"), folder: "INBOX", subject: "one", accessLevel: Access.public } });
-		await store.write({ label: "Email", record: { "@id": heldRecordIri("Email", "b"), folder: "Sent", subject: "two", accessLevel: Access.public } });
-		await store.write({ label: "Comment", record: { "@id": heldRecordIri("Comment", "c"), content: "hello", accessLevel: Access.public } });
+		await store.merge({ "@type": "Email", "@id": heldRecordIri("Email", "a"), folder: "INBOX", subject: "one", accessLevel: Access.public });
+		await store.merge({ "@type": "Email", "@id": heldRecordIri("Email", "b"), folder: "Sent", subject: "two", accessLevel: Access.public });
+		await store.merge({ "@type": "Comment", "@id": heldRecordIri("Comment", "c"), content: "hello", accessLevel: Access.public });
 	});
 
 	it("returns a read at the level it was made at, not everything it happens to hold", async () => {
 		// A page holds what it was served, which may have been read at a wider level than a later read's.
-		await store.write({ label: "Email", record: { "@id": heldRecordIri("Email", "p"), accessLevel: "private", folder: "INBOX" } });
-		await store.write({ label: "Email", record: { "@id": heldRecordIri("Email", "o"), accessLevel: "public", folder: "INBOX" } });
+		await store.merge({ "@type": "Email", "@id": heldRecordIri("Email", "p"), accessLevel: "private", folder: "INBOX" });
+		await store.merge({ "@type": "Email", "@id": heldRecordIri("Email", "o"), accessLevel: "public", folder: "INBOX" });
 		const publicly = await store.getClusteredQuads({ perTypeLimit: 10, types: ["Email"], accessLevel: "public" as AccessLevel });
 		expect([...new Set(publicly.quads.map((q) => q.subject))].sort(), "the record stating a level beyond the read is not in it").toEqual(["a", "b", "o"]);
 		const privately = await store.getClusteredQuads({ perTypeLimit: 10, types: ["Email"], accessLevel: "private" as AccessLevel });
@@ -50,8 +51,8 @@ describe("the reads the site serves, made of the graph this page caches", () => 
 
 	it("returns what points at an individual by its id, and a value that is not an id the same way", async () => {
 		// An id is looked up; a value that cannot be a key is matched after the widest read. Both return the same quads.
-		await store.write({ label: "Email", record: { "@id": heldRecordIri("Email", "e"), inReplyTo: "a", flagged: true, tags: ["x", "y"] } });
-		await store.write({ label: "Comment", record: { "@id": heldRecordIri("Comment", "d"), inReplyTo: "a" } });
+		await store.merge({ "@type": "Email", "@id": heldRecordIri("Email", "e"), inReplyTo: "a", flagged: true, tags: ["x", "y"] });
+		await store.merge({ "@type": "Comment", "@id": heldRecordIri("Comment", "d"), inReplyTo: "a" });
 		expect((await store.query({ object: "a" })).map((q) => `${q.namedGraph}:${q.subject}`).sort()).toEqual(["Comment:d", "Email:e"]);
 		expect((await store.query({ object: true })).map((q) => q.subject)).toEqual(["e"]);
 		expect((await store.query({ object: ["x", "y"], namedGraph: "Email" })).map((q) => q.predicate)).toEqual(["tags"]);
@@ -96,7 +97,7 @@ describe("a typed read of a record the page holds", () => {
 	it("parses the record's fields with a strict schema, without the @id and @type the page holds it under", async () => {
 		const store = new DeviceGraph(deviceQuads(servedDatabase()), () => servedTypes({ Note: { schema: NoteSchema } }));
 		await store.clear();
-		await store.write({ label: "Note", record: { "@id": heldRecordIri("Note", "n1"), "@type": "Note", id: "n1", text: "held", accessLevel: Access.public } });
+		await store.merge({ "@type": "Note", "@id": heldRecordIri("Note", "n1"), id: "n1", text: "held", accessLevel: Access.public });
 		expect(await store.readRecord(NOTE, "n1")).toEqual({ id: "n1", text: "held", accessLevel: Access.public });
 	});
 });
@@ -109,9 +110,9 @@ describe("an individual in the page's cache", () => {
 
 	it("caches a record by the id its record IRI states, reads it back with its type, replaces it in place and deletes it", async () => {
 		const store = servedGraph();
-		await store.write({ label: "Comment", record: { "@id": heldRecordIri("Comment", "c1"), content: "hello", author: "did:example:a" } });
+		await store.merge({ "@type": "Comment", "@id": heldRecordIri("Comment", "c1"), content: "hello", author: "did:example:a" });
 		expect(await recordOf(store, "Comment", "c1")).toMatchObject({ "@id": heldRecordIri("Comment", "c1"), "@type": "Comment", content: "hello", author: "did:example:a" });
-		await store.write({ label: "Comment", record: { "@id": heldRecordIri("Comment", "c1"), content: "changed" } });
+		await store.merge({ "@type": "Comment", "@id": heldRecordIri("Comment", "c1"), content: "changed" });
 		expect(await recordOf(store, "Comment", "c1")).toMatchObject({ content: "changed", author: "did:example:a" });
 		await store.remove({ label: "Comment", id: "c1" });
 		expect(await recordOf(store, "Comment", "c1")).toBeUndefined();
@@ -127,15 +128,24 @@ describe("an individual in the page's cache", () => {
 		expect(await store.query({ subject: "c1" }), "a changed fact replaces what was held").toMatchObject([{ object: { text: "changed" }, timestamp: 3 }]);
 	});
 
+	it("keeps a change the site served over a write of a version the page read before it, and refuses that write", async () => {
+		const store = servedGraph();
+		await store.create({ "@type": "Comment", "@id": heldRecordIri("Comment", "c1"), content: "first" });
+		const read = await store.versionOf({ label: "Comment", id: "c1" });
+		await store.setMany([{ subject: "c1", predicate: "content", object: "from the site", namedGraph: "Comment", timestamp: Date.now() }]);
+		await expect(store.update({ "@type": "Comment", "@id": heldRecordIri("Comment", "c1"), content: "stale" }, read)).rejects.toThrow(ChangedSinceRead);
+		expect(await store.get("c1", "content", "Comment")).toBe("from the site");
+	});
+
 	it("refuses a record that doesn't state an identity, since a view can't read it again", async () => {
-		await expect(servedGraph().write({ label: "Comment", record: { content: "no id" } })).rejects.toThrow(/doesn't state an identity/);
+		await expect(servedGraph().merge({ "@type": "Comment", content: "no id" })).rejects.toThrow(/a Comment record is identified by its "id" field or its "@id"/);
 	});
 
 	it("holds a record by the identity it states, whether that is its record IRI or the id it records", async () => {
 		const store = servedGraph();
-		await store.write({ label: "Comment", record: { "@id": heldRecordIri("Comment", "c1"), content: "served" } });
+		await store.merge({ "@type": "Comment", "@id": heldRecordIri("Comment", "c1"), content: "served" });
 		expect(await recordOf(store, "Comment", "c1"), "what a site serves names itself by its record IRI").toMatchObject({ content: "served" });
-		await store.write({ label: "SeqPath", record: { id: "1700000000000-1.0.1", stepText: "a step" } });
+		await store.merge({ "@type": "SeqPath", id: "1700000000000-1.0.1", stepText: "a step" });
 		expect(await recordOf(store, "SeqPath", "1700000000000-1.0.1"), "what an actuality records names itself id").toMatchObject({ stepText: "a step" });
 	});
 });
@@ -144,13 +154,13 @@ describe("the records of another actuality", () => {
 	it("aren't read by a page served for another actuality, and the device holds each actuality's records apart", async () => {
 		serveThePage();
 		const first = servedGraph();
-		await first.write({ label: "SeqPath", record: { "@id": heldRecordIri("SeqPath", "s1"), stepText: "a step of the first actuality" } });
+		await first.merge({ "@type": "SeqPath", "@id": heldRecordIri("SeqPath", "s1"), stepText: "a step of the first actuality" });
 		hydrate({ actualityId: crypto.randomUUID() });
 		hydrateFromDom();
 		const second = servedGraph();
 		expect(await recordOf(second, "SeqPath", "s1"), "the other actuality's record").toBeUndefined();
 		expect(await recordOf(first, "SeqPath", "s1"), "still held in its own").toMatchObject({ stepText: "a step of the first actuality" });
-		await second.write({ label: "SeqPath", record: { "@id": heldRecordIri("SeqPath", "s2"), stepText: "a step of the second actuality" } });
+		await second.merge({ "@type": "SeqPath", "@id": heldRecordIri("SeqPath", "s2"), stepText: "a step of the second actuality" });
 		expect(await heldDatabases()).toEqual(expect.arrayContaining([first.database, second.database]));
 	});
 });
@@ -159,8 +169,8 @@ describe("a clustered read of named types", () => {
 	it("reads each named type through the type index, rather than every quad the device holds", async () => {
 		const store = servedGraph();
 		await store.clear();
-		await store.write({ label: "Email", record: { "@id": heldRecordIri("Email", "a"), folder: "INBOX", accessLevel: Access.public } });
-		await store.write({ label: "Comment", record: { "@id": heldRecordIri("Comment", "c"), content: "hello", accessLevel: Access.public } });
+		await store.merge({ "@type": "Email", "@id": heldRecordIri("Email", "a"), folder: "INBOX", accessLevel: Access.public });
+		await store.merge({ "@type": "Comment", "@id": heldRecordIri("Comment", "c"), content: "hello", accessLevel: Access.public });
 		const everyQuad = vi.spyOn(IDBObjectStore.prototype, "getAll");
 		const clustered = await store.getClusteredQuads({ perTypeLimit: 10, types: ["Comment"], accessLevel: Access.public });
 		expect(clustered.clusters.map((c) => c.type)).toEqual(["Comment"]);
@@ -214,8 +224,8 @@ describe("the transactions of a database's graph", () => {
 		const quads = boundedQuads(3);
 		await quads.setMany([1, 2, 3].map(fact));
 		await quads.setMany([{ ...fact(1), object: "text 1, again" }]);
-		await quads.add(fact(4));
-		await quads.remove({ subject: "s2" });
+		await quads.change({ removes: [], adds: [fact(4)] });
+		await quads.change({ removes: [{ subject: "s2" }], adds: [] });
 		await quads.clear("Comment");
 		const saturation = await quads.saturation();
 		vi.restoreAllMocks();
@@ -248,7 +258,7 @@ describe("the writes of a database's graph", () => {
 		const versions = Array.from({ length: 30 }, (_, n) => n);
 		await Promise.all(versions.map((n) => quads.setMany([{ ...fact(1), object: `text 1, version ${n}` }, fact(100 + n)])));
 		const afterOne = written;
-		await Promise.all([quads.setMany([fact(2)]), quads.setMany([fact(3)]), quads.add(fact(4)), quads.setMany([fact(5)])]);
+		await Promise.all([quads.setMany([fact(2)]), quads.setMany([fact(3)]), quads.change({ removes: [], adds: [fact(4)] }), quads.setMany([fact(5)])]);
 		vi.restoreAllMocks();
 		expect(most, "a write of the page at a time").toBe(1);
 		expect(afterOne, "the facts that arrived before the first write started are held in it").toBe(1);

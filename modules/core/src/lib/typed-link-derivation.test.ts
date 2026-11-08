@@ -21,12 +21,11 @@ import { commentBodyIdOf, createComment, readTypedLinks, readingIdFor } from "./
 import { DEFAULT_BODY_KIND } from "./records/derivations/bodies.js";
 import { MEDIA_TYPE } from "./domains/media-types.js";
 import { readEvery, recordOf } from "./records/pipelines/record-reads.js";
-import { declaredTypeOf, storeDeclaring } from "./test/declared-types.js";
+import { declaredTypeOf, storeDeclaring, TEST_LEVELS } from "./test/declared-types.js";
 import { z } from "zod";
 import { FRAGMENT_SPEC } from "./domains/media-fragments.js";
 import type { TLinkVocabulary } from "./domains/typed-links.js";
 import { itemAt } from "./domains/item-at.js";
-import { EDGE_TARGET, edgesFrom } from "./records/domains/unit.js";
 
 // A registered fixture type, as a consumer would declare one. Statements connect records of registered types only.
 const REPORT = "FieldReport";
@@ -57,9 +56,9 @@ describe("readTypedLinks", () => {
 	const source = { label: REPORT, id: "report-1" };
 
 	beforeEach(async () => {
-		store = storeDeclaring(DECLARED);
+		store = storeDeclaring(DECLARED, TEST_LEVELS);
 		// A statement is made about a record that exists, so every record a test's text refers to is here first.
-		for (const id of [source.id, "spec-1", "gone-1", "stays-1", "by-hand-1"]) await store.write({ label: REPORT, record: { id, generatedAtTime: "2026-07-01T00:00:00.000Z" } });
+		for (const id of [source.id, "spec-1", "gone-1", "stays-1", "by-hand-1"]) await store.merge({ "@type": REPORT, id, generatedAtTime: "2026-07-01T00:00:00.000Z" });
 	});
 
 	it("states a link between two records as an edge", async () => {
@@ -113,7 +112,7 @@ describe("readTypedLinks", () => {
 
 	it("retracts exactly the previous reading when the text is rewritten", async () => {
 		await readTypedLinks(store, vocab, source, "[the old one:cites](#FieldReport:gone-1) and [that clause:cites](#FieldReport:spec-1:~:text=a%20clause)");
-		await store.write(edgesFrom(REPORT, source.id, { rel: LinkRelations.MENTIONS.rel, label: REPORT, id: "by-hand-1", target: EDGE_TARGET.held }));
+		await store.merge({ "@type": REPORT, "@id": source.id, [LinkRelations.MENTIONS.rel]: { "@type": REPORT, "@id": "by-hand-1" } });
 		await readTypedLinks(store, vocab, source, "[the one that stays:cites](#FieldReport:stays-1)");
 		expect(await edgesOf(store, source.id, LinkRelations.CITES.rel)).toEqual(["stays-1"]);
 		expect(await edgesOf(store, source.id, LinkRelations.MENTIONS.rel)).toEqual(["by-hand-1"]);
@@ -142,15 +141,9 @@ describe("readTypedLinks", () => {
 
 describe("a note's own links", () => {
 	it("states a cross-record link from the note that made it", async () => {
-		const store = storeDeclaring(DECLARED);
-		await store.write({ label: REPORT, record: { id: "spec-1", generatedAtTime: "2026-07-01T00:00:00.000Z" } });
-		const commentId = await createComment(
-			store,
-			vocab,
-			"did:example:reviewer",
-			"Contradicts [a later clause:linksTo](#FieldReport:spec-1:~:text=a%20later%20clause).",
-			"2026-07-01T00:00:00.000Z",
-		);
+		const store = storeDeclaring(DECLARED, TEST_LEVELS);
+		await store.merge({ "@type": REPORT, id: "spec-1", generatedAtTime: "2026-07-01T00:00:00.000Z" });
+		const commentId = await createComment(store, vocab, "did:example:reviewer", "Contradicts [a later clause:linksTo](#FieldReport:spec-1:~:text=a%20later%20clause).");
 		const anchorId = itemAt(await edgesOf(store, commentId, LinkRelations.LINKS_TO.rel), 0);
 		expect(await edgesOf(store, anchorId, LinkRelations.HAS_SOURCE.rel)).toEqual(["spec-1"]);
 	});
@@ -158,8 +151,8 @@ describe("a note's own links", () => {
 
 describe("a Comment's Body", () => {
 	it("is named by the rule that names a record's Body from its declaration", async () => {
-		const store = storeDeclaring(DECLARED);
-		const commentId = await createComment(store, vocab, "did:example:reviewer", "A *note*.", "2026-07-01T00:00:00.000Z");
+		const store = storeDeclaring(DECLARED, TEST_LEVELS);
+		const commentId = await createComment(store, vocab, "did:example:reviewer", "A *note*.");
 		const bodyId = `body-${commentId}-${DEFAULT_BODY_KIND}-text-markdown`;
 		expect(bodyId).toBe(commentBodyIdOf(commentId));
 		expect(await edgesOf(store, commentId, LinkRelations.HAS_BODY.rel)).toEqual([bodyId]);

@@ -16,7 +16,7 @@ import { GraphQuerySchema, VIA_FIELD, type TQuad, type TSearchCondition } from "
 import { type IQuadStore } from "../steps/ports.js";
 import { COUNT_CEILING, MAX_PAGE_ROWS, readInPages } from "../domains/hypermedia.js";
 import { Access, AccessLevelSchema, EDGE, LinkRelations, type TRegisteredDomain } from "../domains/resources.js";
-import { ChangedSinceRead, EDGE_TARGET, edgesFrom, NotUnique } from "../records/domains/unit.js";
+import { ChangedSinceRead, NotUnique } from "../records/domains/unit.js";
 import { rereadAndRetry } from "../records/pipelines/record-versions.js";
 
 /** The types the suite declares. */
@@ -42,7 +42,7 @@ const RecordSchema = z
 
 /** Returns the declaration of one of the suite's types. `edges` are its relations, and `unique` the sets of its properties that
  *  two of its records don't share. */
-const domainOf = (persistedAs: string, edges: Record<string, { range: string }>, unique?: readonly (readonly string[])[]): TRegisteredDomain => ({
+const domainOf = (persistedAs: string, edges: Record<string, { range: string; reference?: true }>, unique?: readonly (readonly string[])[]): TRegisteredDomain => ({
 	selectors: [`conformance-${persistedAs.toLowerCase()}`],
 	schema: RecordSchema,
 	coerce: (proto) => RecordSchema.parse(proto.value),
@@ -68,7 +68,7 @@ const domainOf = (persistedAs: string, edges: Record<string, { range: string }>,
 /** The declarations every store under the suite holds. */
 export const CONFORMANCE_DOMAINS: Record<string, TRegisteredDomain> = {
 	"conformance-comment": domainOf(COMMENT, { [ABOUT]: { range: ISSUE }, [MENTIONS]: { range: ISSUE } }),
-	"conformance-issue": domainOf(ISSUE, { [PART_OF]: { range: ISSUE } }, [["author", "status"]]),
+	"conformance-issue": domainOf(ISSUE, { [PART_OF]: { range: ISSUE, reference: true } }, [["author", "status"]]),
 };
 
 /** How a store differs from the others by design. */
@@ -115,8 +115,8 @@ export function describeQuadStore(
 		});
 
 		it("reads back what it was given, by subject and by named graph", async () => {
-			await store.write({ label: GRAPH, record: { id: "c1", content: "hello" } });
-			await store.write({ label: GRAPH, id: "c1", fields: { author: "did:example:a" } });
+			await store.merge({ "@type": GRAPH, id: "c1", content: "hello" });
+			await store.merge({ "@type": GRAPH, "@id": "c1", author: "did:example:a" });
 			expect(await store.get("c1", "content", GRAPH)).toBe("hello");
 			// A store with a schema holds the fields the type declares, and a store without one holds the fields written. Both
 			// hold the facts set here.
@@ -129,28 +129,26 @@ export function describeQuadStore(
 		it("writes a unit that states the version its caller read, and refuses one whose record changed since, naming both versions", async () => {
 			const name = { label: GRAPH, id: "versioned" };
 			expect(await store.versionOf(name), "a record the store doesn't hold").toBeNull();
-			await store.write({ label: GRAPH, record: { id: "versioned", content: "first" }, version: null });
+			await store.create({ "@type": GRAPH, id: "versioned", content: "first" });
 			const read = await store.versionOf(name);
 			expect(read).not.toBeNull();
-			await expect(store.write({ label: GRAPH, record: { id: "versioned", content: "again" }, version: null }), "a unit written as if the record weren't held").rejects.toThrow(
-				ChangedSinceRead,
-			);
-			await store.write({ label: GRAPH, id: "versioned", fields: { content: "second" }, version: read });
+			await expect(store.create({ "@type": GRAPH, id: "versioned", content: "again" }), "a unit written as if the record weren't held").rejects.toThrow(ChangedSinceRead);
+			await store.update({ "@type": GRAPH, "@id": "versioned", content: "second" }, read);
 			const held = await store.versionOf(name);
 			expect(held).not.toBe(read);
-			const refused = store.write({ label: GRAPH, id: "versioned", fields: { content: "stale" }, version: read });
+			const refused = store.update({ "@type": GRAPH, "@id": "versioned", content: "stale" }, read);
 			await expect(refused).rejects.toThrow(`${GRAPH} "versioned" changed since it was read: the write states version ${read}, and the store holds version ${held}`);
 			expect(await store.get("versioned", "content", GRAPH), "the refused unit isn't written").toBe("second");
 		});
 
 		it("keeps the change of each of two writers that read, change and write one record at once", async () => {
-			await store.write({ label: GRAPH, record: { id: "counted", content: "" } });
+			await store.merge({ "@type": GRAPH, id: "counted", content: "" });
 			const append = (mark: string) =>
 				rereadAndRetry(3, async () => {
 					// The version is read before the record, as `readVersioned` reads it.
 					const version = await store.versionOf({ label: GRAPH, id: "counted" });
 					const content = String(await store.get("counted", "content", GRAPH));
-					await store.write({ label: GRAPH, id: "counted", fields: { content: `${content}${mark}` }, version });
+					await store.update({ "@type": GRAPH, "@id": "counted", content: `${content}${mark}` }, version);
 				});
 			await Promise.all([append("a"), append("b")]);
 			expect(
@@ -162,28 +160,28 @@ export function describeQuadStore(
 
 		if (!discards)
 			it("refuses a record that holds another record's values of a set its type declares unique, and gives the values to one of records written at once", async () => {
-				await store.write({ label: OTHER, record: { id: "u1", author: "did:example:a", status: "open" } });
-				await store.write({ label: OTHER, record: { id: "u2", author: "did:example:a" } });
-				await store.write({ label: OTHER, record: { id: "u3", author: "did:example:b", status: "open" } });
-				await expect(store.write({ label: OTHER, id: "u2", fields: { status: "open" } })).rejects.toThrow(
+				await store.merge({ "@type": OTHER, id: "u1", author: "did:example:a", status: "open" });
+				await store.merge({ "@type": OTHER, id: "u2", author: "did:example:a" });
+				await store.merge({ "@type": OTHER, id: "u3", author: "did:example:b", status: "open" });
+				await expect(store.merge({ "@type": OTHER, "@id": "u2", status: "open" })).rejects.toThrow(
 					`${OTHER} "u2" isn't written: another ${OTHER} holds author "did:example:a" and status "open", which its type declares unique`,
 				);
 				expect(await store.get("u2", "status", OTHER), "the refused unit isn't written").toBeUndefined();
-				const atOnce = await Promise.allSettled(["u4", "u5", "u6"].map((id) => store.write({ label: OTHER, record: { id, author: "did:example:c", status: "open" } })));
+				const atOnce = await Promise.allSettled(["u4", "u5", "u6"].map((id) => store.merge({ "@type": OTHER, id, author: "did:example:c", status: "open" })));
 				expect(atOnce.map(({ status }) => status).sort()).toEqual(["fulfilled", "rejected", "rejected"]);
 				for (const outcome of atOnce) if (outcome.status === "rejected") expect(outcome.reason).toBeInstanceOf(NotUnique);
 			});
 
 		it("replaces a fact set again, and doesn't add a second row for it", async () => {
-			await store.write({ label: GRAPH, record: { id: "c1", content: "first" } });
-			await store.write({ label: GRAPH, id: "c1", fields: { content: "second" } });
+			await store.merge({ "@type": GRAPH, id: "c1", content: "first" });
+			await store.merge({ "@type": GRAPH, "@id": "c1", content: "second" });
 			expect((await store.query({ subject: "c1", predicate: "content", namedGraph: GRAPH })).length).toBe(1);
 			expect(await store.get("c1", "content", GRAPH)).toBe("second");
 		});
 
 		it("keeps named graphs apart: the same subject and predicate in two graphs are two facts", async () => {
-			await store.write({ label: GRAPH, record: { id: "x", content: "in the first" } });
-			await store.write({ label: OTHER, record: { id: "x", content: "in the second" } });
+			await store.merge({ "@type": GRAPH, id: "x", content: "in the first" });
+			await store.merge({ "@type": OTHER, id: "x", content: "in the second" });
 			expect(await store.get("x", "content", GRAPH)).toBe("in the first");
 			expect(await store.get("x", "content", OTHER)).toBe("in the second");
 		});
@@ -196,9 +194,9 @@ export function describeQuadStore(
 		it(
 			keyed ? "matches a pattern by its key, and refuses one without a key or a read of every quad" : "matches a pattern on any of subject, predicate, object and named graph",
 			async () => {
-				await store.write({ label: GRAPH, record: { id: "a", content: "one" } });
-				await store.write({ label: GRAPH, id: "a", fields: { author: "did:example:a" } });
-				await store.write({ label: OTHER, record: { id: "b", content: "one" } });
+				await store.merge({ "@type": GRAPH, id: "a", content: "one" });
+				await store.merge({ "@type": GRAPH, "@id": "a", author: "did:example:a" });
+				await store.merge({ "@type": OTHER, id: "b", content: "one" });
 				expect((await store.query({ subject: "a", predicate: "author" })).length).toBe(1);
 				expect((await store.query({ subject: "b", namedGraph: OTHER, predicate: "content" })).length).toBe(1);
 				if (keyed) {
@@ -214,10 +212,10 @@ export function describeQuadStore(
 		);
 
 		it("reads the records whose relation reaches a record, by that record's id", async () => {
-			await store.write({ label: ISSUE, record: { id: "i1", accessLevel: Access.public } });
-			await store.write({ label: COMMENT, record: { id: "c1", content: "about it", accessLevel: Access.public } });
-			await store.write({ label: COMMENT, record: { id: "c2", content: "about something else", accessLevel: Access.public } });
-			await store.write(edgesFrom(COMMENT, "c1", { rel: ABOUT, label: ISSUE, id: "i1", target: EDGE_TARGET.held }));
+			await store.merge({ "@type": ISSUE, id: "i1", accessLevel: Access.public });
+			await store.merge({ "@type": COMMENT, id: "c1", content: "about it", accessLevel: Access.public });
+			await store.merge({ "@type": COMMENT, id: "c2", content: "about something else", accessLevel: Access.public });
+			await store.merge({ "@type": COMMENT, "@id": "c1", [ABOUT]: { "@type": ISSUE, "@id": "i1" } });
 			expect((await store.query({ predicate: ABOUT, object: "i1", namedGraph: COMMENT })).map((q) => q.subject)).toEqual(["c1"]);
 		});
 
@@ -225,7 +223,7 @@ export function describeQuadStore(
 			const at = (minute: number): string => new Date(Date.UTC(2026, 0, 1, 0, minute)).toISOString();
 			const span = { label: GRAPH, timeField: "generatedAtTime", groupBy: "status", from: at(0), to: at(60), filters: [] as TSearchCondition[] };
 			const held = async (records: Array<{ id: string; minute: number; status?: string }>): Promise<void> => {
-				for (const r of records) await store.write({ label: GRAPH, record: { id: r.id, generatedAtTime: at(r.minute), ...(r.status === undefined ? {} : { status: r.status }) } });
+				for (const r of records) await store.merge({ "@type": GRAPH, id: r.id, generatedAtTime: at(r.minute), ...(r.status === undefined ? {} : { status: r.status }) });
 			};
 
 			// The result holds the stated count of buckets whatever the span holds, so a read of a decade reads as much as a
@@ -269,9 +267,9 @@ export function describeQuadStore(
 		});
 
 		it("removes what a pattern names, and doesn't remove another quad", async () => {
-			await store.write({ label: GRAPH, record: { id: "a", content: "one" } });
-			await store.write({ label: GRAPH, record: { id: "b", content: "two" } });
-			await store.write({ label: OTHER, record: { id: "c", content: "three" } });
+			await store.merge({ "@type": GRAPH, id: "a", content: "one" });
+			await store.merge({ "@type": GRAPH, id: "b", content: "two" });
+			await store.merge({ "@type": OTHER, id: "c", content: "three" });
 			await store.remove({ label: GRAPH, id: "a" });
 			expect(await store.get("a", "content", GRAPH), "the named quad is removed").toBeUndefined();
 			expect(await store.get("b", "content", GRAPH), "another quad is unchanged").toBe("two");
@@ -279,8 +277,8 @@ export function describeQuadStore(
 		});
 
 		it(discards ? "discards one named graph, or every graph" : "keeps every graph after a clear of one named graph", async () => {
-			await store.write({ label: GRAPH, record: { id: "a", content: "one" } });
-			await store.write({ label: OTHER, record: { id: "c", content: "three" } });
+			await store.merge({ "@type": GRAPH, id: "a", content: "one" });
+			await store.merge({ "@type": OTHER, id: "c", content: "three" });
 			await store.clear(GRAPH);
 			if (!discards) {
 				expect(await store.get("a", "content", GRAPH), "the cleared graph").toBe("one");
@@ -295,13 +293,10 @@ export function describeQuadStore(
 		describe("samples each type's records in the order of their containment", () => {
 			const at = (minute: number): string => new Date(Date.UTC(2026, 0, 1, 0, minute)).toISOString();
 			/** Writes a public record of `label` generated at `minute`. */
-			const hold = (label: string, id: string, minute: number): Promise<string> =>
-				store.write({ label: label, record: { id, generatedAtTime: at(minute), accessLevel: Access.public } });
-			/** Writes the edge from an issue to the issue that contains it. */
-			const partOf = (part: string, whole: string): Promise<string> => store.write(edgesFrom(ISSUE, part, { rel: PART_OF, label: ISSUE, id: whole, target: EDGE_TARGET.held }));
-			/** Writes an issue's edge to an issue the store doesn't hold. A store that keeps edges strictly holds a reference in its place. */
-			const partOfAbsent = (part: string, whole: string): Promise<string> =>
-				store.write(edgesFrom(ISSUE, part, { rel: PART_OF, label: ISSUE, id: whole, target: EDGE_TARGET.reference }));
+			const hold = (label: string, id: string, minute: number): Promise<string> => store.merge({ "@type": label, id, generatedAtTime: at(minute), accessLevel: Access.public });
+			/** Writes the edge from an issue to the issue that contains it. The type declares the edge a reference, so a store that keeps
+			 *  edges strictly holds a reference in place of an issue it doesn't hold. */
+			const partOf = (part: string, whole: string): Promise<string> => store.merge({ "@type": ISSUE, "@id": part, [PART_OF]: { "@type": ISSUE, "@id": whole } });
 
 			it("holds each issue after the issue it is part of, the issues with parts before the leaves, and counts the parts it leaves out under each", async () => {
 				const parts = { "part-1": { minute: 1, leaves: [2, 3, 4] }, "part-2": { minute: 5, leaves: [6, 7, 8] } };
@@ -327,7 +322,7 @@ export function describeQuadStore(
 
 			it("holds an issue whose containment doesn't reach an issue the store holds, or returns to itself, after every issue of the held hierarchy", async () => {
 				for (const [id, minute] of Object.entries({ part: 1, top: 2, leaf: 3, "loop-a": 4, "loop-b": 5 })) await hold(ISSUE, id, minute);
-				await partOfAbsent("part", "absent");
+				await partOf("part", "absent");
 				for (const [part, whole] of Object.entries({ leaf: "top", "loop-a": "loop-b", "loop-b": "loop-a" })) await partOf(part, whole);
 				const { clusters } = await store.getClusteredQuads({ perTypeLimit: 10, accessLevel: Access.public });
 				expect(
@@ -341,13 +336,12 @@ export function describeQuadStore(
 			const TIME = "2026-01-01T00:00:00.000Z";
 			/** Writes comments that state one time and the issue they reach. A comment is public unless `privately` names it. */
 			const held = async (comments: readonly string[], privately: readonly string[] = []): Promise<void> => {
-				await store.write({ label: ISSUE, record: { id: "i1", generatedAtTime: TIME, accessLevel: Access.public } });
+				await store.merge({ "@type": ISSUE, id: "i1", generatedAtTime: TIME, accessLevel: Access.public });
 				for (const id of comments)
-					await store.write({ label: COMMENT, record: { id, generatedAtTime: TIME, status: "open", accessLevel: privately.includes(id) ? Access.private : Access.public } });
+					await store.merge({ "@type": COMMENT, id, generatedAtTime: TIME, status: "open", accessLevel: privately.includes(id) ? Access.private : Access.public });
 			};
 			/** Writes an edge from a comment to the issue. */
-			const relate = (from: string, relation: string): Promise<string> =>
-				store.write(edgesFrom(COMMENT, from, { rel: relation, label: ISSUE, id: "i1", target: EDGE_TARGET.held }));
+			const relate = (from: string, relation: string): Promise<string> => store.merge({ "@type": COMMENT, "@id": from, [relation]: { "@type": ISSUE, "@id": "i1" } });
 
 			it("rejects a limit or a perType of 0 and of MAX_PAGE_ROWS + 1, and a count ceiling above COUNT_CEILING", async () => {
 				for (const size of [0, MAX_PAGE_ROWS + 1]) {

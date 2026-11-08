@@ -29,7 +29,7 @@ import { ActionSchema } from "../../domains/actions.js";
 import { DomainKeySchema } from "../../domains/domains.js";
 import { StepMethodSchema } from "../../steps/domains/step-method.js";
 import { TEST_STEP } from "../../test/test-step.js";
-import { isWholeRecord } from "../../records/domains/unit.js";
+import { WRITE_VERB } from "../../records/domains/unit.js";
 
 // --- Test Steppers ---
 
@@ -471,7 +471,7 @@ describe("step-dispatch", () => {
 								[registry.get(`${this.constructor.name}-guarded`)].filter((tool) => tool !== undefined),
 								0,
 							);
-							const result = await dispatchStep({ registry, world, steppers: [this] }, buildFeatureStepForTransport(inner, {}, [0, 9, 1]));
+							const result = await dispatchStep({ registry, world, steppers: [this] }, buildFeatureStepForTransport(inner, {}, [0, 9, call, 1]));
 							return result.ok ? OK : actionNotOK(String(result.errorMessage));
 						},
 					},
@@ -481,7 +481,8 @@ describe("step-dispatch", () => {
 			const registry = new StepRegistry(steppers, world);
 			nested.registry = registry;
 			const outer = registry.get(`${stepper.constructor.name}-outer`) as StepTool;
-			const invoke = (held: string[]) => dispatchStep({ registry, world, steppers, grantedCapability: [INVOKED], held }, buildFeatureStepForTransport(outer, {}, [0, 9]));
+			let call = 0;
+			const invoke = (held: string[]) => dispatchStep({ registry, world, steppers, grantedCapability: [INVOKED], held }, buildFeatureStepForTransport(outer, {}, [0, 9, ++call]));
 			expect((await invoke([INVOKED, NESTED])).ok, "the caller's chain holds the nested step's action").toBe(true);
 			const refused = await invoke([INVOKED]);
 			expect(refused.ok).toBe(false);
@@ -661,7 +662,7 @@ describe("step-dispatch", () => {
 						action: async () => {
 							const refusal = await world.shared
 								.getStore()
-								.write({ label: "Note", record: { id: "note-1", says: "outside" } })
+								.merge({ "@type": "Note", id: "note-1", says: "outside" })
 								.then(
 									() => undefined,
 									(err: unknown) => err,
@@ -677,7 +678,7 @@ describe("step-dispatch", () => {
 			if (!tool) throw new Error("Expected the step to be registered");
 			expect((await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, buildFeatureStepForTransport(tool, {}, [0, 31, 1]))).ok).toBe(true);
 			const fieldOf = (field: string) => world.shared.getStore().get(formatRecordName({ actuality: actualityFeatureOf(world.tag), path: [0, 31, 1] }), field, SEQ_PATH_LABEL);
-			expect(await fieldOf(SEQ_PATH_FIELD.refusedWrites), "each refused write").toEqual(["Note.id", "Note.says"]);
+			expect(await fieldOf(SEQ_PATH_FIELD.refusedWrites), "each refused write").toEqual(["Note.says"]);
 		});
 
 		describe("what the caller holds", () => {
@@ -696,7 +697,7 @@ describe("step-dispatch", () => {
 						description: TEST_STEP,
 						gwta: "write a notice",
 						contract: { products: TEST_DOMAIN.echoed },
-						action: async () => actionOKWithProducts({ echoed: await world.shared.getStore().write({ label: NOTICE_LABEL, record: { id: NOTICE_ID } }) }),
+						action: async () => actionOKWithProducts({ echoed: await world.shared.getStore().merge({ "@type": NOTICE_LABEL, id: NOTICE_ID }) }),
 					},
 					readsAtCeiling: {
 						description: TEST_STEP,
@@ -965,12 +966,12 @@ describe("step-dispatch", () => {
 			if (!tool) throw new Error("Expected ProductStepper-failStep to be registered");
 			const store = world.shared.getStore();
 			const stepWrites: string[] = [];
-			const write = store.write.bind(store);
-			const get = store.get.bind(store);
-			store.write = (unit) => (unit.label === SEQ_PATH_LABEL && stepWrites.push(isWholeRecord(unit) ? "upsert" : "set"), write(unit));
+			const [create, merge, get] = [store.create.bind(store), store.merge.bind(store), store.get.bind(store)];
+			store.create = (node) => (node["@type"] === SEQ_PATH_LABEL && stepWrites.push(WRITE_VERB.create), create(node));
+			store.merge = (node) => (node["@type"] === SEQ_PATH_LABEL && stepWrites.push(WRITE_VERB.merge), merge(node));
 			store.get = (subject, predicate, namedGraph) => (namedGraph === SEQ_PATH_LABEL && stepWrites.push("get"), get(subject, predicate, namedGraph));
 			await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, buildFeatureStepForTransport(tool, {}, [0, 9, 2]));
-			expect(stepWrites).toEqual(["upsert", "upsert"]);
+			expect(stepWrites).toEqual([WRITE_VERB.merge, WRITE_VERB.merge]);
 			const record = (await store.query({ subject: formatRecordName({ actuality: actualityFeatureOf(world.tag), path: [0, 9, 2] }), namedGraph: SEQ_PATH_LABEL })).map(
 				(q) => q.predicate,
 			);

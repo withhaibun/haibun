@@ -72,5 +72,5 @@ export async function writeFacts(store: IQuadStore, subject: string, namedGraph:
 	const ceiling = readingAt();
 	const accessLevel = ceiling === undefined ? Access.private : ceiling;
 	const facts = Object.fromEntries(observedOf(subject, fields).map(({ predicate, object }) => [predicate, object]));
-	await store.write({ label: namedGraph, record: { id: subject, ...facts, accessLevel } });
+	await store.merge({ "@type": namedGraph, id: subject, ...facts, accessLevel });
 }

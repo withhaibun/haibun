@@ -25,7 +25,7 @@ export async function writeLevelRecord(store: IQuadStore, levels: TLevelRecords,
 	if (record === undefined) return undefined;
 	const written = { ...record, ...stated };
 	levels.set(move.id, written);
-	await store.write({ label: SEQ_PATH_LABEL, record: written });
+	await store.merge({ "@type": SEQ_PATH_LABEL, ...written });
 	return written;
 }
 

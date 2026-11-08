@@ -8,12 +8,32 @@ import type { TClusteredQuads, TDensityQuery, TDensityResult, TDistinctValues, T
 import { distinctOf, type TReadDeclarations } from "@haibun/core/lib/records/derivations/read-records.js";
 import { assertRegisteredSchema, typedRecord } from "@haibun/core/lib/quad-types.js";
 import { readQuadRecords } from "@haibun/core/lib/records/pipelines/record-reads.js";
-import { densityOverQuadStore } from "@haibun/core/lib/quad-store.js";
+import { densityOverQuadStore } from "@haibun/core/lib/records/pipelines/record-density.js";
 import { sliceQuadsPerType } from "@haibun/core/lib/steps/derivations/quad-sample.js";
 import type { TDeviceGraph, TDeviceQuads, TGraphSaturation } from "../ports.js";
-import { individualAsQuads, levelsOf, subjectKey } from "../derivations/quads.js";
-import { EDGE_TARGET, unitsOf, type TReadVersion, type TRecordName, type TRemoval, type TUnit } from "@haibun/core/lib/records/domains/unit.js";
+import { levelsOf, subjectKey } from "../derivations/quads.js";
+import { NODE_KEY, WRITE_VERB, type TNode, type TReadVersion, type TRecordName, type TRemoval, type TWriteVerb } from "@haibun/core/lib/records/domains/unit.js";
+import { EDGE_TARGET } from "@haibun/core/lib/records/derivations/edge-declarations.js";
+import type { TPart } from "@haibun/core/lib/records/derivations/unit-parts.js";
 import { RecordVersions } from "@haibun/core/lib/records/pipelines/record-versions.js";
+import type { TDeviceChange } from "../ports.js";
+
+/** Returns the change one part makes of the device's quads: each field in place of the quad of its predicate, a null removing it,
+ *  and each edge in place of the record's edge to its target, or to any target where it is the record's one target. A page holds
+ *  the `@id` a node states, as it holds the `@id` of a record a site served. */
+function changeOf({ label, id, fields, edges, iri }: TPart): TDeviceChange {
+	const stated = Object.entries(iri === undefined ? fields : { ...fields, [NODE_KEY.id]: iri });
+	return {
+		removes: [
+			...stated.map(([predicate]) => ({ subject: id, namedGraph: label, predicate })),
+			...edges.map(({ rel, id: to, target }) => ({ subject: id, namedGraph: label, predicate: rel, ...(target === EDGE_TARGET.only ? {} : { object: to }) })),
+		],
+		adds: [
+			...stated.flatMap(([predicate, object]) => (object === null ? [] : [{ subject: id, predicate, object, namedGraph: label }])),
+			...edges.map(({ rel, label: objectType, id: object }) => ({ subject: id, predicate: rel, object, namedGraph: label, objectType })),
+		],
+	};
+}
 
 export class DeviceGraph implements TDeviceGraph {
 	readonly database: string;
@@ -45,7 +65,7 @@ export class DeviceGraph implements TDeviceGraph {
 		return this.quads.clear(namedGraph);
 	}
 
-	/** Removes what `removal` names: a record's quads, one of its fields, or one of its edges. */
+	/** Removes what `removal` names: a record's quads with each record it owns, transitively, or one of its edges. */
 	remove(removal: TRemoval): Promise<void> {
 		return this.inTurn(() => this.removeNow(removal));
 	}
@@ -57,14 +77,13 @@ export class DeviceGraph implements TDeviceGraph {
 		return made;
 	}
 
-	private removeNow({ label, id, field, edge }: TRemoval): Promise<void> {
-		if (edge === undefined) this.versions[field === undefined ? "removed" : "changed"]({ label, id });
-		return this.quads.remove({ subject: id, namedGraph: label, predicate: field === undefined ? edge?.rel : field, object: edge?.to });
-	}
-
-	/** Returns the id of a unit's record. */
-	private idOf(unit: TUnit): string {
-		return individualAsQuads(unit.label, "record" in unit ? unit.record : { id: unit.id })[0];
+	private async removeNow({ label, id, edge }: TRemoval): Promise<void> {
+		if (edge !== undefined) return await this.quads.change({ removes: [{ subject: id, namedGraph: label, predicate: edge.rel, object: edge.to }], adds: [] });
+		const owns = this.declarations().of(label)?.edges;
+		const owned = (await this.quads.query({ subject: id, namedGraph: label })).filter((q) => q.objectType !== undefined && owns?.[q.predicate]?.owns === true);
+		await this.quads.change({ removes: [{ subject: id, namedGraph: label }], adds: [] });
+		this.versions.removed({ label, id });
+		for (const q of owned) await this.removeNow({ label: String(q.objectType), id: String(q.object) });
 	}
 
 	/** Returns whether the device holds a quad of the record `name` names. */
@@ -80,42 +99,43 @@ export class DeviceGraph implements TDeviceGraph {
 		return this.quads.all();
 	}
 
+	/** Holds the quads a site served, in turn with the device's writes, and gives each record they change its next version, so an
+	 *  update of a version read before the site's change is refused. */
 	setMany(quads: TQuad[]): Promise<void> {
-		return this.quads.setMany(quads);
+		return this.inTurn(async () => {
+			await this.quads.setMany(quads);
+			for (const { namedGraph, subject } of quads) this.versions.changed({ label: namedGraph, id: subject });
+		});
 	}
 
-	/** Writes the units a unit owns, then its record, each field in place of the quad of its predicate and a null removing it,
-	 *  then its edges. Returns the id of the unit's record. */
-	write(unit: TUnit): Promise<string> {
-		return this.inTurn(() => this.writeNow(unit));
+	create(node: TNode): Promise<string> {
+		return this.inTurn(() => this.writeNow(WRITE_VERB.create, node, undefined));
 	}
 
-	private async writeNow(unit: TUnit): Promise<string> {
-		const parts = await Promise.all(
-			unitsOf(unit).map(async (part) => {
-				const quads = individualAsQuads(part.label, "record" in part ? part.record : { id: part.id, ...("fields" in part ? part.fields : {}) });
-				const name = { label: part.label, id: quads[0] };
-				return { unit: part, quads, name, held: part.version !== undefined && (await this.holds(name)) };
-			}),
-		);
-		this.versions.check(parts);
-		for (const part of [...parts].reverse()) await this.writePart(part.unit, part.quads);
-		this.versions.wrote(parts);
-		return this.idOf(unit);
+	update(node: TNode, version: TReadVersion): Promise<string> {
+		return this.inTurn(() => this.writeNow(WRITE_VERB.update, node, version));
 	}
 
-	/** Writes one unit's record, each field in place of the quad of its predicate and a null removing it, then its edges. */
-	private async writePart({ label, edges }: TUnit, [id, quads]: ReturnType<typeof individualAsQuads>): Promise<void> {
-		const held: TQuad[] = [];
-		for (const quad of quads)
-			if (quad.object === null) await this.removeNow({ label, id, field: quad.predicate });
-			else held.push(quad);
-		await this.quads.setMany(held);
-		if (edges !== undefined)
-			for (const { rel, label: objectType, id: object, target } of edges) {
-				if (target === EDGE_TARGET.only) await this.removeNow({ label, id, field: rel });
-				await this.quads.add({ subject: id, predicate: rel, object, namedGraph: label, objectType });
-			}
+	merge(node: TNode): Promise<string> {
+		return this.inTurn(() => this.writeNow(WRITE_VERB.merge, node, undefined));
+	}
+
+	/** Writes the unit a verb writes from a node in one transaction of the device's quads, each field in place of the quad of its
+	 *  predicate and a null removing it, and each edge in place of the record's edge to its target, or to any target where it is
+	 *  the record's one target of the relation. Returns the id of the unit's record. */
+	private async writeNow(verb: TWriteVerb, node: TNode, version: TReadVersion | undefined): Promise<string> {
+		// A page holds what a site served, which it writes through setMany, so it loads the derivation of a unit's parts where it
+		// writes a node.
+		const { partDeclarationOf, unitParts } = await import("@haibun/core/lib/records/derivations/unit-parts.js");
+		const unit = unitParts(verb, node, version, (label) => {
+			const declaration = this.declarations().of(label);
+			return declaration === undefined ? undefined : partDeclarationOf(declaration);
+		});
+		this.versions.check([{ name: unit.record, version: unit.version, held: await this.holds(unit.record) }]);
+		const changes = unit.parts.map(changeOf);
+		await this.quads.change({ removes: changes.flatMap(({ removes }) => removes), adds: changes.flatMap(({ adds }) => adds) });
+		for (const part of unit.parts) this.versions.changed(part);
+		return unit.record.id;
 	}
 
 	/** Reads a page of the records the device holds, without a search of their text. */

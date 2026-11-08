@@ -47,8 +47,8 @@ describe("FeatureVariables", () => {
 			await variables.set({ term: "foo", value: "bar", domain: DOMAIN_STRING, origin: Origin.var }, { in: "test", seq: [1], when: "test.action" });
 			const store = variables.getStore();
 			const recorded = { actionStatus: RECORDED_STATUS.completed, generatedAtTime: new Date().toISOString(), level: LOG_LEVEL_INFO, accessLevel: Access.public };
-			await store.write({ label: SEQ_PATH_LABEL, record: { id: "1-0.1.0", stepText: "a feature", actualityLevel: "feature", ...recorded } });
-			await store.write({ label: SEQ_PATH_LABEL, record: { id: "1-0.1.1.1", stepText: "a step", actualityLevel: STEP_LEVEL, ...recorded } });
+			await store.merge({ "@type": SEQ_PATH_LABEL, id: "1-0.1.0", stepText: "a feature", actualityLevel: "feature", ...recorded });
+			await store.merge({ "@type": SEQ_PATH_LABEL, id: "1-0.1.1.1", stepText: "a step", actualityLevel: STEP_LEVEL, ...recorded });
 			await variables.clear();
 			expect(await variables.all()).toEqual({});
 			expect(await variables.get("foo")).toBeUndefined();
@@ -61,7 +61,7 @@ describe("FeatureVariables", () => {
 			const store = variables.getStore();
 			if (!(store instanceof QuadStore)) throw new Error("the variables' store isn't a QuadStore");
 			await store.registerStore(backing, [BACKED]);
-			await store.write({ label: BACKED, id: "held", fields: { content: "kept" } });
+			await store.merge({ "@type": BACKED, "@id": "held", content: "kept" });
 			const reads = [vi.spyOn(backing, "all"), vi.spyOn(backing, "query"), vi.spyOn(backing, "readRecords")];
 			await variables.clear();
 			expect(reads.map((read) => read.mock.calls.length)).toEqual([0, 0, 0]);

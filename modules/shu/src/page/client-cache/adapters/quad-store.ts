@@ -12,7 +12,7 @@
 import { z } from "zod";
 import { matchesQuadPattern, QuadSchema, type TQuad, type TQuadPattern } from "@haibun/core/lib/quad-types.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
-import { DEVICE_STORES, META_KEY, QUAD_INDEX, type TDeviceDatabase, type TDeviceQuads, type TGraphSaturation } from "../ports.js";
+import { DEVICE_STORES, META_KEY, QUAD_INDEX, type TDeviceChange, type TDeviceDatabase, type TDeviceQuads, type TGraphSaturation } from "../ports.js";
 import { done } from "./device-store.js";
 
 /** A stored quad carries a derived `spg` (namedGraph|subject|predicate) key so `set`/`get` can upsert without a scan. */
@@ -129,10 +129,28 @@ export class IndexedDbQuads implements TDeviceQuads {
 		return matches.length ? matches.reduce((a, b) => (b.timestamp > a.timestamp ? b : a)).object : undefined;
 	}
 
-	add(quad: Omit<TQuad, "timestamp">): Promise<void> {
+	/** Makes one unit's change in its turn: it reads the keys of the rows each removal matches, then deletes them and adds each
+	 *  quad in one transaction, so the browser commits the unit whole or not at all. */
+	change({ removes, adds }: TDeviceChange): Promise<void> {
 		return this.inTurn(async () => {
+			const removed = await this.read((store) =>
+				Promise.all(
+					removes.map(async (pattern) => {
+						const subject = pattern.subject === undefined ? undefined : store.index(QUAD_INDEX.SUBJECT);
+						const [keys, rows] = await Promise.all([
+							done(subject ? subject.getAllKeys(pattern.subject) : store.getAllKeys()),
+							done(subject ? subject.getAll(pattern.subject) : store.getAll()),
+						]);
+						const held = storedQuads(rows);
+						return keys.filter((_, at) => matchesQuadPattern(itemAt(held, at), pattern));
+					}),
+				),
+			);
+			if (removed === undefined) return;
+			const timestamp = Date.now();
 			await this.write((store) => {
-				store.add({ ...quad, timestamp: Date.now(), spg: spgKey(quad) } satisfies StoredQuad);
+				for (const key of removed.flat()) store.delete(key);
+				for (const quad of adds) store.add({ ...quad, timestamp, spg: spgKey(quad) } satisfies StoredQuad);
 			});
 			await this.keepWithinBound();
 		});
@@ -164,17 +182,6 @@ export class IndexedDbQuads implements TDeviceQuads {
 			if (namedGraph === undefined) return this.write((store) => store.clear());
 			const keys = await this.read((store) => done(store.index(QUAD_INDEX.NAMED_GRAPH).getAllKeys(namedGraph)));
 			if (keys !== undefined) await this.write((store) => keys.forEach((key) => store.delete(key)));
-		});
-	}
-
-	remove(pattern: TQuadPattern): Promise<void> {
-		return this.inTurn(async () => {
-			const matching = await this.read(async (store) => {
-				const [keys, rows] = await Promise.all([done(store.getAllKeys()), done(store.getAll())]);
-				const held = storedQuads(rows);
-				return keys.filter((_, at) => matchesQuadPattern(itemAt(held, at), pattern));
-			});
-			if (matching !== undefined) await this.write((store) => matching.forEach((key) => store.delete(key)));
 		});
 	}
 

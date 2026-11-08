@@ -54,9 +54,9 @@ describe("the client cache view", () => {
 		});
 		// The actuality feature being recorded, and an earlier actuality's this device still holds, each named by the feature it ran.
 		const store = actualityStore();
-		await store.write({ label: SEQ_PATH_LABEL, record: step(EARLIER, 0, { stepText: "Feature: An earlier actuality", called: "Haibun.feature", generatedAtTime: iso(500) }) });
-		await store.write({ label: SEQ_PATH_LABEL, record: step(RUN, 0, { stepText: "Feature: The actuality being recorded", called: "Haibun.feature" }) });
-		for (let i = 1; i < STEPS; i++) await store.write({ label: SEQ_PATH_LABEL, record: step(RUN, i) });
+		await store.merge({ "@type": SEQ_PATH_LABEL, ...step(EARLIER, 0, { stepText: "Feature: An earlier actuality", called: "Haibun.feature", generatedAtTime: iso(500) }) });
+		await store.merge({ "@type": SEQ_PATH_LABEL, ...step(RUN, 0, { stepText: "Feature: The actuality being recorded", called: "Haibun.feature" }) });
+		for (let i = 1; i < STEPS; i++) await store.merge({ "@type": SEQ_PATH_LABEL, ...step(RUN, i) });
 		installGraph(store);
 	});
 	afterEach(() => {

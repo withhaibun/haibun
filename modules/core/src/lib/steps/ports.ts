@@ -19,7 +19,7 @@ import type {
 	TRecordsPage,
 	TRecordType,
 } from "./domains/quad-types.js";
-import type { TReadVersion, TRecordName, TRemoval, TUnit } from "../records/domains/unit.js";
+import type { TReadVersion, TRecordName, TWritePort } from "../records/domains/unit.js";
 import type { TStepWrites } from "./domains/contract.js";
 
 /** A subscriber of the events hub. It receives each event once the hub has obscured its secrets and stated its level. */
@@ -54,38 +54,27 @@ export interface IEventLogger {
 	artifact(artifact: TArtifactEvent): void;
 }
 
-/** The levels a store applies: the bound a read is read within, the bound a write is written within, and the level each
- *  type declares its records at, undefined for a name that isn't a persisted type. A store that isn't given levels holds a
- *  copy of what a site served, which was bounded where it was served. */
 /** What a store reads of each write's call: the read bound and the write bound, the level each type declares, the writes the
- *  contract of the step in progress allows, whether a type records actuality itself, whose writes a contract doesn't hold, and
- *  the record name of the step in progress, which each record's first write links through `prov:wasGeneratedBy`. */
+ *  contract of the step in progress allows, the record name of the step in progress, which each record's first write links through
+ *  `prov:wasGeneratedBy`, and the time on actuality's clock, which each record's first write states as its `generatedAtTime`. */
 export type TStoreLevels = {
 	bound: () => TAccessBound;
 	writeBound: () => TAccessBound;
 	declared: (label: string) => AccessLevel | undefined;
 	stepWrites: () => TStepWrites | undefined;
-	recordsActuality: (label: string) => boolean;
 	currentStep: () => string | undefined;
+	recordTime: () => string;
 };
 
 /** A store of quads: core's in-memory store, a backing store with a query engine, a page's copy of what a site served, or another
  *  instance's store. Every method is async, so an in-memory store and a store with a database implement one port. */
-export interface IQuadStore {
+export interface IQuadStore extends TWritePort {
 	/** True for a store that another instance serves (RemoteQuadStore). A read scoped `"own"` reads what this instance is
 	 *  authoritative for, so it skips such a store: its records are the serving instance's own, in that instance's report. */
 	readonly isRemote?: boolean;
 
-	/** Writes a unit in one operation: its record, its edges and the units it owns, each record at the level the store's rule
-	 *  states, and returns the id of the unit's record. A unit the store refuses isn't written, and a reader reads each unit
-	 *  whole or not at all. */
-	write(unit: TUnit): Promise<string>;
-
-	/** Removes what `removal` names: a record with the units it owns, one of its fields, or one of its edges. */
-	remove(removal: TRemoval): Promise<void>;
-
 	/** Returns the version of the fields of the record `name` names, at the levels the reader reads, or null where the store
-	 *  doesn't hold the record. A unit that states the version is refused where the fields changed since. `readVersioned` reads
+	 *  doesn't hold the record. An update that states the version is refused where the fields changed since. `readVersioned` reads
 	 *  the version and then the record. */
 	versionOf(name: TRecordName): Promise<TReadVersion>;
 

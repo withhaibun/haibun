@@ -57,11 +57,12 @@ export const GRAPH_BOUND = 100_000;
 export type TCachedGraph = IQuadStore & { setMany(quads: TQuad[]): Promise<void> };
 
 /** The quads one actuality's database holds: the facts as the device writes and reads them, and how full it is. */
+/** One unit's change of the quads a device holds: the patterns of the quads it removes, then the quads it adds. */
+export type TDeviceChange = { readonly removes: readonly TQuadPattern[]; readonly adds: readonly Omit<TQuad, "timestamp">[] };
+
 export type TDeviceQuads = Pick<IQuadStore, "get" | "query" | "clear" | "all"> & {
-	/** Adds a quad without replacing a quad of the same subject and predicate. */
-	add(quad: Omit<TQuad, "timestamp">): Promise<void>;
-	/** Removes the quads a pattern matches. */
-	remove(pattern: TQuadPattern): Promise<void>;
+	/** Makes one unit's change in one transaction, so a reader reads the unit whole or not at all. */
+	change(change: TDeviceChange): Promise<void>;
 	/** The name of the database. */
 	readonly database: string;
 	setMany(quads: TQuad[]): Promise<void>;

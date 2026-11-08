@@ -6,7 +6,7 @@
  */
 import { matchesQuadPattern, type TQuad, type TQuadPattern } from "@haibun/core/lib/quad-types.js";
 import { QuadLayer } from "@haibun/core/lib/records/machines/quad-layer.js";
-import type { TDeviceQuads, TGraphSaturation } from "../ports.js";
+import type { TDeviceChange, TDeviceQuads, TGraphSaturation } from "../ports.js";
 
 export class MemoryQuads implements TDeviceQuads {
 	readonly #layer = new QuadLayer();
@@ -21,8 +21,10 @@ export class MemoryQuads implements TDeviceQuads {
 		return this.query({ subject, predicate, namedGraph }).then((held) => held.at(-1)?.object);
 	}
 
-	add(quad: Omit<TQuad, "timestamp">): Promise<void> {
-		this.#layer.add({ ...quad, timestamp: Date.now() });
+	change({ removes, adds }: TDeviceChange): Promise<void> {
+		for (const pattern of removes) this.#layer.removeWhere(this.#layer.candidates(pattern), (quad) => matchesQuadPattern(quad, pattern));
+		const timestamp = Date.now();
+		for (const quad of adds) this.#layer.add({ ...quad, timestamp });
 		return Promise.resolve();
 	}
 
@@ -33,11 +35,6 @@ export class MemoryQuads implements TDeviceQuads {
 	clear(namedGraph?: string): Promise<void> {
 		if (namedGraph === undefined) this.#layer.clear();
 		else this.#layer.removeWhere(this.#layer.ofGraph(namedGraph), () => true);
-		return Promise.resolve();
-	}
-
-	remove(pattern: TQuadPattern): Promise<void> {
-		this.#layer.removeWhere(this.#layer.candidates(pattern), (quad) => matchesQuadPattern(quad, pattern));
 		return Promise.resolve();
 	}
 

@@ -25,15 +25,18 @@ const anActuality = async (steps: Array<{ at: number; status: string }> = [], sa
 	const store = actualityStore();
 	const counted: TPageDensity[] = [];
 	const addStep = async (at: number, status: string, i: number) =>
-		store.write({
-			label: SEQ_PATH_LABEL,
-			record: { id: `${RUN}.0.${i}`, actuality: RUN, stepText: `step ${i}`, actionStatus: status, level: "info", generatedAtTime: iso(at), accessLevel: Access.public },
+		store.merge({
+			"@type": SEQ_PATH_LABEL,
+			id: `${RUN}.0.${i}`,
+			actuality: RUN,
+			stepText: `step ${i}`,
+			actionStatus: status,
+			level: "info",
+			generatedAtTime: iso(at),
+			accessLevel: Access.public,
 		});
 	const addSaid = async (at: number, level: string, i: number) =>
-		store.write({
-			label: LOG_MESSAGE_LABEL,
-			record: { id: `${RUN}.0.${i}@${i}`, actuality: RUN, message: `said ${i}`, level, generatedAtTime: iso(at), accessLevel: Access.public },
-		});
+		store.merge({ "@type": LOG_MESSAGE_LABEL, id: `${RUN}.0.${i}@${i}`, actuality: RUN, message: `said ${i}`, level, generatedAtTime: iso(at), accessLevel: Access.public });
 	for (const [i, s] of steps.entries()) await addStep(s.at, s.status, i);
 	for (const [i, m] of said.entries()) await addSaid(m.at, m.level, 100 + i);
 	const over = actualityGraphOver(store);
@@ -124,17 +127,15 @@ describe("the shape of an actuality, by division", () => {
 		]);
 		const other = "1700000009000-2";
 		for (const at of [1500, 2000, 2500])
-			await store.write({
-				label: SEQ_PATH_LABEL,
-				record: {
-					[SEQ_PATH_FIELD.id]: `${other}.0.${at}`,
-					[SEQ_PATH_FIELD.actuality]: other,
-					stepText: "another actuality feature's step",
-					actionStatus: "failed",
-					level: "info",
-					generatedAtTime: iso(at),
-					accessLevel: Access.public,
-				},
+			await store.merge({
+				"@type": SEQ_PATH_LABEL,
+				[SEQ_PATH_FIELD.id]: `${other}.0.${at}`,
+				[SEQ_PATH_FIELD.actuality]: other,
+				stepText: "another actuality feature's step",
+				actionStatus: "failed",
+				level: "info",
+				generatedAtTime: iso(at),
+				accessLevel: Access.public,
 			});
 		const shape = actualityShape(ofActualityFeature(graph, RUN), { divisions: 3 });
 		await shape.update(3000);

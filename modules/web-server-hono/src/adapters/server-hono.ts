@@ -299,22 +299,18 @@ export class ServerHono implements IWebServer {
 		this.persistEndpoint(type, path, purpose);
 	}
 
-	/** Persist the mounted route as an Endpoint vertex: the existing object that an observed HttpRequest edges toward. `id`
-	 *  satisfies the transitory store's default identity field; `url` is the topology's. */
+	/** Persist the mounted route as an Endpoint vertex: the existing object that an observed HttpRequest edges toward, identified
+	 *  by its `url`. */
 	private persistEndpoint(type: TRouteTypes, path: string, purpose: TRoutePurpose): void {
 		// fire-and-forget from this sync mount path; a persist failure is a real error and must surface.
 		this.getStore()
-			.write({
-				label: EndpointLabels.Endpoint,
-				record: {
-					id: path,
-					url: path,
-					method: type.toUpperCase(),
-					description: purpose.description,
-					endpointClass: purpose.service ? ENDPOINT_CLASS.service : ENDPOINT_CLASS.route,
-					reads: purpose.reads,
-					generatedAtTime: new Date().toISOString(),
-				},
+			.merge({
+				"@type": EndpointLabels.Endpoint,
+				url: path,
+				method: type.toUpperCase(),
+				description: purpose.description,
+				endpointClass: purpose.service ? ENDPOINT_CLASS.service : ENDPOINT_CLASS.route,
+				reads: purpose.reads,
 			})
 			.catch((e) => this.eventLogger.error(`persistEndpoint ${type} ${path}: ${e}`));
 	}

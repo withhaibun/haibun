@@ -1,13 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { EARL_ASSERTION_EDGE, EARL_LABEL, EARL_MODE, EARL_OUTCOME, earlDomainDefinitions, type TEarlAssertions } from "../domains/earl.js";
 import { writeEarlAssertions } from "./check-page.js";
-import { systemClock } from "@haibun/core/lib/actuality/adapters/system-clock.js";
 import { buildConcernCatalog, getJsonLdContext } from "@haibun/core/lib/domains/hypermedia.js";
 import { toRegisteredDomain } from "@haibun/core/lib/domains/domains.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { readEvery, recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
-import { declaredTypeOf, storeDeclaring } from "@haibun/core/lib/test/declared-types.js";
+import { declaredTypeOf, storeDeclaring, TEST_LEVELS } from "@haibun/core/lib/test/declared-types.js";
 
 /** The EARL types, declared so the store reads their records. */
 const EARL_TYPES = Object.fromEntries(earlDomainDefinitions.map(declaredTypeOf));
@@ -70,8 +69,8 @@ describe("EARL types", () => {
 
 describe("writeEarlAssertions", () => {
 	it("records each result as an assertion the step made, linked to the assertor, the subject, the test case and the result", async () => {
-		const store = storeDeclaring(EARL_TYPES);
-		const ids = await writeEarlAssertions({ store, clock: systemClock }, assertions(STEP));
+		const store = storeDeclaring(EARL_TYPES, TEST_LEVELS);
+		const ids = await writeEarlAssertions({ store }, assertions(STEP));
 		expect(ids).toEqual([`${STEP} ${IMAGE_ALT.id}`, `${STEP} ${TITLE.id}`]);
 		const edges = await store.query({ subject: itemAt(ids, 0), namedGraph: EARL_LABEL.assertion });
 		const target = (edge: string) => edges.find((quad) => quad.predicate === edge);
@@ -89,9 +88,9 @@ describe("writeEarlAssertions", () => {
 		expect(await recordOf(store, EARL_LABEL.assertion, itemAt(ids, 0))).toMatchObject({ mode: EARL_MODE.automatic });
 	});
 	it("shares one record of a test case, an assertor and a subject among the assertions that name them", async () => {
-		const store = storeDeclaring(EARL_TYPES);
-		await writeEarlAssertions({ store, clock: systemClock }, assertions(STEP));
-		await writeEarlAssertions({ store, clock: systemClock }, assertions(`${STEP}.1`));
+		const store = storeDeclaring(EARL_TYPES, TEST_LEVELS);
+		await writeEarlAssertions({ store }, assertions(STEP));
+		await writeEarlAssertions({ store }, assertions(`${STEP}.1`));
 		expect(await readEvery(store, { label: EARL_LABEL.assertion })).toHaveLength(4);
 		expect(await readEvery(store, { label: EARL_LABEL.testResult })).toHaveLength(4);
 		expect(await readEvery(store, { label: EARL_LABEL.testCase })).toHaveLength(2);

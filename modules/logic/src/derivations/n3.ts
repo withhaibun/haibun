@@ -25,13 +25,15 @@ const { namedNode, literal, blankNode } = DataFactory;
 const ABSOLUTE_IRI = /^[a-z][a-z\d+.-]*:[^\s<>"{}|\\^`]+$/i;
 const writer = new Writer({ format: MEDIA_TYPE.n3 });
 
-/** Returns a store's value as an RDF/JS term: an absolute IRI as a named node, a finite number and a boolean as typed literals,
- *  and every other string as a string literal. Throws where a value isn't a string, a finite number or a boolean. */
+/** Returns a store's value as an RDF/JS term: an absolute IRI as a named node, a finite number, a boolean and a time as typed
+ *  literals, and every other string as a string literal. Throws where a value isn't a string, a finite number, a boolean or a
+ *  time. */
 export function termOf(value: unknown): NamedNode | Literal {
+	if (value instanceof Date && !Number.isNaN(value.getTime())) return literal(value.toISOString(), namedNode(XSD.dateTime));
 	if (typeof value === "string") return ABSOLUTE_IRI.test(value) ? namedNode(value) : literal(value);
 	if (typeof value === "number" && Number.isFinite(value)) return literal(String(value), namedNode(Number.isInteger(value) ? XSD.integer : XSD.decimal));
 	if (typeof value === "boolean") return literal(String(value), namedNode(XSD.boolean));
-	throw new Error(`a store's value ${JSON.stringify(value)} doesn't have an N3 term. Store a string, a finite number or a boolean.`);
+	throw new Error(`a store's value ${JSON.stringify(value)} doesn't have an N3 term. Store a string, a finite number, a boolean or a time.`);
 }
 
 /** A formula: the patterns between its braces. */

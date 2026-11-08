@@ -27,6 +27,6 @@ export async function scopeWith(reasoner: TReasoner): Promise<TClaimScope> {
 		["s1", STEP],
 		["n1", NOTE],
 	] as const)
-		await store.write({ label: namedGraph, id: subject, fields: { id: subject, accessLevel: Access.private } });
+		await store.merge({ "@type": namedGraph, id: subject, accessLevel: Access.private });
 	return { reasoner, store, domains, records: HAIBUN_RECORD_NAMESPACE };
 }

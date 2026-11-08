@@ -5,6 +5,7 @@
  */
 import type { AStepper, TStepperStep, TFeatureStep, TBeforeStep, TAfterStep, TAfterStepResult } from "../../steps/domains/stepper.js";
 import { proverOf, type TWorld } from "../domains/world.js";
+import { recordTime } from "../domains/record-time.js";
 import type { TActionResult, TStepResult, TSeqPath } from "../../domains/protocol.js";
 import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, SUBSTEP_LEVEL, STATUS, RECORDED_STATUS, verdictOf, VERDICT, type TStepEnd } from "../../domains/protocol.js";
 import { streamContext } from "../../transport/domains/step-stream-context.js";
@@ -38,6 +39,7 @@ import {
 	asRecorded,
 	endRecord,
 	resultText,
+	STEP_END_CLEARED,
 	startRecord,
 	viewShown,
 	type TStepAuthorization,
@@ -74,7 +76,6 @@ const heldAs = (held: string[]): { held?: string } => (held.length === 0 ? {} : 
 const shown = (showed: string | undefined): { showed?: string } => (showed === undefined ? {} : { showed });
 
 /** The time of a record, as an ISO time from actuality's clock. */
-const recordTime = (world: TWorld): string => new Date(world.clock.now()).toISOString();
 
 /**
  * Returns the next path under a parent step.
@@ -370,35 +371,35 @@ async function autoAssertProducts(world: TWorld, stepName: TRecordName, step: TS
 	const products = retainedProducts(actionResult.products, productsRetained(world, step));
 	if (!products) return;
 	const store = world.shared.getStore();
-	const generatedAtTime = recordTime(world);
 	const { domain, fields } = contractProducts(step);
 	if (domain) {
 		if (isViewOnlyDomain(world, domain)) return;
-		await assertFact(store, stepName, { domain: normalizeDomainKey(domain), value: products, generatedAtTime });
+		await assertFact(store, stepName, { domain: normalizeDomainKey(domain), value: products });
 		return;
 	}
 	if (fields) {
 		for (const [field, domainKey] of Object.entries(fields)) {
 			if (!(field in products)) continue;
 			if (isViewOnlyDomain(world, domainKey)) continue;
-			await assertFact(store, stepName, { domain: normalizeDomainKey(domainKey), value: products[field], field, generatedAtTime });
+			await assertFact(store, stepName, { domain: normalizeDomainKey(domainKey), value: products[field], field });
 		}
 	}
 }
 
 /**
  * Writes a step's record when the step starts, so an individual created during the step can link to it by a graph edge.
- * One upsert writes every required field: sequential writes would let a concurrent reader read a step without its
- * generatedAtTime, which fails the SeqPath schema. getClusteredQuads on a polling tick is one such reader. Returns the
- * record, which the step's end writes again with how it ended.
+ * One write states every required field, and clears how an earlier dispatch at the step's path ended, since a caller that states
+ * its seqPath, such as a page, may call again at that path once its call ended: sequential writes would let a concurrent reader
+ * read a step without its generatedAtTime, which fails the SeqPath schema. getClusteredQuads on a polling tick is one such
+ * reader. Returns the record, which the step's end writes again with how it ended.
  */
 async function writeStepStart(world: TWorld, featureStep: TFeatureStep, authorization: TStepAuthorization, ran: TStepRan, call: TStepCall): Promise<TStepRecord> {
 	const record = startRecord(actualityFeatureOf(world.tag), featureStep, authorization, ran, call, recordTime(world));
-	await world.shared.getStore().write({ label: SEQ_PATH_LABEL, record: record });
+	await world.shared.getStore().merge({ "@type": SEQ_PATH_LABEL, ...STEP_END_CLEARED, ...record });
 	return record;
 }
 
-/** Writes a step's record when the step ends: its start with how it ended, in one upsert. */
+/** Writes a step's record when the step ends: its start with how it ended, in one write. */
 async function writeStepEnd(world: TWorld, start: TStepRecord, ended: TStepEnded): Promise<void> {
-	await world.shared.getStore().write({ label: SEQ_PATH_LABEL, record: endRecord(start, ended, recordTime(world)) });
+	await world.shared.getStore().merge({ "@type": SEQ_PATH_LABEL, ...endRecord(start, ended, recordTime(world)) });
 }

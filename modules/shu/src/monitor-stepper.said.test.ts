@@ -100,10 +100,10 @@ describe("what a run logged, as a record", () => {
 		const held = new Promise<void>((release) => {
 			finish = release;
 		});
-		const writes = store.write.bind(store);
-		store.write = async (unit) => {
+		const writes = store.create.bind(store);
+		store.create = async (node) => {
 			await held;
-			return await writes(unit);
+			return await writes(node);
 		};
 		const monitor = monitorOver(store, WARNINGS.IGNORED);
 		monitor.onEvent(said({ message: "said just before the feature ends" }));
@@ -121,7 +121,7 @@ describe("what a run logged, as a record", () => {
 	it("reports a record write that fails once on the console, doesn't record the report, and fails the end of the feature", async () => {
 		const REFUSED = "the store refuses the write";
 		let writes = 0;
-		store.write = () => {
+		store.create = () => {
 			writes += 1;
 			return Promise.reject(new Error(REFUSED));
 		};
@@ -135,14 +135,14 @@ describe("what a run logged, as a record", () => {
 	});
 
 	it("doesn't record what a refused write logs, stops writing once the store closes while logs keep arriving, and reports that once", async () => {
-		const write = store.write.bind(store);
+		const write = store.create.bind(store);
 		let closed = false;
 		let writes = 0;
 		let logged: (message: string) => void = () => undefined;
 		// A store whose engine logs each statement it refuses, as an instrumented engine logs a failed query.
-		store.write = (unit) => {
+		store.create = (node) => {
 			writes += 1;
-			if (!closed) return write(unit);
+			if (!closed) return write(node);
 			logged(`refused write ${writes}`);
 			return Promise.reject(new StoreClosingError("a write"));
 		};

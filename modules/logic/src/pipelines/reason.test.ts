@@ -68,7 +68,7 @@ const FACTS: [string, string, string, string, AccessLevel][] = [
 
 async function storeWith(): Promise<IQuadStore> {
 	const store = storeOfDomains(definitions);
-	for (const [subject, predicate, object, namedGraph, accessLevel] of FACTS) await store.write({ label: namedGraph, id: subject, fields: { [predicate]: object, accessLevel } });
+	for (const [subject, predicate, object, namedGraph, accessLevel] of FACTS) await store.merge({ "@type": namedGraph, "@id": subject, [predicate]: object, accessLevel });
 	return store;
 }
 

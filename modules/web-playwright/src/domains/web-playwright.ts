@@ -226,7 +226,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 			// endpoint of this site it reached, or the external host that received it.
 			edges: {
 				performedBy: { rel: LinkRelations.PERFORMED_BY.rel, range: [HTTP_CLIENT_LABEL, HTTP_HOST_LABEL] },
-				target: { rel: LinkRelations.AS_TARGET.rel, range: [ENDPOINT_LABEL, HTTP_HOST_LABEL] },
+				target: { rel: LinkRelations.AS_TARGET.rel, range: [ENDPOINT_LABEL, HTTP_HOST_LABEL], reference: true },
 			},
 			// This type doesn't declare a displayLabel: the id ("GET /path") is the title; status and duration are fields, not a stored summary copy.
 		},

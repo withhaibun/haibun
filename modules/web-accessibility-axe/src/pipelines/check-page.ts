@@ -3,8 +3,6 @@
  * assertion the step made, and the page's serious and moderate violations evaluated against the counts accepted.
  */
 import type { Page } from "playwright";
-import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
-import { EDGE_TARGET, type TUnitEdge } from "@haibun/core/lib/records/domains/unit.js";
 import { EARL_ASSERTION_EDGE, EARL_LABEL, type TEarlAssertions } from "../domains/earl.js";
 import { axeAssertions, evalSeverity, type TSeverity } from "../derivations/axe-earl.js";
 import { axeReportHtml } from "../derivations/report.js";
@@ -12,29 +10,23 @@ import type { TAxe, TEarlPorts } from "../ports.js";
 
 /** Record what an assertor states of a subject: each result as an assertion the step made, linked to the assertor, the
  *  subject, the test case and the result. Returns the assertions' ids. */
-export async function writeEarlAssertions({ store, clock }: TEarlPorts, { assertor, subject, mode, step, results }: TEarlAssertions): Promise<string[]> {
-	const generatedAtTime = new Date(clock.now()).toISOString();
-	await Promise.all([
-		store.write({ label: EARL_LABEL.assertor, record: { ...assertor, generatedAtTime } }),
-		store.write({ label: EARL_LABEL.testSubject, record: { ...subject, generatedAtTime } }),
-	]);
+export async function writeEarlAssertions({ store }: TEarlPorts, { assertor, subject, mode, step, results }: TEarlAssertions): Promise<string[]> {
+	await Promise.all([store.merge({ "@type": EARL_LABEL.assertor, ...assertor }), store.merge({ "@type": EARL_LABEL.testSubject, ...subject })]);
 	return await Promise.all(
 		results.map(async ({ test, result }) => {
 			const id = `${step} ${test.id}`;
-			const resultId = `${id} result`;
 			// The assertion owns its result, so it is written with it in one unit, after the test case it names.
-			await store.write({ label: EARL_LABEL.testCase, record: { ...test, generatedAtTime } });
-			const held = (rel: string, label: string, to: string): TUnitEdge => ({ rel, label, id: to, target: EDGE_TARGET.held });
-			const edges = [
-				held(EARL_ASSERTION_EDGE.assertedBy, EARL_LABEL.assertor, assertor.id),
-				held(EARL_ASSERTION_EDGE.subject, EARL_LABEL.testSubject, subject.id),
-				held(EARL_ASSERTION_EDGE.test, EARL_LABEL.testCase, test.id),
-				held(EARL_ASSERTION_EDGE.result, EARL_LABEL.testResult, resultId),
-				{ rel: EARL_ASSERTION_EDGE.wasGeneratedBy, label: SEQ_PATH_LABEL, id: step, target: EDGE_TARGET.reference },
-			];
-			const owned = { label: EARL_LABEL.testResult, record: { ...result, id: resultId, generatedAtTime } };
-			await store.write({ label: EARL_LABEL.assertion, record: { id, mode, generatedAtTime }, owns: [owned], edges });
-			return id;
+			await store.merge({ "@type": EARL_LABEL.testCase, ...test });
+			return await store.create({
+				"@type": EARL_LABEL.assertion,
+				id,
+				mode,
+				[EARL_ASSERTION_EDGE.assertedBy]: { "@id": assertor.id },
+				[EARL_ASSERTION_EDGE.subject]: { "@id": subject.id },
+				[EARL_ASSERTION_EDGE.test]: { "@id": test.id },
+				[EARL_ASSERTION_EDGE.result]: { ...result, id: `${id} result` },
+				[EARL_ASSERTION_EDGE.wasGeneratedBy]: { "@id": step },
+			});
 		}),
 	);
 }

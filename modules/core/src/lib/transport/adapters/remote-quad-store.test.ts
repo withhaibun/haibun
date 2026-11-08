@@ -39,12 +39,12 @@ describe("RemoteQuadStore", () => {
 		const remote = new RemoteQuadStore({ url: "http://main:1", sign, graphs: ["Widget"], fetchImpl: peer.fetchImpl });
 		expect(() => remote.site).toThrow(/connect/);
 		expect(await remote.connect()).toBe("did:site:main");
-		expect(await remote.write({ label: "Widget", record: { id: "w-1", name: "One" } })).toBe("w-1");
+		expect(await remote.merge({ "@type": "Widget", id: "w-1", name: "One" })).toBe("w-1");
 		expect(await recordOf(remote, "Widget", "w-1")).toEqual(WIDGET_ONE);
 		expect(await recordOf(backing, "Widget", "w-1")).toEqual(WIDGET_ONE);
 		expect(peer.calls.map((c) => [c.method, c.invoked])).toEqual([
 			[ACTION_BEGIN, undefined],
-			["store.write", "store.write"],
+			["store.merge", "store.write"],
 			["store.readRecords", "store.read"],
 		]);
 	});
@@ -56,7 +56,7 @@ describe("RemoteQuadStore", () => {
 		await remote.connect();
 		const satellite = new QuadStore(newStoreChain());
 		await satellite.registerStore(remote, ["Widget"]);
-		await satellite.write({ label: "Widget", record: { id: "w-9", name: "Nine" } });
+		await satellite.merge({ "@type": "Widget", id: "w-9", name: "Nine" });
 		const nine = { "@id": heldRecordIri("Widget", "w-9"), "@type": "Widget", id: "w-9", name: "Nine" };
 		expect(await recordOf(backing, "Widget", "w-9")).toEqual(nine);
 		expect(await readEvery(satellite, { label: "Widget", filters: equalTo({ id: "w-9" }) })).toEqual([nine]);
@@ -64,12 +64,12 @@ describe("RemoteQuadStore", () => {
 
 	it("stays mount-scoped: all() covers only the mounted graphs and clustered reads intersect the type filter", async () => {
 		const backing = new QuadStore(newStoreChain());
-		await backing.write({ label: "Widget", id: "w-1", fields: { name: "One" } });
-		await backing.write({ label: "Elsewhere", id: "p-1", fields: { name: "Private" } });
+		await backing.merge({ "@type": "Widget", "@id": "w-1", name: "One" });
+		await backing.merge({ "@type": "Elsewhere", "@id": "p-1", name: "Private" });
 		const peer = servingPeer(backing);
 		const remote = new RemoteQuadStore({ url: "http://main:1", sign, graphs: ["Widget"], fetchImpl: peer.fetchImpl });
 		await remote.connect();
-		expect((await remote.all()).map((q) => q.namedGraph)).toEqual(["Widget"]);
+		expect([...new Set((await remote.all()).map((q) => q.namedGraph))]).toEqual(["Widget"]);
 		const clustered = await remote.getClusteredQuads({ perTypeLimit: 10, accessLevel: "private" });
 		expect(clustered.clusters.map((c) => c.type)).toEqual(["Widget"]);
 		expect(await remote.getClusteredQuads({ perTypeLimit: 10, accessLevel: "private", types: ["Elsewhere"] })).toEqual({ quads: [], clusters: [] });
@@ -84,6 +84,6 @@ describe("RemoteQuadStore", () => {
 		}) as typeof fetch;
 		const denied = new RemoteQuadStore({ url: "http://main:1", sign, graphs: ["Widget"], fetchImpl: denyingFetch });
 		await denied.connect();
-		await expect(denied.write({ label: "Widget", record: { id: "w-1" } })).rejects.toThrow(/capability store.write required/);
+		await expect(denied.merge({ "@type": "Widget", id: "w-1" })).rejects.toThrow(/capability store.write required/);
 	});
 });

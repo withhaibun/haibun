@@ -41,6 +41,7 @@ export const factDomainDefinition: TDomainDefinition = {
 			[FACT_FIELD.generatedAtTime]: LinkRelations.GENERATED_AT_TIME.rel,
 			[FACT_FIELD.accessLevel]: LinkRelations.ACCESS_LEVEL.rel,
 		},
-		edges: { [EDGE.wasGeneratedBy]: { rel: LinkRelations.WAS_GENERATED_BY.rel, range: SEQ_PATH_LABEL } },
+		// A step's caller may not hold a read action, so its write of a fact doesn't read whether the store holds the step's record.
+		edges: { [EDGE.wasGeneratedBy]: { rel: LinkRelations.WAS_GENERATED_BY.rel, range: SEQ_PATH_LABEL, reference: true } },
 	},
 };

@@ -7,16 +7,19 @@ import { EDGE, FACT_LABEL, SEQ_PATH_LABEL } from "../../domains/resources.js";
 import { type IQuadStore } from "../../steps/ports.js";
 import { factIdOf, formatRecordName, type TRecordName } from "../../actuality/domains/seq-path.js";
 import { FACT_FIELD } from "../domains/facts.js";
-import { EDGE_TARGET } from "../domains/unit.js";
 
-/** One product of a step: its domain, its value, the field of the product where the step declares a domain for each field, and when it was produced. */
-export type TProduct = { domain: string; value: unknown; field?: string; generatedAtTime: string };
+/** One product of a step: its domain, its value, and the field of the product where the step declares a domain for each field. */
+export type TProduct = { domain: string; value: unknown; field?: string };
 
-/** Writes the fact of one product of a step with its edge to the step's record, in one unit. The edge is written as a reference,
- *  since a step's caller may not hold a read action, and the fact is actuality's record of the step. Returns the fact's id. */
-export async function assertFact(store: Pick<IQuadStore, "write">, step: TRecordName, product: TProduct): Promise<string> {
+/** Writes the fact of one product of a step with its edge to the step's record, in one unit, and returns the fact's id. The fact
+ *  is actuality's record of the step, and the store states when it was produced. */
+export async function assertFact(store: Pick<IQuadStore, "merge">, step: TRecordName, product: TProduct): Promise<string> {
 	const id = factIdOf(step, product.field);
-	const record = { [FACT_FIELD.id]: id, [FACT_FIELD.domain]: product.domain, [FACT_FIELD.value]: product.value, [FACT_FIELD.generatedAtTime]: product.generatedAtTime };
-	await store.write({ label: FACT_LABEL, record, edges: [{ rel: EDGE.wasGeneratedBy, label: SEQ_PATH_LABEL, id: formatRecordName(step), target: EDGE_TARGET.reference }] });
-	return id;
+	return await store.merge({
+		"@type": FACT_LABEL,
+		[FACT_FIELD.id]: id,
+		[FACT_FIELD.domain]: product.domain,
+		[FACT_FIELD.value]: product.value,
+		[EDGE.wasGeneratedBy]: { "@type": SEQ_PATH_LABEL, "@id": formatRecordName(step) },
+	});
 }

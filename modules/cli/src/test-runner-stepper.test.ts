@@ -35,7 +35,7 @@ import { RUN_AUTHORITY, runAuthorizedWith } from "@haibun/core/lib/domains/capab
 import { RUN_DOMAIN, SUPERVISOR_CAPABILITIES, runDomainDefinitions } from "./domains/run.js";
 import { DomainKeySchema } from "@haibun/core/lib/domains/domains.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
-import { isWholeRecord, type TUnit } from "@haibun/core/lib/records/domains/unit.js";
+import { WRITE_VERB, type TNode } from "@haibun/core/lib/records/domains/unit.js";
 
 type TResult = { ok: boolean; errorMessage?: string; products?: { run: string; status: string; record: string } };
 
@@ -127,13 +127,16 @@ function harness({ supervised = true, standing = false }: { supervised?: boolean
 	const written: Array<{ label: string; data: Record<string, unknown> }> = [];
 	const stepper = new TestRunnerStepper();
 	const supervisor = new InstanceStepper();
-	// Wraps write on the framework's in-memory QuadStore to list each record it writes, in order.
+	// Wraps the writes of the framework's in-memory QuadStore to list each record it writes, in order.
 	const store = new QuadStore(newStoreChain());
-	const write = store.write.bind(store);
-	store.write = async (unit: TUnit) => {
-		if (isWholeRecord(unit)) written.push({ label: unit.label, data: { ...unit.record } });
-		return await write(unit);
-	};
+	for (const verb of [WRITE_VERB.create, WRITE_VERB.merge] as const) {
+		const write = store[verb].bind(store);
+		store[verb] = async (node: TNode) => {
+			const { "@type": label, ...data } = node;
+			written.push({ label, data });
+			return await write(node);
+		};
+	}
 	const world = getDefaultWorld();
 	if (standing) world.moduleOptions = { [getStepperOptionName(stepper, "RUN_STANDS")]: "true", [getStepperOptionName(stepper, "RUN_PORT")]: "8331" };
 	world.shared.getStore = () => store;

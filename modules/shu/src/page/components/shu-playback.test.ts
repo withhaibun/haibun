@@ -28,9 +28,14 @@ const LAST = 1_000_500;
 async function anActuality(): Promise<void> {
 	const store = actualityStore();
 	for (const [i, at] of [FIRST, LAST].entries())
-		await store.write({
-			label: SEQ_PATH_LABEL,
-			record: { id: `1700000000000-1.0.${i}`, stepText: `step ${i}`, actionStatus: "passed", accessLevel: "private", level: "info", generatedAtTime: new Date(at).toISOString() },
+		await store.merge({
+			"@type": SEQ_PATH_LABEL,
+			id: `1700000000000-1.0.${i}`,
+			stepText: `step ${i}`,
+			actionStatus: "passed",
+			accessLevel: "private",
+			level: "info",
+			generatedAtTime: new Date(at).toISOString(),
 		});
 	installGraph(store);
 	declareGraphSpec({ types: [SEQ_PATH_LABEL], rels: ACTUALITY_RELS });

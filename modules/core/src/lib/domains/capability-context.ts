@@ -164,6 +164,21 @@ export function stepInFlight(): TStepInFlight | undefined {
 	return stepStore.getStore();
 }
 
+const delegatedWritesStore = new AsyncLocalStorage<TStepWrites | undefined>();
+
+/** Holds the writes the contract of another instance's step allows, for the duration of a store call that instance sends while
+ *  the step runs. The serving store checks the call's writes against them, as the step's own instance checks its writes. */
+export function runWritingWithin<T>(writes: TStepWrites | undefined, within: () => T): T {
+	return delegatedWritesStore.run(writes, within);
+}
+
+/** Returns the writes the contract of the step in progress allows: the step this call is part of, or the step of another
+ *  instance whose store call this is. Undefined outside a step, and for a step on the contracts baseline. */
+export function writesInFlight(): TStepWrites | undefined {
+	const step = stepStore.getStore();
+	return step === undefined ? delegatedWritesStore.getStore() : step.writes;
+}
+
 /** The read scope of a call. `ceiling` is the broadest level the call reads, and is undefined for the instance's own reads.
  *  A call whose caller doesn't hold a read action holds `refusal` in place of a ceiling. `from` is the list of held actions
  *  the scope was derived from, so a dispatch under the same list doesn't derive it again. */

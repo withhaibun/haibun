@@ -11,13 +11,19 @@ import { HTTP_TRACE_SOURCES } from "./observations.js";
 async function worldHoldingTrace(): Promise<TWorld> {
 	const store = storeOfDomains(WebPlaywrightDomains);
 	const at = (minute: number) => new Date(Date.UTC(2026, 9, 22, 12, minute)).toISOString();
-	await store.write({
-		label: HTTP_REQUEST_LABEL,
-		record: { id: "GET /app", method: "GET", status: 200, durationMs: 12, url: "http://localhost/app", accessLevel: Access.private, generatedAtTime: at(0) },
+	await store.merge({
+		"@type": HTTP_REQUEST_LABEL,
+		id: "GET /app",
+		method: "GET",
+		status: 200,
+		durationMs: 12,
+		url: "http://localhost/app",
+		accessLevel: Access.private,
+		generatedAtTime: at(0),
 	});
-	await store.write({ label: HTTP_HOST_LABEL, record: { id: "localhost", name: "localhost", requestCount: 3, accessLevel: Access.private, generatedAtTime: at(0) } });
-	await store.write({ label: VISITED_PAGE_LABEL, record: { id: "visit-b", name: "http://localhost/second", accessLevel: Access.private, generatedAtTime: at(2) } });
-	await store.write({ label: VISITED_PAGE_LABEL, record: { id: "visit-a", name: "http://localhost/first", accessLevel: Access.private, generatedAtTime: at(1) } });
+	await store.merge({ "@type": HTTP_HOST_LABEL, id: "localhost", name: "localhost", requestCount: 3, accessLevel: Access.private, generatedAtTime: at(0) });
+	await store.merge({ "@type": VISITED_PAGE_LABEL, id: "visit-b", name: "http://localhost/second", accessLevel: Access.private, generatedAtTime: at(2) });
+	await store.merge({ "@type": VISITED_PAGE_LABEL, id: "visit-a", name: "http://localhost/first", accessLevel: Access.private, generatedAtTime: at(1) });
 	store.query = () => Promise.reject(new Error("the store reads quads by a key"));
 	return { shared: { getStore: () => store } } as unknown as TWorld;
 }

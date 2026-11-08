@@ -92,7 +92,7 @@ describe("a waypoint a step saves", () => {
 					if (!(store instanceof QuadStore)) throw new Error("the world's store isn't a QuadStore, which routes a graph to a backing store");
 					const { domains } = this.getWorld();
 					await store.registerStore(new QuadStore(newStoreChain(), undefined, () => readDeclarationsOf(domains, HAIBUN_RECORD_NAMESPACE)), [SAVED_WAYPOINT_LABEL]);
-					await store.write({ label: SAVED_WAYPOINT_LABEL, record: record as Record<string, unknown> });
+					await store.merge({ "@type": SAVED_WAYPOINT_LABEL, ...(record as Record<string, unknown>) });
 				},
 			};
 		}

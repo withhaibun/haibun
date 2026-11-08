@@ -7,37 +7,37 @@ import { QuadStore, newStoreChain } from "./quad-store.js";
 import { recordOf } from "../../records/pipelines/record-reads.js";
 import { storeDeclaring } from "../../test/declared-types.js";
 
-const IDENTITY_REFUSED = /is identified by its "(id|path)" field, and this record doesn't state it/;
+const IDENTITY_REFUSED = /is identified by its "(id|path)" field or its "@id", and this record doesn't state one id/;
 
 describe("the identity of a written record", () => {
 	it('refuses a record without a value in its identity field, rather than writing it under "undefined"', async () => {
 		const store = new QuadStore(newStoreChain());
-		await expect(store.write({ label: "Thing", record: { path: "src/a.ts", name: "a" } })).rejects.toThrow(IDENTITY_REFUSED);
+		await expect(store.merge({ "@type": "Thing", path: "src/a.ts", name: "a" })).rejects.toThrow(IDENTITY_REFUSED);
 		expect(await store.query({ namedGraph: "Thing" })).toHaveLength(0);
 	});
 
 	it("refuses an empty or whitespace identity, which doesn't address a record either", async () => {
 		const store = new QuadStore(newStoreChain());
-		await expect(store.write({ label: "Thing", record: { id: "" } })).rejects.toThrow(IDENTITY_REFUSED);
-		await expect(store.write({ label: "Thing", record: { id: "   " } })).rejects.toThrow(IDENTITY_REFUSED);
+		await expect(store.merge({ "@type": "Thing", id: "" })).rejects.toThrow(IDENTITY_REFUSED);
+		await expect(store.merge({ "@type": "Thing", id: "   " })).rejects.toThrow(IDENTITY_REFUSED);
 	});
 
 	it("writes each record of a type it doesn't declare under its id", async () => {
 		const store = new QuadStore(newStoreChain());
-		await store.write({ label: "Thing", record: { id: "a", name: "first" } });
-		await store.write({ label: "Thing", record: { id: "b", name: "second" } });
+		await store.merge({ "@type": "Thing", id: "a", name: "first" });
+		await store.merge({ "@type": "Thing", id: "b", name: "second" });
 		const subjects = [...new Set((await store.query({ namedGraph: "Thing" })).map((q) => q.subject))].sort();
 		expect(subjects, "two records, which an unaddressable write collapsed into one").toEqual(["a", "b"]);
 	});
 
 	it("identifies a record by the field its type's declaration states", async () => {
 		const store = storeDeclaring({ File: { id: "path" } });
-		await store.write({ label: "File", record: { path: "src/a.ts", name: "a" } });
+		await store.merge({ "@type": "File", path: "src/a.ts", name: "a" });
 		expect(await recordOf(store, "File", "src/a.ts")).toBeDefined();
 	});
 
 	it("refuses a record without the field its type's declaration states, naming the field", async () => {
 		const store = storeDeclaring({ File: { id: "path" } });
-		await expect(store.write({ label: "File", record: { name: "a" } })).rejects.toThrow(/"path"/);
+		await expect(store.merge({ "@type": "File", name: "a" })).rejects.toThrow(/"path"/);
 	});
 });

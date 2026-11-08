@@ -246,6 +246,11 @@ const EdgeConcernSchema = z.object({
 	/** The noun a party displays under when it is this edge's TARGET: `X issuer→ P` makes P an "Issuer". Declared
 	 *  beside the edge that confers the role, so a view reads what a party is called rather than holding a list. */
 	roleNoun: z.string().optional(),
+	/** Whether the edge's target is part of the record, reaches a record the store may not hold, or is the record's one target of
+	 *  the relation, as the topology declares it. A page writes by them as the instance does. */
+	owns: z.literal(true).optional(),
+	reference: z.boolean().optional(),
+	functional: z.literal(true).optional(),
 });
 type TEdgeConcern = z.infer<typeof EdgeConcernSchema>;
 
@@ -357,6 +362,9 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 				...(edgeDef.rolePriority !== undefined ? { rolePriority: edgeDef.rolePriority } : {}),
 				...(edgeDef.label !== undefined ? { label: edgeDef.label } : {}),
 				...(edgeDef.roleNoun !== undefined ? { roleNoun: edgeDef.roleNoun } : {}),
+				...(edgeDef.owns === undefined ? {} : { owns: edgeDef.owns }),
+				...(edgeDef.reference === undefined ? {} : { reference: edgeDef.reference }),
+				...(edgeDef.functional === undefined ? {} : { functional: edgeDef.functional }),
 			};
 		}
 

@@ -344,9 +344,11 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		if (held) {
 			if (held.lines.length === lines.length && held.lines.every((line, at) => line === lines[at])) return held;
 		}
-		const saved: TSavedWaypoint = { id: outcome, lines, source, generatedAtTime: new Date().toISOString() };
+		await store.merge({ "@type": SAVED_WAYPOINT_LABEL, id: outcome, lines, source });
+		const saved = await store.readRecord({ label: SAVED_WAYPOINT_LABEL, schema: SavedWaypointSchema }, outcome);
+		if (saved === undefined)
+			throw new Error(`the saved waypoint "${outcome}" was written, and the store doesn't return it; check that the store holds ${SAVED_WAYPOINT_LABEL} records`);
 		this.registerSavedWaypoints([saved]);
-		await store.write({ label: SAVED_WAYPOINT_LABEL, record: saved });
 		return saved;
 	}
 

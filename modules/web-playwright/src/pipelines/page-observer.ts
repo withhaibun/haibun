@@ -64,7 +64,7 @@ export function pageObserver(world: TWorld, pageKey: string): TPageObserver {
 			const [name] = url.split("#");
 			void world.shared
 				.getStore()
-				.write({ label: VISITED_PAGE_LABEL, record: { id: `visit-${pageKey}-${navigateCount}`, name, generatedAtTime: new Date().toISOString() } })
+				.create({ "@type": VISITED_PAGE_LABEL, id: `visit-${pageKey}-${navigateCount}`, name })
 				.catch(failed(`the visit to ${url}`));
 			navigateCount++;
 		},

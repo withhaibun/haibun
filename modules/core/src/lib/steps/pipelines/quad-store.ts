@@ -12,7 +12,7 @@ import { z } from "zod";
 import { unwrapToShape } from "../../domains/zod-unwrap.js";
 import { RecordSchema, recordOf, schemaRecord } from "../../domains/json-text.js";
 import { itemAt } from "../../domains/item-at.js";
-import { assertDeclaredEdge, JSON_LD_KEYWORD } from "../../domains/hypermedia.js";
+import { JSON_LD_KEYWORD } from "../../domains/hypermedia.js";
 import {
 	SHARED_GRAPH,
 	assertRegisteredSchema,
@@ -35,23 +35,25 @@ import { AccessLevelSchema, HELD_BY, LinkRelations, withinAccess, type AccessLev
 import { seenAt, writesAtEveryLevel, writtenAt } from "../../domains/actions.js";
 import { distinctOf, readFromRecords, recordsOfQuads, type THeldRecord, type TReadDeclaration, type TReadDeclarations } from "../../records/derivations/read-records.js";
 import { quadsOfRead, readEvery, type TRecordReader } from "../../records/pipelines/record-reads.js";
+import { densityOverQuadStore } from "../../records/pipelines/record-density.js";
 import { QuadLayer } from "../../records/machines/quad-layer.js";
-import { bucketOf, sliceQuadsPerType } from "../derivations/quad-sample.js";
+import { sliceQuadsPerType } from "../derivations/quad-sample.js";
+import { NotUnique, uniqueValuesOf, WRITE_VERB, type TNode, type TReadVersion, type TRecordName, type TRemoval, type TWriteVerb } from "../../records/domains/unit.js";
+import { EDGE_TARGET } from "../../records/derivations/edge-declarations.js";
 import {
-	EDGE_TARGET,
-	isReferenced,
-	isWholeRecord,
-	NotUnique,
-	uniqueValuesOf,
-	unitsOf,
-	type TReadVersion,
-	type TRecordName,
-	type TRemoval,
-	type TUnit,
-	type TWholeRecord,
-} from "../../records/domains/unit.js";
+	changedFields,
+	nodeOf,
+	partDeclarationOf,
+	statesOnlyId,
+	unitParts,
+	wholeFields,
+	UNDECLARED_ID_FIELD,
+	type TPart,
+	type TUnitParts,
+} from "../../records/derivations/unit-parts.js";
 import { RecordVersions } from "../../records/pipelines/record-versions.js";
 import { assertWritesWithin } from "../../records/pipelines/step-writes.js";
+import type { TPartChanges } from "../../records/derivations/contract-writes.js";
 import { withProvenance, type TProvenance } from "../../records/derivations/provenance.js";
 
 /**
@@ -70,9 +72,6 @@ export type TStoreChain = {
 
 /** A chain of stores without a backing store or a federated peer. The first store of actuality starts one. */
 export const newStoreChain = (): TStoreChain => ({ routing: new Map(), federated: new Set() });
-
-/** The field that identifies a record of a type the store's declarations don't name. */
-const UNDECLARED_ID_FIELD = "id";
 
 /** Throws where a fact a write sets on a record of a declared type isn't a field its schema parses or an edge its topology
  *  declares, so a fact set alone fits the type as a whole record's write does. */
@@ -206,7 +205,7 @@ export class QuadStore implements IQuadStore {
 		// A store that refuses a record this one holds isn't registered: this one keeps every record it holds, so the
 		// next write of one of them reads it here, and the caller receives the store's refusal.
 		try {
-			for (const { ng, record } of bySubject.values()) await store.write({ label: ng, record });
+			for (const { ng, record } of bySubject.values()) await store.merge(nodeOf(ng, record));
 		} catch (err) {
 			this.unregisterStore(store);
 			throw err;
@@ -257,31 +256,81 @@ export class QuadStore implements IQuadStore {
 			return holding(this.classified(quad), (q) => q.predicate === quad.predicate);
 		});
 		this.apply(changes);
+		for (const { namedGraph, subject } of changes) this.versions.changed({ label: namedGraph, id: subject });
+	}
+
+	create(node: TNode): Promise<string> {
+		return this.writeUnit(WRITE_VERB.create, node, undefined, (store) => store.create(node));
+	}
+
+	update(node: TNode, version: TReadVersion): Promise<string> {
+		return this.writeUnit(WRITE_VERB.update, node, version, (store) => store.update(node, version));
+	}
+
+	merge(node: TNode): Promise<string> {
+		return this.writeUnit(WRITE_VERB.merge, node, undefined, (store) => store.merge(node));
+	}
+
+	/** What a write reads of a type's declaration: its id field, its schema's fields and its edges, or the id field alone for a type
+	 *  the store's declarations don't name. */
+	private readonly partDeclaration = (label: string) => {
+		const declaration = this.declarations?.().of(label);
+		return declaration === undefined ? undefined : partDeclarationOf(declaration);
+	};
+
+	/** Returns the one backing store of every part of a unit, or undefined where this store's own layer holds them. Refuses a unit
+	 *  whose parts more than one store holds, since a write reaches one store and a unit is written whole. */
+	private backingOf({ record, parts }: TUnitParts): IQuadStore | undefined {
+		const stores = new Set(parts.map(({ label }) => this.storeFor(label)));
+		if (stores.size === 1) return this.storeFor(record.label);
+		const held = parts.map(({ label }) => `${label} (${this.storeFor(label) === undefined ? "this store" : "a backing store"})`);
+		throw new Error(`${record.label} "${record.id}" owns records that different stores hold: ${held.join(", ")}. Register one store for every type of the unit`);
 	}
 
 	/**
-	 * Writes a unit: to the backing store of its record's type, or into this store's own layer. Each change of the unit is
-	 * computed and checked first and then applied without an await, so a reader, a carry at a scenario's end or a backing
-	 * registration during the write never reads a unit that is half written.
+	 * Writes the unit a verb writes from a node: through the one backing store of its parts, or into this store's own layer. Each
+	 * change of the unit is computed and checked first, against the verb's version, the step's contract and the types' unique
+	 * sets, and then applied without an await, so a reader, a carry at a scenario's end or a backing registration during the write
+	 * never reads a unit that is half written.
 	 */
-	async write(unit: TUnit): Promise<string> {
-		const units = unitsOf(unit);
-		for (const part of units) this.refuseDerived(part.label);
-		if (this.levels) assertWritesWithin(unit, this.levels.stepWrites(), this.levels.recordsActuality);
-		const backing = this.storeFor(unit.label);
-		if (backing) return await backing.write(unit);
-		const provenance: TProvenance | undefined = this.levels && { generatedAtTime: new Date().toISOString(), step: this.levels.currentStep() };
-		const parts = units.map((part) => {
-			const name = { label: part.label, id: this.idOf(part) };
-			const held = this.holds(name);
-			const stated = provenance === undefined ? part : withProvenance(part, held, this.declarations?.().of(part.label)?.defaultSort, provenance);
-			return { name, unit: stated, held, changes: this.changesOf(stated) };
+	private async writeUnit(verb: TWriteVerb, node: TNode, version: TReadVersion | undefined, through: (store: IQuadStore) => Promise<string>): Promise<string> {
+		const unit = unitParts(verb, node, version, this.partDeclaration);
+		for (const part of unit.parts) this.refuseDerived(part.label);
+		const backing = this.backingOf(unit);
+		if (backing) return await through(backing);
+		this.versions.check([{ name: unit.record, version: unit.version, held: this.holds(unit.record) }]);
+		const parts = unit.parts.map((part) => ({ part, held: this.holds(part) }));
+		if (this.levels)
+			assertWritesWithin(
+				parts.map(({ part }) => this.partChanges(part)),
+				this.levels.stepWrites(),
+			);
+		const provenance: TProvenance | undefined = this.levels && { generatedAtTime: this.levels.recordTime(), step: this.levels.currentStep() };
+		const changes = parts.map(({ part, held }) => {
+			const stated = provenance === undefined ? part : withProvenance(part, held, this.timeFieldOf(part.label), provenance);
+			return { name: { label: part.label, id: part.id }, changes: this.changesOf(stated, held) };
 		});
-		this.versions.check(parts);
-		for (const { name, changes } of parts) this.assertUnique(name, changes);
-		this.apply(parts.flatMap(({ changes }) => changes));
-		this.versions.wrote(parts);
-		return this.idOf(unit);
+		for (const { name, changes: of } of changes) this.assertUnique(name, of);
+		this.apply(changes.flatMap(({ changes: of }) => of));
+		for (const { name } of changes) this.versions.changed(name);
+		return unit.record.id;
+	}
+
+	/** Returns the field that places a type's records in time where its schema holds it, or undefined for a type that doesn't
+	 *  declare its schema's time field. */
+	private timeFieldOf(label: string): string | undefined {
+		const declaration = this.partDeclaration(label);
+		const field = this.declarations?.().of(label)?.defaultSort;
+		return field === undefined || declaration?.fields?.has(field) === false ? undefined : field;
+	}
+
+	/** Returns the fields and relations a part changes in this store's own layer: each field whose value differs from the held
+	 *  value, and each relation of an edge the layer doesn't hold. */
+	private partChanges(part: TPart): TPartChanges {
+		const held = [...this.quads.ofSubject(part.label, part.id)];
+		const fields = Object.fromEntries(held.filter((q) => !q.objectType).map((q) => [q.predicate, q.object]));
+		const edges = part.edges.filter(({ rel, id }) => !held.some((q) => q.objectType !== undefined && q.predicate === rel && q.object === id)).map(({ rel }) => rel);
+		return { label: part.label, changed: [...changedFields(part, held.length === 0 ? undefined : fields, this.idFieldOf(part.label)), ...edges] };
 	}
 
 	/** Returns the version of a record's fields: in the backing store of its type, or in this store's own layer. */
@@ -320,14 +369,10 @@ export class QuadStore implements IQuadStore {
 		return [...this.quads.ofSubject(label, id)].find((q) => q.predicate === field && !q.objectType);
 	}
 
-	/** Returns whether this store's own layer holds a quad of the record `name` names. */
+	/** Returns whether this store's own layer holds the record `name` names: a field of it. A subject of which the layer holds
+	 *  only edges is a reference, which a write of the record replaces, as a store that keeps edges strictly holds one. */
 	private holds({ label, id }: TRecordName): boolean {
-		return this.quads.ofSubject(label, id).size > 0;
-	}
-
-	/** The id of a unit's record: the id its whole record states, or the id it names. */
-	private idOf(unit: TUnit): string {
-		return isWholeRecord(unit) ? this.identityOf(unit) : unit.id;
+		return [...this.quads.ofSubject(label, id)].some(({ objectType }) => objectType === undefined);
 	}
 
 	/** Applies changes in order, without an await between them. */
@@ -339,65 +384,42 @@ export class QuadStore implements IQuadStore {
 		}
 	}
 
-	/** Returns the changes one unit's record and edges make in this store's own layer. Throws for a record its type refuses. */
-	private changesOf(unit: TUnit): TChange[] {
-		const { label } = unit;
-		const declaration = this.declarations?.().of(label);
-		const id = this.idOf(unit);
-		// A quad doesn't require its subject to be held, so a referenced record changes only its edges here.
-		const records = isWholeRecord(unit) ? this.recordChanges(unit, id) : isReferenced(unit) ? [] : this.fieldChanges(label, id, unit.fields);
+	/** Returns the changes one part's record and edges make in this store's own layer: the record whole where the layer doesn't
+	 *  hold it, or else each field it states. Throws for a record its type refuses. */
+	private changesOf(part: TPart, held: boolean): TChange[] {
+		const { label, id } = part;
+		const records = held ? this.fieldChanges(label, id, part.fields) : statesOnlyId(part) ? [] : this.recordChanges(part);
 		// An edge of a record the unit writes is held at the record's level, which the store doesn't hold before the unit is applied.
 		const written = records.find(({ holds }) => holds?.accessLevel !== undefined)?.holds?.accessLevel;
 		const level = written === undefined ? {} : { accessLevel: written };
-		const edges = (unit.edges === undefined ? [] : unit.edges).map(({ rel, label: toLabel, id: toId, target }): TChange => {
-			if (declaration !== undefined) assertDeclaredEdge(declaration.surface, rel);
+		const edges = part.edges.map(({ rel, label: toLabel, id: toId, target }): TChange => {
 			// objectType states the target's type, so the quad reads back as an edge rather than a literal property.
 			const quad = this.classified({ subject: id, predicate: rel, object: toId, namedGraph: label, objectType: toLabel, ...level });
-			return holding(quad, target === EDGE_TARGET.only ? (q) => q.predicate === rel : keepsEvery);
+			return holding(quad, target === EDGE_TARGET.only ? (q) => q.predicate === rel : (q) => q.predicate === rel && q.object === toId);
 		});
 		return [...records, ...edges];
 	}
 
-	/** The id a whole record states in its type's id field. Throws where the record doesn't state it. */
-	private identityOf({ label, record }: TWholeRecord): string {
-		const idField = this.idFieldOf(label);
-		// The identity is read before it is stringified: String(undefined) is "undefined", which would write the record
-		// under that literal subject, where a read doesn't reach it and the next such record overwrites it.
-		const identity = record[idField];
-		if (identity === undefined || identity === null || String(identity).trim() === "")
-			throw new Error(`a ${label} record is identified by its "${idField}" field, and this record doesn't state it; state the record's ${idField}`);
-		return String(identity);
-	}
-
 	/**
-	 * Returns the changes of a whole record. A record states its level, as every persisted type's record does, and each of its
-	 * quads is held at that level. A write replaces the record's properties and keeps its edges, as a graph store does; a merge
-	 * replaces only the properties it states. A record a name names takes the level of the record that names it, and isn't
-	 * written where this store holds it.
+	 * Returns the changes of a record this store's own layer doesn't hold. A record states its level, as every persisted type's
+	 * record does, and each of its quads is held at that level. A type that declares its schema writes the fields its schema
+	 * parsed and the edges its topology declares; a type a store holds without a declaration, such as a test's own, is a record
+	 * of fields. A null states a field the record doesn't hold.
 	 */
-	private recordChanges({ label, record, merge, namedBy }: TWholeRecord, id: string): TChange[] {
-		const held = this.quads.ofSubject(label, id);
-		if (namedBy !== undefined && held.size > 0) return [];
+	private recordChanges(part: TPart): TChange[] {
+		const { label, id } = part;
+		const fields = wholeFields(part, this.idFieldOf(label));
 		const declared = this.levels?.declared(label);
-		const statedLevel = namedBy === undefined ? record.accessLevel : this.levelOf(namedBy);
-		const parsedLevel = statedLevel === undefined ? undefined : AccessLevelSchema.parse(statedLevel);
+		const parsedLevel = fields.accessLevel === undefined || fields.accessLevel === null ? undefined : AccessLevelSchema.parse(fields.accessLevel);
 		const accessLevel = this.levels ? writtenAt(parsedLevel, declared, this.levels.writeBound()) : parsedLevel;
-		const leveled = declared ? { ...record, accessLevel } : record;
+		const stated = Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== null));
+		const leveled = declared ? { ...stated, accessLevel } : stated;
 		const declaration = this.declarations?.().of(label);
-		// A type that declares its schema writes the fields its schema parsed and the edges its topology declares; a type a store
-		// holds without a declaration, such as a test's own, is a record of fields.
 		const validated = declaration?.schema === undefined ? RecordSchema.parse(leveled) : declaredRecord(declaration.schema, declaration, label, leveled);
-		const stated = Object.entries(validated).filter(([, value]) => value !== undefined && value !== null);
-		const replaced: TChange = { namedGraph: label, subject: id, replaces: (q) => !q.objectType && (merge === undefined || q.predicate in validated) };
 		const level = accessLevel ? { accessLevel } : {};
-		return [replaced, ...stated.map(([predicate, object]) => holding({ subject: id, predicate, object, namedGraph: label, ...level }, keepsEvery))];
-	}
-
-	/** Returns the level the record `name` names is held at in this store's own layer. Throws where this store doesn't hold it. */
-	private levelOf({ label, id }: TRecordName): AccessLevel | undefined {
-		const [first] = this.quads.ofSubject(label, id);
-		if (first === undefined) throw new Error(`${label} ${id} isn't recorded, so a record it names can't take its level`);
-		return first.accessLevel;
+		return Object.entries(validated)
+			.filter(([, value]) => value !== undefined && value !== null)
+			.map(([predicate, object]) => holding({ subject: id, predicate, object, namedGraph: label, ...level }, keepsEvery));
 	}
 
 	/** Returns the changes of fields of a record: a value replaces the field, and a null removes it. Each field is held at the
@@ -500,22 +522,23 @@ export class QuadStore implements IQuadStore {
 		}
 	}
 
-	/** Removes what `removal` names from the backing store of its type, or from this store's own layer. */
+	/** Removes what `removal` names from the backing store of its type, or from this store's own layer: a record with each record
+	 *  it owns, transitively, or one of its edges. */
 	async remove(removal: TRemoval): Promise<void> {
-		const { label, id } = removal;
+		const { label, id, edge } = removal;
 		this.refuseDerived(label);
 		const backing = this.storeFor(label);
 		if (backing) return await backing.remove(removal);
-		const matches =
-			removal.field !== undefined
-				? (q: TQuad) => q.predicate === removal.field
-				: removal.edge !== undefined
-					? (q: TQuad) => q.predicate === removal.edge.rel && q.object === removal.edge.to
-					: () => true;
-		const removed = this.removable([...this.quads.ofSubject(label, id)].filter(matches));
-		for (const q of removed) this.quads.delete(q);
-		if (removal.field !== undefined) this.versions.changed(removal);
-		else if (removal.edge === undefined) this.versions.removed(removal);
+		const held = [...this.quads.ofSubject(label, id)];
+		if (edge !== undefined) {
+			for (const q of this.removable(held.filter((q) => q.predicate === edge.rel && q.object === edge.to))) this.quads.delete(q);
+			return;
+		}
+		const owns = this.declarations?.().of(label)?.edges;
+		const owned = held.filter((q) => q.objectType !== undefined && owns?.[q.predicate]?.owns === true);
+		for (const q of this.removable(held)) this.quads.delete(q);
+		this.versions.removed(removal);
+		for (const q of owned) await this.remove({ label: String(q.objectType), id: String(q.object) });
 	}
 
 	async all(): Promise<TQuad[]> {
@@ -664,32 +687,4 @@ export class QuadStore implements IQuadStore {
 		const quads = await this.query({ predicate: property, namedGraph: label });
 		return distinctOf(quads.map((q) => String(q.object)));
 	}
-}
-
-/** The group a record counts under: how it turned out, or the empty group where it doesn't state it, so a bucket's counts
- *  add up to what it holds. */
-const groupOf = (value: unknown): string => (value === undefined || value === null ? "" : String(value));
-
-/**
- * Counts the records in each division of a span, by how each turned out, over a store that holds its records. An
- * in-memory store and the store a page holds both count through this function, since counting is reading what each
- * already holds. A store with a query engine counts in the engine.
- */
-export async function densityOverQuadStore(store: IQuadStore, query: TDensityQuery): Promise<TDensityResult> {
-	const from = Date.parse(query.from);
-	const to = Date.parse(query.to);
-	if (Number.isNaN(from) || Number.isNaN(to)) throw new Error(`a density read spans instants, and this one names ${query.from} to ${query.to}; name two instants`);
-	if (to < from) throw new Error(`a density read spans forward, and this one names ${query.from} to ${query.to}; name the earlier instant first`);
-	const buckets: Record<string, number>[] = Array.from({ length: query.buckets }, () => ({}));
-	for (const individual of await readEvery(store, { label: query.label, filters: query.filters })) {
-		const stamp = individual[query.timeField];
-		const at = typeof stamp === "string" || typeof stamp === "number" ? Date.parse(String(stamp)) : Number.NaN;
-		const bucket = Number.isNaN(at) ? -1 : bucketOf(at, from, to, query.buckets);
-		if (bucket < 0) continue;
-		const group = groupOf(individual[query.groupBy]);
-		const counts = itemAt(buckets, bucket);
-		const counted = counts[group];
-		counts[group] = counted === undefined ? 1 : counted + 1;
-	}
-	return { buckets };
 }

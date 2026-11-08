@@ -79,9 +79,14 @@ async function generateReport(shown: readonly string[], writes = 1, queries: Arr
 	openRunRegistry(world, steppers);
 	// Each step that showed a view, as actuality records it: what the report reads to determine which columns were open.
 	for (const [at, view] of shown.entries())
-		await store.write({
-			label: SEQ_PATH_LABEL,
-			record: { id: `1700000000000-1.0.${at + 1}`, stepText: "show it", actionStatus: "passed", level: "info", generatedAtTime: new Date(1000 + at).toISOString(), showed: view },
+		await store.merge({
+			"@type": SEQ_PATH_LABEL,
+			id: `1700000000000-1.0.${at + 1}`,
+			stepText: "show it",
+			actionStatus: "passed",
+			level: "info",
+			generatedAtTime: new Date(1000 + at).toISOString(),
+			showed: view,
 		});
 	for (const q of queries) await monitor.cycles.onEvent?.(q as unknown as Parameters<NonNullable<typeof monitor.cycles.onEvent>>[0]);
 	const out = reportPath(shown);

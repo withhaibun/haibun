@@ -4,7 +4,7 @@ import { LinkRelations, SEQ_PATH_LABEL, SPECIFIC_RESOURCE_LABEL } from "../../do
 import { readingDomainDefinition, specificResourceDomainDefinition, textQuoteSelectorDomainDefinition } from "../../domains/resource-domains.js";
 import { readTypedLinks } from "../../records/pipelines/discourse-writes.js";
 import { RECORDED_STATUS } from "../../domains/protocol.js";
-import { declaredTypeOf, storeDeclaring } from "../../test/declared-types.js";
+import { declaredTypeOf, storeDeclaring, TEST_LEVELS } from "../../test/declared-types.js";
 
 const REPORT = "FieldReport";
 /** A line's record, and the record of a statement of it, by their record names. */
@@ -15,7 +15,6 @@ import { SEQ_PATH_FIELD, seqPathDomainDefinition } from "../../actuality/domains
 import { statementsWith } from "./statements.js";
 import { itemAt } from "../../domains/item-at.js";
 import type { TLinkVocabulary } from "../../domains/typed-links.js";
-import { EDGE_TARGET, edgesFrom } from "../../records/domains/unit.js";
 
 const vocab: TLinkVocabulary = {
 	relRange: (rel) => Object.values(LinkRelations).find((e) => e.rel === rel && !(e as { abstract?: boolean }).abstract)?.range,
@@ -33,18 +32,25 @@ describe("statementsWith", () => {
 				[REPORT, {}],
 				...[seqPathDomainDefinition, readingDomainDefinition, specificResourceDomainDefinition, textQuoteSelectorDomainDefinition].map(declaredTypeOf),
 			]),
+			TEST_LEVELS,
 		);
 		// A feature of an actuality: the line `1-1.0.1.1.2` passed, and its statement `1-1.0.1.1.2.1` is running.
-		await store.write({
-			label: SEQ_PATH_LABEL,
-			record: { [SEQ_PATH_FIELD.id]: LINE, [SEQ_PATH_FIELD.actionStatus]: RECORDED_STATUS.completed, [SEQ_PATH_FIELD.stepText]: "a line", ...SEQ_PATH_STATED },
+		await store.merge({
+			"@type": SEQ_PATH_LABEL,
+			[SEQ_PATH_FIELD.id]: LINE,
+			[SEQ_PATH_FIELD.actionStatus]: RECORDED_STATUS.completed,
+			[SEQ_PATH_FIELD.stepText]: "a line",
+			...SEQ_PATH_STATED,
 		});
-		await store.write({
-			label: SEQ_PATH_LABEL,
-			record: { [SEQ_PATH_FIELD.id]: STEP, [SEQ_PATH_FIELD.actionStatus]: RECORDED_STATUS.running, [SEQ_PATH_FIELD.stepText]: "prose", ...SEQ_PATH_STATED },
+		await store.merge({
+			"@type": SEQ_PATH_LABEL,
+			[SEQ_PATH_FIELD.id]: STEP,
+			[SEQ_PATH_FIELD.actionStatus]: RECORDED_STATUS.running,
+			[SEQ_PATH_FIELD.stepText]: "prose",
+			...SEQ_PATH_STATED,
 		});
 		// The cited document. The statement references a record that exists.
-		await store.write({ label: REPORT, record: { id: "spec-1", generatedAtTime: "2026-07-01T00:00:00.000Z" } });
+		await store.merge({ "@type": REPORT, id: "spec-1", generatedAtTime: "2026-07-01T00:00:00.000Z" });
 		await readTypedLinks(
 			store,
 			vocab,
@@ -69,7 +75,7 @@ describe("statementsWith", () => {
 	});
 
 	it("reads a statement made by hand as a row without provenance, since a reading's stated records don't hold it", async () => {
-		await store.write(edgesFrom(REPORT, "report-2", { rel: LinkRelations.CITES_AS_EVIDENCE.rel, label: REPORT, id: "spec-1", target: EDGE_TARGET.held }));
+		await store.merge({ "@type": REPORT, "@id": "report-2", [LinkRelations.CITES_AS_EVIDENCE.rel]: { "@type": REPORT, "@id": "spec-1" } });
 		const rows = await statementsWith(store, LinkRelations.CITES_AS_EVIDENCE.rel);
 		const byHand = rows.find((r) => r.subject["@id"] === "report-2");
 		expect(byHand?.reading).toBeUndefined();

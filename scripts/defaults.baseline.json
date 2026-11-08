@@ -89,9 +89,6 @@
 	"modules/core/src/lib/records/derivations/read-records.ts": {
 		"fills an absent value with a constant through ??": 4
 	},
-	"modules/core/src/lib/records/pipelines/discourse-writes.ts": {
-		"fills an absent value with a constant through ??": 1
-	},
 	"modules/core/src/run-policy/pipelines/policy-file.ts": {
 		"fills an absent value with a constant through ??": 3,
 		"states a schema's default value through .default()": 2

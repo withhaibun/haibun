@@ -36,6 +36,7 @@ import {
 import { AccessQuery, LinkRelations, isPersisted, sortFieldOf, statedLevel, type THeldBy, type TRecordNamespace, type TRegisteredDomain } from "../../domains/resources.js";
 import { persistedDomainOf } from "../../domains/domains.js";
 import { recordIri } from "./record-iri.js";
+import { edgeDeclarationsOf, type TEdgeDeclaration } from "./edge-declarations.js";
 import { itemAt } from "../../domains/item-at.js";
 import type { TFilterable } from "./compiled-expression.js";
 
@@ -53,6 +54,8 @@ export type TReadDeclaration = {
 	title?: TTitledBy;
 	schema?: z.ZodType;
 	unique?: readonly (readonly string[])[];
+	/** Each edge the type declares, as a write reads it. */
+	edges: Readonly<Record<string, TEdgeDeclaration>>;
 };
 
 /** What a store reads by: the types and relations it holds, each type's declaration, and the `@id` a read states for each record
@@ -90,6 +93,7 @@ export function readDeclarationsOf(domains: Record<string, TRegisteredDomain>, r
 			surface: querySurface(domain),
 			defaultSort: sortFieldOf(domain.topology),
 			schema: domain.schema,
+			edges: edgeDeclarationsOf(domain.topology.edges),
 			...(heldBy ? { heldBy } : {}),
 			...(title ? { title } : {}),
 			...(unique.length > 0 ? { unique } : {}),
@@ -126,7 +130,12 @@ export function readDeclarationsOfCatalog(catalog: TConcernCatalog): TReadDeclar
 			if (!concern) return undefined;
 			const properties = Object.fromEntries(concern.queryable.map((field) => [field, [REACHED_BY.filter]]));
 			const references = Object.fromEntries(Object.entries(concern.edges).map(([relation, edge]) => [relation, edge.targets]));
-			return { id: concern.idField, surface: { label, properties, references }, defaultSort: concern.validTimeField };
+			const edges = edgeDeclarationsOf(
+				Object.fromEntries(
+					Object.entries(concern.edges).map(([relation, { targets, owns, reference, functional }]) => [relation, { range: targets, owns, reference, functional }]),
+				),
+			);
+			return { id: concern.idField, surface: { label, properties, references }, defaultSort: concern.validTimeField, edges };
 		},
 	};
 }

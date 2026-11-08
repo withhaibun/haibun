@@ -6,10 +6,12 @@ import type { z } from "zod";
 import { querySurface, REACHED_BY } from "../domains/hypermedia.js";
 import { QuadStore, newStoreChain } from "../steps/pipelines/quad-store.js";
 import type { TStoreLevels } from "../steps/ports.js";
-import { HAIBUN_RECORD_NAMESPACE, isPersisted, LinkRelations, type TDomainDefinition } from "../domains/resources.js";
+import { Access, HAIBUN_RECORD_NAMESPACE, isPersisted, LinkRelations, type TDomainDefinition } from "../domains/resources.js";
+import { accessBound, writeBound, writesInFlight } from "../domains/capability-context.js";
 import { mapDefinitionsToDomains } from "../domains/domains.js";
 import { readDeclarationsOf, servedIdOf, type TReadDeclarations } from "../records/derivations/read-records.js";
 import { recordIri } from "../records/derivations/record-iri.js";
+import { edgeDeclarationsOf, type TEdgeDeclaration } from "../records/derivations/edge-declarations.js";
 
 /** The fields and relations of one test type, the field that identifies its records where it isn't `id`, the domain time
  *  field that places its records in time where it isn't `generatedAtTime`, and the sets of fields that two of its records don't share.
@@ -21,6 +23,8 @@ export type TDeclaredType = {
 	relations?: Record<string, readonly string[]>;
 	schema?: z.ZodType;
 	unique?: readonly (readonly string[])[];
+	/** The edges a write reads, where they own, reference or reach one record; else each relation is an edge to a held record. */
+	edges?: Readonly<Record<string, TEdgeDeclaration>>;
 };
 
 /** Returns read declarations of the types `types` names. Each type's id field is the one it names or `id`, its filters
@@ -37,10 +41,12 @@ export function declaredTypes(types: Record<string, TDeclaredType>): TReadDeclar
 			if (!type) return undefined;
 			const properties = Object.fromEntries((type.filters ?? []).map((field) => [field, [REACHED_BY.filter]]));
 			const references = Object.fromEntries((type.relations === undefined ? [] : Object.entries(type.relations)).map(([relation, ranges]) => [relation, [...ranges]]));
+			const edges = type.edges === undefined ? edgeDeclarationsOf(Object.fromEntries(Object.entries(references).map(([relation, range]) => [relation, { range }]))) : type.edges;
 			const declared = {
 				id: type.id === undefined ? "id" : type.id,
 				surface: { label, properties, references },
 				defaultSort: type.time === undefined ? LinkRelations.GENERATED_AT_TIME.rel : type.time,
+				edges,
 			};
 			return { ...declared, ...(type.schema === undefined ? {} : { schema: type.schema }), ...(type.unique === undefined ? {} : { unique: type.unique }) };
 		},
@@ -50,7 +56,7 @@ export function declaredTypes(types: Record<string, TDeclaredType>): TReadDeclar
 /** Returns the test declaration of a persisted type its definition declares: its id field, the edges its topology declares and its schema. */
 export function declaredTypeOf({ schema, topology }: TDomainDefinition): [string, TDeclaredType] {
 	if (!isPersisted(topology)) throw new Error("a test declares a persisted type, and this definition doesn't persist one. Pass a persisted type's definition.");
-	return [topology.persistedAs, { id: topology.id, relations: querySurface({ schema, topology }).references, schema }];
+	return [topology.persistedAs, { id: topology.id, relations: querySurface({ schema, topology }).references, schema, edges: edgeDeclarationsOf(topology.edges) }];
 }
 
 /** Returns read declarations of the types `types` names as a page reads them: a read states the `@id` the instance served,
@@ -59,6 +65,19 @@ export const servedTypes = (types: Record<string, TDeclaredType>): TReadDeclarat
 
 /** Returns the record IRI of the record of `label` with `id`, under haibun's namespace. */
 export const heldRecordIri = (label: string, id: string): string => recordIri(HAIBUN_RECORD_NAMESPACE.prefix, label, id);
+
+/** The levels of a test's store that holds what a writer writes, as actuality's store does: it reads and writes within the call in
+ *  progress, holds a record that doesn't state its level at private, checks each write against the step in progress, and states
+ *  each record's provenance on the system clock. A store without levels holds a copy of what a site served, which the site
+ *  stamped. */
+export const TEST_LEVELS: TStoreLevels = {
+	bound: accessBound,
+	writeBound,
+	declared: () => Access.private,
+	stepWrites: writesInFlight,
+	currentStep: () => undefined,
+	recordTime: () => new Date().toISOString(),
+};
 
 /** Returns an in-memory store that reads the records of the types `types` names. */
 export function storeDeclaring(types: Record<string, TDeclaredType>, levels?: TStoreLevels): QuadStore {

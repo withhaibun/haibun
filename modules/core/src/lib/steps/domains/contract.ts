@@ -133,11 +133,17 @@ export function contractStatements(step: { readonly contract?: TStepContract }, 
  *  write a store refused during the step, as `Type.field`, which the step's record lists. */
 export type TStepWrites = { readonly step: string; readonly products: readonly string[]; readonly changes: readonly TField[]; readonly refused: string[] };
 
-/** Returns the writes a step's contract allows, or undefined where the contract doesn't declare `changes`. A step that doesn't
- *  declare `changes` is one that `contracts.baseline.json` records, and its writes aren't checked. */
-export function stepWrites(step: { readonly contract?: TStepContract }, name: string, persistedAsOf: (domain: string) => string | undefined): TStepWrites | undefined {
-	const changes = step.contract?.changes;
-	if (changes === undefined) return undefined;
+/** Returns the writes a step's contract allows, or undefined for a step on `contracts.baseline.json`: one that isn't a read and
+ *  doesn't declare `changes`, whose writes aren't checked. A read that doesn't declare `changes` changes only its products, so it
+ *  is checked as `changes: []`. */
+export function stepWrites(
+	step: { readonly read?: boolean; readonly contract?: TStepContract },
+	name: string,
+	persistedAsOf: (domain: string) => string | undefined,
+): TStepWrites | undefined {
+	const declared = step.contract?.changes;
+	if (declared === undefined && step.read !== true) return undefined;
+	const changes = declared === undefined ? [] : declared;
 	return { step: name, products: contractWrites({ contract: { products: step.contract?.products } }, persistedAsOf), changes, refused: [] };
 }
 

@@ -69,18 +69,16 @@ describeWindowedSource("the window of a run", async () => {
 	declareGraphSpec({ types: [SEQ_PATH_LABEL, LOG_MESSAGE_LABEL, RUN_ARTIFACT_LABEL], rels: ACTUALITY_RELS });
 	const store = actualityStore();
 	for (let i = 0; i < CONFORMANCE_ROWS; i++) {
-		await store.write({
-			label: SEQ_PATH_LABEL,
-			record: {
-				id: `${RUN}.0.${i}`,
-				stepText: shouldName(i),
-				actionStatus: "passed",
-				accessLevel: "private",
-				level: "info",
-				generatedAtTime: iso(1000 + i),
-				endedAtTime: iso(1000 + i),
-				recordedAtTime: iso(1000 + i),
-			},
+		await store.merge({
+			"@type": SEQ_PATH_LABEL,
+			id: `${RUN}.0.${i}`,
+			stepText: shouldName(i),
+			actionStatus: "passed",
+			accessLevel: "private",
+			level: "info",
+			generatedAtTime: iso(1000 + i),
+			endedAtTime: iso(1000 + i),
+			recordedAtTime: iso(1000 + i),
 		});
 	}
 	installGraph(store);

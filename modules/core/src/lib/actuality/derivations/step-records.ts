@@ -37,8 +37,8 @@ export type TStepRan = { ranVia: string; ranOn?: string };
 /** A step's record as its start writes it, and as its end writes it again with how it ended. */
 export type TStepRecord = Record<string, unknown>;
 
-/** A step's record at its start, written at `at` (an ISO time). It states every field the SeqPath schema requires, so a
- *  reader that reads the record during the step reads a whole record. */
+/** A step's record at its start, written at `at` (an ISO time). It states every field the SeqPath schema requires besides the
+ *  time the store states as its provenance, so a reader that reads the record during the step reads a whole record. */
 export function startRecord(actualityFeature: string, featureStep: TFeatureStep, authorization: TStepAuthorization, ran: TStepRan, call: TStepCall, at: string): TStepRecord {
 	const params = paramsOf(featureStep);
 	const record: TStepRecord = {
@@ -52,7 +52,6 @@ export function startRecord(actualityFeature: string, featureStep: TFeatureStep,
 		// words of the line.
 		[SEQ_PATH_FIELD.called]: calledOf(featureStep.action.stepperName, featureStep.action.actionName),
 		[SEQ_PATH_FIELD.actionStatus]: RECORDED_STATUS.running,
-		[SEQ_PATH_FIELD.generatedAtTime]: at,
 		[SEQ_PATH_FIELD.ranVia]: ran.ranVia,
 		// A call made into a running instance is a step actuality records. Its record has the same level as its events. That
 		// level is below the level of actuality's own steps, so a reader of actuality isn't shown the calls of other readers.
@@ -90,6 +89,21 @@ export type TStepEnded = {
 	showed?: string;
 	result?: string;
 };
+
+/** The fields a step's end states, each null, which a step's start writes so a record doesn't keep how an earlier dispatch at its
+ *  path ended. */
+export const STEP_END_CLEARED: Readonly<Record<string, null>> = Object.fromEntries(
+	[
+		SEQ_PATH_FIELD.endedAtTime,
+		SEQ_PATH_FIELD.verdict,
+		SEQ_PATH_FIELD.error,
+		SEQ_PATH_FIELD.entailment,
+		SEQ_PATH_FIELD.refusedWrites,
+		SEQ_PATH_FIELD.proof,
+		SEQ_PATH_FIELD.showed,
+		SEQ_PATH_FIELD.result,
+	].map((field) => [field, null]),
+);
 
 /** A step's record at its end, written at `at` (an ISO time): its start with how it ended. The record's time of writing is
  *  its end, so a read of the records written since a given time returns the step's end. */

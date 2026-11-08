@@ -24,7 +24,7 @@ import { FragmentSchema, isFragment } from "./media-fragments.js";
 import type { TListDeclaration } from "./lists.js";
 import type { TRecordType } from "../steps/domains/quad-types.js";
 import type { IQuadStore } from "../steps/ports.js";
-import { EDGE_TARGET, type TUnitEdge } from "../records/domains/unit.js";
+import type { TRecordName } from "../records/domains/unit.js";
 
 // ============================================================================
 // Resource identity
@@ -660,9 +660,12 @@ export type TEdgeDef = {
 	roleNoun?: string;
 	/** Set where the edge's target may be absent when a record is written. A store writes such an edge to a reference. */
 	reference?: boolean;
-	/** Set where the edge's target is part of the record, such as a Comment's Body. A unit holds the record and each record it
-	 *  owns, and a store writes them in one operation. */
+	/** Set where the edge's target is part of the record, such as a Comment's Body. A node embeds each record it owns under the
+	 *  edge, and a store writes the record and what it owns in one operation, and removes them together. */
 	owns?: true;
+	/** Set where a record reaches at most one target by the edge (`owl:FunctionalProperty`), so a write of the edge replaces the
+	 *  record's edge to any other. */
+	functional?: true;
 };
 
 /**
@@ -979,21 +982,25 @@ export const COMMENT_TOPOLOGY: THypermediaTopology = {
 		// The author as a navigable edge to that agent. A comment links to the person, service or model that wrote it
 		// and doesn't only name it in a string. The edge ranges over Principal, which is a sec:Controller and a
 		// prov:Agent, so every kind of author is well-formed against it. The property with the same rel remains
-		// because author is a sort and filter column.
-		[LinkRelations.ATTRIBUTED_TO.rel]: { rel: LinkRelations.ATTRIBUTED_TO.rel, range: PRINCIPAL_LABEL },
+		// because author is a sort and filter column. The store may not hold the author's record, as an external
+		// principal's isn't written.
+		[LinkRelations.ATTRIBUTED_TO.rel]: { rel: LinkRelations.ATTRIBUTED_TO.rel, range: PRINCIPAL_LABEL, reference: true },
 		// The comment's subject: any Resource, such as an entity or another Comment in a thread.
 		[LinkRelations.TARGET.rel]: { rel: LinkRelations.TARGET.rel, range: RESOURCE_LABEL },
 		// The comment's addressee (as:to, the rel an email's recipients carry). A question addresses the agent expected
 		// to respond. A response addresses the person who asked. A decision addresses the party that requested it. This
 		// edge and attributedTo let a view read a discourse as messages between agents. oa:hasTarget holds the
 		// comment's subject.
-		[LinkRelations.AUDIENCE.rel]: { rel: LinkRelations.AUDIENCE.rel, range: RESOURCE_LABEL },
+		// The store may not hold the addressee's record, as an external principal's isn't written.
+		[LinkRelations.AUDIENCE.rel]: { rel: LinkRelations.AUDIENCE.rel, range: RESOURCE_LABEL, reference: true },
 		// The record the comment carries: a change request carries the proposal it requests, and a measure carries its
 		// observation. The edge is declared so a view can follow it to the carried record.
 		[LinkRelations.ATTACHMENT.rel]: { rel: LinkRelations.ATTACHMENT.rel, range: RESOURCE_LABEL },
 		// A linking annotation's cross-reference: the note points at another SpecificResource (a section) in the source.
 		[LinkRelations.LINKS_TO.rel]: { rel: LinkRelations.LINKS_TO.rel, range: SPECIFIC_RESOURCE_LABEL },
-		...Object.fromEntries(DISCOURSE_RELS.map((r) => [r, { rel: r, subPropertyOf: LinkRelations.IN_REPLY_TO.rel, range: COMMENT_LABEL }])),
+		// A reply reaches the record it replies to: a Comment of its thread, or the record that starts the thread. The store may
+		// not hold it, as a turn whose model failed doesn't write its response, and a reply to that turn holds its thread.
+		...Object.fromEntries(DISCOURSE_RELS.map((r) => [r, { rel: r, subPropertyOf: LinkRelations.IN_REPLY_TO.rel, range: RESOURCE_LABEL, reference: true }])),
 	},
 	sortColumns: { author: "TEXT", seqPath: "TEXT" },
 };
@@ -1177,9 +1184,9 @@ export const ANNOTATION_NOTE_DOMAIN = "annotation-note";
 // Discourse write helpers, comment and annotation acts over a quad store
 // ============================================================================
 
-/** The store surface the discourse write helpers call: the write and the removal of units, and the read of quads. Every
+/** The store surface the discourse write helpers call: the writes and the removal of units, and the read of quads. Every
  *  member is an `IQuadStore` member, so every consumer store implements it. */
-export type TDiscourseStore = Pick<IQuadStore, "write" | "remove" | "query">;
+export type TDiscourseStore = Pick<IQuadStore, "create" | "merge" | "remove" | "query">;
 
 /** The maximum length of a Comment's display name. The name is the note text on one line, truncated, so a graph view titles the Comment by its text and not its id. */
 const COMMENT_NAME_MAX = 60;
@@ -1199,34 +1206,33 @@ const selectorOf = (part: TPart): { label: string; fields: Record<string, string
 				reads: part.exact,
 			};
 
-/** Anchors a part inside (sourceLabel, sourceId). It writes the selector that locates the part and a SpecificResource
- *  that names the source and the selector. A quote's optional prefix and suffix let a short or repeated quote resolve to
- *  one occurrence. Returns the ids it wrote and the selector's type. A Comment's oa:hasTarget (anchor) or oa:hasBody
- *  linksTo (cross-reference) points at the SpecificResource. The selector id lets a caller that owns the anchor retract
- *  the pair. */
+/** Anchors a part inside (sourceLabel, sourceId) in one unit: a SpecificResource that names the source, and owns the selector
+ *  that locates the part. The source may be a record the store doesn't hold yet, since a text can quote a document that hasn't
+ *  been read. A quote's optional prefix and suffix let a short or repeated quote resolve to one occurrence. Returns the ids it
+ *  wrote and the selector's type. A Comment's oa:hasTarget (anchor) or oa:hasBody linksTo (cross-reference) points at the
+ *  SpecificResource. The selector id lets a caller that owns the anchor retract the pair. `label` is the name a reader gave
+ *  this part where it was referenced, so it reads as more than its selector, and `generatedBy` names the record that generated
+ *  the anchor, such as the reading of a text. */
 export async function anchorPart(
 	store: TDiscourseStore,
 	sourceLabel: string,
 	sourceId: string,
 	part: TPart,
-	now: string,
-	/** `sourceMayBeAbsent`: a text can quote a document that hasn't been read. Annotating a record already in the store
-	 *  doesn't need it. `label`: the name a reader gave this part where it was referenced, so it reads as more than its
-	 *  selector. */
-	opts?: { sourceMayBeAbsent?: boolean; label?: string },
+	stated?: { label?: string; generatedBy?: TRecordName },
 ): Promise<{ specificResourceId: string; selectorId: string; selectorLabel: string }> {
 	const selector = selectorOf(part);
 	const selectorId = crypto.randomUUID();
-	await store.write({ label: selector.label, record: { id: selectorId, ...selector.fields, generatedAtTime: now } });
 	const specificResourceId = crypto.randomUUID();
 	// An anchor reads as the part it represents. Its id is a generated string. Resolving the title through its selector
 	// is a hop through a second proxy, and that hop ends at the id. A node without a label reads as that string.
-	const record = { id: specificResourceId, generatedAtTime: now, label: opts?.label ?? selector.reads };
-	const edges: TUnitEdge[] = [
-		{ rel: LinkRelations.HAS_SOURCE.rel, label: sourceLabel, id: sourceId, target: opts?.sourceMayBeAbsent ? EDGE_TARGET.reference : EDGE_TARGET.held },
-		{ rel: LinkRelations.HAS_SELECTOR.rel, label: selector.label, id: selectorId, target: EDGE_TARGET.held },
-	];
-	await store.write({ label: SPECIFIC_RESOURCE_LABEL, record, edges });
+	await store.create({
+		"@type": SPECIFIC_RESOURCE_LABEL,
+		id: specificResourceId,
+		label: stated?.label ?? selector.reads,
+		[LinkRelations.HAS_SOURCE.rel]: { "@type": sourceLabel, "@id": sourceId },
+		...(stated?.generatedBy === undefined ? {} : { [LinkRelations.WAS_GENERATED_BY.rel]: { "@type": stated.generatedBy.label, "@id": stated.generatedBy.id } }),
+		[LinkRelations.HAS_SELECTOR.rel]: { "@type": selector.label, id: selectorId, ...selector.fields },
+	});
 	return { specificResourceId, selectorId, selectorLabel: selector.label };
 }
 
