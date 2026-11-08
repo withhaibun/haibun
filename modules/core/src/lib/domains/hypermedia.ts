@@ -644,6 +644,8 @@ export type ResourceRels = {
 	/** The fields a store counts the type's removed records by (`topology.countedBy`), empty where it doesn't declare them.
 	 *  Throws for a type that isn't declared. */
 	countedBy(type: string): readonly string[];
+	/** The sets of properties that two of the type's records don't share (`topology.unique`), empty where it doesn't declare one. */
+	uniqueFields(type: string): readonly (readonly string[])[];
 	/** The fields a start-up writes in a record of an instrumentation type that an interrupted actuality left without an end,
 	 *  or undefined where the type doesn't state an end. */
 	ending(type: string): TEnding | undefined;
@@ -686,6 +688,21 @@ function countedFields(type: string, schema: z.ZodType | undefined, topology: TH
 	return fields;
 }
 
+/** Returns the sets of properties `type` declares unique. Throws for an empty set or a field its topology doesn't declare as a
+ *  property, since a store compares the values a record's properties hold. */
+export function uniqueFieldsOf(type: string, topology: THypermediaTopology): readonly (readonly string[])[] {
+	const sets = topology.unique === undefined ? [] : topology.unique;
+	for (const fields of sets) {
+		const undeclared = fields.filter((field) => topology.properties[field] === undefined);
+		if (fields.length === 0) throw new Error(`${type} declares an empty unique set; a unique set names one or more of the type's properties`);
+		if (undeclared.length > 0)
+			throw new Error(
+				`${type} declares [${fields.join(", ")}] unique, and ${undeclared.join(", ")} isn't one of its properties; declare it in properties or remove it from the set`,
+			);
+	}
+	return sets;
+}
+
 /** Build ResourceRels from world.domains concern metadata. */
 export function buildResourceRels(domains: Record<string, TRegisteredDomain>): ResourceRels {
 	const types: string[] = [];
@@ -695,6 +712,7 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 	const titledBy = new Map<string, TTitledBy>();
 	const instrumentation = new Set<string>();
 	const countedBy = new Map<string, readonly string[]>();
+	const uniqueFields = new Map<string, readonly (readonly string[])[]>();
 	const endings = new Map<string, TEnding>();
 	const fieldByRel = (type: string, rel: string): string | undefined => {
 		const rels = relMaps.get(type);
@@ -717,6 +735,7 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 		if (topology.instrumentation) instrumentation.add(type);
 		const counted = topology.countedBy === undefined ? [] : countedFields(type, domain.schema, topology, topology.countedBy);
 		countedBy.set(type, counted);
+		uniqueFields.set(type, uniqueFieldsOf(type, topology));
 		const rels: Record<string, string> = {};
 		for (const [field, def] of topology.properties === undefined ? [] : Object.entries(topology.properties)) {
 			rels[field] = relOf(def);
@@ -756,6 +775,11 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 			const fields = countedBy.get(type);
 			if (fields === undefined) throw new Error(`${type} isn't a declared resource type, so it isn't counted by a field; declare the type`);
 			return fields;
+		},
+		uniqueFields: (type) => {
+			const sets = uniqueFields.get(type);
+			if (sets === undefined) throw new Error(`${type} isn't a declared resource type, so it doesn't declare unique fields; declare the type`);
+			return sets;
 		},
 		ending: (type) => endings.get(type),
 		fields: (type) => relMaps.get(type) ?? {},

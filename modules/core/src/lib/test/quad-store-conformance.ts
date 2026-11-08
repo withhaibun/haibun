@@ -16,7 +16,7 @@ import { GraphQuerySchema, VIA_FIELD, type TQuad, type TSearchCondition } from "
 import { type IQuadStore } from "../steps/ports.js";
 import { COUNT_CEILING, MAX_PAGE_ROWS, readInPages } from "../domains/hypermedia.js";
 import { Access, AccessLevelSchema, EDGE, LinkRelations, type TRegisteredDomain } from "../domains/resources.js";
-import { ChangedSinceRead, EDGE_TARGET, edgesFrom } from "../records/domains/unit.js";
+import { ChangedSinceRead, EDGE_TARGET, edgesFrom, NotUnique } from "../records/domains/unit.js";
 import { rereadAndRetry } from "../records/pipelines/record-versions.js";
 
 /** The types the suite declares. */
@@ -40,8 +40,9 @@ const RecordSchema = z
 	})
 	.strict();
 
-/** Returns the declaration of one of the suite's types. `edges` are its relations. */
-const domainOf = (persistedAs: string, edges: Record<string, { range: string }>): TRegisteredDomain => ({
+/** Returns the declaration of one of the suite's types. `edges` are its relations, and `unique` the sets of its properties that
+ *  two of its records don't share. */
+const domainOf = (persistedAs: string, edges: Record<string, { range: string }>, unique?: readonly (readonly string[])[]): TRegisteredDomain => ({
 	selectors: [`conformance-${persistedAs.toLowerCase()}`],
 	schema: RecordSchema,
 	coerce: (proto) => RecordSchema.parse(proto.value),
@@ -60,13 +61,14 @@ const domainOf = (persistedAs: string, edges: Record<string, { range: string }>)
 			accessLevel: LinkRelations.ACCESS_LEVEL.rel,
 		},
 		edges,
+		...(unique === undefined ? {} : { unique }),
 	},
 });
 
 /** The declarations every store under the suite holds. */
 export const CONFORMANCE_DOMAINS: Record<string, TRegisteredDomain> = {
 	"conformance-comment": domainOf(COMMENT, { [ABOUT]: { range: ISSUE }, [MENTIONS]: { range: ISSUE } }),
-	"conformance-issue": domainOf(ISSUE, { [PART_OF]: { range: ISSUE } }),
+	"conformance-issue": domainOf(ISSUE, { [PART_OF]: { range: ISSUE } }, [["author", "status"]]),
 };
 
 /** How a store differs from the others by design. */
@@ -157,6 +159,20 @@ export function describeQuadStore(
 					.sort(),
 			).toEqual(["a", "b"]);
 		});
+
+		if (!discards)
+			it("refuses a record that holds another record's values of a set its type declares unique, and gives the values to one of records written at once", async () => {
+				await store.write({ label: OTHER, record: { id: "u1", author: "did:example:a", status: "open" } });
+				await store.write({ label: OTHER, record: { id: "u2", author: "did:example:a" } });
+				await store.write({ label: OTHER, record: { id: "u3", author: "did:example:b", status: "open" } });
+				await expect(store.write({ label: OTHER, id: "u2", fields: { status: "open" } })).rejects.toThrow(
+					`${OTHER} "u2" isn't written: another ${OTHER} holds author "did:example:a" and status "open", which its type declares unique`,
+				);
+				expect(await store.get("u2", "status", OTHER), "the refused unit isn't written").toBeUndefined();
+				const atOnce = await Promise.allSettled(["u4", "u5", "u6"].map((id) => store.write({ label: OTHER, record: { id, author: "did:example:c", status: "open" } })));
+				expect(atOnce.map(({ status }) => status).sort()).toEqual(["fulfilled", "rejected", "rejected"]);
+				for (const outcome of atOnce) if (outcome.status === "rejected") expect(outcome.reason).toBeInstanceOf(NotUnique);
+			});
 
 		it("replaces a fact set again, and doesn't add a second row for it", async () => {
 			await store.write({ label: GRAPH, record: { id: "c1", content: "first" } });

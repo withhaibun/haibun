@@ -728,6 +728,12 @@ export type THypermediaTopology = {
 	/** DB-specific: the sortable columns, each with its SQL type. */
 	sortColumns?: Record<string, string>;
 	/**
+	 * Sets of properties whose values two records of the type don't share, such as a status list and a place in it. A store
+	 * refuses a write that gives a record the values of a set that another record of the type holds, and names the fields and
+	 * values. A record that doesn't state every field of a set doesn't hold a value of it. Absent means the id alone is unique.
+	 */
+	unique?: readonly (readonly string[])[];
+	/**
 	 * Whether writing a record of this type emits an observation of the quads it holds. A type whose records are the
 	 * record of an event already emitted declares false, because emitting the write would repeat that event to the
 	 * reader. A message that actuality logged reaches a reader as the log event. Its record is the durable copy of that

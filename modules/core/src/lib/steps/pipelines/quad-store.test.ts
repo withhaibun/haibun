@@ -11,7 +11,7 @@ import { readAction, readCeilingOf, writeAction } from "../../domains/actions.js
 import { Access, LinkRelations, SEQ_PATH_LABEL, type AccessLevel } from "../../domains/resources.js";
 import { itemAt } from "../../domains/item-at.js";
 import { COUNT_CEILING } from "../../domains/hypermedia.js";
-import { EDGE_TARGET, edgesFrom } from "../../records/domains/unit.js";
+import { EDGE_TARGET, edgesFrom, NotUnique } from "../../records/domains/unit.js";
 
 describe("QuadStore Contexts", () => {
 	let store: QuadStore;
@@ -389,5 +389,45 @@ describe("a typed read of one record", () => {
 		await expect(store().readRecord({ label: NOTE.label, schema: NoteSchema.extend({}) }, "n1")).rejects.toThrow(
 			/a typed read of Note parses with the schema Note's domain registers/,
 		);
+	});
+});
+
+describe("the sets of properties a type declares unique", () => {
+	const PLACED = "Placed";
+	const placed = (id: string, list: string | undefined, place: number) => ({ label: PLACED, record: { id, ...(list === undefined ? {} : { list }), place } });
+	const store = (): QuadStore => storeDeclaring({ [PLACED]: { unique: [["list", "place"]] } });
+
+	it("refuses a record that holds another record's values of the set, names the fields and values, and doesn't write it", async () => {
+		const held = store();
+		await held.write(placed("a", "/lists/1", 5));
+		await expect(held.write(placed("b", "/lists/1", 5))).rejects.toThrow(NotUnique);
+		await expect(held.write(placed("b", "/lists/1", 5))).rejects.toThrow('Placed "b" isn\'t written: another Placed holds list "/lists/1" and place 5');
+		expect(await held.query({ subject: "b", namedGraph: PLACED })).toEqual([]);
+	});
+
+	it("writes a record whose values of the set differ in one field, that doesn't state every field, or that is the holder itself", async () => {
+		const held = store();
+		await held.write(placed("a", "/lists/1", 5));
+		await held.write(placed("b", "/lists/2", 5));
+		await held.write(placed("c", undefined, 5));
+		await held.write(placed("d", undefined, 5));
+		await held.write(placed("a", "/lists/1", 5));
+		expect((await held.query({ predicate: "place", namedGraph: PLACED })).map(({ subject }) => subject).sort()).toEqual(["a", "b", "c", "d"]);
+	});
+
+	it("refuses fields that move a record onto another's values, and writes a record into the values another record left", async () => {
+		const held = store();
+		await held.write(placed("a", "/lists/1", 5));
+		await held.write(placed("b", "/lists/1", 6));
+		await expect(held.write({ label: PLACED, id: "b", fields: { place: 5 } })).rejects.toThrow(NotUnique);
+		await held.write({ label: PLACED, id: "a", fields: { place: 7 } });
+		await held.write({ label: PLACED, id: "b", fields: { place: 5 } });
+		expect(await held.get("b", "place", PLACED)).toBe(5);
+	});
+
+	it("gives one place to each of records written at once", async () => {
+		const held = store();
+		const outcomes = await Promise.allSettled([1, 2, 3].map((n) => held.write(placed(`r${n}`, "/lists/1", 5))));
+		expect(outcomes.filter(({ status }) => status === "fulfilled")).toHaveLength(1);
 	});
 });

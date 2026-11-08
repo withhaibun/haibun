@@ -474,10 +474,10 @@
 			"actuality": {
 				"text": "modules/shu/tests, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 27900,
+				"tookMs": 29400,
 				"digest": {
 					"modules/cli/src": "662c8a5785716842b930ae0a1d26076913a5c22d9cea1c66241957a172d77c98",
-					"modules/core/src": "d073980f82a927ee569b8dfe44a527079d3224ec80b553ed9b76ac8afe627bc0",
+					"modules/core/src": "dade848d7c1588d70996dc0f73a77f5fa96429ec7bd8553136b2a8c59b154022",
 					"modules/domain-storage/src": "0774ebfedf37f5cffb3ef84ed5a7fc859ed90fedf1887299cfe903e34b6910c3",
 					"modules/logic/src": "c9013d7d2aed759b529d4930a47185915b874da40e5f863f46ed4206f9e73a91",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
@@ -494,37 +494,37 @@
 				"/features/address.feature.ts": {
 					"text": "An address names a type",
 					"status": "passed",
-					"tookMs": 1000,
+					"tookMs": 900,
 					"steps": 205
 				},
 				"/features/federate.feature.ts": {
 					"text": "Federated graph reads from a sibling instance",
 					"status": "passed",
-					"tookMs": 1000,
+					"tookMs": 1300,
 					"steps": 6
 				},
 				"/features/monitor-serves.feature.ts": {
 					"text": "The monitor serves shu on a port of its own",
 					"status": "passed",
-					"tookMs": 1200,
+					"tookMs": 900,
 					"steps": 196
 				},
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
-					"tookMs": 18300,
-					"steps": 698
+					"tookMs": 19800,
+					"steps": 704
 				},
 				"/features/remote-store.feature.ts": {
 					"text": "A satellite instance keeps its records in the main instance's store",
 					"status": "passed",
-					"tookMs": 1400,
+					"tookMs": 1000,
 					"steps": 8
 				},
 				"/features/voice-ui.feature.ts": {
 					"text": "UI extension propagation: domain ui → concern catalog → SPA actions bar",
 					"status": "passed",
-					"tookMs": 1600,
+					"tookMs": 1800,
 					"steps": 210
 				}
 			}

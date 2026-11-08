@@ -1486,7 +1486,7 @@
 					"e2e-tests/tests": "7b66e2bfdd3952df8d78b342072e8c23d95420dda1722cd3817371690f642808",
 					"modules/cli/src": "662c8a5785716842b930ae0a1d26076913a5c22d9cea1c66241957a172d77c98",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "d073980f82a927ee569b8dfe44a527079d3224ec80b553ed9b76ac8afe627bc0",
+					"modules/core/src": "dade848d7c1588d70996dc0f73a77f5fa96429ec7bd8553136b2a8c59b154022",
 					"modules/domain-storage/src": "0774ebfedf37f5cffb3ef84ed5a7fc859ed90fedf1887299cfe903e34b6910c3",
 					"modules/logic/src": "c9013d7d2aed759b529d4930a47185915b874da40e5f863f46ed4206f9e73a91",
 					"modules/monitor-otel/src": "4fbef0f2c78fed7b3e2d03ec4ab094bef11766724e5f5f6efb73491ea1d4dea6",
@@ -1525,31 +1525,31 @@
 				"/features/auth-basic.feature": {
 					"text": "/features/auth-basic",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 700,
 					"steps": 55
 				},
 				"/features/auth-bearer.feature": {
 					"text": "/features/auth-bearer",
 					"status": "passed",
-					"tookMs": 400,
+					"tookMs": 500,
 					"steps": 78
 				},
 				"/features/auth-form.feature": {
 					"text": "/features/auth-form",
 					"status": "passed",
-					"tookMs": 800,
+					"tookMs": 900,
 					"steps": 24
 				},
 				"/features/counter.feature": {
 					"text": "/features/counter",
 					"status": "passed",
-					"tookMs": 1800,
+					"tookMs": 500,
 					"steps": 21
 				},
 				"/features/counter.feature.ts": {
 					"text": "Counts feature",
 					"status": "passed",
-					"tookMs": 1300,
+					"tookMs": 1900,
 					"steps": 21
 				},
 				"/features/counts.feature.ts": {
@@ -1567,13 +1567,13 @@
 				"/features/executor-rpc.feature.ts": {
 					"text": "Executor RPC dispatch",
 					"status": "passed",
-					"tookMs": 0,
+					"tookMs": 100,
 					"steps": 8
 				},
 				"/features/feature-variables.feature": {
 					"text": "/features/feature-variables",
 					"status": "passed",
-					"tookMs": 100,
+					"tookMs": 0,
 					"steps": 19
 				},
 				"/features/if-set.feature": {
@@ -1585,13 +1585,13 @@
 				"/features/not.feature": {
 					"text": "/features/not",
 					"status": "passed",
-					"tookMs": 400,
+					"tookMs": 500,
 					"steps": 9
 				},
 				"/features/once.feature.ts": {
 					"text": "A group of features runs once per state of what it depends on",
 					"status": "passed",
-					"tookMs": 1400,
+					"tookMs": 1600,
 					"steps": 20
 				},
 				"/features/page-visits.feature.ts": {
@@ -1603,7 +1603,7 @@
 				"/features/popup.feature": {
 					"text": "/features/popup",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 700,
 					"steps": 14
 				},
 				"/features/qrcode.feature": {
@@ -1627,7 +1627,7 @@
 				"/features/trauma_center.feature": {
 					"text": "/features/trauma_center",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 700,
 					"steps": 93
 				},
 				"/features/upload-verify.feature": {
@@ -1639,7 +1639,7 @@
 				"/features/visited-pages.feature": {
 					"text": "/features/visited-pages",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 600,
 					"steps": 31
 				},
 				"/features/workflow.feature.ts": {

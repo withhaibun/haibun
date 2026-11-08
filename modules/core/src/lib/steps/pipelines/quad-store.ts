@@ -41,6 +41,8 @@ import {
 	EDGE_TARGET,
 	isReferenced,
 	isWholeRecord,
+	NotUnique,
+	uniqueValuesOf,
 	unitsOf,
 	type TReadVersion,
 	type TRecordName,
@@ -276,6 +278,7 @@ export class QuadStore implements IQuadStore {
 			return { name, unit: stated, held, changes: this.changesOf(stated) };
 		});
 		this.versions.check(parts);
+		for (const { name, changes } of parts) this.assertUnique(name, changes);
 		this.apply(parts.flatMap(({ changes }) => changes));
 		this.versions.wrote(parts);
 		return this.idOf(unit);
@@ -287,6 +290,34 @@ export class QuadStore implements IQuadStore {
 		const backing = this.storeFor(name.label);
 		if (backing) return await backing.versionOf(name);
 		return this.versions.of(name, this.holds(name));
+	}
+
+	/** Refuses the changes where they give the record `name` names the values of a set of properties its type declares unique,
+	 *  which another record of the type in this store's own layer holds. */
+	private assertUnique(name: TRecordName, changes: readonly TChange[]): void {
+		const sets = this.declarations?.().of(name.label)?.unique;
+		for (const fields of sets === undefined ? [] : sets) {
+			const values = uniqueValuesOf(fields, (field) => this.valueAfter(name, changes, field));
+			if (values === undefined) continue;
+			const [first] = fields;
+			const holds = (subject: string) => subject !== name.id && fields.every((field) => this.propertyQuad({ label: name.label, id: subject }, field)?.object === values[field]);
+			const held = this.quads.candidates({ namedGraph: name.label, predicate: first });
+			if ([...held].some((q) => q.namedGraph === name.label && q.predicate === first && holds(q.subject))) throw new NotUnique(name, values);
+		}
+	}
+
+	/** Returns the value of a property of the record `name` names once `changes` are applied, or undefined where it doesn't hold one. */
+	private valueAfter(name: TRecordName, changes: readonly TChange[], field: string): unknown {
+		const own = changes.filter(({ namedGraph, subject }) => namedGraph === name.label && subject === name.id);
+		const written = own.flatMap(({ holds }) => (holds?.predicate === field && !holds.objectType ? [holds] : [])).at(-1);
+		if (written !== undefined) return written.object;
+		const held = this.propertyQuad(name, field);
+		return held === undefined || own.some(({ replaces }) => replaces(held)) ? undefined : held.object;
+	}
+
+	/** Returns the quad of a property of the record `name` names in this store's own layer, or undefined where it doesn't hold one. */
+	private propertyQuad({ label, id }: TRecordName, field: string): TQuad | undefined {
+		return [...this.quads.ofSubject(label, id)].find((q) => q.predicate === field && !q.objectType);
 	}
 
 	/** Returns whether this store's own layer holds a quad of the record `name` names. */

@@ -11,9 +11,17 @@ import { mapDefinitionsToDomains } from "../domains/domains.js";
 import { readDeclarationsOf, servedIdOf, type TReadDeclarations } from "../records/derivations/read-records.js";
 import { recordIri } from "../records/derivations/record-iri.js";
 
-/** The fields and relations of one test type, the field that identifies its records where it isn't `id`, and the domain time
- *  field that places its records in time where it isn't `generatedAtTime`. A relation maps to the types at its other end. */
-export type TDeclaredType = { id?: string; time?: string; filters?: readonly string[]; relations?: Record<string, readonly string[]>; schema?: z.ZodType };
+/** The fields and relations of one test type, the field that identifies its records where it isn't `id`, the domain time
+ *  field that places its records in time where it isn't `generatedAtTime`, and the sets of fields that two of its records don't share.
+ *  A relation maps to the types at its other end. */
+export type TDeclaredType = {
+	id?: string;
+	time?: string;
+	filters?: readonly string[];
+	relations?: Record<string, readonly string[]>;
+	schema?: z.ZodType;
+	unique?: readonly (readonly string[])[];
+};
 
 /** Returns read declarations of the types `types` names. Each type's id field is the one it names or `id`, its filters
  *  compare the fields it names, a page of it orders by its domain time field or `generatedAtTime`, and a read states each
@@ -34,7 +42,7 @@ export function declaredTypes(types: Record<string, TDeclaredType>): TReadDeclar
 				surface: { label, properties, references },
 				defaultSort: type.time === undefined ? LinkRelations.GENERATED_AT_TIME.rel : type.time,
 			};
-			return type.schema === undefined ? declared : { ...declared, schema: type.schema };
+			return { ...declared, ...(type.schema === undefined ? {} : { schema: type.schema }), ...(type.unique === undefined ? {} : { unique: type.unique }) };
 		},
 	};
 }

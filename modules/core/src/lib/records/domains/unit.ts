@@ -62,6 +62,26 @@ export function assertReadVersion(record: TRecordName, read: TReadVersion | unde
 	if (read !== undefined && read !== held) throw new ChangedSinceRead(record, read, held);
 }
 
+/** The refusal of a unit that gives its record the values of a set of properties its type declares unique, which another record
+ *  of the type holds. The caller writes the record with other values. */
+export class NotUnique extends Error {
+	constructor(
+		readonly record: TRecordName,
+		readonly values: Readonly<Record<string, unknown>>,
+	) {
+		const stated = Object.entries(values).map(([field, value]) => `${field} ${JSON.stringify(value)}`);
+		super(
+			`${record.label} "${record.id}" isn't written: another ${record.label} holds ${stated.join(" and ")}, which its type declares unique. Write the record with other values`,
+		);
+	}
+}
+
+/** Returns the values a record holds of a set of fields, or undefined where it doesn't state every field of the set. */
+export function uniqueValuesOf(fields: readonly string[], held: (field: string) => unknown): Record<string, unknown> | undefined {
+	const values = fields.map((field) => [field, held(field)] as const);
+	return values.every(([, value]) => value !== undefined && value !== null) ? Object.fromEntries(values) : undefined;
+}
+
 /** A record by its type and its id. */
 export type TRecordName = { readonly label: string; readonly id: string };
 

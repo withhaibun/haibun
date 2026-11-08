@@ -13,6 +13,7 @@ import {
 	querySurface,
 	reachedBy,
 	titledByOf,
+	uniqueFieldsOf,
 	type TConcernCatalog,
 	type TCounted,
 	type TQuerySurface,
@@ -43,8 +44,16 @@ export const READ_RECORDS = "readRecords";
 
 /** What a read of one type reads from its declaration: the field that holds a record's id, the fields and relations a read
  *  reaches, the field a page orders by where the read doesn't name a sort, where core holds the type's records, and the
- *  property or edge that titles a record. */
-export type TReadDeclaration = { id: string; surface: TQuerySurface; defaultSort: string; heldBy?: THeldBy; title?: TTitledBy; schema?: z.ZodType };
+ *  property or edge that titles a record. A store's write reads the sets of properties that two of its records don't share. */
+export type TReadDeclaration = {
+	id: string;
+	surface: TQuerySurface;
+	defaultSort: string;
+	heldBy?: THeldBy;
+	title?: TTitledBy;
+	schema?: z.ZodType;
+	unique?: readonly (readonly string[])[];
+};
 
 /** What a store reads by: the types and relations it holds, each type's declaration, and the `@id` a read states for each record
  *  it holds. An instance states the record IRI it derives from the type's label and the record's id; a page states the `@id`
@@ -75,7 +84,16 @@ export function readDeclarationsOf(domains: Record<string, TRegisteredDomain>, r
 		if (!domain) return undefined;
 		const { id, heldBy } = domain.topology;
 		const title = titledByOf(domain.topology);
-		return { id, surface: querySurface(domain), defaultSort: sortFieldOf(domain.topology), schema: domain.schema, ...(heldBy ? { heldBy } : {}), ...(title ? { title } : {}) };
+		const unique = uniqueFieldsOf(label, domain.topology);
+		return {
+			id,
+			surface: querySurface(domain),
+			defaultSort: sortFieldOf(domain.topology),
+			schema: domain.schema,
+			...(heldBy ? { heldBy } : {}),
+			...(title ? { title } : {}),
+			...(unique.length > 0 ? { unique } : {}),
+		};
 	};
 	const declarations: TReadDeclarations = {
 		types: unique(persisted.map(({ topology }) => topology.persistedAs)),
