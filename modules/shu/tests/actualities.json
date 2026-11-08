@@ -474,19 +474,19 @@
 			"actuality": {
 				"text": "modules/shu/tests, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 27300,
+				"tookMs": 27900,
 				"digest": {
 					"modules/cli/src": "662c8a5785716842b930ae0a1d26076913a5c22d9cea1c66241957a172d77c98",
-					"modules/core/src": "3ecb0562f2571943fd9d0aaca4c1357db1f9ccd6600259a2defea35838ce377e",
+					"modules/core/src": "d073980f82a927ee569b8dfe44a527079d3224ec80b553ed9b76ac8afe627bc0",
 					"modules/domain-storage/src": "0774ebfedf37f5cffb3ef84ed5a7fc859ed90fedf1887299cfe903e34b6910c3",
 					"modules/logic/src": "c9013d7d2aed759b529d4930a47185915b874da40e5f863f46ed4206f9e73a91",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/shu/src": "4fb2ffc39b8a120711f6a7650a70d2474cf302ca7781f79dca811db42cedd32d",
+					"modules/shu/src": "b6c11da1807d068ed96c89512c90fff4a6699b6313a28fbce62f9006dc1cb088",
 					"modules/shu/tests": "b8dd8a5de107da3c875273aa89a717ea6df9392461f3aad6292a55cc5c96614c",
 					"modules/shu/waypoints": "bf3404dac6e40f8fee76ffc4327503c9b2ce7b61de89068a9bfc28ffefcd1604",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
-					"modules/web-playwright/src": "a92df4cd2d72b15c883bf0884bf1e873b466564145d5fbe60546f007bc93c19d",
+					"modules/web-playwright/src": "c348fff62a28037e4b4ec74b4c22425a20bd3d54d4e44d7d75e69a4ccaba5a8c",
 					"modules/web-server-hono/src": "c7b9ae1572dfe60954edb80741344cc5ffdd5c5ce6cec9dcb4afa762a6d2e8e1"
 				}
 			},
@@ -506,19 +506,19 @@
 				"/features/monitor-serves.feature.ts": {
 					"text": "The monitor serves shu on a port of its own",
 					"status": "passed",
-					"tookMs": 1100,
+					"tookMs": 1200,
 					"steps": 196
 				},
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
 					"tookMs": 18300,
-					"steps": 706
+					"steps": 698
 				},
 				"/features/remote-store.feature.ts": {
 					"text": "A satellite instance keeps its records in the main instance's store",
 					"status": "passed",
-					"tookMs": 1000,
+					"tookMs": 1400,
 					"steps": 8
 				},
 				"/features/voice-ui.feature.ts": {

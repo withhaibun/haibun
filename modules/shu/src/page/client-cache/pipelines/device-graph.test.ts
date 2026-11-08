@@ -6,6 +6,7 @@ import { hydrate, serveThePage } from "../../../test/setup.js";
 import { hydrateFromDom } from "../../controllers/hydration-controller.js";
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
+import { z } from "zod";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { Access, type AccessLevel } from "@haibun/core/lib/domains/resources.js";
 import { DeviceGraph } from "./device-graph.js";
@@ -85,6 +86,18 @@ describe("the reads the site serves, made of the graph this page caches", () => 
 	it("reports the distinct values a field holds, for the dropdowns a reader filters by", async () => {
 		expect(await store.distinctPropertyValues("Email", "folder")).toEqual({ values: ["INBOX", "Sent"], total: 2, saturated: false });
 		expect(await store.distinctPropertyValues("Email", "nothing")).toEqual({ values: [], total: 0, saturated: false });
+	});
+});
+
+describe("a typed read of a record the page holds", () => {
+	const NoteSchema = z.object({ id: z.string(), text: z.string(), accessLevel: z.string() }).strict();
+	const NOTE = { label: "Note", schema: NoteSchema };
+
+	it("parses the record's fields with a strict schema, without the @id and @type the page holds it under", async () => {
+		const store = new DeviceGraph(deviceQuads(servedDatabase()), () => servedTypes({ Note: { schema: NoteSchema } }));
+		await store.clear();
+		await store.write({ label: "Note", record: { "@id": heldRecordIri("Note", "n1"), "@type": "Note", id: "n1", text: "held", accessLevel: Access.public } });
+		expect(await store.readRecord(NOTE, "n1")).toEqual({ id: "n1", text: "held", accessLevel: Access.public });
 	});
 });
 

@@ -194,6 +194,11 @@ export const VIA_FIELD = "_via";
 /** Whether a key of a read's record is a projection key (`@…`, `_…`), which names the record or the read rather than a field. */
 export const isProjectionKey = (key: string): boolean => key.startsWith("_") || key.startsWith("@");
 
+/** A read's record without its projection keys: the fields its type's schema parses. A page holds a served record with its `@id`
+ *  and `@type`, and a read projects them on every record. */
+export const recordFieldsOf = (record: Readonly<Record<string, unknown>>): Record<string, unknown> =>
+	Object.fromEntries(Object.entries(record).filter(([key]) => !isProjectionKey(key)));
+
 /** The page a graph query returns: its records, their count, and what a store with a query engine adds about the read. The
  *  site's step and a page that reads its own copy return this one shape. */
 export const GraphQueryResultSchema = z.object({
@@ -442,7 +447,7 @@ export function assertRegisteredSchema(declarations: { of(label: string): { sche
 }
 
 /** Reads one record of `type` by its id through `read`, which doesn't parse it, and returns what the type's schema parses of it:
- *  the one parse of a typed read. Returns undefined where the read doesn't return the record. */
+ *  the one parse of a typed read, of the record's fields without its projection keys. Returns undefined where the read doesn't return the record. */
 export async function typedRecord<S extends z.ZodType>(
 	type: TRecordType<S>,
 	id: string,
@@ -450,5 +455,5 @@ export async function typedRecord<S extends z.ZodType>(
 	read: (query: TGraphQuery) => Promise<TRecordsPage>,
 ): Promise<z.output<S> | undefined> {
 	const [record] = (await read(GraphQuerySchema.parse({ label: type.label, named: [id], limit: 1, skipCount: true, ...levelOf(accessLevel) }))).vertices;
-	return record === undefined ? undefined : parsedRecord(type.schema, type.label, record, false);
+	return record === undefined ? undefined : parsedRecord(type.schema, type.label, recordFieldsOf(record), false);
 }

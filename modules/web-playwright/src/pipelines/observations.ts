@@ -6,11 +6,8 @@
 import { observedOf, type IObservationSource } from "@haibun/core/lib/astepper.js";
 import { HTTP_HOST_LABEL, HTTP_REQUEST_LABEL, LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { recordFieldsOf } from "@haibun/core/lib/quad-types.js";
 import { VISITED_PAGE_LABEL } from "../domains/web-playwright.js";
-
-/** A record's own fields, without the fields a read's projection adds (`@id`, `@type` and those that start with `_`). */
-const ownFields = (record: Record<string, unknown>): Record<string, unknown> =>
-	Object.fromEntries(Object.entries(record).filter(([field]) => !field.startsWith("@") && !field.startsWith("_")));
 
 export const HTTP_TRACE_SOURCES: IObservationSource[] = [
 	{
@@ -23,7 +20,8 @@ export const HTTP_TRACE_SOURCES: IObservationSource[] = [
 		name: "http-trace",
 		// Each request record with every field it holds (status, durationMs, url, …): the nodes the network sequence reads,
 		// so a quantifier states a rule such as `request/status is less than 400`.
-		observe: async (world) => (await readEvery(world.shared.getStore(), { label: HTTP_REQUEST_LABEL })).flatMap((request) => observedOf(String(request.id), ownFields(request))),
+		observe: async (world) =>
+			(await readEvery(world.shared.getStore(), { label: HTTP_REQUEST_LABEL })).flatMap((request) => observedOf(String(request.id), recordFieldsOf(request))),
 	},
 	{
 		name: "visited pages",
