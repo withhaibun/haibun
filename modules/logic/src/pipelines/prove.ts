@@ -112,6 +112,8 @@ class Proof {
 	private readonly proofLines = new Map<string, readonly TProofLine[]>();
 	/** The waypoint scope of the line's proof. */
 	private readonly enclosing: TWaypointScope;
+	/** The segment of the line's path each first position of the proof takes, allocated once each position opens. */
+	private readonly segments = new Map<number, number>();
 
 	constructor(
 		private readonly ctx: DispatchContext,
@@ -165,13 +167,28 @@ class Proof {
 		return `${reading}(${[this.add({ step, what }), ...statements].join(", ")})`;
 	}
 
+	/**
+	 * Returns the segment of the line's path that the first position `first` of the proof takes: the segment its statement was
+	 * placed at, or the next segment the count under the line allocates (`nextSeqPath`), once for each position. A step that the
+	 * line's caller dispatches under the line, such as a debugger's command, takes its segment from the same count, so its
+	 * record and a record of the line's proof don't share a path.
+	 */
+	private segmentOf(first: number): number {
+		if (this.placed !== undefined) return itemAt(this.placed.segments, first - 1);
+		const held = this.segments.get(first);
+		if (held !== undefined) return held;
+		const segment = itemAt(nextSeqPath(this.ctx.world, this.line.seqPath), this.line.seqPath.length);
+		this.segments.set(first, segment);
+		return segment;
+	}
+
 	/** The step a node states at a position of the proof, with the arguments its bindings supply. */
 	private instance(node: TNode, path: readonly number[], bindings: TBinding[]): TFeatureStep {
 		if (path.length === 0) return this.line;
 		const runtimeArgs = this.runtimeArgsOf(bindings);
 		const { line, placed } = this;
 		const [first, ...rest] = path;
-		const seqPath = placed === undefined || first === undefined ? [...line.seqPath, ...path] : [...line.seqPath, itemAt(placed.segments, first - 1), ...rest];
+		const seqPath = first === undefined ? line.seqPath : [...line.seqPath, this.segmentOf(first), ...rest];
 		return {
 			...node.step,
 			seqPath,
