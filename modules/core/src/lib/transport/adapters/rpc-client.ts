@@ -9,10 +9,10 @@ import type { TRequestSigner } from "../../domains/authority-types.js";
 /**
  * rpc-client is the client for a haibun host's RPC transport (web-server-hono's event stream adapter).
  *
- * It centralises signed invocation, seqPath threading, timeouts, retry with backoff and streaming NDJSON parsing. A call
- * that invokes an action is signed over the request it sends. A call that doesn't invoke one is sent unsigned. A caller
- * in a feature-step context passes its seqPath. An external caller may pass `[]`, and the server then synthesises a
- * seqPath rooted at its own hostId, as the MCP dispatch path does.
+ * It centralises signed invocation, the path a call acts under, timeouts, retry with backoff and streaming NDJSON parsing.
+ * A call that invokes an action is signed over the request it sends. A call that doesn't invoke one is sent unsigned. A
+ * caller in a feature step passes that step's path. An external caller passes undefined, and the server dispatches the
+ * call at a path rooted at its own hostId, as the MCP dispatch path does.
  */
 
 type RpcClientConfig = {
@@ -62,9 +62,9 @@ export class RpcCallFailed extends Error {
 }
 
 /**
- * Every RPC call carries the caller's seqPath, so observations on the target host link back to the invoking context
- * without synthetic `[0, N]` roots. A caller passes its current feature step's seqPath, or the seqPath of the observation
- * that its call acts upon.
+ * A call states the path of the step it acts under, such as the caller's feature step, and the target host dispatches its
+ * step under that path, so the records it writes link back to the step that called it. A call that doesn't act under a step
+ * doesn't state one, and the host dispatches it at a path of its own.
  */
 export class RpcClient {
 	private readonly baseUrl: string;
@@ -90,11 +90,11 @@ export class RpcClient {
 
 	/** Sends a non-streaming JSON-RPC call and returns the instance's result. A call that the instance refuses or that
 	 *  doesn't reach it after every attempt throws `RpcCallFailed`. */
-	async call<T = unknown>(method: string, params: Record<string, unknown>, seqPath: number[], opts?: RpcCallOptions): Promise<T> {
+	async call<T = unknown>(method: string, params: Record<string, unknown>, under: number[] | undefined, opts?: RpcCallOptions): Promise<T> {
 		// The envelope carries this caller's read ceiling (`readingAt`), so the host doesn't respond wider than the reader may
 		// see. The host reads at the narrower of this ceiling and its own. The call is signed once before the first send. A
 		// signing refusal comes from this process and isn't a network fault, so only the send is retried.
-		const envelope = { id: `rpc-${Date.now()}`, method, params, seqPath, readingAt: readingAt(), actualityId: await this.actualityId() };
+		const envelope = { id: `rpc-${Date.now()}`, method, params, under, readingAt: readingAt(), actualityId: await this.actualityId() };
 		const call = await buildRpcCall(this.baseUrl, envelope, this.proving(opts?.action));
 		const outcome = await this.withRetry(async (signal): Promise<{ answered: T } | RpcError> => {
 			const res = await this.send(call.url, { ...call.init, signal });
@@ -129,7 +129,7 @@ export class RpcClient {
 	 * Sends a streaming JSON-RPC call. Yields each chunk as it arrives over NDJSON, one JSON object per line. Completes
 	 * when the stream closes. A consumer may `break` early, and the connection is then aborted.
 	 */
-	async *stream<TChunk = unknown>(method: string, params: Record<string, unknown>, seqPath: number[], opts?: RpcCallOptions): AsyncGenerator<TChunk, void, unknown> {
+	async *stream<TChunk = unknown>(method: string, params: Record<string, unknown>, under: number[] | undefined, opts?: RpcCallOptions): AsyncGenerator<TChunk, void, unknown> {
 		const prove = this.proving(opts?.action);
 		const controller = new AbortController();
 		const outer = opts?.signal;
@@ -141,7 +141,7 @@ export class RpcClient {
 		try {
 			const call = await buildRpcCall(
 				this.baseUrl,
-				{ id: `rpc-stream-${Date.now()}`, method, params, seqPath, stream: true, readingAt: readingAt(), actualityId: await this.actualityId() },
+				{ id: `rpc-stream-${Date.now()}`, method, params, under, stream: true, readingAt: readingAt(), actualityId: await this.actualityId() },
 				prove,
 			);
 			const res = await this.send(call.url, { ...call.init, signal: controller.signal });

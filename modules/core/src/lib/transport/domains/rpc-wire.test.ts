@@ -37,7 +37,7 @@ describe("a call to a host's rpc", () => {
 	it("is addressed under the host's base, carries its envelope, and is sent with the proof headers computed over it", async () => {
 		const proven: Parameters<TProveRequest>[0][] = [];
 		const prove: TProveRequest = (request) => (proven.push(request), Promise.resolve({ ...request.headers, proof: "signed" }));
-		const call = await buildRpcCall(BASE, { id: "call-1", actualityId: ACTUALITY, method: METHOD, params: { what: 1 }, seqPath: [0, 1] }, prove);
+		const call = await buildRpcCall(BASE, { id: "call-1", actualityId: ACTUALITY, method: METHOD, params: { what: 1 }, under: [0, 1] }, prove);
 		expect(call.url).toBe(`${BASE}rpc/${METHOD}`);
 		expect(JSON.parse(call.init.body)).toEqual({
 			jsonrpc: "2.0",
@@ -46,7 +46,7 @@ describe("a call to a host's rpc", () => {
 			actualityId: ACTUALITY,
 			method: METHOD,
 			params: { what: 1 },
-			seqPath: [0, 1],
+			under: [0, 1],
 		});
 		expect(proven, "the proof covers the request as it is sent, including its host").toEqual([
 			{ url: call.url, method: "POST", headers: { "content-type": "application/json", host: "site.test:8123" }, body: call.init.body },
@@ -142,6 +142,7 @@ const WIRE_AT: Record<number, string> = {
 	4: "8f3f6bf3f612ea57",
 	5: "2734b32c629e02db",
 	6: "b7deb6ae3be169bd",
+	7: "4b1867015f8118eb",
 };
 const wireShape = (): string =>
 	createHash("sha256")

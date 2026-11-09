@@ -27,7 +27,7 @@ import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOptionName
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import FakeAuthorityStepper, { DOMAIN_FAKE_HOLDER, FakeInvoker, fakeGrant } from "@haibun/core/lib/test/fake-authority.js";
 import WebServerStepper from "./web-server-stepper.js";
-import { WEBSERVER, callAtRunningPath } from "./domains/web-server.js";
+import { WEBSERVER } from "./domains/web-server.js";
 import type { IWebServer } from "./ports.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import { SHOW_STEP_DEFINITIONS_METHOD, SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, readStepDefinitions, type TStepDefinition } from "@haibun/core/lib/step-discovery.js";
@@ -116,7 +116,7 @@ async function shownSteps(url: string, holder?: string): Promise<TStepDefinition
 /** A call to `method` at `url`, signed by `holder` for `action` where a holder is named, requesting a read at `readingAt`
  *  where it names one. */
 async function postRpc(url: string, method: string, signer?: { holder: string; action: string }, readingAt?: string): Promise<Response> {
-	const body = await rpcBody(url, { method, seqPath: [0, 1, 1, 1], ...(readingAt ? { readingAt } : {}) });
+	const body = await rpcBody(url, { method, under: [0, 1, 1, 1], ...(readingAt ? { readingAt } : {}) });
 	const headers = { "content-type": "application/json" };
 	return fetch(url, { method: "POST", headers: signer ? await new FakeInvoker(signer.holder).sign({ method: "POST", url, headers, body }, signer.action) : headers, body });
 }
@@ -212,7 +212,7 @@ class RpcVerifyStepper extends AStepper {
 				const res = await fetch(String(url), {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: await rpcBody(String(url), { method: String(method), seqPath: [0, 1, 1, 1] }),
+					body: await rpcBody(String(url), { method: String(method), under: [0, 1, 1, 1] }),
 				});
 				if (!res.ok) return actionNotOK(`HTTP ${res.status}`);
 				const data = await res.json();
@@ -245,7 +245,7 @@ class RpcVerifyStepper extends AStepper {
 				const res = await fetch(String(url), {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: await rpcBody(String(url), { method: String(method), seqPath: [0, 1, 1, 1], asks: "read" }),
+					body: await rpcBody(String(url), { method: String(method), under: [0, 1, 1, 1], asks: "read" }),
 				});
 				const data = (await res.json()) as { error?: string };
 				if (res.status !== REFUSED_CALL_STATUS) return actionNotOK(`served a read of a step that doesn't declare itself a read: HTTP ${res.status}`);
@@ -259,7 +259,7 @@ class RpcVerifyStepper extends AStepper {
 				const res = await fetch(String(url), {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: await rpcBody(String(url), { method: String(method), seqPath: [0, 1, 1, 1], asks: "read" }),
+					body: await rpcBody(String(url), { method: String(method), under: [0, 1, 1, 1], asks: "read" }),
 				});
 				const data = (await res.json()) as { error?: string };
 				const expected = refusal(String(method), undefined, undefined).error;
@@ -273,7 +273,7 @@ class RpcVerifyStepper extends AStepper {
 				const res = await fetch(String(url), {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: await rpcBody(String(url), { method: String(method), seqPath: [0, 1, 1, 1], asks: "read" }),
+					body: await rpcBody(String(url), { method: String(method), under: [0, 1, 1, 1], asks: "read" }),
 				});
 				const data = (await res.json()) as { error?: string };
 				if (!res.ok || data.error) return actionNotOK(`refused a read of a step that declares itself one: ${res.status} ${JSON.stringify(data)}`);
@@ -287,7 +287,7 @@ class RpcVerifyStepper extends AStepper {
 				const res = await fetch(String(url), {
 					method: "POST",
 					headers: { "Content-Type": "application/json", "capability-invocation": `zcap capability="urn:uuid:x",action="PingStepper:protected"` },
-					body: await rpcBody(String(url), { method: String(method), seqPath: [0, 1, 1, 1] }),
+					body: await rpcBody(String(url), { method: String(method), under: [0, 1, 1, 1] }),
 				});
 				const data = await res.json();
 				if (res.status !== REFUSED_INVOCATION) return actionNotOK(`Expected HTTP ${REFUSED_INVOCATION}, got ${res.status}: ${JSON.stringify(data)}`);
@@ -423,7 +423,7 @@ class RpcVerifyStepper extends AStepper {
 			description: TEST_STEP,
 			gwta: `streamed call at {url: ${DOMAIN_LINK}} to {method: ${DOMAIN_STEP_METHOD}} signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}} is held open`,
 			action: async ({ url, method, holder, action }: TStepArgs) => {
-				const body = await rpcBody(String(url), { method: String(method), seqPath: [0, 1, 1, 1], stream: true });
+				const body = await rpcBody(String(url), { method: String(method), under: [0, 1, 1, 1], stream: true });
 				const headers = { "content-type": "application/json" };
 				const res = await fetch(String(url), {
 					method: "POST",
@@ -561,7 +561,7 @@ class NoticeStepper extends AStepper {
 				const res = await fetch(String(url), {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: await rpcBody(String(url), { method, seqPath: [0, 1, 1, 1], params }),
+					body: await rpcBody(String(url), { method, under: [0, 1, 1, 1], params }),
 				});
 				const text = await res.text();
 				if (text.includes(NOTICE_ID) || text.includes('"count":1')) return actionNotOK(`a caller without a read action read the notice: ${res.status} ${text}`);
@@ -577,7 +577,7 @@ class NoticeStepper extends AStepper {
 				const res = await fetch(String(url), {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: await rpcBody(String(url), { method, seqPath: [0, 1, 1, 2], params: {} }),
+					body: await rpcBody(String(url), { method, under: [0, 1, 1, 2], params: {} }),
 				});
 				const refused = RpcRefusalSchema.parse(await res.json());
 				if (refused.step === undefined) return actionNotOK(`the refusal doesn't name the record of the step it refused: ${JSON.stringify(refused)}`);
@@ -873,21 +873,22 @@ rpc call to "http://localhost:${port}/rpc/Injected-ping" with method "Injected-p
 		expect(result.ok).toBe(true);
 	});
 
-	it("releases the counts under a page's seqPath once its call ends, and refuses another call at that seqPath while one runs", async () => {
+	it("dispatches each call under the step it acts under at a path of its own, so calls under one place run at once, and releases the counts under each", async () => {
 		const port = await freePort();
-		const PAGE_PATH = [0, -1, 7, 1];
+		const PAGE_PLACE = [0, -1, 7];
 		const [NESTS, WAITS] = ["CallPathsStepper-nestsSteps", "CallPathsStepper-waitsForRelease"];
-		const observed: { afterNesting?: string[]; refusal?: unknown; afterWaiting?: string[] } = {};
+		const observed: { paths: number[][]; whileWaiting?: unknown; afterWaiting?: string[] } = { paths: [] };
 		let started: (() => void) | undefined;
 		let release: (() => void) | undefined;
 
 		class CallPathsStepper extends AStepper {
-			description = "Calls at a page's seqPath over RPC: a step that allocates paths under it, and a step that runs until it is released.";
+			description = "Calls under a page's place over RPC: a step that allocates paths under its own, and a step that runs until it is released.";
 			steps = {
 				nestsSteps: {
 					description: TEST_STEP,
 					exact: "nests two steps",
 					action: (_: TStepArgs, featureStep: TFeatureStep) => {
+						observed.paths.push(featureStep.seqPath);
 						nextSeqPath(this.getWorld(), nextSeqPath(this.getWorld(), featureStep.seqPath));
 						return OK;
 					},
@@ -895,7 +896,8 @@ rpc call to "http://localhost:${port}/rpc/Injected-ping" with method "Injected-p
 				waitsForRelease: {
 					description: TEST_STEP,
 					exact: "waits for release",
-					action: async () => {
+					action: async (_: TStepArgs, featureStep: TFeatureStep) => {
+						observed.paths.push(featureStep.seqPath);
 						await new Promise<void>((resolve) => {
 							release = resolve;
 							started?.();
@@ -903,39 +905,39 @@ rpc call to "http://localhost:${port}/rpc/Injected-ping" with method "Injected-p
 						return OK;
 					},
 				},
-				callsAtPagePath: {
+				callsUnderPagePlace: {
 					description: TEST_STEP,
-					gwta: `calls at a page's seqPath at {base: ${DOMAIN_LINK}}`,
+					gwta: `calls under a page's place at {base: ${DOMAIN_LINK}}`,
 					action: async ({ base }: TStepArgs) => {
 						const call = async (method: string): Promise<Record<string, unknown>> => {
 							const url = `${String(base)}/rpc/${method}`;
-							const body = await rpcBody(url, { method, seqPath: PAGE_PATH });
+							const body = await rpcBody(url, { method, under: PAGE_PLACE });
 							return (await (await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body })).json()) as Record<string, unknown>;
 						};
-						const underPage = () => [...this.getWorld().runtime.seqPaths.keys()].filter((key) => key.startsWith(PAGE_PATH.join(".")));
-						await call(NESTS);
-						observed.afterNesting = underPage();
 						const running = new Promise<void>((resolve) => {
 							started = resolve;
 						});
 						const waited = call(WAITS);
 						await running;
-						observed.refusal = (await call(NESTS)).error;
+						observed.whileWaiting = (await call(NESTS)).error;
 						release?.();
 						await waited;
-						observed.afterWaiting = underPage();
+						observed.afterWaiting = [...this.getWorld().runtime.seqPaths.keys()].filter((key) => key.startsWith(PAGE_PLACE.join(".")));
 						return OK;
 					},
 				},
 			};
 		}
 
-		const feature = { path: "/features/call-paths.feature", content: `webserver is listening for "rpc-call-paths"\ncalls at a page's seqPath at "http://localhost:${port}"\n` };
+		const feature = { path: "/features/call-paths.feature", content: `webserver is listening for "rpc-call-paths"\ncalls under a page's place at "http://localhost:${port}"\n` };
 		const result = await passWithDefaults([feature], [WebServerStepper, CallPathsStepper, LogicStepper], makeOptions(port, "CallPathsStepper:*"));
 		expect(result.ok, JSON.stringify(result.failure)).toBe(true);
-		expect(observed.afterNesting, "the counts of the steps the call nested go when it ends").toEqual([]);
-		expect(observed.refusal, "a call at a running call's seqPath would allocate the same paths").toBe(callAtRunningPath(NESTS, PAGE_PATH));
-		expect(observed.afterWaiting).toEqual([]);
+		expect(observed.whileWaiting, "a call under a place where another call runs runs at a path of its own").toBeUndefined();
+		const [waiting, nesting] = observed.paths;
+		expect(waiting?.slice(0, -1)).toEqual(PAGE_PLACE);
+		expect(nesting?.slice(0, -1)).toEqual(PAGE_PLACE);
+		expect(waiting, "two calls under one place don't share a path").not.toEqual(nesting);
+		expect(observed.afterWaiting, "the counts of the steps each call nested go when it ends").toEqual([]);
 	});
 
 	it("action.begin allocates a unique seqPath root per call", async () => {
@@ -1105,7 +1107,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 						const res = await fetch(String(url), {
 							method: "POST",
 							headers: { "Content-Type": "application/json" },
-							body: await rpcBody(String(url), { method: String(method), seqPath: [0, 1, 1, 1], stream: true }),
+							body: await rpcBody(String(url), { method: String(method), under: [0, 1, 1, 1], stream: true }),
 						});
 						if (!res.ok) return actionNotOK(`HTTP ${res.status}`);
 						if (!res.body) return actionNotOK("the response doesn't have a body");
@@ -1170,7 +1172,7 @@ stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-stream3" metho
 						const res = await fetch(String(url), {
 							method: "POST",
 							headers: { "Content-Type": "application/json" },
-							body: await rpcBody(String(url), { method: String(method), seqPath: [0, 1, 1, 1], stream: true }),
+							body: await rpcBody(String(url), { method: String(method), under: [0, 1, 1, 1], stream: true }),
 						});
 						if (!res.body) return actionNotOK("the response doesn't have a body");
 						const reader = res.body.getReader();

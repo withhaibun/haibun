@@ -37,7 +37,7 @@ function makeFakeFetch(responses: Scripted[]): { fetchImpl: typeof fetch; calls:
 }
 
 describe("RpcClient.call", () => {
-	it("posts JSON-RPC 2.0 body with method, params, and seqPath", async () => {
+	it("posts a JSON-RPC 2.0 body with the method, its params and the path of the step it acts under", async () => {
 		const { fetchImpl, calls } = makeFakeFetch([{ ok: true, bodyText: JSON.stringify({ result: 42 }) }]);
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl });
 		const out = await client.call<{ result: number }>("Stepper-echo", { message: "hi" }, [0, 1, 2, 3]);
@@ -46,7 +46,7 @@ describe("RpcClient.call", () => {
 		expect(body.jsonrpc).toBe("2.0");
 		expect(body.method).toBe("Stepper-echo");
 		expect(body.params).toEqual({ message: "hi" });
-		expect(body.seqPath).toEqual([0, 1, 2, 3]);
+		expect(body.under).toEqual([0, 1, 2, 3]);
 	});
 
 	it("signs a call that invokes an action over the address, the method and the body it sends", async () => {

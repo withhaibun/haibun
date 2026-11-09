@@ -320,7 +320,7 @@ export class ShuAsk extends ShuElement<typeof ChatSchema> {
 				if (typeof maybeSpeak === "function") maybeSpeak.call(el, turn.response);
 			});
 		}
-		// Actuality writes the turn whether or not its stream announced a seqPath, so the session list changes in both cases.
+		// Actuality writes the turn, so the session list changes.
 		void this.refreshSessionList();
 	}
 

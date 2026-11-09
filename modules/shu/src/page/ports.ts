@@ -224,18 +224,13 @@ export type TEventStream = {
 
 /** The page's calls of actuality's steps. A served page calls its site, and a test installs a conduit over a map of responses. */
 export type TConduit = {
-	/** Calls the step `link` names and returns its products. `why` states the reader's intent, which an act records in
-	 *  actuality. Throws where the site doesn't respond, refuses the call, or returns a malformed response. */
+	/** Calls the step `link` names and returns its products. `why` states the reader's intent. Throws where the site doesn't respond, refuses the call, or returns a malformed response. */
 	follow<T = TRepresentation>(link: TLink, why: string): Promise<T>;
-	/** Calls the step `link` names and passes each chunk it streams to `onChunk`. `opts.onStart` receives the place in
-	 *  actuality's sequence before the first chunk, and `opts.signal` stops the stream. Returns that place. */
-	followStream(
-		link: TLink,
-		onChunk: (chunk: TStreamChunk) => void,
-		opts: { why: string; signal?: AbortSignal; onStart?: (seqPath: number[]) => void },
-	): Promise<{ seqPath: number[] }>;
-	/** Calls `fn` with a conduit whose calls are each a part of one act of actuality, under one place in its sequence. Each
-	 *  group holds its own place. */
+	/** Calls the step `link` names and passes each chunk it streams to `onChunk`. `opts.onStart` is called as the stream starts,
+	 *  before the first chunk, and `opts.signal` stops the stream. */
+	followStream(link: TLink, onChunk: (chunk: TStreamChunk) => void, opts: { why: string; signal?: AbortSignal; onStart?: () => void }): Promise<void>;
+	/** Calls `fn` with a conduit whose calls each act under one place in actuality's sequence, which `action.begin` allocates
+	 *  for the group and records `why` against. Each group holds its own place. */
 	group<T>(why: string, fn: (g: TConduit) => Promise<T>): Promise<T>;
 };
 

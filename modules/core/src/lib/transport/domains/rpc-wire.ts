@@ -36,7 +36,7 @@ export const ACTION_BEGIN = "action.begin";
 /** The RPC protocol version this code implements. Every call states it. The handshake response holds it. An instance
  *  refuses a call at another version. A client refuses a handshake response at another version. A change to the wire
  *  requires a higher version. rpc-wire.test.ts compares the wire's shape with the shape recorded for this version. */
-export const RPC_PROTOCOL = 6;
+export const RPC_PROTOCOL = 7;
 
 /** What every call's envelope holds. */
 export const RpcEnvelopeSchema = z.object({
@@ -47,8 +47,9 @@ export const RpcEnvelopeSchema = z.object({
 	params: z.record(z.string(), z.unknown()),
 	capability: z.string().optional(),
 	stream: z.boolean().optional(),
-	/** The caller's seqPath. The server dispatches the step at this seqPath. It allocates a synthetic seqPath where the call's seqPath is absent or empty. */
-	seqPath: z.array(z.number()).optional(),
+	/** The path of the step the call acts under. The server dispatches the call's step at a path it assigns under it, or at a
+	 *  path of its own where the call doesn't state one. A caller doesn't state the path of the step itself. */
+	under: z.array(z.number()).min(1).optional(),
 	/** The access level at which the caller reads. A server bounds the call to the narrower of this level and its own ceiling.
 	 *  A caller can read at a narrower level than it holds and can't read at a wider one. */
 	readingAt: AccessLevelSchema.optional(),

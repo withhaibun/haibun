@@ -88,7 +88,7 @@ function aTurn(params: Record<string, unknown>): DrivenStream {
 	const seqPath = turnSeqPaths.shift() ?? [0, 1, 2];
 	const turn = seqPath.join(".");
 	sent.push({ ...JSON.parse(String(params.context ?? "{}")), target: String(params.target), accessLevel: String(params.accessLevel) });
-	return new DrivenStream(seqPath, async (send, signal) => {
+	return new DrivenStream(async (send, signal) => {
 		stream.signal = signal;
 		if (refusedBeforeRecording) return send({ error: refusedBeforeRecording });
 		await recording;

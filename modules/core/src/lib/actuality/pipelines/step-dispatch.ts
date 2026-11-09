@@ -39,7 +39,6 @@ import {
 	asRecorded,
 	endRecord,
 	resultText,
-	STEP_END_CLEARED,
 	startRecord,
 	viewShown,
 	type TStepAuthorization,
@@ -107,13 +106,9 @@ export function releaseSeqPaths(world: TWorld, root: TSeqPath): void {
 	for (const held of world.runtime.seqPaths.keys()) if (held === key || held.startsWith(`${key}.`)) world.runtime.seqPaths.delete(held);
 }
 
-/** Whether a call at `seqPath` is running: a call claims the count under its seqPath from its start to its end. */
-export const callRunning = (world: TWorld, seqPath: TSeqPath): boolean => world.runtime.seqPaths.has(seqPath.join("."));
-
 /**
- * Proves a call's step at the seqPath it claims, whether this host allocated it or the caller stated it. The count under
- * the seqPath starts when the call starts, so `callRunning` reads it while the call runs, and the counts under the seqPath
- * are released once the call ends.
+ * Proves a call's step at the path this host allocated for it. The count under the path starts when the call starts, and
+ * the counts under the path are released once the call ends.
  */
 export async function proveClaimed(ctx: DispatchContext, featureStep: TFeatureStep): Promise<TStepResult> {
 	ctx.world.runtime.seqPaths.set(featureStep.seqPath.join("."), 0);
@@ -387,15 +382,14 @@ async function autoAssertProducts(world: TWorld, stepName: TRecordName, step: TS
 }
 
 /**
- * Writes a step's record when the step starts, so an individual created during the step can link to it by a graph edge.
- * One write states every required field, and clears how an earlier dispatch at the step's path ended, since a caller that states
- * its seqPath, such as a page, may call again at that path once its call ended: sequential writes would let a concurrent reader
- * read a step without its generatedAtTime, which fails the SeqPath schema. getClusteredQuads on a polling tick is one such
- * reader. Returns the record, which the step's end writes again with how it ended.
+ * Creates a step's record when the step starts, so an individual created during the step can link to it by a graph edge.
+ * One write states every required field, so a concurrent reader, such as getClusteredQuads on a polling tick, doesn't read a
+ * step without its generatedAtTime, which fails the SeqPath schema. Dispatch allocates each step's path once, so a store that
+ * holds a record at the path refuses the start. Returns the record, which the step's end writes again with how it ended.
  */
 async function writeStepStart(world: TWorld, featureStep: TFeatureStep, authorization: TStepAuthorization, ran: TStepRan, call: TStepCall): Promise<TStepRecord> {
 	const record = startRecord(actualityFeatureOf(world.tag), featureStep, authorization, ran, call, recordTime(world));
-	await world.shared.getStore().merge({ "@type": SEQ_PATH_LABEL, ...STEP_END_CLEARED, ...record });
+	await world.shared.getStore().create({ "@type": SEQ_PATH_LABEL, ...record });
 	return record;
 }
 

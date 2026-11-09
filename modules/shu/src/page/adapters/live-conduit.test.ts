@@ -7,7 +7,7 @@
  */
 import { requiredActionOf } from "../controllers/registry-controller.js";
 import "fake-indexeddb/auto";
-import { authorityRefusal, notFromActuality, REFUSED_INVOCATION } from "@haibun/core/lib/rpc-wire.js";
+import { ACTION_BEGIN, authorityRefusal, notFromActuality, REFUSED_INVOCATION } from "@haibun/core/lib/rpc-wire.js";
 import { openPageAuthority, pageMay } from "../authority/controllers/page-authority-controller.js";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { reads, acts, type TLink, type TRepresentation } from "../domains/links.js";
@@ -112,6 +112,42 @@ describe("conduit accessor", () => {
 	});
 });
 
+describe("the place a call acts under", () => {
+	it("isn't stated by a page's act, which actuality places, and is the group's place for each act of a group", async () => {
+		const fetchWas = globalThis.fetch;
+		newPage();
+		serveThePage();
+		const GROUP_PLACE = [0, -1, 7];
+		const sent: Array<{ method: string; under?: number[]; seqPath?: unknown }> = [];
+		globalThis.fetch = ((_url: string, init: { body: string }) => {
+			const envelope = JSON.parse(init.body) as { method: string; under?: number[]; seqPath?: unknown };
+			sent.push(envelope);
+			return Promise.resolve(rpcAnswer(envelope.method === ACTION_BEGIN ? { seqPath: GROUP_PLACE } : { ok: true }, 200));
+		}) as unknown as typeof globalThis.fetch;
+		try {
+			const served = installServedConduit("", requiredActionOf);
+			await served.follow(acts(SHOW_STEPS_METHOD), "an act");
+			await served.group("two acts", async (g) => {
+				await g.follow(acts(SHOW_STEPS_METHOD), "the first");
+				await g.follow(reads(SHOW_STEPS_METHOD), "a read in the group");
+			});
+			expect(sent.map(({ method, under }) => [method, under])).toEqual([
+				[SHOW_STEPS_METHOD, undefined],
+				[ACTION_BEGIN, undefined],
+				[SHOW_STEPS_METHOD, GROUP_PLACE],
+				[SHOW_STEPS_METHOD, undefined],
+			]);
+			expect(
+				sent.some((envelope) => "seqPath" in envelope),
+				"a call doesn't state its own path",
+			).toBe(false);
+		} finally {
+			globalThis.fetch = fetchWas;
+			newPage();
+		}
+	});
+});
+
 describe("a server that does not respond", () => {
 	// A page holds when the site last responded and whether a timeout marked the site unreachable. Each case starts from
 	// a page that doesn't hold either, and sets up its own situation.
@@ -135,7 +171,7 @@ describe("a server that does not respond", () => {
 			expect(err).toBeInstanceOf(ServerUnreachable);
 			expect(isServerUnreachable(err)).toBe(true);
 			expect(isServerUnreachable(new Error("wrapped", { cause: err }))).toBe(true);
-			expect(String((err as Error).message)).toContain(HANDSHAKE_PATH);
+			expect(String((err as Error).message)).toContain(`/rpc/${SHOW_STEPS_METHOD}`);
 		} finally {
 			globalThis.fetch = fetchWas;
 		}
@@ -260,7 +296,6 @@ describe("a server that does not respond", () => {
 		hydrateFromDom();
 		const bounds: Array<boolean> = [];
 		globalThis.fetch = ((url: string, init?: { signal?: AbortSignal; body?: string }) => {
-			if (String(url).endsWith(HANDSHAKE_PATH)) return Promise.resolve(rpcAnswer({ seqPath: [0, 1] }, 200));
 			bounds.push(init?.signal !== undefined);
 			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("timed out", "TimeoutError")), { once: true }));
 		}) as unknown as typeof globalThis.fetch;
@@ -348,7 +383,6 @@ describe("a server that does not respond", () => {
 		const asked: string[] = [];
 		globalThis.fetch = ((url: string, init?: { signal?: AbortSignal }) => {
 			asked.push(new URL(String(url)).pathname);
-			if (String(url).endsWith(HANDSHAKE_PATH)) return Promise.resolve(rpcAnswer({ seqPath: [0, 1] }, 200));
 			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("timed out", "TimeoutError")), { once: true }));
 		}) as unknown as typeof globalThis.fetch;
 		try {
@@ -356,8 +390,7 @@ describe("a server that does not respond", () => {
 			await expect(conduit.follow(reads(SHOW_STEPS_METHOD), "a view reading")).rejects.toThrow();
 			const afterRead = asked.length;
 			await expect(conduit.follow(acts("chatWithContext"), "the reader's question")).rejects.toThrow();
-			expect(asked.slice(afterRead), "the page sent the act to the server, starting with the handshake that places it in actuality").toContain(HANDSHAKE_PATH);
-			expect(asked.slice(afterRead), "and then the act itself").toContain("/rpc/chatWithContext");
+			expect(asked.slice(afterRead), "the page sent the act to the server").toEqual(["/rpc/chatWithContext"]);
 		} finally {
 			globalThis.fetch = fetchWas;
 			newPage();
@@ -390,7 +423,6 @@ describe("a server that does not respond", () => {
 		globalThis.fetch = ((url: string, init?: { signal?: AbortSignal }) => {
 			// The fake responds to the call that opens an action. It accepts the streamed read and doesn't respond, so only
 			// the reader's abort settles that read.
-			if (String(url).endsWith(HANDSHAKE_PATH)) return Promise.resolve(rpcAnswer({ seqPath: [0, 1] }, 200));
 			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("stopped", "AbortError")), { once: true }));
 		}) as unknown as typeof globalThis.fetch;
 		try {

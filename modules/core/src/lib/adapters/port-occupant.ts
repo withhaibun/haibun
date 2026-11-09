@@ -25,7 +25,7 @@ export async function describePortOccupant(port: number, timeoutMs: number): Pro
 		res = await fetch(`${localOrigin(port)}${RPC_ROUTE}${encodeURIComponent(ACTION_BEGIN)}`, {
 			method: "POST",
 			headers: { "Content-Type": MEDIA_TYPE.json },
-			body: rpcEnvelope({ id: "port-probe", method: ACTION_BEGIN, params: {}, seqPath: [] }),
+			body: rpcEnvelope({ id: "port-probe", method: ACTION_BEGIN, params: {} }),
 			signal: AbortSignal.timeout(timeoutMs),
 		});
 	} catch {

@@ -15,7 +15,6 @@ import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { actionList } from "@haibun/core/lib/domains/actions.js";
 import { DOMAIN_TEXT, DOMAIN_FILE_PATH, DOMAIN_ROUTE, DOMAIN_LINK } from "@haibun/core/lib/domains/domains.js";
 import { STORE_METHOD_PREFIX, storeMethods } from "@haibun/core/lib/domains/store-protocol.js";
-import { resolveHostId, syntheticSeqPath } from "@haibun/core/lib/domains/host-id.js";
 import { Access, ENDPOINT_LABEL, HTTP_HOST_LABEL, LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { fromJsonText } from "@haibun/core/lib/domains/json-text.js";
 import { basicAuthUsers } from "@haibun/core/lib/domains/basic-auth.js";
@@ -149,16 +148,6 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 	/** Whether each feature's server serves RPC calls to actuality's steps. */
 	rpc = false;
 
-	/** The count behind each session's seqPath root, which this process doesn't reset. */
-	private sessionActionSeq = 0;
-
-	/** A new seqPath root for a client session's action: this host's hostId and the synthetic feature number, so session
-	 *  paths sort apart from feature paths and stay unique across a client's reloads while the process runs. */
-	private allocateSessionSeqPath(): number[] {
-		this.sessionActionSeq += 1;
-		return syntheticSeqPath(resolveHostId(), this.sessionActionSeq);
-	}
-
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 		this.steppers = steppers;
@@ -268,7 +257,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 	serveRpc(webserver: IWebServer, transport: ITransport): StepRegistry {
 		const { runtime } = this.getWorld();
 		const verifier = capabilityVerifier(runtime, webserver);
-		return serveRpc({ world: this.getWorld(), steppers: this.steppers, webserver, transport, verifier, sessionSeqPath: () => this.allocateSessionSeqPath() });
+		return serveRpc({ world: this.getWorld(), steppers: this.steppers, webserver, transport, verifier });
 	}
 
 	async listen(why: string) {

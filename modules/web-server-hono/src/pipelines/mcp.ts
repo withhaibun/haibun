@@ -56,7 +56,7 @@ const failedTool = (text: string): CallToolResult => ({ isError: true, content: 
 async function callTool(parts: TMcpParts, name: string, args: Record<string, unknown>, caller: TCaller): Promise<CallToolResult> {
 	const within: TDispatchWithin = { registry: parts.registry(), world: parts.world, steppers: parts.steppers };
 	try {
-		const called = calledStep(within, { method: name, params: args, asks: undefined, seqPath: undefined }, caller);
+		const called = calledStep(within, { method: name, params: args, asks: undefined, under: undefined }, caller);
 		if ("refused" in called) return failedTool(refusalSaid(await recordedRefusal(within, caller, called)));
 		const dispatched = dispatchedAs(within, caller);
 		const result = await runActingAs(caller.principal, async () => answeredFor(dispatched, called.tool, await proveClaimed(dispatched, called.featureStep)), caller.restsOn);

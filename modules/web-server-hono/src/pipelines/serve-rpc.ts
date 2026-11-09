@@ -23,7 +23,7 @@ import { runWithRequestContext, requestBaseIri } from "@haibun/core/lib/request-
 import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import { runRegistry, type StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { mayCall } from "@haibun/core/lib/domains/actions.js";
-import { activeSitePrincipal } from "@haibun/core/lib/domains/host-id.js";
+import { activeSitePrincipal, allocateSyntheticSeqPath } from "@haibun/core/lib/domains/host-id.js";
 import { SERVING } from "@haibun/core/lib/domains/serving.js";
 import { streamContext } from "@haibun/core/lib/step-stream-context.js";
 import { runAsCaller, runReadingAt } from "@haibun/core/lib/domains/capability-context.js";
@@ -32,23 +32,16 @@ import type { IStepTransport, ITransport } from "../domains/transport.js";
 import { notARead } from "../domains/web-server.js";
 import { calledStep, dispatchCall, recordedRefusal, type TCaller } from "./dispatch-call.js";
 
-/** What serving `/rpc` reads: actuality's world and steppers, the server and its transport, the verifier of each request's
- *  authority, and the seqPath root of each session's action. */
-export type TServeRpcParts = {
-	world: TWorld;
-	steppers: AStepper[];
-	webserver: IWebServer;
-	transport: ITransport & Partial<IStepTransport>;
-	verifier: TCapabilityVerifier;
-	sessionSeqPath: () => number[];
-};
+/** What serving `/rpc` reads: actuality's world and steppers, the server and its transport, and the verifier of each
+ *  request's authority. */
+export type TServeRpcParts = { world: TWorld; steppers: AStepper[]; webserver: IWebServer; transport: ITransport & Partial<IStepTransport>; verifier: TCapabilityVerifier };
 
 /**
  * Serves `/rpc` calls to actuality's steps on a server's transport, and returns the registry that dispatches the calls.
  * The registry states which methods are reads, which the transport reads before narrating that it served a call: reading
  * actuality isn't an act of actuality, so serving a read isn't announced as one.
  */
-export function serveRpc({ world, steppers, webserver, transport, verifier, sessionSeqPath }: TServeRpcParts): StepRegistry {
+export function serveRpc({ world, steppers, webserver, transport, verifier }: TServeRpcParts): StepRegistry {
 	const registry = runRegistry(world);
 	transport.attach?.(registry);
 	const within = { registry, world, steppers };
@@ -58,10 +51,10 @@ export function serveRpc({ world, steppers, webserver, transport, verifier, sess
 		if (!parsed.success) return parsed.refusal;
 		const msg = parsed.data;
 		const { method, params } = msg;
-		// A client begins an action by requesting a globally unique seqPath root before its first call that changes state,
-		// and appends a count of its own to it for each call within the action.
+		// A client begins an action by requesting a path of its own, which its calls within the action state as the step they
+		// act under, so this host dispatches each of them at a path it allocates under the action.
 		if (method === ACTION_BEGIN) {
-			const seqPath = sessionSeqPath();
+			const seqPath = allocateSyntheticSeqPath(world);
 			return { seqPath, ...handshakeOf(world, itemAt(seqPath, 0)) };
 		}
 
@@ -90,7 +83,7 @@ export function serveRpc({ world, steppers, webserver, transport, verifier, sess
 		}
 
 		try {
-			const called = calledStep(within, { method, params, asks: msg.asks, seqPath: msg.seqPath }, caller);
+			const called = calledStep(within, { method, params, asks: msg.asks, under: msg.under }, caller);
 			if ("refused" in called) return await recordedRefusal(within, caller, called);
 			const { tool, featureStep } = called;
 			// An RPC dispatch comes from a page, such as its polling of getClusteredQuads, not from a feature: it is logged at

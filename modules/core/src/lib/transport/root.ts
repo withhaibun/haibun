@@ -16,6 +16,6 @@ export function remoteSteps(baseUrl: string, sign: TRequestSigner): TRemoteSteps
 	};
 	return {
 		handshake: () => rpc.handshake(),
-		call: (method, params, seqPath, action) => rpc.call(method, params, seqPath, { action }).then((result): TRemoteCall => ({ served: true, result }), failed),
+		call: (method, params, under, action) => rpc.call(method, params, under, { action }).then((result): TRemoteCall => ({ served: true, result }), failed),
 	};
 }

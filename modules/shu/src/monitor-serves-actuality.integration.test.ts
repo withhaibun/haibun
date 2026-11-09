@@ -47,7 +47,7 @@ class ReadsTheMonitorStepper extends AStepper {
 				const response = await fetch(`${MONITOR}${MONITOR_PATH}`);
 				page = { status: response.status, body: await response.text() };
 				const reader = new RpcClient({ baseUrl: MONITOR, timeoutMs: 5_000, retry: { maxAttempts: 1 } });
-				read = await reader.call<TClusteredQuads>(RPC_METHOD.CLUSTERED_QUADS, { perTypeLimit: 100, accessLevel: Access.private }, []);
+				read = await reader.call<TClusteredQuads>(RPC_METHOD.CLUSTERED_QUADS, { perTypeLimit: 100, accessLevel: Access.private }, undefined);
 				const saved = await findStepper<StorageFS>(this.steppers, "StorageFS").saveArtifact("saved.html", "<script>document.title = 'ran'</script>");
 				artifactPolicy = (await fetch(`${MONITOR}${artifactAddress(saved.baseRelativePath)}`)).headers.get("Content-Security-Policy");
 				return OK;

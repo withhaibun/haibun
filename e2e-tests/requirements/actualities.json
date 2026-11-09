@@ -544,35 +544,35 @@
 			"actuality": {
 				"text": "e2e-tests/requirements, node_modules/@haibun/cli/waypoints, node_modules/@haibun/logic/waypoints, node_modules/@haibun/core/waypoints",
 				"status": "passed",
-				"tookMs": 53400,
+				"tookMs": 54200,
 				"digest": {
 					"e2e-tests/requirements": "a97313b5d36c69de6bd71befc4fac1303e7ec1b8a9eae3df0bccca1501f26483",
 					"e2e-tests/src": "af005a350cebf7bace0c8de218d5012a617d2347dc19b706b80e17f97cd8ba7f",
 					"modules/cli/src": "f3b2f239d41c27d70cfc5b421721ab916cb59adfb16949b4658d2cf4c42d8f7b",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "2f10ce8bd522f3eaa436854889bdcd20eaff10a5b31482411d318b6a017ef516",
+					"modules/core/src": "59b8bcbe129d7ecafcff0e962e0076a4f9e21121b8742fc23b264b6b908f2309",
 					"modules/core/waypoints": "f573c51de6e8154e49adbb5d98a25b3fd1872742dfdab0f3d6ec8f6164759860",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
-					"modules/logic/src": "5ff09dd6e7f052e0d1b62684d47d0b3a36cbc97990d798a3edc00d2000631f00",
+					"modules/logic/src": "ddce68661ed9e85d8584d516c28de722c54f32239013df687fa5bebd5d295fe0",
 					"modules/logic/waypoints": "93e972f98438aa5cbe8f36d93e6aa45924af65df9fdb2846bf209209421a4671",
 					"modules/monitor-otel/src": "4fbef0f2c78fed7b3e2d03ec4ab094bef11766724e5f5f6efb73491ea1d4dea6",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/out-junit/src": "22d1ca5d4f4449cae6186ff8d84c1f0b182e7591e1ffda9520a38daa3e8681d2",
 					"modules/recorder/src": "079caf826dbcad8943531b3f8f716e79a45d55f1668d29417e2a230978236208",
-					"modules/shu/src": "1e9e738b4f346d523dec75bb17d6c82e87480dc475b5c05cd8800f206e926916",
+					"modules/shu/src": "e67fdfab5ab80d9df3a49dd824159e3ef63701f28eec21e8e74bd62bf6016687",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/utils/src": "698b48ed8fbac4dc3c0483e6bb3ccd88640ebc98696b8cc493b5740d1017db8d",
 					"modules/web-accessibility-axe/src": "e7db51c12fd19f0438c3f457a4a36b688b96526db10d4df165b03c0c667fb655",
 					"modules/web-playwright/src": "f055d34a4b700912a7d7530f26a9de3142fc0ae865bebc2e2d97fb42da5cb4de",
-					"modules/web-server-hono/src": "1e940915b7ec31a6c0173d8e598ab9ac77336b0459481fe4955169e41bd117d6"
+					"modules/web-server-hono/src": "b00ab949c09047ae70f7d56dec3f3d2fae924a50128601c49e1f376b7afbadbd"
 				}
 			},
 			"features": {
 				"/features/01-prose-and-steps.feature.ts": {
 					"text": "Prose and steps",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 600,
 					"steps": 24
 				},
 				"/features/02-authority.feature.ts": {
@@ -596,19 +596,19 @@
 				"/features/05-goals.feature.ts": {
 					"text": "Goals over producer rules",
 					"status": "passed",
-					"tookMs": 1800,
+					"tookMs": 1700,
 					"steps": 41
 				},
 				"/features/06-world-and-products.feature.ts": {
 					"text": "The world's data and a step's products",
 					"status": "passed",
-					"tookMs": 400,
+					"tookMs": 500,
 					"steps": 21
 				},
 				"/features/07-records.feature.ts": {
 					"text": "Records, events and actualities",
 					"status": "passed",
-					"tookMs": 2500,
+					"tookMs": 2600,
 					"steps": 125
 				},
 				"/features/08-timing.feature.ts": {
@@ -620,7 +620,7 @@
 				"/features/09-surfaces.feature.ts": {
 					"text": "One path for every surface",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 800,
 					"steps": 77
 				},
 				"/features/10-cli.feature.ts": {
@@ -662,7 +662,7 @@
 				"/features/16-class-expressions.feature.ts": {
 					"text": "Class expressions",
 					"status": "passed",
-					"tookMs": 43300,
+					"tookMs": 43900,
 					"steps": 93
 				}
 			}

@@ -53,7 +53,7 @@ export class RemoteQuadStore implements IQuadStore {
 
 	private async call<T>(method: string, params: Record<string, unknown>): Promise<T> {
 		const storeMethod = `${STORE_METHOD_PREFIX}${method}`;
-		return (await this.remote.rpc.call<{ result: T }>(storeMethod, params, [], { action: requiredStoreCapability(storeMethod) })).result;
+		return (await this.remote.rpc.call<{ result: T }>(storeMethod, params, undefined, { action: requiredStoreCapability(storeMethod) })).result;
 	}
 
 	create(node: TNode): Promise<string> {

@@ -959,7 +959,7 @@ describe("step-dispatch", () => {
 			expect(status).toBe(RECORDED_STATUS.failed);
 		});
 
-		it("writes a step's record once at its start and once at its end, and doesn't read it (PF26)", async () => {
+		it("creates a step's record at its start and writes it again at its end, doesn't read it (PF26), and refuses a second start at its path", async () => {
 			const steppers = [new ProductStepper()];
 			const registry = new StepRegistry(steppers, world);
 			const tool = registry.get("ProductStepper-failStep");
@@ -971,7 +971,11 @@ describe("step-dispatch", () => {
 			store.merge = (node) => (node["@type"] === SEQ_PATH_LABEL && stepWrites.push(WRITE_VERB.merge), merge(node));
 			store.get = (subject, predicate, namedGraph) => (namedGraph === SEQ_PATH_LABEL && stepWrites.push("get"), get(subject, predicate, namedGraph));
 			await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, buildFeatureStepForTransport(tool, {}, [0, 9, 2]));
-			expect(stepWrites).toEqual([WRITE_VERB.merge, WRITE_VERB.merge]);
+			expect(stepWrites).toEqual([WRITE_VERB.create, WRITE_VERB.merge]);
+			await expect(
+				dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, buildFeatureStepForTransport(tool, {}, [0, 9, 2])),
+				"dispatch allocates a path once",
+			).rejects.toThrow();
 			const record = (await store.query({ subject: formatRecordName({ actuality: actualityFeatureOf(world.tag), path: [0, 9, 2] }), namedGraph: SEQ_PATH_LABEL })).map(
 				(q) => q.predicate,
 			);

@@ -56,13 +56,13 @@ class StoreDelegationProbeStepper extends AStepper {
 			action: async () => {
 				readBack = await recordOf(this.getWorld().shared.getStore(), PRINCIPAL_LABEL, "did:site:0.1");
 				const asDelegate = new RpcClient({ baseUrl: `http://localhost:${PEER_PORT}`, sign: new FakeInvoker(SATELLITE).sign, timeoutMs: 2_000, retry: { maxAttempts: 1 } });
-				const held = await asDelegate.call<{ result: TRecordsPage }>("store.readRecords", { query: { label: PRINCIPAL_LABEL, named: ["did:site:0.1"], limit: 1 } }, [], {
+				const held = await asDelegate.call<{ result: TRecordsPage }>("store.readRecords", { query: { label: PRINCIPAL_LABEL, named: ["did:site:0.1"], limit: 1 } }, undefined, {
 					action: "store.read",
 				});
 				heldByMain = held.result.vertices;
 				const stranger = new RpcClient({ baseUrl: `http://localhost:${PEER_PORT}`, timeoutMs: 2_000, retry: { maxAttempts: 1 } });
-				deniedRead = await reasonRefused(stranger.call("store.readRecords", { query: { label: PRINCIPAL_LABEL } }, []));
-				deniedWrite = await reasonRefused(stranger.call("store.write", { unit: { label: PRINCIPAL_LABEL, record: { id: "intruder" } } }, []));
+				deniedRead = await reasonRefused(stranger.call("store.readRecords", { query: { label: PRINCIPAL_LABEL } }, undefined));
+				deniedWrite = await reasonRefused(stranger.call("store.write", { unit: { label: PRINCIPAL_LABEL, record: { id: "intruder" } } }, undefined));
 				return OK;
 			},
 		},

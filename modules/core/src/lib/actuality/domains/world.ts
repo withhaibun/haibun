@@ -63,11 +63,10 @@ export type TRuntime = {
 	/** The prover that proves every step. The stepper that supplies the logic engine sets it. */
 	prover?: TProver;
 	/**
-	 * Monotonic counter for synthetic seqPaths. `allocateSyntheticSeqPath` in host-id.ts
-	 * increments it for a call that doesn't carry a caller seqPath: an MCP tool call, an
-	 * RPC without a seqPath, a step called by name, and an urakata registration.
-	 * A synthetic path is [hostId, SYNTHETIC_FEATURE_NUM, adHocSeq], so it sorts apart from
-	 * every feature path.
+	 * Monotonic counter of the paths this host allocates for calls (`allocateCallPath` and `allocateSyntheticSeqPath` in
+	 * host-id.ts). A call that doesn't act under a step, such as an MCP tool call, an RPC that doesn't state `under`, a step
+	 * called by name, an urakata registration or a page's action, takes [hostId, SYNTHETIC_FEATURE_NUM, adHocSeq], which sorts
+	 * apart from every feature path. A call under a step takes [...under, adHocSeq].
 	 */
 	adHocSeq?: number;
 	/** Each value a stepper holds for actuality under its own name, which `getFromRuntime` reads. */

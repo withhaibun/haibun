@@ -299,7 +299,7 @@ export function installServedConduit(basePath: string, required: (method: string
 			{ prove, actualityId: () => pageHydration().actualityId(), responseTimeoutMs: () => pageHydration().settings().responseTimeoutMs, forgetAuthority },
 			conduitHeld(),
 			basePath,
-			null,
+			undefined,
 		),
 	);
 }

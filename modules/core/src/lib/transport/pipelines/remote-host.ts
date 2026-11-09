@@ -23,7 +23,7 @@ export type TRemoteHost = { hostId: number; descriptors: TStepDescriptor[] };
  *  its steps this process may call there, and only those are registered. */
 export async function readRemoteHost(rpc: TRemoteSteps, remoteUrl: string): Promise<TRemoteHost> {
 	const { hostId } = await rpc.handshake();
-	const shown = await rpc.call(SHOW_STEP_DEFINITIONS_METHOD, NO_INPUT, [], SHOW_STEPS_ACTION);
+	const shown = await rpc.call(SHOW_STEP_DEFINITIONS_METHOD, NO_INPUT, undefined, SHOW_STEPS_ACTION);
 	if (!shown.served)
 		throw new Error(`the steps of ${remoteUrl} weren't read: ${shown.reason}. Check that the host is serving and that this process holds ${SHOW_STEPS_ACTION} there.`);
 	const callable = readStepDefinitions(shown.result).steps.filter((step) => step.callable);
@@ -59,9 +59,9 @@ export function remoteTools(rpc: TRemoteSteps, remoteUrl: string, { hostId, desc
 /** Calls a step on the remote host and invokes the capability the step declares. The remote step's refusal is this step's
  *  failure, in the host's words where the host gave them. A step that doesn't declare products doesn't return them,
  *  whatever the host's response carries in their place. */
-async function callRemote(rpc: TRemoteSteps, descriptor: TStepDescriptor, params: Record<string, unknown>, seqPath: number[]): Promise<TActionResult> {
+async function callRemote(rpc: TRemoteSteps, descriptor: TStepDescriptor, params: Record<string, unknown>, under: number[]): Promise<TActionResult> {
 	const { method, capability } = descriptor;
-	const called = await rpc.call(method, params, seqPath, capability);
+	const called = await rpc.call(method, params, under, capability);
 	if (!called.served) return actionNotOK(called.reason);
 	const answersWithProducts = descriptor.outputSchema !== undefined || contractProducts(descriptor).of !== undefined;
 	return answersWithProducts ? { ok: true, products: RecordSchema.parse(called.result) } : { ok: true };

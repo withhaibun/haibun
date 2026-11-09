@@ -5,7 +5,7 @@
  * its own.
  *
  * What is specified is what a caller is given: the result of a follow, the failure of one the server refused, the
- * order in which a stream arrives, the seqPath with which a stream starts, and what a grouped call returns. Each
+ * order in which a stream arrives, that a stream starts before its first chunk, and what a grouped call returns. Each
  * implementation arranges its own results, which `TConduitUnderTest` supplies.
  */
 import { describe, it, expect, beforeEach } from "vitest";
@@ -58,14 +58,14 @@ export function describeConduit(name: string, make: () => TConduitUnderTest | Pr
 			await expect(conduit.follow(reads(METHOD, {}), "read the rows")).rejects.toThrow(/the step refused the call/);
 		});
 
-		it("starts a stream with a seqPath before a chunk arrives, and resolves with that seqPath", async () => {
+		it("starts a stream once, before a chunk arrives", async () => {
 			held.streams(METHOD, [{ text: "one" }, { text: "two" }] as TStreamChunk[]);
-			const started: number[][] = [];
-			const arrived: TStreamChunk[] = [];
-			const answer = await conduit.followStream(reads(METHOD, {}), (chunk) => arrived.push(chunk), { why: "read as it comes", onStart: (seqPath) => started.push(seqPath) });
-			expect(started.length, "one start, before any chunk").toBe(1);
-			expect(answer.seqPath).toEqual(started[0]);
-			expect(arrived.map((c) => (c as { text?: string }).text)).toEqual(["one", "two"]);
+			const seen: string[] = [];
+			await conduit.followStream(reads(METHOD, {}), (chunk) => seen.push(String((chunk as { text?: string }).text)), {
+				why: "read as it comes",
+				onStart: () => seen.push("start"),
+			});
+			expect(seen).toEqual(["start", "one", "two"]);
 		});
 
 		it("fails a stream at a chunk carrying an error, and doesn't deliver a chunk after it", async () => {

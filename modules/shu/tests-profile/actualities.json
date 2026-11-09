@@ -195,44 +195,44 @@
 			"actuality": {
 				"text": "modules/shu/tests-profile, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 16100,
+				"tookMs": 14900,
 				"digest": {
-					"modules/core/src": "eb51ed13244c80de58cb3de0824f44c9bb1582b22238b07f21e6a7d0ee40a91b",
+					"modules/core/src": "59b8bcbe129d7ecafcff0e962e0076a4f9e21121b8742fc23b264b6b908f2309",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
 					"modules/logic/src": "ddce68661ed9e85d8584d516c28de722c54f32239013df687fa5bebd5d295fe0",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/shu/src": "1e9e738b4f346d523dec75bb17d6c82e87480dc475b5c05cd8800f206e926916",
+					"modules/shu/src": "e67fdfab5ab80d9df3a49dd824159e3ef63701f28eec21e8e74bd62bf6016687",
 					"modules/shu/tests-profile": "eb1cfda576cf4aae1ca5a8d0e0ffbb36426f51454e736ef0380eff5f3fe07f9f",
 					"modules/shu/waypoints": "bf3404dac6e40f8fee76ffc4327503c9b2ce7b61de89068a9bfc28ffefcd1604",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/web-playwright/src": "f055d34a4b700912a7d7530f26a9de3142fc0ae865bebc2e2d97fb42da5cb4de",
-					"modules/web-server-hono/src": "1e940915b7ec31a6c0173d8e598ab9ac77336b0459481fe4955169e41bd117d6"
+					"modules/web-server-hono/src": "b00ab949c09047ae70f7d56dec3f3d2fae924a50128601c49e1f376b7afbadbd"
 				}
 			},
 			"features": {
 				"/features/b-reading-a-cached-actuality.feature.ts": {
 					"text": "Reading an actuality this device holds",
 					"status": "passed",
-					"tookMs": 4000,
+					"tookMs": 2800,
 					"steps": 219
 				},
 				"/features/c-reading-a-report.feature.ts": {
 					"text": "Reading a report of this actuality",
 					"status": "passed",
-					"tookMs": 2500,
+					"tookMs": 2400,
 					"steps": 223
 				},
 				"/features/d-two-origins.feature.ts": {
 					"text": "What a reader holds is held per address",
 					"status": "passed",
-					"tookMs": 3000,
+					"tookMs": 2900,
 					"steps": 214
 				},
 				"/features/e-deleting-an-actuality.feature.ts": {
 					"text": "Deleting an actuality this device holds",
 					"status": "passed",
-					"tookMs": 3900,
+					"tookMs": 4000,
 					"steps": 210
 				}
 			}
@@ -459,26 +459,26 @@
 			"actuality": {
 				"text": "modules/shu/tests-profile, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 3400,
+				"tookMs": 3100,
 				"digest": {
-					"modules/core/src": "eb51ed13244c80de58cb3de0824f44c9bb1582b22238b07f21e6a7d0ee40a91b",
+					"modules/core/src": "59b8bcbe129d7ecafcff0e962e0076a4f9e21121b8742fc23b264b6b908f2309",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
 					"modules/logic/src": "ddce68661ed9e85d8584d516c28de722c54f32239013df687fa5bebd5d295fe0",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/shu/src": "1e9e738b4f346d523dec75bb17d6c82e87480dc475b5c05cd8800f206e926916",
+					"modules/shu/src": "e67fdfab5ab80d9df3a49dd824159e3ef63701f28eec21e8e74bd62bf6016687",
 					"modules/shu/tests-profile": "eb1cfda576cf4aae1ca5a8d0e0ffbb36426f51454e736ef0380eff5f3fe07f9f",
 					"modules/shu/waypoints": "bf3404dac6e40f8fee76ffc4327503c9b2ce7b61de89068a9bfc28ffefcd1604",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/web-playwright/src": "f055d34a4b700912a7d7530f26a9de3142fc0ae865bebc2e2d97fb42da5cb4de",
-					"modules/web-server-hono/src": "1e940915b7ec31a6c0173d8e598ab9ac77336b0459481fe4955169e41bd117d6"
+					"modules/web-server-hono/src": "b00ab949c09047ae70f7d56dec3f3d2fae924a50128601c49e1f376b7afbadbd"
 				}
 			},
 			"features": {
 				"/features/a-an-actuality-to-come-back-to.feature.ts": {
 					"text": "An actuality to come back to",
 					"status": "passed",
-					"tookMs": 2100,
+					"tookMs": 2000,
 					"steps": 209
 				}
 			}

@@ -33,13 +33,10 @@ export type TDispatch = (method: string, params: Record<string, unknown>, link: 
 /** What a stream rejects with once its caller aborts it, as the fetch that carries one rejects. */
 export const STREAM_ABORTED = "the stream was aborted";
 
-/** A stream a case drives, one form of a dispatch's response to a streamed call: the seqPath actuality announces, or null where
- *  it doesn't announce one, and `run`, which sends chunks until it resolves, given the caller's abort signal. */
+/** A stream a case drives, one form of a dispatch's response to a streamed call: `run` sends chunks until it resolves, given
+ *  the caller's abort signal. */
 export class DrivenStream {
-	constructor(
-		readonly seqPath: number[] | null,
-		readonly run: (send: (chunk: TStreamChunk) => void, signal?: AbortSignal) => Promise<void>,
-	) {}
+	constructor(readonly run: (send: (chunk: TStreamChunk) => void, signal?: AbortSignal) => Promise<void>) {}
 }
 
 /** A `TConduit` that responds from a function a test supplies, so the code under test doesn't detect that it isn't calling a server. */
@@ -51,16 +48,12 @@ export class TestConduit implements TConduit {
 		return result as T;
 	}
 
-	/** A plain response is the chunk, or the chunks, the stream sends in order, announced at seqPath [0]; a `DrivenStream`
-	 *  is sent as its case drives it. Either is announced once the dispatch responds, before a chunk arrives. */
-	async followStream(
-		link: TLink,
-		onChunk: (chunk: TStreamChunk) => void,
-		opts: { why: string; signal?: AbortSignal; onStart?: (seqPath: number[]) => void },
-	): Promise<{ seqPath: number[] }> {
+	/** A plain response is the chunk, or the chunks, the stream sends in order; a `DrivenStream` is sent as its case drives it.
+	 *  Either starts once the dispatch responds, before a chunk arrives. */
+	async followStream(link: TLink, onChunk: (chunk: TStreamChunk) => void, opts: { why: string; signal?: AbortSignal; onStart?: () => void }): Promise<void> {
 		const answer = await this.dispatch(link.method, link.params ?? {}, link);
-		const stream = answer instanceof DrivenStream ? answer : new DrivenStream([0], async (send) => ((Array.isArray(answer) ? answer : [answer]) as TStreamChunk[]).forEach(send));
-		if (stream.seqPath) opts.onStart?.(stream.seqPath);
+		const stream = answer instanceof DrivenStream ? answer : new DrivenStream(async (send) => ((Array.isArray(answer) ? answer : [answer]) as TStreamChunk[]).forEach(send));
+		opts.onStart?.();
 		const { signal } = opts;
 		// A stream its caller aborted, or that ended, doesn't send a chunk after it.
 		let open = true;
@@ -92,7 +85,6 @@ export class TestConduit implements TConduit {
 			open = false;
 			signal?.removeEventListener("abort", abort);
 		}
-		return { seqPath: stream.seqPath ?? [] };
 	}
 
 	group<T>(_why: string, fn: (g: TConduit) => Promise<T>): Promise<T> {

@@ -85,6 +85,20 @@ export function syntheticSeqPath(hostId: number, adHocSeq: number): number[] {
  * counter and builds the path.
  */
 export function allocateSyntheticSeqPath(world: { tag: { hostId: number }; runtime: { adHocSeq?: number } }): number[] {
+	return syntheticSeqPath(world.tag.hostId, nextAdHocSeq(world));
+}
+
+/** Advances the world's `adHocSeq` counter and returns it. The counter only advances, so each value is allocated once. */
+function nextAdHocSeq(world: { runtime: { adHocSeq?: number } }): number {
 	world.runtime.adHocSeq = (world.runtime.adHocSeq ?? 0) + 1;
-	return syntheticSeqPath(world.tag.hostId, world.runtime.adHocSeq);
+	return world.runtime.adHocSeq;
+}
+
+/**
+ * Allocates the path of a call's step: under the path the call acts under, or a synthetic path where it doesn't act under
+ * one. The last part under a parent is the next value of the world's `adHocSeq` counter, so two calls under one parent never
+ * share a path, and this host doesn't hold a count for a parent that another host or a page names.
+ */
+export function allocateCallPath(world: { tag: { hostId: number }; runtime: { adHocSeq?: number } }, under: readonly number[] | undefined): number[] {
+	return under === undefined ? allocateSyntheticSeqPath(world) : [...under, nextAdHocSeq(world)];
 }

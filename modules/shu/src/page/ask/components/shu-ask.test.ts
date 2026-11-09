@@ -17,13 +17,12 @@ import { CLOSED_CONVERSATION, conversationState } from "../controllers/conversat
 import { counted } from "@haibun/core/lib/domains/hypermedia.js";
 
 const listed: Array<{ session: string; label: string; generatedAtTime: string; turns: number }> = [];
-let onStartSeqPath: number[] | null = null;
 /** What the server returns for the session read. A deployment that responds without the list is the failed-read case. */
 let sessionsAnswer: () => Record<string, unknown> = () => ({ sessions: [...listed], ...counted(listed.length) });
 
-/** A turn that streams text and completes, announcing the seqPath a case sets, where it sets one. */
+/** A turn that streams text and completes. */
 const aTurn = () =>
-	new DrivenStream(onStartSeqPath, (send) => {
+	new DrivenStream((send) => {
 		send({ text: "an answer" });
 		// The turn is written server-side either way, so the session now exists.
 		listed.push({ session: "cmt-ask-0.1.2", label: "a session", generatedAtTime: new Date().toISOString(), turns: 1 });
@@ -65,7 +64,6 @@ describe("the session selector", () => {
 	beforeEach(() => {
 		conversationState.set(CLOSED_CONVERSATION);
 		listed.length = 0;
-		onStartSeqPath = [0, 1, 2];
 		sessionsAnswer = () => ({ sessions: [...listed], ...counted(listed.length) });
 	});
 
@@ -90,14 +88,6 @@ describe("the session selector", () => {
 		await turn(el, "the second");
 		expect(conversationState.get().asked).toMatchObject({ prompt: "the second", status: "completed" });
 	});
-
-	it("offers the session even when the turn's stream didn't announce a seqPath, since the session exists either way", async () => {
-		onStartSeqPath = null;
-		const el = await chat();
-		await turn(el);
-		expect(hasSelector(el)).toBe(true);
-		expect(optionCount(el)).toBe(2);
-	});
 });
 
 /**
@@ -108,7 +98,6 @@ describe("the chat's settings", () => {
 	beforeEach(() => {
 		conversationState.set(CLOSED_CONVERSATION);
 		listed.length = 0;
-		onStartSeqPath = [0, 1, 2];
 		sessionsAnswer = () => ({ sessions: [...listed], ...counted(listed.length) });
 	});
 

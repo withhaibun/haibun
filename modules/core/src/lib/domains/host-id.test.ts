@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
+	allocateCallPath,
+	allocateSyntheticSeqPath,
 	resolveHostId,
 	syntheticSeqPath,
 	HAIBUN_HOST_ID_ENV,
@@ -36,6 +38,20 @@ describe("resolveHostId", () => {
 	it("throws on non-integer values", () => {
 		expect(() => resolveHostId({ [HAIBUN_HOST_ID_ENV]: "1.5" })).toThrow();
 		expect(() => resolveHostId({ [HAIBUN_HOST_ID_ENV]: "abc" })).toThrow();
+	});
+});
+
+describe("allocateCallPath", () => {
+	it("places a call under the step it acts under, or at a synthetic path, and never allocates a path twice", () => {
+		const world = { tag: { hostId: 3 }, runtime: {} };
+		const PLACE = [3, -1, 9];
+		const paths = [allocateCallPath(world, PLACE), allocateSyntheticSeqPath(world), allocateCallPath(world, PLACE), allocateCallPath(world, undefined)];
+		expect(paths).toEqual([
+			[...PLACE, 1],
+			[3, SYNTHETIC_FEATURE_NUM, 2],
+			[...PLACE, 3],
+			[3, SYNTHETIC_FEATURE_NUM, 4],
+		]);
 	});
 });
 

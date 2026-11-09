@@ -90,21 +90,6 @@ export type TStepEnded = {
 	result?: string;
 };
 
-/** The fields a step's end states, each null, which a step's start writes so a record doesn't keep how an earlier dispatch at its
- *  path ended. */
-export const STEP_END_CLEARED: Readonly<Record<string, null>> = Object.fromEntries(
-	[
-		SEQ_PATH_FIELD.endedAtTime,
-		SEQ_PATH_FIELD.verdict,
-		SEQ_PATH_FIELD.error,
-		SEQ_PATH_FIELD.entailment,
-		SEQ_PATH_FIELD.refusedWrites,
-		SEQ_PATH_FIELD.proof,
-		SEQ_PATH_FIELD.showed,
-		SEQ_PATH_FIELD.result,
-	].map((field) => [field, null]),
-);
-
 /** A step's record at its end, written at `at` (an ISO time): its start with how it ended. The record's time of writing is
  *  its end, so a read of the records written since a given time returns the step's end. */
 export const endRecord = (start: TStepRecord, ended: TStepEnded, at: string): TStepRecord => ({

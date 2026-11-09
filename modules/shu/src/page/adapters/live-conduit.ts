@@ -1,8 +1,8 @@
 /**
  * Calls actuality's steps at the site that served the page. The adapter writes each call's envelope (JSON-RPC with the
- * place in actuality's sequence), signs it where the step requires authority, sends it with `fetch`, reads a streamed
- * response as NDJSON, and states a failure to reach the site as `ServerUnreachable`. An act begins with `action.begin`,
- * which allocates its place in actuality's sequence, and a group's calls each take a part of the group's place.
+ * place in actuality's sequence it acts under), signs it where the step requires authority, sends it with `fetch`, reads a
+ * streamed response as NDJSON, and states a failure to reach the site as `ServerUnreachable`. Actuality allocates each act's
+ * place. A group begins with `action.begin`, which allocates the group's place, and each of its calls acts under it.
  */
 import { z } from "zod";
 import { ACTION_BEGIN, readNdjson, type TActualityId, type TRpcEnvelope, ServerUnreachable, answerBody, authorityFailed, refusalCarried } from "@haibun/core/lib/rpc-wire.js";
@@ -15,8 +15,6 @@ import type { TLink, TRepresentation, TStreamChunk } from "../domains/links.js";
  *  for a response, and how it lets go of authority actuality refused. */
 export type TConduitSource = { prove(method: string): TProveRequest; actualityId(): TActualityId; responseTimeoutMs(): number; forgetAuthority(): void };
 
-type ActionScope = { readonly root: readonly number[]; subSeq: number };
-
 /** What the page holds of its calls, across its bundles: how many calls it numbered, so two calls on the page don't share
  *  an id, when the site last responded, and until when a read fails at once after a timeout. */
 export type TConduitHeld = { issued: number; respondedAt: number | undefined; unreachableUntil: number };
@@ -28,38 +26,30 @@ export const initialConduitHeld = (): TConduitHeld => ({ issued: 0, respondedAt:
  *  out the timeout, where the page reads the device's store. After the interval, the next read is sent. */
 export const UNREACHABLE_RETRY_AFTER_MS = 2_000;
 
-/** What actuality returns for `action.begin`: the place in its sequence that records the act. */
+/** What actuality returns for `action.begin`: the place in its sequence that a group's calls act under. */
 const ActionBeganSchema = z.object({ seqPath: z.array(z.number()).min(1) });
 
-/** The conduit of a served page. `held` is what the page holds of its calls. `scope` is the place a group's calls share, and
- *  is null for the page's own conduit, which allocates a place for each act. */
 /** The arguments a link's call states: a link without params calls its step without arguments, as an empty record. */
 const argumentsOf = (link: TLink): Record<string, unknown> => (link.params === undefined ? {} : link.params);
 
+/** The conduit of a served page. `held` is what the page holds of its calls. `under` is the place a group's calls act under,
+ *  and is undefined for the page's own conduit, whose acts actuality places. */
 export class LiveConduit implements TConduit {
 	constructor(
 		private readonly source: TConduitSource,
 		private readonly held: TConduitHeld,
 		private readonly basePath: string,
-		private readonly scope: ActionScope | null,
+		private readonly under: readonly number[] | undefined,
 	) {}
 
-	async follow<T = TRepresentation>(link: TLink, why: string): Promise<T> {
-		// A read doesn't begin an act, since actuality doesn't record a read and an act's place takes a call of its own. An
-		// act begins one, since actuality records what the act does at that place.
-		const seqPath = link.asks === "read" ? undefined : await this.allocateSeqPath(why);
-		const res = await this.post(link.method, { method: link.method, params: argumentsOf(link), seqPath, asks: link.asks });
+	async follow<T = TRepresentation>(link: TLink, _why: string): Promise<T> {
+		const res = await this.post(link.method, { method: link.method, params: argumentsOf(link), under: this.underOf(link), asks: link.asks });
 		return (await this.answerOf(link.method, res)) as T;
 	}
 
-	async followStream(
-		link: TLink,
-		onChunk: (chunk: TStreamChunk) => void,
-		opts: { why: string; signal?: AbortSignal; onStart?: (seqPath: number[]) => void },
-	): Promise<{ seqPath: number[] }> {
-		const seqPath = await this.allocateSeqPath(opts.why);
-		opts.onStart?.(seqPath);
-		const res = await this.post(link.method, { method: link.method, params: argumentsOf(link), seqPath, stream: true, asks: link.asks }, opts.signal);
+	async followStream(link: TLink, onChunk: (chunk: TStreamChunk) => void, opts: { why: string; signal?: AbortSignal; onStart?: () => void }): Promise<void> {
+		opts.onStart?.();
+		const res = await this.post(link.method, { method: link.method, params: argumentsOf(link), under: this.underOf(link), stream: true, asks: link.asks }, opts.signal);
 		// A refused stream returns its refusal, as any refused call does.
 		if (!res.ok) await this.answerOf(link.method, res);
 		if (!res.body) throw new Error(`${link.method}: stream RPC didn't return a body`);
@@ -67,20 +57,15 @@ export class LiveConduit implements TConduit {
 			if (chunk.error) throw new Error(chunk.error);
 			onChunk(chunk);
 		}
-		return { seqPath };
 	}
 
 	async group<T>(why: string, fn: (g: TConduit) => Promise<T>): Promise<T> {
-		const root = await this.beginAction(why);
-		return fn(new LiveConduit(this.source, this.held, this.basePath, { root, subSeq: 0 }));
+		return fn(new LiveConduit(this.source, this.held, this.basePath, await this.beginAction(why)));
 	}
 
-	private allocateSeqPath(why: string): Promise<number[]> {
-		if (this.scope) {
-			this.scope.subSeq += 1;
-			return Promise.resolve([...this.scope.root, this.scope.subSeq]);
-		}
-		return this.beginAction(why);
+	/** The place a call acts under: its group's, for an act. A read doesn't act under a place, since actuality doesn't record a read. */
+	private underOf(link: TLink): number[] | undefined {
+		return link.asks === "read" || this.under === undefined ? undefined : [...this.under];
 	}
 
 	// Writes every request: the envelope, the headers (signed where the step requires authority) and the POST.
@@ -134,7 +119,7 @@ export class LiveConduit implements TConduit {
 	}
 
 	private async beginAction(why: string): Promise<number[]> {
-		// `action.begin` is part of the act: it allocates the act's place in actuality's sequence.
+		// `action.begin` is part of the group: it allocates the place its calls act under.
 		const res = await this.post(ACTION_BEGIN, { method: ACTION_BEGIN, params: { why }, asks: "act" });
 		return ActionBeganSchema.parse(await this.answerOf(ACTION_BEGIN, res)).seqPath;
 	}

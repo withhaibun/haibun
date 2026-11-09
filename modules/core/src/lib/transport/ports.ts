@@ -15,5 +15,5 @@ export type TRpcMethod = { action: TAction; handle: (params: Record<string, unkn
  *  the action it invokes where it invokes one. */
 export type TRemoteSteps = {
 	handshake(): Promise<THandshake>;
-	call(method: string, params: Record<string, unknown>, seqPath: number[], action: string | undefined): Promise<TRemoteCall>;
+	call(method: string, params: Record<string, unknown>, under: number[] | undefined, action: string | undefined): Promise<TRemoteCall>;
 };
