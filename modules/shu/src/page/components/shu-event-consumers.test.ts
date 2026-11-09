@@ -87,8 +87,7 @@ describe("the views of a run, over the records it wrote", () => {
 	afterEach(() => handle.teardown());
 
 	const open = async <T extends HTMLElement>(View: new () => T): Promise<T> => {
-		const view = new View();
-		document.body.appendChild(view);
+		const view = document.body.appendChild(new View());
 		await flush();
 		await flush();
 		return view;

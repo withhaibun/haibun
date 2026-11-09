@@ -74,8 +74,7 @@ describe("the client cache view", () => {
 	};
 
 	const open = async (): Promise<ShuClientCacheColumn> => {
-		const view = new ShuClientCacheColumn();
-		document.body.appendChild(view);
+		const view = document.body.appendChild(new ShuClientCacheColumn());
 		await flush();
 		return view;
 	};
@@ -84,8 +83,7 @@ describe("the client cache view", () => {
 
 	it("reports what it hasn't read as pending, never as absent", async () => {
 		installGraph(actualityStore());
-		const view = new ShuClientCacheColumn();
-		document.body.appendChild(view);
+		const view = document.body.appendChild(new ShuClientCacheColumn());
 		await view.updateComplete; // before what the device holds has been read once
 		expect(text(view), "what this device holds has not been read yet, so the view doesn't make a claim about it").toContain("Waiting");
 		expect(text(view)).not.toContain("This device doesn't hold an actuality");
@@ -188,8 +186,7 @@ describe("the graph the device holds", () => {
 		declareRegistry(stepsShown(GRAPH_READ_STEPS, {}, buildConcernCatalog(mapDefinitionsToDomains(ACTUALITY_DOMAIN_DEFINITIONS))));
 		const database = servedDatabase();
 		await deviceGraph(database).setMany([{ subject: "c1", predicate: "content", object: "hello", namedGraph: "Comment", timestamp: 1 }]);
-		const view = new ShuClientCacheColumn();
-		document.body.appendChild(view);
+		const view = document.body.appendChild(new ShuClientCacheColumn());
 		await new Promise((r) => setTimeout(r, 300));
 		const value = (id: string): string | undefined => (view.shadowRoot as ShadowRoot).querySelector(`[data-testid="${id}"]`)?.textContent?.trim();
 		expect(value(`${SHU_TEST_IDS.CLIENT_CACHE.GRAPH}${database}-held`)).toBe("1");

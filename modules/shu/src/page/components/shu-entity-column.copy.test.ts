@@ -23,8 +23,7 @@ describe("shu-entity-column copying its body", () => {
 	afterEach(() => handle.teardown());
 
 	it("copies the shown body, and keeps the same frame when the column draws again", async () => {
-		const el = new ShuEntityColumn();
-		document.body.appendChild(el);
+		const el = document.body.appendChild(new ShuEntityColumn());
 		await el.open("t1", "Task");
 		await bodyRendered(el);
 		const frame = el.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_IFRAME}"]`);

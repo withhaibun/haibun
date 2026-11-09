@@ -17,8 +17,7 @@ const views = [
 ];
 
 const pickerOf = async (offered = views): Promise<ShuViewsPicker> => {
-	const picker = new ShuViewsPicker();
-	document.body.append(picker);
+	const picker = document.body.appendChild(new ShuViewsPicker());
 	picker.views = offered;
 	await picker.updateComplete;
 	return picker;

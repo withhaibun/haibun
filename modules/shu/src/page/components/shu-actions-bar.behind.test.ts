@@ -40,8 +40,7 @@ describe("the actions bar marks the results behind", () => {
 	});
 
 	it("where a batch changes a record of the type it searches, and not for an event that doesn't change a record", async () => {
-		const bar = new ShuActionsBar();
-		document.body.appendChild(bar);
+		const bar = document.body.appendChild(new ShuActionsBar());
 		await bar.updateComplete;
 		let marked = 0;
 		document.addEventListener(SHU_EVENT.SYNC_AVAILABLE, () => marked++);

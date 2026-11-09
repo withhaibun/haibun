@@ -24,8 +24,7 @@ describe("shu-entity-column what links here", () => {
 	afterEach(() => handle.teardown());
 
 	it("links to the records pointing at an individual, stating a count that stopped at its ceiling as a floor", async () => {
-		const el = new ShuEntityColumn();
-		document.body.appendChild(el);
+		const el = document.body.appendChild(new ShuEntityColumn());
 		await el.open("t1", "Task");
 		await el.updateComplete;
 		expect(el.shadowRoot?.querySelector(".links-here-link")?.textContent).toBe(`What links here (${CEILING} or more)`);

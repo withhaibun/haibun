@@ -36,8 +36,7 @@ const mkSnap = (n: number): Record<string, unknown> => ({
 });
 
 const mount = (): ShuDomainChainView => {
-	const view = new ShuDomainChainView();
-	document.body.appendChild(view);
+	const view = document.body.appendChild(new ShuDomainChainView());
 	return view;
 };
 

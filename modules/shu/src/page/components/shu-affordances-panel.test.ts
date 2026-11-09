@@ -42,6 +42,24 @@ const applied = async (panel: { updateComplete: Promise<unknown> }): Promise<voi
 	await panel.updateComplete;
 };
 
+/** An affordances snapshot of the actuality, without findings, satisfied domains, forward steps or goals but those `offered` states. */
+const snapshot = (offered: Record<string, unknown>): Record<string, unknown> => ({
+	actuality: ACTUALITY_FEATURE,
+	findings: [],
+	satisfiedDomains: [],
+	forward: [],
+	goals: [],
+	...offered,
+});
+
+/** A mounted panel once it applied the snapshot `offered` states. */
+const offeredPanel = async (offered: Record<string, unknown>): Promise<ShuAffordancesPanel> => {
+	const panel = document.body.appendChild(new ShuAffordancesPanel());
+	panel.products = snapshot(offered);
+	await applied(panel);
+	return panel;
+};
+
 /**
  * The panel always reaches a terminal display state, rendering the forward/goals lists when
  * products arrive, or showing a clear "no data yet, trigger X" message when products haven't
@@ -75,16 +93,10 @@ describe("shu-affordances-panel", () => {
 	afterEach(() => handle.teardown());
 
 	it("renders the goals section when products are assigned", async () => {
-		const panel = new ShuAffordancesPanel();
-		document.body.appendChild(panel);
-		panel.products = {
-			actuality: ACTUALITY_FEATURE,
-			findings: [],
-			satisfiedDomains: [],
+		const panel = await offeredPanel({
 			forward: [{ method: "X-y", stepperName: "X", stepName: "y", inputDomains: [], outputDomains: ["g"], readyToRun: true }],
 			goals: [{ domain: "g", description: "Goal g", resolution: { verdict: "proved", goal: "g", factIds: ["fact-1"], plans: [] } }],
-		};
-		await applied(panel);
+		});
 		const root = panel.shadowRoot;
 		expect(root?.querySelector('[data-testid="affordances-goals"]')).toBeTruthy();
 		expect(root?.querySelector('[data-testid="goal-g-facts"]')?.textContent).toContain("fact-1");
@@ -93,9 +105,8 @@ describe("shu-affordances-panel", () => {
 	});
 
 	it("holds the domain chain while its section is open, gives it the affordances it reads, and states how many findings the lint has", async () => {
-		const panel = new ShuAffordancesPanel();
-		document.body.appendChild(panel);
-		const offered = { actuality: ACTUALITY_FEATURE, findings: [{ kind: LINT_FINDING.UNREACHABLE_DOMAIN, domain: "dead" }], satisfiedDomains: [], forward: [], goals: [] };
+		const offered = snapshot({ findings: [{ kind: LINT_FINDING.UNREACHABLE_DOMAIN, domain: "dead" }] });
+		const panel = document.body.appendChild(new ShuAffordancesPanel());
 		panel.products = offered;
 		await applied(panel);
 		const section = panel.shadowRoot?.querySelector<HTMLDetailsElement>(`[data-testid="${SHU_TEST_IDS.AFFORDANCES.CHAIN}"]`);
@@ -112,16 +123,9 @@ describe("shu-affordances-panel", () => {
 	});
 
 	it("renders a proved goal with every fact that proves it", async () => {
-		const panel = new ShuAffordancesPanel();
-		document.body.appendChild(panel);
-		panel.products = {
-			actuality: ACTUALITY_FEATURE,
-			findings: [],
-			satisfiedDomains: [],
-			forward: [],
+		const panel = await offeredPanel({
 			goals: [{ domain: "session", description: "Session", resolution: { verdict: "proved", goal: "session", factIds: ["s-1", "s-2", "s-3"], plans: [] } }],
-		};
-		await applied(panel);
+		});
 		const facts = panel.shadowRoot?.querySelector('[data-testid="goal-session-facts"]')?.textContent ?? "";
 		expect(facts).toContain("s-1");
 		expect(facts).toContain("s-2");
@@ -133,13 +137,7 @@ describe("shu-affordances-panel", () => {
 	});
 
 	it("renders an unknown goal's plans as a picker with one card per plan", async () => {
-		const panel = new ShuAffordancesPanel();
-		document.body.appendChild(panel);
-		panel.products = {
-			actuality: ACTUALITY_FEATURE,
-			findings: [],
-			satisfiedDomains: [],
-			forward: [],
+		const panel = await offeredPanel({
 			goals: [
 				{
 					domain: "report",
@@ -155,8 +153,7 @@ describe("shu-affordances-panel", () => {
 					},
 				},
 			],
-		};
-		await applied(panel);
+		});
 		(panel.shadowRoot?.querySelector('button[data-testid="goal-report-toggle"]') as HTMLButtonElement | null)?.click();
 		await applied(panel);
 		const heading = panel.shadowRoot?.querySelector(".path-heading")?.textContent ?? "";
@@ -171,16 +168,10 @@ describe("shu-affordances-panel", () => {
 		const ISSUE = { method: "Issue-issueReport", stepperName: "Issue", stepName: "issueReport", pattern: "issue report" };
 		handle.teardown();
 		handle = setupShuTest({ dispatch: (method) => (method === SHOW_STEP_DEFINITIONS_METHOD ? stepsShown([ISSUE]) : undefined) });
-		const panel = document.body.appendChild(new ShuAffordancesPanel());
 		const plan = { steps: [{ stepperName: ISSUE.stepperName, stepName: ISSUE.stepName, gwta: ISSUE.pattern }], bindings: [] };
-		panel.products = {
-			actuality: ACTUALITY_FEATURE,
-			findings: [],
-			satisfiedDomains: [],
-			forward: [],
+		const panel = await offeredPanel({
 			goals: [{ domain: "report", description: "Audit report", resolution: { verdict: "unknown", goal: "report", factIds: [], plans: [plan] } }],
-		};
-		await applied(panel);
+		});
 		(panel.shadowRoot?.querySelector('button[data-testid="goal-report-toggle"]') as HTMLButtonElement | null)?.click();
 		await applied(panel);
 		const ref = panel.shadowRoot?.querySelector(".plan-steps li shu-ref");
@@ -196,17 +187,10 @@ describe("shu-affordances-panel", () => {
 	});
 
 	it("clicking 'Start this path' opens the path's first step in the actions bar without auto-dispatch", async () => {
-		const panel = new ShuAffordancesPanel();
-		document.body.appendChild(panel);
 		const path = { steps: [{ stepperName: "Issue", stepName: "issueReport" }], bindings: [{ kind: "argument", domain: "issuer" }] };
-		panel.products = {
-			actuality: ACTUALITY_FEATURE,
-			findings: [],
-			satisfiedDomains: [],
-			forward: [],
+		const panel = await offeredPanel({
 			goals: [{ domain: "report", description: "Audit report", resolution: { verdict: "unknown", goal: "report", factIds: [], plans: [path] } }],
-		};
-		await applied(panel);
+		});
 		type TStepChoose = { method?: string; args?: Record<string, unknown>; auto?: boolean };
 		const received: TStepChoose[] = [];
 		document.addEventListener("step-choose", ((e: CustomEvent) => {
@@ -223,13 +207,7 @@ describe("shu-affordances-panel", () => {
 	});
 
 	it("draws an open goal's paths in the site's graph presenter, previews the path a reader points at, and opens a step node in the actions bar", async () => {
-		const panel = new ShuAffordancesPanel();
-		document.body.appendChild(panel);
-		panel.products = {
-			actuality: ACTUALITY_FEATURE,
-			findings: [],
-			satisfiedDomains: [],
-			forward: [],
+		const panel = await offeredPanel({
 			goals: [
 				{
 					domain: "report",
@@ -242,8 +220,7 @@ describe("shu-affordances-panel", () => {
 					},
 				},
 			],
-		};
-		await applied(panel);
+		});
 		(panel.shadowRoot?.querySelector('button[data-testid="goal-report-toggle"]') as HTMLButtonElement | null)?.click();
 		await applied(panel);
 		const presenter = await mountedPresenter(panel, "goal-graph-report");
@@ -276,30 +253,17 @@ describe("shu-affordances-panel", () => {
 	});
 
 	it("re-rendering after a new affordances snapshot preserves <details> open state", async () => {
-		const panel = new ShuAffordancesPanel();
-		document.body.appendChild(panel);
-		panel.products = {
-			actuality: ACTUALITY_FEATURE,
-			findings: [],
-			satisfiedDomains: [],
-			forward: [],
-			goals: [{ domain: "g", description: "Goal g", resolution: { verdict: "proved", goal: "g", factIds: ["fact-x"], plans: [] } }],
-		};
-		await applied(panel);
+		const panel = await offeredPanel({ goals: [{ domain: "g", description: "Goal g", resolution: { verdict: "proved", goal: "g", factIds: ["fact-x"], plans: [] } }] });
 		const explain = panel.shadowRoot?.querySelector('details[data-key="explanation"]') as HTMLDetailsElement | null;
 		expect(explain).toBeTruthy();
 		if (!explain) throw new Error("unreachable");
 		explain.open = true;
-		panel.products = {
-			actuality: ACTUALITY_FEATURE,
-			findings: [],
-			satisfiedDomains: [],
-			forward: [],
+		panel.products = snapshot({
 			goals: [
 				{ domain: "g", description: "Goal g", resolution: { verdict: "proved", goal: "g", factIds: ["fact-x"], plans: [] } },
 				{ domain: "h", description: "Goal h", resolution: { verdict: "proved", goal: "h", factIds: ["fact-y"], plans: [] } },
 			],
-		};
+		});
 		await applied(panel);
 		const explainAfter = panel.shadowRoot?.querySelector('details[data-key="explanation"]') as HTMLDetailsElement | null;
 		expect(explainAfter?.open).toBe(true);
@@ -307,8 +271,6 @@ describe("shu-affordances-panel", () => {
 	});
 
 	it("re-rendering preserves open state on a composite-binding tree", async () => {
-		const panel = new ShuAffordancesPanel();
-		document.body.appendChild(panel);
 		const compositePlan = {
 			steps: [{ stepperName: "Report", stepName: "issue" }],
 			bindings: [
@@ -322,40 +284,25 @@ describe("shu-affordances-panel", () => {
 				},
 			],
 		};
-		panel.products = {
-			actuality: ACTUALITY_FEATURE,
-			findings: [],
-			satisfiedDomains: [],
-			forward: [],
+		const panel = await offeredPanel({
 			goals: [{ domain: "report", description: "Audit report", resolution: { verdict: "unknown", goal: "report", factIds: [], plans: [compositePlan] } }],
-		};
-		await applied(panel);
+		});
 		(panel.shadowRoot?.querySelector('button[data-testid="goal-report-toggle"]') as HTMLButtonElement | null)?.click();
 		await applied(panel);
 		const composite = panel.shadowRoot?.querySelector<HTMLDetailsElement>('details[data-key="composite:report"]');
 		expect(composite).toBeTruthy();
 		if (!composite) throw new Error("unreachable");
 		composite.open = true;
-		panel.products = {
-			actuality: ACTUALITY_FEATURE,
-			findings: [],
-			satisfiedDomains: [],
-			forward: [],
+		panel.products = snapshot({
 			goals: [{ domain: "report", description: "Audit report", resolution: { verdict: "unknown", goal: "report", factIds: [], plans: [compositePlan] } }],
-		};
+		});
 		await applied(panel);
 		const after = panel.shadowRoot?.querySelector<HTMLDetailsElement>('details[data-key="composite:report"]');
 		expect(after?.open).toBe(true);
 	});
 
 	it("a proved goal that still has plans renders BOTH the existing-fact summary AND a Run-again section", async () => {
-		const panel = new ShuAffordancesPanel();
-		document.body.appendChild(panel);
-		panel.products = {
-			actuality: ACTUALITY_FEATURE,
-			findings: [],
-			satisfiedDomains: [],
-			forward: [],
+		const panel = await offeredPanel({
 			goals: [
 				{
 					domain: "permit",
@@ -368,8 +315,7 @@ describe("shu-affordances-panel", () => {
 					},
 				},
 			],
-		};
-		await applied(panel);
+		});
 		expect(panel.shadowRoot?.querySelector('[data-testid="goal-permit-facts"]')?.textContent).toContain("fact-1");
 		(panel.shadowRoot?.querySelector('button[data-testid="goal-permit-toggle"]') as HTMLButtonElement | null)?.click();
 		await applied(panel);
@@ -380,8 +326,7 @@ describe("shu-affordances-panel", () => {
 	});
 
 	it("must NOT show 'Loading affordances…' forever when mounted without products (regression: reload-without-fetch hangs)", async () => {
-		const panel = new ShuAffordancesPanel();
-		document.body.appendChild(panel);
+		const panel = document.body.appendChild(new ShuAffordancesPanel());
 		// The panel's read ends on a later task than its mount.
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		await applied(panel);
@@ -406,7 +351,7 @@ describe("shu-affordances-panel", () => {
 		};
 		installConduit(new TestConduit(async () => ({})));
 		const panel = new ShuAffordancesPanel();
-		panel.products = { actuality: ACTUALITY_FEATURE, findings: [], satisfiedDomains: [], forward: [], goals: [], waypoints: [wp] };
+		panel.products = snapshot({ waypoints: [wp] });
 		document.body.appendChild(panel);
 		await applied(panel);
 		expect(panel.shadowRoot?.querySelector('[data-testid="affordances-waypoints"]')).toBeTruthy();
@@ -420,13 +365,12 @@ describe("shu-affordances-panel", () => {
 		installConduit(
 			new TestConduit((method: string) => {
 				if (method === RPC_METHOD.APPLICABLE_STEPS) snapshotCalls++;
-				return { actuality: ACTUALITY_FEATURE, findings: [], waypoints: [], satisfiedDomains: [], forward: [], goals: [] };
+				return snapshot({ waypoints: [] });
 			}),
 		);
 		declareRegistry(stepsShown([AFFORDANCES_STEP]));
 		const stream = installCarriedEventStream();
-		const panel = new ShuAffordancesPanel();
-		document.body.appendChild(panel); // subscribes via subscribeBatchedEvents
+		document.body.appendChild(new ShuAffordancesPanel()); // subscribes via subscribeBatchedEvents
 		await new Promise((r) => setTimeout(r, 40)); // let the mount-time fetchInitial settle, then measure ONLY the burst
 		snapshotCalls = 0;
 		for (let i = 0; i < 30; i++) stream.emit({ id: `0.${i}`, kind: "lifecycle", type: "step", stage: "end" } as unknown as TEvent); // the whole history, one per past step
@@ -436,9 +380,8 @@ describe("shu-affordances-panel", () => {
 	});
 
 	it("takes the actuality its snapshot names as the actuality the page reads, where a fact's step opens, and refuses one that doesn't name an actuality", () => {
-		const panel = new ShuAffordancesPanel();
-		document.body.appendChild(panel);
-		panel.products = { actuality: ACTUALITY_FEATURE, findings: [], satisfiedDomains: [], forward: [], goals: [] };
+		const panel = document.body.appendChild(new ShuAffordancesPanel());
+		panel.products = snapshot({});
 		expect(readingActualityFeature()).toBe(ACTUALITY_FEATURE);
 		expect(() => {
 			panel.products = { satisfiedDomains: [], forward: [], goals: [] };

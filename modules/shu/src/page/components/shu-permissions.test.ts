@@ -24,8 +24,7 @@ const refTexts = (el: ShuPermissions, kind?: string): string[] =>
 
 async function mounted(authority = held) {
 	pageHolding(authority);
-	const el = new ShuPermissions();
-	document.body.append(el);
+	const el = document.body.appendChild(new ShuPermissions());
 	await el.updateComplete;
 	await new Promise((resolve) => setTimeout(resolve, 0));
 	await el.updateComplete;
@@ -83,8 +82,7 @@ describe("what a reader may do here", () => {
 
 	it("a failure is text a reader can take away, and shows it with a control", async () => {
 		pageAuthorityFails(new Error("graphQuery: step not registered"));
-		const el = new ShuPermissions();
-		document.body.append(el);
+		const el = document.body.appendChild(new ShuPermissions());
 		await el.updateComplete;
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		await el.updateComplete;

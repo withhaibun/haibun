@@ -27,8 +27,7 @@ describe("an entity column's record after the time cursor", () => {
 	});
 
 	it("renders dimmed while the cursor is before the record's valid time, and plain once the cursor passes it", async () => {
-		const el = new ShuEntityColumn();
-		document.body.appendChild(el);
+		const el = document.body.appendChild(new ShuEntityColumn());
 		el.openProducts({ _type: "Widget", id: "w1", name: "a widget", generatedAtTime: MADE_AT });
 		await el.updateComplete;
 		expect(dimmed(el), "at the live edge a record isn't after the cursor").toBe(false);

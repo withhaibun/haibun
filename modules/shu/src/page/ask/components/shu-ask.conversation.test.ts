@@ -171,8 +171,7 @@ function aViewOnScreen(): void {
 /** The bar's history and its ask pane, as the bar renders them. */
 async function aPage(): Promise<{ pane: Driven; history: HTMLElement }> {
 	if (onScreen) aViewOnScreen();
-	const history = new ShuActivityHistory();
-	document.body.appendChild(history);
+	const history = document.body.appendChild(new ShuActivityHistory());
 	const pane = await aPane();
 	return { pane, history };
 }

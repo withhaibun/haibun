@@ -27,8 +27,7 @@ afterEach(async () => {
 });
 
 const render = async (type: string, fields: Record<string, unknown>, bodies: Body[]): Promise<string> => {
-	const el = new ShuEntityColumn();
-	document.body.appendChild(el);
+	const el = document.body.appendChild(new ShuEntityColumn());
 	el.openProducts({ _type: type, _summary: fields.id ?? type, ...fields, hasBody: bodies });
 	await bodyRendered(el);
 	return el.shadowRoot?.innerHTML ?? "";
@@ -117,8 +116,7 @@ describe("the reading a record shows, chosen from a listing that doesn't carry t
 		{ id: "b-md", mediaType: "text/markdown" },
 	];
 	const openListing = async (): Promise<ShuEntityColumn> => {
-		const el = new ShuEntityColumn();
-		document.body.appendChild(el);
+		const el = document.body.appendChild(new ShuEntityColumn());
 		el.openProducts({ _type: "Email", _summary: "e1", id: "e1", from: "a@x", subject: "Hi", hasBody: LISTED });
 		await el.updateComplete;
 		return el;
@@ -133,8 +131,7 @@ describe("the reading a record shows, chosen from a listing that doesn't carry t
 	});
 
 	it("anchors a record's annotations on the reading shown, where the store lists plain text before markdown", async () => {
-		const el = new ShuEntityColumn();
-		document.body.appendChild(el);
+		const el = document.body.appendChild(new ShuEntityColumn());
 		el.openProducts({
 			_type: "Email",
 			_summary: "e1",
@@ -168,8 +165,7 @@ describe("the reading a record shows, chosen from a listing that doesn't carry t
 // annotations exist, so a reader tells at a glance whether a document carries notes, before opening the gutter.
 describe("annotate toggle button", () => {
 	const openWithAnnotatableBody = async (annotations: unknown[]): Promise<ShuEntityColumn> => {
-		const el = new ShuEntityColumn();
-		document.body.appendChild(el);
+		const el = document.body.appendChild(new ShuEntityColumn());
 		el.openProducts({ _type: "File", _summary: "notes.md", id: "f1", hasBody: [{ id: "fb", content: "# Notes\n\nbody text", mediaType: "text/markdown" }] });
 		// Seed annotations directly, then force the plain-body (iframe) path so the assertion doesn't depend on the
 		// inline annotator mounting in jsdom. The button's colour reflects annotation COUNT regardless of the path.

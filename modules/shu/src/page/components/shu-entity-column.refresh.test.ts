@@ -27,8 +27,7 @@ describe("shu-entity-column live refresh", () => {
 	});
 
 	const openSeeded = async (): Promise<ShuEntityColumn> => {
-		const el = new ShuEntityColumn();
-		document.body.appendChild(el); // onConnected subscribes through the entity handle
+		const el = document.body.appendChild(new ShuEntityColumn()); // onConnected subscribes through the entity handle
 		await el.open("t1", "Task");
 		await flush();
 		return el;

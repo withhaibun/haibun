@@ -47,8 +47,7 @@ let shu: TShuTestHandle;
 async function playing(): Promise<ShuPlayback> {
 	document.body.innerHTML = "";
 	timeCursor.set(null);
-	const el = new ShuPlayback();
-	document.body.appendChild(el);
+	const el = document.body.appendChild(new ShuPlayback());
 	await el.updateComplete;
 	// Actuality's span comes from actuality sources the open views read: so actuality is read at a level (as an open monitor or
 	// document would read it), and its extent is what the control plays between.
@@ -150,8 +149,7 @@ describe("playing through a run", () => {
 	it("doesn't set a cursor when an event hasn't happened yet, rather than playing an empty run", async () => {
 		document.body.innerHTML = "";
 		timeCursor.set(null);
-		const el = new ShuPlayback();
-		document.body.appendChild(el);
+		const el = document.body.appendChild(new ShuPlayback());
 		await el.updateComplete;
 		await click(el, "playback-play");
 		expect(timeCursor.get()).toBeNull();

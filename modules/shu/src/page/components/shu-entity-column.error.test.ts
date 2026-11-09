@@ -31,8 +31,7 @@ describe("shu-entity-column error surfacing", () => {
 	});
 
 	it("surfaces the server's 'not found' error in the entity column instead of leaving it spinning", async () => {
-		const el = new ShuEntityColumn();
-		document.body.appendChild(el);
+		const el = document.body.appendChild(new ShuEntityColumn());
 		await el.open("did:example:pookie", "Issuer");
 		await el.updateComplete;
 		const refusal = el.shadowRoot?.querySelector("shu-refusal");
@@ -49,8 +48,7 @@ describe("shu-entity-column error surfacing", () => {
 				return Promise.resolve(rpcAnswer({ error: "sign in to read the issuer", remedy: { do: "sign-in", at: "https://example.org/sign-in" } }, 401));
 			return answering(input, init);
 		};
-		const el = new ShuEntityColumn();
-		document.body.appendChild(el);
+		const el = document.body.appendChild(new ShuEntityColumn());
 		await el.open("did:example:pookie", "Issuer");
 		await el.updateComplete;
 		const refusal = el.shadowRoot?.querySelector("shu-refusal");

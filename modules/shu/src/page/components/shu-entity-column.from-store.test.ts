@@ -25,8 +25,7 @@ describe("shu-entity-column stored-copy indication", () => {
 	afterEach(() => handle.teardown());
 
 	const open = async (): Promise<ShuEntityColumn> => {
-		const el = new ShuEntityColumn();
-		document.body.appendChild(el);
+		const el = document.body.appendChild(new ShuEntityColumn());
 		await el.open("t1", "Task");
 		await el.updateComplete;
 		return el;

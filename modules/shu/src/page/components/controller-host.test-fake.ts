@@ -38,7 +38,6 @@ export class ControllerHostFake extends HTMLElement implements TControllerHost {
 export function aControllerHost(): ControllerHostFake {
 	if (!customElements.get(HOST_TAG)) customElements.define(HOST_TAG, ControllerHostFake);
 	document.body.innerHTML = "";
-	const host = new ControllerHostFake();
-	document.body.append(host);
+	const host = document.body.appendChild(new ControllerHostFake());
 	return host;
 }
