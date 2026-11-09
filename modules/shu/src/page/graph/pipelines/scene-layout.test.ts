@@ -7,7 +7,7 @@
 import { describe, expect, it } from "vitest";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { CLASS_LABEL, PROPERTY_LABEL } from "@haibun/core/lib/domains/resources.js";
-import { FORCE_LAYOUT, MAILBOX, MESSAGE, PERSON, SceneLayout, mailboxQuads, messageQuads, type TLayoutOptions } from "../../../test/scene-layout.js";
+import { settableVector, FORCE_LAYOUT, MAILBOX, MESSAGE, PERSON, SceneLayout, mailboxQuads, messageQuads, type TLayoutOptions } from "../../../test/scene-layout.js";
 import { PolymorphicCamera, type CameraDeps } from "../machines/camera.js";
 import { framesGraph, screenShare, type TProjected } from "../../../test/screen-share.js";
 import { FRAME, REFRAME, VIEW } from "../domains/views.js";
@@ -53,19 +53,9 @@ const packingOf = (boxes: Map<string, GroupBox>): number => {
 
 /** A camera that frames the nodes from the front, as the scene's first settle does, and projects a point as it draws it. */
 function frontCamera(nodes: () => XYZ[]) {
-	const vec = (x: number, y: number, z: number) => ({
-		x,
-		y,
-		z,
-		set(nx: number, ny: number, nz: number) {
-			this.x = nx;
-			this.y = ny;
-			this.z = nz;
-		},
-	});
-	const target = vec(0, 0, 0);
-	const position = vec(0, 0, 300);
-	const camera = { fov: 80, aspect: 1, position, up: vec(0, 1, 0), updateProjectionMatrix: () => undefined };
+	const target = settableVector(0, 0, 0);
+	const position = settableVector(0, 0, 300);
+	const camera = { fov: 80, aspect: 1, position, up: settableVector(0, 1, 0), updateProjectionMatrix: () => undefined };
 	const deps = {
 		camera: () => camera,
 		controls: () => ({ target, object: { position }, update: () => undefined }),

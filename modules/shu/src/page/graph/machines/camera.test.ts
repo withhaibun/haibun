@@ -11,6 +11,7 @@ import { FRAME, REFRAME, type ReframeMode } from "../domains/views.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { NDC_SPAN } from "../derivations/project.js";
 import { FRAMED_SPAN, screenShare, type TProjected } from "../../../test/screen-share.js";
+import { settableVector } from "../../../test/scene-layout.js";
 
 type XYZ = { x: number; y: number; z: number };
 
@@ -85,19 +86,9 @@ function orbitedHarness(
 	camAt: { x: number; y: number; z: number },
 	view?: { mode: ReframeMode; extent: { cy: number; cz: number; halfW: number; halfH: number } },
 ) {
-	const vec = (x: number, y: number, z: number) => ({
-		x,
-		y,
-		z,
-		set(nx: number, ny: number, nz: number) {
-			this.x = nx;
-			this.y = ny;
-			this.z = nz;
-		},
-	});
-	const target = vec(0, 0, 0);
-	const position = vec(camAt.x, camAt.y, camAt.z);
-	const up = vec(0, 1, 0);
+	const target = settableVector(0, 0, 0);
+	const position = settableVector(camAt.x, camAt.y, camAt.z);
+	const up = settableVector(0, 1, 0);
 	const camera = { fov: 80, aspect: 1, up, position, updateProjectionMatrix: () => undefined };
 	const deps = {
 		camera: () => camera,
@@ -232,18 +223,8 @@ describe("clearStripOffset, where a framing aims when an overlay covers the canv
 describe("PolymorphicCamera.centerOn with an aim offset: the followed node lands in the clear strip", () => {
 	/** A live orbit + an identity matrixWorld (camera on +z looking down -z: screen right = +x, screen up = +y). */
 	function centreHarness() {
-		const vec = (x: number, y: number, z: number) => ({
-			x,
-			y,
-			z,
-			set(nx: number, ny: number, nz: number) {
-				this.x = nx;
-				this.y = ny;
-				this.z = nz;
-			},
-		});
-		const target = vec(0, 0, 0);
-		const position = vec(0, 0, 100);
+		const target = settableVector(0, 0, 0);
+		const position = settableVector(0, 0, 100);
 		const camera = { fov: 80, aspect: 1, position, updateProjectionMatrix: () => undefined, matrixWorld: { elements: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 100, 1] } };
 		const deps = {
 			camera: () => camera,
@@ -316,19 +297,9 @@ describe("clearStripOffset, an overlay along the bottom of the canvas", () => {
 /** A camera whose orbit, axes and canvas are live: its matrix is derived from where it stands and what it looks at, as three.js
  *  derives a camera's, so a pan reads the camera's own screen axes and a resize changes the height on which the zoom is measured. */
 function liveHarness(nodes: XYZ[], view?: { mode: ReframeMode; extent: { cy: number; cz: number; halfW: number; halfH: number } }) {
-	const vec = (x: number, y: number, z: number) => ({
-		x,
-		y,
-		z,
-		set(nx: number, ny: number, nz: number) {
-			this.x = nx;
-			this.y = ny;
-			this.z = nz;
-		},
-	});
-	const target = vec(0, 0, 0);
-	const position = vec(0, 0, 400);
-	const up = vec(0, 1, 0);
+	const target = settableVector(0, 0, 0);
+	const position = settableVector(0, 0, 400);
+	const up = settableVector(0, 1, 0);
 	const container = { clientWidth: 1000, clientHeight: 700 };
 	const unit = (v: XYZ): XYZ => {
 		const len = Math.hypot(v.x, v.y, v.z);

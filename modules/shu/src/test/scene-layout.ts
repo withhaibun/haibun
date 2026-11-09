@@ -331,3 +331,15 @@ export class SceneLayout {
 		this.#seqNodes = undefined;
 	}
 }
+
+/** A point that a camera's fit reads and sets, as three.js's Vector3 holds one. */
+export const settableVector = (x: number, y: number, z: number) => ({
+	x,
+	y,
+	z,
+	set(nx: number, ny: number, nz: number) {
+		this.x = nx;
+		this.y = ny;
+		this.z = nz;
+	},
+});
