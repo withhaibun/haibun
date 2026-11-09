@@ -138,7 +138,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 
 			if (!response.ok) {
 				// Update only when running was expected, or to show an error
-				if (this._mcpStatus !== "starting") this.setMcpStatus("error", `HTTP ${response.status}`);
+				if (this._mcpStatus !== "starting") this.setMcpStatus("error", `HTTP ${String(response.status)}`);
 				return;
 			}
 

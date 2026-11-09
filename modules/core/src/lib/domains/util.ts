@@ -61,7 +61,7 @@ export function createSteppers(steppers: CStepper[]): AStepper[] {
 			checkNoPoliteStepPrefixes(stepper);
 			allSteppers.push(stepper);
 		} catch (e) {
-			console.error(`create ${S} failed`, e, S);
+			console.error(`create ${S.name} failed`, e, S);
 			throw e;
 		}
 	}
@@ -186,7 +186,7 @@ export function verifyRequiredOptions(steppers: CStepper[], options: TModuleOpti
 		}
 	}
 	if (requiredMissing.length) {
-		throw Error(`the required options ${requiredMissing} aren't set. Set each one in the config or as an environment variable.`);
+		throw Error(`the required options ${requiredMissing.join(", ")} aren't set. Set each one in the config or as an environment variable.`);
 	}
 }
 
@@ -317,7 +317,7 @@ export const boolOrError = (val: string) => {
 
 export const stringOrError = (val: string) => {
 	if (val === undefined || val === null) {
-		return { parseError: `${val} is not defined` };
+		return { parseError: `${String(val)} is not defined` };
 	}
 	return { result: val };
 };

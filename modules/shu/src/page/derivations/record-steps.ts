@@ -14,7 +14,7 @@ export function stepVerb(step: { pattern: string; gwta?: string } | string, take
 	const labelLower = typeLabel?.toLowerCase();
 
 	const placeholderRegex = /\{([a-zA-Z0-9_-]+)(?::[^{}]+)?\}/g;
-	let result = raw.replace(placeholderRegex, (_match, name) => {
+	let result = raw.replace(placeholderRegex, (_match, name: string) => {
 		if (taken.has(name)) return `__TAKEN_${name}__`;
 		return "…";
 	});

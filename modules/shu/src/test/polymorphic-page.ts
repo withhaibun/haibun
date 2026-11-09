@@ -310,12 +310,12 @@ export async function mountPolymorphicPage({ external = false, box = BOX }: { ex
 			return (await framesDrawn()) - before;
 		},
 		async feed(quads) {
-			await page.evaluate(`(${sceneIn})(${JSON.stringify(IN_PAGE.view)}).setModel((${modelIn})(${JSON.stringify(quads)}))`);
+			await page.evaluate(`(${String(sceneIn)})(${JSON.stringify(IN_PAGE.view)}).setModel((${String(modelIn)})(${JSON.stringify(quads)}))`);
 			await draws(new Set(quads.map((q) => q.subject)).size);
 			await atRest();
 		},
 		async select(id) {
-			await page.evaluate(`(${sceneIn})(${JSON.stringify(IN_PAGE.view)}).setSelectedSubject(${JSON.stringify(id)})`);
+			await page.evaluate(`(${String(sceneIn)})(${JSON.stringify(IN_PAGE.view)}).setSelectedSubject(${JSON.stringify(id)})`);
 			await page.waitForFunction(
 				({ nid, at }) => document.querySelector(`${at.view} ${at.reading} [data-node-id="${nid}"]`)?.getAttribute("aria-current") === "true",
 				{ nid: id, at: IN_PAGE },
@@ -323,7 +323,7 @@ export async function mountPolymorphicPage({ external = false, box = BOX }: { ex
 			);
 		},
 		scene<T, A = undefined>(fn: (scene: TSceneApi, arg: A) => T, arg?: A): Promise<T> {
-			return page.evaluate(`(${fn})((${sceneIn})(${JSON.stringify(IN_PAGE.view)}), ${JSON.stringify(arg ?? null)})`) as Promise<T>;
+			return page.evaluate(`(${String(fn)})((${String(sceneIn)})(${JSON.stringify(IN_PAGE.view)}), ${JSON.stringify(arg ?? null)})`) as Promise<T>;
 		},
 		projection,
 		async zoomAt(id) {

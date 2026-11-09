@@ -151,7 +151,7 @@ export function outcomeAgainst(v: TVerification): TGroupEnded | undefined {
  *  all ended when it records itself. */
 function levelLine(record: Record<string, unknown>) {
 	const { began: _began, ended: _ended, tookMs, ...line } = stepLine(record);
-	if (tookMs === undefined) throw new Error(`the level ${record[SEQ_PATH_FIELD.id]} didn't end, and an actuality records itself once its levels have ended`);
+	if (tookMs === undefined) throw new Error(`the level ${String(record[SEQ_PATH_FIELD.id])} didn't end, and an actuality records itself once its levels have ended`);
 	return { ...line, tookMs: Math.round(tookMs / 100) * 100, digest: DigestTextSchema.optional().parse(record[SEQ_PATH_FIELD.digest]) };
 }
 
@@ -165,7 +165,7 @@ function entryOf(v: TVerification, result: TExecutorResult, levels: TLevelRecord
 	const features = records.flatMap((record) => {
 		if (record[SEQ_PATH_FIELD.actualityLevel] !== "feature") return [];
 		const ran = result.featureResults.find((feature) => feature.path === record[SEQ_PATH_FIELD.path]);
-		if (ran === undefined) throw new Error(`the feature record ${record[SEQ_PATH_FIELD.id]} names ${record[SEQ_PATH_FIELD.path]}, which the results don't hold`);
+		if (ran === undefined) throw new Error(`the feature record ${String(record[SEQ_PATH_FIELD.id])} names ${String(record[SEQ_PATH_FIELD.path])}, which the results don't hold`);
 		return [[ran.path, { ...levelLine(record), steps: ran.steps.count }]];
 	});
 	return { filter: v.filter, actuality: { ...levelLine(own), text: v.bases }, features: Object.fromEntries(features) };

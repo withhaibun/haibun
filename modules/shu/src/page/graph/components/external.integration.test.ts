@@ -26,7 +26,7 @@ afterAll(() => mounted?.close());
 
 /** The host's side of the embedded graph: what it calls on the view. */
 const host = <A>(fn: (embedded: TGraphPresenter, arg: A) => void, arg: A) =>
-	mounted.page.evaluate(`(${fn})(document.querySelector(${JSON.stringify(VIEW)}), ${JSON.stringify(arg)})`);
+	mounted.page.evaluate(`(${String(fn)})(document.querySelector(${JSON.stringify(VIEW)}), ${JSON.stringify(arg)})`);
 
 /** The nodes the reading doesn't state dimmed. */
 const lit = async (): Promise<string[]> => (await mounted.reading()).filter((entry) => !entry.dimmed).map((entry) => entry.id);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { withAction, stepActions, TActionExecutor } from "./derivations/withAction.js";
+import { withAction, stepActions, TActionExecutor, ACTION_WITHOUT_LINE_FORM } from "./derivations/withAction.js";
 import { toBdd } from "../lib/actuality/adapters/feature-files.js";
 import { itemAt } from "../lib/domains/item-at.js";
 import { Resolver } from "../lib/actuality/pipelines/resolver.js";
@@ -130,6 +130,15 @@ describe("withAction", () => {
 		const action = executor();
 		expect(action.actionName).toBe("not");
 		expect(action.gwta).toBe("not ensure an outcome");
+	});
+
+	it("refuses to convert an action to text, so an action interpolated into a line fails as the feature is built", () => {
+		const { set, stayUp } = withAction(new TestStepper());
+		// The cast states what a feature file that doesn't type its line holds, which the lint rule otherwise refuses.
+		const interpolated = (action: unknown) => `limited to 10, ${action as string}`;
+		expect(() => interpolated(set({ what: "a", value: "b" }))).toThrow(ACTION_WITHOUT_LINE_FORM);
+		expect(() => String(stayUp({}))).toThrow(ACTION_WITHOUT_LINE_FORM);
+		expect(set({ what: "a", value: "b" })().gwta, "the action still renders its line where it is called").toBe("set a to b");
 	});
 
 	it("should allow nested executors in statement arguments", () => {

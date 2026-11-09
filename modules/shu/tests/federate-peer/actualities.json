@@ -254,15 +254,15 @@
 				"status": "passed",
 				"tookMs": 100,
 				"digest": {
-					"modules/core/src": "dc175d0d64fd8ef993509f9c783887eb557c89fa7a217dc320582598ca6c6b3e",
-					"modules/domain-storage/src": "0774ebfedf37f5cffb3ef84ed5a7fc859ed90fedf1887299cfe903e34b6910c3",
-					"modules/logic/src": "5ff09dd6e7f052e0d1b62684d47d0b3a36cbc97990d798a3edc00d2000631f00",
-					"modules/shu/src": "809cc2eff823b00f6394fe46e4dd8bb57a22f96bb77e5d6578cad281c8b902de",
+					"modules/core/src": "2341a9166cec906dbd1cdb1a84f59fb979396468905a9919aa8bd47f2cf8bd5a",
+					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
+					"modules/logic/src": "ddce68661ed9e85d8584d516c28de722c54f32239013df687fa5bebd5d295fe0",
+					"modules/shu/src": "df98e1d1ced74c919876b5cdaf0564c589d749321abec6c008693bd080a75cf4",
 					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
-					"modules/web-playwright/src": "6b2bb22bc74732eab8fc5b62da9b90a1081e67c676360c79bb5904208409285e",
-					"modules/web-server-hono/src": "f3feecea6f84624e6c24a8bc5c91a84fe5111b1fd2210ae654e2b7b4867581be"
+					"modules/web-playwright/src": "f055d34a4b700912a7d7530f26a9de3142fc0ae865bebc2e2d97fb42da5cb4de",
+					"modules/web-server-hono/src": "60fe2ae76b31b769ce49a44b86d8877dfe4bbd430e365d91d5ccdad3b4f73a1d"
 				}
 			},
 			"features": {
@@ -362,15 +362,15 @@
 				"status": "passed",
 				"tookMs": 100,
 				"digest": {
-					"modules/core/src": "dc175d0d64fd8ef993509f9c783887eb557c89fa7a217dc320582598ca6c6b3e",
-					"modules/domain-storage/src": "0774ebfedf37f5cffb3ef84ed5a7fc859ed90fedf1887299cfe903e34b6910c3",
+					"modules/core/src": "2f10ce8bd522f3eaa436854889bdcd20eaff10a5b31482411d318b6a017ef516",
+					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
 					"modules/logic/src": "5ff09dd6e7f052e0d1b62684d47d0b3a36cbc97990d798a3edc00d2000631f00",
-					"modules/shu/src": "29f37e64b01790d5e85ff4e0a1ffad590519f34204e50aa24e68c0a1008abf5e",
+					"modules/shu/src": "1e9e738b4f346d523dec75bb17d6c82e87480dc475b5c05cd8800f206e926916",
 					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
-					"modules/web-playwright/src": "6b2bb22bc74732eab8fc5b62da9b90a1081e67c676360c79bb5904208409285e",
-					"modules/web-server-hono/src": "f3feecea6f84624e6c24a8bc5c91a84fe5111b1fd2210ae654e2b7b4867581be"
+					"modules/web-playwright/src": "f055d34a4b700912a7d7530f26a9de3142fc0ae865bebc2e2d97fb42da5cb4de",
+					"modules/web-server-hono/src": "1e940915b7ec31a6c0173d8e598ab9ac77336b0459481fe4955169e41bd117d6"
 				}
 			},
 			"features": {
@@ -470,15 +470,15 @@
 				"status": "passed",
 				"tookMs": 100,
 				"digest": {
-					"modules/core/src": "dc175d0d64fd8ef993509f9c783887eb557c89fa7a217dc320582598ca6c6b3e",
-					"modules/domain-storage/src": "0774ebfedf37f5cffb3ef84ed5a7fc859ed90fedf1887299cfe903e34b6910c3",
+					"modules/core/src": "2f10ce8bd522f3eaa436854889bdcd20eaff10a5b31482411d318b6a017ef516",
+					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
 					"modules/logic/src": "5ff09dd6e7f052e0d1b62684d47d0b3a36cbc97990d798a3edc00d2000631f00",
-					"modules/shu/src": "29f37e64b01790d5e85ff4e0a1ffad590519f34204e50aa24e68c0a1008abf5e",
+					"modules/shu/src": "1e9e738b4f346d523dec75bb17d6c82e87480dc475b5c05cd8800f206e926916",
 					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
-					"modules/web-playwright/src": "6b2bb22bc74732eab8fc5b62da9b90a1081e67c676360c79bb5904208409285e",
-					"modules/web-server-hono/src": "f3feecea6f84624e6c24a8bc5c91a84fe5111b1fd2210ae654e2b7b4867581be"
+					"modules/web-playwright/src": "f055d34a4b700912a7d7530f26a9de3142fc0ae865bebc2e2d97fb42da5cb4de",
+					"modules/web-server-hono/src": "1e940915b7ec31a6c0173d8e598ab9ac77336b0459481fe4955169e41bd117d6"
 				}
 			},
 			"features": {
@@ -578,15 +578,15 @@
 				"status": "passed",
 				"tookMs": 100,
 				"digest": {
-					"modules/core/src": "dc175d0d64fd8ef993509f9c783887eb557c89fa7a217dc320582598ca6c6b3e",
-					"modules/domain-storage/src": "0774ebfedf37f5cffb3ef84ed5a7fc859ed90fedf1887299cfe903e34b6910c3",
-					"modules/logic/src": "5ff09dd6e7f052e0d1b62684d47d0b3a36cbc97990d798a3edc00d2000631f00",
-					"modules/shu/src": "001a6c571ea82bee39558072dff3dbc2059e01a5322c257ec99cce7926dc1a22",
+					"modules/core/src": "2341a9166cec906dbd1cdb1a84f59fb979396468905a9919aa8bd47f2cf8bd5a",
+					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
+					"modules/logic/src": "ddce68661ed9e85d8584d516c28de722c54f32239013df687fa5bebd5d295fe0",
+					"modules/shu/src": "df98e1d1ced74c919876b5cdaf0564c589d749321abec6c008693bd080a75cf4",
 					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
-					"modules/web-playwright/src": "6b2bb22bc74732eab8fc5b62da9b90a1081e67c676360c79bb5904208409285e",
-					"modules/web-server-hono/src": "f3feecea6f84624e6c24a8bc5c91a84fe5111b1fd2210ae654e2b7b4867581be"
+					"modules/web-playwright/src": "f055d34a4b700912a7d7530f26a9de3142fc0ae865bebc2e2d97fb42da5cb4de",
+					"modules/web-server-hono/src": "60fe2ae76b31b769ce49a44b86d8877dfe4bbd430e365d91d5ccdad3b4f73a1d"
 				}
 			},
 			"features": {

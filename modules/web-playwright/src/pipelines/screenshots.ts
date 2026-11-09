@@ -20,6 +20,6 @@ export async function captureScreenshot(session: BrowserSession, world: TWorld, 
 	const filename = `event-${step.seqPath.join(".")}.png`;
 	const buffer = await session.withPage((page) => page.screenshot());
 	const saved = await saveImageArtifact(world, storage, { seqPath: step.seqPath, in: step.in, source: { path: step.path } }, filename, buffer, SCREENSHOT_FORMAT);
-	world.eventLogger.debug(`${event} screenshot to ${pathToFileURL(saved.absolutePath)}`);
+	world.eventLogger.debug(`${event} screenshot to ${pathToFileURL(saved.absolutePath).href}`);
 	return { contentUrl: artifactAddress(saved.baseRelativePath), encodingFormat: SCREENSHOT_FORMAT };
 }

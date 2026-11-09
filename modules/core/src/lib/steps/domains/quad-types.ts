@@ -399,7 +399,7 @@ export function satisfies(held: unknown, condition: TSearchCondition): boolean {
 			if (condition.value2 === undefined) throw new Error(`a "between" condition on ${condition.predicate} names only one bound`);
 			return order(condition.value) >= 0 && order(condition.value2) <= 0;
 		default:
-			throw new Error(`a store of quads doesn't compare by the "${condition.operator}" condition on ${condition.predicate}`);
+			throw new Error(`a store of quads doesn't compare by the "${String(condition.operator)}" condition on ${condition.predicate}`);
 	}
 }
 

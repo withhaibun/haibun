@@ -186,7 +186,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const registered = this.getWorld().domains[normalizeDomainKey(effectiveDomain)];
 				if (registered?.comparator !== undefined && registered.values !== undefined) {
 					const at = registered.values.indexOf(String(presentVal));
-					if (at === -1) return actionNotOK(`${term} has value "${presentVal}" which is not in domain values`);
+					if (at === -1) return actionNotOK(`${term} has value "${String(presentVal)}" which is not in domain values`);
 					const next = registered.values[at + 1];
 					if (next !== undefined) await this.getWorld().shared.set({ term, value: next, domain: effectiveDomain, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
 					return OK;
@@ -195,7 +195,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				// Fallback: numeric increment
 				const numVal = Number(presentVal);
 				if (isNaN(numVal)) {
-					return actionNotOK(`cannot increment non-numeric variable ${term} with value "${presentVal}"`);
+					return actionNotOK(`cannot increment non-numeric variable ${term} with value "${String(presentVal)}"`);
 				}
 				const newNum = numVal + 1;
 				await this.getWorld().shared.set({ term, value: String(newNum), domain: effectiveDomain, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
@@ -350,7 +350,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			action: async ({ value, domain }: { value: TStepValue; domain: string }) => {
 				const members = await this.getWorld().shared.getDomainValues(domain);
 				if (members.error !== undefined) return actionNotOK(members.error);
-				return members.values.map(String).includes(String(value.value)) ? OK : actionNotOK(`"${statedValue(String(value.value), value.secret)}" is not in ${domain}`);
+				return members.values.map(String).includes(String(value.value)) ? OK : actionNotOK(`"${String(statedValue(String(value.value), value.secret))}" is not in ${domain}`);
 			},
 		},
 		// Pattern matching: glob-style patterns for human-readable matching
@@ -380,11 +380,13 @@ class VariablesStepper extends AStepper implements IHasCycles {
 						if ("error" in text) return actionNotOK(text.error);
 						if (glob.test(text.value)) return OK;
 					}
-					return actionNotOK(`the ${value.value.length} items of the list don't match pattern "${statedPattern}"`);
+					return actionNotOK(`the ${value.value.length} items of the list don't match pattern "${String(statedPattern)}"`);
 				}
 				const actual = await textOf(value.value);
 				if ("error" in actual) return actionNotOK(actual.error);
-				return glob.test(actual.value) ? OK : actionNotOK(`"${statedValue(actual.value, value.secret || actual.secret)}" does not match pattern "${statedPattern}"`);
+				return glob.test(actual.value)
+					? OK
+					: actionNotOK(`"${String(statedValue(actual.value, value.secret || actual.secret))}" does not match pattern "${String(statedPattern)}"`);
 			},
 		},
 	} as const satisfies TStepperSteps;

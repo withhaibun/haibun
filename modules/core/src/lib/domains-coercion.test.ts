@@ -75,10 +75,10 @@ describe("domain coercion", () => {
 			{
 				selectors: mixed,
 				schema: z.string(),
-				coerce: (proto: TStepValue) => (proto.domain === DOMAIN_NOTSTRING ? `notstring:${proto.value}` : `string:${proto.value}`),
+				coerce: (proto: TStepValue) => (proto.domain === DOMAIN_NOTSTRING ? `notstring:${String(proto.value)}` : `string:${String(proto.value)}`),
 				description: "a string or a selector",
 			},
-			{ selectors: [DOMAIN_NOTSTRING], schema: z.string(), coerce: (proto: TStepValue) => `selector:${proto.value}`, description: "a selector" },
+			{ selectors: [DOMAIN_NOTSTRING], schema: z.string(), coerce: (proto: TStepValue) => `selector:${String(proto.value)}`, description: "a selector" },
 		];
 		registerDomains(testWorld, [domains]);
 

@@ -18,11 +18,13 @@
 		"concurrently": "^10.0.6",
 		"dependency-cruiser": "^18.7.2",
 		"esbuild": "^0.28.2",
+		"eslint": "10.13.0",
 		"playwright": "^1.63.0",
 		"playwright-core": "^1.63.0",
 		"rollup-plugin-visualizer": "^7.1.1",
 		"semantic-release": "^25.0.9",
 		"typescript": "^6.0.3",
+		"typescript-eslint": "8.72.0",
 		"vite": "^8.3.5",
 		"vitest": "^5.1.0"
 	},
@@ -36,7 +38,7 @@
 		"build": "tsc -b && npm run bundle --workspaces --if-present",
 		"build:watch": "concurrently \"tsc -b --watch --preserveWatchOutput\" \"npm run bundle -w @haibun/shu -- --watch\"",
 		"format": "biome format --write .",
-		"lint": "biome check . && tsc -b",
+		"lint": "biome check . && tsc -b && eslint .",
 		"depcruise": "depcruise -c .dependency-cruiser.cjs -T dot modules | dot -T svg | depcruise-wrap-stream-in-html > dependency-graph.html",
 		"prepare": "haibun-install-hooks"
 	},

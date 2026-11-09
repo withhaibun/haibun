@@ -92,7 +92,7 @@ async function getFeaturesAndBackgrounds(
 		ret.backgrounds = ret.backgrounds.concat(rawFeaturesAndBackgrounds.backgrounds);
 	}
 	if (ret.features.length < 1) {
-		throw Error(`"${bases}" doesn't hold a feature`);
+		throw Error(`"${bases.join(", ")}" doesn't hold a feature`);
 	}
 	return ret;
 }

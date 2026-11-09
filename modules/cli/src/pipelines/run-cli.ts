@@ -273,7 +273,7 @@ async function getSpeclOrExit(bases: TBase, ports: TCliPorts): Promise<TSpecl> {
 	try {
 		specl = getConfigFromBase(bases, ports.fs);
 	} catch (e: unknown) {
-		return await usageThenExit(getDefaultOptions(), ports.steppers, `${errorDetail(e)}; the bases are ${bases} in ${process.cwd()}`);
+		return await usageThenExit(getDefaultOptions(), ports.steppers, `${errorDetail(e)}; the bases are ${bases.join(", ")} in ${process.cwd()}`);
 	}
 	if (bases.length < 1) return await usageThenExit(specl, ports.steppers, "the command doesn't name a base");
 	return specl;

@@ -276,7 +276,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		const html = await reportHtml({ world, viewSteps, queriedLabel: this.queriedLabel, bundles: servedBundles, gzip: reportGzip, compressed });
 		const written = fixedPath === undefined ? (await this.storage.saveArtifact("shu.html", html)).absolutePath : fixedPath;
 		if (fixedPath !== undefined) reportWriter.write(fixedPath, html);
-		world.eventLogger.info(`shu standalone report: ${actualURI(world.options, written)}`);
+		world.eventLogger.info(`shu standalone report: ${actualURI(world.options, written).href}`);
 		return written;
 	}
 

@@ -162,7 +162,7 @@ function evaluateCondition(node: unknown, config: Record<string, unknown>, ctx: 
 		const property = conditionsOf(v);
 		if (config[k] !== undefined) {
 			if (property?.const !== undefined && config[k] !== property.const) {
-				ctx.addIssue({ code: z.ZodIssueCode.custom, message: `must be equal to constant "${property.const}"`, path: [k] });
+				ctx.addIssue({ code: z.ZodIssueCode.custom, message: `must be equal to constant "${String(property.const)}"`, path: [k] });
 				ok = false;
 			}
 			if (property?.type === "number" && typeof config[k] !== "number") {

@@ -873,7 +873,7 @@ function resolveFromCandidates(
 		if (!field) continue;
 		const value = getProperty(field);
 		if (value === undefined || value === null || value === "") continue;
-		return candidate.bare ? String(value) : `${field}: ${value}`;
+		return candidate.bare ? String(value) : `${field}: ${String(value)}`;
 	}
 	return undefined;
 }

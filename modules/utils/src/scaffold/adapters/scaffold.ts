@@ -44,7 +44,7 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
 	}
 	const validateError = validate(localDest?.name);
 	if (validateError) {
-		error.push(`${localDest?.name} is not a valid npm package name: ${validateError}`);
+		error.push(`${String(localDest?.name)} is not a valid npm package name: ${validateError}`);
 	}
 	if (error.length > 0) {
 		throw Error(error.join("\n"));
@@ -83,11 +83,11 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
 
 	const cName = pName.replace(/-./g, (x: string) => x.charAt(1).toUpperCase());
 	for (const f of ["stepper.ts", "stepper.test.ts"]) {
-		writeIfMissing(`src/${f}`, `src/${cName}-${f}`, "WTW", cName);
+		writeIfMissing(`src/${f}`, `src/${String(cName)}-${f}`, "WTW", cName);
 	}
 
 	for (const f of ["ts", "test.ts"]) {
-		writeIfMissing(`src/lib/${f}`, `src/lib/${cName}.${f}`, "WTW", cName);
+		writeIfMissing(`src/lib/${f}`, `src/lib/${String(cName)}.${f}`, "WTW", cName);
 	}
 
 	function writeIfMissing(from: string, to?: string, replace?: string, instead?: string) {
@@ -106,7 +106,7 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
 		}
 	}
 
-	out(`\n${localDest.name} scaffolded for Haibun.\nNext you should these commands:\n\nnpm i\nnpm run build\nnpm test\n`);
+	out(`\n${String(localDest.name)} scaffolded for Haibun.\nNext you should these commands:\n\nnpm i\nnpm run build\nnpm test\n`);
 	return;
 
 	async function readPackageName() {

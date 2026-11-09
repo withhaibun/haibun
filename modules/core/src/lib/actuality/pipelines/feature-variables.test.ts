@@ -95,7 +95,7 @@ describe("FeatureVariables", () => {
 		it("should return string representation", () => {
 			const str = variables.toString();
 			expect(str).toContain("tag");
-			expect(str).toContain(world.tag);
+			expect(str).toContain(JSON.stringify(world.tag));
 		});
 	});
 

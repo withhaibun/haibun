@@ -312,7 +312,7 @@ export class ServerHono implements IWebServer {
 				endpointClass: purpose.service ? ENDPOINT_CLASS.service : ENDPOINT_CLASS.route,
 				reads: purpose.reads,
 			})
-			.catch((e) => this.eventLogger.error(`persistEndpoint ${type} ${path}: ${e}`));
+			.catch((e) => this.eventLogger.error(`persistEndpoint ${type} ${path}: ${String(e)}`));
 	}
 
 	private generateDirectoryListing(dirPath: string, files: string[], mountAt: string): string {

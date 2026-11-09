@@ -184,12 +184,12 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 					if (!selector) continue;
 					checked++;
 					const sourceLabel = (sourceQuad as { objectType?: string }).objectType;
-					if (!sourceLabel) return actionNotOK(`anchor ${anchor.id}: its hasSource edge doesn't name a type for "${String(sourceQuad.object)}"`);
+					if (!sourceLabel) return actionNotOK(`anchor ${String(anchor.id)}: its hasSource edge doesn't name a type for "${String(sourceQuad.object)}"`);
 					const sourceId = String(sourceQuad.object);
 					const text = await markdownOf(store, sourceLabel, sourceId);
 					const said = describeAnchor(selector);
-					if (text === undefined) unresolved.push(`${sourceLabel} "${sourceId}" doesn't hold text to anchor ${said} (anchor ${anchor.id})`);
-					else if (!anchorResolves(text, selector)) unresolved.push(`${sourceLabel} "${sourceId}" no longer states ${said} (anchor ${anchor.id})`);
+					if (text === undefined) unresolved.push(`${sourceLabel} "${sourceId}" doesn't hold text to anchor ${said} (anchor ${String(anchor.id)})`);
+					else if (!anchorResolves(text, selector)) unresolved.push(`${sourceLabel} "${sourceId}" no longer states ${said} (anchor ${String(anchor.id)})`);
 				}
 				if (unresolved.length > 0) return actionNotOK(`${unresolved.length} of ${checked} citations no longer resolve:\n${unresolved.join("\n")}`);
 				return actionOKWithProducts({ checked });

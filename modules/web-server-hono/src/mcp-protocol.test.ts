@@ -74,7 +74,7 @@ class TestStepper extends AStepper {
 				}
 
 				if (result.serverInfo.name !== "haibun-mcp") {
-					throw new Error(`Unexpected server name: ${result.serverInfo.name}`);
+					throw new Error(`Unexpected server name: ${String(result.serverInfo.name)}`);
 				}
 
 				// Also check version presence

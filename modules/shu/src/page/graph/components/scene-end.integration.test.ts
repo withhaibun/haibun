@@ -95,7 +95,7 @@ test("a model set as a scene is made is drawn once the library laid out its firs
 		};
 		feedOnceMade();
 	};
-	await mounted.page.evaluate(`(${madeAndFed})(${JSON.stringify(fed)}, ${modelIn})`);
+	await mounted.page.evaluate(`(${String(madeAndFed)})(${JSON.stringify(fed)}, ${String(modelIn)})`);
 	await mounted.draws(fed.length);
 	await mounted.atRest();
 	expect(mounted.errors(), "page errors").toEqual([]);

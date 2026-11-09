@@ -192,7 +192,7 @@ class RpcVerifyStepper extends AStepper {
 			gwta: `steps shown at {url: ${DOMAIN_LINK}} presenting nothing include {included: ${DOMAIN_STEP_METHOD}}`,
 			action: async ({ url, included }: TStepArgs) => {
 				const methods = (await shownSteps(String(url))).map((step): string => step.method);
-				return methods.includes(String(included)) ? OK : actionNotOK(`"${included}" not in [${methods.join(", ")}]`);
+				return methods.includes(String(included)) ? OK : actionNotOK(`"${String(included)}" not in [${methods.join(", ")}]`);
 			},
 		},
 		shownStepsToHolder: {
@@ -201,8 +201,8 @@ class RpcVerifyStepper extends AStepper {
 			action: async ({ url, holder, included, excluded }: TStepArgs) => {
 				const shown = await shownSteps(String(url), String(holder));
 				const methods = shown.map((step): string => step.method);
-				if (!methods.includes(String(included))) return actionNotOK(`"${included}" not in [${methods.join(", ")}]`);
-				return methods.includes(String(excluded)) ? actionNotOK(`"${excluded}" is shown to ${holder}, who may not call it`) : OK;
+				if (!methods.includes(String(included))) return actionNotOK(`"${String(included)}" not in [${methods.join(", ")}]`);
+				return methods.includes(String(excluded)) ? actionNotOK(`"${String(excluded)}" is shown to ${String(holder)}, who may not call it`) : OK;
 			},
 		},
 		rpcCallSucceeds: {
@@ -908,7 +908,7 @@ rpc call to "http://localhost:${port}/rpc/Injected-ping" with method "Injected-p
 					gwta: `calls at a page's seqPath at {base: ${DOMAIN_LINK}}`,
 					action: async ({ base }: TStepArgs) => {
 						const call = async (method: string): Promise<Record<string, unknown>> => {
-							const url = `${base}/rpc/${method}`;
+							const url = `${String(base)}/rpc/${method}`;
 							const body = await rpcBody(url, { method, seqPath: PAGE_PATH });
 							return (await (await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body })).json()) as Record<string, unknown>;
 						};

@@ -180,7 +180,7 @@ function parseServerError(error: unknown): { type: string; message: string; acti
 	if (errorStr.includes("ERR_MODULE_NOT_FOUND") || errorStr.includes("Cannot find")) {
 		const moduleMatch = errorStr.match(/Cannot find module '([^']+)'/);
 		const module = moduleMatch ? path.basename(moduleMatch[1]) : "module";
-		return { type: "missing-module", message: `Missing ${module}`, action: "Run npm install or check paths" };
+		return { type: "missing-module", message: `Missing ${String(module)}`, action: "Run npm install or check paths" };
 	}
 
 	return { type: "unknown", message: "Check Output channel for details", action: "View Output" };
@@ -207,8 +207,8 @@ async function startClient(context: ExtensionContext) {
 	const workspaceRoot = workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
 	const safeBase = path.join(context.extensionPath, "lsp-server");
 
-	outputChannel.appendLine(`[Haibun] Workspace: ${workspaceRoot}`);
-	outputChannel.appendLine(`[Haibun] Safe Base: ${safeBase}`);
+	outputChannel.appendLine(`[Haibun] Workspace: ${String(workspaceRoot)}`);
+	outputChannel.appendLine(`[Haibun] Safe Base: ${String(safeBase)}`);
 
 	const cliPath = resolveCliPath(workspaceRoot);
 	if (!cliPath) {
@@ -226,7 +226,7 @@ async function startClient(context: ExtensionContext) {
 	const userCwd = config.get<string>("cwd") || "";
 	const effectiveCwd = userCwd ? (path.isAbsolute(userCwd) ? userCwd : path.resolve(workspaceRoot, userCwd)) : workspaceRoot;
 
-	outputChannel.appendLine(`[Haibun] User CWD: ${effectiveCwd}`);
+	outputChannel.appendLine(`[Haibun] User CWD: ${String(effectiveCwd)}`);
 
 	// PREPARE ENVIRONMENT
 	// The language server stays after its feature ends, until the editor stops it.
@@ -275,7 +275,7 @@ async function startClient(context: ExtensionContext) {
 					});
 				}
 			} catch (e) {
-				outputChannel.appendLine(`[Haibun] Warning: Failed to read user config: ${e}`);
+				outputChannel.appendLine(`[Haibun] Warning: Failed to read user config: ${String(e)}`);
 			}
 		}
 	}
@@ -339,11 +339,11 @@ async function startClient(context: ExtensionContext) {
 		retryCount = 0;
 		configProvider.clearError();
 		statusBarItem.text = "$(check) Haibun: Ready";
-		statusBarItem.tooltip = `Base: ${userBases[0]}`;
+		statusBarItem.tooltip = `Base: ${String(userBases[0])}`;
 
 		client.onNotification("haibun/workspaceInfo", (info: WorkspaceInfo) => {
 			const baseName = info.base === "Default" ? "Default" : path.basename(info.base || "Default");
-			statusBarItem.text = `$(file-code) ${baseName}`;
+			statusBarItem.text = `$(file-code) ${String(baseName)}`;
 			statusBarItem.tooltip = `Base: ${info.base || "Default"}\nSteppers: ${info.stepperCount || 0}`;
 			configProvider.updateWorkspaceInfo(info);
 			revealCurrentFile();
@@ -374,7 +374,7 @@ async function startClient(context: ExtensionContext) {
 			}
 		});
 	} catch (error) {
-		outputChannel.appendLine(`[Haibun] Client start failed: ${error}`);
+		outputChannel.appendLine(`[Haibun] Client start failed: ${String(error)}`);
 		const problem = parseServerError(error);
 		configProvider.setLspStatus("error", problem.type);
 		if (mcpEnabled) configProvider.setMcpStatus("error", "Parent process stopped");

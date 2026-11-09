@@ -52,7 +52,7 @@ class VerifyStepper extends AStepper {
 					if (content.includes(String(text))) {
 						return OK;
 					}
-					return actionNotOK(`Expected ${text} in ${content}`);
+					return actionNotOK(`Expected ${String(text)} in ${content}`);
 				} catch (e) {
 					return actionNotOK(String(e));
 				}
@@ -65,7 +65,9 @@ class VerifyStepper extends AStepper {
 				const res = await fetch(String(url));
 				const refused = servedFileRefusal(new URL(String(url)).pathname, ALLOWING);
 				const body: unknown = await res.json();
-				return res.status === REFUSED_INVOCATION && JSON.stringify(body) === JSON.stringify(refused) ? OK : actionNotOK(`${url} returned ${res.status} ${JSON.stringify(body)}`);
+				return res.status === REFUSED_INVOCATION && JSON.stringify(body) === JSON.stringify(refused)
+					? OK
+					: actionNotOK(`${String(url)} returned ${res.status} ${JSON.stringify(body)}`);
 			},
 		},
 		policyOf: {
@@ -73,7 +75,7 @@ class VerifyStepper extends AStepper {
 			gwta: `fetch from {url: ${DOMAIN_LINK}} carries the policy {policy: ${DOMAIN_TEXT}}`,
 			action: async ({ url, policy }: TStepArgs) => {
 				const carried = String((await fetch(String(url))).headers.get("content-security-policy"));
-				return carried === String(policy) ? OK : actionNotOK(`${url} carries the policy ${carried}`);
+				return carried === String(policy) ? OK : actionNotOK(`${String(url)} carries the policy ${carried}`);
 			},
 		},
 	};

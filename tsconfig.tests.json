@@ -7,6 +7,14 @@
 		"lib": ["ESNext", "DOM", "DOM.Iterable"],
 		"jsx": "react-jsx"
 	},
-	"include": ["modules/*/src/**/*.ts", "modules/*/src/**/*.tsx", "modules/*/waypoints/**/*.ts", "modules/*/entries/**/*.ts", "modules/*/scripts/**/*.ts"],
+	"include": [
+		"modules/*/src/**/*.ts",
+		"modules/*/src/**/*.tsx",
+		"modules/*/waypoints/**/*.ts",
+		"modules/*/entries/**/*.ts",
+		"modules/*/scripts/**/*.ts",
+		"scripts/**/*.ts",
+		"vite.config.ts"
+	],
 	"exclude": ["**/node_modules/**", "**/build/**"]
 }

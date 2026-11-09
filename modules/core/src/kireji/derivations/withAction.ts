@@ -91,6 +91,18 @@ const resolveArgValue = (value: TNestedArgValue): string => {
 	return String(value).replace(/\n/g, "\\n");
 };
 
+/** Why a step action doesn't convert to text: it is a function, whose text would be its source rather than a step line. */
+export const ACTION_WITHOUT_LINE_FORM =
+	"a step action doesn't have a line form, so a template literal or a string conversion doesn't hold its line. Compose it with limitedTo({ count, statement }), or state its line directly";
+
+/** Returns an action whose conversion to text throws, so an action interpolated into a feature's line fails as the feature is built. */
+function withoutLineForm<S extends string>(action: TActionExecutor<S>): TActionExecutor<S> {
+	const refused = () => {
+		throw new Error(ACTION_WITHOUT_LINE_FORM);
+	};
+	return Object.defineProperties(action, { toString: { value: refused }, [Symbol.toPrimitive]: { value: refused } });
+}
+
 // Map to typedSteps if available (e.g., ActivitiesStepper), otherwise use steps directly
 type TStepMap<T extends AStepper> = T extends { typedSteps: infer U } ? (U extends TStepperSteps ? U : T["steps"]) : T["steps"];
 
@@ -115,10 +127,10 @@ export const stepActions = (stepper: AStepper): Record<string, TActionFactory> =
 					normalizedArgs[name] = resolveArgValue(value);
 				}
 
-				return () => ({ actionName, args: normalizedArgs, gwta: renderStepLine(step.gwta, normalizedArgs) });
+				return withoutLineForm(() => ({ actionName, args: normalizedArgs, gwta: renderStepLine(step.gwta, normalizedArgs) }));
 			};
 		} else if (isStepWithExact(step)) {
-			actions[actionName] = () => () => ({ actionName, args: {}, gwta: step.exact });
+			actions[actionName] = () => withoutLineForm(() => ({ actionName, args: {}, gwta: step.exact }));
 		}
 	}
 

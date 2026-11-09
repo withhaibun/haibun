@@ -187,7 +187,7 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 		try {
 			this.mkdirp(dir);
 		} catch (e) {
-			throw Error(`creating ${dir}: ${e}`);
+			throw Error(`creating ${dir}: ${String(e)}`);
 		}
 	}
 
@@ -205,7 +205,7 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 			description: "Reads the file at the path as text and passes when the file's text is the given text. Fails, stating the text the file holds, when the file's text differs.",
 			action: ({ where, what }: { where: string; what: string }) => {
 				const text = this.readFile(where, "utf-8");
-				return text === what ? OK : actionNotOK(`text at ${where} is not ${what}; it's ${text}`);
+				return text === what ? OK : actionNotOK(`text at ${where} is not ${what}; it's ${text.toString()}`);
 			},
 		},
 		testContains: {
@@ -214,7 +214,7 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 				"Reads the file at the path as text and passes when the file's text contains the given text. Fails, stating the text the file holds, when the file's text doesn't contain it.",
 			action: ({ where, what }: { where: string; what: string }) => {
 				const text = this.readFile(where, "utf-8");
-				return text.toString().indexOf(what) > -1 ? OK : actionNotOK(`text at ${where} does not contain ${what}; it's ${text}`);
+				return text.toString().indexOf(what) > -1 ? OK : actionNotOK(`text at ${where} does not contain ${what}; it's ${text.toString()}`);
 			},
 		},
 		listFiles: {

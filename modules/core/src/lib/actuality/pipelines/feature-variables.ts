@@ -142,7 +142,7 @@ export class FeatureVariables {
 	}
 
 	toString() {
-		return `tag ${this.world.tag}`;
+		return `tag ${JSON.stringify(this.world.tag)}`;
 	}
 
 	async setJSON(label: string, value: object, origin: TOrigin, source: TFeatureStep) {
@@ -297,7 +297,7 @@ export class FeatureVariables {
 				resolved.domain = writtenDomain;
 			}
 		} else {
-			throw new Error(`a term states the origin ${input.origin}, which isn't one of ${Object.keys(Origin).join(", ")}`);
+			throw new Error(`a term states the origin ${String(input.origin)}, which isn't one of ${Object.keys(Origin).join(", ")}`);
 		}
 
 		if (resolved.value !== undefined) {

@@ -52,7 +52,9 @@ describe("SessionAuthority", () => {
 			const verifier: IAuthorityVerifier = {
 				verify: async () => ({ ok: true }),
 				delegationsTo: async () => ({ delegations: [] }),
-				record: async (document, by) => (acts.push({ act: `record ${document.id}`, by, readAt: readingAt() ?? "unbounded" }), { ok: true, id: String(document.id), at: AT }),
+				record: async (document, by) => (
+					acts.push({ act: `record ${String(document.id)}`, by, readAt: readingAt() ?? "unbounded" }), { ok: true, id: String(document.id), at: AT }
+				),
 				revoke: async (id, by) => (acts.push({ act: `revoke ${id}`, by, readAt: readingAt() ?? "unbounded" }), { ok: true, id, at: AT }),
 			};
 			const authority = new SessionAuthority(actualityClock());
