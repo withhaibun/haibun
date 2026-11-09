@@ -19,6 +19,8 @@ import type { TReasoner } from "../ports.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
 
 const action = async () => OK;
+/** A composite domain whose key holds a slash, as a namespaced domain's does. */
+const SLASHED = "crate/label";
 const value = (selector: string) => ({ selectors: [selector], schema: z.object({ id: z.string() }), description: selector });
 const thing = (selector: string) => ({
 	selectors: [selector],
@@ -42,6 +44,7 @@ const domains = mapDefinitionsToDomains([
 	value("loop-b"),
 	value("orphan"),
 	value("delivery"),
+	value(SLASHED),
 	shipment,
 	thing("ledger"),
 ]);
@@ -109,6 +112,12 @@ describe("goals over producer rules", () => {
 			["order", "argument"],
 			["note", "argument"],
 		]);
+	});
+
+	it("proves a goal where a composite domain's key holds a character its IRI encodes", async () => {
+		const proof = await prove("receipt", [], RUN_AUTHORITY);
+		expect(goalFacts(goalFactsOf(signatures, domains, RUN_AUTHORITY, [], ["receipt"]))).toContain(encodeURIComponent(SLASHED));
+		expect(stepsOf(proof)).toEqual([["fillCart", "placeOrder", "printReceipt"]]);
 	});
 
 	it("proves a goal by a fact of its domain", async () => {

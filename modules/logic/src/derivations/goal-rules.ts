@@ -71,8 +71,9 @@ export function goalFacts({ producers, produced, composites, held, goals }: TGoa
 		...held.map((domain) => pattern(domainIri(domain), T.held, yes)),
 		...goals.map((domain) => pattern(domainIri(domain), T.goal, yes)),
 	];
-	const fielded = Object.entries(composites).flatMap(([domain, fields]) => {
-		const nodes = fields.map((_, at) => DataFactory.blankNode(`${encodeURIComponent(domain)}-${at}`));
+	// A blank node's label holds only name characters, so each field's node is named by its composite's place and its own.
+	const fielded = Object.entries(composites).flatMap(([domain, fields], composite) => {
+		const nodes = fields.map((_, at) => DataFactory.blankNode(`c${composite}f${at}`));
 		return [
 			pattern(domainIri(domain), T.fields, list(...nodes)),
 			...fields.flatMap(({ name, range, type, optional }, at) => {

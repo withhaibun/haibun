@@ -83,6 +83,8 @@ type TStepped = z.infer<typeof EyeSteppedSchema>;
 
 /** The state an engine step returned: the read or the effect it needs, or the text EYE printed once it ended. */
 function stateOf({ answer, printed, errors }: TStepped): TReasonerState {
+	// EYE skips a source it can't parse and reports it, so a session that reported one would end without its facts.
+	if (answer === "done" && errors.length > 0) throw new Error(`EYE didn't read the session's sources: ${errors.join("\n")}. Check the rules and the facts of the session.`);
 	if (answer === "done") return { derived: printed.join("\n") };
 	const need = NeedSchema.safeParse(answer);
 	const [kind, ...request] = need.success ? need.data.need[0] : [];

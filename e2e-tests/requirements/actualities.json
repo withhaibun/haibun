@@ -544,7 +544,7 @@
 			"actuality": {
 				"text": "e2e-tests/requirements, node_modules/@haibun/cli/waypoints, node_modules/@haibun/logic/waypoints, node_modules/@haibun/core/waypoints",
 				"status": "passed",
-				"tookMs": 55900,
+				"tookMs": 56000,
 				"digest": {
 					"e2e-tests/requirements": "a97313b5d36c69de6bd71befc4fac1303e7ec1b8a9eae3df0bccca1501f26483",
 					"e2e-tests/src": "af005a350cebf7bace0c8de218d5012a617d2347dc19b706b80e17f97cd8ba7f",
@@ -553,7 +553,7 @@
 					"modules/core/src": "dc175d0d64fd8ef993509f9c783887eb557c89fa7a217dc320582598ca6c6b3e",
 					"modules/core/waypoints": "f573c51de6e8154e49adbb5d98a25b3fd1872742dfdab0f3d6ec8f6164759860",
 					"modules/domain-storage/src": "0774ebfedf37f5cffb3ef84ed5a7fc859ed90fedf1887299cfe903e34b6910c3",
-					"modules/logic/src": "0dd7a713eb0a4fd95129150bf6faae21f1c90ede5fcea633b323ef70f1398517",
+					"modules/logic/src": "5ff09dd6e7f052e0d1b62684d47d0b3a36cbc97990d798a3edc00d2000631f00",
 					"modules/logic/waypoints": "93e972f98438aa5cbe8f36d93e6aa45924af65df9fdb2846bf209209421a4671",
 					"modules/monitor-otel/src": "4fbef0f2c78fed7b3e2d03ec4ab094bef11766724e5f5f6efb73491ea1d4dea6",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
@@ -578,13 +578,13 @@
 				"/features/02-authority.feature.ts": {
 					"text": "Capabilities authorize every call",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 600,
 					"steps": 59
 				},
 				"/features/03-activities.feature.ts": {
 					"text": "Waypoints and ensure",
 					"status": "passed",
-					"tookMs": 300,
+					"tookMs": 400,
 					"steps": 69
 				},
 				"/features/04-combinators.feature.ts": {
@@ -596,7 +596,7 @@
 				"/features/05-goals.feature.ts": {
 					"text": "Goals over producer rules",
 					"status": "passed",
-					"tookMs": 2100,
+					"tookMs": 1800,
 					"steps": 41
 				},
 				"/features/06-world-and-products.feature.ts": {
@@ -608,7 +608,7 @@
 				"/features/07-records.feature.ts": {
 					"text": "Records, events and actualities",
 					"status": "passed",
-					"tookMs": 2600,
+					"tookMs": 2500,
 					"steps": 125
 				},
 				"/features/08-timing.feature.ts": {
@@ -620,13 +620,13 @@
 				"/features/09-surfaces.feature.ts": {
 					"text": "One path for every surface",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 800,
 					"steps": 77
 				},
 				"/features/10-cli.feature.ts": {
 					"text": "The command line",
 					"status": "passed",
-					"tookMs": 1100,
+					"tookMs": 1000,
 					"steps": 11
 				},
 				"/features/11-performance.feature.ts": {
@@ -656,13 +656,13 @@
 				"/features/15-combined-statements.feature.ts": {
 					"text": "Combined statements",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 400,
 					"steps": 44
 				},
 				"/features/16-class-expressions.feature.ts": {
 					"text": "Class expressions",
 					"status": "passed",
-					"tookMs": 45400,
+					"tookMs": 45800,
 					"steps": 93
 				}
 			}

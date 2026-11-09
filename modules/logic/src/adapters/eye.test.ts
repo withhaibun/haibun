@@ -31,6 +31,7 @@ const ABSENCE: TSession = {
 };
 const READ: TSession = { name: "read", sources: `${PREFIXES}${READ_RULE}`, query: select(":a :got ?o"), reads: "post" };
 const THROWN: TSession = { ...READ, name: "host throws part-way", reads: "throw" };
+const SYNTAX_ERROR: TSession = { name: "syntax error", sources: `${PREFIXES}:a :p .`, query: select("?s :q ?o") };
 const SESSIONS: TSession[] = [
 	FORWARD,
 	OTHER,
@@ -38,7 +39,7 @@ const SESSIONS: TSession[] = [
 	ABSENCE,
 	{ name: "backward rule", sources: `${PREFIXES}:c :p :d . { ?x :back ?y } <= { ?x :p ?y } .`, query: select(":c :back ?o") },
 	READ,
-	{ name: "syntax error", sources: `${PREFIXES}:a :p .`, query: select("?s :q ?o") },
+	SYNTAX_ERROR,
 	THROWN,
 	{ ...READ, name: "read after a session thrown part-way" },
 	{
@@ -96,6 +97,11 @@ describe("a reused EYE runtime", () => {
 			expect(await outcomeOf(reused, READ)).toEqual(read);
 			expect(await outcomeOf(reused, OTHER), "a blank node a session names starts from the same label").toEqual(await freshOutcomeOf(OTHER));
 		});
+	});
+
+	it("throws for a session whose sources EYE doesn't parse, stating EYE's report", { timeout: 60_000 }, async () => {
+		const outcome = await freshOutcomeOf(SYNTAX_ERROR);
+		expect("threw" in outcome ? outcome.threw : outcome).toMatch(/EYE didn't read the session's sources: \*\* ERROR \*\*/);
 	});
 
 	it("serves a session in a fraction of a runtime's start", { timeout: 120_000 }, async () => {

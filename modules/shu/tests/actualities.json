@@ -412,14 +412,14 @@
 			"actuality": {
 				"text": "modules/shu/tests, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 37100,
+				"tookMs": 37300,
 				"digest": {
 					"modules/cli/src": "321ab09bf84a5aefffcd7d786a300b38bdf95ff407d6839e8bc59b7e341de058",
 					"modules/core/src": "dc175d0d64fd8ef993509f9c783887eb557c89fa7a217dc320582598ca6c6b3e",
 					"modules/domain-storage/src": "0774ebfedf37f5cffb3ef84ed5a7fc859ed90fedf1887299cfe903e34b6910c3",
-					"modules/logic/src": "0dd7a713eb0a4fd95129150bf6faae21f1c90ede5fcea633b323ef70f1398517",
+					"modules/logic/src": "5ff09dd6e7f052e0d1b62684d47d0b3a36cbc97990d798a3edc00d2000631f00",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/shu/src": "29f37e64b01790d5e85ff4e0a1ffad590519f34204e50aa24e68c0a1008abf5e",
+					"modules/shu/src": "809cc2eff823b00f6394fe46e4dd8bb57a22f96bb77e5d6578cad281c8b902de",
 					"modules/shu/tests": "b8dd8a5de107da3c875273aa89a717ea6df9392461f3aad6292a55cc5c96614c",
 					"modules/shu/waypoints": "bf3404dac6e40f8fee76ffc4327503c9b2ce7b61de89068a9bfc28ffefcd1604",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
@@ -432,7 +432,7 @@
 				"/features/address.feature.ts": {
 					"text": "An address names a type",
 					"status": "passed",
-					"tookMs": 1100,
+					"tookMs": 1200,
 					"steps": 205
 				},
 				"/features/federate.feature.ts": {
@@ -450,7 +450,7 @@
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
-					"tookMs": 25000,
+					"tookMs": 24600,
 					"steps": 703
 				},
 				"/features/remote-store.feature.ts": {
@@ -462,7 +462,7 @@
 				"/features/voice-ui.feature.ts": {
 					"text": "UI extension propagation: domain ui → concern catalog → SPA actions bar",
 					"status": "passed",
-					"tookMs": 2200,
+					"tookMs": 2600,
 					"steps": 210
 				}
 			}
