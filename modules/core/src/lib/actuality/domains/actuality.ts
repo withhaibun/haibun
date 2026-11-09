@@ -27,7 +27,6 @@ const GroupSchema = zr.object({
 	 *  fill and keep across their own processes, which an earlier run leaves. */
 	clears: zr.array(zr.string()).optional(),
 });
-export type TGroupDeclaration = z.infer<typeof GroupSchema>;
 
 export const SpeclSchema = zr.looseObject({
 	$schema: zr.string().optional(),

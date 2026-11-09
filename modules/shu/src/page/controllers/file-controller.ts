@@ -14,14 +14,6 @@ export function saveFile(content: BlobPart, name: string): void {
 	URL.revokeObjectURL(anchor.href);
 }
 
-/** Saves the resource at `url` as a file named `name`. */
-export function saveUrl(url: string, name: string): void {
-	const anchor = document.createElement("a");
-	anchor.href = url;
-	anchor.download = name;
-	anchor.click();
-}
-
 /** Opens `content` in a tab of its own at `fragment`, without a reference to this page (noopener), so the browser makes the
  *  tab apart from this page's process. Where a DevTools client drives the browser, as a test does, Chromium aborts the
  *  IndexedDB transactions a page has in flight while it makes a tab in the page's process. A browser opens a tab only

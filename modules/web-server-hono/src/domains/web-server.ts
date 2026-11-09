@@ -80,7 +80,6 @@ export const EndpointSchema = PersistedVertexSchema.extend({
 	reads: AccessLevelSchema.optional(),
 	generatedAtTime: z.coerce.date(),
 });
-export type TEndpoint = z.infer<typeof EndpointSchema>;
 export const DOMAIN_ENDPOINT = "haibun-endpoint";
 
 /** What holding authority over this instance's web server means: ending the process that serves it. */

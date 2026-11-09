@@ -181,7 +181,6 @@ export const RecordStepOutcomeSchema = z.object({
 	path: z.array(z.number()).optional(),
 	refusal: z.object({ error: z.string(), remedy: z.unknown().optional() }).optional(),
 });
-export type TRecordStepOutcome = z.infer<typeof RecordStepOutcomeSchema>;
 
 /** What `<shu-record-steps>` holds of its record and the step it runs in place. */
 export const RecordStepsStateSchema = z.object({
@@ -192,4 +191,3 @@ export const RecordStepsStateSchema = z.object({
 	activeMethod: z.string().optional(),
 	outcome: RecordStepOutcomeSchema.optional(),
 });
-export type TRecordStepsState = z.infer<typeof RecordStepsStateSchema>;

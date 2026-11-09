@@ -933,8 +933,6 @@ export const CommentSchema = PersistedVertexSchema.extend({
 	unverified: z.array(z.string()).optional(),
 });
 
-export type TComment = z.infer<typeof CommentSchema>;
-
 /** A registered route as a graph vertex. The web server persists it at mount. Observed requests target it, and the
  *  principal that serves it publishes it. */
 export const ENDPOINT_LABEL = "Endpoint";
@@ -1083,8 +1081,6 @@ export const BodySchema = PersistedVertexSchema.extend({
 	generatedAtTime: z.string(),
 	representations: z.array(RepresentationSchema).optional(),
 });
-
-export type TBody = z.infer<typeof BodySchema>;
 
 // ============================================================================
 // Web Annotation target schemas (W3C Web Annotation Data Model)

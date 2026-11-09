@@ -73,7 +73,6 @@ export const PLAN_STATUS = { running: "running", ended: "ended" } as const;
 export const PlanProgressSchema = z
 	.object({ plan: z.string(), goal: z.string(), status: z.enum(PLAN_STATUS), next: z.string().optional(), needs: z.array(z.string()), factIds: z.array(z.string()) })
 	.strict();
-export type TPlanProgress = z.infer<typeof PlanProgressSchema>;
 
 /** A step the caller may call that takes or returns a domain, with whether each domain it takes holds. */
 const ForwardSchema = z
