@@ -1,11 +1,10 @@
 import { it, expect, describe, vi } from "vitest";
 
-import { DEF_PROTO_OPTIONS, getTestWorldWithOptions, testWithWorld } from "../lib/test/lib.js";
+import { respondingPrompter, testWithWorld, worldPrompted } from "../lib/test/lib.js";
 import { LogicStepper } from "../lib/test/logic-stepper.js";
 import DebuggerStepper, { TDebuggingType } from "./debugger-stepper.js";
 import Haibun from "./haibun-stepper.js";
-import type { IPrompter, TPrompt, TPromptResponse } from "../lib/prompts/ports.js";
-import { ReadlinePrompter } from "../lib/prompts/adapters/readline-prompter.js";
+import type { IPrompter } from "../lib/prompts/ports.js";
 import { AStepper } from "../lib/steps/domains/stepper.js";
 import { actionNotOK } from "../lib/domains/util.js";
 import { OK } from "../lib/domains/protocol.js";
@@ -17,24 +16,18 @@ import { DOMAIN_TEXT } from "../lib/domains/domains.js";
 import { itemAt } from "../lib/domains/item-at.js";
 import { TEST_STEP } from "../lib/test/test-step.js";
 
-class TestPrompter implements IPrompter {
-	prompt = (_p: TPrompt) => Promise.resolve("continue");
-	cancel = () => {
-		/* empty */
-	};
-	resolve: (id: string, value: TPromptResponse) => void = () => {
-		/* empty */
-	};
-}
+/** A prompter that continues at each prompt, whose prompts a test counts. */
+const continuing = (): IPrompter => {
+	const prompter = respondingPrompter(() => "continue");
+	vi.spyOn(prompter, "prompt");
+	return prompter;
+};
 
 describe("DebuggerStepper", () => {
 	it("runs debug step by step", async () => {
 		const feature = { path: "/features/test.feature", content: "debug step by step\nThis should be prompted." };
-		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
-		world.prompter.unsubscribe(new ReadlinePrompter());
-		const testPrompter = new TestPrompter();
-		vi.spyOn(testPrompter, "prompt");
-		world.prompter.subscribe(testPrompter);
+		const testPrompter = continuing();
+		const world = worldPrompted(testPrompter);
 		const res = await testWithWorld(world, [feature], [DebuggerStepper, Haibun, LogicStepper]);
 		expect(res.ok).toBe(true);
 		expect(testPrompter.prompt).toHaveBeenCalledTimes(1);
@@ -42,16 +35,13 @@ describe("DebuggerStepper", () => {
 
 	it("passes correct options to prompter for debug step by step", async () => {
 		const feature = { path: "/features/test.feature", content: "debug step by step\nThis should be prompted." };
-		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
-		world.prompter.unsubscribe(new ReadlinePrompter());
-		const testPrompter = new TestPrompter();
-		const spy = vi.spyOn(testPrompter, "prompt");
-		world.prompter.subscribe(testPrompter);
+		const testPrompter = continuing();
+		const world = worldPrompted(testPrompter);
 
 		await testWithWorld(world, [feature], [DebuggerStepper, Haibun, LogicStepper]);
 
-		expect(spy).toHaveBeenCalledTimes(1);
-		const promptCall = itemAt(spy.mock.calls, 0)[0];
+		expect(testPrompter.prompt).toHaveBeenCalledTimes(1);
+		const promptCall = itemAt(vi.mocked(testPrompter.prompt).mock.calls, 0)[0];
 		expect(promptCall.options).toEqual(["*", "step", "continue"]);
 	});
 
@@ -63,11 +53,8 @@ describe("DebuggerStepper", () => {
 			}
 		}
 		const feature = { path: "/features/test.feature", content: "debug step by step\ncontinue\n;; step" };
-		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
-		world.prompter.unsubscribe(new ReadlinePrompter());
-		const testPrompter = new TestPrompter();
-		vi.spyOn(testPrompter, "prompt");
-		world.prompter.subscribe(testPrompter);
+		const testPrompter = continuing();
+		const world = worldPrompted(testPrompter);
 		const res = await testWithWorld(world, [feature], [ContinueDebuggerStepper, Haibun, LogicStepper]);
 		expect(res.ok).toBe(true);
 		expect(testPrompter.prompt).toHaveBeenCalledTimes(1);
@@ -76,24 +63,8 @@ describe("DebuggerStepper", () => {
 
 describe("DebuggerStepper sequence integration", () => {
 	it("beforeStep: proves each command typed at the prompt under the line", async () => {
-		class SequenceTestPrompter implements IPrompter {
-			responses = [";;comment 1", ";;comment 2", "step", "step", "continue"];
-			idx = 0;
-			prompt = () => {
-				const response = this.responses[this.idx++];
-				return Promise.resolve(response);
-			};
-			cancel = () => {
-				/* empty */
-			};
-			resolve: (_id: string, _value: unknown) => void = () => {
-				/* empty */
-			};
-		}
-		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
-		world.prompter.unsubscribe(new ReadlinePrompter());
-		const testPrompter = new SequenceTestPrompter();
-		world.prompter.subscribe(testPrompter);
+		const responses = [";;comment 1", ";;comment 2", "step", "step", "continue"];
+		const world = worldPrompted(respondingPrompter((at) => itemAt(responses, at)));
 		const feature = { path: "/features/test.feature", content: "debug step by step\nThis should be prompted.\nAnother step." };
 		const res = await testWithWorld(world, [feature], [DebuggerStepper, Haibun, LogicStepper]);
 		expect(res.ok).toBe(true);
@@ -113,21 +84,8 @@ describe("DebuggerStepper sequence integration", () => {
 
 	it("afterStep: proves each command typed at the failure prompt under the line", async () => {
 		const TestSteps = (await import("../lib/test/TestSteps.js")).default;
-		class FailurePrompter implements IPrompter {
-			responses = [";;comment 1", ";;comment 2", "next"];
-			idx = 0;
-			prompt = () => Promise.resolve(this.responses[this.idx++]);
-			cancel = () => {
-				/* empty */
-			};
-			resolve: (_id: string, _value: unknown) => void = () => {
-				/* empty */
-			};
-		}
-		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
-		world.prompter.unsubscribe(new ReadlinePrompter());
-		const testPrompter = new FailurePrompter();
-		world.prompter.subscribe(testPrompter);
+		const responses = [";;comment 1", ";;comment 2", "next"];
+		const world = worldPrompted(respondingPrompter((at) => itemAt(responses, at)));
 		// Use TestSteps' fails action
 		const feature = { path: "/features/test.feature", content: "fails" };
 		const res = await testWithWorld(world, [feature], [DebuggerStepper, TestSteps, Haibun, LogicStepper]);
@@ -145,29 +103,13 @@ describe("DebuggerStepper sequence integration", () => {
 	it("pauses before a line and not before a call nested in its proof", async () => {
 		const TestSteps = (await import("../lib/test/TestSteps.js")).default;
 
-		class LimitedPrompter implements IPrompter {
-			callCount = 0;
-			prompt = () => {
-				this.callCount++;
-				// The first prompt is for the line `didn't fails`, and the nested 'fails' doesn't prompt.
-				if (this.callCount > 1) {
-					throw new Error("the debugger paused before a call nested in a line's proof");
-				}
-				return Promise.resolve("step");
-			};
-			cancel = () => {
-				/* empty */
-			};
-			resolve: (_id: string, _value: unknown) => void = () => {
-				/* empty */
-			};
-		}
-
-		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
-		world.prompter.unsubscribe(new ReadlinePrompter());
-		const testPrompter = new LimitedPrompter();
+		// The first prompt is for the line `didn't fails`, and the nested 'fails' doesn't prompt.
+		const testPrompter = respondingPrompter((at) => {
+			if (at > 0) throw new Error("the debugger paused before a call nested in a line's proof");
+			return "step";
+		});
 		vi.spyOn(testPrompter, "prompt");
-		world.prompter.subscribe(testPrompter);
+		const world = worldPrompted(testPrompter);
 
 		// `didn't fails` holds: the nested 'fails' is refuted.
 		const feature = { path: "/features/test.feature", content: "debug step by step\ndidn't fails" };
@@ -192,16 +134,11 @@ describe("DebuggerStepper RPC dispatch", () => {
 			steps = { alwaysFails: { description: TEST_STEP, gwta: "always fails", action: async () => actionNotOK("intentional failure") } };
 		})();
 
-		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
-		world.prompter.unsubscribe(new ReadlinePrompter());
-		const trap: IPrompter = {
-			prompt: () => {
+		const world = worldPrompted(
+			respondingPrompter(() => {
 				throw new Error("Debugger entered debugLoop on RPC dispatch, prompter must not be called for source.path === 'rpc'");
-			},
-			cancel: () => undefined,
-			resolve: () => undefined,
-		};
-		world.prompter.subscribe(trap);
+			}),
+		);
 
 		const debuggerStepper = new DebuggerStepper();
 		const steppers = [debuggerStepper, failing];
@@ -224,16 +161,11 @@ describe("DebuggerStepper RPC dispatch", () => {
 			steps = { echo: { description: TEST_STEP, gwta: `echo {what: ${DOMAIN_TEXT}}`, action: async () => OK } };
 		})();
 
-		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
-		world.prompter.unsubscribe(new ReadlinePrompter());
-		const trap: IPrompter = {
-			prompt: () => {
+		const world = worldPrompted(
+			respondingPrompter(() => {
 				throw new Error("Debugger entered beforeStep debugLoop on RPC dispatch with StepByStep mode");
-			},
-			cancel: () => undefined,
-			resolve: () => undefined,
-		};
-		world.prompter.subscribe(trap);
+			}),
+		);
 
 		const debuggerStepper = new DebuggerStepper();
 		debuggerStepper.debuggingType = TDebuggingType.StepByStep;

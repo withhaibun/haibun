@@ -16,6 +16,8 @@ import type { TProver } from "../actuality/ports.js";
 import { FeatureVariables, secretsOf } from "../actuality/pipelines/feature-variables.js";
 import { Prompter } from "../prompts/pipelines/prompter.js";
 import { consolePrompter } from "../prompts/root.js";
+import type { IPrompter, TPromptResponse } from "../prompts/ports.js";
+import { ReadlinePrompter } from "../prompts/adapters/readline-prompter.js";
 import { getCoreDomains } from "../pipelines/core-domains.js";
 import { HAIBUN_RECORD_NAMESPACE } from "../domains/resources.js";
 import assert from "assert";
@@ -117,6 +119,20 @@ export function getTestWorldWithOptions(protoOptions: TProtoOptions = DEF_PROTO_
 		world.moduleOptions = protoOptions.moduleOptions;
 	}
 	// Allow test to override prompter after creation
+	return world;
+}
+
+/** A prompter that responds to each prompt with what `respond` returns for the prompt's place, from 0. */
+export function respondingPrompter(respond: (at: number) => TPromptResponse): IPrompter {
+	let at = 0;
+	return { prompt: () => Promise.resolve(respond(at++)), cancel: () => undefined, resolve: () => undefined };
+}
+
+/** A test world whose prompts `prompter` responds to, in place of the terminal's. */
+export function worldPrompted(prompter: IPrompter): TWorld {
+	const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
+	world.prompter.unsubscribe(new ReadlinePrompter());
+	world.prompter.subscribe(prompter);
 	return world;
 }
 

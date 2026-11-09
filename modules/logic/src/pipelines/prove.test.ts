@@ -5,10 +5,8 @@
  * actuality with a duration it couldn't read. The step program and the prover then come from different builds.
  */
 import { describe, expect, it } from "vitest";
-import { DEF_PROTO_OPTIONS, failWithDefaults, getTestWorldWithOptions, testWithWorld } from "@haibun/core/lib/test/lib.js";
+import { DEF_PROTO_OPTIONS, failWithDefaults, respondingPrompter, testWithWorld, worldPrompted } from "@haibun/core/lib/test/lib.js";
 import DebuggerStepper from "@haibun/core/steps/debugger-stepper.js";
-import { ReadlinePrompter } from "@haibun/core/lib/prompts/adapters/readline-prompter.js";
-import type { IPrompter, TPrompt, TPromptResponse } from "@haibun/core/lib/prompts/ports.js";
 import LogicStepper from "@haibun/logic/logic-stepper.js";
 import TestSteps from "@haibun/core/lib/test/TestSteps.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
@@ -73,20 +71,10 @@ describe("a proof that stops on an exception", () => {
 	});
 });
 
-/** Returns a command for the debugger's first prompt, and `continue` for each prompt after it. */
-class CommandingPrompter implements IPrompter {
-	private answered = 0;
-	constructor(private readonly command: string) {}
-	prompt = (_prompt: TPrompt): Promise<TPromptResponse> => Promise.resolve(this.answered++ === 0 ? this.command : "continue");
-	cancel = (): void => undefined;
-	resolve = (): void => undefined;
-}
-
 describe("a debugger's command under a line", () => {
 	it("takes a path apart from each record of the line's proof, so each keeps its own record", async () => {
-		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
-		world.prompter.unsubscribe(new ReadlinePrompter());
-		world.prompter.subscribe(new CommandingPrompter("passes"));
+		// The debugger's first prompt responds with a command, and each prompt after it with `continue`.
+		const world = worldPrompted(respondingPrompter((at) => (at === 0 ? "passes" : "continue")));
 		const result = await testWithWorld(world, [{ path: "/features/debugged", content: "debug step by step\ndidn't fails" }], [Haibun, TestSteps, DebuggerStepper, LogicStepper]);
 		expect(result.ok).toBe(true);
 		const steps = await readEvery(world.shared.getStore(), { label: SEQ_PATH_LABEL });
