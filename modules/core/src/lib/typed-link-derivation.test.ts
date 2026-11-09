@@ -26,6 +26,7 @@ import { z } from "zod";
 import { FRAGMENT_SPEC } from "./domains/media-fragments.js";
 import type { TLinkVocabulary } from "./domains/typed-links.js";
 import { itemAt } from "./domains/item-at.js";
+import { referenceTo } from "./records/domains/unit.js";
 
 // A registered fixture type, as a consumer would declare one. Statements connect records of registered types only.
 const REPORT = "FieldReport";
@@ -41,7 +42,7 @@ const DECLARED = Object.fromEntries([
 		fragmentSelectorDomainDefinition,
 		readingDomainDefinition,
 	].map(declaredTypeOf),
-	[REPORT, { relations: { [LinkRelations.CITES.rel]: [REPORT], [LinkRelations.MENTIONS.rel]: [REPORT] } }],
+	[REPORT, { relations: { [LinkRelations.CITES.rel]: [REPORT, SPECIFIC_RESOURCE_LABEL], [LinkRelations.MENTIONS.rel]: [REPORT, SPECIFIC_RESOURCE_LABEL] } }],
 ]);
 const vocab: TLinkVocabulary = {
 	relRange: (rel) => Object.values(LinkRelations).find((e) => e.rel === rel && !(e as { abstract?: boolean }).abstract)?.range,
@@ -112,7 +113,7 @@ describe("readTypedLinks", () => {
 
 	it("retracts exactly the previous reading when the text is rewritten", async () => {
 		await readTypedLinks(store, vocab, source, "[the old one:cites](#FieldReport:gone-1) and [that clause:cites](#FieldReport:spec-1:~:text=a%20clause)");
-		await store.merge({ "@type": REPORT, "@id": source.id, [LinkRelations.MENTIONS.rel]: { "@type": REPORT, "@id": "by-hand-1" } });
+		await store.merge({ "@type": REPORT, "@id": source.id, [LinkRelations.MENTIONS.rel]: referenceTo(REPORT, "by-hand-1") });
 		await readTypedLinks(store, vocab, source, "[the one that stays:cites](#FieldReport:stays-1)");
 		expect(await edgesOf(store, source.id, LinkRelations.CITES.rel)).toEqual(["stays-1"]);
 		expect(await edgesOf(store, source.id, LinkRelations.MENTIONS.rel)).toEqual(["by-hand-1"]);

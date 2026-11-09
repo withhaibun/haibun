@@ -56,6 +56,6 @@ export const variableDomainDefinition: TDomainDefinition = {
 			[VARIABLE_FIELD.generatedAtTime]: LinkRelations.GENERATED_AT_TIME.rel,
 			[VARIABLE_FIELD.accessLevel]: LinkRelations.ACCESS_LEVEL.rel,
 		},
-		edges: { [EDGE.wasGeneratedBy]: { rel: LinkRelations.WAS_GENERATED_BY.rel, range: SEQ_PATH_LABEL } },
+		edges: { [EDGE.wasGeneratedBy]: { rel: LinkRelations.WAS_GENERATED_BY.rel, range: SEQ_PATH_LABEL, reference: true } },
 	},
 };

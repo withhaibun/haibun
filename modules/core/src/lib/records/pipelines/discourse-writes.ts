@@ -26,6 +26,7 @@ import { typedLinkFacts } from "../derivations/typed-link-facts.js";
 import type { TLinkVocabulary, TTypedLinkFact } from "../../domains/typed-links.js";
 import { recordOf, type TRecordReader } from "./record-reads.js";
 import type { IQuadStore } from "../../steps/ports.js";
+import { referenceTo } from "../domains/unit.js";
 
 /** The store a reading writes and reads: the discourse writes and the read of records. */
 type TReadingStore = TDiscourseStore & TRecordReader & Pick<IQuadStore, "readRecord">;
@@ -41,7 +42,7 @@ async function retractReading(store: TReadingStore, readingId: string): Promise<
 	if (!prior) return;
 	for (const entry of prior.stated) {
 		const record = fromJsonText(StatedRecordSchema).parse(entry);
-		if (record.kind === "edge") await store.remove({ label: record.sLabel, id: record.s, edge: { rel: record.rel, to: record.o } });
+		if (record.kind === "edge") await store.remove({ label: record.sLabel, id: record.s, edge: { rel: record.rel, to: { label: record.oLabel, id: record.o } } });
 		else await store.remove(record);
 	}
 	await store.remove({ label: READING_LABEL, id: readingId });
@@ -92,7 +93,7 @@ export async function readTypedLinks(
 		// Only a typed link anchors its passage. An untyped link derives only the record-level edge, and its passage stays
 		// in the link, so plain cross-references don't add anchor records.
 		const target = fact.typed && fact.target.anchor ? await anchored(named, fact.target.anchor, fact.linkText) : named;
-		await store.merge({ "@type": source.label, "@id": source.id, [fact.rel]: { "@type": target.label, "@id": target.id } });
+		await store.merge({ "@type": source.label, "@id": source.id, [fact.rel]: referenceTo(target.label, target.id) });
 		stated.push({ kind: "edge", s: source.id, sLabel: source.label, rel: fact.rel, o: target.id, oLabel: target.label });
 	}
 	// The reading records its statements and the text it read once it has made them.
@@ -101,7 +102,7 @@ export async function readTypedLinks(
 		id: readingId,
 		...(provenance?.seqPath ? { seqPath: provenance.seqPath } : {}),
 		stated: stated.map((record) => JSON.stringify(record)),
-		[LinkRelations.USED.rel]: { "@type": source.label, "@id": source.id },
+		[LinkRelations.USED.rel]: referenceTo(source.label, source.id),
 	});
 	return { readingId, statements: stated.filter((d) => d.kind === "edge").length };
 }
@@ -166,7 +167,7 @@ export async function writeAnnotation(
 	const { specificResourceId } = await anchorPart(store, a.label, a.id, a, { label: commentName(a.text) });
 	const linkedSpecificResourceIds: string[] = [];
 	for (const link of a.links === undefined ? [] : a.links) linkedSpecificResourceIds.push((await anchorPart(store, a.label, a.id, link)).specificResourceId);
-	const reference = (id: string) => ({ "@type": SPECIFIC_RESOURCE_LABEL, "@id": id });
+	const reference = (id: string) => referenceTo(SPECIFIC_RESOURCE_LABEL, id);
 	const links = linkedSpecificResourceIds.length === 0 ? {} : { [LinkRelations.LINKS_TO.rel]: linkedSpecificResourceIds.map(reference) };
 	const edges = { [LinkRelations.TARGET.rel]: reference(specificResourceId), ...links };
 	const commentId = await createComment(store, vocab, author, a.text, { start: a.at, end: a.until, edges });

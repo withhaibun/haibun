@@ -31,6 +31,7 @@ import { recordTime } from "../domains/record-time.js";
 import { actualityFeatureOf, formatRecordName } from "../domains/seq-path.js";
 import { IQuadStore } from "../../steps/ports.js";
 import { quadObservation, SHARED_GRAPH } from "../../steps/domains/quad-types.js";
+import { referenceTo } from "../../records/domains/unit.js";
 
 export { SHARED_GRAPH };
 
@@ -425,7 +426,7 @@ export class FeatureVariables {
 			[VARIABLE_FIELD.origin]: sv.origin,
 			[VARIABLE_FIELD.readonly]: sv.readonly ? true : null,
 			[VARIABLE_FIELD.secret]: secret ? true : null,
-			[EDGE.wasGeneratedBy]: generatedBy.map((step) => ({ "@id": step })),
+			[EDGE.wasGeneratedBy]: generatedBy.map((step) => referenceTo(SEQ_PATH_LABEL, step)),
 		});
 	}
 }

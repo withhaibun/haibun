@@ -16,7 +16,7 @@ import { GraphQuerySchema, VIA_FIELD, type TQuad, type TSearchCondition } from "
 import { type IQuadStore } from "../steps/ports.js";
 import { COUNT_CEILING, MAX_PAGE_ROWS, readInPages } from "../domains/hypermedia.js";
 import { Access, AccessLevelSchema, EDGE, LinkRelations, type TRegisteredDomain } from "../domains/resources.js";
-import { ChangedSinceRead, NotUnique } from "../records/domains/unit.js";
+import { ChangedSinceRead, NotUnique, referenceTo } from "../records/domains/unit.js";
 import { rereadAndRetry } from "../records/pipelines/record-versions.js";
 
 /** The types the suite declares. */
@@ -215,7 +215,7 @@ export function describeQuadStore(
 			await store.merge({ "@type": ISSUE, id: "i1", accessLevel: Access.public });
 			await store.merge({ "@type": COMMENT, id: "c1", content: "about it", accessLevel: Access.public });
 			await store.merge({ "@type": COMMENT, id: "c2", content: "about something else", accessLevel: Access.public });
-			await store.merge({ "@type": COMMENT, "@id": "c1", [ABOUT]: { "@type": ISSUE, "@id": "i1" } });
+			await store.merge({ "@type": COMMENT, "@id": "c1", [ABOUT]: referenceTo(ISSUE, "i1") });
 			expect((await store.query({ predicate: ABOUT, object: "i1", namedGraph: COMMENT })).map((q) => q.subject)).toEqual(["c1"]);
 		});
 
@@ -296,7 +296,7 @@ export function describeQuadStore(
 			const hold = (label: string, id: string, minute: number): Promise<string> => store.merge({ "@type": label, id, generatedAtTime: at(minute), accessLevel: Access.public });
 			/** Writes the edge from an issue to the issue that contains it. The type declares the edge a reference, so a store that keeps
 			 *  edges strictly holds a reference in place of an issue it doesn't hold. */
-			const partOf = (part: string, whole: string): Promise<string> => store.merge({ "@type": ISSUE, "@id": part, [PART_OF]: { "@type": ISSUE, "@id": whole } });
+			const partOf = (part: string, whole: string): Promise<string> => store.merge({ "@type": ISSUE, "@id": part, [PART_OF]: referenceTo(ISSUE, whole) });
 
 			it("holds each issue after the issue it is part of, the issues with parts before the leaves, and counts the parts it leaves out under each", async () => {
 				const parts = { "part-1": { minute: 1, leaves: [2, 3, 4] }, "part-2": { minute: 5, leaves: [6, 7, 8] } };
@@ -341,7 +341,7 @@ export function describeQuadStore(
 					await store.merge({ "@type": COMMENT, id, generatedAtTime: TIME, status: "open", accessLevel: privately.includes(id) ? Access.private : Access.public });
 			};
 			/** Writes an edge from a comment to the issue. */
-			const relate = (from: string, relation: string): Promise<string> => store.merge({ "@type": COMMENT, "@id": from, [relation]: { "@type": ISSUE, "@id": "i1" } });
+			const relate = (from: string, relation: string): Promise<string> => store.merge({ "@type": COMMENT, "@id": from, [relation]: referenceTo(ISSUE, "i1") });
 
 			it("rejects a limit or a perType of 0 and of MAX_PAGE_ROWS + 1, and a count ceiling above COUNT_CEILING", async () => {
 				for (const size of [0, MAX_PAGE_ROWS + 1]) {

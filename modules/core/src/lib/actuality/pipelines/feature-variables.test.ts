@@ -146,6 +146,13 @@ describe("FeatureVariables", () => {
 			expect((await new FeatureVariables(world, carried).carried()).foo?.generatedBy, "the next scope keeps the steps").toEqual(setBy);
 		});
 
+		it("keeps the edge to the step that set a variable when the same step sets it again", async () => {
+			const provenance = { in: "set foo to bar", seq: [1], when: "Variables.set" };
+			await variables.set({ term: "foo", value: "bar", domain: DOMAIN_STRING, origin: Origin.var }, provenance);
+			await variables.set({ term: "foo", value: "baz", domain: DOMAIN_STRING, origin: Origin.var }, provenance);
+			expect((await variables.carried()).foo?.generatedBy).toEqual([formatRecordName({ actuality: actualityFeatureOf(world.tag), path: provenance.seq })]);
+		});
+
 		it("should coerce values through domain", async () => {
 			// The default world has domains that coerce values
 			await variables.set({ term: "num", value: "42", domain: DOMAIN_STRING, origin: Origin.var }, { in: "test", seq: [1], when: "test.action" });

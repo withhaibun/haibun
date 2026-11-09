@@ -13,6 +13,7 @@ import { activeSitePrincipal } from "../domains/host-id.js";
 import { declareBlips } from "../domains/blips.js";
 import { recordBlip } from "./record-blip.js";
 import { recordOf } from "../records/pipelines/record-reads.js";
+import { referenceTo } from "../records/domains/unit.js";
 
 const CLIENT_ID = "client";
 /** The blip for every observed request. The graph and the sequence read the persisted record. A trace shows this blip
@@ -135,13 +136,13 @@ export async function trackHttpRequest(world: TWorld, observation: THttpRequestO
 		durationMs: observation.durationMs,
 		url: observation.url,
 		endpointClass,
-		[LinkRelations.PERFORMED_BY.rel]: { "@type": sourceLabel, "@id": sourceId },
-		[LinkRelations.AS_TARGET.rel]: { "@type": targetLabel, "@id": targetId },
+		[LinkRelations.PERFORMED_BY.rel]: referenceTo(sourceLabel, sourceId),
+		[LinkRelations.AS_TARGET.rel]: referenceTo(targetLabel, targetId),
 	});
 	if (!external)
 		await once(`endpoint:${endpointPath}`, async () => {
 			// An earlier scenario's carried quads may already hold the link, so the store is checked once per endpoint.
 			const linked = await store.query({ subject: endpointPath, predicate: LinkRelations.PART_OF.rel, namedGraph: ENDPOINT_LABEL });
-			if (linked.length === 0) await store.merge({ "@type": ENDPOINT_LABEL, "@id": endpointPath, [LinkRelations.PART_OF.rel]: { "@type": HTTP_HOST_LABEL, "@id": site } });
+			if (linked.length === 0) await store.merge({ "@type": ENDPOINT_LABEL, "@id": endpointPath, [LinkRelations.PART_OF.rel]: referenceTo(HTTP_HOST_LABEL, site) });
 		});
 }

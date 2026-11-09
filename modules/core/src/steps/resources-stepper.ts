@@ -52,6 +52,7 @@ import { actualityFeatureOf, formatRecordName } from "../lib/actuality/domains/s
 import { logMessageDomainDefinition } from "../lib/domains/log-message.js";
 import { runArtifactDomainDefinition } from "../lib/domains/run-artifact.js";
 import { statementsWith, type TStatementRow } from "../lib/steps/pipelines/statements.js";
+import { referenceTo } from "../lib/records/domains/unit.js";
 
 /** Describes an anchored passage for a message: the quote, and the recorded words before and after it. */
 function describeAnchor(selector: TQuoteAnchor): string {
@@ -218,7 +219,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 				const author = requirePrincipal(this.getWorld());
 				const store = this.getWorld().shared.getStore();
 				// The comment's narrate edge reaches its subject. narrate is a sub-property of inReplyTo, so the edge grounds the comment and threads it.
-				const commentId = await createComment(store, this.linkVocabulary, author, text, { edges: { [LinkRelations.NARRATE.rel]: { "@type": label, "@id": id } } });
+				const commentId = await createComment(store, this.linkVocabulary, author, text, { edges: { [LinkRelations.NARRATE.rel]: referenceTo(label, id) } });
 				await assertCommentGrounded(store, commentId);
 				const contextRoot = await conversationRoot(store, id);
 				return actionOKWithProducts({ commentId, contextRoot });

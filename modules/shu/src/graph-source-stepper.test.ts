@@ -22,6 +22,7 @@ import { callStatedStepFrom } from "@haibun/core/lib/call-step.js";
 import GraphSourceStepper from "./graph-source-stepper.js";
 import { ViewAxiomsProductsSchema, type TGraphView, type TViewAxioms } from "./domains/graph-view.js";
 import { augmentViewHypermedia } from "@haibun/core/lib/steps/derivations/step-hypermedia.js";
+import { referenceTo } from "@haibun/core/lib/records/domains/unit.js";
 
 function mockQuadStore(overrides: Partial<IQuadStore> = {}): IQuadStore {
 	return {
@@ -116,7 +117,7 @@ describe("one individual with its edges, from the store this instance holds", ()
 		const store = world.shared.getStore();
 		await store.merge({ "@type": EMAIL, id: "a@test.com", address: "a@test.com" });
 		await store.merge({ "@type": MESSAGE, id: "m1" });
-		await store.merge({ "@type": MESSAGE, "@id": "m1", [ABOUT]: { "@type": EMAIL, "@id": "a@test.com" } });
+		await store.merge({ "@type": MESSAGE, "@id": "m1", [ABOUT]: referenceTo(EMAIL, "a@test.com") });
 		return stepper;
 	};
 

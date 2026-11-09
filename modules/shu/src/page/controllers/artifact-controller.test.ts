@@ -16,7 +16,7 @@ const SCREENSHOT = "/artifacts/featn-1/image/event-0.1.png";
 /** The source a view reports under. */
 const VIEW = "a view";
 /** Actuality's response to a read it allows. */
-const readable = () => new Response(new Blob(["png"]), { status: 200 });
+const readable = () => new Response(new TextEncoder().encode("png"), { status: 200 });
 /** Actuality's delegation of READS_THE_RUNS_ARTIFACTS to the page's key. */
 const readingTheActuality = () => ({ id: "urn:uuid:reader", invocationTarget: location.origin, allowedAction: [READS_THE_RUNS_ARTIFACTS], expires: "2099-01-01T00:00:00Z" });
 

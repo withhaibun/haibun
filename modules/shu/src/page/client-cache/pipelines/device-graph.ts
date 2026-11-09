@@ -78,7 +78,7 @@ export class DeviceGraph implements TDeviceGraph {
 	}
 
 	private async removeNow({ label, id, edge }: TRemoval): Promise<void> {
-		if (edge !== undefined) return await this.quads.change({ removes: [{ subject: id, namedGraph: label, predicate: edge.rel, object: edge.to }], adds: [] });
+		if (edge !== undefined) return await this.quads.change({ removes: [{ subject: id, namedGraph: label, predicate: edge.rel, object: edge.to.id }], adds: [] });
 		const owns = this.declarations().of(label)?.edges;
 		const owned = (await this.quads.query({ subject: id, namedGraph: label })).filter((q) => q.objectType !== undefined && owns?.[q.predicate]?.owns === true);
 		await this.quads.change({ removes: [{ subject: id, namedGraph: label }], adds: [] });

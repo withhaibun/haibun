@@ -1,17 +1,16 @@
 import { z } from "zod";
 import { QuadStore, newStoreChain } from "./quad-store.js";
-import { heldRecordIri } from "../../test/declared-types.js";
+import { heldRecordIri, storeDeclaring } from "../../test/declared-types.js";
 import { bucketOf } from "../derivations/quad-sample.js";
 import { GraphQuerySchema } from "../domains/quad-types.js";
 import { readEvery } from "../../records/pipelines/record-reads.js";
-import { storeDeclaring } from "../../test/declared-types.js";
 import { describe, it, expect, beforeEach, beforeAll } from "vitest";
 import { accessBound, runAuthorizedWith, runReadingAt, writeBound } from "../../domains/capability-context.js";
 import { readAction, readCeilingOf, writeAction } from "../../domains/actions.js";
 import { Access, LinkRelations, SEQ_PATH_LABEL, type AccessLevel } from "../../domains/resources.js";
 import { itemAt } from "../../domains/item-at.js";
 import { COUNT_CEILING } from "../../domains/hypermedia.js";
-import { NotUnique } from "../../records/domains/unit.js";
+import { NotUnique, referenceTo } from "../../records/domains/unit.js";
 
 describe("QuadStore Contexts", () => {
 	let store: QuadStore;
@@ -128,11 +127,12 @@ describe("federated clustered reads (reads-first federation)", () => {
 
 	it("writes a relation its type declares as an edge, of its one range or of the type its reference states, so the graph draws it", async () => {
 		const store = storeDeclaring({ Step: { relations: { isPartOf: ["Step"], seenBy: ["Step", "Other"] } } });
-		await store.merge({ "@type": "Step", id: "s1", isPartOf: { "@id": "s0" }, seenBy: { "@type": "Other", "@id": "o0" }, name: "one" });
+		await Promise.all([store.merge({ "@type": "Step", id: "s0" }), store.merge({ "@type": "Other", id: "o0" })]);
+		await store.merge({ "@type": "Step", id: "s1", isPartOf: referenceTo("Step", "s0"), seenBy: referenceTo("Other", "o0"), name: "one" });
 		const { quads } = await store.getClusteredQuads({ perTypeLimit: 10, accessLevel: "private" });
 		expect(Object.fromEntries(quads.map((q) => [q.predicate, q.objectType]))).toMatchObject({ isPartOf: "Step", seenBy: "Other", name: undefined });
-		await expect(store.merge({ "@type": "Step", id: "s2", seenBy: { "@id": "o0" } })).rejects.toThrow(
-			'Step\'s edge seenBy reaches several types, so each target states its "@type"',
+		await expect(store.merge({ "@type": "Step", id: "s2", seenBy: referenceTo("Elsewhere", "o0") })).rejects.toThrow(
+			'Step\'s edge seenBy reaches Step or Other as Type:id, and its reference is "Elsewhere:o0"',
 		);
 	});
 
@@ -374,9 +374,10 @@ describe("the distinct values of a property", () => {
 describe("the edges a store of quads writes", () => {
 	it("writes an edge its type declares, and refuses one its type doesn't declare and the vocabulary doesn't hold", async () => {
 		const store = storeDeclaring({ Step: { relations: { isPartOf: ["Step"] } } });
-		await store.merge({ "@type": "Step", "@id": "a", isPartOf: { "@type": "Step", "@id": "b" } });
+		await store.merge({ "@type": "Step", "@id": "b", name: "b" });
+		await store.merge({ "@type": "Step", "@id": "a", isPartOf: referenceTo("Step", "b") });
 		expect((await store.query({ subject: "a", predicate: "isPartOf" })).map(({ object }) => object)).toEqual(["b"]);
-		await expect(store.merge({ "@type": "Step", "@id": "a", wroteBy: { "@type": "Step", "@id": "b" } })).rejects.toThrow("Step doesn't declare the edge wroteBy");
+		await expect(store.merge({ "@type": "Step", "@id": "a", wroteBy: referenceTo("Step", "b") })).rejects.toThrow("Step doesn't declare the edge wroteBy");
 	});
 });
 

@@ -4,7 +4,7 @@ import { accessBound, runInStep, writeBound, writesInFlight } from "../../domain
 import { storeDeclaring } from "../../test/declared-types.js";
 import type { QuadStore } from "./quad-store.js";
 import type { TStepWrites } from "../domains/contract.js";
-import { WriteOutsideContract } from "../../records/domains/unit.js";
+import { referenceTo, WriteOutsideContract } from "../../records/domains/unit.js";
 
 const [CAPABILITY, NOTE, BODY, STEP_RECORD, TIME] = ["Capability", "Note", "Body", "SeqPath", "2026-11-08T00:00:00.000Z"];
 /** A Capability owns its Body, and a Note reaches a Capability it mentions. */
@@ -63,7 +63,7 @@ describe("a unit written in a step with a contract", () => {
 		await inStep("0.1", DELEGATES, () => store.merge({ "@type": NOTE, "@id": "n-2", revoked: "2026-11-08" }));
 		expect(await store.get("n-2", "revoked", NOTE)).toBe("2026-11-08");
 		await expect(inStep("0.1", DELEGATES, () => store.merge({ "@type": NOTE, "@id": "n-2", says: "changed" }))).rejects.toThrow(`${NOTE}.says`);
-		await expect(inStep("0.1", DELEGATES, () => store.merge({ "@type": NOTE, "@id": "n-2", mentions: { "@id": "cap-1" } }))).rejects.toThrow(`${NOTE}.mentions`);
+		await expect(inStep("0.1", DELEGATES, () => store.merge({ "@type": NOTE, "@id": "n-2", mentions: referenceTo(CAPABILITY, "cap-1") }))).rejects.toThrow(`${NOTE}.mentions`);
 		expect(DELEGATES.refused, "each refused write, and not the write the contract allows").toEqual([`${NOTE}.says`, `${NOTE}.mentions`]);
 		expect(await store.get("n-2", "says", NOTE)).toBe("kept");
 	});

@@ -93,7 +93,7 @@ export const bodyDomainDefinition: TDomainDefinition = {
 const TEXT_QUOTE_SELECTOR_DOMAIN = "text-quote-selector";
 
 /** The edge from an anchor to the reading that wrote it. */
-const GENERATED_BY_READING = { rel: LinkRelations.WAS_GENERATED_BY.rel, range: READING_LABEL };
+const GENERATED_BY_READING = { rel: LinkRelations.WAS_GENERATED_BY.rel, range: READING_LABEL, reference: true };
 
 export const textQuoteSelectorDomainDefinition: TDomainDefinition = {
 	selectors: [TEXT_QUOTE_SELECTOR_DOMAIN],

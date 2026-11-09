@@ -12,8 +12,8 @@ export const NODE_KEY = { type: "@type", id: "@id" } as const;
 
 /** A record as a caller states it: one JSON-LD node. A field holds its value, and a null removes the field; a field that holds the
  *  id of a record an edge field of the type's schema reaches is written as that edge as well. An edge holds a reference to each
- *  record it reaches (`{ "@id" }`, with its `@type` where the edge reaches several types), and an edge the type declares `owns`
- *  holds the node of each record it owns. */
+ *  record it reaches, whose `@id` is the record's typed CURIE (`referenceTo`), and an edge the type declares `owns` holds the node
+ *  of each record it owns. */
 export type TNode = { readonly [NODE_KEY.type]: string; readonly [key: string]: unknown };
 
 /** The verbs that write a node to a store. */
@@ -29,9 +29,28 @@ export type TVersionedRead<T> = { readonly record: T | undefined; readonly versi
 /** A record by its type and its id. */
 export type TRecordName = { readonly label: string; readonly id: string };
 
+/** A typed CURIE: a type's label, a colon and a record's id, which isn't an absolute IRI's `//`. The prefix carries the record's
+ *  type, so one IRI names a record's type and its id. */
+const TYPED_CURIE = /^([A-Za-z][\w-]*):(?!\/\/)(.+)$/s;
+
+/** Returns the typed CURIE that names a record. */
+export const curieOf = ({ label, id }: TRecordName): string => `${label}:${id}`;
+
+/** Returns the record a typed CURIE names, or undefined where the value isn't a typed CURIE. */
+export function recordOfCurie(curie: unknown): TRecordName | undefined {
+	const named = typeof curie === "string" ? TYPED_CURIE.exec(curie) : null;
+	return named?.[1] === undefined || named[2] === undefined ? undefined : { label: named[1], id: named[2] };
+}
+
+/** A reference to a record, as an edge of a node holds it: a node that states only its target's typed CURIE. */
+export type TReference = { readonly [NODE_KEY.id]: string };
+
+/** Returns the reference to the `label` record `id`. */
+export const referenceTo = (label: string, id: string): TReference => ({ [NODE_KEY.id]: curieOf({ label, id }) });
+
 /** What `remove` removes: the record a name names with what it owns, or its edge of a relation to the record `to` names, which
  *  keeps both records. */
-export type TRemoval = TRecordName & { readonly edge?: { readonly rel: string; readonly to: string } };
+export type TRemoval = TRecordName & { readonly edge?: { readonly rel: string; readonly to: TRecordName } };
 
 /** The writes a store makes through its verbs. A write without a verb doesn't type-check, so each write states whether it creates
  *  a record, updates the version it read, or merges fields into what the store holds. */

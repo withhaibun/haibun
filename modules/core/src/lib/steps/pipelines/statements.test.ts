@@ -15,6 +15,7 @@ import { SEQ_PATH_FIELD, seqPathDomainDefinition } from "../../actuality/domains
 import { statementsWith } from "./statements.js";
 import { itemAt } from "../../domains/item-at.js";
 import type { TLinkVocabulary } from "../../domains/typed-links.js";
+import { referenceTo } from "../../records/domains/unit.js";
 
 const vocab: TLinkVocabulary = {
 	relRange: (rel) => Object.values(LinkRelations).find((e) => e.rel === rel && !(e as { abstract?: boolean }).abstract)?.range,
@@ -75,7 +76,7 @@ describe("statementsWith", () => {
 	});
 
 	it("reads a statement made by hand as a row without provenance, since a reading's stated records don't hold it", async () => {
-		await store.merge({ "@type": REPORT, "@id": "report-2", [LinkRelations.CITES_AS_EVIDENCE.rel]: { "@type": REPORT, "@id": "spec-1" } });
+		await store.merge({ "@type": REPORT, "@id": "report-2", [LinkRelations.CITES_AS_EVIDENCE.rel]: referenceTo(REPORT, "spec-1") });
 		const rows = await statementsWith(store, LinkRelations.CITES_AS_EVIDENCE.rel);
 		const byHand = rows.find((r) => r.subject["@id"] === "report-2");
 		expect(byHand?.reading).toBeUndefined();

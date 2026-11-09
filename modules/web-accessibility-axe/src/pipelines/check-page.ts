@@ -7,6 +7,8 @@ import { EARL_ASSERTION_EDGE, EARL_LABEL, type TEarlAssertions } from "../domain
 import { axeAssertions, evalSeverity, type TSeverity } from "../derivations/axe-earl.js";
 import { axeReportHtml } from "../derivations/report.js";
 import type { TAxe, TEarlPorts } from "../ports.js";
+import { referenceTo } from "@haibun/core/lib/records/domains/unit.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 
 /** Record what an assertor states of a subject: each result as an assertion the step made, linked to the assertor, the
  *  subject, the test case and the result. Returns the assertions' ids. */
@@ -21,11 +23,11 @@ export async function writeEarlAssertions({ store }: TEarlPorts, { assertor, sub
 				"@type": EARL_LABEL.assertion,
 				id,
 				mode,
-				[EARL_ASSERTION_EDGE.assertedBy]: { "@id": assertor.id },
-				[EARL_ASSERTION_EDGE.subject]: { "@id": subject.id },
-				[EARL_ASSERTION_EDGE.test]: { "@id": test.id },
+				[EARL_ASSERTION_EDGE.assertedBy]: referenceTo(EARL_LABEL.assertor, assertor.id),
+				[EARL_ASSERTION_EDGE.subject]: referenceTo(EARL_LABEL.testSubject, subject.id),
+				[EARL_ASSERTION_EDGE.test]: referenceTo(EARL_LABEL.testCase, test.id),
 				[EARL_ASSERTION_EDGE.result]: { ...result, id: `${id} result` },
-				[EARL_ASSERTION_EDGE.wasGeneratedBy]: { "@id": step },
+				[EARL_ASSERTION_EDGE.wasGeneratedBy]: referenceTo(SEQ_PATH_LABEL, step),
 			});
 		}),
 	);

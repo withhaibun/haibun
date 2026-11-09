@@ -48,7 +48,7 @@ export const sentWrites = (writes: TStepWrites | undefined) =>
 	writes === undefined ? {} : { writes: { step: writes.step, products: [...writes.products], changes: writes.changes.map(({ persistedAs, key }) => ({ persistedAs, key })) } };
 
 /** A removal as a transport carries it. */
-const RemovalSchema: z.ZodType<TRemoval> = RecordNameSchema.extend({ edge: z.object({ rel: z.string(), to: z.string() }).optional() });
+const RemovalSchema: z.ZodType<TRemoval> = RecordNameSchema.extend({ edge: z.object({ rel: z.string(), to: RecordNameSchema }).optional() });
 
 /** Each method's param schema and read/write classification. This map is the one wire contract. */
 const STORE_METHODS = {

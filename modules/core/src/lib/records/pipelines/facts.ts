@@ -7,6 +7,7 @@ import { EDGE, FACT_LABEL, SEQ_PATH_LABEL } from "../../domains/resources.js";
 import { type IQuadStore } from "../../steps/ports.js";
 import { factIdOf, formatRecordName, type TRecordName } from "../../actuality/domains/seq-path.js";
 import { FACT_FIELD } from "../domains/facts.js";
+import { referenceTo } from "../domains/unit.js";
 
 /** One product of a step: its domain, its value, and the field of the product where the step declares a domain for each field. */
 export type TProduct = { domain: string; value: unknown; field?: string };
@@ -20,6 +21,6 @@ export async function assertFact(store: Pick<IQuadStore, "merge">, step: TRecord
 		[FACT_FIELD.id]: id,
 		[FACT_FIELD.domain]: product.domain,
 		[FACT_FIELD.value]: product.value,
-		[EDGE.wasGeneratedBy]: { "@type": SEQ_PATH_LABEL, "@id": formatRecordName(step) },
+		[EDGE.wasGeneratedBy]: referenceTo(SEQ_PATH_LABEL, formatRecordName(step)),
 	});
 }

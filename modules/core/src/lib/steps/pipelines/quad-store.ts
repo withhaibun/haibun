@@ -38,7 +38,7 @@ import { quadsOfRead, readEvery, type TRecordReader } from "../../records/pipeli
 import { densityOverQuadStore } from "../../records/pipelines/record-density.js";
 import { QuadLayer } from "../../records/machines/quad-layer.js";
 import { sliceQuadsPerType } from "../derivations/quad-sample.js";
-import { NotUnique, uniqueValuesOf, WRITE_VERB, type TNode, type TReadVersion, type TRecordName, type TRemoval, type TWriteVerb } from "../../records/domains/unit.js";
+import { curieOf, NotUnique, uniqueValuesOf, WRITE_VERB, type TNode, type TReadVersion, type TRecordName, type TRemoval, type TWriteVerb } from "../../records/domains/unit.js";
 import { EDGE_TARGET } from "../../records/derivations/edge-declarations.js";
 import {
 	changedFields,
@@ -49,6 +49,7 @@ import {
 	wholeFields,
 	UNDECLARED_ID_FIELD,
 	type TPart,
+	type TUnitEdge,
 	type TUnitParts,
 } from "../../records/derivations/unit-parts.js";
 import { RecordVersions } from "../../records/pipelines/record-versions.js";
@@ -113,6 +114,13 @@ type TChange = { namedGraph: string; subject: string; replaces: (held: TQuad) =>
 
 /** Returns the change that holds a quad, after it removes the quads of its subject that `replaces` selects. */
 const holding = (quad: Omit<TQuad, "timestamp">, replaces: (held: TQuad) => boolean): TChange => ({ namedGraph: quad.namedGraph, subject: quad.subject, replaces, holds: quad });
+
+/** Refuses a unit whose record holds an edge to a record the store doesn't hold, where the edge isn't declared a reference. */
+function unheldTarget(record: TRecordName, edge: TUnitEdge): never {
+	throw new Error(
+		`${record.label} "${record.id}" holds an edge ${edge.rel} to ${curieOf(edge)}, which the store doesn't hold. Write the target first, or declare the edge a reference`,
+	);
+}
 
 /** Doesn't select a quad, for a change that only adds one. */
 const keepsEvery = (): boolean => false;
@@ -298,6 +306,8 @@ export class QuadStore implements IQuadStore {
 		for (const part of unit.parts) this.refuseDerived(part.label);
 		const backing = this.backingOf(unit);
 		if (backing) return await through(backing);
+		// A target a backing store holds is read there, so a unit whose targets this layer holds is applied without an await.
+		for (const edge of this.unheldTargets(unit)) if ((await this.storeFor(edge.label)?.versionOf(edge)) === null) unheldTarget(unit.record, edge);
 		this.versions.check([{ name: unit.record, version: unit.version, held: this.holds(unit.record) }]);
 		const parts = unit.parts.map((part) => ({ part, held: this.holds(part) }));
 		if (this.levels)
@@ -314,6 +324,17 @@ export class QuadStore implements IQuadStore {
 		this.apply(changes.flatMap(({ changes: of }) => of));
 		for (const { name } of changes) this.versions.changed(name);
 		return unit.record.id;
+	}
+
+	/** Refuses a unit with an edge to a record that the unit doesn't write and this store's own layer doesn't hold, where the edge
+	 *  isn't declared a reference and a backing store doesn't hold the record's type. Returns the edges whose records a backing
+	 *  store may hold. */
+	private unheldTargets({ record, parts }: TUnitParts): TUnitEdge[] {
+		const unheld = parts
+			.flatMap(({ edges }) => edges)
+			.filter((edge) => edge.target !== EDGE_TARGET.reference && !parts.some(({ label, id }) => label === edge.label && id === edge.id) && !this.holds(edge));
+		for (const edge of unheld) if (this.storeFor(edge.label) === undefined) unheldTarget(record, edge);
+		return unheld;
 	}
 
 	/** Returns the field that places a type's records in time where its schema holds it, or undefined for a type that doesn't
@@ -531,7 +552,8 @@ export class QuadStore implements IQuadStore {
 		if (backing) return await backing.remove(removal);
 		const held = [...this.quads.ofSubject(label, id)];
 		if (edge !== undefined) {
-			for (const q of this.removable(held.filter((q) => q.predicate === edge.rel && q.object === edge.to))) this.quads.delete(q);
+			const { to } = edge;
+			for (const q of this.removable(held.filter((q) => q.predicate === edge.rel && q.objectType === to.label && q.object === to.id))) this.quads.delete(q);
 			return;
 		}
 		const owns = this.declarations?.().of(label)?.edges;

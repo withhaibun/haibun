@@ -388,7 +388,7 @@ export function setupShuTest(config: TShuTestConfig = {}): TShuTestHandle {
 		});
 	const conduit = new TestConduit(dispatch);
 	const eventStream = installCarriedEventStream();
-	const stopServingArtifacts = servingArtifacts(config.artifact ?? (() => new Response(new Blob([], { type: MEDIA_TYPE.png }))));
+	const stopServingArtifacts = servingArtifacts(config.artifact ?? (() => new Response(new Uint8Array(), { headers: { "content-type": MEDIA_TYPE.png } })));
 	installConduit(conduit);
 	holdPageAuthority();
 	installMemoryDeviceStore();

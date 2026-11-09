@@ -1,9 +1,10 @@
 /**
  * Derives a unit's parts from the node a caller states and the declarations of its types. Each record the node embeds under an
  * edge its type declares `owns` is a part, transitively, and the node's record is the last part, so a store writes what a record
- * owns before the record and its edges to them. Each part's edges take their targets from the declaration: an edge the type
- * declares `reference` reaches a record the store may not hold yet, an edge it declares `functional` replaces the record's edge to
- * any other, and an edge to an owned part reaches the part the unit writes. A node that embeds a record under an edge its type
+ * owns before the record and its edges to them. A reference names its target by its typed CURIE, and a reference whose type isn't
+ * one the edge reaches is refused. Each part's edges take their targets from the declaration: an edge the type declares
+ * `reference` reaches a record the store may not hold yet, an edge it declares `functional` replaces the record's edge to any
+ * other, and an edge to an owned part reaches the part the unit writes. A node that embeds a record under an edge its type
  * doesn't declare `owns` is refused.
  */
 import { isVocabularyEdge } from "../../domains/hypermedia.js";
@@ -12,7 +13,7 @@ import type { z } from "zod";
 import { unwrap, unwrapToShape, zodTypeLabel } from "../../domains/zod-unwrap.js";
 import type { TReadDeclaration } from "./read-records.js";
 import { EDGE_TARGET, type TEdgeDeclaration, type TEdgeTarget, type TPartDeclaration } from "./edge-declarations.js";
-import { NODE_KEY, statedVersion, type TNode, type TReadVersion, type TRecordName, type TWriteVerb } from "../domains/unit.js";
+import { NODE_KEY, recordOfCurie, referenceTo, statedVersion, type TNode, type TReadVersion, type TRecordName, type TReference, type TWriteVerb } from "../domains/unit.js";
 
 /** An edge a part writes from its record: the relation, the type and the id of the record it reaches, and how it reaches it. */
 export type TUnitEdge = { readonly rel: string; readonly label: string; readonly id: string; readonly target: TEdgeTarget };
@@ -31,7 +32,7 @@ export type TUnitParts = { readonly verb: TWriteVerb; readonly version: TReadVer
 export const UNDECLARED_ID_FIELD = "id";
 
 /** The declaration of a vocabulary edge, which any type holds where a node states its targets as references: it reaches a record of
- *  the type each reference states, which the store may not hold. */
+ *  the type each reference names, which the store may not hold. */
 const VOCABULARY_EDGE: TEdgeDeclaration = { ranges: [], owns: false, reference: true, functional: false };
 
 /** Returns the id an `@id` names: the id of the record IRI it states, or the id it states where it isn't a record IRI. */
@@ -50,16 +51,26 @@ function idOf(node: Readonly<Record<string, unknown>>, label: string, idField: s
 /** Returns whether a value is a JSON object. */
 const isObject = (value: unknown): value is Readonly<Record<string, unknown>> => typeof value === "object" && value !== null && !Array.isArray(value);
 
-/** Returns whether a value is a reference: an object that states only a record's `@type` and `@id`. A key the type doesn't declare
- *  is a vocabulary edge where each of its values is a reference, and a field otherwise. */
-const isReference = (value: unknown): value is Readonly<Record<string, unknown>> =>
-	isObject(value) && NODE_KEY.id in value && Object.keys(value).every((key) => key === NODE_KEY.type || key === NODE_KEY.id);
+/** Returns whether a value is a reference: an object that states only an `@id`. A key the type doesn't declare is a vocabulary edge
+ *  where each of its values is a reference, and a field otherwise. */
+const isReference = (value: unknown): value is TReference => isObject(value) && Object.keys(value).length === 1 && typeof value[NODE_KEY.id] === "string";
+
+/** Returns the record a reference under `label`'s edge `rel` names. Throws where its `@id` isn't a typed CURIE of a type the edge
+ *  reaches. */
+function referencedBy(label: string, rel: string, { ranges }: TEdgeDeclaration, reference: TReference): TRecordName {
+	const named = recordOfCurie(reference[NODE_KEY.id]);
+	if (named !== undefined && (ranges.length === 0 || ranges.includes(named.label))) return named;
+	throw new Error(
+		`${label}'s edge ${rel} reaches ${ranges.length === 0 ? "a record" : ranges.join(" or ")} as Type:id, and its reference is ${JSON.stringify(reference[NODE_KEY.id])}. Reference the target with referenceTo`,
+	);
+}
 
 /**
  * Derives a node's own part and the parts of the records it owns, transitively. A key is an edge where the type declares it, or
  * the vocabulary holds it and each value is a reference, and it holds a record; else it is a field. A key that names both a field
  * of the type's schema and an edge holds the field's literals beside the edge's records, as a JSON-LD property holds literals
- * and nodes: the field holds its literals as a list where the schema's field is a list, and its one literal otherwise.
+ * and nodes: the field holds its literals as a list where the schema's field is a list, and its one literal otherwise. An empty
+ * list under an edge that isn't a list field of the schema doesn't state a target, so it doesn't write a field or an edge.
  */
 function partsOf(node: Readonly<Record<string, unknown>>, label: string, declarationOf: (label: string) => TPartDeclaration | undefined): { part: TPart; owned: TPart[] } {
 	const declaration = declarationOf(label);
@@ -72,6 +83,7 @@ function partsOf(node: Readonly<Record<string, unknown>>, label: string, declara
 		const targets = [value].flat();
 		const declared = declaration?.edges[key] ?? (isVocabularyEdge(key) && targets.every(isReference) ? VOCABULARY_EDGE : undefined);
 		const records = targets.filter(isObject);
+		if (declared !== undefined && targets.length === 0 && declaration?.lists.has(key) !== true) continue;
 		if (declared === undefined || records.length === 0) {
 			if (targets.some(isReference)) throw new Error(`${label} doesn't declare the edge ${key}. Declare it in the type's topology, or write an edge the type declares`);
 			part.fields[key] = value;
@@ -80,17 +92,17 @@ function partsOf(node: Readonly<Record<string, unknown>>, label: string, declara
 		const literals = targets.filter((target) => !isObject(target));
 		if (literals.length > 0) part.fields[key] = literalsOf(label, key, literals, declaration);
 		for (const target of records) {
+			if (isReference(target)) {
+				const to = referencedBy(label, key, declared, target);
+				part.edges.push({ rel: key, ...to, target: declared.reference ? EDGE_TARGET.reference : declared.functional ? EDGE_TARGET.only : EDGE_TARGET.held });
+				continue;
+			}
 			const [{ ranges }, stated] = [declared, target[NODE_KEY.type]];
 			const toLabel = typeof stated === "string" ? stated : ranges.length === 1 ? ranges[0] : undefined;
 			if (toLabel === undefined) throw new Error(`${label}'s edge ${key} reaches several types, so each target states its "${NODE_KEY.type}"`);
-			if (isReference(target)) {
-				const to = String(namedId(target[NODE_KEY.id]));
-				part.edges.push({ rel: key, label: toLabel, id: to, target: declared.reference ? EDGE_TARGET.reference : declared.functional ? EDGE_TARGET.only : EDGE_TARGET.held });
-				continue;
-			}
 			if (!declared.owns)
 				throw new Error(
-					`${label} embeds a ${toLabel} record under its edge ${key}, which its type doesn't declare owns. Write the ${toLabel} on its own, and reach it by its "${NODE_KEY.id}"`,
+					`${label} embeds a ${toLabel} record under its edge ${key}, which its type doesn't declare owns. Write the ${toLabel} on its own, and reference it with referenceTo`,
 				);
 			const embedded = partsOf(target, toLabel, declarationOf);
 			owned.push(...embedded.owned, embedded.part);
@@ -131,8 +143,8 @@ export function changedFields({ fields }: TPart, held: Readonly<Record<string, u
 export const nodeOf = (label: string, fields: Readonly<Record<string, unknown>>): TNode => ({ ...fields, [NODE_KEY.type]: label });
 
 /** Returns edges as a node states them: the references to each relation's targets, by relation. */
-export const edgesAsNode = (edges: ReadonlyArray<Pick<TUnitEdge, "rel" | "label" | "id">>): Record<string, Array<Record<string, string>>> =>
-	Object.fromEntries([...Map.groupBy(edges, ({ rel }) => rel)].map(([rel, held]) => [rel, held.map(({ label, id }) => ({ [NODE_KEY.type]: label, [NODE_KEY.id]: id }))]));
+export const edgesAsNode = (edges: ReadonlyArray<Pick<TUnitEdge, "rel" | "label" | "id">>): Record<string, TReference[]> =>
+	Object.fromEntries([...Map.groupBy(edges, ({ rel }) => rel)].map(([rel, held]) => [rel, held.map(({ label, id }) => referenceTo(label, id))]));
 
 /** Returns whether a part's node names its record by `@id` alone, without a field, so it writes only its edges. */
 export const statesOnlyId = ({ fields }: TPart): boolean => Object.keys(fields).length === 0;

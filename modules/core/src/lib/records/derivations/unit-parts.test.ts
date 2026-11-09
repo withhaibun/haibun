@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { WRITE_VERB } from "../domains/unit.js";
+import { referenceTo, WRITE_VERB } from "../domains/unit.js";
 import { EDGE_TARGET, edgeDeclarationsOf, type TPartDeclaration } from "./edge-declarations.js";
 import { changedFields, edgesAsNode, partDeclarationOf, unitParts } from "./unit-parts.js";
 
@@ -34,9 +34,9 @@ describe("the parts of a unit", () => {
 				id: "m1",
 				subject: "a message",
 				hasBody: { id: "b1", content: "the text" },
-				folder: { "@type": FOLDER, "@id": "inbox" },
-				repliesTo: { "@id": "m0" },
-				from: { "@id": "alice" },
+				folder: referenceTo(FOLDER, "inbox"),
+				repliesTo: referenceTo(MESSAGE, "m0"),
+				from: referenceTo(PERSON, "alice"),
 			},
 			undefined,
 			declarationOf,
@@ -54,7 +54,7 @@ describe("the parts of a unit", () => {
 	it("holds a field's literals beside its edge's records under one key, as a list where the schema's field is a list", () => {
 		const unit = unitParts(
 			WRITE_VERB.merge,
-			{ "@type": MESSAGE, id: "m2", subject: "two", from: ["Alice <alice>", { "@id": "alice" }], to: ["Bob <bob>", { "@id": "bob" }] },
+			{ "@type": MESSAGE, id: "m2", subject: "two", from: ["Alice <alice>", referenceTo(PERSON, "alice")], to: ["Bob <bob>", referenceTo(PERSON, "bob")] },
 			undefined,
 			declarationOf,
 		);
@@ -64,11 +64,17 @@ describe("the parts of a unit", () => {
 		expect(unit.version, "a merge doesn't depend on a read").toBeUndefined();
 	});
 
+	it("doesn't write a field or an edge for an empty list under an edge, and writes an empty field where the schema's field is a list", () => {
+		const [part] = unitParts(WRITE_VERB.merge, { "@type": MESSAGE, id: "m3", subject: "three", repliesTo: [], to: [] }, undefined, declarationOf).parts;
+		expect(part?.fields).toEqual({ id: "m3", subject: "three", to: [] });
+		expect(part?.edges).toEqual([]);
+	});
+
 	it("refuses several literals for a field of one value, and literals beside records where the schema doesn't hold the field", () => {
-		expect(() => unitParts(WRITE_VERB.merge, { "@type": MESSAGE, id: "m3", from: ["a", "b", { "@id": "alice" }] }, undefined, declarationOf)).toThrow(
+		expect(() => unitParts(WRITE_VERB.merge, { "@type": MESSAGE, id: "m3", from: ["a", "b", referenceTo(PERSON, "alice")] }, undefined, declarationOf)).toThrow(
 			"Message's edge from holds 2 literals beside its records",
 		);
-		expect(() => unitParts(WRITE_VERB.merge, { "@type": MESSAGE, id: "m3", folder: ["inbox", { "@id": "inbox" }] }, undefined, declarationOf)).toThrow(
+		expect(() => unitParts(WRITE_VERB.merge, { "@type": MESSAGE, id: "m3", folder: ["inbox", referenceTo(FOLDER, "inbox")] }, undefined, declarationOf)).toThrow(
 			"its schema doesn't hold them as its field folder",
 		);
 	});
@@ -77,9 +83,21 @@ describe("the parts of a unit", () => {
 		expect(() => unitParts(WRITE_VERB.merge, { "@type": MESSAGE, id: "m4", from: { "@type": PERSON, id: "alice", name: "Alice" } }, undefined, declarationOf)).toThrow(
 			"which its type doesn't declare owns",
 		);
-		expect(() => unitParts(WRITE_VERB.merge, { "@type": MESSAGE, id: "m4", wroteBy: { "@id": "alice" } }, undefined, declarationOf)).toThrow(
+		expect(() => unitParts(WRITE_VERB.merge, { "@type": MESSAGE, id: "m4", wroteBy: referenceTo(PERSON, "alice") }, undefined, declarationOf)).toThrow(
 			"Message doesn't declare the edge wroteBy",
 		);
+	});
+
+	it("refuses a reference that isn't a typed CURIE, that states its type beside its id, or that names a type its edge doesn't reach", () => {
+		const writing = (from: unknown) => () => unitParts(WRITE_VERB.merge, { "@type": MESSAGE, id: "m6", from }, undefined, declarationOf);
+		expect(writing({ "@id": "alice" })).toThrow(`Message's edge from reaches ${PERSON} as Type:id, and its reference is "alice"`);
+		expect(writing({ "@type": PERSON, "@id": "alice" })).toThrow("Write the Person on its own, and reference it with referenceTo");
+		expect(writing(referenceTo(FOLDER, "alice"))).toThrow(`Message's edge from reaches ${PERSON} as Type:id, and its reference is "${FOLDER}:alice"`);
+	});
+
+	it("reads an id that holds colons after the type's prefix", () => {
+		const [part] = unitParts(WRITE_VERB.merge, { "@type": MESSAGE, id: "m7", from: referenceTo(PERSON, "did:example:a") }, undefined, declarationOf).parts;
+		expect(part?.edges.map(({ label, id }) => `${label} ${id}`)).toEqual([`${PERSON} did:example:a`]);
 	});
 
 	it("states the version an update read", () => {
@@ -104,12 +122,6 @@ describe("edges as a node states them", () => {
 				{ rel: "to", label: PERSON, id: "b" },
 				{ rel: "folder", label: FOLDER, id: "inbox" },
 			]),
-		).toEqual({
-			to: [
-				{ "@type": PERSON, "@id": "a" },
-				{ "@type": PERSON, "@id": "b" },
-			],
-			folder: [{ "@type": FOLDER, "@id": "inbox" }],
-		});
+		).toEqual({ to: [referenceTo(PERSON, "a"), referenceTo(PERSON, "b")], folder: [referenceTo(FOLDER, "inbox")] });
 	});
 });

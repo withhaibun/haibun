@@ -5,6 +5,7 @@ import { handleStoreCall, isStoreMethod, requiredStoreCapability, STORE_READ, ST
 import { itemAt } from "./item-at.js";
 import { GraphQueryResultSchema } from "../steps/domains/quad-types.js";
 import { storeDeclaring, TEST_LEVELS } from "../test/declared-types.js";
+import { referenceTo } from "../records/domains/unit.js";
 
 describe("store protocol capability classification", () => {
 	it("requires store.write for anything that changes the store and store.read otherwise", () => {
@@ -39,7 +40,7 @@ describe("handleStoreCall", () => {
 
 	it("writes a unit's edge, which a read returns with its target's type", async () => {
 		const store = new QuadStore(newStoreChain());
-		await handleStoreCall(store, "store.merge", { node: { "@type": "Widget", "@id": "w-1", isPartOf: { "@type": "Widget", "@id": "w-2" } } });
+		await handleStoreCall(store, "store.merge", { node: { "@type": "Widget", "@id": "w-1", isPartOf: referenceTo("Widget", "w-2") } });
 		const quads = await store.query({ subject: "w-1", predicate: "isPartOf" });
 		expect(quads).toHaveLength(1);
 		expect(itemAt(quads, 0).objectType).toBe("Widget");

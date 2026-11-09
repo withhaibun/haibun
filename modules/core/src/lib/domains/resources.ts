@@ -24,7 +24,7 @@ import { FragmentSchema, isFragment } from "./media-fragments.js";
 import type { TListDeclaration } from "./lists.js";
 import type { TRecordType } from "../steps/domains/quad-types.js";
 import type { IQuadStore } from "../steps/ports.js";
-import type { TRecordName } from "../records/domains/unit.js";
+import { referenceTo, type TRecordName } from "../records/domains/unit.js";
 
 // ============================================================================
 // Resource identity
@@ -980,11 +980,10 @@ export const COMMENT_TOPOLOGY: THypermediaTopology = {
 	edges: {
 		[HAS_BODY_EDGE]: { rel: LinkRelations.HAS_BODY.rel, range: BODY_LABEL, owns: true },
 		// The author as a navigable edge to that agent. A comment links to the person, service or model that wrote it
-		// and doesn't only name it in a string. The edge ranges over Principal, which is a sec:Controller and a
-		// prov:Agent, so every kind of author is well-formed against it. The property with the same rel remains
-		// because author is a sort and filter column. The store may not hold the author's record, as an external
-		// principal's isn't written.
-		[LinkRelations.ATTRIBUTED_TO.rel]: { rel: LinkRelations.ATTRIBUTED_TO.rel, range: PRINCIPAL_LABEL, reference: true },
+		// and doesn't only name it in a string. The edge reaches any type, since an author is a Principal or a model's
+		// record that responds, as the addressee is. The property with the same rel remains because author is a sort
+		// and filter column. The store may not hold the author's record, as an external principal's isn't written.
+		[LinkRelations.ATTRIBUTED_TO.rel]: { rel: LinkRelations.ATTRIBUTED_TO.rel, range: RESOURCE_LABEL, reference: true },
 		// The comment's subject: any Resource, such as an entity or another Comment in a thread.
 		[LinkRelations.TARGET.rel]: { rel: LinkRelations.TARGET.rel, range: RESOURCE_LABEL },
 		// The comment's addressee (as:to, the rel an email's recipients carry). A question addresses the agent expected
@@ -1229,8 +1228,8 @@ export async function anchorPart(
 		"@type": SPECIFIC_RESOURCE_LABEL,
 		id: specificResourceId,
 		label: stated?.label ?? selector.reads,
-		[LinkRelations.HAS_SOURCE.rel]: { "@type": sourceLabel, "@id": sourceId },
-		...(stated?.generatedBy === undefined ? {} : { [LinkRelations.WAS_GENERATED_BY.rel]: { "@type": stated.generatedBy.label, "@id": stated.generatedBy.id } }),
+		[LinkRelations.HAS_SOURCE.rel]: referenceTo(sourceLabel, sourceId),
+		...(stated?.generatedBy === undefined ? {} : { [LinkRelations.WAS_GENERATED_BY.rel]: referenceTo(stated.generatedBy.label, stated.generatedBy.id) }),
 		[LinkRelations.HAS_SELECTOR.rel]: { "@type": selector.label, id: selectorId, ...selector.fields },
 	});
 	return { specificResourceId, selectorId, selectorLabel: selector.label };
