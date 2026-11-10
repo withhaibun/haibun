@@ -7,7 +7,7 @@
  * other, and an edge to an owned part reaches the part the unit writes. A node that embeds a record under an edge its type
  * doesn't declare `owns` is refused.
  */
-import { isVocabularyEdge } from "../../domains/hypermedia.js";
+import { isVocabularyEdge, textDigest } from "../../domains/hypermedia.js";
 import { recordOfIri } from "./record-iri.js";
 import type { z } from "zod";
 import { unwrap, unwrapToShape, zodTypeLabel } from "../../domains/zod-unwrap.js";
@@ -109,6 +109,11 @@ function partsOf(node: Readonly<Record<string, unknown>>, label: string, declara
 			part.edges.push({ rel: key, label: toLabel, id: embedded.part.id, target: EDGE_TARGET.held });
 		}
 	}
+	// A text the type indexes by its digest is written with its digest.
+	for (const [field, digest] of Object.entries(declaration?.digests === undefined ? {} : declaration.digests)) {
+		const text = part.fields[field];
+		if (typeof text === "string") part.fields[digest] = textDigest(text);
+	}
 	return { part, owned };
 }
 
@@ -157,8 +162,9 @@ const schemaFields = new WeakMap<z.ZodType, Pick<TPartDeclaration, "fields" | "l
 
 /** Returns what a write reads of a type's read declaration: its id field, its schema's fields, those that hold a list, and its
  *  edges. */
-export function partDeclarationOf({ id, schema, edges }: Pick<TReadDeclaration, "id" | "schema" | "edges">): TPartDeclaration {
-	if (schema === undefined) return { id, fields: undefined, lists: new Set(), edges };
+export function partDeclarationOf({ id, schema, edges, digests }: Pick<TReadDeclaration, "id" | "schema" | "edges" | "digests">): TPartDeclaration {
+	const digested = digests === undefined ? {} : { digests };
+	if (schema === undefined) return { id, fields: undefined, lists: new Set(), edges, ...digested };
 	let held = schemaFields.get(schema);
 	if (held === undefined) {
 		const shaped = unwrapToShape(schema);
@@ -166,5 +172,5 @@ export function partDeclarationOf({ id, schema, edges }: Pick<TReadDeclaration, 
 		held = { fields: new Set(shape.map(([field]) => field)), lists: new Set(shape.flatMap(([field, type]) => (zodTypeLabel(unwrap(type).inner) === "array" ? [field] : []))) };
 		schemaFields.set(schema, held);
 	}
-	return { id, ...held, edges };
+	return { id, ...held, edges, ...digested };
 }

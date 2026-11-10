@@ -99,6 +99,11 @@ const READINGS: [string, string, boolean][] = [
 		'passes\npasses\nexactly 2, whose "called" is "TestSteps.passes", every step in steps is variable step.called is "TestSteps.passes"',
 		true,
 	],
+	[
+		"a filter of a line selects the members of that line by its digest",
+		'passes\nset x to 1\nexactly 1, whose "stepText" is "passes", every step in steps is variable step.called is "TestSteps.passes"',
+		true,
+	],
 	["a combinator's filter of a field the domain doesn't index is refused", 'passes\nwhose "verdict" is "proved", every step in steps is passes', false],
 	["until holds once its statement holds", 'set ready to "yes"\nuntil variable ready is "yes" within 1s', true],
 	["until is refuted where its statement doesn't hold in time", 'set ready to "yes"\ndidn\'t until variable ready is "never" within 300ms', true],

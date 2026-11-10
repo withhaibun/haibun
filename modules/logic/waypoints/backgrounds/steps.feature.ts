@@ -6,8 +6,9 @@ export const steps = {
 	called: (line: string, method: string) => `the step ${line} called ${method}`,
 };
 
-/** The statement that reads each record of the feature's steps whose line is `{line}`, with `holds` stated of it. */
-const everyRecordOf = (holds: string): string => `every step in steps is where variable step.stepText is {line}, ${holds}`;
+/** The statement that reads each record of the feature's steps whose line is `{line}`, which the store selects by the line's
+ *  digest, with `holds` stated of it. */
+const everyRecordOf = (holds: string): string => `whose "stepText" is {line}, every step in steps is ${holds}`;
 
 export const backgrounds: TKirejiExport = {
 	"Step records": [

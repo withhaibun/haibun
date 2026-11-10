@@ -3,6 +3,7 @@ import { z } from "zod";
 import { referenceTo, WRITE_VERB } from "../domains/unit.js";
 import { EDGE_TARGET, edgeDeclarationsOf, type TPartDeclaration } from "./edge-declarations.js";
 import { changedFields, edgesAsNode, partDeclarationOf, unitParts } from "./unit-parts.js";
+import { textDigest } from "../../domains/hypermedia.js";
 
 const MESSAGE = "Message";
 const PERSON = "Person";
@@ -102,6 +103,15 @@ describe("the parts of a unit", () => {
 
 	it("states the version an update read", () => {
 		expect(unitParts(WRITE_VERB.update, { "@type": MESSAGE, "@id": "m5", subject: "again" }, "7", declarationOf).version).toBe("7");
+	});
+});
+
+describe("a text a type indexes by its digest", () => {
+	it("is written with its digest, and a part that doesn't state the text doesn't state a digest", () => {
+		const declared = partDeclarationOf({ id: "id", schema: z.object({ id: z.string(), line: z.string() }), edges: {}, digests: { line: "lineDigest" } });
+		const written = unitParts(WRITE_VERB.merge, { "@type": "Step", id: "s1", line: "passes" }, undefined, () => declared);
+		expect(written.parts[0]?.fields).toEqual({ id: "s1", line: "passes", lineDigest: textDigest("passes") });
+		expect(unitParts(WRITE_VERB.merge, { "@type": "Step", id: "s1", other: 1 }, undefined, () => declared).parts[0]?.fields).toEqual({ id: "s1", other: 1 });
 	});
 });
 

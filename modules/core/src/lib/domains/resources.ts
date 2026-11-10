@@ -373,6 +373,8 @@ export const LinkRelations = {
 	ACCESS_LEVEL: { rel: "accessLevel", uri: "hbn:accessLevel", range: "literal", presentation: "governance" as TRelPresentation },
 	MEASUREMENT_KIND: { rel: "measurementKind", uri: "hbn:measurementKind", range: "literal" },
 	SHAPE_DIGEST: { rel: "shapeDigest", uri: "hbn:shapeDigest", range: "container" },
+	/** A digest of a text field, by which a store indexes a text too long for an index entry. */
+	TEXT_DIGEST: { rel: "textDigest", uri: "hbn:textDigest", range: "literal" },
 	OUTCOME_REASON: { rel: "outcomeReason", uri: "hbn:outcomeReason", range: "literal" },
 	// EARL: how a test or a goal ended. A record states its goal's verdict in this rel.
 	OUTCOME: { rel: "outcome", uri: "earl:outcome", range: "literal" },
@@ -731,6 +733,10 @@ export type THypermediaTopology = {
 	ranges?: TDomainRanges;
 	/** DB-specific: the sortable columns, each with its SQL type. */
 	sortColumns?: Record<string, string>;
+	/** Each text field a store indexes by a digest of its value, with the sort column that holds the digest. A text such as a line
+	 *  can be longer than an index entry holds, so a write states its digest, and a filter of the text for equality filters the
+	 *  digest. */
+	digests?: Readonly<Record<string, string>>;
 	/**
 	 * Sets of properties whose values two records of the type don't share, such as a status list and a place in it. A store
 	 * refuses a write that gives a record the values of a set that another record of the type holds, and names the fields and

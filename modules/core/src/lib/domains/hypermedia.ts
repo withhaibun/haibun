@@ -25,6 +25,7 @@ import {
 	PersistedVertexSchema,
 } from "./resources.js";
 import { ACTUALITY_FIELD } from "../actuality/domains/seq-path.js";
+import type { TSearchCondition } from "../steps/domains/quad-types.js";
 
 /** Resolve a property def to its rel, regardless of plain-string or object (content / term) form. */
 export function relOf(def: TPropertyDef): TRel {
@@ -75,7 +76,35 @@ export function queryableFields(domain: { schema: z.ZodType | undefined; topolog
 
 /** The fields a store indexes for a persisted type: the id that names a record and its sort columns. A read that filters or orders
  *  by another field reads every record of the type. */
-export const indexedFields = (topology: THypermediaTopology): string[] => [topology.id, ...Object.keys(topology.sortColumns === undefined ? {} : topology.sortColumns)];
+export const indexedFields = (topology: THypermediaTopology): string[] => [
+	topology.id,
+	...Object.keys(topology.sortColumns === undefined ? {} : topology.sortColumns),
+	...Object.keys(topology.digests === undefined ? {} : topology.digests),
+];
+
+/** The FNV-1a offset basis and prime of 64 bits, and the mask that holds a product to 64 bits. */
+const FNV_BASIS = 0xcbf29ce484222325n;
+const FNV_PRIME = 0x100000001b3n;
+const FNV_MASK = 0xffffffffffffffffn;
+
+/** Returns the digest a field that `digests` declares holds: the FNV-1a hash of 64 bits of the text's UTF-16 code units, in hex.
+ *  Two texts can share a digest, so a read by the digest compares the text too. */
+export function textDigest(text: string): string {
+	let hash = FNV_BASIS;
+	for (let at = 0; at < text.length; at++) hash = ((hash ^ BigInt(text.charCodeAt(at))) * FNV_PRIME) & FNV_MASK;
+	return hash.toString(16).padStart(16, "0");
+}
+
+/** Returns filters with each filter of a digested text replaced by the filter of its digest. Throws for a comparison of a digested
+ *  text other than equality, since its digest doesn't order the text. */
+export function digestedFilters(topology: THypermediaTopology, filters: readonly TSearchCondition[]): TSearchCondition[] {
+	return filters.map((filter) => {
+		const digest = topology.digests?.[filter.predicate];
+		if (digest === undefined) return filter;
+		if (filter.operator !== "eq") throw new Error(`${topology.persistedAs} indexes ${filter.predicate} by its digest, so a filter compares it with is, not ${filter.operator}`);
+		return { predicate: digest, operator: "eq", value: textDigest(String(filter.value)) };
+	});
+}
 
 /**
  * Returns the persisted type a record names through a field whose declared range (`topology.ranges`) is the persisted

@@ -4,7 +4,7 @@
  * these functions, so each read states its bound, its count and its order.
  */
 import { z } from "zod";
-import { endFieldOf, indexedFields, MAX_PAGE_ROWS, readInPages, type TCounted } from "../../domains/hypermedia.js";
+import { digestedFilters, endFieldOf, indexedFields, MAX_PAGE_ROWS, readInPages, type TCounted } from "../../domains/hypermedia.js";
 import type { TListItem } from "../../domains/lists.js";
 import type { TWorld } from "../../actuality/domains/world.js";
 import {
@@ -162,9 +162,13 @@ export function recordMembers(
 	return {
 		indexed: indexedFields(topology),
 		read: async (world, endedBy, { filters, order }) => {
+			const stated = filters === undefined ? [] : filters;
 			const sorted = order === undefined ? {} : { sortBy: order.field, sortOrder: order.descending ? SortOrderSchema.enum.desc : SortOrderSchema.enum.asc };
-			const read = { filters: [...scope(world), ...(filters === undefined ? [] : filters)], ...sorted };
-			return (await readEndedBy(world.shared.getStore(), type, endedBy, read, bound)).map(item);
+			const read = { filters: [...scope(world), ...digestedFilters(topology, stated)], ...sorted };
+			// A digest can be another text's too, so a record whose digested text differs from the filter's isn't a member.
+			const digested = stated.filter(({ predicate }) => topology.digests?.[predicate] !== undefined);
+			const records = await readEndedBy(world.shared.getStore(), type, endedBy, read, bound);
+			return records.filter((record) => digested.every(({ predicate, value }) => record[predicate] === value)).map(item);
 		},
 	};
 }

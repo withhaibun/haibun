@@ -212,6 +212,8 @@ export const FEATURE_LEVEL: TActualityLevel = "feature";
 export const SEQ_PATH_FIELD = {
 	id: "id",
 	stepText: "stepText",
+	/** The digest of the step's text, by which a store indexes the text, since a line can be longer than an index entry holds. */
+	lineDigest: "lineDigest",
 	/** The stepper and the action the step called, as `Stepper.action`. The step's text holds the request; this field holds the action that executed. */
 	called: "called",
 	actionStatus: "actionStatus",
@@ -300,6 +302,7 @@ const OPTIONAL_ACTION = ActionSchema.optional();
 export const SeqPathSchema = PersistedVertexSchema.extend({
 	[SEQ_PATH_FIELD.id]: z.string(),
 	[SEQ_PATH_FIELD.stepText]: z.string(),
+	[SEQ_PATH_FIELD.lineDigest]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.called]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.actionStatus]: z.enum(RECORDED_STATUS),
 	[SEQ_PATH_FIELD.error]: OPTIONAL_TEXT,
@@ -397,6 +400,7 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 		properties: {
 			[SEQ_PATH_FIELD.id]: LinkRelations.IDENTIFIER.rel,
 			[SEQ_PATH_FIELD.stepText]: LinkRelations.CONTENT.rel,
+			[SEQ_PATH_FIELD.lineDigest]: LinkRelations.TEXT_DIGEST.rel,
 			[SEQ_PATH_FIELD.called]: LinkRelations.CALLED.rel,
 			[SEQ_PATH_FIELD.actionStatus]: LinkRelations.ACTION_STATUS.rel,
 			[SEQ_PATH_FIELD.error]: LinkRelations.CONTENT.rel,
@@ -436,14 +440,16 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 			[SEQ_PATH_EDGE.askedIn]: { rel: LinkRelations.IN_REPLY_TO.rel, range: COMMENT_LABEL },
 		},
 		// endedAtTime orders steps by their end. A reader that follows actuality compares recordedAtTime with the time of
-		// its last read. actuality selects the steps of one feature of an actuality, and called selects the steps that called one
-		// step, so a quantifier over steps reads them by an index. A line's text isn't a column: a line can be longer than an
-		// index entry holds.
+		// its last read. actuality selects the steps of one feature of an actuality, called selects the steps that called one
+		// step, and lineDigest selects the steps of one line, so a quantifier over steps reads them by an index. A line's text
+		// isn't a column, since a line can be longer than an index entry holds, and its digest is.
 		sortColumns: {
 			[SEQ_PATH_FIELD.endedAtTime]: "TIMESTAMPTZ",
 			[SEQ_PATH_FIELD.recordedAtTime]: "TIMESTAMPTZ",
 			[SEQ_PATH_FIELD.actuality]: "TEXT",
 			[SEQ_PATH_FIELD.called]: "TEXT",
+			[SEQ_PATH_FIELD.lineDigest]: "TEXT",
 		},
+		digests: { [SEQ_PATH_FIELD.stepText]: SEQ_PATH_FIELD.lineDigest },
 	},
 };

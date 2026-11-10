@@ -17,6 +17,8 @@ export type TPartDeclaration = {
 	readonly fields: ReadonlySet<string> | undefined;
 	readonly lists: ReadonlySet<string>;
 	readonly edges: Readonly<Record<string, TEdgeDeclaration>>;
+	/** Each text field whose digest a write states, with the field that holds it. */
+	readonly digests?: Readonly<Record<string, string>>;
 };
 
 /** Returns the edge declarations of a topology's edges, as a write reads them. A range of `Resource`, the root type, reaches a
