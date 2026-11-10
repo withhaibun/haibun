@@ -20,6 +20,7 @@ import { FakeInvoker, DOMAIN_FAKE_HOLDER } from "@haibun/core/lib/test/fake-auth
 import { TEST_DOMAIN, testDomainDefinitions } from "@haibun/core/lib/test/test-domains.js";
 import { REFUSED_CALL_STATUS, REFUSED_INVOCATION, RPC_PROTOCOL } from "@haibun/core/lib/rpc-wire.js";
 import { z } from "zod";
+import { holds, parameter, PRODUCTS, RELATION_NAMESPACE, type TRelation } from "@haibun/core/lib/steps/domains/contract.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { DOMAIN_JSON, DOMAIN_STATEMENT } from "@haibun/core/lib/domains/domains.js";
 import { RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
@@ -109,6 +110,13 @@ const deniedFor = (status: number, error: unknown, capability: string) =>
 /** An authentication scheme the test server applies to its protected routes. */
 const DOMAIN_AUTH_SCHEME = "test-auth-scheme";
 
+/** A node a line names, and a node placed under it. */
+const DOMAIN_NODE = "test-node";
+const DOMAIN_PLACED_NODE = "test-placed-node";
+/** A node placed under another, directly or through nodes between them. */
+const BELOW_PREDICATE = `<${RELATION_NAMESPACE}below>`;
+const BELOW: TRelation = { name: "below", arity: 2, rules: `{ (?a ?b) ${BELOW_PREDICATE} true . (?b ?c) ${BELOW_PREDICATE} true } => { (?a ?c) ${BELOW_PREDICATE} true } .` };
+
 const cycles = (ts: TestServer): IStepperCycles => ({
 	getConcerns: () => ({
 		domains: [
@@ -118,7 +126,10 @@ const cycles = (ts: TestServer): IStepperCycles => ({
 				values: Object.keys(authSchemes),
 				description: "An authentication scheme the test server applies to its protected routes",
 			}),
+			{ selectors: [DOMAIN_NODE], schema: z.string(), description: "A node a line names", written: true },
+			{ selectors: [DOMAIN_PLACED_NODE], schema: z.object({ id: z.string() }), description: "A node placed under another" },
 		],
+		relations: [BELOW],
 	}),
 	startFeature: async () => {
 		const p: TProvenanceIdentifier = { when: `${TestServer.name}.cycles.startFeature`, seq: [0] };
@@ -258,6 +269,12 @@ class TestServer extends AStepper {
 	};
 
 	steps: TStepperSteps = {
+		placeNode: {
+			gwta: `place a node under {parent: ${DOMAIN_NODE}}`,
+			description: "Returns a node placed under the parent, whose contract states that the node is below the parent.",
+			contract: { products: DOMAIN_PLACED_NODE, states: [holds(BELOW, PRODUCTS, parameter("parent"))] },
+			action: async ({ parent }: TStepArgs) => actionOKWithProducts({ id: `${String(parent)}/node` }),
+		},
 		protectedRpcPing: {
 			gwta: "protected rpc ping",
 			description: "Returns a pong of true to a caller that holds the TestServer:protected capability.",

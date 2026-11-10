@@ -590,10 +590,10 @@
 			"actuality": {
 				"text": "e2e-tests/tests, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
 				"status": "passed",
-				"tookMs": 21500,
+				"tookMs": 22600,
 				"digest": {
-					"e2e-tests/src": "1c91638ff185ba2ce56affe97be16d887d0bdcabcb83a0cc523e4740ae684653",
-					"e2e-tests/tests": "602dda6a821b918bfc39670e25fe1a65aa7cdae94fa31db530ea13caa6365062",
+					"e2e-tests/src": "c9168fc116f27c8f0d52a129ae946b1dfca4b6da438898284c7da988f7ffe927",
+					"e2e-tests/tests": "50e8a6de9827b79b69dcc9709eac2d264e78ea09c515e24919b118dd8b12d49e",
 					"modules/cli/src": "2a30b0f7dc93f355455a023940b456906449b7bde09947dd20bce2b9d3b83e50",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
 					"modules/core/src": "c7a1cb1f00a6e7ba14c1cc4b7459ec47016fa799b967fd2e5d496ae108c58b5e",
@@ -617,7 +617,7 @@
 				"/features/a11y-fail.feature": {
 					"text": "/features/a11y-fail",
 					"status": "passed",
-					"tookMs": 800,
+					"tookMs": 700,
 					"steps": 13
 				},
 				"/features/a11y-pass.feature": {
@@ -647,25 +647,31 @@
 				"/features/auth-form.feature": {
 					"text": "/features/auth-form",
 					"status": "passed",
-					"tookMs": 1100,
+					"tookMs": 1000,
 					"steps": 24
+				},
+				"/features/claims.feature": {
+					"text": "/features/claims",
+					"status": "passed",
+					"tookMs": 400,
+					"steps": 4
 				},
 				"/features/counter.feature": {
 					"text": "/features/counter",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 1600,
 					"steps": 21
 				},
 				"/features/counter.feature.ts": {
 					"text": "Counts feature",
 					"status": "passed",
-					"tookMs": 2000,
+					"tookMs": 2400,
 					"steps": 21
 				},
 				"/features/counts.feature.ts": {
 					"text": "Counts feature",
 					"status": "passed",
-					"tookMs": 1000,
+					"tookMs": 500,
 					"steps": 22
 				},
 				"/features/elements.feature": {
@@ -677,7 +683,7 @@
 				"/features/executor-rpc.feature.ts": {
 					"text": "Executor RPC dispatch",
 					"status": "passed",
-					"tookMs": 100,
+					"tookMs": 0,
 					"steps": 8
 				},
 				"/features/feature-variables.feature": {
@@ -701,7 +707,7 @@
 				"/features/once.feature.ts": {
 					"text": "A group of features runs once per state of what it depends on",
 					"status": "passed",
-					"tookMs": 1800,
+					"tookMs": 1700,
 					"steps": 20
 				},
 				"/features/page-visits.feature.ts": {

@@ -58,7 +58,6 @@
 	},
 	"modules/logic/src/logic-stepper.ts": {
 		"has at most one call site: LogicStepper.advancePlan": 1,
-		"has at most one call site: LogicStepper.featureEntails": 1,
 		"returns a list of records or a count its domain doesn't declare as a list: LogicStepper.applicableSteps (applicable-steps)": 1,
 		"returns a list of records or a count its domain doesn't declare as a list: LogicStepper.ensure (goal-resolution)": 1,
 		"returns a list of records or a count its domain doesn't declare as a list: LogicStepper.resolve (goal-resolution)": 1,

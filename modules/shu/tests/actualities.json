@@ -412,7 +412,7 @@
 			"actuality": {
 				"text": "modules/shu/tests, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 35500,
+				"tookMs": 34900,
 				"digest": {
 					"modules/cli/src": "2a30b0f7dc93f355455a023940b456906449b7bde09947dd20bce2b9d3b83e50",
 					"modules/core/src": "c7a1cb1f00a6e7ba14c1cc4b7459ec47016fa799b967fd2e5d496ae108c58b5e",
@@ -432,7 +432,7 @@
 				"/features/address.feature.ts": {
 					"text": "An address names a type",
 					"status": "passed",
-					"tookMs": 1100,
+					"tookMs": 1000,
 					"steps": 205
 				},
 				"/features/federate.feature.ts": {
@@ -450,8 +450,8 @@
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
-					"tookMs": 24400,
-					"steps": 706
+					"tookMs": 23800,
+					"steps": 697
 				},
 				"/features/remote-store.feature.ts": {
 					"text": "A satellite instance keeps its records in the main instance's store",
@@ -462,7 +462,7 @@
 				"/features/voice-ui.feature.ts": {
 					"text": "UI extension propagation: domain ui → concern catalog → SPA actions bar",
 					"status": "passed",
-					"tookMs": 1900,
+					"tookMs": 2000,
 					"steps": 210
 				}
 			}
