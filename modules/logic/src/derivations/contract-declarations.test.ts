@@ -9,11 +9,13 @@ import { doesntHold, field, holds, parameter, PRINCIPAL, type TRelation, type TS
 import { Access, LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { actionOK } from "@haibun/core/lib/domains/util.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
+import { fromJsonText } from "@haibun/core/lib/domains/json-text.js";
 import { ARITY, contractFindings, UNDECLARED_FIELD, UNDECLARED_RELATION, UNNAMED_PARAMETER } from "./contract-declarations.js";
 
+const GrantSchema = z.object({ id: z.string(), revoked: z.string() });
 const GRANT = {
 	selectors: ["grant"],
-	schema: z.object({ id: z.string(), revoked: z.string() }),
+	schema: fromJsonText(GrantSchema),
 	description: "A grant a holder acts under",
 	topology: { persistedAs: "Grant", id: "id", accessLevel: Access.private, properties: { id: LinkRelations.IDENTIFIER.rel } },
 };
@@ -29,8 +31,9 @@ const declaring = (contract: TStepContract): AStepper =>
 	})();
 
 describe("the declarations check of contracts", () => {
-	it("holds a contract whose relations, parameters and fields the registry lists", () => {
-		expect(contractFindings([declaring({ requires: [doesntHold(REVOKED, parameter("grant"))], changes: [field(GRANT, "revoked")] })])).toEqual([]);
+	it("holds a contract whose relations, parameters and fields the registry lists, a field of a schema that reads JSON text among them", () => {
+		const changes = [field({ schema: GrantSchema, topology: GRANT.topology }, "revoked")];
+		expect(contractFindings([declaring({ requires: [doesntHold(REVOKED, parameter("grant"))], changes })])).toEqual([]);
 	});
 
 	it("refuses each term the registry doesn't list", () => {

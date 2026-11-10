@@ -6,7 +6,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { AStepper, type TStepperSteps } from "../steps/domains/stepper.js";
 import { OK } from "../domains/protocol.js";
-import { Access } from "../domains/resources.js";
+import { Access, LinkRelations } from "../domains/resources.js";
+import { WRITE_VERB } from "../records/domains/unit.js";
 import type { TList } from "../domains/lists.js";
 import {
 	DECLARED_STEPS,
@@ -26,6 +27,8 @@ import {
 	nearDuplicates,
 	ONE_CALL_SITE,
 	oneCallSite,
+	OWN_PRODUCTS,
+	ownProducts,
 	STARTS_WITHOUT_PARAMETERS,
 	startsWithoutParameters,
 	UNEXERCISED,
@@ -226,6 +229,37 @@ describe("the lists steps read", () => {
 			"ListingStepper.firstRows (rows)",
 			"ListingStepper.rowsMatching (counted)",
 		]);
+	});
+});
+
+/** Returns records of a stored type: through dispatch, itself, or as a read. */
+class StoringStepper extends AStepper {
+	description = "Steps that return records of a stored type";
+	cycles = {
+		getConcerns: () => ({
+			domains: [
+				{
+					selectors: ["note"],
+					schema: z.object({ id: z.string() }),
+					description: "A stored note",
+					topology: { persistedAs: "Note", accessLevel: Access.private, id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } },
+				},
+				{ selectors: ["draft"], schema: z.object({ id: z.string() }), description: "A note that isn't stored" },
+			],
+		}),
+	};
+	steps = {
+		writtenByDispatch: { gwta: "note {id: string} through dispatch", contract: { products: "note", written: WRITE_VERB.create }, ...ACTS },
+		writtenItself: { gwta: "note {id: string} itself", contract: { products: "note" }, ...ACTS },
+		readNote: { gwta: "read note {id: string}", read: true, readsAt: Access.public, contract: { products: "note" }, ...ACTS },
+		draft: { gwta: "draft {id: string}", contract: { products: "draft" }, ...ACTS },
+	} as const satisfies TStepperSteps;
+}
+
+describe("the products a step writes", () => {
+	it("flag a step that returns records of a stored type without contract.written, apart from a read and a type that isn't stored", () => {
+		const stepper = new StoringStepper();
+		expect(keysOf(ownProducts([{ stepper }], declaredSteps([{ file: STEPPER_FILE, stepper }])), OWN_PRODUCTS)).toEqual(["StoringStepper.writtenItself"]);
 	});
 });
 

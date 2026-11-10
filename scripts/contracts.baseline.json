@@ -20,6 +20,7 @@
 		"writes without listing its writes beyond its products in contract.changes: TestRunnerStepper.stopTestRun": 1
 	},
 	"modules/core/src/steps/activities-stepper.ts": {
+		"returns records of a stored type without contract.written, so it writes them itself: ActivitiesStepper.saveWaypoint": 1,
 		"writes without listing its writes beyond its products in contract.changes: ActivitiesStepper.activity": 1,
 		"writes without listing its writes beyond its products in contract.changes: ActivitiesStepper.afterEvery": 1,
 		"writes without listing its writes beyond its products in contract.changes: ActivitiesStepper.ensure": 1,

@@ -254,9 +254,9 @@
 				"status": "passed",
 				"tookMs": 100,
 				"digest": {
-					"modules/core/src": "a74301a2641020e5248d757703744479e1b0c1fb419660508c710895959ad60b",
+					"modules/core/src": "2e023b15294c13cea5006158190b5fc43d20521fdf1380fe3b3f90562f797be9",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
-					"modules/logic/src": "cf2e1c53852789b9c306d4c0e5512455c58d64b56d705de48b7719be35dfb947",
+					"modules/logic/src": "4d08a18468fae422914796bbd838f6514fb238b5c84a525d68f4ab53d3bfdde3",
 					"modules/shu/src": "f735be7f40e3b9c703900eb681d7726623143cfec89566e72d803bbc2fee6224",
 					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
@@ -362,9 +362,9 @@
 				"status": "passed",
 				"tookMs": 100,
 				"digest": {
-					"modules/core/src": "a74301a2641020e5248d757703744479e1b0c1fb419660508c710895959ad60b",
+					"modules/core/src": "2e023b15294c13cea5006158190b5fc43d20521fdf1380fe3b3f90562f797be9",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
-					"modules/logic/src": "cf2e1c53852789b9c306d4c0e5512455c58d64b56d705de48b7719be35dfb947",
+					"modules/logic/src": "4d08a18468fae422914796bbd838f6514fb238b5c84a525d68f4ab53d3bfdde3",
 					"modules/shu/src": "f735be7f40e3b9c703900eb681d7726623143cfec89566e72d803bbc2fee6224",
 					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
@@ -377,7 +377,7 @@
 				"/features/serve.feature": {
 					"text": "/features/serve",
 					"status": "passed",
-					"tookMs": 100,
+					"tookMs": 0,
 					"steps": 4
 				}
 			}
@@ -470,9 +470,9 @@
 				"status": "passed",
 				"tookMs": 100,
 				"digest": {
-					"modules/core/src": "a74301a2641020e5248d757703744479e1b0c1fb419660508c710895959ad60b",
+					"modules/core/src": "2e023b15294c13cea5006158190b5fc43d20521fdf1380fe3b3f90562f797be9",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
-					"modules/logic/src": "cf2e1c53852789b9c306d4c0e5512455c58d64b56d705de48b7719be35dfb947",
+					"modules/logic/src": "4d08a18468fae422914796bbd838f6514fb238b5c84a525d68f4ab53d3bfdde3",
 					"modules/shu/src": "f735be7f40e3b9c703900eb681d7726623143cfec89566e72d803bbc2fee6224",
 					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
@@ -578,9 +578,9 @@
 				"status": "passed",
 				"tookMs": 100,
 				"digest": {
-					"modules/core/src": "a74301a2641020e5248d757703744479e1b0c1fb419660508c710895959ad60b",
+					"modules/core/src": "2e023b15294c13cea5006158190b5fc43d20521fdf1380fe3b3f90562f797be9",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
-					"modules/logic/src": "cf2e1c53852789b9c306d4c0e5512455c58d64b56d705de48b7719be35dfb947",
+					"modules/logic/src": "4d08a18468fae422914796bbd838f6514fb238b5c84a525d68f4ab53d3bfdde3",
 					"modules/shu/src": "f735be7f40e3b9c703900eb681d7726623143cfec89566e72d803bbc2fee6224",
 					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",

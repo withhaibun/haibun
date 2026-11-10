@@ -4,7 +4,7 @@
  * A finding is a statement whose relation the steppers don't declare or whose arguments don't match its arity, a parameter the pattern
  * doesn't name, and a field that the declared types' schemas don't hold.
  */
-import { z } from "zod";
+import { unwrapToShape } from "@haibun/core/lib/domains/zod-unwrap.js";
 import { hasCycles, type AStepper } from "@haibun/core/lib/steps/domains/stepper.js";
 import type { TContractArgument, TField, TRelation, TStatement } from "@haibun/core/lib/steps/domains/contract.js";
 import { stepParts } from "@haibun/core/lib/steps/domains/phrase.js";
@@ -19,14 +19,16 @@ export const ARITY = "applies a relation to a number of arguments other than its
 export const UNNAMED_PARAMETER = "names a parameter its pattern doesn't. Name a placeholder of the step's pattern";
 export const UNDECLARED_FIELD = "names a field that the declared record types' schemas don't hold. Build the field with `field` from the type's declaration";
 
-/** The keys of each record type the steppers declare, by its stored label. */
+/** The keys of each record type the steppers declare, by its stored label, read through the wrappers of its schema, such as
+ *  the preprocess of a schema that reads JSON text. */
 function declaredFields(steppers: readonly AStepper[]): Map<string, ReadonlySet<string>> {
 	return new Map(
 		steppers.flatMap((stepper) => {
 			const domains = hasCycles(stepper) ? stepper.cycles.getConcerns?.().domains : undefined;
-			return (domains === undefined ? [] : domains).flatMap(({ schema, topology }) =>
-				topology?.persistedAs === undefined || !(schema instanceof z.ZodObject) ? [] : [[topology.persistedAs, new Set(Object.keys(schema.shape))] as const],
-			);
+			return (domains === undefined ? [] : domains).flatMap(({ schema, topology }) => {
+				const shape = unwrapToShape(schema);
+				return topology?.persistedAs === undefined || shape === null ? [] : [[topology.persistedAs, new Set(Object.keys(shape))] as const];
+			});
 		}),
 	);
 }

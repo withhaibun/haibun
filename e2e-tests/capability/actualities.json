@@ -44,15 +44,15 @@
 			"actuality": {
 				"text": "e2e-tests/capability, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
 				"status": "passed",
-				"tookMs": 1300,
+				"tookMs": 900,
 				"digest": {
 					"e2e-tests/capability": "f60a467b1916bade9b199593dc655ac9b6694b0c489cd1975c9c83bf14918d77",
 					"e2e-tests/src": "1c91638ff185ba2ce56affe97be16d887d0bdcabcb83a0cc523e4740ae684653",
 					"modules/cli/src": "2a30b0f7dc93f355455a023940b456906449b7bde09947dd20bce2b9d3b83e50",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "a74301a2641020e5248d757703744479e1b0c1fb419660508c710895959ad60b",
+					"modules/core/src": "2e023b15294c13cea5006158190b5fc43d20521fdf1380fe3b3f90562f797be9",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
-					"modules/logic/src": "cf2e1c53852789b9c306d4c0e5512455c58d64b56d705de48b7719be35dfb947",
+					"modules/logic/src": "4d08a18468fae422914796bbd838f6514fb238b5c84a525d68f4ab53d3bfdde3",
 					"modules/monitor-otel/src": "4fbef0f2c78fed7b3e2d03ec4ab094bef11766724e5f5f6efb73491ea1d4dea6",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/out-junit/src": "22d1ca5d4f4449cae6186ff8d84c1f0b182e7591e1ffda9520a38daa3e8681d2",
@@ -71,7 +71,7 @@
 				"/features/identity-and-capability.feature.ts": {
 					"text": "Identity and capability authorization",
 					"status": "passed",
-					"tookMs": 1200,
+					"tookMs": 800,
 					"steps": 30
 				}
 			}

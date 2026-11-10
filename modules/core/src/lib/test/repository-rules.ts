@@ -26,6 +26,7 @@ import {
 	startsWithoutParameters,
 	stepCount,
 	unlistedChanges,
+	ownProducts,
 	steppersUnder,
 	undeclaredLists,
 	unexercised,
@@ -179,10 +180,12 @@ export function describeRepositoryRules(rules: TRepositoryRules): void {
 				await expectWithinBaseline({ baselineFile: baseline("steps"), found, testFile, fix });
 			});
 
-			it("list each write beyond a step's products in its contract's changes, apart from the steps contracts.baseline.json records", async () => {
-				const steps = declaredSteps(await steppersUnder(repository, rules.stepperRoots));
-				const fix = "declare contract.changes on the step: the field of each record type it writes beyond its products, or an empty list where it writes only its products";
-				await expectWithinBaseline({ baselineFile: baseline("contracts"), found: unlistedChanges(steps), testFile, fix });
+			it("list each write beyond a step's products in its contract's changes, and have dispatch write each step's stored products, apart from the steps contracts.baseline.json records", async () => {
+				const steppers = await steppersUnder(repository, rules.stepperRoots);
+				const steps = declaredSteps(steppers);
+				const fix =
+					"declare contract.changes on the step: the field of each record type it writes beyond its products, or an empty list where it writes only its products; and declare contract.written where the step returns its stored products for dispatch to write";
+				await expectWithinBaseline({ baselineFile: baseline("contracts"), found: [...unlistedChanges(steps), ...ownProducts(steppers, steps)], testFile, fix });
 			});
 		},
 		REPOSITORY_SCAN_MS,

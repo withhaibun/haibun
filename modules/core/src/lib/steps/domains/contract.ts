@@ -9,6 +9,7 @@
 import { z } from "zod";
 import { DomainKeySchema } from "../../domains/domains.js";
 import type { TVerdict } from "../../domains/protocol.js";
+import type { WRITE_VERB } from "../../records/domains/unit.js";
 
 /** The key of the form that names the statement parameter whose products a step returns as its own. */
 const OF = "of";
@@ -46,12 +47,17 @@ export const parameter = (name: string): TContractArgument => ({ parameter: name
 export const PRODUCTS: TContractArgument = { products: true };
 export const PRINCIPAL: TContractArgument = { principal: true };
 
+/** The verbs dispatch writes a step's products with: a record the store doesn't hold, or fields merged into what it holds. */
+export type TProductsVerb = typeof WRITE_VERB.create | typeof WRITE_VERB.merge;
+
 /** A step's contract. A descriptor's contract names its domains by their keys. `states` holds over the parameters and the
  *  products, `requires` over recorded facts before the call, `changes` lists the fields of the writes beyond the products, and
  *  `assumed` marks products that rest on input from outside actuality. A step that writes declares `changes`, empty where its only
- *  writes are its products. */
+ *  writes are its products. `written` names the verb dispatch writes the products with, as one record of the stored type of
+ *  their domain, once `states` holds over them; a step that declares it doesn't write its products itself. */
 export type TStepContract<D extends string = string> = {
 	readonly products?: TContractProducts<D>;
+	readonly written?: TProductsVerb;
 	readonly states?: readonly TStatement[];
 	readonly requires?: readonly TStatement[];
 	readonly changes?: readonly TField[];

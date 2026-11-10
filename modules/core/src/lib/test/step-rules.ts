@@ -17,7 +17,7 @@ import ts from "typescript";
 import { itemAt } from "../domains/item-at.js";
 import { z } from "zod";
 import { AStepper, hasCycles } from "../steps/domains/stepper.js";
-import type { TDomainDefinition } from "../domains/resources.js";
+import { isPersisted, type TDomainDefinition } from "../domains/resources.js";
 import { namedInterpolation } from "../steps/derivations/named-vars.js";
 import { constructorName, dePolite } from "../domains/util.js";
 import type { TFound } from "./baseline.js";
@@ -30,6 +30,7 @@ export const NEAR_DUPLICATE = "states another step's pattern with a word more or
 export const UNEXERCISED = "isn't exercised by a feature line, a kireji call, a waypoint or a unit test";
 export const DECLARED_STEPS = "declares steps";
 export const UNLISTED_CHANGES = "writes without listing its writes beyond its products in contract.changes";
+export const OWN_PRODUCTS = "returns records of a stored type without contract.written, so it writes them itself";
 export const LIST_OPERATION = "filters, bounds, pages, orders or counts its own list";
 export const UNDECLARED_LIST = "returns a list of records or a count its domain doesn't declare as a list";
 export const FIXED_STATEMENT = "only states other steps with fixed arguments";
@@ -57,6 +58,8 @@ export type TDeclaredStep = {
 	productDomains: readonly string[];
 	/** Whether its contract lists the writes beyond its products in `changes`. */
 	listsChanges: boolean;
+	/** Whether its contract names the verb through which dispatch writes its products. */
+	written: boolean;
 };
 
 /** A line that starts or keeps something, which a stepper's start cycle does where an option states it. */
@@ -96,7 +99,16 @@ export function declaredSteps(steppers: readonly { file: string; stepper: AStepp
 			const declaredDomains = productDomains(step);
 			const combinator = step.transformsList !== undefined;
 			const declared = { file, stepper: declaredBy, key, kind, pattern, parameters: pattern.includes("{"), read: step.read === true, products: declaredDomains.length > 0 };
-			return [{ ...declared, precludes: step.precludes ?? [], combinator, productDomains: declaredDomains, listsChanges: step.contract?.changes !== undefined }];
+			return [
+				{
+					...declared,
+					precludes: step.precludes ?? [],
+					combinator,
+					productDomains: declaredDomains,
+					listsChanges: step.contract?.changes !== undefined,
+					written: step.contract?.written !== undefined,
+				},
+			];
 		}),
 	);
 }
@@ -362,6 +374,15 @@ export function unexercised(repository: string, steps: readonly TDeclaredStep[])
 /** Each step that isn't a read and doesn't list its writes beyond its products in its contract's `changes`. */
 export const unlistedChanges = (steps: readonly TDeclaredStep[]): TFound[] =>
 	steps.filter(({ read, listsChanges }) => !read && !listsChanges).map(({ file, stepper, key }) => ({ file, finding: `${UNLISTED_CHANGES}: ${stepper}.${key}` }));
+
+/** Each step that isn't a read and returns products of a type its stepper's concerns store, without a contract that names the
+ *  verb dispatch writes them with, so the step writes its products itself. */
+export function ownProducts(steppers: readonly { stepper: AStepper }[], steps: readonly TDeclaredStep[]): TFound[] {
+	const definitions = definitionsOf(steppers);
+	return steps
+		.filter(({ read, written, productDomains }) => !read && !written && productDomains.some((domain) => isPersisted(definitions.get(domain)?.topology)))
+		.map(({ file, stepper, key }) => ({ file, finding: `${OWN_PRODUCTS}: ${stepper}.${key}` }));
+}
 
 export const stepCount = (steps: readonly TDeclaredStep[]): TFound[] => steps.map(() => ({ file: REPOSITORY_FILE, finding: DECLARED_STEPS }));
 

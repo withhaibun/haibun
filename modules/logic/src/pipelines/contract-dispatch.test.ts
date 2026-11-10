@@ -2,7 +2,7 @@
  * Dispatch checks a call against its step's contract: its `requires` before the action runs, and its `states` over the products.
  * A statement that isn't proved refuses the call: the action doesn't run where `requires` refuses it, the products aren't kept
  * where `states` refuses them, since the step fails, the step's record holds the check's proof, and the refusal names the statement, its verdict and
- * the triple that determined it.
+ * the triple that determined it. Dispatch writes the products of a call whose contract holds, and doesn't write the products of a refused call.
  */
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
@@ -11,7 +11,8 @@ import { doesntHold, holds, parameter, PRODUCTS, type TRelation } from "@haibun/
 import { DEF_PROTO_OPTIONS, failWithDefaults } from "@haibun/core/lib/test/lib.js";
 import { actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
 import { CONTINUE_AFTER_ERROR, RECORDED_STATUS, VERDICT } from "@haibun/core/lib/domains/protocol.js";
-import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
+import { Access, LinkRelations, SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
+import { WRITE_VERB } from "@haibun/core/lib/records/domains/unit.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { readUpTo } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { MAX_PAGE_ROWS } from "@haibun/core/lib/domains/hypermedia.js";
@@ -31,6 +32,8 @@ const GRANTS: Record<string, Record<string, string>> = {
 const GrantSchema = z.object({ id: z.string(), allowedAction: z.string(), revoked: z.string().optional() });
 const GRANT_DOMAIN = "contract-grant";
 const DELEGATION_DOMAIN = "contract-delegation";
+/** The stored type of a delegation, which dispatch writes. */
+const DELEGATION_LABEL = "ContractDelegation";
 const ACTIONS = ["read", "write"];
 const ACTION_DOMAIN = "contract-action";
 
@@ -42,7 +45,17 @@ class Delegating extends AStepper implements IHasCycles {
 		getConcerns: () => ({
 			domains: [
 				{ selectors: [GRANT_DOMAIN], schema: GrantSchema, description: "A grant a line names", written: true, coerce: (proto) => GrantSchema.parse(GRANTS[String(proto.value)]) },
-				{ selectors: [DELEGATION_DOMAIN], schema: GrantSchema, description: "A delegation from a grant" },
+				{
+					selectors: [DELEGATION_DOMAIN],
+					schema: GrantSchema,
+					description: "A delegation from a grant",
+					topology: {
+						persistedAs: DELEGATION_LABEL,
+						accessLevel: Access.private,
+						id: "id",
+						properties: { id: LinkRelations.IDENTIFIER.rel, allowedAction: LinkRelations.TAG.rel },
+					},
+				},
 				{ selectors: [ACTION_DOMAIN], schema: z.enum(ACTIONS), values: ACTIONS, description: "An action a delegation allows" },
 			],
 			relations: [REVOKED, ALLOWS],
@@ -52,7 +65,12 @@ class Delegating extends AStepper implements IHasCycles {
 		delegate: {
 			description: TEST_STEP,
 			gwta: `delegate {action: ${ACTION_DOMAIN}} from {grant: ${GRANT_DOMAIN}}`,
-			contract: { products: DELEGATION_DOMAIN, requires: [doesntHold(REVOKED, parameter("grant"))], states: [holds(ALLOWS, PRODUCTS, parameter("action"))] },
+			contract: {
+				products: DELEGATION_DOMAIN,
+				written: WRITE_VERB.create,
+				requires: [doesntHold(REVOKED, parameter("grant"))],
+				states: [holds(ALLOWS, PRODUCTS, parameter("action"))],
+			},
 			action: ({ action, grant }: { action: string; grant: z.infer<typeof GrantSchema> }) => {
 				this.ran.push(action);
 				return Promise.resolve(actionOKWithProducts({ id: `urn:delegation:${action}`, allowedAction: grant.allowedAction }));
@@ -62,7 +80,7 @@ class Delegating extends AStepper implements IHasCycles {
 }
 
 describe("dispatch's check of a call against its step's contract", () => {
-	it("runs a call whose contract holds, refuses one whose `requires` doesn't before its action and one whose `states` doesn't over its products", {
+	it("runs a call whose contract holds and writes its products, refuses one whose `requires` doesn't before its action and one whose `states` doesn't over its products, and doesn't write the products of either", {
 		timeout: 120_000,
 	}, async () => {
 		const lines = ["delegate read from held", "delegate read from revoked", "delegate write from held"];
@@ -86,5 +104,10 @@ describe("dispatch's check of a call against its step's contract", () => {
 		expect(stated?.[SEQ_PATH_FIELD.proof]).toBeDefined();
 		const delegating = world.runtime.steppers?.find((stepper) => stepper instanceof Delegating);
 		expect((delegating as Delegating).ran, "the refused call's action doesn't run").toEqual(["read", "write"]);
+		const written = await readUpTo(world.shared.getStore(), { label: DELEGATION_LABEL }, MAX_PAGE_ROWS);
+		expect(
+			written.map(({ id }) => id),
+			"dispatch writes the delegation whose contract holds, and not the one whose products are refused",
+		).toEqual(["urn:delegation:read"]);
 	});
 });
