@@ -134,6 +134,19 @@ describe("A11yRenderer: the graph as an accessible document", () => {
 		expect(onFocus, "a keyboard reader's focus after the press highlights its node").toHaveBeenCalledWith("c1");
 	});
 
+	it("highlights the entry a pointer moves onto, and not an entry a repaint or a reflow moves under a pointer that stays", () => {
+		const { renderer, region, onFocus } = harness();
+		renderer.draw({ nodes, links });
+		const pointAt = (id: string, clientY: number) =>
+			region.querySelector<HTMLElement>(`ol > li > [data-node-id="${id}"]`)?.dispatchEvent(new MouseEvent("pointerover", { bubbles: true, clientX: 1, clientY }));
+		pointAt("c1", 10);
+		expect(onFocus).toHaveBeenLastCalledWith("c1");
+		pointAt("c2", 10);
+		expect(onFocus, "the entries moved under the pointer").toHaveBeenCalledTimes(1);
+		pointAt("c2", 20);
+		expect(onFocus, "the pointer moved onto the entry").toHaveBeenLastCalledWith("c2");
+	});
+
 	it("the status line announces the whole graph first, then only what changed", () => {
 		const { renderer, region } = harness();
 		renderer.draw({ nodes, links });

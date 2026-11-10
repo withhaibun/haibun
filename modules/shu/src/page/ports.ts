@@ -256,7 +256,16 @@ export type TStripElement = HTMLElement & {
 
 /** The names a pane strip marks its panes with and follows their controls by: the pane element's tag, the attributes of a
  *  pane's column type, its pin and its close control, and the events of a pane's minimize, maximize, dock and expand. */
-export type TPaneMarks = { paneTag: string; columnType: string; pinned: string; closable: string; events: { minimize: string; maximize: string; dock: string; expand: string } };
+/** The names a strip's panes carry, and the view tags of the views that follow the page's active record, whose panes a prune
+ *  keeps open as it keeps a pinned pane. */
+export type TPaneMarks = {
+	paneTag: string;
+	columnType: string;
+	pinned: string;
+	closable: string;
+	followsActive: readonly string[];
+	events: { minimize: string; maximize: string; dock: string; expand: string };
+};
 
 /** A pane element as the pane strip makes it: its id, label and column type, whether it closes, where it stands, and its view
  *  with the view's attributes. `seed` gives the view what it shows before it attaches. */
@@ -293,7 +302,7 @@ export type TPaneStrip = {
 	 *  `maximized` maximized and the others not, then its accordion and its active pane. */
 	settle(maximized: string | null, placementChanged: boolean): void;
 	/** Returns the ids of the panes after the pane `source` is in that a prune closes: the panes that aren't pinned or
-	 *  docked. Undefined where `source` isn't in a pane of the strip. */
+	 *  docked and whose view doesn't follow the page's active record. Undefined where `source` isn't in a pane of the strip. */
 	after(source: Element | Event): string[] | undefined;
 	/** Returns the id of the pane `source` is in, or undefined where it isn't in a pane of the strip. */
 	paneOf(source: Element | Event): string | undefined;

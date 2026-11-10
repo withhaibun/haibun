@@ -435,7 +435,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		this.scene?.setUserPins(this.state.pins);
 		// Seed the persisted layout choices; the base's first refetch (below onGraphConnected) then pushes the initial model.
 		this.configureScene();
-		// In the DL view a node or an edge a reader chooses opens the frame that states its axioms in the axioms pane.
+		// In the DL view an edge a reader chooses opens the frame that states its axioms in the axioms pane.
 		this.autoListen(this, GRAPH_SCENE_EVENT.EDGE_CHOSEN, ((e: CustomEvent<{ key: string }>) => this.openFrameOf(this.#overlay?.edges.get(e.detail.key), false)) as EventListener);
 		// A claim a step refuses names its witness in its products, and in the products of `didn't` and `maybe` over it; a
 		// derivation names the frames of its proof's records.

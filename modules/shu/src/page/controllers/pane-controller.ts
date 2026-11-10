@@ -46,6 +46,7 @@ const MARKS: TPaneMarks = {
 	columnType: SHU_ATTR.COLUMN_TYPE,
 	pinned: SHU_ATTR.PINNED,
 	closable: SHU_ATTR.CLOSABLE,
+	followsActive: [SHU_TAG.GRAPH_SOURCE],
 	events: { minimize: SHU_EVENT.COLUMN_MINIMIZE, maximize: SHU_EVENT.COLUMN_MAXIMIZE, dock: SHU_EVENT.COLUMN_DOCK, expand: SHU_EVENT.COLUMN_EXPAND },
 };
 

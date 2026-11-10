@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { graphAxioms } from "../../../derivations/graph-axioms.js";
-import { lineAfterKey, linesOf, provenanceOf, statusOf, summaryOf } from "./source-lines.js";
+import { frameOfNode, lineAfterKey, linesOf, provenanceOf, statusOf, summaryOf } from "./source-lines.js";
 
 /** Two emails, the second a reply to the first, whose id holds quotes. */
 const [QUOTED, PLAIN] = ['say "hi"', "m2"];
@@ -59,5 +59,13 @@ describe("the lines that state the record a reader is on", () => {
 	it("lights the record's own line and its class's", () => {
 		expect(linesOf(axioms, [QUOTED])).toEqual([CLASS, QUOTED_LINE]);
 		expect(linesOf(axioms, [])).toEqual([]);
+	});
+});
+
+describe("the line that states a record itself", () => {
+	it("is the record's individual frame, or a Class record's class frame, and is undefined where the axioms don't state the record", () => {
+		expect(frameOfNode(axioms, QUOTED)).toBe(QUOTED_LINE);
+		expect(frameOfNode(axioms, "Email")).toBe(CLASS);
+		expect(frameOfNode(axioms, "absent")).toBeUndefined();
 	});
 });

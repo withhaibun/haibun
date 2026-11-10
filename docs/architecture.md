@@ -317,8 +317,9 @@ pane holds the view, so it reads the view again in another format, and the lines
 
 The graph view's DL view is one of its view choices: the same scene, nodes and edges, with the axioms mapped onto them
 (`modules/shu/src/page/graph/derivations/axiom-overlay.ts`). A Class record carries its class's axioms, an edge its property's,
-and a record the type it asserts (∈) and the types the ontology entails (⊨ ∈). A node or an edge a reader chooses in it opens the
-frame that states it in the axioms pane.
+and a record the type it asserts (∈) and the types the ontology entails (⊨ ∈). A node a reader chooses in it opens the node's
+column, as it does in every view, and an open axioms pane moves to the frame that states the node, since the pane follows the
+page's active record. An edge a reader chooses opens the frame that states it in the axioms pane.
 
 ## Domains
 

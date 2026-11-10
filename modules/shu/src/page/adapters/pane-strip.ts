@@ -13,6 +13,7 @@ export function browserPaneStrip(doc: Document, elements: CustomElementRegistry,
 		return pane;
 	};
 	const tag = marks.paneTag.toUpperCase();
+	const followsActive = new Set(marks.followsActive);
 	/** Returns the pane `source` is in: an element's closest pane, or the first pane on an event's path, its target's or its
 	 *  current target's, each of which an event states in a different phase of its dispatch. */
 	const sourcePane = (source: Element | Event): Element | null => {
@@ -91,7 +92,9 @@ export function browserPaneStrip(doc: Document, elements: CustomElementRegistry,
 			const pane = sourcePane(source);
 			const index = pane === null ? -1 : strip.panes.findIndex((p) => p === pane);
 			if (index < 0) return undefined;
-			return strip.panes.slice(index + 1).flatMap((p) => (p.hasAttribute(marks.pinned) || p.docked || p.dataset.columnKey === undefined ? [] : [p.dataset.columnKey]));
+			const followed = (view: Element | undefined): boolean => view !== undefined && followsActive.has(view.tagName.toLowerCase());
+			const kept = (p: TPaneElement): boolean => p.hasAttribute(marks.pinned) || p.docked || followed(p.children[0]);
+			return strip.panes.slice(index + 1).flatMap((p) => (kept(p) || p.dataset.columnKey === undefined ? [] : [p.dataset.columnKey]));
 		},
 		close: (id) => {
 			const pane = paneOf(id);

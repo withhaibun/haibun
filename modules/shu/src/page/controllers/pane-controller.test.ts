@@ -23,6 +23,7 @@ import type { TStripElement } from "../ports.js";
 import { activePane } from "../root.js";
 import { PANE_CONTEXT, paneOfEntry, activatePane, dismissPane, openStrip, relabelPane, requestPane, requestPaneFrom, restorePanes } from "./pane-controller.js";
 import { columnEntryOf, DesiredPaneSchema, paneIdOf, tagOf, labelOf } from "../derivations/pane-kinds.js";
+import "../graph/components/shu-graph-source.js";
 
 /** Offline is which TConduit is installed: a serialized one doesn't have a location to mutate, a live one does. */
 const offline = () =>
@@ -481,6 +482,21 @@ describe("the page's panes", () => {
 		const afterAdd = Array.from(document.querySelectorAll("shu-column-pane")).map((p) => (p as HTMLElement).dataset.columnKey);
 		expect(afterAdd).toContain("e:Email:msg-2");
 		expect(afterAdd).toContain("e:Email:msg-3");
+	});
+
+	it("requestFrom keeps the axioms pane open, since it follows the active record a record's column makes", async () => {
+		restorePanes();
+		requestPane({ paneType: "component", tag: "shu-polymorphic-graph-view", label: "G" });
+		requestPane({ paneType: "component", tag: "shu-graph-source", label: "axioms" });
+		await flush();
+		const graphPane = Array.from(document.querySelectorAll("shu-column-pane")).find((p) => (p as HTMLElement).dataset.columnKey === "shu-polymorphic-graph-view") as HTMLElement;
+		requestPaneFrom(graphPane, { paneType: "entity", persistedAs: "Email", id: "msg-4" }, false);
+		await flush();
+		expect(Array.from(document.querySelectorAll("shu-column-pane")).map((p) => (p as HTMLElement).dataset.columnKey)).toEqual([
+			"shu-polymorphic-graph-view",
+			"shu-graph-source",
+			"e:Email:msg-4",
+		]);
 	});
 
 	const paneKeyed = (key: string) => Array.from(document.querySelectorAll("shu-column-pane")).find((p) => (p as HTMLElement).dataset.columnKey === key) as HTMLElement;

@@ -1,12 +1,12 @@
 /**
  * shu-graph-source: the axioms of what a graph view shows, or of the records a proof wrote, in a pane of its own: each frame in Manchester syntax, with its
  * axioms in DL notation, the statement and the record behind it on hover, the summary of the source's kinds, the format it
- * reads, and a copy and a download of its text. A line that states a record or a class links to its pane, and the lines that
- * state the record a reader is on light. A reader moves through the lines with the arrow keys, Home and End, and lets the
+ * reads, and a copy and a download of its text. A line that states a record or a class links to its pane, the lines that
+ * state the record a reader is on light, and the reader's line moves to the frame of each record a reader opens. A reader moves through the lines with the arrow keys, Home and End, and lets the
  * line go with Escape or a second press.
  *
- * The pane shows what `show axioms of {view}` returned, which a graph view's ¶ control and a node or an edge chosen in its DL
- * view open it with, the latter at the frame that states it. It holds the view the axioms state, so it reads that view again
+ * The pane shows what `show axioms of {view}` returned, which a graph view's ¶ control and an edge chosen in its DL view open it
+ * with, the latter at the frame that states it. It holds the view the axioms state, so it reads that view again
  * in another format. A derivation's products open it at the frame of the first goal the proof couldn't prove, and a proof
  * doesn't state a view to read again.
  */
@@ -30,7 +30,7 @@ import { paneHref } from "../../components/ref-navigation.js";
 import "../../components/shu-copy-button.js";
 import "../../components/shu-refusal.js";
 import { SOURCE_FORMATS, SOURCE_FORMAT_IDS, sourceFormat, type TSourceFormat } from "../domains/sources.js";
-import { lineAfterKey, linesOf, provenanceOf, statusOf, summaryOf } from "../derivations/source-lines.js";
+import { frameOfNode, lineAfterKey, linesOf, provenanceOf, statusOf, summaryOf } from "../derivations/source-lines.js";
 
 /** The axioms the pane shows, and the view they state where they state one. */
 const PaneAxiomsSchema = z.object({ ...GraphAxiomsSchema.shape, graphView: GraphViewSchema.optional() });
@@ -90,7 +90,7 @@ class ShuGraphSource extends ShuElement<typeof GraphSourceStateSchema> {
 	#lit: ReadonlySet<string> = new Set();
 	/** Whether the reader's line or the lit lines moved since the last render, to bring them into view. */
 	#moved = false;
-	readonly #subject = new SubjectController(this, (record) => this.light(record === null ? [] : [record.id], this.#axioms.page));
+	readonly #subject = new SubjectController(this, (record) => this.follow(record === null ? undefined : record.id, this.#axioms.page));
 
 	constructor() {
 		super(GraphSourceStateSchema, { format: SOURCE_FORMATS[0].id });
@@ -121,6 +121,13 @@ class ShuGraphSource extends ShuElement<typeof GraphSourceStateSchema> {
 		const record = this.#subject.record;
 		this.light(record === null ? [] : [record.id], axioms);
 		return axioms;
+	}
+
+	/** Moves the reader to the line that states the page's active record, where `axioms` state it, and lights the lines that state it. */
+	private follow(id: string | undefined, axioms: TPaneAxioms | undefined): void {
+		const frame = id === undefined || axioms === undefined ? undefined : frameOfNode(axioms, id);
+		if (frame !== undefined) this.#line = frame;
+		this.light(id === undefined ? [] : [id], axioms);
 	}
 
 	/** Lights the lines of `axioms` that state `nodes`. */

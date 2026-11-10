@@ -3,7 +3,7 @@
  * line, the summary of the source's kinds, what the pane states of the reader's line, and the lines that state the reader's
  * active records. A line is a frame of the graph's axioms, which names the records and edges it states by the scene's ids.
  */
-import type { TGraphAxioms, TFrame } from "@haibun/core/lib/records/domains/axioms.js";
+import { FRAME_KIND, type TGraphAxioms, type TFrame } from "@haibun/core/lib/records/domains/axioms.js";
 
 /** An edge the scene draws: its ends and its predicate, by the scene's ids. */
 export type TDrawnEdge = { from: string; predicate: string; to: string };
@@ -48,3 +48,7 @@ export function statusOf(line: TFrame | undefined, lit: ReadonlySet<string>): st
 /** The lines that state the records `nodes` names. */
 export const linesOf = ({ frames }: TGraphAxioms, nodes: readonly string[]): string[] =>
 	frames.filter((frame) => frame.nodes.some((id) => nodes.includes(id))).map(({ name }) => name);
+
+/** The line that states the record `id` itself: its individual frame, or the class frame of a Class record. */
+export const frameOfNode = ({ frames }: TGraphAxioms, id: string): string | undefined =>
+	frames.find(({ kind, name, nodes }) => (kind === FRAME_KIND.individual && nodes[0] === id) || name === `${FRAME_KIND.class} ${id}`)?.name;
