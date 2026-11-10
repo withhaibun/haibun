@@ -152,11 +152,11 @@ export class A11yRenderer implements TGraphRenderer {
 			// The pointer highlights the node of each entry that it enters. A repaint or a reflow moves the entries under a pointer
 			// that stays, and the browser then dispatches pointerover at the same point, so an event at the last point doesn't
 			// highlight the entry that moved there.
-			let at = { x: Number.NaN, y: Number.NaN };
+			let at = "";
 			const moved = (e: MouseEvent): boolean => {
 				const was = at;
-				at = { x: e.clientX, y: e.clientY };
-				return at.x !== was.x || at.y !== was.y;
+				at = `${e.clientX},${e.clientY}`;
+				return at !== was;
 			};
 			region.addEventListener("pointerover", (e) => {
 				const id = idOfEvent(e);

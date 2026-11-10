@@ -4,10 +4,13 @@
  */
 import { html, css, unsafeCSS, nothing, type TemplateResult } from "lit";
 import { property, state } from "lit/decorators.js";
+import { z } from "zod";
 import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { shownOrReported } from "../controllers/artifact-controller.js";
-import { ShuElement, EmptyStateSchema, type TLinkedData } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
+
+export const ArtifactFrameSchema = z.object({ maximized: z.boolean(), closable: z.boolean() });
 
 /**
  * The frame's styles. An expanded frame's content is pinned to the document column's box on screen, which pinToColumn reads,
@@ -39,8 +42,6 @@ const STYLES = `
 :host(.fullscreen) .step-caption:not(:empty) { display: block; position: absolute; left: 50%; bottom: var(--shu-space-5); transform: translateX(-50%); max-width: 90%; z-index: 1; pointer-events: none;
 	background: var(--shu-fg); color: var(--shu-bg); font-weight: 600; font-family: var(--shu-font-family); font-size: var(--shu-font-md);
 	padding: var(--shu-space-2) var(--shu-space-5); border-radius: var(--shu-radius); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fullscreen-btn { background: none; border: none; cursor: pointer; font-size: var(--shu-font-lg); color: var(--shu-fg-faded); padding: 0 var(--shu-space-2); }
-.fullscreen-btn:hover { color: var(--shu-accent); }
 .content { overflow: auto; }
 :host(.fullscreen) .content { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
 ::slotted(img) { display: block; max-width: 100%; cursor: zoom-in; }
@@ -54,7 +55,7 @@ const STYLES = `
 /** A class that marks an expanded frame, which the styles read. */
 const FULLSCREEN = "fullscreen";
 
-export class ShuArtifactFrame extends ShuElement<typeof EmptyStateSchema> {
+export class ShuArtifactFrame extends ShuElement<typeof ArtifactFrameSchema> {
 	/** An artifact is part of the document that shows it, so the frame doesn't contribute to a conversation's context on its own. */
 	summarizeForContext(): TLinkedData | null {
 		return null;
@@ -70,7 +71,15 @@ export class ShuArtifactFrame extends ShuElement<typeof EmptyStateSchema> {
 	private columnResize?: ResizeObserver;
 
 	constructor() {
-		super(EmptyStateSchema);
+		super(ArtifactFrameSchema, { maximized: false, closable: false });
+	}
+
+	protected override onTapMaximize(): void {
+		this.setFullscreen(!this.expanded);
+	}
+
+	protected override onTapClose(): void {
+		if (this.expanded) this.setFullscreen(false);
 	}
 
 	private onKeydown = (e: KeyboardEvent): void => {
@@ -147,6 +156,7 @@ export class ShuArtifactFrame extends ShuElement<typeof EmptyStateSchema> {
 		if (on && !this.expanded) this.style.height = `${this.getBoundingClientRect().height}px`;
 		if (!on) this.style.removeProperty("height");
 		this.expanded = on;
+		this.setState({ maximized: on, closable: on });
 		this.classList.toggle(FULLSCREEN, on);
 		if (on) this.showInTopLayer();
 		else this.leaveTopLayer();
@@ -189,7 +199,7 @@ export class ShuArtifactFrame extends ShuElement<typeof EmptyStateSchema> {
 	};
 
 	render(): TemplateResult {
-		return html`<div class="frame"><div class=${this.caption === "" ? "caption bare" : "caption"}>${this.caption === "" ? nothing : html`<span>${this.caption}</span>`}<button class="fullscreen-btn" title=${this.expanded ? "exit fullscreen (Esc)" : "fullscreen"} @click=${() => this.setFullscreen(!this.expanded)}>${this.expanded ? "\u2923" : "\u2922"}</button></div>
+		return html`<div class="frame"><div class=${this.caption === "" ? "caption bare" : "caption"}>${this.caption === "" ? nothing : html`<span>${this.caption}</span>`}</div>
 			<div class="content" @click=${this.onContentClick}><slot></slot></div>
 			<div class="step-caption">${this.stepText}</div></div>`;
 	}

@@ -33,7 +33,7 @@ import { emptyState } from "./empty-state.js";
 /** Where the thread's graph is placed in the column, and the scope it keeps its settings under, apart from the main graph's. */
 const THREAD_GRAPH = { slot: "thread-graph", scope: "thread" } as const;
 
-const ThreadColumnSchema = z.object({ label: z.string(), individualId: z.string(), mode: z.enum(["tree", "graph"]), depth: z.number() });
+const ThreadColumnSchema = z.object({ label: z.string(), individualId: z.string(), mode: z.enum(["tree", "graph"]), depth: z.number(), showControls: z.boolean() });
 
 type ThreadEdge = { type: string; targetId: string };
 type ThreadVertex = Record<string, unknown> & { _edges?: ThreadEdge[] };
@@ -119,8 +119,10 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		return page === undefined ? [] : page;
 	}
 
+	static persistFields = ["mode", "depth", "showControls"] as const;
+
 	constructor() {
-		super(ThreadColumnSchema, { label: "", individualId: "", mode: "tree", depth: 2 });
+		super(ThreadColumnSchema, { label: "", individualId: "", mode: "tree", depth: 2, showControls: false });
 	}
 
 	protected override onConnected(): void {

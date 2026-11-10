@@ -85,11 +85,11 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		return this.getAttribute("testid-prefix") || "";
 	}
 
-	/** The mode is kept across reloads (ShuElement.persistFields; singleton key). Its pane keeps its height and pin. */
-	static persistFields = ["mode"] as const;
+	/** The mode and showControls are kept across reloads (ShuElement.persistFields; singleton key). Its pane keeps its height and pin. */
+	static persistFields = ["mode", "showControls"] as const;
 
 	constructor() {
-		super(ActionsBarSchema, { mode: "search" });
+		super(ActionsBarSchema, { mode: "search", showControls: false });
 	}
 
 	/** Whether the bar is open: its pane isn't collapsed. */

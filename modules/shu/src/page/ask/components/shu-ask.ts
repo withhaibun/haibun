@@ -134,6 +134,7 @@ const ChatSchema = z.object({
 	model: z.string().optional(),
 	toolLimit: z.number().int().min(TOOL_LIMIT_MIN).max(TOOL_LIMIT_MAX),
 	contextReadBy: ContextReadChoiceSchema,
+	showControls: z.boolean(),
 });
 
 /** Size a text input to the lines it holds. */
@@ -202,8 +203,8 @@ export class ShuAsk extends ShuElement<typeof ChatSchema> {
 	];
 	static schema = ChatSchema;
 	static domainSelector = SHU_TAG.ASK;
-	/** The chat's remembered options; a new visit restores the model, the tool limit and who reads the context. */
-	static persistFields = ["model", "toolLimit", "contextReadBy"] as const;
+	/** The chat's remembered options; a new visit restores the model, the tool limit, who reads the context, and controls visibility. */
+	static persistFields = ["model", "toolLimit", "contextReadBy", "showControls"] as const;
 
 	private _models: TConversationModel[] = [];
 	/** The providers whose models actuality didn't register, and why, as their records state it. */
@@ -249,7 +250,7 @@ export class ShuAsk extends ShuElement<typeof ChatSchema> {
 	constructor() {
 		// A deployment sets the tool limit an ask starts with, and a limit the reader chose is remembered over it.
 		const deployed = deploymentAskToolLimit();
-		super(ChatSchema, { toolLimit: deployed === undefined ? STANDING_TOOL_LIMIT : deployed, contextReadBy: AS_MODEL_STATES });
+		super(ChatSchema, { toolLimit: deployed === undefined ? STANDING_TOOL_LIMIT : deployed, contextReadBy: AS_MODEL_STATES, showControls: false });
 	}
 
 	protected override onConnected(): void {

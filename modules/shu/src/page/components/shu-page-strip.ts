@@ -5,9 +5,10 @@
  * and the settings.
  */
 import { html, type CSSResultGroup, type TemplateResult } from "lit";
+import { z } from "zod";
 import type { AccessQueryLevel } from "@haibun/core/lib/domains/resources.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
-import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { PageStripCorners } from "./page-strip-corners.js";
 import { FootprintController } from "./footprint.js";
 import { loadSlotExtensions } from "./slot-extensions.js";
@@ -24,7 +25,9 @@ import { appAccessLevel } from "../controllers/view-query-controller.js";
 import "./shu-breadcrumb.js";
 import "./shu-combobox.js";
 
-export class ShuPageStrip extends ShuElement<typeof EmptyStateSchema> {
+export const PageStripSchema = z.object({ showControls: z.boolean() });
+
+export class ShuPageStrip extends ShuElement<typeof PageStripSchema> {
 	/** The page's time cursor, which the strip's corners show. */
 	readonly #timeline = new TimelineViewController(this, { onMove: (cursor) => this.#corners.showTime(cursor) });
 	/** A control doesn't contribute to a conversation's context, since it isn't a view of data. */
@@ -32,8 +35,9 @@ export class ShuPageStrip extends ShuElement<typeof EmptyStateSchema> {
 		return null;
 	}
 
-	static schema = EmptyStateSchema;
+	static schema = PageStripSchema;
 	static domainSelector = SHU_TAG.PAGE_STRIP;
+	static persistFields = ["showControls"] as const;
 	static observedHtmlAttributes = ["api-base", "testid-prefix"];
 
 	static get styles(): CSSResultGroup {
@@ -63,7 +67,24 @@ export class ShuPageStrip extends ShuElement<typeof EmptyStateSchema> {
 	#footprint = new FootprintController(this, PAGE_STRIP_FOOTPRINT, () => this.offsetHeight);
 
 	constructor() {
-		super(EmptyStateSchema);
+		super(PageStripSchema, { showControls: false });
+	}
+
+	protected override onTapSettings(): void {
+		super.onTapSettings();
+		if (this.showControls) {
+			this.#corners.openSettings();
+		} else {
+			this.#corners.close();
+		}
+	}
+
+	protected override onAttributeChanged(name: string, oldValue: string | null, newValue: string | null): void {
+		super.onAttributeChanged(name, oldValue, newValue);
+		if (name === SHU_ATTR.SHOW_CONTROLS) {
+			if (this.showControls) this.#corners.openSettings();
+			else this.#corners.close();
+		}
 	}
 
 	private get testIdPrefix(): string {

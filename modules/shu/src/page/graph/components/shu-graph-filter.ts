@@ -50,10 +50,11 @@ const StateSchema = z.object({
 	// A predicate absent here is shown; only deliberate choices are stored, exactly as with the type overrides.
 	predicateOverrides: z.record(z.string(), z.boolean()),
 	perTypeLimit: z.number().int().positive(),
+	showControls: z.boolean(),
 });
 
 /** The filter's state before a reader chooses: every type and predicate follows its default, at the default sample limit (CA4D7). */
-const FILTER_INITIAL_STATE: z.input<typeof StateSchema> = { overrides: {}, predicateOverrides: {}, perTypeLimit: DEFAULT_PER_TYPE_LIMIT };
+const FILTER_INITIAL_STATE: z.input<typeof StateSchema> = { overrides: {}, predicateOverrides: {}, perTypeLimit: DEFAULT_PER_TYPE_LIMIT, showControls: false };
 
 /** The persistence scope of the main graph's choices, which every host without its own `data-persist-scope` shares. */
 export const MAIN_GRAPH_SCOPE = "";
@@ -79,7 +80,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		css`
 			:host { display: block; padding: var(--shu-space-2) var(--shu-space-4); font-size: var(--shu-font-md); background: var(--shu-bg); }
 			:host { border-bottom: var(--shu-border-w) solid var(--shu-border); }
-			:host(:not([show-controls])) { display: none; }
+			:host(:not([data-show-controls])) { display: none; }
 			.row { display: flex; gap: var(--shu-space-3); align-items: center; flex-wrap: wrap; }
 			${unsafeCSS(shuRowSeparated(".row"))}
 			.row.view-settings { margin-top: var(--shu-space-2); padding-top: var(--shu-space-2); border-top: var(--shu-border-w) solid var(--shu-border); }

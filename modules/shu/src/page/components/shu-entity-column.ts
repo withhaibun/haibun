@@ -12,7 +12,6 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT, ANNOTATION_GLYPH, PRODUCTS_LABEL, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/elements.js";
 import { defineElement, loadedOnFirstUse } from "../controllers/element-controller.js";
 import { MarkdownRendererController } from "../controllers/markdown-renderer-controller.js";
-import { copyText } from "../controllers/clipboard-controller.js";
 import { LinkRelations, isReplyEdge, type TAnnotationView, type TPart, type TQuoteAnchor } from "@haibun/core/lib/domains/resources.js";
 import { EntityColumnSchema } from "../../domains/schemas.js";
 import { anIndividual, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
@@ -63,9 +62,6 @@ import { recordSteps } from "../controllers/registry-controller.js";
 import { normalizeStepKey } from "../derivations/steps.js";
 import "./shu-record-steps.js";
 
-/** The name of the delay after which the copy button reads Copy again. */
-const COPY_RESULT = "copy-result";
-
 type VertexData = Record<string, unknown>;
 type EdgeData = { type: string; target: VertexData; direction?: "out" | "in" };
 
@@ -90,14 +86,6 @@ export function foldedTargets(targets: readonly string[]): string {
 	const rest = targets.slice(TARGETS_FOLD_AT);
 	return `${targets.slice(0, TARGETS_FOLD_AT).join(", ")}<details class="ref-more"><summary class="ref-more-count">${rest.length} more</summary>${rest.join(", ")}</details>`;
 }
-
-/** The body toolbar's copy control, the same markup on every render, so the body frame beside it isn't rebuilt. A click
- *  copies the body the column shows. */
-const COPY = "\u{1f4cb}";
-const COPIED = "\u2705";
-const NOT_COPIED = "\u274c";
-const COPY_RESULT_SHOWN_MS = 1500;
-const COPY_BODY_BUTTON = `<button class="copy-btn" title="Copy to clipboard">${COPY}</button>`;
 
 export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	/** The instant the column shows. A record after it dims. */
@@ -170,7 +158,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		`,
 	];
 	/** The showAnnotations toggle is kept per column across reloads, like every persisted view option. */
-	static persistFields = ["showAnnotations"] as const;
+	static persistFields = ["showAnnotations", "showControls"] as const;
 
 	private vertex: VertexData | null = null;
 	private edges: EdgeData[] = [];
@@ -222,7 +210,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	private readonly entity = new EntityController(this, (view) => this.applyView(view));
 
 	constructor() {
-		super(EntityColumnSchema, { individualId: "", persistedAs: "", loading: false, showAnnotations: true, annotateMode: false });
+		super(EntityColumnSchema, { individualId: "", persistedAs: "", loading: false, showAnnotations: true, annotateMode: false, showControls: false });
 	}
 
 	/** Whether the record's valid time is after the instant this column shows, so it renders dimmed (CA4D11). A record
@@ -391,8 +379,9 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			const detailRows = detailEntries
 				.map(([k, v]) => {
 					if (this.isTypeField(k)) return this.typeRow(k, v);
+					const rawVal = Array.isArray(v) ? v.join(", ") : v === null || v === undefined ? "" : String(v);
 					const valueHtml = Array.isArray(v) ? v.map((item) => this.formatFieldValue(item, k)).join(", ") : this.formatFieldValue(v, k);
-					return `<tr><td class="field-name">${this.predicateLink(k)}${this.vocabBadge(k)}</td><td data-testid="entity-field-${escAttr(k)}">${valueHtml}</td></tr>`;
+					return `<tr><td class="field-name">${this.predicateLink(k)}${this.vocabBadge(k)}</td><td data-testid="entity-field-${escAttr(k)}" data-copy="${escAttr(rawVal)}">${valueHtml}</td></tr>`;
 				})
 				.join("");
 			const detailTable = detailRows ? `<table class="detail-table fields-table" data-testid="entity-fields">${detailRows}</table>` : "";
@@ -407,8 +396,11 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 							.flatMap((k) => {
 								const v = fields[k];
 								if (!v || (Array.isArray(v) && v.length === 0)) return [];
+								const rawVal = Array.isArray(v) ? v.join(", ") : v === null || v === undefined ? "" : String(v);
 								const valueHtml = Array.isArray(v) ? v.map((item) => this.fieldValueHtml(item, k)).join(", ") : this.fieldValueHtml(v, k);
-								return [`<span class="summary-field" data-testid="entity-field-${escAttr(k)}">${this.predicateLink(k)}${this.vocabBadge(k)} ${valueHtml}</span>`];
+								return [
+									`<span class="summary-field" data-testid="entity-field-${escAttr(k)}" data-copy="${escAttr(rawVal)}">${this.predicateLink(k)}${this.vocabBadge(k)} ${valueHtml}</span>`,
+								];
 							})
 							.join(" ")}</div>`
 					: "";
@@ -614,13 +606,13 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const iframeHtml = `<iframe class="body-iframe${invertible}" data-reading="${escAttr(active.key)}" sandbox="allow-same-origin allow-top-navigation-by-user-activation" src="data:text/html;base64,${encoded}" data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_IFRAME}"></iframe>`;
 
 		const annotateBtn = this.annotatableBody() ? this.annotateButtonHtml(false) : "";
-		const toolbar = `<div class="content-toolbar">${switcherHtml}${COPY_BODY_BUTTON}${annotateBtn}</div>`;
+		const toolbar = `<div class="content-toolbar">${switcherHtml}${annotateBtn}</div>`;
 		// References don't work inside the sandbox, so the ones the body makes are listed beside it.
 		const refs = refsInContent(content, refContext);
 		const refsHtml = refs.length
 			? `<div class="body-refs" data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_REFS}">${refs.map(({ ref, text }) => renderRef(ref, text)).join(", ")}</div>`
 			: "";
-		const body = `<div class="body-container">${toolbar}${iframeHtml}${refsHtml}</div>`;
+		const body = `<div class="body-container" data-copy="${escAttr(raw)}">${toolbar}${iframeHtml}${refsHtml}</div>`;
 		// A JSON body is a document's data, as a signed capability is, so it starts closed as the record's Data does.
 		return isJsonMedia(active.media) ? disclosure(SHU_TEST_IDS.COLUMN_BROWSER.BODY_DOCUMENT, "Document", body, false) : body;
 	}
@@ -677,7 +669,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		if (showInline && annBody) {
 			void annotatedBody();
 			return html`<div class="content-toolbar">
-					${unsafeHTML(COPY_BODY_BUTTON)}${unsafeHTML(this.annotateButtonHtml(true))}
+					${unsafeHTML(this.annotateButtonHtml(true))}
 				</div>
 				<shu-annotated-body
 					data-testid=${SHU_TEST_IDS.COLUMN_BROWSER.ANNOTATED_BODY}
@@ -827,23 +819,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const target = e.target as Element | null;
 		const switchBtn = target?.closest(".content-switch-btn") as HTMLElement | null;
 		if (switchBtn) this.switchBody(switchBtn);
-		const copyBtn = target?.closest(".copy-btn") as HTMLElement | null;
-		if (copyBtn) void this.copyShownBody(copyBtn);
 	};
-
-	/** Copy the text of the body the column shows, and state on the button whether the copy succeeded. */
-	private async copyShownBody(btn: HTMLElement): Promise<void> {
-		const shown = this.shownReading();
-		const text = shown === undefined ? undefined : this.textOf(shown);
-		if (!text) return;
-		const ok = await copyText(text);
-		btn.classList.toggle("copied", ok);
-		btn.textContent = ok ? COPIED : NOT_COPIED;
-		this.#clock.trailing(COPY_RESULT, COPY_RESULT_SHOWN_MS, () => {
-			btn.classList.remove("copied");
-			btn.textContent = COPY;
-		});
-	}
 
 	readonly #clock = new ClockController(this);
 

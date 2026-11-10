@@ -21,7 +21,6 @@ import { LoadController } from "../controllers/load-controller.js";
 import type { TCallOutcome } from "../pipelines/call-step.js";
 import { actionRef, recordRef, stepRef } from "./shu-ref.js";
 import { loadRenders } from "./load-renders.js";
-import "./shu-copy-button.js";
 
 const StateSchema = z.object({ action: ActionSchema.or(z.literal("")) });
 
@@ -34,8 +33,7 @@ type TAllows = ({ allowed: TStepDefinition[] } | { requiring: TStepDefinition[] 
 /** Who holds an action here: this page's key, with the delegation of the action to it where the page may read it, or, where the
  *  key doesn't hold it, a control that copies the action to request from a key that delegates it. */
 export function holderTpl(action: TAction, { holds, delegation }: THolder): TemplateResult {
-	if (!holds)
-		return html`<p data-testid=${IDS.HOLDS}>This page's key doesn't hold ${actionRef(action)}. Request it from a key that delegates it. <shu-copy-button label="copy the action" title="copy the action to request" .source=${action}></shu-copy-button></p>`;
+	if (!holds) return html`<p data-testid=${IDS.HOLDS} data-copy=${action}>This page's key doesn't hold ${actionRef(action)}. Request it from a key that delegates it.</p>`;
 	if (delegation === undefined) return html`<p data-testid=${IDS.HOLDS}>This page's key holds ${actionRef(action)}.</p>`;
 	return html`<p data-testid=${IDS.HOLDS}>This page's key holds ${actionRef(action)}, delegated by ${recordRef(delegation, "its delegation")}.</p>`;
 }

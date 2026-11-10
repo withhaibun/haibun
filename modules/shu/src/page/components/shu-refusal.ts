@@ -16,7 +16,6 @@ import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js
 import { refHref } from "./ref-navigation.js";
 import { whyTpl } from "./why.js";
 import { shuBaseStyles } from "./styles.js";
-import "./shu-copy-button.js";
 
 /** What a reload reads again, as its control states it. */
 const RELOAD_SAID = { client: "Reload the page", actuality: "Read actuality again", authority: "Read the authority again" } as const;
@@ -55,9 +54,7 @@ export class ShuRefusal extends ShuElement<typeof EmptyStateSchema> {
 			if (readAgain === undefined) throw new Error("<shu-refusal> offers a read again, and isn't given the read");
 			return html`<button type="button" data-testid=${id} @click=${() => readAgain()}>Read again</button>`;
 		}
-		if (remedy.do === "request")
-			return html`<span data-testid=${id}>Request ${remedy.action} from a key that delegates it</span>
-				<shu-copy-button label="copy the action" title="copy the action to request" .source=${remedy.action}></shu-copy-button>`;
+		if (remedy.do === "request") return html`<span data-testid=${id} data-copy=${remedy.action}>Request ${remedy.action} from a key that delegates it</span>`;
 		const ref = refOf(remedy.ref.kind, remedy.ref.target);
 		if (ref === undefined) throw new Error(`<shu-refusal> opens a reference of the kind ${remedy.ref.kind}, which doesn't name its target`);
 		return html`<a href=${refHref(ref) ?? nothing} data-testid=${id}>Open ${refLabel(ref)}</a>`;
@@ -67,8 +64,7 @@ export class ShuRefusal extends ShuElement<typeof EmptyStateSchema> {
 		const { refusal } = this;
 		if (refusal === undefined) throw new Error("<shu-refusal> renders before it is given a refusal");
 		return html`<div class="refusal" role="alert" data-testid=${SHU_TEST_IDS.REFUSAL.ROOT}>
-			<span data-testid=${SHU_TEST_IDS.REFUSAL.CAUSE}>${refusal.error}</span>
-			<shu-copy-button label="copy" title="copy this message" .source=${refusal.error}></shu-copy-button>
+			<span data-testid=${SHU_TEST_IDS.REFUSAL.CAUSE} data-copy=${refusal.error}>${refusal.error}</span>
 			${refusal.remedy === undefined ? nothing : this.remedyControl(refusal.remedy)}
 			${refusal.step === undefined ? nothing : whyTpl(refusal.step)}
 		</div>`;

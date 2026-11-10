@@ -41,6 +41,7 @@ const MonitorColumnSchema = z.object({
 	/** Whether the steps run to carry other steps out are shown. They report under the steps a reader wrote, so a
 	 *  reader reading what a feature did is not shown them, and a reader asking how it was done is. */
 	substeps: z.boolean(),
+	showControls: z.boolean(),
 });
 
 /**
@@ -211,10 +212,10 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	@property({ attribute: false }) accessor rows: TLogRow[] = [];
 
 	/** The reader's own choice of what to show, kept across reloads. */
-	static persistFields = ["level", "substeps"] as const;
+	static persistFields = ["level", "substeps", "showControls"] as const;
 
 	constructor() {
-		super(MonitorColumnSchema, { level: "info", tail: true, substeps: false });
+		super(MonitorColumnSchema, { level: "info", tail: true, substeps: false, showControls: false });
 	}
 
 	protected override onConnected(): void {

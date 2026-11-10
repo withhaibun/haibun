@@ -12,7 +12,8 @@ import { html, type TemplateResult } from "lit";
 import { ifDefined } from "lit/directives/if-defined.js";
 import { DOCK_FOOTPRINT, INDEX_PANE_KEY, SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { ShuElement, EmptyStateSchema, type TLinkedData } from "./shu-element.js";
+import { ShuElement, EmptyStateSchema, findTapTarget, type TLinkedData } from "./shu-element.js";
+import { getPageClipboard, getPageTapAction, TAP_ACTION_EVENT, type TTapActionState } from "../controllers/tap-action-controller.js";
 import { defineElement, loadComponent } from "../controllers/element-controller.js";
 import { activePane, pageContext, stripPanes, timeCursor } from "../controllers/page-cell-controller.js";
 import { paneOpsFor } from "../derivations/affordances.js";
@@ -98,6 +99,24 @@ export class ShuPage extends ShuElement<typeof EmptyStateSchema> {
 	/** Returns the strip's element for the active pane. */
 	#activePaneElement = (): HTMLElement | undefined => this.#strip().panes.find((p) => (p.dataset.columnKey ?? p.getAttribute(SHU_ATTR.COLUMN_TYPE)) === activePane.get());
 
+	#activeTapElement: HTMLElement | null = null;
+
+	#clearActiveTapElement(): void {
+		if (this.#activeTapElement) {
+			this.#activeTapElement.removeAttribute(SHU_ATTR.TAP_ACTIVE);
+			this.#activeTapElement = null;
+		}
+	}
+
+	#setActiveTapElement(el: HTMLElement | null): void {
+		if (this.#activeTapElement === el) return;
+		this.#clearActiveTapElement();
+		if (el) {
+			el.setAttribute(SHU_ATTR.TAP_ACTIVE, "");
+			this.#activeTapElement = el;
+		}
+	}
+
 	/** Dispatches the page scope's entry from the active pane. A move to a pane that shows a subject activates the subject, and
 	 *  a change of columns updates the entry to the active pane's subject. A pane that doesn't show a subject doesn't activate
 	 *  one, so a move to a log beside a conversation keeps the active record. */
@@ -121,6 +140,57 @@ export class ShuPage extends ShuElement<typeof EmptyStateSchema> {
 			style.textContent = LAYOUT_STYLE;
 			document.head.appendChild(style);
 		}
+		this.watchSignal(getPageTapAction().state, (action: TTapActionState) => {
+			if (!action) {
+				this.#clearActiveTapElement();
+				this.removeAttribute(SHU_ATTR.TAP_ACTION);
+			} else {
+				this.setAttribute(SHU_ATTR.TAP_ACTION, action);
+			}
+		});
+		const onPointer = (e: Event): void => {
+			const action = getPageTapAction().state.get();
+			if (!action) return;
+			const target = findTapTarget(e.composedPath(), action);
+			this.#setActiveTapElement(target);
+		};
+		this.autoListen(window, "pointermove", onPointer, { capture: true, passive: true });
+		this.autoListen(window, "pointerover", onPointer, { capture: true, passive: true });
+		this.autoListen(
+			window,
+			"click",
+			((e: MouseEvent) => {
+				const action = getPageTapAction().state.get();
+				if (!action) return;
+				const path = e.composedPath();
+				for (const node of path) {
+					if (node instanceof HTMLElement && (node.dataset.testid === SHU_TEST_IDS.TAP_ACTIONS.TOOLBAR || node.dataset.testid?.startsWith("tap-action-"))) {
+						return;
+					}
+				}
+				e.preventDefault();
+				e.stopPropagation();
+				e.stopImmediatePropagation();
+				const target = findTapTarget(path, action);
+				this.#clearActiveTapElement();
+				getPageTapAction().dispatch({ type: TAP_ACTION_EVENT.CLEAR });
+				if (target) {
+					if (action === "copy" && target.hasAttribute(SHU_ATTR.DATA_COPY)) {
+						const text = target.getAttribute(SHU_ATTR.DATA_COPY);
+						if (text !== null && text !== "") void getPageClipboard().copy(text);
+					} else if (target instanceof ShuElement) {
+						target.applyTapAction(action);
+					}
+				}
+			}) as EventListener,
+			{ capture: true },
+		);
+		this.autoListen(window, "keydown", ((e: KeyboardEvent) => {
+			if (e.key === "Escape" && getPageTapAction().state.get() !== null) {
+				this.#clearActiveTapElement();
+				getPageTapAction().dispatch({ type: TAP_ACTION_EVENT.CLEAR });
+			}
+		}) as EventListener);
 		// Each listener ends with the page: a pane opened, closed or followed, a context a view states, a filter, a restored
 		// search, a move of the time cursor and of the active pane.
 		this.autoListen(this, SHU_EVENT.PANE_DISMISS, ((e: CustomEvent) => {

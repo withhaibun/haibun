@@ -40,7 +40,7 @@ import { renderRefBody } from "../derivations/markdown-render.js";
 import { unavailableState } from "./empty-state.js";
 import { actualityUnavailable } from "./actuality-states.js";
 
-const DocumentColumnSchema = z.object({ level: z.enum(HAIBUN_LOG_LEVELS) });
+const DocumentColumnSchema = z.object({ level: z.enum(HAIBUN_LOG_LEVELS), showControls: z.boolean() });
 
 const SANITIZE_OPTS = {
 	// `kind`/`linktarget`/`text` carry the shu-ref reference (a `#Type` link the refLinksPlugin rewrote); DOMPurify
@@ -156,8 +156,10 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		`,
 	];
 
+	static persistFields = ["level", "showControls"] as const;
+
 	constructor() {
-		super(DocumentColumnSchema, { level: "log" });
+		super(DocumentColumnSchema, { level: "log", showControls: false });
 	}
 
 	/** When actuality began, as actuality's source holds it: the epoch from which every row's raw time is measured. */

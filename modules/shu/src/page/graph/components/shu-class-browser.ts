@@ -49,10 +49,11 @@ const BrowserStateSchema = z.object({
 	/** Which view: `type` = the focus type's own schema graph; `all` = every class and property; `context` = the focus
 	 *  type's JSON-LD @context (dereferenced from the served context document, the standard way a context is fetched). */
 	viewMode: z.enum(MODES),
+	showControls: z.boolean(),
 });
 
 /** The browser before a reader picks a view: the focus type's own schema graph (CA4D7). */
-const BROWSER_INITIAL_STATE: z.input<typeof BrowserStateSchema> = { ...clusteredGraphInitialState, viewMode: "type" };
+const BROWSER_INITIAL_STATE: z.input<typeof BrowserStateSchema> = { ...clusteredGraphInitialState, viewMode: "type", showControls: false };
 const MODE_LABELS: Record<ViewMode, string> = { type: "type only", connected: "connected", all: "all types", context: "vocabulary", individuals: "individuals" };
 type VertexData = Record<string, unknown>;
 
@@ -78,7 +79,7 @@ const BROWSER_CSS = `
 
 class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 	/** The chosen view mode persists across reloads, like every persisted view option. */
-	static persistFields = ["viewMode"] as const;
+	static persistFields = ["viewMode", "showControls"] as const;
 
 	/** The schema as the scene states it, in the order a reader is reading it. The copy button keeps every statement. */
 	summarizeForContext(): TLinkedData | null {
@@ -188,15 +189,13 @@ class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 							? html``
 							: viewActions({
 									fitId: SHU_TEST_IDS.CLASS_BROWSER.FIT,
-									copyId: SHU_TEST_IDS.CLASS_BROWSER.COPY_GRAPH,
 									onFit: () => this.scene?.fitGraph(),
-									getCopyText: () => this.mountedScene.graphCopyText(),
 									rotate: { xyId: SHU_TEST_IDS.CLASS_BROWSER.ROTATE_XY, zId: SHU_TEST_IDS.CLASS_BROWSER.ROTATE_Z, onRotate: (aim) => this.scene?.rotateTo(aim) },
 								})
 					}
 				</div>
 			</div>
-			<shu-graph-filter class=${graphHidden ? "hidden" : ""} data-schema-only data-persist-scope=${FILTER_SCOPE}></shu-graph-filter>
+			<shu-graph-filter class=${graphHidden ? "hidden" : ""} ?data-show-controls=${this.showControls} data-schema-only data-persist-scope=${FILTER_SCOPE}></shu-graph-filter>
 			<!-- The scene is mounted only on a graph tab (not CSS-hidden) so its render loop never runs on a text tab. -->
 			${!graphHidden ? html`<div class="graph-area"><shu-graph-scene></shu-graph-scene></div>` : ""}
 			${mode === "context" ? html`<div class="context-view" data-testid=${SHU_TEST_IDS.CLASS_BROWSER.CONTEXT_VIEW}>${this.contextHtml === null ? "Loading context…" : unsafeHTML(this.contextHtml)}</div>` : ""}
@@ -213,14 +212,8 @@ class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 		</div>`;
 	}
 
-	/** The filter row shows only while the column's view-settings toggle (the pane gear, data-show-controls) is on:
-	 *  the same gate every view's filter uses. The scene is only in the DOM on a graph tab; configure it on each mount. */
+	/** The scene is only in the DOM on a graph tab; configure it on each mount. */
 	protected updated(): void {
-		const f = this.filterEl;
-		if (f) {
-			if (this.showControls) f.setAttribute("show-controls", "");
-			else f.removeAttribute("show-controls");
-		}
 		const scene = this.scene;
 		if (!scene) {
 			this.configuredSceneEl = null;

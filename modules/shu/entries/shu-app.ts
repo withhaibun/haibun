@@ -24,7 +24,6 @@ import "../src/page/components/shu-index-summary.js";
 import "../src/page/components/shu-playback.js";
 import "../src/page/components/shu-product-view.js";
 import "../src/page/components/shu-views-picker.js";
-import "../src/page/components/shu-copy-button.js";
 import "../src/page/components/shu-ref-element.js";
 import "../src/page/components/shu-theme-switch.js";
 import { readAction } from "@haibun/core/lib/domains/actions.js";

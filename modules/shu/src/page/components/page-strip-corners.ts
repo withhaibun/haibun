@@ -17,9 +17,21 @@ import { reportToRun } from "../controllers/client-log-controller.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { refOf, type TRef } from "../derivations/markdown.js";
 import { requestPane, showsPane } from "../controllers/pane-controller.js";
+import { type TTapAction } from "../../domains/elements.js";
+import { SHU_TEST_IDS } from "../../domains/test-ids.js";
+import { getPageTapAction, TAP_ACTION_EVENT } from "../controllers/tap-action-controller.js";
 import "./shu-theme-switch.js";
 import "./shu-playback.js";
-import "./shu-copy-button.js";
+
+const TAP_ACTION_BUTTONS: ReadonlyArray<{ action: TTapAction; icon: string; label: string; testId: string }> = [
+	{ action: "close", icon: "×", label: "Close", testId: SHU_TEST_IDS.TAP_ACTIONS.CLOSE },
+	{ action: "minimize", icon: "―", label: "Minimize", testId: SHU_TEST_IDS.TAP_ACTIONS.MINIMIZE },
+	{ action: "maximize", icon: "⤢", label: "Maximize", testId: SHU_TEST_IDS.TAP_ACTIONS.MAXIMIZE },
+	{ action: "settings", icon: "⚙", label: "Settings", testId: SHU_TEST_IDS.TAP_ACTIONS.SETTINGS },
+	{ action: "pin", icon: "📌", label: "Pin", testId: SHU_TEST_IDS.TAP_ACTIONS.PIN },
+	{ action: "position", icon: "⤓", label: "Position", testId: SHU_TEST_IDS.TAP_ACTIONS.POSITION },
+	{ action: "copy", icon: "⧉", label: "Copy", testId: SHU_TEST_IDS.TAP_ACTIONS.COPY },
+];
 
 export const CORNERS = ["settings", "playback", "access", "status"] as const;
 type TCorner = (typeof CORNERS)[number];
@@ -89,6 +101,7 @@ export class PageStripCorners implements ReactiveController {
 	#summary: TPermissionsSummary = { holds: 0, principals: 0 };
 	#awaiting: TAwaiting = { count: 0, ref: null };
 	#timeOffset = "now";
+	#unsubTapAction?: () => void;
 
 	constructor(host: TControllerHost, deps: TPageStripCornersDeps) {
 		this.#host = host;
@@ -98,6 +111,7 @@ export class PageStripCorners implements ReactiveController {
 	}
 
 	hostConnected(): void {
+		this.#unsubTapAction = getPageTapAction().state.subscribe(() => this.#host.requestUpdate());
 		document.addEventListener("click", this.#onDocumentClick, true);
 		// An extension in the permissions area reports what awaits from anywhere in the page, so the mark shows before the
 		// popover has been opened.
@@ -112,6 +126,7 @@ export class PageStripCorners implements ReactiveController {
 	}
 
 	hostDisconnected(): void {
+		this.#unsubTapAction?.();
 		document.removeEventListener("click", this.#onDocumentClick, true);
 		document.removeEventListener(AWAITING_DECISION, this.#onAwaiting);
 		this.#host.removeEventListener(PERMISSIONS_SUMMARY, this.#onSummary);
@@ -174,7 +189,7 @@ export class PageStripCorners implements ReactiveController {
 				: this.#open === "playback"
 					? html`<shu-playback></shu-playback>`
 					: this.#open === "status"
-						? html`<p class="status-full">${this.#status}<shu-copy-button label="copy" title="copy this message" .source=${this.#status}></shu-copy-button></p>`
+						? html`<p class="status-full" data-copy=${this.#status}>${this.#status}</p>`
 						: this.#open === "access"
 							? html`<shu-permissions
 								data-testid=${`${prefix}permissions`}
@@ -209,18 +224,43 @@ export class PageStripCorners implements ReactiveController {
 		const level = this.#deps.readLevel();
 		const { holds, principals } = this.#summary;
 		const awaiting = this.#awaiting.count;
+		const primed = getPageTapAction().state.get();
 		return html`<span class="corner-controls">
 			<button class="pane-icon corner-toggle access-indicator ${awaiting > 0 ? "awaiting" : ""}" aria-label="Access level" aria-expanded=${this.#open === "access"}
 				title=${`read access ${level}; ${holds} actions held, ${principals} principals${awaiting > 0 ? `; ${awaiting} awaiting your decision` : ""}`}
 				data-testid=${`${prefix}access-indicator`} @click=${this.toggle("access")}>${level}
 				+${holds}+${principals}${awaiting > 0 ? html`<span class="awaiting-count" title=${`${awaiting} awaiting your decision`}>${awaiting}</span>` : nothing}</button>
 
-			<button class="pane-icon settings-button" aria-label="Settings" aria-expanded=${this.#open === "settings"} data-testid=${`${prefix}settings-button`}
-				@click=${this.toggle("settings")}>⚙</button>
 			<button class="pane-icon corner-toggle time-offset" aria-label="Open the log" aria-expanded=${this.#open === "playback"}
 				title="where actuality is; opens the log, whose rail is where you move it from"
 				data-testid=${`${prefix}time-offset`} @click=${this.onTimeOffsetClick}>${this.#timeOffset}</button>
+
+			<span class="tap-actions-toolbar" data-testid=${SHU_TEST_IDS.TAP_ACTIONS.TOOLBAR}>
+				${TAP_ACTION_BUTTONS.map(
+					({ action, icon, label, testId }) => html`<button
+						class="pane-icon tap-action-btn"
+						aria-label=${label}
+						title=${label}
+						aria-pressed=${primed === action ? "true" : "false"}
+						data-testid=${testId}
+						@click=${(e: Event) => {
+							e.stopPropagation();
+							getPageTapAction().dispatch({ type: TAP_ACTION_EVENT.TOGGLE, action });
+						}}
+					>${icon}</button>`,
+				)}
+			</span>
 		</span>`;
+	}
+
+	openSettings(): void {
+		if (this.#open === "settings") return;
+		this.#open = "settings";
+		this.#host.requestUpdate();
+		void this.#host.updateComplete.then(() => {
+			const btn = this.#host.renderRoot.querySelector<HTMLElement>(`[data-testid="${SHU_TEST_IDS.TAP_ACTIONS.SETTINGS}"]`);
+			if (btn) this.#show(btn);
+		});
 	}
 
 	#setSummary(summary: TPermissionsSummary): void {

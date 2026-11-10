@@ -49,6 +49,7 @@ const STYLES = css`
 		display: inline-flex; align-items: stretch; gap: var(--shu-space-1); flex-shrink: 0;
 		align-self: stretch; margin: calc(-1 * var(--shu-space-2)) 0;
 	}
+	.tap-actions-toolbar { display: inline-flex; align-items: stretch; gap: var(--shu-space-1); }
 	.corner-controls .pane-icon { height: auto; }
 	.corner-controls .corner-toggle { width: auto; padding: 0 var(--shu-space-2); }
 	.access-indicator, .time-offset { font-size: var(--shu-font-xs); flex-shrink: 0; }

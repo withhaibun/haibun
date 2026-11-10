@@ -45,7 +45,6 @@ import { ClockController } from "../controllers/clock-controller.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { typeShownIn } from "../controllers/catalog-controller.js";
 import "./shu-spinner.js";
-import "./shu-copy-button.js";
 import { ShuDomainChainView } from "./shu-domain-chain-view.js";
 import { SHOW_APPLICABLE_STEPS_METHOD } from "../domains/leads-on.js";
 import { emptyState } from "./empty-state.js";
@@ -488,7 +487,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 			${
 				shown && waypoints.length > 0
 					? html`
-				<div class="section-header"><h3>Waypoints (${waypoints.length})</h3><shu-copy-button data-copy-id="waypoints" label="Copy" title="Copy Waypoints JSON to clipboard" .source=${waypointsCopySource}></shu-copy-button></div>
+				<div class="section-header" data-copy=${waypointsCopySource}><h3>Waypoints (${waypoints.length})</h3></div>
 				<div data-testid="affordances-waypoints">${waypoints.map((w) => this.renderWaypointEntryTpl(w))}</div>
 			`
 					: ""
@@ -496,7 +495,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 			${
 				shown
 					? html`
-				<div class="section-header"><h3>Goals (${goals.length})</h3><shu-copy-button data-copy-id="goals" label="Copy" title="Copy Goals JSON to clipboard" .source=${goalsCopySource}></shu-copy-button></div>
+				<div class="section-header" data-copy=${goalsCopySource}><h3>Goals (${goals.length})</h3></div>
 				<div data-testid="affordances-goals">${goals.length === 0 ? emptyState({ message: "A goal-producing step isn't loaded.", next: html`The steps actuality declares: ${stepRef(SHOW_STEPS_METHOD)}.` }) : goals.map((g, idx) => this.renderGoalTpl(g, idx, openGoal))}</div>
 			`
 					: ""

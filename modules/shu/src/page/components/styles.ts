@@ -160,6 +160,19 @@ ${LIGHT_PALETTE}
 			--shu-font-md: calc(14px * var(--shu-scale));
 		}
 	}
+
+	[data-tap-target],
+	[data-tap-action="copy"] [data-copy]:not([data-copy=""]) {
+		outline: 1px dashed var(--shu-accent);
+		outline-offset: -2px;
+		cursor: crosshair;
+	}
+	[data-tap-active] {
+		outline: 2px solid var(--shu-accent);
+		outline-offset: -2px;
+		background-color: color-mix(in oklch, var(--shu-accent) 10%, transparent);
+		cursor: crosshair;
+	}
 `;
 
 /** Base reset + element defaults reused by every shu component. Tokens must be in scope (i.e. `${SHU_TOKENS}` precedes this in the template). */
@@ -204,8 +217,20 @@ export const SHU_BASE = `
 	.col-link:hover { text-decoration: underline; }
 	.pred-link { color: var(--shu-pred); cursor: pointer; font-style: italic; }
 	.pred-link:hover { text-decoration: underline; }
-	.copy-btn { background: none; border: none; padding: 0 var(--shu-space-1); font-size: var(--shu-font-lg); cursor: pointer; opacity: 0.6; color: var(--shu-fg-muted); }
-	.copy-btn:hover, .copy-btn.copied { opacity: 1; }
+	:host([data-tap-target]),
+	[data-tap-target],
+	:host([data-tap-action="copy"]) [data-copy]:not([data-copy=""]) {
+		outline: 1px dashed var(--shu-accent);
+		outline-offset: -2px;
+		cursor: crosshair;
+	}
+	:host([data-tap-active]),
+	[data-tap-active] {
+		outline: 2px solid var(--shu-accent);
+		outline-offset: -2px;
+		background-color: color-mix(in oklch, var(--shu-accent) 10%, transparent);
+		cursor: crosshair;
+	}
 	code { font-family: var(--shu-font-family); background: var(--shu-bg-elevated); padding: 0 var(--shu-space-2); border-radius: var(--shu-radius); font-size: var(--shu-font-sm); color: var(--shu-fg); }
 	.muted { color: var(--shu-fg-muted); font-size: var(--shu-font-sm); }
 	.faded { color: var(--shu-fg-faded); }
