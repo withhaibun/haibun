@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { passWithDefaults } from "../lib/test/lib.js";
+import { failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
+import TestSteps from "../lib/test/TestSteps.js";
 import { LogicStepper } from "../lib/test/logic-stepper.js";
 import { ActivitiesStepper } from "./activities-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
@@ -62,5 +63,14 @@ describe("ActivitiesStepper runs the steps after an ensure", () => {
 
 		const result = await passWithDefaults([feature], steppers, undefined, [{ path: "/backgrounds/bg.feature", content: bg }]);
 		expect(result.ok).toBe(true);
+	});
+
+	it("holds where a line of the activity fails and the proof then holds, and is refuted with the line's failure where it doesn't", async () => {
+		const activity = (proof: string) =>
+			["Activity: Lay the table", 'set laid to "yes"', "fails", `waypoint The table is laid with ${proof}`, "ensure The table is laid"].join("\n");
+		const held = await passWithDefaults([{ path: "/features/test.feature", content: activity('variable laid is "yes"') }], [...steppers, TestSteps]);
+		expect(held.ok, held.failure?.error?.message).toBe(true);
+		const refuted = await failWithDefaults([{ path: "/features/test.feature", content: activity('variable laid is "no"') }], [...steppers, TestSteps]);
+		expect(refuted.failure?.error?.message).toContain("test fail");
 	});
 });

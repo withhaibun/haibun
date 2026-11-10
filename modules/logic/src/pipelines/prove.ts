@@ -477,8 +477,11 @@ class Proof {
 			if (first.verdict === VERDICT.proved || rule.activity.length === 0) return first;
 			const activity = await this.activity(path, rule, [opened.binding, ...bindings], first.used, parts);
 			if (mode === APPLY_MODE.run) return activity;
-			if (activity.verdict !== VERDICT.proved) return { verdict: activity.verdict === VERDICT.refuted ? VERDICT.unknown : activity.verdict, why: activity.why };
-			return await session(SESSION_MODE.judge, 2, activity.used, opened);
+			// A line of the activity that doesn't hold, such as a create another caller's write refused, leaves the proof to
+			// judge: where it holds now, the waypoint holds, and where it doesn't, the line's refusal is why.
+			const again = await session(SESSION_MODE.judge, 2, activity.used, opened);
+			if (activity.verdict === VERDICT.proved || again.verdict === VERDICT.proved) return again;
+			return { verdict: activity.verdict === VERDICT.refuted ? VERDICT.unknown : activity.verdict, why: activity.why };
 		};
 		const { verdict, why } = await established();
 		await this.close([...path], { node, verdict, why: verdict === VERDICT.proved ? "none" : why });

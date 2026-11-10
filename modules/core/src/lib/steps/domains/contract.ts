@@ -47,12 +47,8 @@ export const parameter = (name: string): TContractArgument => ({ parameter: name
 export const PRODUCTS: TContractArgument = { products: true };
 export const PRINCIPAL: TContractArgument = { principal: true };
 
-/** The verb that writes a step's products where the store doesn't hold their record, and keeps the record it holds where that
- *  states the same fields, apart from its provenance; a held record that states other values of them refuses the call's write. */
-export const KEEP_VERB = "keep";
-/** The verbs dispatch writes a step's products with: a record the store doesn't hold, fields merged into what it holds, or a record
- *  written once and kept. */
-export type TProductsVerb = typeof WRITE_VERB.create | typeof WRITE_VERB.merge | typeof KEEP_VERB;
+/** The verbs dispatch writes a step's products with: a record the store doesn't hold, or fields merged into what it holds. */
+export type TProductsVerb = typeof WRITE_VERB.create | typeof WRITE_VERB.merge;
 
 /** A step's contract. A descriptor's contract names its domains by their keys. `states` holds over the parameters and the
  *  products, `requires` over recorded facts before the call, `changes` lists the fields of the writes beyond the products, and

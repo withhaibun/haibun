@@ -3,12 +3,12 @@
  * A statement that isn't proved refuses the call: the action doesn't run where `requires` refuses it, the products aren't kept
  * where `states` refuses them, since the step fails, the step's record holds the check's proof, and the refusal names the statement, its verdict and
  * the triple that determined it. Dispatch writes the products of a call whose contract holds, and doesn't write the products of a refused call. A products write
- * that `keep` names keeps a held record that states the same fields, and refuses one that states others.
+ * that `create` names is refused where the store holds the record, whatever fields it states.
  */
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
-import { doesntHold, holds, KEEP_VERB, parameter, PRODUCTS, type TRelation } from "@haibun/core/lib/steps/domains/contract.js";
+import { doesntHold, holds, parameter, PRODUCTS, type TRelation } from "@haibun/core/lib/steps/domains/contract.js";
 import { DEF_PROTO_OPTIONS, failWithDefaults } from "@haibun/core/lib/test/lib.js";
 import { actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
 import { CONTINUE_AFTER_ERROR, RECORDED_STATUS, VERDICT } from "@haibun/core/lib/domains/protocol.js";
@@ -37,8 +37,6 @@ const DELEGATION_DOMAIN = "contract-delegation";
 const DELEGATION_LABEL = "ContractDelegation";
 const ACTIONS = ["read", "write"];
 const ACTION_DOMAIN = "contract-action";
-/** The delegation a kept write names, whichever action it allows. */
-const KEPT_ID = "urn:delegation:kept";
 
 /** Delegates a grant: a delegation from a grant that isn't revoked, which allows the action the line names. */
 class Delegating extends AStepper implements IHasCycles {
@@ -78,12 +76,6 @@ class Delegating extends AStepper implements IHasCycles {
 				this.ran.push(action);
 				return Promise.resolve(actionOKWithProducts({ id: `urn:delegation:${action}`, allowedAction: grant.allowedAction }));
 			},
-		},
-		keep: {
-			description: TEST_STEP,
-			gwta: `keep a delegation allowing {action: ${ACTION_DOMAIN}}`,
-			contract: { products: DELEGATION_DOMAIN, written: KEEP_VERB },
-			action: ({ action }: { action: string }) => Promise.resolve(actionOKWithProducts({ id: KEPT_ID, allowedAction: action })),
 		},
 	} as const satisfies TStepperSteps;
 }
@@ -125,20 +117,17 @@ describe("dispatch's check of a call against its step's contract", () => {
 		).toEqual(["urn:delegation:read"]);
 	});
 
-	it("keeps a record its products state again, and refuses products that state another value of a field the held record states", { timeout: 120_000 }, async () => {
-		const again = "keep a delegation allowing read";
-		const other = "keep a delegation allowing write";
-		const { written, record } = await ran([again, again, other]);
+	it("refuses a create of products whose record the store holds, though the products state the same fields", { timeout: 120_000 }, async () => {
+		const line = "delegate read from held";
+		const { written, record } = await ran([line, line]);
+		const refused = record(line).filter((step) => step[SEQ_PATH_FIELD.actionStatus] === RECORDED_STATUS.failed);
 		expect(
-			record(again).map((step) => step[SEQ_PATH_FIELD.actionStatus]),
-			"the same record written again is kept",
-		).toEqual([RECORDED_STATUS.completed, RECORDED_STATUS.completed]);
-		const refused = record(other)[0];
-		expect(refused?.[SEQ_PATH_FIELD.actionStatus]).toBe(RECORDED_STATUS.failed);
-		expect(refused?.[SEQ_PATH_FIELD.error]).toContain('allowedAction "read"');
-		expect(
-			written.map(({ id, allowedAction }) => [id, allowedAction]),
-			"the held record keeps its fields",
-		).toEqual([[KEPT_ID, "read"]]);
+			record(line)
+				.map((step) => step[SEQ_PATH_FIELD.actionStatus])
+				.sort(),
+			"the second create of the held record fails",
+		).toEqual([RECORDED_STATUS.completed, RECORDED_STATUS.failed].sort());
+		expect(refused[0]?.[SEQ_PATH_FIELD.error]).toContain("urn:delegation:read");
+		expect(written.map(({ id }) => id)).toEqual(["urn:delegation:read"]);
 	});
 });

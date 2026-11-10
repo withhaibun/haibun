@@ -190,26 +190,26 @@
 			"actuality": {
 				"text": "e2e-tests/capability, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
 				"status": "passed",
-				"tookMs": 700,
+				"tookMs": 800,
 				"digest": {
 					"e2e-tests/capability": "f60a467b1916bade9b199593dc655ac9b6694b0c489cd1975c9c83bf14918d77",
-					"e2e-tests/src": "af005a350cebf7bace0c8de218d5012a617d2347dc19b706b80e17f97cd8ba7f",
-					"modules/cli/src": "321ab09bf84a5aefffcd7d786a300b38bdf95ff407d6839e8bc59b7e341de058",
+					"e2e-tests/src": "1c91638ff185ba2ce56affe97be16d887d0bdcabcb83a0cc523e4740ae684653",
+					"modules/cli/src": "2a30b0f7dc93f355455a023940b456906449b7bde09947dd20bce2b9d3b83e50",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "74bfb58c967cf20fdde144f954bb6aee38dc2f01225a846ed7bdbc0fbc12eaa9",
-					"modules/domain-storage/src": "0774ebfedf37f5cffb3ef84ed5a7fc859ed90fedf1887299cfe903e34b6910c3",
-					"modules/logic/src": "0dd7a713eb0a4fd95129150bf6faae21f1c90ede5fcea633b323ef70f1398517",
+					"modules/core/src": "57585ea7ec2f69947c8dbe43974b7cc135455f3c1af4b9d88af55d4dde1f0b5d",
+					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
+					"modules/logic/src": "abf216e242c84b97e7c765f2822f519f09b64976656d5100d2eb3f96d94cd709",
 					"modules/monitor-otel/src": "4fbef0f2c78fed7b3e2d03ec4ab094bef11766724e5f5f6efb73491ea1d4dea6",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/out-junit/src": "22d1ca5d4f4449cae6186ff8d84c1f0b182e7591e1ffda9520a38daa3e8681d2",
 					"modules/recorder/src": "079caf826dbcad8943531b3f8f716e79a45d55f1668d29417e2a230978236208",
-					"modules/shu/src": "7a42e6b6999d12743c6d57b4587bdd44e170f106a43c4c7dbfcdf740e6faf2c2",
+					"modules/shu/src": "f735be7f40e3b9c703900eb681d7726623143cfec89566e72d803bbc2fee6224",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
-					"modules/utils/src": "9799d114ca397313863bfc29604199b02bc9daf1a4bfa26675dbfe7cfc30e36c",
-					"modules/web-accessibility-axe/src": "7d3b6b430df3eb563b902515dbbb0909d2f5f49d371c95daeee83cd46913abf0",
-					"modules/web-playwright/src": "6b2bb22bc74732eab8fc5b62da9b90a1081e67c676360c79bb5904208409285e",
-					"modules/web-server-hono/src": "f3feecea6f84624e6c24a8bc5c91a84fe5111b1fd2210ae654e2b7b4867581be",
+					"modules/utils/src": "698b48ed8fbac4dc3c0483e6bb3ccd88640ebc98696b8cc493b5740d1017db8d",
+					"modules/web-accessibility-axe/src": "ee53bd6b78b538fd9d910ca47bea66a7d15872feea8280ce26cd5ec33a620f7d",
+					"modules/web-playwright/src": "d5cb7cb5594a5294aaf6c41ac81acea324121fa0e84702a580f120c11e8d327c",
+					"modules/web-server-hono/src": "b00ab949c09047ae70f7d56dec3f3d2fae924a50128601c49e1f376b7afbadbd",
 					"modules/web-server-hono/waypoints": "fa5853749829db27d77867eb4c13e1860184beafed284ebff8f0672c617affe3"
 				}
 			},
@@ -217,7 +217,7 @@
 				"/features/identity-and-capability.feature.ts": {
 					"text": "Identity and capability authorization",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 700,
 					"steps": 30
 				}
 			}
