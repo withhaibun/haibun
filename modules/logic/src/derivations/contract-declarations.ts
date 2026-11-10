@@ -2,7 +2,7 @@
  * The predicate registry's check of the steps' contracts. A contract's statements name relations, which the steppers declare
  * once in their concerns; parameters, which the step's pattern names; and fields, which a declared record type's schema holds.
  * A finding is a statement whose relation the steppers don't declare or whose arguments don't match its arity, a parameter the pattern
- * doesn't name, and a field of a statement, `changes` or `complete` that the declared types' schemas don't hold.
+ * doesn't name, a derived record of a type the steppers don't declare, and a field of a statement, `changes` or `complete` that the declared types' schemas don't hold.
  */
 import { unwrapToShape } from "@haibun/core/lib/domains/zod-unwrap.js";
 import { hasCycles, type AStepper } from "@haibun/core/lib/steps/domains/stepper.js";
@@ -17,6 +17,7 @@ export const UNDECLARED_RELATION =
 	"states a relation that the steppers don't declare in their concerns. Declare the relation once in the concerns of the stepper whose rules state it";
 export const ARITY = "applies a relation to a number of arguments other than its arity. Give the statement one argument for each place of the relation";
 export const UNNAMED_PARAMETER = "names a parameter its pattern doesn't. Name a placeholder of the step's pattern";
+export const UNDECLARED_TYPE = "derives a record of a type that the steppers don't declare. Derive a record of a type a stepper declares in its concerns";
 export const UNDECLARED_FIELD = "names a field that the declared record types' schemas don't hold. Build the field with `field` from the type's declaration";
 
 /** The keys of each record type the steppers declare, by its stored label, read through the wrappers of its schema, such as
@@ -56,6 +57,8 @@ export function contractFindings(steppers: readonly AStepper[]): TContractFindin
 		const argumentFindings = (argument: TContractArgument): string[] => {
 			if ("parameter" in argument) return named.has(argument.parameter) ? [] : [`${UNNAMED_PARAMETER} ({${argument.parameter}})`];
 			if ("products" in argument || "principal" in argument) return [];
+			if ("derived" in argument)
+				return [...(fields.has(argument.derived.persistedAs) ? [] : [`${UNDECLARED_TYPE} (${argument.derived.persistedAs})`]), ...argument.derived.args.flatMap(argumentFindings)];
 			return fieldFindings(argument);
 		};
 		const statementFindings = ({ relation, args }: TStatement): string[] => [

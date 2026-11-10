@@ -31,8 +31,15 @@ export function field<S extends z.ZodObject>(definition: { readonly schema: S; r
  *  rules that derive it, which are empty where the relation is a recorded fact. */
 export type TRelation = { readonly name: string; readonly arity: number; readonly rules: string };
 
-/** What a statement's argument names: a parameter of the step by its name, the call's products, the call's principal, or a field. */
-export type TContractArgument = { readonly parameter: string } | { readonly products: true } | { readonly principal: true } | TField;
+/** A derivation of a record's id from the call's values of its arguments, as a named function, whose name the notation states. */
+export type TDerivation = (...values: string[]) => string;
+
+/** The record of a type whose id a derivation returns over the call's values of its arguments. */
+export type TDerived = { readonly persistedAs: string; readonly derivation: TDerivation; readonly args: readonly TContractArgument[] };
+
+/** What a statement's argument names: a parameter of the step by its name, the call's products, the call's principal, a field, or
+ *  the record a derivation names. */
+export type TContractArgument = { readonly parameter: string } | { readonly products: true } | { readonly principal: true } | TField | { readonly derived: TDerived };
 
 /** A statement: a relation applied to its arguments, or its negation. */
 export type TStatement = { readonly relation: TRelation; readonly args: readonly TContractArgument[]; readonly negated: boolean };
@@ -46,6 +53,12 @@ export const parameter = (name: string): TContractArgument => ({ parameter: name
 /** The argument that names the call's products, and the one that names the call's principal. */
 export const PRODUCTS: TContractArgument = { products: true };
 export const PRINCIPAL: TContractArgument = { principal: true };
+/** Returns the argument that names the record of the type `definition` declares whose id `derivation` returns over the call's
+ *  values of `args`, which a check reads by its typed CURIE. Throws where the derivation is anonymous. */
+export function derived(definition: { readonly topology: { readonly persistedAs: string } }, derivation: TDerivation, ...args: TContractArgument[]): TContractArgument {
+	if (derivation.name === "") throw new Error("a derived argument's derivation is anonymous, and its notation names it. Declare the derivation as a named function");
+	return { derived: { persistedAs: definition.topology.persistedAs, derivation, args } };
+}
 /** The principal of a call that actuality makes as itself, which holds every action. */
 export const ACTUALITY_PRINCIPAL = "urn:haibun:actuality";
 
@@ -98,11 +111,13 @@ export function productDomains(step: { readonly contract?: TStepContract }): str
 	return fields === undefined ? [] : Object.values(fields);
 }
 
-/** The text an argument renders as: a parameter by its name in braces, the products, the principal, or a field as `Type.key`. */
+/** The text an argument renders as: a parameter by its name in braces, the products, the principal, a field as `Type.key`, or a
+ *  derived record as `Type:derivation(arguments)`. */
 const argumentText = (argument: TContractArgument): string => {
 	if ("parameter" in argument) return `{${argument.parameter}}`;
 	if ("products" in argument) return "products";
 	if ("principal" in argument) return "principal";
+	if ("derived" in argument) return `${argument.derived.persistedAs}:${argument.derived.derivation.name}(${argument.derived.args.map(argumentText).join(", ")})`;
 	return `${argument.persistedAs}.${argument.key}`;
 };
 

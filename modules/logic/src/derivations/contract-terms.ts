@@ -1,7 +1,7 @@
 /**
  * The terms of a call's check against its step's contract. A statement asserts the list of its arguments related to true by its
  * relation's predicate; in a call's check each argument is the call's value of it: a parameter's value, the products, the
- * principal or a field. A value that names a record by its `id`, or a reference to a record by its typed CURIE, is that record's
+ * principal, a field, or the record a derivation names by the call's values of its arguments. A value that names a record by its `id`, or a reference to a record by its typed CURIE, is that record's
  * IRI. The call's facts state each field of a value that names a record and of each record the check read, under haibun's
  * vocabulary, so a relation's rules read them. The query selects each relation's triples.
  */
@@ -9,12 +9,13 @@ import { DataFactory } from "n3";
 import type { NamedNode, Quad, Term } from "@rdfjs/types";
 import { HAIBUN_NS } from "@haibun/core/lib/domains/resources.js";
 import { LOG, RDF } from "@haibun/core/lib/domains/vocabularies.js";
-import { NODE_KEY, recordOfCurie, type TRecordName } from "@haibun/core/lib/records/domains/unit.js";
+import { NODE_KEY, recordOfCurie, referenceTo, type TRecordName } from "@haibun/core/lib/records/domains/unit.js";
 import {
 	FIELD_NAMESPACE,
 	RELATION_NAMESPACE,
 	type TContractArgument,
 	type TContractCall,
+	type TDerived,
 	type TField,
 	type TRelation,
 	type TStatement,
@@ -50,31 +51,47 @@ function callTermOf(value: unknown): TCallTerm {
 	return termOf(value);
 }
 
-/** Returns the term of a statement's argument in a call: the call's value of the parameter, the products or the principal, or the
- *  field's IRI. Throws where the call doesn't state the value. */
-function argumentTermOf(call: TContractCall, argument: TContractArgument): TCallTerm {
+/** Returns the value of a derived argument from the derivation and the call's values of its arguments. In a dispatch check it is the
+ *  reference to the record whose id the derivation returns. */
+export type TDerive = (derived: TDerived, values: readonly string[]) => unknown;
+const derivedRecord: TDerive = ({ persistedAs, derivation }, values) => referenceTo(persistedAs, derivation(...values));
+
+/** Returns the call's value of an argument: the parameter's value, the products, the principal, or the derived record's value
+ *  `derive` returns. Throws where the call doesn't state the value, or the argument is a field. */
+function argumentValueOf(call: TContractCall, argument: TContractArgument, derive: TDerive): unknown {
 	if ("parameter" in argument) {
 		if (!(argument.parameter in call.parameters)) throw new Error(`a contract's statement names {${argument.parameter}}, which the call doesn't state`);
-		return callTermOf(call.parameters[argument.parameter]);
+		return call.parameters[argument.parameter];
 	}
 	if ("products" in argument) {
 		if (call.products === undefined) throw new Error("a contract's statement names the products, which a call holds once its action returned them; state it in `states`");
-		return callTermOf(call.products);
+		return call.products;
 	}
 	if ("principal" in argument) {
 		if (call.principal === undefined) throw new Error("a contract's statement names the principal, and actuality acting as itself doesn't state one");
-		return termOf(call.principal);
+		return call.principal;
 	}
-	return namedNode(`${FIELD_NAMESPACE}${argument.persistedAs}.${argument.key}`);
+	if (!("derived" in argument)) throw new Error(`a derivation reads the field ${argument.persistedAs}.${argument.key}, and a derivation reads a call's values`);
+	const values = argument.derived.args.map((inner) => argumentValueOf(call, inner, derive));
+	const text = values.filter((value) => typeof value === "string");
+	if (text.length !== values.length) throw new Error(`the derivation ${argument.derived.derivation.name} reads a value that isn't text, and a derivation reads text`);
+	return derive(argument.derived, text);
 }
 
-/** Returns the triple a statement asserts in a call. */
-export const statementTriple = (call: TContractCall, { relation, args }: TStatement): TN3Pattern =>
-	pattern({ list: args.map((argument) => argumentTermOf(call, argument)) }, relationPredicate(relation), termOf(true));
+/** Returns the term of a statement's argument in a call: the term of the call's value of it, or the field's IRI. */
+const argumentTermOf = (call: TContractCall, argument: TContractArgument, derive: TDerive): TCallTerm =>
+	"key" in argument ? namedNode(`${FIELD_NAMESPACE}${argument.persistedAs}.${argument.key}`) : callTermOf(argumentValueOf(call, argument, derive));
 
-/** Returns the records a call's values refer to by their typed CURIEs, which its check reads. */
-export function referencedRecords(call: TContractCall): TRecordName[] {
-	const values = [...Object.values(call.parameters), ...(call.products === undefined ? [] : [call.products])];
+/** Returns the triple a statement asserts in a call, each derived argument's value as `derive` returns it. */
+export const statementTriple = (call: TContractCall, { relation, args }: TStatement, derive: TDerive): TN3Pattern =>
+	pattern({ list: args.map((argument) => argumentTermOf(call, argument, derive)) }, relationPredicate(relation), termOf(true));
+/** Returns the triple a statement asserts in a dispatch check, each derived argument the reference to its record. */
+export const callTriple = (call: TContractCall, statement: TStatement): TN3Pattern => statementTriple(call, statement, derivedRecord);
+
+/** Returns the records a call's values and the derived arguments of `statements` refer to by their typed CURIEs, which its check reads. */
+export function referencedRecords(call: TContractCall, statements: readonly TStatement[]): TRecordName[] {
+	const derived = statements.flatMap(({ args }) => args.flatMap((argument) => ("derived" in argument ? [argumentValueOf(call, argument, derivedRecord)] : [])));
+	const values = [...Object.values(call.parameters), ...(call.products === undefined ? [] : [call.products]), ...derived];
 	return values.flatMap((value) => {
 		const named = referenceOf(value);
 		return named === undefined ? [] : [named];

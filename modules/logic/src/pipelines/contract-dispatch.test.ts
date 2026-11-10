@@ -1,6 +1,6 @@
 /**
- * Dispatch checks a call against its step's contract: its `requires` before the action runs, over the records its arguments name,
- * which the check reads from the store, and its `states` over the products.
+ * Dispatch checks a call against its step's contract: its `requires` before the action runs, over the records its arguments name
+ * and the records a derivation of its arguments names, which the check reads from the store, and its `states` over the products.
  * A statement that isn't proved refuses the call: the action doesn't run where `requires` refuses it, the products aren't kept
  * where `states` refuses them, since the step fails, the step's record holds the check's proof, and the refusal names the statement, its verdict and
  * the triple that determined it. Dispatch writes the products of a call whose contract holds, and doesn't write the products of a refused call. A products write
@@ -9,7 +9,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
-import { doesntHold, field, holds, parameter, PRODUCTS, type TRelation } from "@haibun/core/lib/steps/domains/contract.js";
+import { derived, doesntHold, field, holds, parameter, PRODUCTS, type TRelation } from "@haibun/core/lib/steps/domains/contract.js";
 import { refDomainKey } from "@haibun/core/lib/domains/domains.js";
 import { DEF_PROTO_OPTIONS, failWithDefaults } from "@haibun/core/lib/test/lib.js";
 import { actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
@@ -50,6 +50,9 @@ const DELEGATION_DOMAIN = "contract-delegation";
 const DELEGATION_LABEL = "ContractDelegation";
 const ACTIONS = ["read", "write"];
 const ACTION_DOMAIN = "contract-action";
+const GRANT_NAME_DOMAIN = "contract-grant-name";
+/** The id of the grant a line names by its name. */
+const grantNamed = (name: string): string => `urn:grant:${name}`;
 
 /** Delegates a grant: a delegation from a grant that isn't revoked, which allows the action the line names. */
 class Delegating extends AStepper implements IHasCycles {
@@ -72,6 +75,7 @@ class Delegating extends AStepper implements IHasCycles {
 					},
 				},
 				{ selectors: [ACTION_DOMAIN], schema: z.enum(ACTIONS), values: ACTIONS, description: "An action a delegation allows" },
+				{ selectors: [GRANT_NAME_DOMAIN], schema: z.enum(Object.keys(GRANTS)), values: Object.keys(GRANTS), description: "The name of a grant" },
 			],
 			relations: [REVOKED, ALLOWS],
 		}),
@@ -98,6 +102,20 @@ class Delegating extends AStepper implements IHasCycles {
 				return Promise.resolve(actionOKWithProducts({ id: `urn:delegation:${action}`, allowedAction: "read" }));
 			},
 		},
+		delegateFromNamed: {
+			description: TEST_STEP,
+			gwta: `delegate {action: ${ACTION_DOMAIN}} under the grant named {name: ${GRANT_NAME_DOMAIN}}`,
+			contract: {
+				products: DELEGATION_DOMAIN,
+				written: WRITE_VERB.create,
+				requires: [doesntHold(REVOKED, derived(GRANT, grantNamed, parameter("name")))],
+				complete: [field(GRANT, "revoked")],
+			},
+			action: ({ action }: { action: string }) => {
+				this.ran.push(action);
+				return Promise.resolve(actionOKWithProducts({ id: `urn:delegation:named:${action}`, allowedAction: "read" }));
+			},
+		},
 	} as const satisfies TStepperSteps;
 }
 
@@ -118,12 +136,13 @@ describe("dispatch's check of a call against its step's contract", () => {
 	it("runs a call whose contract holds and writes its products, refuses one whose `requires` doesn't before its action and one whose `states` doesn't over its products, and doesn't write the products of either", {
 		timeout: 120_000,
 	}, async () => {
-		const [fromHeld, fromRevoked, writeFromHeld] = [
+		const [fromHeld, fromRevoked, writeFromHeld, fromNamedRevoked] = [
 			`delegate read from "${GRANTS.held?.id}"`,
 			`delegate read from "${GRANTS.revoked?.id}"`,
 			`delegate write from "${GRANTS.held?.id}"`,
+			"delegate read under the grant named revoked",
 		];
-		const { world, written, record: records } = await ran([`hold grant held\nhold grant revoked\n${fromHeld}`, fromRevoked, writeFromHeld]);
+		const { world, written, record: records } = await ran([`hold grant held\nhold grant revoked\n${fromHeld}`, fromRevoked, writeFromHeld, fromNamedRevoked]);
 		const record = (line: string) => records(line)[0];
 		expect(record(fromHeld)?.[SEQ_PATH_FIELD.error]).toBeUndefined();
 		expect(record(fromHeld)?.[SEQ_PATH_FIELD.actionStatus]).toBe(RECORDED_STATUS.completed);
@@ -133,6 +152,9 @@ describe("dispatch's check of a call against its step's contract", () => {
 		);
 		expect(required?.[SEQ_PATH_FIELD.verdict]).toBe(VERDICT.refuted);
 		expect(String(required?.[SEQ_PATH_FIELD.proof]), "EYE's proof cites the held grant's revocation").toContain("2026-11-01T00:00:00Z");
+		expect(record(fromNamedRevoked)?.[SEQ_PATH_FIELD.error], "the check reads the held grant a derivation of the line's name names").toContain(
+			"its contract requires ¬revoked_grant(ContractGrant:grantNamed({name})), which is refuted",
+		);
 		const stated = record(writeFromHeld);
 		expect(stated?.[SEQ_PATH_FIELD.error]).toContain("The call's products are refused and aren't kept: its contract states allows_action(products, {action}), which is unknown");
 		expect(stated?.[SEQ_PATH_FIELD.actionStatus], "the step whose products are refused fails").toBe(RECORDED_STATUS.failed);

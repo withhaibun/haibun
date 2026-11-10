@@ -11,7 +11,7 @@
 import type { TProver } from "@haibun/core/lib/actuality/ports.js";
 import { VERDICT } from "@haibun/core/lib/domains/protocol.js";
 import type { TRelation, TStatementVerdict } from "@haibun/core/lib/steps/domains/contract.js";
-import { callFacts, fieldPredicate, referencedRecords, relationPredicate, relationReads, relationsQuery, statementTriple, tripleKey } from "../derivations/contract-terms.js";
+import { callFacts, callTriple, fieldPredicate, referencedRecords, relationPredicate, relationReads, relationsQuery, tripleKey } from "../derivations/contract-terms.js";
 import { patternText } from "../derivations/n3.js";
 import type { TLogicEngine, TReasoner } from "../ports.js";
 import { derive } from "./reason.js";
@@ -30,9 +30,9 @@ export function contractChecks(relations: readonly TRelation[], reasoner: TReaso
 	const predicates = new Set(relations.map((relation) => relationPredicate(relation).value));
 	const reads = relationReads(relations);
 	return async (world, { statements, complete }, call) => {
-		const triples = statements.map((statement) => ({ statement, triple: statementTriple(call, statement) }));
+		const triples = statements.map((statement) => ({ statement, triple: callTriple(call, statement) }));
 		const held = new Set(complete.map(fieldPredicate));
-		const read = await namedRecords(world.shared.getStore(), world.domains, referencedRecords(call), complete);
+		const read = await namedRecords(world.shared.getStore(), world.domains, referencedRecords(call, statements), complete);
 		const facts = callFacts(call, read);
 		const derived = await check(rules, query, facts);
 		// The quads of a list state its items through rdf:first and rdf:rest; a relation's triple is a quad of its predicate.

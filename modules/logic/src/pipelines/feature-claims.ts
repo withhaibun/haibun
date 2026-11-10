@@ -15,7 +15,7 @@ import { stepParts } from "@haibun/core/lib/steps/domains/phrase.js";
 import { statementNotation, type TRelation, type TStatement } from "@haibun/core/lib/steps/domains/contract.js";
 import { findFeatureStepsFromStatement } from "@haibun/core/lib/actuality/pipelines/resolver.js";
 import { claimResult, entailmentOf } from "@haibun/core/lib/records/derivations/claim.js";
-import { relationPredicate, relationsQuery, statementTriple, tripleKey } from "../derivations/contract-terms.js";
+import { relationPredicate, relationsQuery, statementTriple, tripleKey, type TDerive } from "../derivations/contract-terms.js";
 import { patternText, quadsOf, type TN3Pattern } from "../derivations/n3.js";
 import type { TReasoner } from "../ports.js";
 import { declaredRelations } from "../derivations/contract-declarations.js";
@@ -44,6 +44,9 @@ type TChain = {
 };
 
 const individual = (name: string): string => `${INDIVIDUAL_NAMESPACE}${encodeURIComponent(name)}`;
+/** The individual a derived argument is: its derivation applied to its arguments' individuals, so one derivation of the same
+ *  individuals is one individual. */
+const derivedIndividual: TDerive = ({ derivation }, values) => individual(`${derivation.name}(${values.join(", ")})`);
 
 /** Applies the contract of each step of `steps` in order, and returns the individual the last step's products are. */
 function apply(chain: TChain, steps: readonly TFeatureStep[], resolve: (line: string) => TFeatureStep[]): string | undefined {
@@ -79,7 +82,7 @@ function apply(chain: TChain, steps: readonly TFeatureStep[], resolve: (line: st
 		const contract = step.contract;
 		const statements: TStatement[] = [...(contract?.requires === undefined ? [] : contract.requires), ...(contract?.states === undefined ? [] : contract.states)];
 		const call = { parameters, principal: PRINCIPAL_INDIVIDUAL, products };
-		for (const statement of statements) (statement.negated ? chain.negations : chain.facts).push(statementTriple(call, statement));
+		for (const statement of statements) (statement.negated ? chain.negations : chain.facts).push(statementTriple(call, statement, derivedIndividual));
 		if (statedProducts === undefined) chain.producedBy.set(products, { line: featureStep.in, parameters: Object.values(parameters) });
 		last = products;
 	}
@@ -118,7 +121,7 @@ export async function featureClaim(world: TWorld, steppers: AStepper[], reasoner
 	});
 	const negated = form[1] === "¬";
 	const statement: TStatement = { relation, args: names.map((name) => ({ parameter: name })), negated };
-	const triple = statementTriple({ parameters: Object.fromEntries(names.map((name, at) => [name, args[at]])) }, statement);
+	const triple = statementTriple({ parameters: Object.fromEntries(names.map((name, at) => [name, args[at]])) }, statement, derivedIndividual);
 	const rules = relations.map((held) => held.rules).join("\n");
 	const sources = `${rules}\n${chain.facts.map(patternText).join("\n")}`;
 	const derived = quadsOf(await derive(reasoner, sources, relationsQuery(relations), false, {}, "a feature's claim reads its steps' contracts"));
@@ -152,7 +155,7 @@ function missingFact(chain: TChain, holds: (fact: TN3Pattern) => boolean, relati
 	const links = path === undefined ? [] : path.slice(1).map((next, at) => [path[at], next] as const);
 	for (const [a, b] of links) {
 		if (a === undefined) continue;
-		const fact = statementTriple({ parameters: { a, b } }, { relation, args: [{ parameter: "a" }, { parameter: "b" }], negated: false });
+		const fact = statementTriple({ parameters: { a, b } }, { relation, args: [{ parameter: "a" }, { parameter: "b" }], negated: false }, derivedIndividual);
 		if (!holds(fact)) return `${relation.name}(${nameOf(a)}, ${nameOf(b)}), which the contract of \`${chain.producedBy.get(a)?.line}\` doesn't state`;
 	}
 	return `${relation.name}(${args.map(nameOf).join(", ")})`;
