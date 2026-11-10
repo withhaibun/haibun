@@ -93,7 +93,8 @@ export function stepGraph(signatures: readonly TStepSignature[], domains: TDomai
 				key,
 				node: domain !== undefined && !isPrimitiveDomain(key),
 				written: isWrittenByCaller(key, domains),
-				beyond: persisted || typeof domain?.ui?.component === "string",
+				// A quantifier reads a member domain by its name, beyond the steps that take or return it.
+				beyond: persisted || typeof domain?.ui?.component === "string" || domain?.members !== undefined,
 				persisted,
 			};
 		}),

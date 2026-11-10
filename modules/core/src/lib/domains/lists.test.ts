@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
+import type { TFeatureStep } from "../steps/domains/stepper.js";
 import {
 	atLeastItems,
 	exactlyItems,
-	itemBindings,
+	boundTo,
 	perFieldItems,
 	whoseItems,
 	whoseQuery,
@@ -123,15 +124,11 @@ describe("the combinators that state how many items a list holds", () => {
 });
 
 describe("an item a statement is proved for", () => {
-	it("binds the variable to its id, or its text without one, and each value it holds as text or a number", () => {
-		expect(itemBindings("person", { id: "p-1", name: "Ada", count: 3, member: true, tags: ["dance"] })).toEqual({
-			person: "p-1",
-			"person/id": "p-1",
-			"person/name": "Ada",
-			"person/count": 3,
-			"person/member": "true",
-		});
-		expect(itemBindings("person", { name: "Bea" })).toEqual({ person: '{"name":"Bea"}', "person/name": "Bea" });
+	it("binds the variable to its id, or its text without one, and binds the item whose fields the statement reads", () => {
+		const step = { in: "passes", seqPath: [0, 1], runtimeArgs: { held: 1 } } as unknown as TFeatureStep;
+		const ada = { id: "p-1", name: "Ada", tags: ["dance"] };
+		expect(boundTo(step, "person", ada)).toMatchObject({ runtimeArgs: { held: 1, person: "p-1" }, boundItems: { person: ada } });
+		expect(boundTo(step, "person", { name: "Bea" }).runtimeArgs).toEqual({ held: 1, person: '{"name":"Bea"}' });
 	});
 });
 

@@ -63,23 +63,23 @@ const READINGS: [string, string, boolean][] = [
 		true,
 	],
 	["a quantifier's variable doesn't stay set after it", 'set of Meals is ["dinner"]\nevery meal in Meals is passes\ndidn\'t variable meal exists', true],
-	["existence over an observation source", 'passes\nsome step observed in steps is variable step/called is "TestSteps.passes"', true],
-	["universal over an observation source", "passes\nevery step observed in steps is variable step/stepText exists", true],
-	["a quoted statement under a quantifier is proved", 'passes\nsome step observed in steps is "variable step/duration is more than 999999"', false],
-	["a quoted statement under every is proved", 'passes\nevery step observed in steps is "variable step/duration is more than 999999"', false],
+	["existence over the steps domain", 'passes\nsome step in steps is variable step.called is "TestSteps.passes"', true],
+	["universal over the steps domain", "passes\nevery step in steps is variable step.stepText exists", true],
+	["a quoted statement under a quantifier is proved", 'passes\nsome step in steps is "variable step.duration is more than 999999"', false],
+	["a quoted statement under every is proved", 'passes\nevery step in steps is "variable step.duration is more than 999999"', false],
 	[
-		"an item keeps its dots while its functions resolve",
-		'passes\nsome step observed in steps is matches {step} with "*.*"\nsome step observed in steps is variable step/duration is less than 999999',
+		"a member keeps its dots while its fields resolve",
+		'passes\nsome step in steps is matches {step} with "*.*"\nsome step in steps is variable step.duration is less than 999999',
 		true,
 	],
 	[
-		"the steps source states each record's stepper and its duration",
-		'passes\nsome step observed in steps is variable step/stepper is "TestSteps"\nevery step observed in steps is where variable step/called is "TestSteps.passes", variable step/duration is less than 1000',
+		"the steps domain states each record's stepper and its duration",
+		'passes\nsome step in steps is variable step.stepper is "TestSteps"\nevery step in steps is where variable step.called is "TestSteps.passes", variable step.duration is less than 1000',
 		true,
 	],
 	[
-		"a step's duration is a function of its record",
-		'pause for 30ms\nevery step observed in steps is where variable step/called is "Haibun.pause", variable step/duration is more than 29',
+		"a step's duration is a field of its member",
+		'pause for 30ms\nevery step in steps is where variable step.called is "Haibun.pause", variable step.duration is more than 29',
 		true,
 	],
 	[
@@ -87,13 +87,19 @@ const READINGS: [string, string, boolean][] = [
 		'set of Meals is ["dinner", "lunch"]\nset dinner to "cooked"\nfor every {meal: Meals} where variable {meal} is "cooked", {meal} is edible\n"dinner" is edible\ndidn\'t "lunch" is edible',
 		true,
 	],
-	["a quantifier doesn't observe its own record, which hasn't ended", "passes\nevery step observed in steps is variable step/endedAtTime exists", true],
+	["a quantifier doesn't observe its own record, which hasn't ended", "passes\nevery step in steps is variable step.endedAtTime exists", true],
 	[
 		"a quantifier doesn't observe a step it is part of, which hasn't ended",
-		'passes\nwhere passes, didn\'t some step observed in steps is variable step/called is "LogicStepper.where"',
+		'passes\nwhere passes, didn\'t some step in steps is variable step.called is "LogicStepper.where"',
 		true,
 	],
-	["an observation source that isn't declared", "every x observed in unknown source is passes", false],
+	["a domain that isn't registered", "every x in unknown source is passes", false],
+	[
+		"a combinator's filter selects a quantifier's members, which the store reads by an index",
+		'passes\npasses\nexactly 2, whose "called" is "TestSteps.passes", every step in steps is variable step.called is "TestSteps.passes"',
+		true,
+	],
+	["a combinator's filter of a field the domain doesn't index is refused", 'passes\nwhose "verdict" is "proved", every step in steps is passes', false],
 	["until holds once its statement holds", 'set ready to "yes"\nuntil variable ready is "yes" within 1s', true],
 	["until is refuted where its statement doesn't hold in time", 'set ready to "yes"\ndidn\'t until variable ready is "never" within 300ms', true],
 	[
@@ -138,10 +144,21 @@ describe("the readings of the logic engine", () => {
 		expect(result.ok).toBe(passes);
 	});
 
-	it("reads the items of an observation source under what holding only holds, and refuses a read above it with the read to request", async () => {
-		const content = 'passes\nholding only "LogicStepper:everyObserved,VariablesStepper:matches", every step observed in steps is matches {step} with "*"';
+	it("reads the members of a domain under what holding only holds, and refuses a read above it with the read to request", async () => {
+		const content = 'passes\nholding only "LogicStepper:every,VariablesStepper:matches", every step in steps is matches {step} with "*"';
 		const result = await failWithDefaults(content, [...STEPPERS, AuthorityStepper]);
 		expect(result.failure?.error.message).toContain("request Read:public from a key that delegates it");
+	});
+
+	it("grows the step records by the same count for each quantifier whose filter selects its members, however many records the earlier quantifiers wrote", async () => {
+		const quantifier = 'whose "called" is "TestSteps.passes", every step in steps is variable step.called is "TestSteps.passes"';
+		const recorded = async (quantifiers: number): Promise<number> => {
+			const result = await passWithDefaults(["passes", ...Array.from({ length: quantifiers }, () => quantifier)].join("\n"), STEPPERS);
+			expect(result.ok, JSON.stringify(result.failure)).toBe(true);
+			return (await readUpTo(result.world.shared.getStore(), { label: SEQ_PATH_LABEL }, MAX_PAGE_ROWS)).length;
+		};
+		const [none, one, twelve] = [await recorded(0), await recorded(1), await recorded(12)];
+		expect(twelve - none, "twelve quantifiers write twelve times the records of one").toBe(12 * (one - none));
 	});
 
 	it("refuses a line that reads as until without a duration where it resolves, naming the line, rather than end actuality at its first wait", async () => {

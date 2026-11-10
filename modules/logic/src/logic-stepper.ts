@@ -1,14 +1,4 @@
-import {
-	AStepper,
-	READING,
-	observedOf,
-	type IHasCycles,
-	type IHasOptions,
-	type IObservationSource,
-	type IStepperCycles,
-	type TFeatureStep,
-	type TStepperSteps,
-} from "@haibun/core/lib/steps/domains/stepper.js";
+import { AStepper, READING, type IHasCycles, type IHasOptions, type IStepperCycles, type TFeatureStep, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 import type { TWorld } from "@haibun/core/lib/actuality/domains/world.js";
 import {
 	DOMAIN_STATEMENT,
@@ -27,10 +17,10 @@ import { itemAt, valueAt } from "@haibun/core/lib/domains/item-at.js";
 import { ACTIVITIES_STEPPER } from "@haibun/core/steps/domains/activities-actions.js";
 import { z } from "zod";
 import { Access, type TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
-import { SEQ_PATH_ACCESS, SEQ_PATH_FIELD, calledParts, actualityFeatureOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
+import { SEQ_PATH_ACCESS } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { callerHolds, readingAsOf } from "@haibun/core/lib/domains/capability-context.js";
 import { DOMAIN_APPLICABLE_STEPS, DOMAIN_GOAL_RESOLUTION, DOMAIN_PLAN_ID, DOMAIN_PLAN_PROGRESS, goalDomainDefinitions } from "@haibun/core/lib/domains/goal-resolution.js";
-import { stepsEndedBy } from "./pipelines/reads.js";
+import { stepMembers } from "./pipelines/reads.js";
 import { applicableStepsAt, ensured, planAdvanced, planBegun, resolved, type TGoalScope } from "./pipelines/goals.js";
 import { stepperContext } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
 import { proverOf } from "./pipelines/prove.js";
@@ -41,28 +31,21 @@ import { claimEntailment, instanceChecked, retrievalChecked, subsumptionChecked,
 import { DOMAIN_INDIVIDUAL_ADDRESS, type TIndividualAddress } from "@haibun/core/lib/domains/typed-links.js";
 import { DOMAIN_CLAIM, DOMAIN_CLASS_EXPRESSION, DOMAIN_ENTAILED_MEMBERS, classExpressionDomainDefinition, reasoningDomainDefinitions } from "./domains/reasoning.js";
 import { DOMAIN_DERIVATION, DOMAIN_DOMAIN_GOAL, DOMAIN_LINE_TERM, RESOLVE_STATEMENT, logicDomainDefinitions } from "./domains/logic.js";
-import { DOMAIN_ALTERNATIVES, DOMAIN_OBSERVATION_SOURCE, DOMAIN_REFUSAL, DOMAIN_STATUS, readingDomainDefinitions } from "./domains/readings.js";
+import { DOMAIN_ALTERNATIVES, DOMAIN_REFUSAL, DOMAIN_STATUS, readingDomainDefinitions } from "./domains/readings.js";
 
-/** The feature's step records that ended by the observing step's start, as an observation source: each record's fields, the
- *  stepper of the step it called, and its duration, from its start to its end in milliseconds. */
-const steps: IObservationSource = {
-	name: "steps",
-	observe: async (world: TWorld, endedBy: number) => {
-		return (await stepsEndedBy(world.shared.getStore(), actualityFeatureOf(world.tag), endedBy)).flatMap((record) => {
-			const { [SEQ_PATH_FIELD.called]: called, [SEQ_PATH_FIELD.generatedAtTime]: started, [SEQ_PATH_FIELD.endedAtTime]: ended } = record;
-			const stepper = typeof called === "string" ? calledParts(called).stepperName : undefined;
-			const duration = typeof ended === "string" && typeof started === "string" ? Date.parse(ended) - Date.parse(started) : undefined;
-			return observedOf(String(record[SEQ_PATH_FIELD.id]), { ...record, stepper, duration });
-		});
-	},
+/** The feature's step records, as the members of the steps domain. */
+const steps: TDomainDefinition = {
+	selectors: ["steps"],
+	schema: z.string().min(1),
+	description: "The step records of this feature, each with the stepper of the step it called and its duration in milliseconds",
+	members: stepMembers,
 };
 
 /** What a claim's terms are named in a fault where its line lacks one its pattern names. */
 const CLAIM_TERMS = "the terms of a claim's line";
 
-/** The statements of a quantifier, as `some x in D is S` and `every x observed in S is P` state them. */
+/** The statements of a quantifier, as `some x in D is S` states them. */
 const QUANTIFIED = `{what: ${DOMAIN_VARIABLE_NAME}} in {domain: ${DOMAIN_DOMAIN_NAME}} is {statement: ${DOMAIN_STATEMENT}}`;
-const OBSERVED = `{what: ${DOMAIN_VARIABLE_NAME}} observed in {source: ${DOMAIN_OBSERVATION_SOURCE}} is {statement: ${DOMAIN_STATEMENT}}`;
 
 export default class LogicStepper extends AStepper implements IHasCycles, IHasOptions {
 	description = "The logic engine that proves every step, and the readings it evaluates: negation, implication, disjunction, maybe, the quantifiers and repetition";
@@ -93,8 +76,15 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 			if (declared !== undefined) declareVocabularies(declared.split(",").map((prefix) => vocabularyEntry(prefix.trim()).prefix));
 		},
 		getConcerns: () => ({
-			sources: [steps],
-			domains: [...logicDomainDefinitions, ...readingDomainDefinitions, ...goalDomainDefinitions, ...reasoningDomainDefinitions, this.classExpressionDomain, this.domainGoalDomain],
+			domains: [
+				steps,
+				...logicDomainDefinitions,
+				...readingDomainDefinitions,
+				...goalDomainDefinitions,
+				...reasoningDomainDefinitions,
+				this.classExpressionDomain,
+				this.domainGoalDomain,
+			],
 		}),
 	};
 
@@ -171,26 +161,16 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 			contract: { products: DOMAIN_STATUS },
 			reading: READING.maybe,
 		},
-		someObserved: {
-			gwta: `some ${OBSERVED}`,
-			precludes: ["LogicStepper.some"],
-			description: "Holds where the statement holds for an item the observation source returns at this step: ∃x ∈ S. P(x).",
-			reading: READING.some,
-		},
 		some: {
 			gwta: `some ${QUANTIFIED}`,
-			description: "Holds where the statement holds for a member of the domain: ∃x ∈ D. P(x). An empty domain doesn't have one.",
+			description:
+				"Holds where the statement holds for a member of the domain: ∃x ∈ D. P(x). An empty domain doesn't have one. A member's fields are read as x.field, and a list combinator stated before it, such as whose, selects the members.",
 			reading: READING.some,
-		},
-		everyObserved: {
-			gwta: `every ${OBSERVED}`,
-			precludes: ["LogicStepper.every"],
-			description: "Holds where the statement holds for every item the observation source returns at this step: ∀x ∈ S. P(x).",
-			reading: READING.every,
 		},
 		every: {
 			gwta: `every ${QUANTIFIED}`,
-			description: "Holds where the statement holds for every member of the domain: ∀x ∈ D. P(x). It holds over an empty domain.",
+			description:
+				"Holds where the statement holds for every member of the domain: ∀x ∈ D. P(x). It holds over an empty domain. A member's fields are read as x.field, and a list combinator stated before it, such as whose, selects the members.",
 			reading: READING.every,
 		},
 		resolve: {

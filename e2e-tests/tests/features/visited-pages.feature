@@ -20,12 +20,12 @@ Scenario: All visited pages start with allowed prefix
     click "Go to Page 3"
     wait for "Page 3"
     
-    every page observed in visited pages is some pattern in Allowed patterns is matches {page} with {pattern}
+    every page in visited pages is some pattern in Allowed patterns is matches {page} with {pattern}
     
     A second check verifies that the browser didn't visit a page on external.com.
     
     set of External patterns as [string]
     set external as External patterns to "https://external.com/*"
     
-    didn't some page observed in visited pages is some pattern in External patterns is matches {page} with {pattern}
+    didn't some page in visited pages is some pattern in External patterns is matches {page} with {pattern}
 

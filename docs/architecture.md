@@ -45,11 +45,11 @@ Scenario: Login and verify domain compliance
 
     Now verify all requests stayed within allowed domains and performed well.
     
-    every host observed in http-trace hosts is some domain in Allowed domains is matches {host} with "*{domain}"
+    every host in http-trace hosts is some domain in Allowed domains is matches {host} with "*{domain}"
     
-    every request observed in http-trace is variable request/status is less than 400
+    every request in http-trace is variable request.status is less than 400
     
-    every request observed in http-trace is variable request/durationMs is less than 5000
+    every request in http-trace is variable request.durationMs is less than 5000
 ```
 
 ### Observability-Driven Verification
@@ -64,17 +64,17 @@ Domains define the constraint vocabulary. Quantifiers apply those constraints to
 
 ```gherkin
 set of Allowed domains is [...]           # Define what's valid  
-every host observed in ... is some ...    # Assert all observations satisfy constraint
+every host in ... is some ...    # Assert all observations satisfy constraint
 ```
 
 For example, to verify that console errors didn't occur:
 
 ```gherkin
 set of Allowed levels is ["log", "info", "warn"]
-every entry observed in console-log is variable entry/level is some level in Allowed levels
+every entry in console-log is variable entry.level is some level in Allowed levels
 ```
 
-This pattern generalizes to other observation sources:
+This pattern generalizes to other member domains:
 
 | Observation | Captures | Example Constraint |
 |-------------|----------|-------------------|
@@ -84,7 +84,7 @@ This pattern generalizes to other observation sources:
 | `page-performance` | Timing metrics | Largest contentful paint < 2500ms |
 | Accessibility | WCAG violations | Serious = 0, moderate ≤ 3 |
 
-These are examples of what can be built by combining observation sources, domain constraints, and first-order logic with the same core tested syntax.
+These are examples of what can be built by combining member domains, domain constraints, and first-order logic with the same core tested syntax.
 
 Compare this to traditional BDD "then" statements for the same verification:
 
@@ -97,10 +97,10 @@ And the login request completed in under 5000ms
 And the dashboard request completed in under 5000ms
 ```
 
-The observation pattern replaces these with a constraint over all captured data, which can be inspected using logging levels:
+The quantifier replaces these with a constraint over all captured data, which can be inspected using logging levels:
 
 ```gherkin
-every request observed in http-trace is variable request/status is less than 400
+every request in http-trace is variable request.status is less than 400
 ```
 
 # Phases
@@ -145,9 +145,9 @@ For `go to the https://example.com/login webpage`:
 - Pattern: `go to the { name } webpage`
 - Captures: `{name}` = portal's value `https://example.com/login`
 
-For `every request observed in http-trace is variable request/status is less than 400`:
+For `every request in http-trace is variable request.status is less than 400`:
 - Pattern: LogicStepper's universal quantifier (see Logic System below)
-- Parses: iteration source (`http-trace`), bound variable (`request`), nested statement
+- Parses: the domain (`http-trace`), bound variable (`request`), nested statement
 
 ### Waypoint Resolution
 
@@ -215,11 +215,11 @@ Quantifiers check **collections** of data without writing loops:
 - `every x in domain is statement`: Universal quantifier (∀). Passes if statement succeeds for all values.
 - `some x in domain is statement`: Existential quantifier (∃). Passes if statement succeeds for at least one value.
 
-The bound variable `{x}` is available within the nested statement. An observation source returns facts about its items, and
-each fact's predicate is a function of its item, which a statement reads as the variable and the function joined by `/`:
-`request/status` is status(request). From the example:
+The bound variable `{x}` is available within the nested statement. A member domain returns its members as records, and a
+statement reads a member's field as the variable and the field joined by `.`: `request.status` is status(request). A list
+combinator stated before the quantifier selects its members at the store. From the example:
 ```
-every request observed in http-trace is variable request/status is less than 400
+every request in http-trace is variable request.status is less than 400
 ```
 
 This reads: "for every request captured in http-trace, verify that its status is less than 400."
@@ -228,7 +228,7 @@ Quantifiers, like other Haibun steps, are compasable. The nested form `every
 ... is some ... is ...` expresses "for all X, there exists Y such that
 predicate(X, Y)":
 ```
-every host observed in http-trace hosts is some domain in Allowed domains is matches {host} with "*{domain}"
+every host in http-trace hosts is some domain in Allowed domains is matches {host} with "*{domain}"
 ```
 
 ### Rules
@@ -255,7 +255,7 @@ record state the task, the entailment, the verdict and the proof or witness:
 | `every E1 is a E2` | `SubClassOf(E1 E2)` (Manchester `Class: E1 SubClassOf: E2` where E1 is a named class) | subsumption check |
 | `some E` | a named individual entailed to be an E, without an axiom | instance retrieval (non-empty) |
 
-The engine doesn't hold facts. A quantifier reads its closed set, a domain's values or an observation source's items, through
+The engine doesn't hold facts. A quantifier reads its closed set, a domain's values or its members, through
 one effect within the line's authority. Actions and views read and write the store directly.
 
 A line that reads as until states how long it proves its statements again, or it doesn't resolve. A proof that stops on an
@@ -520,17 +520,18 @@ whose components the views picker lists.
 | StorageFS | File system artifact storage |
 | StorageMem | In-memory storage for tests |
 
-## Observations
+## Member domains
 
-An observation source returns the facts it holds at one step, which a quantifier reads via `observed in`: its items are the
-subjects of its facts, and each predicate is a function of an item, such as `step/duration`. The source doesn't store them.
+A member domain returns its members that ended by the quantifier's start, so a step doesn't range over itself, its parts or a
+later step. A statement reads each member's fields, such as `step.duration`. A domain that indexes its members' fields takes a
+list combinator's filters and order, and its store applies them.
 
-| Source | Items | Functions | Provider |
+| Domain | Members | Fields | Provider |
 |--------|-------|-----------|----------|
 | `steps` | The feature's step records | each field of the record, `stepper` and `duration` in milliseconds | LogicStepper |
 | `http-trace` | HTTP request IDs | each field of the request's record, such as `status` and `durationMs` | WebPlaywright |
 | `http-trace hosts` | Hostnames contacted | `requestCount` | WebPlaywright |
-| `visited pages` | URLs navigated | `index` | WebPlaywright |
+| `visited pages` | URLs navigated | `name` | WebPlaywright |
 | `blips`, `watched blips` | Blip names, watched occurrences | `count`; a watched occurrence's attributes | BlipsStepper |
 
 Steppers register sources via `getConcerns()` in their cycles.
@@ -646,7 +647,7 @@ export const features: TKirejiExport = {
 | New Steppers | Extend `AStepper`, define `steps` object with `gwta`/`match`/`exact` patterns |
 | Lifecycle Hooks | Implement `IStepperCycles` (`startFeature`, `afterStep`, `onEvent`, etc.) |
 | Domains | Declare `TDomainDefinition` in the cycles' `getConcerns`: a schema that takes each form of the value and yields it |
-| Observation Sources | Implement `IObservationSource`, whose `observe` returns facts about its items, for quantifier iteration (`observed in source`) |
+| Member domains | Declare a domain's `members`, whose `read` returns the records a quantifier ranges over (`every x in domain is …`), with the fields its store indexes |
 | Monitors | Implement `onEvent` to receive actuality's telemetry |
 
 # How code is organized

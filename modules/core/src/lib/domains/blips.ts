@@ -16,7 +16,7 @@
 import { z } from "zod";
 import type { THaibunEvent, TBlipEvent } from "./protocol.js";
 import type { IEventLogger } from "../steps/ports.js";
-import type { TObserved } from "../steps/domains/stepper.js";
+import type { TListItem } from "./lists.js";
 
 /** How a blip maps onto an OpenTelemetry signal. A discrete occurrence maps to a span event, and a rate or distribution
  *  maps to a metric instrument. Traces give order and identity, and metrics give frequency. */
@@ -114,7 +114,7 @@ export function blipDeclarations(): readonly THeldBlipDeclaration[] {
 /**
  * Counts occurrences per name, for callers that can't read blips at their recorded rate: a feature assertion, the
  * monitor, an agent. Memory is one counter per recorded name. `blips-stepper` attaches it for actuality, clears it per
- * feature, and serves it as the `blips` observation source. A feature reads that source with `observed in`.
+ * feature, and serves it as the members of the `blips` domain, which a quantifier ranges over.
  */
 export class BlipRollup {
 	/** Each recorded name's count, and the time of its first occurrence, at which the name became an item of the source. */
@@ -144,9 +144,9 @@ export class BlipRollup {
 		this.counts.clear();
 	}
 
-	/** The facts of an observation source: each name first recorded at or before `endedBy`, with the function `count`. */
-	observe(endedBy: number): TObserved[] {
-		return [...this.counts].flatMap(([name, { count, first }]) => (first > endedBy ? [] : [{ subject: name, predicate: "count", object: count }]));
+	/** The members of the blips domain: each name first recorded at or before `endedBy`, with its count. */
+	members(endedBy: number): TListItem[] {
+		return [...this.counts].flatMap(([name, { count, first }]) => (first > endedBy ? [] : [{ id: name, count }]));
 	}
 }
 

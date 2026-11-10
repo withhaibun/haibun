@@ -14,6 +14,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
+import { itemAt } from "../domains/item-at.js";
 import { z } from "zod";
 import { AStepper, hasCycles } from "../steps/domains/stepper.js";
 import type { TDomainDefinition } from "../domains/resources.js";
@@ -32,6 +33,7 @@ export const UNLISTED_CHANGES = "writes without listing its writes beyond its pr
 export const LIST_OPERATION = "filters, bounds, pages, orders or counts its own list";
 export const UNDECLARED_LIST = "returns a list of records or a count its domain doesn't declare as a list";
 export const FIXED_STATEMENT = "only states other steps with fixed arguments";
+export const UNINDEXED_FILTER = "filters or orders a quantifier's members by a field its domain doesn't index";
 export const UNUSED_SELECTION = "names as a selection a step whose pattern doesn't operate on a list";
 /** The file a repository's count of declared steps is recorded under: the repository itself. */
 export const REPOSITORY_FILE = ".";
@@ -403,13 +405,19 @@ function holdsList(schema: z.ZodType): boolean {
 	});
 }
 
-/** Each step whose products domain, as its stepper's concerns declare it, holds a list of records or a count without a list
- *  declaration, so a combinator can't read its list. */
-export function undeclaredLists(steppers: readonly { stepper: AStepper }[], steps: readonly TDeclaredStep[]): TFound[] {
+/** The domains the steppers' concerns declare, by each of their selectors. */
+function definitionsOf(steppers: readonly { stepper: AStepper }[]): Map<string, TDomainDefinition> {
 	const definitions = new Map<string, TDomainDefinition>();
 	for (const { stepper } of steppers)
 		for (const definition of hasCycles(stepper) ? (stepper.cycles.getConcerns?.().domains ?? []) : [])
 			for (const selector of definition.selectors) definitions.set(selector, definition);
+	return definitions;
+}
+
+/** Each step whose products domain, as its stepper's concerns declare it, holds a list of records or a count without a list
+ *  declaration, so a combinator can't read its list. */
+export function undeclaredLists(steppers: readonly { stepper: AStepper }[], steps: readonly TDeclaredStep[]): TFound[] {
+	const definitions = definitionsOf(steppers);
 	return steps.flatMap((s) =>
 		s.productDomains
 			.filter((name) => {
@@ -468,4 +476,29 @@ function statesFixed(fn: ts.ArrowFunction | ts.FunctionExpression, source: ts.So
 	};
 	visit(fn.body);
 	return calls.length > 0 && calls.every((call) => call.arguments.length > 0 && fixedArgument(call.arguments[0] as ts.Expression));
+}
+
+/** A quantifier as a line states it, with the domain it ranges over. */
+const QUANTIFIER = /\b(?:every|some) \w+ in (.+?) is /g;
+/** A field a combinator's list query names: a filter of whose, or an order. */
+const QUERIED_FIELD = /\b(?:whose|ordered by) "?([\w.]+)"?/g;
+
+/** Each field a feature line's combinators filter or order a quantifier's members by, where the quantifier's domain indexes its
+ *  members' fields and doesn't index that one, so its store would read every member. */
+export function unindexedFilters(repository: string, steppers: readonly { stepper: AStepper }[]): TFound[] {
+	const definitions = definitionsOf(steppers);
+	return sourcesOf(repository).features.flatMap((feature) =>
+		statedIn([feature]).lines.flatMap((line) => {
+			let after = 0;
+			return [...line.matchAll(QUANTIFIER)].flatMap((quantifier) => {
+				const domain = itemAt(quantifier, 1);
+				const queried = [...line.slice(after, quantifier.index).matchAll(QUERIED_FIELD)].map((field) => itemAt(field, 1));
+				after = quantifier.index + quantifier[0].length;
+				const indexed = definitions.get(domain)?.members?.indexed;
+				return indexed === undefined
+					? []
+					: queried.filter((field) => !indexed.includes(field)).map((field) => ({ file: feature.file, finding: `${UNINDEXED_FILTER}: ${domain}.${field}` }));
+			});
+		}),
+	);
 }

@@ -56,7 +56,7 @@ import {
 	beforeItems,
 	countingItems,
 	exactlyItems,
-	itemBindings,
+	boundTo,
 	limitedItems,
 	matchingItems,
 	orderedItems,
@@ -277,13 +277,13 @@ class Haibun extends AStepper implements IHasCycles {
 		forEach: {
 			gwta: `for each {what: ${DOMAIN_VARIABLE_NAME}} of {list: ${DOMAIN_STATEMENT}}: {statement: ${DOMAIN_STATEMENT}}`,
 			description:
-				"Proves the statement after the colon for each item of the list's statement, as its combinators make the list, with the item bound to the variable: its id, and each of its values as variable/field. Holds where the statement holds for every item, and is refused with the first item's refusal otherwise.",
+				"Proves the statement after the colon for each item of the list's statement, as its combinators make the list, with the item bound to the variable: its id, and each of its fields as variable.field. Holds where the statement holds for every item, and is refused with the first item's refusal otherwise.",
 			action: async ({ what, list, statement }: { what: string; list: TFeatureStep[]; statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				const ctx = stepperContext(this.getWorld(), this.steppers);
 				const read = await provedList(ctx, featureStep, list);
 				if ("failure" in read) return read.failure;
 				for (const item of read.list.items) {
-					const proved = await proveStatements(ctx, { ...featureStep, runtimeArgs: { ...featureStep.runtimeArgs, ...itemBindings(what, item) } }, statement);
+					const proved = await proveStatements(ctx, boundTo(featureStep, what, item), statement);
 					if (!proved.ok) return proved;
 				}
 				return OK;

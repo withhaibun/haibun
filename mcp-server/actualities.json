@@ -116,12 +116,12 @@
 				"tookMs": 600,
 				"digest": {
 					"mcp-server": "6c710ec3b9f627f32df0a59fb03960978e4eae1e54af532c3183aad1cbe2d155",
-					"modules/core/src": "c0450427cb0cd5500f06b1b68e0dcce6e0939ec1657121a06c33c191f2eab21b",
+					"modules/core/src": "aa1c67b839b485ba937ca4236a1bebf9f955838a604798071b1a5e252400d767",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
-					"modules/logic/src": "f3328298d4f1b05791b80113a011f34af9f91808844a4be81121c158689e41be",
+					"modules/logic/src": "f6b001803d764005ddd48984639351f9c74a524234259c138f769da67bebc300",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
-					"modules/web-playwright/src": "8b2ab01717d0289258d3bf0f5fc4461aa3373a4c1756d31c78440999072e9f4a",
+					"modules/web-playwright/src": "d5cb7cb5594a5294aaf6c41ac81acea324121fa0e84702a580f120c11e8d327c",
 					"modules/web-server-hono/src": "b00ab949c09047ae70f7d56dec3f3d2fae924a50128601c49e1f376b7afbadbd"
 				}
 			},

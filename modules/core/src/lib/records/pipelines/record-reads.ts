@@ -4,9 +4,12 @@
  * these functions, so each read states its bound, its count and its order.
  */
 import { z } from "zod";
-import { endFieldOf, MAX_PAGE_ROWS, readInPages, type TCounted } from "../../domains/hypermedia.js";
+import { endFieldOf, indexedFields, MAX_PAGE_ROWS, readInPages, type TCounted } from "../../domains/hypermedia.js";
+import type { TListItem } from "../../domains/lists.js";
+import type { TWorld } from "../../actuality/domains/world.js";
 import {
 	GraphQuerySchema,
+	SortOrderSchema,
 	levelOf,
 	statedQuery,
 	VIA_FIELD,
@@ -21,7 +24,7 @@ import {
 	type TSearchCondition,
 } from "../../steps/domains/quad-types.js";
 import { type IQuadStore } from "../../steps/ports.js";
-import { HAS_BODY_EDGE, isPersisted, LinkRelations, type AccessQueryLevel, type TDomainDefinition } from "../../domains/resources.js";
+import { HAS_BODY_EDGE, isPersisted, LinkRelations, type AccessQueryLevel, type TDomainDefinition, type TDomainMembers } from "../../domains/resources.js";
 import { readFromRecords, recordsOfQuads, type TReadDeclarations } from "../derivations/read-records.js";
 
 /** The store port's read function. */
@@ -141,6 +144,29 @@ export async function readUpTo(store: TRecordReader, input: TGraphQueryInput, bo
 	if (vertices.length > bound)
 		throw new Error(`the read of ${query.label === undefined ? "records" : query.label} holds more than its bound of ${bound} records; narrow it by a field, an edge or a level`);
 	return vertices;
+}
+
+/**
+ * The members of a persisted type that a quantifier ranges over: its records that ended by the quantifier's start, under the
+ * conditions `scope` states in the world, as the query's filters and order select them, up to `bound`, each the item `item` makes
+ * of its record. A list query's offset and limit apply to the members the read returns.
+ */
+export function recordMembers(
+	type: TDomainDefinition,
+	bound: number,
+	scope: (world: TWorld) => TSearchCondition[],
+	item: (record: Record<string, unknown>) => TListItem,
+): TDomainMembers {
+	const { topology } = type;
+	if (!isPersisted(topology)) throw new Error(`${type.selectors.join(", ")} doesn't persist its records, so a quantifier can't range over them`);
+	return {
+		indexed: indexedFields(topology),
+		read: async (world, endedBy, { filters, order }) => {
+			const sorted = order === undefined ? {} : { sortBy: order.field, sortOrder: order.descending ? SortOrderSchema.enum.desc : SortOrderSchema.enum.asc };
+			const read = { filters: [...scope(world), ...(filters === undefined ? [] : filters)], ...sorted };
+			return (await readEndedBy(world.shared.getStore(), type, endedBy, read, bound)).map(item);
+		},
+	};
 }
 
 /** Reads every record of a type that ended at or before `at`, an epoch time in milliseconds, under the read's conditions. An

@@ -276,27 +276,27 @@ This expresses: for every page in urls, there exists some pattern in patterns su
 
 Variables bound in outer quantifiers (`{page}`) flow through to inner predicates.
 
-#### Observations
+#### Member domains
 
-Observations capture runtime data that isn't explicitly set via `set` statements. They enable verification of emergent behaviors like network traffic, visited pages, and the patterns of the steps that ran.
+A member domain holds runtime data that isn't explicitly set via `set` statements. It enables verification of emergent behaviors like network traffic, visited pages, and the patterns of the steps that ran.
 
-Use `observed in` to iterate over observation sources:
+A quantifier ranges over a member domain's members as it ranges over any domain:
 
-    every host observed in http-trace hosts is some domain in Allowed domains is matches {host} with "*{domain}"
-    every page observed in visited pages is some pattern in Allowed patterns is matches {page} with {pattern}
+    every host in http-trace hosts is some domain in Allowed domains is matches {host} with "*{domain}"
+    every page in visited pages is some pattern in Allowed patterns is matches {page} with {pattern}
 
-Available observation sources:
+Available member domains:
 
-| Source | Items | Used for |
+| Domain | Members | Used for |
 |--------|-------|----------|
 | `visited pages` | URLs navigated during browser session | Verifying the session didn't access unexpected domains |
 | `http-trace hosts` | Hostnames from all HTTP requests | Allowlist/blocklist verification |
 | `http-trace` | Individual HTTP request IDs | Checking status codes, timing |
-| `steps` | The feature's step records | Coverage and timing, through `step/called`, `step/stepper` and `step/duration` |
+| `steps` | The feature's step records | Coverage and timing, through `step.called`, `step.stepper` and `step.duration` |
 
-A source states functions of its items, which a statement reads as the variable and the function joined by `/`, such as `request/status`.
+A statement reads a member's fields as the variable and the field joined by `.`, such as `request.status`. A list combinator stated before a quantifier selects its members, and the store applies the filter, so `whose "called" is "GraphStepper.graphQuery", every step in steps is …` reads the records of one step by an index. A filter of a field the domain doesn't index is refused.
 
-Observations are automatically collected by steppers and cleared between features.
+Steppers collect the members, and a feature's members are its own.
 
 
 #### Disjunction (any of, some)
@@ -354,7 +354,7 @@ The list combinators compose before a comma, innermost first. A count states how
     limited to 1, skipping 1, ordered by "method" descending, matching "Haibun-show", show steps
     limited to 1 per "stepperName", show steps
     as of 0.1, counting show steps
-    for each step of whose "method" matches "Haibun-show", show steps: matching step/method, show steps
+    for each step of whose "method" matches "Haibun-show", show steps: matching step.method, show steps
 
 
 A module holds the waypoints every group uses in a base of backgrounds, which a group names beside its own base. shu's `waypoints` base holds the waypoints of its views, which call web-playwright's steps within a view, so a feature states what a view shows without a step of its own. Its waypoints over the registered domains state what the Domain records hold as a phrase, `the domains hold {key}` and `domain {key} is a view drawn by {component}`, so a feature doesn't write a graph query. A graph view's waypoints read its accessible document: the nodes it names, the active, dimmed and pinned states, the group titles and the lifelines. A head every view benefits from is general, and a head for what only the graph draws names the graph (see [architecture](docs/architecture.md#activities-and-waypoints)).

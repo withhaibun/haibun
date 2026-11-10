@@ -134,7 +134,7 @@ export const features: TKirejiExport = {
 		views.showsRowContaining(MONITOR, '"scrollResumedEvent"'),
 
 		"Everything the views did through all that scrolling reached actuality as fine-grained occurrences, recorded in the browser at the rate they happened and handed over in batches, since one request each would not be sustainable. Actuality doesn't cache them; the watch caches them in order, which is what reports whether a size changed while a reader was scrolling rather than only that it changed.",
-		'some occurrence observed in watched blips is "variable occurrence/name is "haibun.shu.view.thumb_resize""',
+		'some occurrence in watched blips is "variable occurrence.name is "haibun.shu.view.thumb_resize""',
 
 		scenario({ scenario: "The run document reads the same run as prose" }),
 		"The document reads the same events as prose, showing what a reader can see of a long run rather than all of it, with every earlier event still reachable.",
@@ -156,7 +156,7 @@ export const features: TKirejiExport = {
 		"The screenshots this actuality just took stream in as artifact events and render as thumbnail tiles in the document, each showing its image once the page has read the artifact.",
 		views.documentShowsScreenshot("3"),
 		"The document column's own micro-movement reached actuality: every raw change of its thumb measurement, including the ones too small to redraw, recorded from the browser and cached in order. This is the record from which a smoothness problem is diagnosed.",
-		`some occurrence observed in watched blips is "variable occurrence/view is "${SHU_TAG.DOCUMENT_COLUMN}""`,
+		`some occurrence in watched blips is "variable occurrence.view is "${SHU_TAG.DOCUMENT_COLUMN}""`,
 
 		scenario({ scenario: "A thumbnail expands with its step caption and arrows walk actuality's screenshots" }),
 		"Clicking a thumbnail expands it over the column and captions it with the step that took it; the caption reads a stamp the document build put on the frame, since under virtualization the step's own row may not be in the reading window at all. The time cursor follows the expanded screenshot's step, dimming everything recorded after it. Arrow keys then move between actuality's screenshots through the document column, which reaches frames outside the rendered window. The expanded screenshot is drawn above every row, so a press on it reaches it and closes it.",

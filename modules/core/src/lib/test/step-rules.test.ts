@@ -19,6 +19,8 @@ import {
 	stepCount,
 	UNDECLARED_LIST,
 	undeclaredLists,
+	UNINDEXED_FILTER,
+	unindexedFilters,
 	UNUSED_SELECTION,
 	NEAR_DUPLICATE,
 	nearDuplicates,
@@ -248,5 +250,41 @@ describe("a step that only states other steps", () => {
 			].join("\n"),
 		);
 		expect(keysOf(fixedStatements(repository, steps()), FIXED_STATEMENT)).toEqual(["DemoStepper.openStore", "DemoStepper.openKey"]);
+	});
+});
+
+describe("a quantifier's filter", () => {
+	let repository = "";
+	beforeEach(() => {
+		repository = mkdtempSync(join(tmpdir(), "haibun-step-indexed-"));
+		execFileSync("git", ["init", "-q"], { cwd: repository });
+	});
+	afterEach(() => rmSync(repository, { recursive: true, force: true }));
+
+	/** A stepper that declares a domain whose members its store reads by `called`, and a domain whose members aren't indexed. */
+	class MembersStepper extends AStepper {
+		description = "Domains a quantifier ranges over";
+		cycles = {
+			getConcerns: () => ({
+				domains: [
+					{ selectors: ["records"], schema: z.string(), description: "Indexed members", members: { indexed: ["id", "called"], read: () => Promise.resolve([]) } },
+					{ selectors: ["recent"], schema: z.string(), description: "Members a read returns whole", members: { read: () => Promise.resolve([]) } },
+				],
+			}),
+		};
+		steps = {};
+	}
+
+	it("is flagged where it names a field the domain doesn't index, and not where the domain indexes it or doesn't index its members", () => {
+		mkdirSync(join(repository, "tests/features"), { recursive: true });
+		const lines = [
+			'whose "called" is "X", ordered by "id", every r in records is passes',
+			'whose "stepText" is "X", some r in records is passes',
+			'whose "stepText" is "X", every r in recent is passes',
+			'every r in records is whose "verdict" is "proved", some q in records is passes',
+		];
+		writeFileSync(join(repository, "tests/features/a.feature"), `Feature: A\n${lines.join("\n")}\n`);
+		const found = unindexedFilters(repository, [{ stepper: new MembersStepper() }]);
+		expect(found.map(({ finding }) => finding)).toEqual([`${UNINDEXED_FILTER}: records.stepText`, `${UNINDEXED_FILTER}: records.verdict`]);
 	});
 });

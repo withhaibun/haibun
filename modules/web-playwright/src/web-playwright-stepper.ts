@@ -75,7 +75,7 @@ import { expectDownload, receiveDownload } from "./pipelines/downloads.js";
 import { runningExtension } from "./pipelines/extension.js";
 import { endFeature, writeFeatureArtifact } from "./pipelines/feature-end.js";
 import { goBack, goTo, reload, settle } from "./pipelines/navigation.js";
-import { HTTP_TRACE_SOURCES } from "./pipelines/observations.js";
+import { TRACE_MEMBER_DOMAINS } from "./pipelines/trace-members.js";
 import { pageObserver } from "./pipelines/page-observer.js";
 import {
 	acceptDialogs,
@@ -233,7 +233,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	}
 
 	cycles: IStepperCycles = {
-		getConcerns: () => ({ domains: WebPlaywrightDomains, sources: HTTP_TRACE_SOURCES }),
+		getConcerns: () => ({ domains: [...WebPlaywrightDomains, ...TRACE_MEMBER_DOMAINS] }),
 		onFailure: async ({ failedStep }) => {
 			if (failedStep === undefined || !this.session.hasPage(this.session.tab)) return;
 			await captureScreenshot(this.session, this.getWorld(), this.storage, "failure", failedStep).catch((e: unknown) =>

@@ -19,6 +19,7 @@ import { parsedSources, sourceFiles, type TPackages } from "./repository-files.j
 import {
 	declaredSteps,
 	fixedStatements,
+	unindexedFilters,
 	listOperations,
 	nearDuplicates,
 	oneCallSite,
@@ -171,6 +172,7 @@ export function describeRepositoryRules(rules: TRepositoryRules): void {
 					...listOperations(steps, rules.inputSelections),
 					...undeclaredLists(steppers, steps),
 					...fixedStatements(repository, steps),
+					...unindexedFilters(repository, steppers),
 				];
 				const fix =
 					"start it as a feature starts where an option states it, make it a waypoint of a module's library, give a primitive the difference as a parameter, or exercise it in a feature or a unit test";

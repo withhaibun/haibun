@@ -13,9 +13,8 @@ import { VERDICT, type TStepArgs } from "@haibun/core/lib/domains/protocol.js";
 /** How long until waits before it proves its statements again. */
 export const UNTIL_RETRY_MS = 200;
 
-/** The comma-separated statements of a disjunction, and the name of an observation source a quantifier ranges over. */
+/** The comma-separated statements of a disjunction. */
 export const DOMAIN_ALTERNATIVES = "statement-alternatives";
-export const DOMAIN_OBSERVATION_SOURCE = "observation-source";
 /** The verdict a statement's proof ended with, which maybe returns. */
 export const DOMAIN_STATUS = "status";
 /** Why the statement `not` holds over didn't hold, which `not` returns: its failing step's error text and seqPath. */
@@ -37,12 +36,6 @@ export type TRefusal = z.infer<typeof RefusalSchema>;
 export const readingDomainDefinitions: TDomainDefinition[] = [
 	{ selectors: [DOMAIN_ALTERNATIVES], schema: z.string().min(1), written: true, description: "The comma-separated statements of a disjunction" },
 	{
-		selectors: [DOMAIN_OBSERVATION_SOURCE],
-		schema: z.string().min(1),
-		written: true,
-		description: "The name of an observation source a stepper declares, which a quantifier ranges over",
-	},
-	{
 		selectors: [DOMAIN_STATUS],
 		schema: z.object({ verdict: z.enum(VERDICT), ...RefusalSchema.partial().shape }),
 		description: "The verdict of a statement's proof: proved, refuted, unknown or contradiction, with why the statement didn't hold where it didn't",
@@ -55,14 +48,11 @@ export const readingDomainDefinitions: TDomainDefinition[] = [
 	},
 ];
 
-/** A quantifier's variable and its range: a domain's members, or the items an observation source returns. */
-export type TQuantifier = { what: string } & ({ domain: string } | { source: string });
+/** A quantifier's variable and the domain whose members it ranges over. */
+export type TQuantifier = { what: string; domain: string };
 
-/** Reads a quantifier's variable and range from its arguments. */
-export function quantifierOf(args: TStepArgs): TQuantifier {
-	const what = String(args.what);
-	return typeof args.source === "string" ? { what, source: args.source } : { what, domain: String(args.domain) };
-}
+/** Reads a quantifier's variable and domain from its arguments. */
+export const quantifierOf = (args: TStepArgs): TQuantifier => ({ what: String(args.what), domain: String(args.domain) });
 
 /** The delimiters a statement list reads past a comma within: a quoted or backticked term, and a JSON value. */
 const PAIRED: Readonly<Record<string, string>> = { '"': '"', "`": "`", "{": "}", "[": "]" };

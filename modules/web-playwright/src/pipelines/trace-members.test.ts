@@ -1,11 +1,11 @@
-/** The browser's observation sources read their types' records in pages, so a store that refuses a read of a whole type as
- *  quads serves them, and each states the facts its quantifier reads. */
+/** The browser's member domains read their types' records in pages, so a store that refuses a read of a whole type as quads
+ *  serves them, and each states the fields its quantifier reads. */
 import { describe, expect, it } from "vitest";
 import { Access, HTTP_HOST_LABEL, HTTP_REQUEST_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { storeOfDomains } from "@haibun/core/lib/test/declared-types.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { VISITED_PAGE_LABEL, WebPlaywrightDomains } from "../domains/web-playwright.js";
-import { HTTP_TRACE_SOURCES } from "./observations.js";
+import { TRACE_MEMBER_DOMAINS } from "./trace-members.js";
 
 /** The time of a record of the trace, at a minute of one hour. */
 const minute = (at: number): number => Date.UTC(2026, 9, 22, 12, at);
@@ -31,29 +31,22 @@ async function worldHoldingTrace(): Promise<TWorld> {
 	return { shared: { getStore: () => store } } as unknown as TWorld;
 }
 
-const observed = async (name: string, endedBy: number) => {
-	const source = HTTP_TRACE_SOURCES.find((candidate) => candidate.name === name);
-	if (source === undefined) throw new Error(`the browser doesn't offer the observation source ${name}`);
-	return source.observe(await worldHoldingTrace(), endedBy);
+const members = async (name: string, endedBy: number) => {
+	const domain = TRACE_MEMBER_DOMAINS.find(({ selectors }) => selectors.includes(name));
+	if (domain?.members === undefined) throw new Error(`the browser doesn't offer the member domain ${name}`);
+	return domain.members.read(await worldHoldingTrace(), endedBy, {});
 };
+const ids = async (name: string, endedBy: number) => (await members(name, endedBy)).map(({ id }) => id).sort();
 
-describe("the browser's observation sources", () => {
-	it("state each request's fields, each host's count of requests and each visit in its order, through paged reads", async () => {
-		expect(await observed("http-trace", minute(59))).toEqual(
-			expect.arrayContaining([
-				{ subject: "GET /app", predicate: "status", object: 200 },
-				{ subject: "GET /app", predicate: "url", object: "http://localhost/app" },
-			]),
-		);
-		expect(await observed("http-trace hosts", minute(59))).toEqual([{ subject: "localhost", predicate: "requestCount", object: 3 }]);
-		expect(await observed("visited pages", minute(59))).toEqual([
-			{ subject: "http://localhost/first", predicate: "index", object: 0 },
-			{ subject: "http://localhost/second", predicate: "index", object: 1 },
-		]);
+describe("the browser's member domains", () => {
+	it("state each request's fields, each host's count of requests and each visit by its URL, through paged reads", async () => {
+		expect(await members("http-trace", minute(59))).toEqual([expect.objectContaining({ id: "GET /app", status: 200, url: "http://localhost/app" })]);
+		expect(await members("http-trace hosts", minute(59))).toEqual([expect.objectContaining({ id: "localhost", requestCount: 3 })]);
+		expect(await ids("visited pages", minute(59))).toEqual(["http://localhost/first", "http://localhost/second"]);
 	});
 
-	it("state only the records written at or before the observing step's start", async () => {
-		expect(await observed("visited pages", minute(1))).toEqual([{ subject: "http://localhost/first", predicate: "index", object: 0 }]);
-		expect(await observed("http-trace hosts", minute(0) - 1)).toEqual([]);
+	it("state only the records written at or before the quantifier's start", async () => {
+		expect(await ids("visited pages", minute(1))).toEqual(["http://localhost/first"]);
+		expect(await members("http-trace hosts", minute(0) - 1)).toEqual([]);
 	});
 });

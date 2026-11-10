@@ -10,6 +10,9 @@ import { Access, DOMAIN_PERSISTED_TYPE, SEQ_PATH_LABEL } from "../../domains/res
 import { STEP_LEVEL, actualityFeatureOf, formatRecordName } from "../domains/seq-path.js";
 import { QuadStore, newStoreChain } from "../../steps/pipelines/quad-store.js";
 import { TEST_STEP } from "../../test/test-step.js";
+import { whoseItems, whoseQuery, type TListQuery, type TListStage } from "../../domains/lists.js";
+import type { TDomainMembers } from "../../domains/resources.js";
+import { satisfies } from "../../steps/domains/quad-types.js";
 
 /** A named graph a backing store holds. */
 const BACKED = "Backed";
@@ -426,6 +429,77 @@ describe("FeatureVariables", () => {
 			expect((await resolveBare("nowhere")).value).toBeUndefined();
 			await variables.set({ term: "role", value: "placeholder", domain: WAY, origin: Origin.var }, { in: "test", seq: [0], when: "test" });
 			expect((await resolveBare("role")).value, "a variable is read as a variable").toBe("placeholder");
+		});
+	});
+
+	describe("a domain's members", () => {
+		const COUNTED = "counted";
+		const UNINDEXED = "unindexed";
+		const ITEMS = [
+			{ id: "a", kind: "x", n: 1 },
+			{ id: "b", kind: "y", n: 2 },
+		];
+		/** Registers a domain whose read applies the query's filters, as a store does, and holds each query it read. */
+		const registerCounted = (selector: string, indexed?: string[]) => {
+			const read: TListQuery[] = [];
+			const members: TDomainMembers = {
+				...(indexed === undefined ? {} : { indexed }),
+				read: (_world, _endedBy, query) => {
+					read.push(query);
+					return Promise.resolve(ITEMS.filter((item) => (query.filters === undefined ? [] : query.filters).every((filter) => satisfies(item[filter.predicate as "kind"], filter))));
+				},
+			};
+			registerDomains(world, [[{ selectors: [selector], schema: z.string(), description: "counted members", members }]]);
+			return read;
+		};
+		const kindX: TListStage = { listing: whoseItems("kind", { operator: "eq", value: "x" }), query: whoseQuery("kind", { operator: "eq", value: "x" }) };
+
+		it("reaches the read with a combinator's filter of an indexed field, which the store applies", async () => {
+			const read = registerCounted(COUNTED, ["kind"]);
+			expect(await variables.getDomainMembers(COUNTED, 0, [kindX])).toEqual([ITEMS[0]]);
+			expect(read, "the read takes the filter").toEqual([{ filters: [{ predicate: "kind", operator: "eq", value: "x" }] }]);
+		});
+
+		it("refuses a filter of a field the domain doesn't index, and applies each listing to members a read that doesn't take a query returns", async () => {
+			registerCounted(COUNTED, ["n"]);
+			await expect(variables.getDomainMembers(COUNTED, 0, [kindX])).rejects.toThrow(`${COUNTED} doesn't index kind; filter and order its members by n`);
+			const read = registerCounted(UNINDEXED);
+			expect(await variables.getDomainMembers(UNINDEXED, 0, [kindX])).toEqual([ITEMS[0]]);
+			expect(read, "a read without an index takes an empty query").toEqual([{}]);
+		});
+
+		it("are a domain's values, each an item of its id, where the domain doesn't read members", async () => {
+			registerDomains(world, [[{ selectors: ["citrus"], schema: z.string(), values: ["lemon", "lime"], description: "citrus" }]]);
+			expect(await variables.getDomainMembers("citrus", 0, [])).toEqual([{ id: "lemon" }, { id: "lime" }]);
+		});
+	});
+
+	describe("a dot path", () => {
+		it("reads a field of the item a quantifier binds, before a stored variable of the same name", async () => {
+			await variables.set({ term: "step", value: JSON.stringify({ called: "stored" }), domain: DOMAIN_JSON, origin: Origin.var }, { in: "test", seq: [0], when: "test" });
+			const bound = { ...mockFeatureStep, runtimeArgs: { step: "0.1" }, boundItems: { step: { id: "0.1", called: "Bound.step", duration: 3 } } };
+			expect((await variables.resolveVariable({ term: "step.called", origin: Origin.defined }, bound)).value).toBe("Bound.step");
+			expect((await variables.resolveVariable({ term: "step.duration", origin: Origin.defined }, bound)).value).toBe(3);
+			expect((await variables.resolveVariable({ term: "step.called", origin: Origin.defined }, mockFeatureStep)).value).toBe("stored");
+		});
+
+		it("reads a field of the record a CURIE names, with a quoted id that holds dots, and refuses a field its domain doesn't declare", async () => {
+			const step = formatRecordName({ actuality: actualityFeatureOf(world.tag), path: [0, 1] });
+			await variables
+				.getStore()
+				.merge({
+					"@type": SEQ_PATH_LABEL,
+					id: step,
+					stepText: "passes",
+					actionStatus: RECORDED_STATUS.completed,
+					generatedAtTime: new Date(0).toISOString(),
+					level: LOG_LEVEL_INFO,
+					accessLevel: Access.private,
+				});
+			expect((await variables.resolveVariable({ term: `${SEQ_PATH_LABEL}:"${step}".stepText`, origin: Origin.defined }, mockFeatureStep)).value).toBe("passes");
+			await expect(variables.resolveVariable({ term: `${SEQ_PATH_LABEL}:"${step}".nothing`, origin: Origin.defined }, mockFeatureStep)).rejects.toThrow(
+				`Domain '${SEQ_PATH_LABEL}' doesn't declare property 'nothing'`,
+			);
 		});
 	});
 });

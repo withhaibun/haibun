@@ -254,7 +254,7 @@ describe("show steps", () => {
 			description = "Records what a statement notes.";
 			steps = { note: { description: TEST_STEP, gwta: "note {value: text}", action: ({ value }: { value: string }) => (noted.push(value), Promise.resolve(actionOK())) } };
 		}
-		const result = await passWithDefaults('for each step of whose "method" matches "-pass", show steps: note step/method', [Haibun, TestSteps, Notes, LogicStepper]);
+		const result = await passWithDefaults('for each step of whose "method" matches "-pass", show steps: note step.method', [Haibun, TestSteps, Notes, LogicStepper]);
 		expect(result.ok, JSON.stringify(result.failure)).toBe(true);
 		const kept = readStepSummaries(productsOfLine(result, "show steps")).steps.flatMap(({ method }) => (method.toLowerCase().includes("-pass") ? [method] : []));
 		expect(noted, "once for each step the list's combinator keeps").toEqual(kept);

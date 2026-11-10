@@ -1,14 +1,15 @@
 /**
- * Steps and observation sources for blips. `lib/domains/blips.ts` implements recording.
+ * Steps and member domains for blips. `lib/domains/blips.ts` implements recording.
  *
  * The rollup counts occurrences per name. The stepper attaches it when an actuality starts, clears it at the end of each
  * feature and detaches it when the actuality ends. A watch names blips and holds a bounded window of their occurrences
- * in order. The counts state how many occurrences each name had. The window states their order. `observed in` reads both
- * observation sources.
+ * in order. The counts state how many occurrences each name had. The window states their order. A quantifier ranges over
+ * both as the members of the blips and watched blips domains.
  */
 import { listOf } from "../lib/domains/lists.js";
 import { CountedFields, counted } from "../lib/domains/hypermedia.js";
-import { AStepper, observedOf, type IHasCycles, type IObservationSource, type IStepperCycles, type TStepperSteps } from "../lib/steps/domains/stepper.js";
+import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "../lib/steps/domains/stepper.js";
+import type { TDomainDefinition } from "../lib/domains/resources.js";
 import { blipDeclarations, blipDeclared, blipRollup, blipWatch, renderOccurrence, WATCH_WINDOW, type TBlipSeries } from "../lib/domains/blips.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/domains/util.js";
 import { OK } from "../lib/domains/protocol.js";
@@ -71,31 +72,37 @@ export function renderWatch(occurrences: readonly TBlipEvent[], seen: number, to
 export default class BlipsStepper extends AStepper implements IHasCycles {
 	description = "Fine-grained occurrences actuality records and doesn't retain: per-name counts, and an ordered window over watched names";
 
-	private sources: IObservationSource[] = [
+	private readonly memberDomains: TDomainDefinition[] = [
 		{
 			// Counts occurrences per name, with one counter per recorded name. The rollup stays attached from startActuality to endActuality.
-			name: "blips",
-			observe: (_world, endedBy) => Promise.resolve(blipRollup.observe(endedBy)),
+			selectors: ["blips"],
+			schema: z.string().min(1),
+			description: "The names of the blips recorded in this feature, each with its count",
+			members: { read: (_world, endedBy) => Promise.resolve(blipRollup.members(endedBy)) },
 		},
 		{
-			// The watched occurrences at or before the observing step's start, in order, each item starting with its position, so repeated occurrences stay distinct items.
-			// Its functions are the declared attributes, so a quantifier reads occurrence/view and occurrence/reason, for example.
-			// A reserved key that the occurrence carries replaces an attribute of the same name.
-			name: "watched blips",
-			observe: (_world, endedBy) =>
-				Promise.resolve(
-					blipWatch
-						.occurrences()
-						.filter(({ timestamp }) => timestamp <= endedBy)
-						.flatMap((blip, i) => observedOf(renderOccurrence(blip, i), { ...blip.attributes, index: i + 1, name: blip.name, step: blip.seqPath, value: blip.value })),
-				),
+			// The watched occurrences at or before the quantifier's start, in order, each member's id starting with its position, so repeated
+			// occurrences stay distinct members. Its fields are the declared attributes, so a statement reads occurrence.view and
+			// occurrence.reason, for example. A reserved key that the occurrence carries replaces an attribute of the same name.
+			selectors: ["watched blips"],
+			schema: z.string().min(1),
+			description: "The occurrences a watch holds, in order, each with its attributes, name, step and value",
+			members: {
+				read: (_world, endedBy) =>
+					Promise.resolve(
+						blipWatch
+							.occurrences()
+							.filter(({ timestamp }) => timestamp <= endedBy)
+							.map((blip, i) => ({ ...blip.attributes, id: renderOccurrence(blip, i), index: i + 1, name: blip.name, step: blip.seqPath, value: blip.value })),
+					),
+			},
 		},
 	];
 
 	cycles: IStepperCycles = {
 		getConcerns: () => ({
-			sources: this.sources,
 			domains: [
+				...this.memberDomains,
 				{ selectors: [DOMAIN_BLIP_WATCH], schema: WatchSchema, description: "The blips a watch names, and the size of its window" },
 				{
 					selectors: [DOMAIN_BLIP_NAMES],

@@ -1,5 +1,11 @@
 /** Split a term like "result.total" into baseName and path segments. */
+/** A CURIE whose identifier is quoted, as `Domain:"report.txt"`, and the path after it. */
+const QUOTED_CURIE = /^([A-Za-z][\w-]*:"[^"]*")(?:\.(.+))?$/;
+
 export function parseDotPath(term: string): { baseName: string; pathSegments: string[] } {
+	// A CURIE's quoted identifier holds dots, so its path starts at the first dot after the closing quote.
+	const quoted = QUOTED_CURIE.exec(term);
+	if (quoted?.[1] !== undefined) return { baseName: quoted[1], pathSegments: quoted[2] === undefined ? [] : quoted[2].split(".") };
 	const idx = term.indexOf(".");
 	if (idx === -1) return { baseName: term, pathSegments: [] };
 	return { baseName: term.slice(0, idx), pathSegments: term.slice(idx + 1).split(".") };

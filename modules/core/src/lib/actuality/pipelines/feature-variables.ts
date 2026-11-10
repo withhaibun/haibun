@@ -32,7 +32,8 @@ import { recordTime } from "../domains/record-time.js";
 import { actualityFeatureOf, formatRecordName } from "../domains/seq-path.js";
 import { IQuadStore } from "../../steps/ports.js";
 import { quadObservation, SHARED_GRAPH } from "../../steps/domains/quad-types.js";
-import { referenceTo } from "../../records/domains/unit.js";
+import { recordOfCurie, referenceTo } from "../../records/domains/unit.js";
+import { listed, listQueries, queriedFields, type TListItem, type TListStage } from "../../domains/lists.js";
 
 export { SHARED_GRAPH };
 
@@ -187,11 +188,11 @@ export class FeatureVariables {
 	}
 
 	/** Look up a variable from store or dot-path. Shared by Origin.var, Origin.defined, Origin.quoted. */
-	private async lookupVariable(term: string): Promise<Partial<TStepValue> | undefined> {
+	private async lookupVariable(term: string, featureStep: TFeatureStep | undefined): Promise<Partial<TStepValue> | undefined> {
 		const entry = await this.getStoredEntry(term);
 		if (entry) return { value: entry.value, domain: entry.domain, origin: Origin.var, secret: entry.secret };
 		if (term.includes(".")) {
-			const dot = await this.resolveDotPath(term);
+			const dot = await this.resolveDotPath(term, featureStep);
 			if (dot.found) return { value: dot.value, domain: jsonValueDomain(dot.value), origin: Origin.var, secret: dot.secret };
 		}
 		return undefined;
@@ -259,7 +260,7 @@ export class FeatureVariables {
 			// A binding of a quantifier or a waypoint is a variable within the statement it binds.
 			const name = await this.filledName(input.term, featureStep);
 			const bound = featureStep?.runtimeArgs?.[name];
-			if (bound === undefined) Object.assign(resolved, await this.lookupVariable(name));
+			if (bound === undefined) Object.assign(resolved, await this.lookupVariable(name, featureStep));
 			else Object.assign(resolved, { value: bound, domain: boundDomain(bound, writtenDomain), origin: Origin.var });
 		} else if (input.origin === Origin.defined) {
 			const filled = await this.filledName(lookupTerm, featureStep);
@@ -274,7 +275,7 @@ export class FeatureVariables {
 				resolved.origin = Origin.env;
 				resolved.secret = this.isSecret(filled);
 			} else {
-				const found = await this.lookupVariable(filled);
+				const found = await this.lookupVariable(filled, featureStep);
 				if (found) {
 					Object.assign(resolved, found);
 				} else if (input.domain && namesMember(this.world.domains[input.domain], input.term)) {
@@ -291,7 +292,7 @@ export class FeatureVariables {
 					resolved.domain = boundDomain(bound, writtenDomain);
 					resolved.origin = Origin.var;
 				} else {
-					Object.assign(resolved, await this.lookupVariable(lookupTerm));
+					Object.assign(resolved, await this.lookupVariable(lookupTerm, featureStep));
 				}
 			} else {
 				resolved.value = input.term.replace(/^"(.*)"$/s, "$1");
@@ -354,8 +355,8 @@ export class FeatureVariables {
 
 	/** Why `term` doesn't resolve: a variable that isn't set, or a dot path that names a field its value doesn't have,
 	 *  with the fields that value has. */
-	async unsetReason(term: string): Promise<string> {
-		const read = await this.resolveDotPath(term);
+	async unsetReason(term: string, featureStep?: TFeatureStep): Promise<string> {
+		const read = await this.resolveDotPath(term, featureStep);
 		if (read.found || !("miss" in read)) return `${term} isn't set`;
 		const { at, missing, has } = read.miss;
 		const where = [parseDotPath(term).baseName, ...at].join(".");
@@ -368,10 +369,18 @@ export class FeatureVariables {
 		return !read.found && "miss" in read && read.miss.has.length > 0;
 	}
 
-	private async resolveDotPath(lookupTerm: string): Promise<(ReturnType<typeof navigateValue> & { secret?: boolean }) | { value: undefined; found: false }> {
+	/** Reads a dot path, `base.field`, from the item a quantifier or `for each` binds to the base, a stored variable's value, or the
+	 *  record a CURIE names, in that order. */
+	private async resolveDotPath(
+		lookupTerm: string,
+		featureStep?: TFeatureStep,
+	): Promise<(ReturnType<typeof navigateValue> & { secret?: boolean }) | { value: undefined; found: false }> {
 		const { baseName, pathSegments } = parseDotPath(lookupTerm);
-		const baseEntry = pathSegments.length > 0 ? await this.getStoredEntry(baseName) : undefined;
-		if (!baseEntry) return { value: undefined, found: false };
+		if (pathSegments.length === 0) return { value: undefined, found: false };
+		const item = featureStep?.boundItems?.[baseName];
+		if (item !== undefined) return navigateValue(item, pathSegments);
+		const baseEntry = await this.getStoredEntry(baseName);
+		if (!baseEntry) return await this.curieDotPath(baseName, pathSegments);
 		let baseValue = baseEntry.value;
 		if (typeof baseValue === "string") {
 			// A base that holds text rather than JSON doesn't have fields.
@@ -381,6 +390,45 @@ export class FeatureVariables {
 		}
 		// A field of a secret is a secret.
 		return { ...navigateValue(baseValue, pathSegments), secret: baseEntry.secret };
+	}
+
+	/** Reads a path into the record a CURIE names, `Label:id` or `Label:"id"`, of a type a domain persists. Throws where the path
+	 *  starts with a field the domain doesn't declare, naming those it declares. */
+	private async curieDotPath(base: string, segments: string[]): Promise<ReturnType<typeof navigateValue> | { value: undefined; found: false }> {
+		const named = recordOfCurie(base);
+		const domain = named === undefined ? undefined : persistedDomainOf(this.world.domains, named.label);
+		if (named === undefined || domain === undefined) return { value: undefined, found: false };
+		const { properties, edges } = domain.topology;
+		const declared = [...Object.keys(properties), ...Object.keys(edges === undefined ? {} : edges)];
+		const field = itemAt(segments, 0);
+		if (!declared.includes(field)) throw new Error(`Domain '${named.label}' doesn't declare property '${field}'. Declared properties: ${declared.join(", ")}`);
+		const record = await this.store.readRecord({ label: named.label, schema: domain.schema }, named.id.replace(/^"(.*)"$/s, "$1"));
+		return record === undefined ? { value: undefined, found: false } : navigateValue(record, segments);
+	}
+
+	/**
+	 * The members of a domain a quantifier ranges over, each a list's item, as the stages of its statement's list make them: the
+	 * members its read returns, which ended by `endedBy`, or else its values as items of their id. The query of the stages' filters,
+	 * order, offset and limit reaches a read that takes one, and the store applies it. Throws where the query names a field the
+	 * domain doesn't index, or where a stage refuses the list.
+	 */
+	async getDomainMembers(domainName: string, endedBy: number, stages: readonly TListStage[]): Promise<TListItem[]> {
+		const { members } = registeredDomain(this.world.domains, normalizeDomainKey(domainName), "a quantifier's domain");
+		const indexed = members?.indexed;
+		const [taken] = indexed === undefined ? [] : listQueries(stages);
+		const unindexed = taken === undefined || indexed === undefined ? [] : queriedFields(taken.query).filter((field) => !indexed.includes(field));
+		if (unindexed.length > 0) throw new Error(`${domainName} doesn't index ${unindexed.join(", ")}; filter and order its members by ${indexed?.join(", ")}`);
+		const items = members === undefined ? await this.valueItems(domainName) : await members.read(this.world, endedBy, taken === undefined ? {} : taken.query);
+		const list = listed({ items, total: items.length, saturated: false }, stages.slice(taken === undefined ? 0 : taken.stated));
+		if ("refused" in list) throw new Error(`the members of ${domainName}: ${list.refused}`);
+		return list.items;
+	}
+
+	/** A domain's values, each as an item of its id. */
+	private async valueItems(domainName: string): Promise<TListItem[]> {
+		const found = await this.getDomainValues(domainName);
+		if (found.error !== undefined) throw new Error(found.error);
+		return found.values.map((value) => ({ id: String(value) }));
 	}
 
 	async getDomainValues(domainName: string): Promise<{ values: unknown[]; error?: string }> {

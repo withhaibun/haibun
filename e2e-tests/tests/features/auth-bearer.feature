@@ -35,7 +35,7 @@ Feature: Auth-bearer Authentication
 
     A resource is deleted at the address its id names under the resource route, whose response is empty.
     Activity: Delete the resource
-    compose Deleted Resource with {Resource API}/{resource/id}
+    compose Deleted Resource with {Resource API}/{resource.id}
     make an HTTP DELETE to Deleted Resource
     HTTP status is 204
     waypoint the resource is deleted

@@ -4,11 +4,11 @@
  */
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import type { TQuadPattern } from "@haibun/core/lib/steps/domains/quad-types.js";
-import { observedOf } from "@haibun/core/lib/steps/domains/stepper.js";
 import { Access } from "@haibun/core/lib/domains/resources.js";
 import { readingAt } from "@haibun/core/lib/domains/capability-context.js";
-import { compareSeqPath, factSeqPath, SEQ_PATH_FIELD, seqPathDomainDefinition } from "@haibun/core/lib/actuality/domains/seq-path.js";
-import { equalTo, readEndedBy, readUpTo } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { actualityFeatureOf, calledParts, compareSeqPath, factSeqPath, SEQ_PATH_FIELD, seqPathDomainDefinition } from "@haibun/core/lib/actuality/domains/seq-path.js";
+import type { TDomainMembers } from "@haibun/core/lib/domains/resources.js";
+import { equalTo, readUpTo, recordMembers } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { FACT_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { FACT_FIELD } from "@haibun/core/lib/records/domains/facts.js";
 import { FACT_POSITIONS, type TFact } from "../domains/logic.js";
@@ -63,9 +63,19 @@ export function readerOf(store: IQuadStore, asOf?: readonly number[]): TReader {
 	};
 }
 
-/** The step records of an actuality feature that ended at or before `endedBy`, an epoch time in milliseconds. */
-export const stepsEndedBy = (store: IQuadStore, feature: string, endedBy: number): Promise<Record<string, unknown>[]> =>
-	readEndedBy(store, seqPathDomainDefinition, endedBy, { filters: equalTo({ [SEQ_PATH_FIELD.actuality]: feature }) }, REASONING_READ_CEILING);
+/** The feature's step records, as the members of the steps domain: each record's fields, the stepper of the step it called, and
+ *  its duration, from its start to its end in milliseconds. */
+export const stepMembers: TDomainMembers = recordMembers(
+	seqPathDomainDefinition,
+	REASONING_READ_CEILING,
+	(world) => equalTo({ [SEQ_PATH_FIELD.actuality]: actualityFeatureOf(world.tag) }),
+	(record) => {
+		const { [SEQ_PATH_FIELD.called]: called, [SEQ_PATH_FIELD.generatedAtTime]: started, [SEQ_PATH_FIELD.endedAtTime]: ended } = record;
+		const stepper = typeof called === "string" ? calledParts(called).stepperName : undefined;
+		const duration = typeof ended === "string" && typeof started === "string" ? Date.parse(ended) - Date.parse(started) : undefined;
+		return { ...record, id: String(record[SEQ_PATH_FIELD.id]), stepper, duration };
+	},
+);
 
 /** The records of a type whose field holds a value, each as its fields by name. */
 export const recordsWhere = (store: IQuadStore, label: string, field: string, value: string): Promise<Record<string, unknown>[]> =>
@@ -76,6 +86,6 @@ export const recordsWhere = (store: IQuadStore, label: string, field: string, va
 export async function writeFacts(store: IQuadStore, subject: string, namedGraph: string, fields: Record<string, unknown>): Promise<void> {
 	const ceiling = readingAt();
 	const accessLevel = ceiling === undefined ? Access.private : ceiling;
-	const facts = Object.fromEntries(observedOf(subject, fields).map(({ predicate, object }) => [predicate, object]));
+	const facts = Object.fromEntries(Object.entries(fields).filter(([, object]) => object !== undefined));
 	await store.merge({ "@type": namedGraph, id: subject, ...facts, accessLevel });
 }

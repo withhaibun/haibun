@@ -21,7 +21,8 @@ import { PROV_ENTITY } from "./vocabularies.js";
 import { z } from "zod";
 import { MEDIA_TYPE } from "./media-types.js";
 import { FragmentSchema, isFragment } from "./media-fragments.js";
-import type { TListDeclaration } from "./lists.js";
+import type { TListDeclaration, TListItem, TListQuery } from "./lists.js";
+import type { TWorld } from "../actuality/domains/world.js";
 import type { TRecordType } from "../steps/domains/quad-types.js";
 import type { IQuadStore } from "../steps/ports.js";
 import { referenceTo, type TRecordName } from "../records/domains/unit.js";
@@ -891,7 +892,19 @@ export type TDomainDefinition = {
 	ui?: Record<string, unknown>;
 	/** The list its products hold, for a domain whose products hold one, which the list combinators read. */
 	list?: TListDeclaration;
+	/** The members a quantifier ranges over, for a domain whose members a read returns. */
+	members?: TDomainMembers;
 };
+
+/**
+ * The members of a domain that a read returns, each a list's item: its id, which a quantifier binds to its variable, and its fields,
+ * which a statement reads as `variable.field`. `read` returns the members that ended by `endedBy`, the epoch time in milliseconds at
+ * which the quantifier's step started, so a step doesn't range over itself, its parts or a later step. A domain that states
+ * `indexed` takes the query of a list combinator's filters, order, offset and limit, and its store applies it. A filter or an order
+ * of a field it doesn't index is refused. A domain that doesn't state `indexed` returns every member, and each combinator's listing
+ * applies to them.
+ */
+export type TDomainMembers = { indexed?: readonly string[]; read: (world: TWorld, endedBy: number, query: TListQuery) => Promise<TListItem[]> };
 
 /** A domain as registration holds it. Registration supplies a coercer from the schema where the definition doesn't state one. */
 export type TRegisteredDomain = TDomainDefinition & { coerce: TDomainCoercer };

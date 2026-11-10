@@ -8,7 +8,7 @@ import type { TOptionValue, TFeatures, TSourceLocation, TStepInput } from "../..
 import type { TSeqPath, TActionResult, TStepArgs, TStepValue, TStepResult, TFeatureResult, TExecutorResult, THaibunEvent, TProvenanceIdentifier } from "../../domains/protocol.js";
 import type { AccessLevel, TCoercionSite, TDomainDefinition } from "../../domains/resources.js";
 import type { TStepReads } from "../../domains/actions.js";
-import type { TListing, TListQuery, TListStage } from "../../domains/lists.js";
+import type { TListing, TListItem, TListQuery, TListStage } from "../../domains/lists.js";
 import type { IQuadStore } from "../ports.js";
 import type { TEntailment } from "../../records/domains/claim.js";
 import type { TRelation, TStepContract } from "./contract.js";
@@ -103,9 +103,11 @@ export type TFeatureStep = {
 	action: TStepAction;
 	source?: TSourceLocation["source"];
 	isSubStep?: boolean;
-	/** The bindings of the statement a step is in: a quantifier's member and each function of it, `variable/function`, and a
-	 *  waypoint's arguments, each a variable within the statement. A function's value that is a number stays a number. */
+	/** The bindings of the statement a step is in: a quantifier's member, an item of `for each` and a waypoint's arguments, each a
+	 *  variable within the statement. */
 	runtimeArgs?: Record<string, string | number>;
+	/** The item each member or item variable of `runtimeArgs` binds, whose fields the statement reads as `variable.field`. */
+	boundItems?: Readonly<Record<string, TListItem>>;
 	/**
 	 * A routing hint. Dispatch resolves the tool of a step that sets it by the hostId-prefixed registry key
 	 * `${targetHostId}:${method}`, and the step runs against that remote host. The composition step
@@ -313,29 +315,10 @@ export const CycleWhen = { FIRST: -999, UNSTATED: 0, LAST: 999 } as const;
 // Observation, concerns, cycles
 // ============================================================================
 
-/** A fact an observation source holds: an item it observes, a function of the item, and the function's value. */
-export type TObserved = { subject: string; predicate: string; object: unknown };
-
-/**
- * An observation source for the `observed in` quantifier pattern: the facts it holds at one step, which it doesn't store. A
- * quantifier ranges over its items, the subjects of its facts, and a statement reads a function of an item, a fact's
- * predicate, as `variable/function`. `observe` returns the facts of the items that ended at or before `endedBy`, the epoch
- * time in milliseconds at which the observing step started, so a step doesn't observe itself, its parts or a later step.
- */
-export interface IObservationSource {
-	name: string;
-	observe(world: TWorld, endedBy: number): Promise<TObserved[]>;
-}
-
-/** An item's facts: each field that holds a value, as a function of the item. */
-export const observedOf = (subject: string, fields: Record<string, unknown>): TObserved[] =>
-	Object.entries(fields).flatMap(([predicate, object]) => (object === undefined ? [] : [{ subject, predicate, object }]));
-
 export interface IStepperConcerns {
 	domains?: TDomainDefinition[];
 	/** The relations the stepper's contract statements share, each declared once. */
 	relations?: TRelation[];
-	sources?: IObservationSource[];
 	quadStore?: { store: IQuadStore; namedGraphs: string[] };
 }
 

@@ -56,7 +56,7 @@ export const features: TKirejiExport = {
 		'variable each.total is more than "3"',
 		"set asOf from as of 0.1, counting show steps",
 		'variable asOf.total is more than "3"',
-		'for each step of whose "method" matches "Haibun-show", show steps: matching step/method, show steps',
+		'for each step of whose "method" matches "Haibun-show", show steps: matching step.method, show steps',
 		declarations.shows,
 	],
 };

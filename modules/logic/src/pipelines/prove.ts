@@ -13,6 +13,7 @@ import { ClaimWitnessSchema, DisjointnessWitnessSchema } from "@haibun/core/lib/
 import type { DispatchContext } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
 import { dispatchStep, nextSeqPath, proveStep, runAsDispatched } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
+import { boundValue, type TListItem } from "@haibun/core/lib/domains/lists.js";
 import type { TProver } from "@haibun/core/lib/actuality/ports.js";
 import { findFeatureStepsFromStatement } from "@haibun/core/lib/actuality/pipelines/resolver.js";
 import { argumentsOf } from "@haibun/core/lib/steps/pipelines/populate-action-args.js";
@@ -21,17 +22,7 @@ import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { refusalCarried, type TRemedy } from "@haibun/core/lib/rpc-wire.js";
 import { declaredRelations } from "../derivations/contract-declarations.js";
 import { contractChecks } from "./contract-checks.js";
-import {
-	hasCycles,
-	READING,
-	UNTIL_DURATION,
-	untilWithoutDuration,
-	type AStepper,
-	type TCallContext,
-	type TFeatureStep,
-	type TObserved,
-	type TWaypointRule,
-} from "@haibun/core/lib/steps/domains/stepper.js";
+import { READING, UNTIL_DURATION, untilWithoutDuration, type AStepper, type TCallContext, type TFeatureStep, type TWaypointRule } from "@haibun/core/lib/steps/domains/stepper.js";
 import { formatSeqPath } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import {
 	APPLY_MODE,
@@ -93,8 +84,8 @@ const statedAt = (steps: TFeatureStep[], source: TFeatureStep["source"]): TFeatu
  *  host whose steps prove them, where another host does. */
 type TPlaced = { segments: number[]; targetHostId?: number };
 
-/** One line's proof: its nodes, the results of its calls and nodes by position, the contexts it opened, the facts of the
- *  observation sources its quantifiers read, and its reads. */
+/** One line's proof: its nodes, the results of its calls and nodes by position, the contexts it opened, the members its
+ *  quantifiers read, and its reads. */
 class Proof {
 	private readonly nodes = new Map<string, TNode>();
 	private readonly rules = new Map<string, TWaypointRule>();
@@ -105,8 +96,8 @@ class Proof {
 	private readonly contexts = new Map<string, TCallContext>();
 	/** The arguments each open node read when it opened, by position. */
 	private readonly argsAt = new Map<string, TStepArgs>();
-	/** The facts of each quantifier's observation source by their item, by the quantifier's node. */
-	private readonly observed = new Map<string, Map<string, TObserved[]>>();
+	/** Each quantifier's members by the value its variable binds, by the quantifier's node. */
+	private readonly memberItems = new Map<string, Map<string, TListItem>>();
 	/** The key of each application the proof opened, its head with the arguments it read, by its position. */
 	private readonly keys = new Map<string, string>();
 	/** The lines of each waypoint's proof a session read, by its head. */
@@ -186,7 +177,7 @@ class Proof {
 	/** The step a node states at a position of the proof, with the arguments its bindings supply. */
 	private instance(node: TNode, path: readonly number[], bindings: TBinding[]): TFeatureStep {
 		if (path.length === 0) return this.line;
-		const runtimeArgs = this.runtimeArgsOf(bindings);
+		const bound = this.boundOf(bindings);
 		const { line, placed } = this;
 		const [first, ...rest] = path;
 		const seqPath = first === undefined ? line.seqPath : [...line.seqPath, this.segmentOf(first), ...rest];
@@ -196,25 +187,27 @@ class Proof {
 			isSubStep: true,
 			...(placed?.targetHostId === undefined ? {} : { targetHostId: placed.targetHostId }),
 			source: node.step.source === undefined ? line.source : node.step.source,
-			...(Object.keys(runtimeArgs).length === 0 ? {} : { runtimeArgs }),
+			...(Object.keys(bound.runtimeArgs).length === 0 ? {} : { runtimeArgs: bound.runtimeArgs }),
+			...(Object.keys(bound.boundItems).length === 0 ? {} : { boundItems: bound.boundItems }),
 			...(line.programmatic === true ? { programmatic: true } : {}),
 		};
 	}
 
 	/** The arguments a call reads from its bindings, outermost first, over the line's own: each waypoint's arguments, and each
-	 *  quantifier's member with each function of the member its source's facts state, as `variable/function`. */
-	private runtimeArgsOf(bindings: TBinding[]): Record<string, string | number> {
-		const args: Record<string, string | number> = { ...this.line.runtimeArgs };
+	 *  quantifier's member with the item whose fields its statement reads as `variable.field`. */
+	private boundOf(bindings: TBinding[]): { runtimeArgs: Record<string, string | number>; boundItems: Record<string, TListItem> } {
+		const runtimeArgs: Record<string, string | number> = { ...this.line.runtimeArgs };
+		const boundItems: Record<string, TListItem> = { ...this.line.boundItems };
 		for (const binding of [...bindings].reverse()) {
 			if ("member" in binding) {
 				const { what } = this.node(binding.node);
-				if (what === undefined) throw this.differentBuilds("gives a value to a variable outside the line's quantifiers");
-				args[what] = binding.member;
-				const facts = this.observed.get(binding.node)?.get(binding.member);
-				for (const { predicate, object } of facts === undefined ? [] : facts) args[`${what}/${predicate}`] = typeof object === "number" ? object : String(object);
-			} else if ("args" in binding) for (const { name, value } of binding.args) args[name] = value;
+				const item = this.memberItems.get(binding.node)?.get(binding.member);
+				if (what === undefined || item === undefined) throw this.differentBuilds("gives a value to a variable outside the line's quantifiers");
+				runtimeArgs[what] = binding.member;
+				boundItems[what] = item;
+			} else if ("args" in binding) for (const { name, value } of binding.args) runtimeArgs[name] = value;
 		}
-		return args;
+		return { runtimeArgs, boundItems };
 	}
 
 	/** Runs a call inside each context its bindings name, outermost first. */
@@ -423,27 +416,16 @@ class Proof {
 		}
 	}
 
-	/** A quantifier's members: the values of its domain, or the items its observation source's facts state. */
+	/** A quantifier's members, as the stages of the statement it ends select them from its domain, which ended by the quantifier's
+	 *  start, by the value its variable binds. */
 	private async membersOf(path: readonly number[], id: string): Promise<string[]> {
-		const quantifier = quantifierOf(this.openedArgs(path));
-		const { world, steppers } = this.ctx;
-		if ("domain" in quantifier) {
-			const found = await world.shared.getDomainValues(quantifier.domain);
-			if (found.error !== undefined) throw new Error(found.error);
-			return found.values.map(String);
-		}
-		const sources = steppers.flatMap((stepper) => {
-			const declared = hasCycles(stepper) ? stepper.cycles.getConcerns?.().sources : undefined;
-			return declared === undefined ? [] : declared;
-		});
-		const source = sources.find((one) => one.name.toLowerCase() === quantifier.source.toLowerCase());
-		if (source === undefined)
-			throw new Error(`\`${this.node(id).step.in}\` reads the observation source "${quantifier.source}", which the steppers don't declare. Declare it in a stepper's concerns.`);
 		const opened = this.opened.get(keyOf(path));
 		if (opened === undefined) throw this.differentBuilds("reads the members of a quantifier it didn't open");
-		const byItem = Map.groupBy(await source.observe(world, opened.at), ({ subject }) => subject);
-		this.observed.set(id, byItem);
-		return [...byItem.keys()];
+		const { domain } = quantifierOf(this.openedArgs(path));
+		const items = await this.ctx.world.shared.getDomainMembers(domain, opened.at, opened.step.listings === undefined ? [] : opened.step.listings);
+		const byMember = new Map(items.map((item) => [boundValue(item), item]));
+		this.memberItems.set(id, byMember);
+		return [...byMember.keys()];
 	}
 
 	private ruleOf(head: string): TWaypointRule {

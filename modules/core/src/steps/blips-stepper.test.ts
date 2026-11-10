@@ -161,8 +161,8 @@ describe("the feature steps: watch blips, record occurrences, and read the watch
 watch blips "${SCROLL.name}"
 view scrolls 3
 view scrolls 7
-every occurrence observed in watched blips is "variable occurrence/step exists"
-some occurrence observed in watched blips is "variable occurrence/value is 7"
+every occurrence in watched blips is "variable occurrence.step exists"
+some occurrence in watched blips is "variable occurrence.value is 7"
 set held from show watched blips
 variable held.seen is "2"`,
 		};

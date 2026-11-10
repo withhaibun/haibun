@@ -3,7 +3,7 @@
  * through it. refresh() rebuilds it in place when the steppers change, and each change to its steps calls its change
  * listeners.
  */
-import type { AStepper, TStepperStep, TFeatureStep } from "../domains/stepper.js";
+import { READING, type AStepper, type TStepperStep, type TFeatureStep } from "../domains/stepper.js";
 import { runSteppers, type TWorld } from "../../actuality/domains/world.js";
 import { ControlEvent, STEPS_CHANGED, type TActionResult, type TStepArgs } from "../../domains/protocol.js";
 import { actionNotOK, errorDetail } from "../../domains/util.js";
@@ -185,15 +185,17 @@ const NOT_A_LIST = "the statement's products don't hold a list, since its step's
 
 /**
  * Returns the steps of a statement with the stages of its list passed on to its last step, or why they can't apply to it: the
- * statement doesn't end with a step whose products domain declares a list or with a step that passes on its own statement's
- * products by its action. A step that the logic engine proves by its reading, such as `holding only`, passes on its statement's
- * products without its action, so a combinator is stated inside its statement.
+ * statement doesn't end with a quantifier, a step whose products domain declares a list or a step that passes on its own
+ * statement's products by its action. A quantifier ranges over its domain's members as the stages make them. A step that the
+ * logic engine proves by its reading, such as `holding only`, passes on its statement's products without its action, so a
+ * combinator is stated inside its statement.
  */
 export function listedStatement(world: TWorld, steps: unknown, stages: readonly TListStage[]): TFeatureStep[] | { refused: string } {
 	const statement = StatementStepsSchema.parse(steps);
 	const last = statement.at(-1);
 	if (last === undefined) return { refused: NOT_A_LIST };
 	const { step } = last.action;
+	if (step.reading === READING.every || step.reading === READING.some) return [...statement.slice(0, -1), { ...last, listings: stages }];
 	const { of } = contractProducts(step);
 	if (of !== undefined && step.action === undefined)
 		return { refused: `${last.in} passes on its statement's products by its reading, so a list combinator can't reach the list; state the combinator inside its statement` };

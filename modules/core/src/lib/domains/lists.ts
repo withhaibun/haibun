@@ -8,6 +8,7 @@
 import { z } from "zod";
 import { CountedSchema } from "./hypermedia.js";
 import { compareByOrder, satisfies, type TSearchCondition } from "../steps/domains/quad-types.js";
+import type { TFeatureStep } from "../steps/domains/stepper.js";
 
 /** An item of a list. */
 export type TListItem = Record<string, unknown>;
@@ -36,6 +37,12 @@ export type TListing = (list: TList) => TList | { refused: string };
 /** The filters, order, offset and limit of a list that a read which takes them applies at its source, in place of the listings
  *  that state them, so the count of the whole list stays the source's count. */
 export type TListQuery = { filters?: TSearchCondition[]; order?: { field: string; descending: boolean }; skip?: number; limit?: number };
+
+/** The fields a list query's filters and order name. */
+export const queriedFields = ({ filters, order }: TListQuery): string[] => [
+	...(filters === undefined ? [] : filters.map(({ predicate }) => predicate)),
+	...(order === undefined ? [] : [order.field]),
+];
 
 /** One combinator's part of a statement's list: its listing, and the query a read applies in its place where it takes one. */
 export type TListStage = { listing: TListing; query?: TListQuery };
@@ -106,15 +113,16 @@ export const sinceItems = (at: Date): TListing => timedItems("since", "gte", at)
 /** The records whose time is before the time. */
 export const beforeItems = (at: Date): TListing => timedItems("before", "lt", at);
 
-/** The bindings of an item a statement is proved for: the variable, which holds the item's id, or its text where it doesn't
- *  have one, and each value it holds as text or a number, as `variable/field`. */
-export function itemBindings(variable: string, item: TListItem): Record<string, string | number> {
-	const bindings: Record<string, string | number> = { [variable]: typeof item.id === "string" ? item.id : JSON.stringify(item) };
-	for (const [field, value] of Object.entries(item))
-		if (typeof value === "number") bindings[`${variable}/${field}`] = value;
-		else if (typeof value === "string" || typeof value === "boolean") bindings[`${variable}/${field}`] = String(value);
-	return bindings;
-}
+/** The value of a variable an item binds: the item's id, or its text where it doesn't have one. */
+export const boundValue = (item: TListItem): string => (typeof item.id === "string" ? item.id : JSON.stringify(item));
+
+/** A step with an item bound to a variable within its statement: the variable holds the item's value, and the statement reads
+ *  each of the item's fields as `variable.field`. */
+export const boundTo = (step: TFeatureStep, variable: string, item: TListItem): TFeatureStep => ({
+	...step,
+	runtimeArgs: { ...step.runtimeArgs, [variable]: boundValue(item) },
+	boundItems: { ...step.boundItems, [variable]: item },
+});
 
 /** The refusal of a field the list's items don't hold, naming the fields they hold, where the list holds an item. */
 const unheldField = (list: TList, field: string, combinator: string): { refused: string } | undefined =>
@@ -221,6 +229,10 @@ export function listQueries(stages: readonly TListStage[]): { query: TListQuery;
 	return queries;
 }
 
+/** Returns the list the stages make of a list, in order, or the refusal of the first stage that refuses. */
+export const listed = (list: TList, stages: readonly TListStage[]): TList | { refused: string } =>
+	stages.reduce<TList | { refused: string }>((held, { listing }) => ("refused" in held ? held : listing(held)), list);
+
 /** Returns products with the list the stages made of the list they hold, in order, and each companion field narrowed to the
  *  items kept, or why they can't: products that don't hold the counted list their domain declares, or a stage that refuses. */
 export function listedProducts(
@@ -233,11 +245,7 @@ export function listedProducts(
 	const counted = CountedSchema.safeParse(products);
 	if (!items.success || !counted.success)
 		return { refused: `the statement's products don't hold the counted list ${field} their domain declares; its step returns products its domain doesn't state` };
-	let list: TList | { refused: string } = { items: items.data, ...counted.data, ...(time === undefined ? {} : { time }) };
-	for (const { listing } of stages) {
-		if ("refused" in list) break;
-		list = listing(list);
-	}
+	const list = listed({ items: items.data, ...counted.data, ...(time === undefined ? {} : { time }) }, stages);
 	if ("refused" in list) return list;
 	const kept = list.items;
 	const companions = (narrows === undefined ? [] : Object.entries(narrows)).flatMap(([companion, narrow]) => (narrow === undefined ? [] : [[companion, narrow(kept, products)]]));

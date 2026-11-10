@@ -73,6 +73,10 @@ export function queryableFields(domain: { schema: z.ZodType | undefined; topolog
 	return [...out].sort();
 }
 
+/** The fields a store indexes for a persisted type: the id that names a record and its sort columns. A read that filters or orders
+ *  by another field reads every record of the type. */
+export const indexedFields = (topology: THypermediaTopology): string[] => [topology.id, ...Object.keys(topology.sortColumns === undefined ? {} : topology.sortColumns)];
+
 /**
  * Returns the persisted type a record names through a field whose declared range (`topology.ranges`) is the persisted
  * types, or undefined where the record doesn't name one. A Class record names the type it describes. Throws where a

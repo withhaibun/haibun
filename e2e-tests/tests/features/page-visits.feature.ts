@@ -43,11 +43,11 @@ export const features: TKirejiExport = {
 
 		`The next steps verify that every HTTP request reached the host of the feature's web server.`,
 		`set of "${ALLOWED_HOSTS}" is ["${SITE_HOST}"]`,
-		`every host observed in http-trace hosts is some allowed in "${ALLOWED_HOSTS}" is matches {host} with "{allowed}"`,
+		`every host in http-trace hosts is some allowed in "${ALLOWED_HOSTS}" is matches {host} with "{allowed}"`,
 		`↑ Every host in the HTTP trace matches an allowed host.`,
 
-		`every request observed in http-trace is variable request/status is less than 400`,
-		`every request observed in http-trace is variable request/durationMs is less than 5000`,
-		`some request observed in http-trace is matches request/url with "{${haibunUrl}}"`,
+		`every request in http-trace is variable request.status is less than 400`,
+		`every request in http-trace is variable request.durationMs is less than 5000`,
+		`some request in http-trace is matches request.url with "{${haibunUrl}}"`,
 	],
 };
