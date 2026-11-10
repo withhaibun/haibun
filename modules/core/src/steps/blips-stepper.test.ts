@@ -25,7 +25,7 @@ const REQUEST = { name: "haibun.test.http.request", instrument: "span-event" as 
 
 const make = () => {
 	const eventLogger = eventHubOfTest();
-	return { eventLogger, world: { runtime: {}, eventLogger } as unknown as TWorld };
+	return { eventLogger, world: { runtime: {}, eventLogger, clock: { now: () => 0 } } as unknown as TWorld };
 };
 
 describe("a watch: which occurrences, in what order", () => {

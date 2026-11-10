@@ -76,6 +76,7 @@ const CALL_VERDICT: Record<string, TVerdict | undefined> = {
 /** A node of a line's proof: the step it states, and the variable a quantifier binds. */
 type TNode = { step: TFeatureStep; what?: string };
 /** A node whose record is open: the node, its step, the result its proof resolves, its dispatch, and when it opened. */
+/** An open node: its step, how its proof closes it, its dispatch, and the time its step started. */
 type TOpened = { node: string; step: TFeatureStep; close: (result: TActionResult) => void; dispatched: Promise<TStepResult>; at: number };
 
 const keyOf = (path: readonly number[]): string => path.join(".");
@@ -316,6 +317,7 @@ class Proof {
 		const opening = await this.withinContexts(request.bindings, () => runAsDispatched(this.ctx, () => this.contextOf(node, step))).catch((caught: unknown) => ({
 			refused: errorDetail(caught),
 		}));
+		const at = this.ctx.world.clock.now();
 		const begun = Promise.withResolvers<"begun">();
 		const closed = Promise.withResolvers<TActionResult>();
 		const dispatched = this.withinContexts(request.bindings, () =>
@@ -336,7 +338,7 @@ class Proof {
 		}
 		this.contexts.set(keyOf(path), opening.context);
 		this.argsAt.set(keyOf(path), opening.args);
-		this.opened.set(keyOf(path), { node: request.node, step, close: closed.resolve, dispatched, at: this.ctx.world.clock.now() });
+		this.opened.set(keyOf(path), { node: request.node, step, close: closed.resolve, dispatched, at });
 		return "opened";
 	}
 
@@ -437,7 +439,9 @@ class Proof {
 		const source = sources.find((one) => one.name.toLowerCase() === quantifier.source.toLowerCase());
 		if (source === undefined)
 			throw new Error(`\`${this.node(id).step.in}\` reads the observation source "${quantifier.source}", which the steppers don't declare. Declare it in a stepper's concerns.`);
-		const byItem = Map.groupBy(await source.observe(world), ({ subject }) => subject);
+		const opened = this.opened.get(keyOf(path));
+		if (opened === undefined) throw this.differentBuilds("reads the members of a quantifier it didn't open");
+		const byItem = Map.groupBy(await source.observe(world, opened.at), ({ subject }) => subject);
 		this.observed.set(id, byItem);
 		return [...byItem.keys()];
 	}

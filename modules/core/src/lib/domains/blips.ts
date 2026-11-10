@@ -117,7 +117,8 @@ export function blipDeclarations(): readonly THeldBlipDeclaration[] {
  * feature, and serves it as the `blips` observation source. A feature reads that source with `observed in`.
  */
 export class BlipRollup {
-	private counts = new Map<string, number>();
+	/** Each recorded name's count, and the time of its first occurrence, at which the name became an item of the source. */
+	private counts = new Map<string, { count: number; first: number }>();
 	private detachFn: (() => void) | undefined;
 
 	/** Subscribes to `eventLogger`. It first unsubscribes from any earlier logger and clears the counts, so an actuality
@@ -126,7 +127,9 @@ export class BlipRollup {
 		this.detach();
 		this.counts.clear();
 		const cb = (event: THaibunEvent) => {
-			if (event.kind === "blip") this.counts.set(event.name, (this.counts.get(event.name) ?? 0) + 1);
+			if (event.kind !== "blip") return;
+			const held = this.counts.get(event.name);
+			this.counts.set(event.name, held === undefined ? { count: 1, first: event.timestamp } : { ...held, count: held.count + 1 });
 		};
 		eventLogger.subscribe(cb, { kinds: ["blip"] });
 		this.detachFn = () => eventLogger.unsubscribe(cb);
@@ -141,9 +144,9 @@ export class BlipRollup {
 		this.counts.clear();
 	}
 
-	/** The facts of an observation source: each name recorded, with the function `count`. */
-	observe(): TObserved[] {
-		return [...this.counts].map(([name, count]) => ({ subject: name, predicate: "count", object: count }));
+	/** The facts of an observation source: each name first recorded at or before `endedBy`, with the function `count`. */
+	observe(endedBy: number): TObserved[] {
+		return [...this.counts].flatMap(([name, { count, first }]) => (first > endedBy ? [] : [{ subject: name, predicate: "count", object: count }]));
 	}
 }
 

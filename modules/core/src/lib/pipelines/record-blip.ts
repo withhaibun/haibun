@@ -19,7 +19,7 @@ export function recordBlip(world: TWorld, name: string, value?: number, attribut
 	// What the declaration validated is what is emitted, so a key it does not name cannot ride along to an exporter, and
 	// omitting attributes a declaration requires is caught here rather than downstream.
 	const declaredAttributes = declared.attributes ? declared.attributes.parse(attributes ?? {}) : attributes;
-	const timestamp = Date.now();
+	const timestamp = world.clock.now();
 	const seqPath = stepInFlight()?.seqPath;
 	// emitter is set here so emit() never walks a stack for a per-frame recording.
 	world.eventLogger.emit(

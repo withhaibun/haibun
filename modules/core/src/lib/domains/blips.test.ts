@@ -7,9 +7,10 @@ import type { THaibunEvent } from "./protocol.js";
 import type { TWorld } from "../actuality/domains/world.js";
 import { runInStep } from "./capability-context.js";
 
-const make = () => {
+/** A world whose clock reads the time `at` holds. */
+const make = (at: { now: number }) => {
 	const eventLogger = eventHubOfTest();
-	const world = { runtime: {}, eventLogger } as unknown as TWorld;
+	const world = { runtime: {}, eventLogger, clock: { now: () => at.now } } as unknown as TWorld;
 	return { eventLogger, world };
 };
 const SCROLL = {
@@ -24,7 +25,7 @@ const SCROLL = {
 describe("blips: fine-grained occurrences that actuality doesn't retain", () => {
 	it("doesn't emit an event where the blip kind doesn't have a subscriber, so a caller can record on every frame", () => {
 		declareBlips(SCROLL);
-		const { world, eventLogger } = make();
+		const { world, eventLogger } = make({ now: 0 });
 		const narrated: THaibunEvent[] = [];
 		// A subscriber without a kinds filter receives actuality's narration. It isn't a blip subscriber, so recording returns before any lookup.
 		eventLogger.subscribe((e) => narrated.push(e));
@@ -34,7 +35,7 @@ describe("blips: fine-grained occurrences that actuality doesn't retain", () => 
 
 	it("delivers a recording to every blip subscriber with the seqPath of the step in flight", () => {
 		declareBlips(SCROLL);
-		const { world, eventLogger } = make();
+		const { world, eventLogger } = make({ now: 0 });
 		const seen: THaibunEvent[] = [];
 		eventLogger.subscribe((e) => seen.push(e), { kinds: ["blip"] });
 		runInStep({ seqPath: "0.1.2.3", reportsAt: undefined }, () => recordBlip(world, SCROLL.name, 1, { view: "shu-document-column" }));
@@ -44,7 +45,7 @@ describe("blips: fine-grained occurrences that actuality doesn't retain", () => 
 
 	it("doesn't reach a subscriber without a kinds filter, since blips share the event bus and not its subscribers", () => {
 		declareBlips(SCROLL);
-		const { world, eventLogger } = make();
+		const { world, eventLogger } = make({ now: 0 });
 		const narrated: THaibunEvent[] = [];
 		const blips: THaibunEvent[] = [];
 		eventLogger.subscribe((e) => narrated.push(e));
@@ -58,7 +59,7 @@ describe("blips: fine-grained occurrences that actuality doesn't retain", () => 
 	it("delivers only the names a subscriber's filter matches, by exact name or by dotted namespace", () => {
 		const HTTP = { name: "haibun.test.http.request", instrument: "span-event" as const, description: "An observed request completed." };
 		declareBlips(SCROLL, HTTP);
-		const { world, eventLogger } = make();
+		const { world, eventLogger } = make({ now: 0 });
 		const seen: THaibunEvent[] = [];
 		eventLogger.subscribe((e) => seen.push(e), { kinds: ["blip"], names: ["haibun.test.http"] });
 		recordBlip(world, SCROLL.name, 1, { view: "a" });
@@ -67,33 +68,33 @@ describe("blips: fine-grained occurrences that actuality doesn't retain", () => 
 	});
 
 	it("returns before any lookup where a filter doesn't match the name, so recording an unwatched name runs one check", () => {
-		const { world, eventLogger } = make();
+		const { world, eventLogger } = make({ now: 0 });
 		eventLogger.subscribe(() => undefined, { kinds: ["blip"], names: ["haibun.test.http"] });
 		// The name is undeclared and doesn't match the filter, so recording returns before the declaration check.
 		expect(() => recordBlip(world, "haibun.test.never.declared", 1)).not.toThrow();
 	});
 
 	it("refuses a names filter without the blip kind, since that subscriber wouldn't receive a blip", () => {
-		const { eventLogger } = make();
+		const { eventLogger } = make({ now: 0 });
 		expect(() => eventLogger.subscribe(() => undefined, { names: ["haibun.test.http"] })).toThrow(/kinds/);
 	});
 
 	it("refuses a name that isn't declared, so a call site doesn't add a name to the vocabulary", () => {
-		const { world, eventLogger } = make();
+		const { world, eventLogger } = make({ now: 0 });
 		eventLogger.subscribe(() => undefined, { kinds: ["blip"] });
 		expect(() => recordBlip(world, "haibun.test.undeclared", 1)).toThrow(/not declared/);
 	});
 
 	it("refuses attributes that don't match the declaration, so a misspelled attribute name fails at the call site", () => {
 		declareBlips(SCROLL);
-		const { world, eventLogger } = make();
+		const { world, eventLogger } = make({ now: 0 });
 		eventLogger.subscribe(() => undefined, { kinds: ["blip"] });
 		expect(() => recordBlip(world, SCROLL.name, 1, { viewe: "typo" })).toThrow();
 	});
 
 	it("emits only the attributes the declaration names, so an undeclared key doesn't reach a subscriber", () => {
 		declareBlips(SCROLL);
-		const { world, eventLogger } = make();
+		const { world, eventLogger } = make({ now: 0 });
 		const seen: THaibunEvent[] = [];
 		eventLogger.subscribe((e) => seen.push(e), { kinds: ["blip"] });
 		recordBlip(world, SCROLL.name, 1, { view: "a", stray: "a whole response body" });
@@ -103,7 +104,7 @@ describe("blips: fine-grained occurrences that actuality doesn't retain", () => 
 
 	it("refuses a recording that omits attributes the declaration requires", () => {
 		declareBlips(SCROLL);
-		const { world, eventLogger } = make();
+		const { world, eventLogger } = make({ now: 0 });
 		eventLogger.subscribe(() => undefined, { kinds: ["blip"] });
 		expect(() => recordBlip(world, SCROLL.name, 1)).toThrow();
 	});
@@ -151,7 +152,7 @@ describe("blips: fine-grained occurrences that actuality doesn't retain", () => 
 
 	it("stops delivering to a subscriber once it detaches", () => {
 		declareBlips(SCROLL);
-		const { world, eventLogger } = make();
+		const { world, eventLogger } = make({ now: 0 });
 		const seen: THaibunEvent[] = [];
 		const cb = (e: THaibunEvent) => seen.push(e);
 		eventLogger.subscribe(cb, { kinds: ["blip"] });
@@ -167,45 +168,59 @@ describe("blip rollup: the aggregating listener", () => {
 
 	it("counts occurrences per name while attached, as an observation source's facts", () => {
 		declareBlips(SCROLL, HTTP);
-		const { world, eventLogger } = make();
+		const { world, eventLogger } = make({ now: 0 });
 		const rollup = new BlipRollup();
 		rollup.attach(eventLogger);
 		recordBlip(world, SCROLL.name, 1, { view: "a" });
 		recordBlip(world, SCROLL.name, 2, { view: "a" });
 		recordBlip(world, HTTP.name);
-		expect(rollup.observe()).toEqual([
+		expect(rollup.observe(0)).toEqual([
 			{ subject: SCROLL.name, predicate: "count", object: 2 },
 			{ subject: HTTP.name, predicate: "count", object: 1 },
 		]);
 	});
 
+	it("observes the names first recorded at or before the observing step's start", () => {
+		declareBlips(SCROLL, HTTP);
+		const at = { now: 10 };
+		const { world, eventLogger } = make(at);
+		const rollup = new BlipRollup();
+		rollup.attach(eventLogger);
+		recordBlip(world, SCROLL.name, 1, { view: "a" });
+		at.now = 20;
+		recordBlip(world, HTTP.name);
+		recordBlip(world, SCROLL.name, 2, { view: "a" });
+		expect(rollup.observe(10)).toEqual([{ subject: SCROLL.name, predicate: "count", object: 2 }]);
+		expect(rollup.observe(9)).toEqual([]);
+	});
+
 	it("subscribes to the logger it is given and unsubscribes from the earlier one, so an actuality that didn't detach doesn't stop the next one's counts", () => {
 		declareBlips(SCROLL);
-		const first = make();
+		const first = make({ now: 0 });
 		const rollup = new BlipRollup();
 		rollup.attach(first.eventLogger);
 		recordBlip(first.world, SCROLL.name, 1, { view: "a" });
 		// The actuality ends without detaching, as a throw out of the feature loop would leave it.
-		const second = make();
+		const second = make({ now: 0 });
 		rollup.attach(second.eventLogger);
 		expect(first.eventLogger.hasSubscribers("blip")).toBe(false);
-		expect(rollup.observe()).toEqual([]); // the counts start empty and don't include the previous actuality's counts
+		expect(rollup.observe(0)).toEqual([]); // the counts start empty and don't include the previous actuality's counts
 		recordBlip(second.world, SCROLL.name, 1, { view: "a" });
-		expect(rollup.observe()).toEqual([{ subject: SCROLL.name, predicate: "count", object: 1 }]);
+		expect(rollup.observe(0)).toEqual([{ subject: SCROLL.name, predicate: "count", object: 1 }]);
 	});
 
 	it("clears on reset and stops counting on detach, so recording returns after one check again", () => {
 		declareBlips(SCROLL);
-		const { world, eventLogger } = make();
+		const { world, eventLogger } = make({ now: 0 });
 		const rollup = new BlipRollup();
 		rollup.attach(eventLogger);
 		recordBlip(world, SCROLL.name, 1, { view: "a" });
-		expect(rollup.observe()).toEqual([{ subject: SCROLL.name, predicate: "count", object: 1 }]);
+		expect(rollup.observe(0)).toEqual([{ subject: SCROLL.name, predicate: "count", object: 1 }]);
 		rollup.reset();
-		expect(rollup.observe()).toEqual([]);
+		expect(rollup.observe(0)).toEqual([]);
 		rollup.detach();
 		expect(eventLogger.hasSubscribers("blip")).toBe(false);
 		recordBlip(world, SCROLL.name, 2, { view: "a" });
-		expect(rollup.observe()).toEqual([]);
+		expect(rollup.observe(0)).toEqual([]);
 	});
 });

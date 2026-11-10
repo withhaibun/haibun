@@ -31,6 +31,13 @@ export function relOf(def: TPropertyDef): TRel {
 	return typeof def === "string" ? def : (def.rel as TRel);
 }
 
+/** Returns the field that states when each record of a type ended: the property its topology maps to prov:endedAtTime, else
+ *  the time each record was generated. A type that doesn't declare an end holds entities, and an entity ends at its generation. */
+export function endFieldOf(topology: THypermediaTopology): string {
+	const ended = Object.entries(topology.properties).find(([, def]) => relOf(def) === LinkRelations.ENDED_AT_TIME.rel);
+	return ended === undefined ? LinkRelations.GENERATED_AT_TIME.rel : ended[0];
+}
+
 /** Schema field kinds that are queryable by their nature, bounded values a store can index and compare.
  *  A string is queryable only as a CONTEXT facet, never from its type. */
 const BOUNDED_PRIMITIVE_KINDS = new Set(["number", "int", "boolean", "date", "enum", "literal"] as const);

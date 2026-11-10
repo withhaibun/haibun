@@ -75,17 +75,18 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 		{
 			// Counts occurrences per name, with one counter per recorded name. The rollup stays attached from startActuality to endActuality.
 			name: "blips",
-			observe: () => Promise.resolve(blipRollup.observe()),
+			observe: (_world, endedBy) => Promise.resolve(blipRollup.observe(endedBy)),
 		},
 		{
-			// The watched occurrences in order, each item starting with its position, so repeated occurrences stay distinct items.
+			// The watched occurrences at or before the observing step's start, in order, each item starting with its position, so repeated occurrences stay distinct items.
 			// Its functions are the declared attributes, so a quantifier reads occurrence/view and occurrence/reason, for example.
 			// A reserved key that the occurrence carries replaces an attribute of the same name.
 			name: "watched blips",
-			observe: () =>
+			observe: (_world, endedBy) =>
 				Promise.resolve(
 					blipWatch
 						.occurrences()
+						.filter(({ timestamp }) => timestamp <= endedBy)
 						.flatMap((blip, i) => observedOf(renderOccurrence(blip, i), { ...blip.attributes, index: i + 1, name: blip.name, step: blip.seqPath, value: blip.value })),
 				),
 		},

@@ -7,10 +7,13 @@ import type { TWorld } from "@haibun/core/lib/world.js";
 import { VISITED_PAGE_LABEL, WebPlaywrightDomains } from "../domains/web-playwright.js";
 import { HTTP_TRACE_SOURCES } from "./observations.js";
 
+/** The time of a record of the trace, at a minute of one hour. */
+const minute = (at: number): number => Date.UTC(2026, 9, 22, 12, at);
+const at = (on: number) => new Date(minute(on)).toISOString();
+
 /** A world whose store holds a request, a host and two visits, and refuses a quad read, as a store keyed by its records does. */
 async function worldHoldingTrace(): Promise<TWorld> {
 	const store = storeOfDomains(WebPlaywrightDomains);
-	const at = (minute: number) => new Date(Date.UTC(2026, 9, 22, 12, minute)).toISOString();
 	await store.merge({
 		"@type": HTTP_REQUEST_LABEL,
 		id: "GET /app",
@@ -28,24 +31,29 @@ async function worldHoldingTrace(): Promise<TWorld> {
 	return { shared: { getStore: () => store } } as unknown as TWorld;
 }
 
-const observed = async (name: string) => {
+const observed = async (name: string, endedBy: number) => {
 	const source = HTTP_TRACE_SOURCES.find((candidate) => candidate.name === name);
 	if (source === undefined) throw new Error(`the browser doesn't offer the observation source ${name}`);
-	return source.observe(await worldHoldingTrace());
+	return source.observe(await worldHoldingTrace(), endedBy);
 };
 
 describe("the browser's observation sources", () => {
 	it("state each request's fields, each host's count of requests and each visit in its order, through paged reads", async () => {
-		expect(await observed("http-trace")).toEqual(
+		expect(await observed("http-trace", minute(59))).toEqual(
 			expect.arrayContaining([
 				{ subject: "GET /app", predicate: "status", object: 200 },
 				{ subject: "GET /app", predicate: "url", object: "http://localhost/app" },
 			]),
 		);
-		expect(await observed("http-trace hosts")).toEqual([{ subject: "localhost", predicate: "requestCount", object: 3 }]);
-		expect(await observed("visited pages")).toEqual([
+		expect(await observed("http-trace hosts", minute(59))).toEqual([{ subject: "localhost", predicate: "requestCount", object: 3 }]);
+		expect(await observed("visited pages", minute(59))).toEqual([
 			{ subject: "http://localhost/first", predicate: "index", object: 0 },
 			{ subject: "http://localhost/second", predicate: "index", object: 1 },
 		]);
+	});
+
+	it("state only the records written at or before the observing step's start", async () => {
+		expect(await observed("visited pages", minute(1))).toEqual([{ subject: "http://localhost/first", predicate: "index", object: 0 }]);
+		expect(await observed("http-trace hosts", minute(0) - 1)).toEqual([]);
 	});
 });

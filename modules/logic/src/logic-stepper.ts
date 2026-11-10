@@ -26,14 +26,14 @@ import { VOCABULARY_ENTRIES, vocabularyEntry } from "@haibun/core/lib/domains/vo
 import { itemAt, valueAt } from "@haibun/core/lib/domains/item-at.js";
 import { ACTIVITIES_STEPPER } from "@haibun/core/steps/domains/activities-actions.js";
 import { z } from "zod";
-import { Access, SEQ_PATH_LABEL, type TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
+import { Access, type TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_ACCESS, SEQ_PATH_FIELD, calledParts, actualityFeatureOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { callerHolds, readingAsOf } from "@haibun/core/lib/domains/capability-context.js";
 import { DOMAIN_APPLICABLE_STEPS, DOMAIN_GOAL_RESOLUTION, DOMAIN_PLAN_ID, DOMAIN_PLAN_PROGRESS, goalDomainDefinitions } from "@haibun/core/lib/domains/goal-resolution.js";
+import { stepsEndedBy } from "./pipelines/reads.js";
 import { applicableStepsAt, ensured, planAdvanced, planBegun, resolved, type TGoalScope } from "./pipelines/goals.js";
 import { stepperContext } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
 import { proverOf } from "./pipelines/prove.js";
-import { recordsWhere } from "./pipelines/reads.js";
 import { callTerm, derivationOfRecord, derivationUnder, lineTerm, refuseDeclarations } from "./pipelines/registry-reads.js";
 import { declareVocabularies, logicEngine, reasoner } from "./root.js";
 import { checkedExpression, countedMembers, entailedMembers, expressionCompletions, expressionReading, queryBasis } from "./pipelines/members.js";
@@ -43,17 +43,18 @@ import { DOMAIN_CLAIM, DOMAIN_CLASS_EXPRESSION, DOMAIN_ENTAILED_MEMBERS, classEx
 import { DOMAIN_DERIVATION, DOMAIN_DOMAIN_GOAL, DOMAIN_LINE_TERM, RESOLVE_STATEMENT, logicDomainDefinitions } from "./domains/logic.js";
 import { DOMAIN_ALTERNATIVES, DOMAIN_OBSERVATION_SOURCE, DOMAIN_REFUSAL, DOMAIN_STATUS, readingDomainDefinitions } from "./domains/readings.js";
 
-/** The feature's step records as an observation source: each record's fields, the stepper of the step it called, and its
- *  duration, from its start to its end in milliseconds, where it ended. */
+/** The feature's step records that ended by the observing step's start, as an observation source: each record's fields, the
+ *  stepper of the step it called, and its duration, from its start to its end in milliseconds. */
 const steps: IObservationSource = {
 	name: "steps",
-	observe: async (world: TWorld) =>
-		(await recordsWhere(world.shared.getStore(), SEQ_PATH_LABEL, SEQ_PATH_FIELD.actuality, actualityFeatureOf(world.tag))).flatMap((record) => {
+	observe: async (world: TWorld, endedBy: number) => {
+		return (await stepsEndedBy(world.shared.getStore(), actualityFeatureOf(world.tag), endedBy)).flatMap((record) => {
 			const { [SEQ_PATH_FIELD.called]: called, [SEQ_PATH_FIELD.generatedAtTime]: started, [SEQ_PATH_FIELD.endedAtTime]: ended } = record;
 			const stepper = typeof called === "string" ? calledParts(called).stepperName : undefined;
 			const duration = typeof ended === "string" && typeof started === "string" ? Date.parse(ended) - Date.parse(started) : undefined;
 			return observedOf(String(record[SEQ_PATH_FIELD.id]), { ...record, stepper, duration });
-		}),
+		});
+	},
 };
 
 /** What a claim's terms are named in a fault where its line lacks one its pattern names. */

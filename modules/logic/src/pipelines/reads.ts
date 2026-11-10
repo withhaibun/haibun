@@ -7,8 +7,8 @@ import type { TQuadPattern } from "@haibun/core/lib/steps/domains/quad-types.js"
 import { observedOf } from "@haibun/core/lib/steps/domains/stepper.js";
 import { Access } from "@haibun/core/lib/domains/resources.js";
 import { readingAt } from "@haibun/core/lib/domains/capability-context.js";
-import { compareSeqPath, factSeqPath } from "@haibun/core/lib/actuality/domains/seq-path.js";
-import { equalTo, readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { compareSeqPath, factSeqPath, SEQ_PATH_FIELD, seqPathDomainDefinition } from "@haibun/core/lib/actuality/domains/seq-path.js";
+import { equalTo, readEndedBy, readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { FACT_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { FACT_FIELD } from "@haibun/core/lib/records/domains/facts.js";
 import { FACT_POSITIONS, type TFact } from "../domains/logic.js";
@@ -61,6 +61,10 @@ export function readerOf(store: IQuadStore, asOf?: readonly number[]): TReader {
 				.filter(({ id }) => heldAt({ subject: id, predicate: FACT_FIELD.domain, object: "", namedGraph: FACT_LABEL })),
 	};
 }
+
+/** The step records of an actuality feature that ended at or before `endedBy`, an epoch time in milliseconds. */
+export const stepsEndedBy = (store: IQuadStore, feature: string, endedBy: number): Promise<Record<string, unknown>[]> =>
+	readEndedBy(store, seqPathDomainDefinition, endedBy, { filters: equalTo({ [SEQ_PATH_FIELD.actuality]: feature }) });
 
 /** The records of a type whose field holds a value, each as its fields by name. */
 export const recordsWhere = (store: IQuadStore, label: string, field: string, value: string): Promise<Record<string, unknown>[]> =>

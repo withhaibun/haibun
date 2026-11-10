@@ -4,7 +4,7 @@
  * these functions, so each read states its bound, its count and its order.
  */
 import { z } from "zod";
-import { MAX_PAGE_ROWS, readInPages, type TCounted } from "../../domains/hypermedia.js";
+import { endFieldOf, MAX_PAGE_ROWS, readInPages, type TCounted } from "../../domains/hypermedia.js";
 import {
 	GraphQuerySchema,
 	levelOf,
@@ -21,7 +21,7 @@ import {
 	type TSearchCondition,
 } from "../../steps/domains/quad-types.js";
 import { type IQuadStore } from "../../steps/ports.js";
-import { HAS_BODY_EDGE, LinkRelations, type AccessQueryLevel } from "../../domains/resources.js";
+import { HAS_BODY_EDGE, isPersisted, LinkRelations, type AccessQueryLevel, type TDomainDefinition } from "../../domains/resources.js";
 import { readFromRecords, recordsOfQuads, type TReadDeclarations } from "../derivations/read-records.js";
 
 /** The store port's read function. */
@@ -136,4 +136,14 @@ export async function readEvery(store: TRecordReader, input: TGraphQueryInput): 
 	if (query.perType !== undefined) throw new Error("readEvery reads every record of a read, and a perType read states the first records of each type");
 	const read = (from: number, to: number) => store.readRecords({ ...query, offset: from, limit: to - from, skipCount: true });
 	return (await readInPages(read, statedQuery(query).offset, Number.POSITIVE_INFINITY, MAX_PAGE_ROWS)).vertices;
+}
+
+/** Reads every record of a type that ended at or before `at`, an epoch time in milliseconds, under the read's conditions. An
+ *  observation source reads these for a step that started at `at`, so the step doesn't read its own record, its parts or a later
+ *  step. Throws for a type that doesn't persist its records. */
+export function readEndedBy(store: TRecordReader, type: TDomainDefinition, at: number, read: Omit<TGraphQueryInput, "label">): Promise<Record<string, unknown>[]> {
+	const { topology } = type;
+	if (!isPersisted(topology)) throw new Error(`${type.selectors.join(", ")} doesn't persist its records, so a read can't bound them by when they ended`);
+	const ended: TSearchCondition = { predicate: endFieldOf(topology), operator: "lte", value: new Date(at).toISOString() };
+	return readEvery(store, { ...read, label: topology.persistedAs, filters: [...(read.filters === undefined ? [] : read.filters), ended] });
 }

@@ -319,11 +319,12 @@ export type TObserved = { subject: string; predicate: string; object: unknown };
 /**
  * An observation source for the `observed in` quantifier pattern: the facts it holds at one step, which it doesn't store. A
  * quantifier ranges over its items, the subjects of its facts, and a statement reads a function of an item, a fact's
- * predicate, as `variable/function`.
+ * predicate, as `variable/function`. `observe` returns the facts of the items that ended at or before `endedBy`, the epoch
+ * time in milliseconds at which the observing step started, so a step doesn't observe itself, its parts or a later step.
  */
 export interface IObservationSource {
 	name: string;
-	observe(world: TWorld): Promise<TObserved[]>;
+	observe(world: TWorld, endedBy: number): Promise<TObserved[]>;
 }
 
 /** An item's facts: each field that holds a value, as a function of the item. */

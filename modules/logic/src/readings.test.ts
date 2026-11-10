@@ -86,6 +86,12 @@ const READINGS: [string, string, boolean][] = [
 		'set of Meals is ["dinner", "lunch"]\nset dinner to "cooked"\nfor every {meal: Meals} where variable {meal} is "cooked", {meal} is edible\n"dinner" is edible\ndidn\'t "lunch" is edible',
 		true,
 	],
+	["a quantifier doesn't observe its own record, which hasn't ended", "passes\nevery step observed in steps is variable step/endedAtTime exists", true],
+	[
+		"a quantifier doesn't observe a step it is part of, which hasn't ended",
+		'passes\nwhere passes, didn\'t some step observed in steps is variable step/called is "LogicStepper.where"',
+		true,
+	],
 	["an observation source that isn't declared", "every x observed in unknown source is passes", false],
 	["until holds once its statement holds", 'set ready to "yes"\nuntil variable ready is "yes" within 1s', true],
 	["until is refuted where its statement doesn't hold in time", 'set ready to "yes"\ndidn\'t until variable ready is "never" within 300ms', true],
