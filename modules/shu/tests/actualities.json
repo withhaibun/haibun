@@ -412,12 +412,12 @@
 			"actuality": {
 				"text": "modules/shu/tests, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 36100,
+				"tookMs": 35500,
 				"digest": {
 					"modules/cli/src": "2a30b0f7dc93f355455a023940b456906449b7bde09947dd20bce2b9d3b83e50",
-					"modules/core/src": "d0e81bcc175c2e2d81c48a3e8ce6ba00e4f7a17b91e1758320906d50176db4c7",
+					"modules/core/src": "c7a1cb1f00a6e7ba14c1cc4b7459ec47016fa799b967fd2e5d496ae108c58b5e",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
-					"modules/logic/src": "22f9ecc4637f8403833bdd490454649951f9d2289768db9c578bb19a9c5bba49",
+					"modules/logic/src": "2527815525da4f34b7807ec9c12de7a7047b15a50148bbbcc750d851f740b200",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/shu/src": "f735be7f40e3b9c703900eb681d7726623143cfec89566e72d803bbc2fee6224",
 					"modules/shu/tests": "d4c750232110a64c1b8df201ceb409eba7f312ee88bbc149bf76726f21fc62cd",
@@ -432,7 +432,7 @@
 				"/features/address.feature.ts": {
 					"text": "An address names a type",
 					"status": "passed",
-					"tookMs": 1000,
+					"tookMs": 1100,
 					"steps": 205
 				},
 				"/features/federate.feature.ts": {
@@ -444,14 +444,14 @@
 				"/features/monitor-serves.feature.ts": {
 					"text": "The monitor serves shu on a port of its own",
 					"status": "passed",
-					"tookMs": 1100,
+					"tookMs": 1400,
 					"steps": 196
 				},
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
-					"tookMs": 24700,
-					"steps": 697
+					"tookMs": 24400,
+					"steps": 706
 				},
 				"/features/remote-store.feature.ts": {
 					"text": "A satellite instance keeps its records in the main instance's store",
@@ -462,7 +462,7 @@
 				"/features/voice-ui.feature.ts": {
 					"text": "UI extension propagation: domain ui → concern catalog → SPA actions bar",
 					"status": "passed",
-					"tookMs": 2200,
+					"tookMs": 1900,
 					"steps": 210
 				}
 			}

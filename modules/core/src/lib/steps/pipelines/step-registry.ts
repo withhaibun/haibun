@@ -16,9 +16,8 @@ import { stepDeclaration } from "../derivations/step-tools.js";
 import { StatementStepsSchema, validateProducts } from "../derivations/tool-validation.js";
 import { argumentsOf } from "./populate-action-args.js";
 import { CONTRACT_CHECK, contractProducts } from "../domains/contract.js";
-import { contractRefusal } from "./contract-check.js";
+import { callPrincipal, contractRefusal } from "./contract-check.js";
 import { writeProducts } from "./product-writes.js";
-import { actingAs } from "../../domains/capability-context.js";
 
 /** A registered step tool. Every transport (RPC, MCP, a model's turn) dispatches a step through one. */
 export type StepTool = {
@@ -245,7 +244,7 @@ export function createStepHandler(stepperName: string, stepName: string, stepDef
 			const stages = featureStep.listings === undefined ? own : [...own, ...featureStep.listings];
 			const call = stages.length === 0 ? { args: read.args, stages } : listedCall(world, stepDef, read.args, stages);
 			if ("refused" in call) return actionNotOK(call.refused);
-			const principal = actingAs();
+			const principal = callPrincipal();
 			const checked = { parameters: read.args, ...(principal === undefined ? {} : { principal }) };
 			const required = await contractRefusal(world, stepDef, CONTRACT_CHECK.requires, checked);
 			if (required !== undefined) return required;

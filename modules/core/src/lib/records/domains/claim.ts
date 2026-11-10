@@ -2,14 +2,15 @@
  * A claim's standard meaning: the OWL 2 reasoning task it is, the axiom it checks, in OWL 2 functional syntax and in Manchester
  * syntax where a frame states it, and the entailment in DL notation. A claim holds exactly where its axiom is entailed
  * (K ⊨ axiom), is refuted where the axiom contradicts the knowledge, and is unknown otherwise. `individual X is a E` checks
- * ClassAssertion(E X), an instance check; `every E1 is a E2` checks SubClassOf(E1 E2), a subsumption check; and `some E`
- * doesn't check an axiom: it retrieves the named individuals entailed to be an E, and holds where there is one.
+ * ClassAssertion(E X), an instance check; `every E1 is a E2` checks SubClassOf(E1 E2), a subsumption check; `some E`
+ * doesn't check an axiom: it retrieves the named individuals entailed to be an E, and holds where there is one; and `feature F
+ * entails C` checks that the contracts of F's steps entail the statement C for every value of the domains they bind.
  */
 import { z } from "zod";
 import { VERDICT } from "../../domains/protocol.js";
 
 /** The OWL 2 reasoning task of each claim. */
-export const REASONING_TASK = { instance: "instance check", subsumption: "subsumption check", retrieval: "instance retrieval" } as const;
+export const REASONING_TASK = { instance: "instance check", subsumption: "subsumption check", retrieval: "instance retrieval", feature: "feature entailment" } as const;
 
 /** A claim's verdict as its result states it, by the verdict of its proof. A claim's proof doesn't end as a contradiction. */
 export const CLAIM_VERDICT = { [VERDICT.proved]: "holds", [VERDICT.refuted]: "refuted", [VERDICT.unknown]: "unknown" } as const;

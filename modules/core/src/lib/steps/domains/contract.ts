@@ -46,6 +46,8 @@ export const parameter = (name: string): TContractArgument => ({ parameter: name
 /** The argument that names the call's products, and the one that names the call's principal. */
 export const PRODUCTS: TContractArgument = { products: true };
 export const PRINCIPAL: TContractArgument = { principal: true };
+/** The principal of a call that actuality makes as itself, which holds every action. */
+export const ACTUALITY_PRINCIPAL = "urn:haibun:actuality";
 
 /** The verbs dispatch writes a step's products with: a record the store doesn't hold, or fields merged into what it holds. */
 export type TProductsVerb = typeof WRITE_VERB.create | typeof WRITE_VERB.merge;
@@ -122,7 +124,8 @@ export const CONTRACT_CHECK = { requires: "requires", states: "states" } as cons
 export type TContractCheck = (typeof CONTRACT_CHECK)[keyof typeof CONTRACT_CHECK];
 
 /** What a check reads a call by: its arguments by parameter name, its principal, and its products once its action returned them.
- *  A check replaces each argument of a statement by the call's value of it; actuality acting as itself doesn't state a principal. */
+ *  A check replaces each argument of a statement by the call's value of it. A call actuality makes as itself states
+ *  `ACTUALITY_PRINCIPAL`, and a call without a principal or every action doesn't state one. */
 export type TContractCall = { readonly parameters: Readonly<Record<string, unknown>>; readonly principal?: string; readonly products?: unknown };
 
 /** A statement's verdict in a call's check: proved, refuted or unknown, and the triple that determined it. */

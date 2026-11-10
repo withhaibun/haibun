@@ -12,7 +12,8 @@ import { actionNotOK } from "../../domains/util.js";
 import { isPersisted } from "../../domains/resources.js";
 import { normalizeDomainKey, refTargetOf } from "../../domains/domains.js";
 import { referenceTo } from "../../records/domains/unit.js";
-import { CONTRACT_CHECK, contractChecking, contractProducts, statementNotation, type TContractCall, type TContractCheck } from "../domains/contract.js";
+import { actingAs, actingFor } from "../../domains/capability-context.js";
+import { ACTUALITY_PRINCIPAL, CONTRACT_CHECK, contractChecking, contractProducts, statementNotation, type TContractCall, type TContractCheck } from "../domains/contract.js";
 import { stepParts } from "../domains/phrase.js";
 import type { TStepperStep } from "../domains/stepper.js";
 
@@ -49,4 +50,12 @@ function checkedValue(world: TWorld, domain: string | undefined, value: unknown)
 	const topology = target === undefined ? undefined : world.domains[target]?.topology;
 	const id = typeof value === "object" && value !== null && "id" in value && typeof value.id === "string" ? value.id : undefined;
 	return isPersisted(topology) && id !== undefined ? referenceTo(topology.persistedAs, id) : value;
+}
+
+/** Returns the principal a call's check reads: the principal the call proved, else `ACTUALITY_PRINCIPAL` where the call holds
+ *  every action as actuality's own, else undefined. */
+export function callPrincipal(): string | undefined {
+	const principal = actingAs();
+	if (principal !== undefined) return principal;
+	return actingFor()?.root === true ? ACTUALITY_PRINCIPAL : undefined;
 }

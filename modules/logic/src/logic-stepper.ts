@@ -28,8 +28,17 @@ import { callTerm, derivationOfRecord, derivationUnder, lineTerm, refuseDeclarat
 import { declareVocabularies, logicEngine, reasoner } from "./root.js";
 import { checkedExpression, countedMembers, entailedMembers, expressionCompletions, expressionReading, queryBasis } from "./pipelines/members.js";
 import { claimEntailment, instanceChecked, retrievalChecked, subsumptionChecked, type TClaimScope } from "./pipelines/claims.js";
+import { featureClaim } from "./pipelines/feature-claims.js";
 import { DOMAIN_INDIVIDUAL_ADDRESS, type TIndividualAddress } from "@haibun/core/lib/domains/typed-links.js";
-import { DOMAIN_CLAIM, DOMAIN_CLASS_EXPRESSION, DOMAIN_ENTAILED_MEMBERS, classExpressionDomainDefinition, reasoningDomainDefinitions } from "./domains/reasoning.js";
+import {
+	DOMAIN_CLAIM,
+	DOMAIN_CLAIMED_FEATURE,
+	DOMAIN_CLASS_EXPRESSION,
+	DOMAIN_CONTRACT_CLAIM,
+	DOMAIN_ENTAILED_MEMBERS,
+	classExpressionDomainDefinition,
+	reasoningDomainDefinitions,
+} from "./domains/reasoning.js";
 import { DOMAIN_DERIVATION, DOMAIN_DOMAIN_GOAL, DOMAIN_LINE_TERM, RESOLVE_STATEMENT, logicDomainDefinitions } from "./domains/logic.js";
 import { DOMAIN_ALTERNATIVES, DOMAIN_REFUSAL, DOMAIN_STATUS, readingDomainDefinitions } from "./domains/readings.js";
 
@@ -276,6 +285,15 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 			contract: { products: DOMAIN_ENTAILED_MEMBERS },
 			entails: (terms) => claimEntailment({ some: valueAt(terms, "expression", CLAIM_TERMS) }, this.getWorld().domains),
 			action: ({ expression }: { expression: string }) => retrievalChecked(this.claimScope(), expression),
+		},
+		featureEntails: {
+			read: true,
+			readsAt: Access.public,
+			gwta: `feature {feature: ${DOMAIN_CLAIMED_FEATURE}} entails {claim: ${DOMAIN_CONTRACT_CLAIM}}`,
+			description:
+				"A claim over a background's contracts: binds each parameter of its steps that an earlier step's products don't supply to a fresh individual of its declared domain, chains the steps' `requires` and `states` in order, and holds where the relations' rules derive the claim, a statement as `relation(variable, …)`, for every value of those domains. It is refuted where a contract states the claim's negation, and unknown otherwise, naming the first fact between the claim's individuals that the chain doesn't derive.",
+			contract: { products: DOMAIN_CLAIM },
+			action: ({ feature, claim }: { feature: string; claim: string }) => featureClaim(this.getWorld(), this.steppers, reasoner(), feature, claim),
 		},
 		lineRendersAsWritten: {
 			read: true,

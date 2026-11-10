@@ -12,8 +12,13 @@ import { BETWEEN_AXIOMS, manchesterName } from "./axioms.js";
 import { dlOf, functionalOf } from "./class-expression.js";
 
 /** A claim as its line states it: an individual's membership of a class expression, the subsumption of one class expression by
- *  another, or the existence of a member of a class expression. */
-export type TClaim = { individual: string; type: TClassExpression } | { sub: TClassExpression; sup: TClassExpression } | { some: TClassExpression };
+ *  another, the existence of a member of a class expression, or a statement a feature's contracts entail over a fresh individual
+ *  of each declared domain. */
+export type TClaim =
+	| { individual: string; type: TClassExpression }
+	| { sub: TClassExpression; sup: TClassExpression }
+	| { some: TClassExpression }
+	| { feature: string; claim: string; over: readonly string[] };
 
 /** The knowledge a claim is checked against: the ontology and the records the reasoner read. */
 const KNOWLEDGE = "K";
@@ -39,6 +44,10 @@ export function entailmentOf(claim: TClaim): TEntailment {
 			entails: entailed(functional),
 			dl: entailed(`${individual} ${DL_SYMBOL.member} ${dlOf(claim.type)}`),
 		};
+	}
+	if ("feature" in claim) {
+		const entails = `${claim.feature} ${DL_SYMBOL.entails} ${claim.claim}`;
+		return { task: REASONING_TASK.feature, entails, dl: claim.over.length === 0 ? entails : `${DL_SYMBOL.all}${claim.over.join(", ")}. ${entails}` };
 	}
 	if ("sub" in claim) {
 		const functional = `SubClassOf(${functionalOf(claim.sub)} ${functionalOf(claim.sup)})`;
