@@ -10,7 +10,7 @@ import type { TFeatureStep } from "../steps/domains/stepper.js";
 import type { TActionResult, TStepResult } from "../domains/protocol.js";
 import type { TExceeding, TPermission } from "../domains/actions.js";
 import type { TIndividualAddress } from "../domains/typed-links.js";
-import type { TContractCall, TContractChecked, TStatement } from "../steps/domains/contract.js";
+import type { TContractCall, TContractChecked, TContractChecking } from "../steps/domains/contract.js";
 
 /** The time of an event or a record in milliseconds since the epoch, a wait of a number of milliseconds, and a task after a
  *  number of milliseconds, which the returned function cancels. A task that doesn't hold the process lets it exit first. */
@@ -35,8 +35,9 @@ export type TProver = {
 	/** Returns what `candidate` holds beyond `bound`, which is empty where the bound contains it. */
 	exceeding: (candidate: TPermission, bound: TPermission) => Promise<TExceeding[]>;
 	/** Checks a call against statements of its step's contract, over the one rule set the prover generated from the relations of
-	 *  every contract as the steps loaded. Returns each statement's verdict, and EYE's proof of the check where one isn't proved. */
-	checkContract: (statements: readonly TStatement[], call: TContractCall) => Promise<TContractChecked>;
+	 *  every contract as the steps loaded, and the records the call's arguments name, read from the world's store. Returns each
+	 *  statement's verdict, and EYE's proof of the check where one isn't proved. */
+	checkContract: (world: TWorld, checking: TContractChecking, call: TContractCall) => Promise<TContractChecked>;
 	/** Returns the records the ontology entails as members of a class expression, read from the world's store. */
 	entailed: (world: TWorld, expression: string) => Promise<TEntailed>;
 };

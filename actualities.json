@@ -33,12 +33,12 @@
 			"actuality": {
 				"text": "AGENTS.md",
 				"status": "passed",
-				"tookMs": 1700,
+				"tookMs": 1900,
 				"digest": {
 					"AGENTS.md": "c7ba0b7fe4d7c92e8ec0a14a2bf13095e08f2699d671d90f13ed0cecb99af318",
-					"modules/core/src": "48b7b526c83652a653272d738e854348ea687fae8c2ca963ac1434a1b8eafa0f",
+					"modules/core/src": "d0e81bcc175c2e2d81c48a3e8ce6ba00e4f7a17b91e1758320906d50176db4c7",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
-					"modules/logic/src": "41ed26d83535d745b8c0b3cb978e781c273694cdb004b6f05bde063b763d4dad",
+					"modules/logic/src": "22f9ecc4637f8403833bdd490454649951f9d2289768db9c578bb19a9c5bba49",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/web-playwright/src": "d5cb7cb5594a5294aaf6c41ac81acea324121fa0e84702a580f120c11e8d327c",
@@ -49,7 +49,7 @@
 				"/AGENTS.md": {
 					"text": "/AGENTS",
 					"status": "passed",
-					"tookMs": 1700,
+					"tookMs": 1800,
 					"steps": 383
 				}
 			}

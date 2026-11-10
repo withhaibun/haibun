@@ -2,7 +2,7 @@
  * The predicate registry's check of the steps' contracts. A contract's statements name relations, which the steppers declare
  * once in their concerns; parameters, which the step's pattern names; and fields, which a declared record type's schema holds.
  * A finding is a statement whose relation the steppers don't declare or whose arguments don't match its arity, a parameter the pattern
- * doesn't name, and a field that the declared types' schemas don't hold.
+ * doesn't name, and a field of a statement, `changes` or `complete` that the declared types' schemas don't hold.
  */
 import { unwrapToShape } from "@haibun/core/lib/domains/zod-unwrap.js";
 import { hasCycles, type AStepper } from "@haibun/core/lib/steps/domains/stepper.js";
@@ -64,8 +64,8 @@ export function contractFindings(steppers: readonly AStepper[]): TContractFindin
 			...args.flatMap(argumentFindings),
 		];
 		const statements = [...(contract.states === undefined ? [] : contract.states), ...(contract.requires === undefined ? [] : contract.requires)];
-		const changes = contract.changes === undefined ? [] : contract.changes;
+		const fieldsNamed = [...(contract.changes === undefined ? [] : contract.changes), ...(contract.complete === undefined ? [] : contract.complete)];
 		const method = stepMethodName(stepperName, actionName);
-		return [...statements.flatMap(statementFindings), ...changes.flatMap(fieldFindings)].map((finding) => ({ method, finding }));
+		return [...statements.flatMap(statementFindings), ...fieldsNamed.flatMap(fieldFindings)].map((finding) => ({ method, finding }));
 	});
 }
