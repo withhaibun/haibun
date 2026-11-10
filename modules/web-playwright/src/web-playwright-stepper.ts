@@ -128,8 +128,8 @@ const ANSWERED_BY_THE_PAGE = { answeredBy: READS_THE_PAGE };
 /** The arguments that open the browser's devtools on its network panel, where the DEVTOOLS option is set. */
 const DEVTOOLS_ARGS = ["--auto-open-devtools-for-tabs", "--devtools-flags=panel-network", "--remote-debugging-port=9223"];
 const ARGS_SEPARATOR = ";";
-/** A click that ignores whether its target is visible and takes the click. */
-const FORCED_CLICK = /^click invisible| with force$/;
+/** An action that ignores whether its target is visible and takes pointer events. */
+const FORCED_ACTION = /^(click|hover) invisible| with force$/;
 
 /** The option that serves the relay through which a person's browser attaches. */
 const BROWSER_RELAY = "BROWSER_RELAY";
@@ -326,10 +326,10 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		},
 		hoverOver: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
-			gwta: `hover over {target: ${DOMAIN_PAGE_TARGET}}`,
-			description: "Moves the pointer over the element the target locates.",
+			gwta: `hover( invisible)? over {target: ${DOMAIN_PAGE_TARGET}}( with force)?`,
+			description: "Moves the pointer over the element the target locates. Invisible or with force moves over an element covered or intercepted by another.",
 			...ANSWERED_BY_THE_PAGE,
-			action: ({ target }: { target: TStepValue }) => hoverOver(this.session, target),
+			action: ({ target }: { target: TStepValue }, featureStep: TFeatureStep) => hoverOver(this.session, target, FORCED_ACTION.test(featureStep.in)),
 		},
 		scrollUpAScreen: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
@@ -429,7 +429,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			gwta: `click( invisible)? {target: ${DOMAIN_PAGE_TARGET}}( with force)?`,
 			description: "Clicks the element the target locates, past the checks that it is visible and enabled where the line states invisible or with force.",
 			...ANSWERED_BY_THE_PAGE,
-			action: ({ target }: { target: TStepValue }, featureStep: TFeatureStep) => click(this.session, target, FORCED_CLICK.test(featureStep.in)),
+			action: ({ target }: { target: TStepValue }, featureStep: TFeatureStep) => click(this.session, target, FORCED_ACTION.test(featureStep.in)),
 		},
 		inElement: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,

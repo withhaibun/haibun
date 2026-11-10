@@ -46,10 +46,17 @@ describe("evaluateEgoCorridorHit", () => {
 	});
 
 	it("detects chip hit when pointer is over a destination neighbour chip", () => {
-		const hit = evaluateEgoCorridorHit({ x: 120, y: 400 }, center, neighbours);
-		expect(hit.kind).toBe("chip");
-		if (hit.kind === "chip") {
-			expect(hit.neighbourId).toBe("left-1");
+		// Chip left-1 is centered at x=100, y=400 with width=80 -> span is [60, 140]
+		const hitRightHalf = evaluateEgoCorridorHit({ x: 120, y: 400 }, center, neighbours);
+		expect(hitRightHalf.kind).toBe("chip");
+		if (hitRightHalf.kind === "chip") {
+			expect(hitRightHalf.neighbourId).toBe("left-1");
+		}
+
+		const hitLeftHalf = evaluateEgoCorridorHit({ x: 75, y: 400 }, center, neighbours);
+		expect(hitLeftHalf.kind).toBe("chip");
+		if (hitLeftHalf.kind === "chip") {
+			expect(hitLeftHalf.neighbourId).toBe("left-1");
 		}
 	});
 

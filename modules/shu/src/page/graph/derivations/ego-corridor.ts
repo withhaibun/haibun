@@ -18,9 +18,9 @@ export type TEgoNeighbourTarget = { id: string; pos: { x: number; y: number }; w
 
 export type TEgoCorridorOptions = { corridorRadius?: number; centerPadding?: number; chipPadding?: number };
 
-export const DEFAULT_CORRIDOR_RADIUS = 40;
-export const DEFAULT_CENTER_PADDING = 18;
-export const DEFAULT_CHIP_PADDING = 8;
+export const DEFAULT_CORRIDOR_RADIUS = 50;
+export const DEFAULT_CENTER_PADDING = 24;
+export const DEFAULT_CHIP_PADDING = 12;
 
 /**
  * Computes the minimum 2D Euclidean distance from point P to line segment A->B.
@@ -75,9 +75,9 @@ export function evaluateEgoCorridorHit(
 		return { kind: "center" };
 	}
 
-	// 2. Chip bounding box check
+	// 2. Chip bounding box check: n.pos is the chip's center (client coordinates)
 	for (const n of neighbours) {
-		if (pointInBox(pointer.x, pointer.y, n.pos.x, n.pos.y - n.height / 2, n.width, n.height, chipPad)) {
+		if (pointInBox(pointer.x, pointer.y, n.pos.x - n.width / 2, n.pos.y - n.height / 2, n.width, n.height, chipPad)) {
 			return { kind: "chip", neighbourId: n.id };
 		}
 	}

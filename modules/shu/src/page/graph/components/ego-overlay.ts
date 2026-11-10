@@ -20,9 +20,7 @@ import { evaluateEgoCorridorHit, type TEgoCorridorHit, type TEgoNeighbourTarget 
 import {
 	approximateChipWidth,
 	computeEgoPositions,
-	computeViewportFitScale,
 	DEFAULT_MAX_EGO_NEIGHBOURS,
-	DEFAULT_VIEWPORT_MARGIN,
 	EGO_CHIP_HEIGHT,
 	extractEgoGraph,
 	type TEgoGraph,
@@ -141,10 +139,17 @@ export class EgoOverlay {
 			| { fov?: number; aspect?: number; position?: { x: number; y: number; z: number }; matrixWorld?: { elements: number[] }; updateMatrixWorld?: (force: boolean) => void }
 			| undefined;
 		camera?.updateMatrixWorld?.(true);
+
+		const camElements = camera?.matrixWorld?.elements;
+		const hasWorldTranslation = camElements && camElements.length >= 15 && (camElements[12] !== 0 || camElements[13] !== 0 || camElements[14] !== 0);
+		const camWorldX = hasWorldTranslation ? camElements[12] : camera?.position?.x;
+		const camWorldY = hasWorldTranslation ? camElements[13] : camera?.position?.y;
+		const camWorldZ = hasWorldTranslation ? camElements[14] : camera?.position?.z;
+
 		let viewBounds: { rx: number; ry: number } | undefined;
 		let camBasis: { right: XYZ; up: XYZ } | undefined;
-		if (camera?.position) {
-			const dist = Math.hypot(camera.position.x - hoveredNode.x, camera.position.y - hoveredNode.y, camera.position.z - hoveredNode.z);
+		if (camera && camWorldX !== undefined && camWorldY !== undefined && camWorldZ !== undefined) {
+			const dist = Math.hypot(camWorldX - hoveredNode.x, camWorldY - hoveredNode.y, camWorldZ - hoveredNode.z);
 			const fov = camera.fov !== undefined ? camera.fov : 50;
 			const fovRad = (fov * Math.PI) / 180;
 			const visibleHalfH = dist * Math.tan(fovRad / 2);
@@ -152,45 +157,44 @@ export class EgoOverlay {
 			const visibleHalfW = visibleHalfH * aspect;
 			// Push out towards the perimeter / edge (88% of half extent to maximize screen space)
 			viewBounds = { rx: Math.max(30, visibleHalfW * 0.88), ry: Math.max(20, visibleHalfH * 0.88) };
-			if (camera.matrixWorld?.elements && camera.matrixWorld.elements.length >= 7) {
-				const e = camera.matrixWorld.elements;
-				const rX = e[0] !== undefined ? e[0] : 1;
-				const rY = e[1] !== undefined ? e[1] : 0;
-				const rZ = e[2] !== undefined ? e[2] : 0;
-				const uX = e[4] !== undefined ? e[4] : 0;
-				const uY = e[5] !== undefined ? e[5] : 1;
-				const uZ = e[6] !== undefined ? e[6] : 0;
+			if (camElements && camElements.length >= 7) {
+				const rX = camElements[0] !== undefined ? camElements[0] : 1;
+				const rY = camElements[1] !== undefined ? camElements[1] : 0;
+				const rZ = camElements[2] !== undefined ? camElements[2] : 0;
+				const uX = camElements[4] !== undefined ? camElements[4] : 0;
+				const uY = camElements[5] !== undefined ? camElements[5] : 1;
+				const uZ = camElements[6] !== undefined ? camElements[6] : 0;
 				camBasis = { right: { x: rX, y: rY, z: rZ }, up: { x: uX, y: uY, z: uZ } };
 			}
 		}
 
 		const v = new T.Vector3();
-		const camPos = camera?.position as XYZ | undefined;
-		const camElements = camera?.matrixWorld?.elements;
 		const el8 = camElements ? camElements[8] : undefined;
 		const el9 = camElements ? camElements[9] : undefined;
 		const el10 = camElements ? camElements[10] : undefined;
-		const forwardX = el8 !== undefined ? -el8 : 0;
-		const forwardY = el9 !== undefined ? -el9 : 0;
-		const forwardZ = el10 !== undefined ? -el10 : -1;
+		const fwdX = el8 !== undefined ? -el8 : 0;
+		const fwdY = el9 !== undefined ? -el9 : 0;
+		const fwdZ = el10 !== undefined ? -el10 : -1;
+		const rawLen = Math.hypot(fwdX, fwdY, fwdZ);
+		const fwdLen = rawLen > 0 ? rawLen : 1;
+		const forwardX = fwdX / fwdLen;
+		const forwardY = fwdY / fwdLen;
+		const forwardZ = fwdZ / fwdLen;
 
 		const project = (point: XYZ) => {
-			if (!camera) return { x: 0, y: 0, inFront: true };
-			let inFront = true;
-			if (camPos) {
-				const toX = point.x - camPos.x;
-				const toY = point.y - camPos.y;
-				const toZ = point.z - camPos.z;
-				const dot = toX * forwardX + toY * forwardY + toZ * forwardZ;
-				inFront = dot > 0.1;
-			}
+			if (!camera || camWorldX === undefined || camWorldY === undefined || camWorldZ === undefined) return { x: 0, y: 0, inFront: true };
+			const toX = point.x - camWorldX;
+			const toY = point.y - camWorldY;
+			const toZ = point.z - camWorldZ;
+			const dot = toX * forwardX + toY * forwardY + toZ * forwardZ;
+			const inFront = dot > 0.1;
 			v.set(point.x, point.y, point.z);
 			const p = v.project(camera);
 			return { x: p.x, y: p.y, inFront: inFront && p.z < 1 };
 		};
 
-		const optimalScale = computeViewportFitScale(egoGraph, project, DEFAULT_VIEWPORT_MARGIN, { viewBounds, focalPlane: true, camBasis, project });
-		const targetPositions = computeEgoPositions(egoGraph, optimalScale, { viewBounds, focalPlane: true, camBasis, project });
+		// Keep virtual neighbour chips firmly along the outer visible perimeter (scale = 1.0)
+		const targetPositions = computeEgoPositions(egoGraph, 1.0, { viewBounds, focalPlane: true, camBasis, project });
 
 		const group = new T.Group();
 		(group as Obj3D & { name?: string }).name = "shu-ego-overlay";
@@ -437,7 +441,7 @@ export class EgoOverlay {
 			targets.push({ id: n.node.id, pos: pPixel, width: w, height: h, spokePoints });
 		}
 
-		const hit = evaluateEgoCorridorHit(pointer, { x: cPixel.x, y: cPixel.y, width: centerW, height: centerH }, targets, { centerPadding: 32, corridorRadius: 45 });
+		const hit = evaluateEgoCorridorHit(pointer, { x: cPixel.x, y: cPixel.y, width: centerW, height: centerH }, targets, { centerPadding: 32, corridorRadius: 55, chipPadding: 16 });
 		const highlightId = hit.kind === "chip" || hit.kind === "spoke" ? hit.neighbourId : undefined;
 		this.applyHighlight(highlightId);
 

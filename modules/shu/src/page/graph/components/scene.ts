@@ -1959,6 +1959,12 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.updateHoverInfo(n);
 		this.requestFocusAtRest(); // a hover without a pointer over the canvas must still wake the paused loop
 		this.applyFocus();
+		if (n && isPlaced(n)) {
+			this.clearEgoGrace();
+			this.egoOverlay.show(n, this.nodeMap, this.currentLinks);
+		} else {
+			this.egoOverlay.hide();
+		}
 	}
 
 	/** The current column-view node (the host publishes it through the shared selection system). Sticky focus for

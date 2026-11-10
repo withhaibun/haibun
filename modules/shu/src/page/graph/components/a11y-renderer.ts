@@ -149,6 +149,13 @@ export class A11yRenderer implements TGraphRenderer {
 				const id = idOfEvent(e);
 				if (id && !pressed) this.deps.onFocus(id);
 			});
+			region.addEventListener("pointerover", (e) => {
+				const id = idOfEvent(e);
+				if (id) this.deps.onFocus(id);
+			});
+			region.addEventListener("pointerleave", () => {
+				this.deps.onFocus("");
+			});
 		}
 		return { status: this.statusEl, content: this.contentEl };
 	}

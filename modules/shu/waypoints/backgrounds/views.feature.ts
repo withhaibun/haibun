@@ -77,6 +77,8 @@ export const views = {
 	putAwayGraphReading: (view: string) => `put away the reading of graph ${view}`,
 	openGraphNode: (view: string, id: string) => `open node ${id} in graph ${view}`,
 	openGraphNodeNamed: (view: string, name: string) => `open the node named ${name} in graph ${view}`,
+	hoverGraphNode: (view: string, id: string) => `point at node ${id} in graph ${view}`,
+	hoverGraphNodeNamed: (view: string, name: string) => `point at the node named ${name} in graph ${view}`,
 	openActiveGraphNode: (view: string) => `open the active node in graph ${view}`,
 	graphNodeIsActive: (view: string, id: string) => `node ${id} of graph ${view} is active`,
 	graphHasNoActiveNode: (view: string) => `graph ${view} doesn't show an active node`,
@@ -120,6 +122,8 @@ type TOnTarget = "wait for" | "click" | "hover over" | "scroll up a screen" | "w
 const onTarget = (step: TOnTarget): string => {
 	if (step === "scroll up a screen") return `scroll ${TARGET} up a screen`;
 	if (step === "wait until gone") return `wait until ${TARGET} is gone`;
+	if (step === "hover over") return `hover invisible over ${TARGET}`;
+	if (step === "click") return `click invisible ${TARGET}`;
 	return `${step} ${TARGET}`;
 };
 
@@ -248,7 +252,9 @@ export const backgrounds: TKirejiExport = {
 		`in {view}, wait until ${TARGET} is gone`,
 		`waypoint ${views.putAwayGraphReading(VIEW)}`,
 		...within("Open a node from a graph's reading", "{view}", ENTRY, "click", views.openGraphNode(VIEW, "{id}")),
+		...within("Point at a node from a graph's reading", "{view}", ENTRY, "hover over", views.hoverGraphNode(VIEW, "{id}")),
 		...within("Open a node by its name", "{view}", `${READING} ol > li > [data-node-id]:has-text("{name}") >> nth=0`, "click", views.openGraphNodeNamed(VIEW, "{name}")),
+		...within("Point at a node by its name", "{view}", `${READING} ol > li > [data-node-id]:has-text("{name}") >> nth=0`, "hover over", views.hoverGraphNodeNamed(VIEW, "{name}")),
 		...within("Open a graph's active node", "{view}", `${READING} ol > li > [aria-current="true"]`, "click", views.openActiveGraphNode(VIEW)),
 		...within("Read a graph's active node", "{view}", `${ENTRY}[aria-current="true"]`, "wait for", views.graphNodeIsActive(VIEW, "{id}")),
 		...within("Read that a graph doesn't show an active node", "{view}", `${READING} ol > li > [aria-current="true"]`, "wait until gone", views.graphHasNoActiveNode(VIEW)),

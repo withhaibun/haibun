@@ -236,10 +236,23 @@ function layoutConstellation(
 			continue;
 		}
 
+		const dx = entry.item.node.x - x0;
+		const dy = entry.item.node.y - y0;
+		const dz = entry.item.node.z - z0;
+		const sx = camBasis ? dx * camBasis.right.x + dy * camBasis.right.y + dz * camBasis.right.z : dx;
+		const sy = camBasis ? dx * camBasis.up.x + dy * camBasis.up.y + dz * camBasis.up.z : dy;
+
+		// Calculate direct perimeter rectangle intersection in camera basis
+		const tx = Math.abs(sx) > 0.001 ? rx / Math.abs(sx) : Infinity;
+		const ty = Math.abs(sy) > 0.001 ? ry / Math.abs(sy) : Infinity;
+		const tPerim = Math.min(tx, ty);
+		const perimSx = sx * tPerim;
+		const perimSy = sy * tPerim;
+
 		// Find where the curved edge reaches the visible perimeter
-		let low = 0.05;
+		let low = 0.0;
 		let high = 1.0;
-		for (let iter = 0; iter < 10; iter++) {
+		for (let iter = 0; iter < 12; iter++) {
 			const mid = (low + high) / 2;
 			const pt = pointAlongLink(center, entry.item.node, entry.item.direction, curvature, mid);
 			let inside = false;
@@ -247,7 +260,9 @@ function layoutConstellation(
 				const ndc = project(pt);
 				inside = ndc.inFront && Math.abs(ndc.x) <= VIRTUAL_PERIMETER_MARGIN && Math.abs(ndc.y) <= VIRTUAL_PERIMETER_MARGIN;
 			} else if (bounds) {
-				inside = Math.abs(pt.x - x0) <= bounds.rx && Math.abs(pt.y - y0) <= bounds.ry;
+				const pSx = camBasis ? (pt.x - x0) * camBasis.right.x + (pt.y - y0) * camBasis.right.y + (pt.z - z0) * camBasis.right.z : pt.x - x0;
+				const pSy = camBasis ? (pt.x - x0) * camBasis.up.x + (pt.y - y0) * camBasis.up.y + (pt.z - z0) * camBasis.up.z : pt.y - y0;
+				inside = Math.abs(pSx) <= rx && Math.abs(pSy) <= ry;
 			} else {
 				inside = Math.hypot(pt.x - x0, pt.y - y0) <= baseRadius;
 			}
@@ -258,14 +273,23 @@ function layoutConstellation(
 			}
 		}
 
-		const tierReduction = Math.max(0.85, 1.0 - entry.tier * 0.04);
-		const targetU = Math.max(0.08, low * tierReduction);
-		const perimPt = pointAlongLink(center, entry.item.node, entry.item.direction, curvature, targetU);
+		// If the curve reached the visible perimeter with low >= 0.2, use it; otherwise use direct perimeter intersection
+		let perimPt: XYZ;
+		let spokeU = 1.0;
+		if (low >= 0.2) {
+			spokeU = low;
+			perimPt = pointAlongLink(center, entry.item.node, entry.item.direction, curvature, spokeU);
+		} else {
+			const right = camBasis ? camBasis.right : { x: 1, y: 0, z: 0 };
+			const up = camBasis ? camBasis.up : { x: 0, y: 1, z: 0 };
+			perimPt = { x: x0 + perimSx * right.x + perimSy * up.x, y: y0 + perimSx * right.y + perimSy * up.y, z: z0 + perimSx * right.z + perimSy * up.z };
+		}
+
 		entry.x = perimPt.x;
 		entry.y = perimPt.y;
 		entry.z = focalPlane ? perimPt.z : entry.item.node.z;
-		entry.predicatePos = pointAlongLink(center, entry.item.node, entry.item.direction, curvature, targetU * 0.5);
-		entry.spokePoints = sampleCurvedSpoke(center, entry.item.node, entry.item.direction, curvature, targetU);
+		entry.predicatePos = pointAlongLink(center, entry.item.node, entry.item.direction, curvature, spokeU * 0.5);
+		entry.spokePoints = sampleCurvedSpoke(center, entry.item.node, entry.item.direction, curvature, spokeU);
 	}
 
 	// 5. 2D AABB collision relaxation pass in camera plane so virtual perimeter chips never overlap
@@ -305,14 +329,18 @@ function layoutConstellation(
 					const ovY = minY - Math.abs(dy);
 
 					if (ovX > 0 && ovY > 0) {
-						if (ovY < ovX) {
-							const shift = (ovY / 2) * (dy < 0 ? -1 : 1);
-							itemA.sy -= shift;
-							itemB.sy += shift;
+						// Relax tangentially along the perimeter edge:
+						// If near top/bottom perimeter (|sy| > |sx|), distribute horizontally (in X)
+						// If near left/right perimeter (|sx| >= |sy|), distribute vertically (in Y)
+						const nearTopOrBottom = Math.abs(itemA.sy) > Math.abs(itemA.sx);
+						if (nearTopOrBottom && ovX > 0) {
+							const shiftX = (ovX / 2) * (dx < 0 ? -1 : 1);
+							itemA.sx -= shiftX;
+							itemB.sx += shiftX;
 						} else {
-							const shift = (ovX / 2) * (dx < 0 ? -1 : 1);
-							itemA.sx -= shift;
-							itemB.sx += shift;
+							const shiftY = (ovY / 2) * (dy < 0 ? -1 : 1);
+							itemA.sy -= shiftY;
+							itemB.sy += shiftY;
 						}
 					}
 				}
@@ -360,14 +388,25 @@ export function computeEgoPositions(ego: TEgoGraph, scale: number, options?: TEg
 		const targetY = entry.isOffscreen ? y0 + s * (entry.y - y0) : entry.y;
 		const targetZ = entry.isOffscreen && options?.focalPlane ? z0 + s * (entry.z - z0) : entry.z;
 
+		const spokePoints = entry.spokePoints.map((pt, idx) => {
+			if (!entry.isOffscreen || s === 1.0) return pt;
+			if (idx === 0) return pt;
+			return { x: x0 + s * (pt.x - x0), y: y0 + s * (pt.y - y0), z: options?.focalPlane ? z0 + s * (pt.z - z0) : pt.z };
+		});
+
+		const predicatePos =
+			entry.isOffscreen && s !== 1.0
+				? { x: x0 + s * (entry.predicatePos.x - x0), y: y0 + s * (entry.predicatePos.y - y0), z: options?.focalPlane ? z0 + s * (entry.predicatePos.z - z0) : entry.predicatePos.z }
+				: entry.predicatePos;
+
 		return {
 			node: entry.item.node,
 			link: entry.item.link,
 			direction: entry.item.direction,
 			pos: { x: targetX, y: targetY, z: targetZ },
-			predicatePos: entry.predicatePos,
+			predicatePos,
 			isOffscreen: entry.isOffscreen,
-			spokePoints: entry.spokePoints,
+			spokePoints,
 		};
 	});
 
@@ -377,8 +416,8 @@ export function computeEgoPositions(ego: TEgoGraph, scale: number, options?: TEg
 export type TNdcPoint = { x: number; y: number; inFront: boolean };
 
 /**
- * Determines optimal lateral scale factor s in (0.3, 1] so that every neighbour's projected
- * position falls within the NDC bounds [-margin, margin] and remains in front of the camera.
+ * Determines optimal lateral scale factor s in (0.85, 1] to keep chips firmly at the outer perimeter
+ * without clumping inward towards the ego node.
  */
 export function computeViewportFitScale(ego: TEgoGraph, project: (point: XYZ) => TNdcPoint, margin: number, options?: TEgoPositionOptions): number {
 	if (ego.neighbours.length === 0) return 1.0;
@@ -398,8 +437,8 @@ export function computeViewportFitScale(ego: TEgoGraph, project: (point: XYZ) =>
 
 	if (testScale(1.0)) return 1.0;
 
-	// Binary search for maximum scale in [0.4, 1.0] to keep chips near perimeter without clumping
-	let low = 0.4;
+	// Binary search for maximum scale in [0.2, 1.0] to bring chips within viewport margin
+	let low = 0.2;
 	let high = 1.0;
 	let best = low;
 
