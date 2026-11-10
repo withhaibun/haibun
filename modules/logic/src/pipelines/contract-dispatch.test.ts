@@ -2,12 +2,13 @@
  * Dispatch checks a call against its step's contract: its `requires` before the action runs, and its `states` over the products.
  * A statement that isn't proved refuses the call: the action doesn't run where `requires` refuses it, the products aren't kept
  * where `states` refuses them, since the step fails, the step's record holds the check's proof, and the refusal names the statement, its verdict and
- * the triple that determined it. Dispatch writes the products of a call whose contract holds, and doesn't write the products of a refused call.
+ * the triple that determined it. Dispatch writes the products of a call whose contract holds, and doesn't write the products of a refused call. A products write
+ * that `keep` names keeps a held record that states the same fields, and refuses one that states others.
  */
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
-import { doesntHold, holds, parameter, PRODUCTS, type TRelation } from "@haibun/core/lib/steps/domains/contract.js";
+import { doesntHold, holds, KEEP_VERB, parameter, PRODUCTS, type TRelation } from "@haibun/core/lib/steps/domains/contract.js";
 import { DEF_PROTO_OPTIONS, failWithDefaults } from "@haibun/core/lib/test/lib.js";
 import { actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
 import { CONTINUE_AFTER_ERROR, RECORDED_STATUS, VERDICT } from "@haibun/core/lib/domains/protocol.js";
@@ -36,6 +37,8 @@ const DELEGATION_DOMAIN = "contract-delegation";
 const DELEGATION_LABEL = "ContractDelegation";
 const ACTIONS = ["read", "write"];
 const ACTION_DOMAIN = "contract-action";
+/** The delegation a kept write names, whichever action it allows. */
+const KEPT_ID = "urn:delegation:kept";
 
 /** Delegates a grant: a delegation from a grant that isn't revoked, which allows the action the line names. */
 class Delegating extends AStepper implements IHasCycles {
@@ -76,22 +79,34 @@ class Delegating extends AStepper implements IHasCycles {
 				return Promise.resolve(actionOKWithProducts({ id: `urn:delegation:${action}`, allowedAction: grant.allowedAction }));
 			},
 		},
+		keep: {
+			description: TEST_STEP,
+			gwta: `keep a delegation allowing {action: ${ACTION_DOMAIN}}`,
+			contract: { products: DELEGATION_DOMAIN, written: KEEP_VERB },
+			action: ({ action }: { action: string }) => Promise.resolve(actionOKWithProducts({ id: KEPT_ID, allowedAction: action })),
+		},
 	} as const satisfies TStepperSteps;
+}
+
+/** Runs `lines` as features, each after the last fails, and returns their step records and the delegations the store holds. */
+async function ran(lines: readonly string[]) {
+	const options = { ...DEF_PROTO_OPTIONS, options: { ...DEF_PROTO_OPTIONS.options, [CONTINUE_AFTER_ERROR]: true } };
+	const { world } = await failWithDefaults(
+		lines.map((content, n) => ({ path: `/features/f${n}`, content })),
+		[Haibun, Delegating, LogicStepper],
+		options,
+	);
+	const steps = await readUpTo(world.shared.getStore(), { label: SEQ_PATH_LABEL }, MAX_PAGE_ROWS);
+	const written = await readUpTo(world.shared.getStore(), { label: DELEGATION_LABEL }, MAX_PAGE_ROWS);
+	return { world, steps, written, record: (line: string) => steps.filter((step) => step[SEQ_PATH_FIELD.stepText] === line) };
 }
 
 describe("dispatch's check of a call against its step's contract", () => {
 	it("runs a call whose contract holds and writes its products, refuses one whose `requires` doesn't before its action and one whose `states` doesn't over its products, and doesn't write the products of either", {
 		timeout: 120_000,
 	}, async () => {
-		const lines = ["delegate read from held", "delegate read from revoked", "delegate write from held"];
-		const options = { ...DEF_PROTO_OPTIONS, options: { ...DEF_PROTO_OPTIONS.options, [CONTINUE_AFTER_ERROR]: true } };
-		const { world } = await failWithDefaults(
-			lines.map((content, n) => ({ path: `/features/f${n}`, content })),
-			[Haibun, Delegating, LogicStepper],
-			options,
-		);
-		const steps = await readUpTo(world.shared.getStore(), { label: SEQ_PATH_LABEL }, MAX_PAGE_ROWS);
-		const record = (line: string) => steps.find((step) => step[SEQ_PATH_FIELD.stepText] === line);
+		const { world, written, record: records } = await ran(["delegate read from held", "delegate read from revoked", "delegate write from held"]);
+		const record = (line: string) => records(line)[0];
 		expect(record("delegate read from held")?.[SEQ_PATH_FIELD.error]).toBeUndefined();
 		expect(record("delegate read from held")?.[SEQ_PATH_FIELD.actionStatus]).toBe(RECORDED_STATUS.completed);
 		const required = record("delegate read from revoked");
@@ -104,10 +119,26 @@ describe("dispatch's check of a call against its step's contract", () => {
 		expect(stated?.[SEQ_PATH_FIELD.proof]).toBeDefined();
 		const delegating = world.runtime.steppers?.find((stepper) => stepper instanceof Delegating);
 		expect((delegating as Delegating).ran, "the refused call's action doesn't run").toEqual(["read", "write"]);
-		const written = await readUpTo(world.shared.getStore(), { label: DELEGATION_LABEL }, MAX_PAGE_ROWS);
 		expect(
 			written.map(({ id }) => id),
 			"dispatch writes the delegation whose contract holds, and not the one whose products are refused",
 		).toEqual(["urn:delegation:read"]);
+	});
+
+	it("keeps a record its products state again, and refuses products that state another value of a field the held record states", { timeout: 120_000 }, async () => {
+		const again = "keep a delegation allowing read";
+		const other = "keep a delegation allowing write";
+		const { written, record } = await ran([again, again, other]);
+		expect(
+			record(again).map((step) => step[SEQ_PATH_FIELD.actionStatus]),
+			"the same record written again is kept",
+		).toEqual([RECORDED_STATUS.completed, RECORDED_STATUS.completed]);
+		const refused = record(other)[0];
+		expect(refused?.[SEQ_PATH_FIELD.actionStatus]).toBe(RECORDED_STATUS.failed);
+		expect(refused?.[SEQ_PATH_FIELD.error]).toContain('allowedAction "read"');
+		expect(
+			written.map(({ id, allowedAction }) => [id, allowedAction]),
+			"the held record keeps its fields",
+		).toEqual([[KEPT_ID, "read"]]);
 	});
 });
