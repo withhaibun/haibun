@@ -13,6 +13,7 @@ import { Access, LinkRelations, PersistedVertexSchema, type TDomainDefinition } 
 import { refDomainKey, type TIndividualRef } from "../lib/domains/domains.js";
 import { ACTIVITIES_ACTIONS, ACTIVITIES_STEPPER } from "./domains/activities-actions.js";
 import { readUpTo } from "../lib/records/pipelines/record-reads.js";
+import { WRITE_VERB } from "../lib/records/domains/unit.js";
 import { MAX_PAGE_ROWS } from "../lib/domains/hypermedia.js";
 import { packageOf } from "./root.js";
 import { itemAt } from "../lib/domains/item-at.js";
@@ -161,7 +162,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				"Saves a waypoint whose activity is these lines, and states its rule, which then applies in every feature. The step refuses a line that doesn't resolve to one step and a head that is already a rule's, before it states the rule. Saving a head again with the same lines returns the existing record.",
 			gwta: `save waypoint {outcome: ${DOMAIN_TITLE}} doing {statements: ${DOMAIN_STATEMENT_LINES}}`,
 			capability: ACTIVITIES_ACTIONS.saveWaypoint,
-			contract: { products: SAVED_WAYPOINT_DOMAIN },
+			contract: { products: SAVED_WAYPOINT_DOMAIN, written: WRITE_VERB.merge },
 			action: async ({ outcome, statements }: { outcome: string; statements: string[] }, featureStep: TFeatureStep) =>
 				actionOKWithProducts(await this.saveWaypoint(outcome, statements, featureStep.source?.path ?? SAVED_WAYPOINT_SOURCE)),
 		},
@@ -333,22 +334,17 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	}
 
 	/**
-	 * Saves a waypoint whose activity is `lines`, which applies in every feature, and writes it as a record. `source` is the
-	 * source path the record holds. The head is `written` after dePolite, as a waypoint line's head is.
+	 * Saves a waypoint whose activity is `lines`, which applies in every feature, and returns its record, which dispatch writes.
+	 * `source` is the source path the record holds. The head is `written` after dePolite, as a waypoint line's head is.
 	 */
 	async saveWaypoint(written: string, lines: string[], source: string): Promise<TSavedWaypoint> {
 		const outcome = dePolite(written);
-		const store = this.getWorld().shared.getStore();
+		const world = this.getWorld();
 		// The store holds a record for each saved waypoint. Saving a head again with the same lines returns the existing record.
-		// registerSavedWaypoints throws for every other head that is already a rule's.
-		const held = await store.readRecord({ label: SAVED_WAYPOINT_LABEL, schema: SavedWaypointSchema }, outcome);
-		if (held) {
-			if (held.lines.length === lines.length && held.lines.every((line, at) => line === lines[at])) return held;
-		}
-		await store.merge({ "@type": SAVED_WAYPOINT_LABEL, id: outcome, lines, source });
-		const saved = await store.readRecord({ label: SAVED_WAYPOINT_LABEL, schema: SavedWaypointSchema }, outcome);
-		if (saved === undefined)
-			throw new Error(`the saved waypoint "${outcome}" was written, and the store doesn't return it; check that the store holds ${SAVED_WAYPOINT_LABEL} records`);
+		// registerSavedWaypoints throws for every other head that is already a rule's, before the record is written.
+		const held = await world.shared.getStore().readRecord({ label: SAVED_WAYPOINT_LABEL, schema: SavedWaypointSchema }, outcome);
+		if (held && held.lines.length === lines.length && held.lines.every((line, at) => line === lines[at])) return held;
+		const saved = { id: outcome, lines, source, generatedAtTime: new Date(world.clock.now()).toISOString() };
 		this.registerSavedWaypoints([saved]);
 		return saved;
 	}

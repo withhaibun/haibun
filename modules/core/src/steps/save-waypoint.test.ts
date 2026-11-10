@@ -1,6 +1,7 @@
 /**
  * A waypoint that `save waypoint` saves. Actuality states its rule at once, and its activity runs the saved lines. Saving is
- * refused where a line doesn't resolve to a step or the head is already registered with other lines.
+ * refused where a line doesn't resolve to a step or the head is already registered with other lines, and a refused save
+ * doesn't write its record.
  */
 import { HAIBUN_RECORD_NAMESPACE } from "../lib/domains/resources.js";
 import { describe, it, expect } from "vitest";
@@ -114,5 +115,7 @@ describe("a waypoint a step saves", () => {
 		expect(JSON.stringify(unresolved.featureResults?.[0]?.stepResults)).toContain("each line of a saved waypoint resolves to one step");
 		const twice = await failWithDefaults(`${SAVE}\nsave waypoint "${OUTCOME}" doing ["set knocks to \\"3\\""]\n`, STEPPERS);
 		expect(JSON.stringify(twice.featureResults?.[0]?.stepResults)).toContain(`the outcome \\"${OUTCOME}\\" is already registered`);
+		const kept = await readUpTo(twice.world.shared.getStore(), { label: SAVED_WAYPOINT_LABEL }, MAX_PAGE_ROWS);
+		expect(kept, "the refused save doesn't write its lines").toMatchObject([{ id: OUTCOME, lines: [KNOCK_LINE] }]);
 	});
 });
