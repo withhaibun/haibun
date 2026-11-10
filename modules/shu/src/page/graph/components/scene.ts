@@ -599,21 +599,50 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		},
 		tweening: () => this.#parts.tween.running,
 		clicked: (node, e) => {
-			if (node) this.onNodeClick(node, e);
-			// Empty space is the reader not choosing a record on the page; the host relays the active record back through setSelectedSubject.
-			else if (this.selectedSubject) dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: entryOf([], appAccessLevel()) });
+			this.clearEgoGrace();
+			if (node) {
+				this.onNodeClick(node, e);
+			} else if (this.egoOverlay.isVisible && this.fgCanvas) {
+				const rect = this.fgCanvas.getBoundingClientRect();
+				const egoNode = this.egoOverlay.pickNeighbour({ x: e.clientX, y: e.clientY }, rect);
+				if (egoNode) {
+					this.onNodeClick(egoNode, e);
+				} else if (this.selectedSubject) {
+					this.egoOverlay.hide();
+					dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: entryOf([], appAccessLevel()) });
+				} else {
+					this.egoOverlay.hide();
+				}
+			} else if (this.selectedSubject) {
+				dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: entryOf([], appAccessLevel()) });
+			}
 		},
-		hovered: (node) => {
+		hovered: (node, e) => {
 			if (this.#parts.engine.mode === "settling") return;
 			const id = node?.id ?? null;
-			if (this.hoverSubject === id) return;
-			this.hoverSubject = id;
-			this.updateHoverInfo(node ?? null);
-			this.applyFocus();
-			if (node && isPlaced(node)) this.egoOverlay.show(node, this.nodeMap, this.currentLinks);
-			else this.egoOverlay.hide();
+			if (this.hoverSubject === id && id !== null) return;
+
+			if (this.egoOverlay.isVisible && e && this.fgCanvas) {
+				const rect = this.fgCanvas.getBoundingClientRect();
+				const hit = this.egoOverlay.testPointer({ x: e.clientX, y: e.clientY }, rect);
+				if (hit.kind !== "miss") {
+					this.clearEgoGrace();
+					return;
+				}
+			}
+
+			if (node && isPlaced(node)) {
+				this.clearEgoGrace();
+				this.hoverSubject = id;
+				this.updateHoverInfo(node);
+				this.applyFocus();
+				this.egoOverlay.show(node, this.nodeMap, this.currentLinks);
+			} else {
+				this.scheduleEgoGrace();
+			}
 		},
 		left: () => {
+			this.clearEgoGrace();
 			this.updateHoverInfo(null);
 			this.egoOverlay.hide();
 			if (this.hoverSubject) {
@@ -624,6 +653,27 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		markDirty: (cause) => this.markDirty(cause),
 		teardown: (end) => this.autoTeardown(end),
 	});
+	private egoGraceTimer?: () => void;
+
+	private clearEgoGrace(): void {
+		if (this.egoGraceTimer !== undefined) {
+			this.egoGraceTimer();
+			this.egoGraceTimer = undefined;
+		}
+	}
+
+	private scheduleEgoGrace(): void {
+		if (this.egoGraceTimer !== undefined) return;
+		this.egoGraceTimer = this.#parts.clock.after(500, () => {
+			this.egoGraceTimer = undefined;
+			this.egoOverlay.hide();
+			if (this.hoverSubject) {
+				this.hoverSubject = null;
+				this.updateHoverInfo(null);
+				this.applyFocus();
+			}
+		});
+	}
 	private selectedSubject: string | null = null; // sticky: the current column-view node (via the shared selection system)
 	private hoverSubject: string | null = null; // transient: the hovered node
 	private preview: TGraphPreview | null = null; // what a preview lights: a type hovered in the filter legend, or nodes a host points at
@@ -883,6 +933,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			this.layoutTimer = undefined;
 			this.cameraCtl.end();
 			this.ganttOverlay.dispose();
+			this.clearEgoGrace();
 			this.egoOverlay.dispose();
 			this.enclosureCtl.dispose(); // boxes + the shared unit geometries (the gantt ghost reuses unitEdges but never disposes it)
 			// Release the scene's WebGL context deterministically: a context otherwise frees only at GC, and past the
@@ -1426,6 +1477,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		if (this.#parts.engine.mode !== "frozen") return "settle";
 		if (this.focusCtl.magnifying) return "magnify";
 		if (this.focusDirty) return "focus";
+		if (this.egoOverlay.isVisible) return "focus";
 		return frame < this.dirtyUntilFrame ? this.dirtyCause : "rest";
 	}
 

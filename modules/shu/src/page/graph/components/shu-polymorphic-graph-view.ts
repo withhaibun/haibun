@@ -442,15 +442,6 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		if (!this.usesExternalData) this.autoTeardown(this.subscribeBatched({ onBatch: (events) => this.noteWitness(events), filter: carriesWitness }));
 		// A proof the axioms pane read from a step's why is a witness as a derivation's step end is.
 		if (!this.usesExternalData) this.autoListen(document, SHU_EVENT.PROOF_READ, ((e: CustomEvent<TFrame[]>) => this.markWitness({ proof: e.detail })) as EventListener);
-		if (!this.usesExternalData)
-			this.autoListen(this, SHU_EVENT.PANE_OPEN, ((e: CustomEvent<TPaneOpen>) => {
-				const { pane } = e.detail;
-				const node = pane.paneType === "entity" ? pane.id : pane.paneType === "type" ? pane.persistedAs : undefined;
-				const carried = node === undefined ? undefined : this.#overlay?.nodes.get(node);
-				if (carried === undefined) return;
-				e.stopPropagation();
-				this.openFrameOf(carried, e.detail.addToSelection);
-			}) as EventListener);
 		if (this.usesExternalData) {
 			this.scene?.setSelectedSubject(this.hostSelection);
 			this.previewNodes(this.hostPreview);

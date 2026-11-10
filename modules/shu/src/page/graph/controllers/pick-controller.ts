@@ -79,7 +79,7 @@ export type TPickControllerDeps = {
 	/** A click that didn't move past the drag threshold: on the node the press picked, or on empty space. */
 	clicked: (node: FGNode | undefined, e: MouseEvent) => void;
 	/** The pointer moved over a node, or empty space when undefined. */
-	hovered?: (node: FGNode | undefined) => void;
+	hovered?: (node: FGNode | undefined, e?: PointerEvent) => void;
 	/** The pointer left the canvas, so a hover it caused ends. */
 	left: () => void;
 	markDirty: (cause: TWakeCause) => void;
@@ -146,11 +146,13 @@ export class PickController {
 				const id = node?.id ?? null;
 				if (this.#hoveredId !== id) {
 					this.#hoveredId = id;
-					this.deps.hovered?.(node);
+					this.deps.hovered?.(node, e);
+				} else if (id === null) {
+					this.deps.hovered?.(undefined, e);
 				}
 			} else if (this.#hoveredId !== null) {
 				this.#hoveredId = null;
-				this.deps.hovered?.(undefined);
+				this.deps.hovered?.(undefined, e);
 			}
 			this.drag.move(e);
 		};
