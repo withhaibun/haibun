@@ -15,7 +15,8 @@ import { IndexedDbQuads } from "../adapters/quad-store.js";
 import { deviceDatabase } from "../adapters/device-store.js";
 import { CACHE_SHAPE, DEVICE_STORES, META_KEY } from "../ports.js";
 import { GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
-import { equalTo, readEvery, recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { equalTo, readUpTo, recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { MAX_PAGE_ROWS } from "@haibun/core/lib/domains/hypermedia.js";
 import { heldRecordIri, servedTypes } from "@haibun/core/lib/test/declared-types.js";
 import { ChangedSinceRead } from "@haibun/core/lib/records/domains/unit.js";
 
@@ -73,8 +74,8 @@ describe("the reads the site serves, made of the graph this page caches", () => 
 	});
 
 	it("lists a type's records, narrowed by a field and windowed", async () => {
-		expect((await readEvery(store, { label: "Email" })).length).toBe(2);
-		expect(await readEvery(store, { label: "Email", filters: equalTo({ folder: "Sent" }) })).toEqual([
+		expect((await readUpTo(store, { label: "Email" }, MAX_PAGE_ROWS)).length).toBe(2);
+		expect(await readUpTo(store, { label: "Email", filters: equalTo({ folder: "Sent" }) }, MAX_PAGE_ROWS)).toEqual([
 			{ "@id": heldRecordIri("Email", "b"), "@type": "Email", folder: "Sent", subject: "two", accessLevel: Access.public },
 		]);
 		const window = await store.readRecords(GraphQuerySchema.parse({ label: "Email", offset: 1, limit: 1 }));

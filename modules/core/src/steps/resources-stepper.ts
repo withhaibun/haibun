@@ -10,7 +10,7 @@
  */
 import { RDF_STATEMENT } from "../lib/domains/vocabularies.js";
 import { listOf } from "../lib/domains/lists.js";
-import { CountedFields, counted } from "../lib/domains/hypermedia.js";
+import { CountedFields, counted, MAX_PAGE_ROWS } from "../lib/domains/hypermedia.js";
 import { itemAt } from "../lib/domains/item-at.js";
 import { z } from "zod";
 import { AStepper, IHasCycles, TStepperSteps, IStepperCycles, type TBeforeStep } from "../lib/steps/domains/stepper.js";
@@ -44,7 +44,7 @@ import {
 	fragmentSelectorDomainDefinition,
 } from "../lib/domains/resource-domains.js";
 import { MEDIA_TYPE } from "../lib/domains/media-types.js";
-import { readEvery } from "../lib/records/pipelines/record-reads.js";
+import { readUpTo } from "../lib/records/pipelines/record-reads.js";
 import { bodiesByMediaType, markdownOf } from "../lib/records/pipelines/body-reads.js";
 import { createComment, readProseLinks, writeAnnotation } from "../lib/records/pipelines/discourse-writes.js";
 import { DOMAIN_LINK_REL, DOMAIN_RECORD_ID, DOMAIN_TEXT, linkVocabularyFor } from "../lib/domains/domains.js";
@@ -175,7 +175,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 				const store = this.getWorld().shared.getStore();
 				const unresolved: string[] = [];
 				let checked = 0;
-				for (const anchor of await readEvery(store, { label: SPECIFIC_RESOURCE_LABEL })) {
+				for (const anchor of await readUpTo(store, { label: SPECIFIC_RESOURCE_LABEL }, MAX_PAGE_ROWS)) {
 					const quads = await store.query({ subject: String(anchor.id) });
 					const sourceQuad = quads.find((q) => q.predicate === LinkRelations.HAS_SOURCE.rel);
 					const selectorId = quads.find((q) => q.predicate === LinkRelations.HAS_SELECTOR.rel)?.object;
@@ -293,7 +293,8 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 					),
 				);
 				const selectorById = new Map<string, Record<string, unknown>>();
-				for (const s of await readEvery(store, { label: TEXT_QUOTE_SELECTOR_LABEL, named: [...new Set(selectorOfSr.values())] })) selectorById.set(String(s.id), s);
+				const selectorIds = [...new Set(selectorOfSr.values())];
+				for (const s of await readUpTo(store, { label: TEXT_QUOTE_SELECTOR_LABEL, named: selectorIds }, selectorIds.length)) selectorById.set(String(s.id), s);
 				const quoteOf = (srId: string | undefined): TQuoteAnchor | undefined => {
 					const selectorId = srId ? selectorOfSr.get(srId) : undefined;
 					const sel = selectorId === undefined ? undefined : selectorById.get(selectorId);
@@ -312,7 +313,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 				if (anchored.length === 0) return actionOKWithProducts({ annotations: [], ...counted(0) });
 				const commentIds = [...new Set(anchored.map(({ commentId }) => commentId))];
 				const [comments, noteTexts] = await Promise.all([
-					readEvery(store, { label: COMMENT_LABEL, named: commentIds }),
+					readUpTo(store, { label: COMMENT_LABEL, named: commentIds }, commentIds.length),
 					bodiesByMediaType(store, COMMENT_LABEL, commentIds, MEDIA_TYPE.markdown),
 				]);
 				const commentById = new Map(comments.map((comment) => [String(comment.id), comment]));

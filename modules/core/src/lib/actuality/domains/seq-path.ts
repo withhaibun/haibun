@@ -205,6 +205,8 @@ export function compareSeqPath(a: number[], b: number[]): number {
 /** The actuality level of a dispatched step's record. Every other record of the type is a level's: the actuality's, a
  *  feature's or a scenario's. */
 export const STEP_LEVEL: TActualityLevel = "step";
+/** The level of a feature's record. */
+export const FEATURE_LEVEL: TActualityLevel = "feature";
 
 /** SeqPath individual field names. The schema, the topology and the emitters read them from here. */
 export const SEQ_PATH_FIELD = {
@@ -434,7 +436,14 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 			[SEQ_PATH_EDGE.askedIn]: { rel: LinkRelations.IN_REPLY_TO.rel, range: COMMENT_LABEL },
 		},
 		// endedAtTime orders steps by their end. A reader that follows actuality compares recordedAtTime with the time of
-		// its last read. actuality selects the steps of one feature of an actuality.
-		sortColumns: { [SEQ_PATH_FIELD.endedAtTime]: "TIMESTAMPTZ", [SEQ_PATH_FIELD.recordedAtTime]: "TIMESTAMPTZ", [SEQ_PATH_FIELD.actuality]: "TEXT" },
+		// its last read. actuality selects the steps of one feature of an actuality, and called selects the steps that called one
+		// step, so a quantifier over steps reads them by an index. A line's text isn't a column: a line can be longer than an
+		// index entry holds.
+		sortColumns: {
+			[SEQ_PATH_FIELD.endedAtTime]: "TIMESTAMPTZ",
+			[SEQ_PATH_FIELD.recordedAtTime]: "TIMESTAMPTZ",
+			[SEQ_PATH_FIELD.actuality]: "TEXT",
+			[SEQ_PATH_FIELD.called]: "TEXT",
+		},
 	},
 };

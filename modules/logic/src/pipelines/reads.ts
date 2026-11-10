@@ -8,7 +8,7 @@ import { observedOf } from "@haibun/core/lib/steps/domains/stepper.js";
 import { Access } from "@haibun/core/lib/domains/resources.js";
 import { readingAt } from "@haibun/core/lib/domains/capability-context.js";
 import { compareSeqPath, factSeqPath, SEQ_PATH_FIELD, seqPathDomainDefinition } from "@haibun/core/lib/actuality/domains/seq-path.js";
-import { equalTo, readEndedBy, readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { equalTo, readEndedBy, readUpTo } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { FACT_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { FACT_FIELD } from "@haibun/core/lib/records/domains/facts.js";
 import { FACT_POSITIONS, type TFact } from "../domains/logic.js";
@@ -20,7 +20,7 @@ import { recordOfIri } from "@haibun/core/lib/records/derivations/record-iri.js"
 
 /** A proof's reads: the facts that hold a pattern, a type's records as facts up to the reasoning's ceiling, and the products of
  *  steps as typed records, the latest first. */
-export type TReader = { facts: (pattern: TQuadPattern) => Promise<TFact[]>; records: (label: string) => Promise<TTypeRead>; products: () => Promise<THeldFact[]> };
+export type TReader = { facts: (pattern: TQuadPattern) => Promise<TFact[]>; records: (label: string) => Promise<TTypeRead>; products: (feature: string) => Promise<THeldFact[]> };
 
 /** A record a read returns as the facts of its fields, each value of a list its own fact, about the id its record IRI states. */
 function factsOfRecord(namedGraph: string, record: Record<string, unknown>): TFact[] {
@@ -54,9 +54,10 @@ export function readerOf(store: IQuadStore, asOf?: readonly number[]): TReader {
 			const facts = vertices.slice(0, REASONING_READ_CEILING).flatMap((record) => factsOfRecord(label, record).filter(heldAt));
 			return { facts, truncated: vertices.length > REASONING_READ_CEILING };
 		},
-		// The products are records of their type, held where the steps' records are, so they are read as records, not as quads.
-		products: async () =>
-			(await readEvery(store, { label: FACT_LABEL }))
+		// The products of an actuality feature are records of their type, held where the steps' records are, so they are read as
+		// records, not as quads, up to the ceiling.
+		products: async (feature) =>
+			(await readUpTo(store, { label: FACT_LABEL, filters: equalTo({ [FACT_FIELD.actuality]: feature }) }, REASONING_READ_CEILING))
 				.map((record) => ({ id: String(record[FACT_FIELD.id]), domain: String(record[FACT_FIELD.domain]) }))
 				.filter(({ id }) => heldAt({ subject: id, predicate: FACT_FIELD.domain, object: "", namedGraph: FACT_LABEL })),
 	};
@@ -64,11 +65,11 @@ export function readerOf(store: IQuadStore, asOf?: readonly number[]): TReader {
 
 /** The step records of an actuality feature that ended at or before `endedBy`, an epoch time in milliseconds. */
 export const stepsEndedBy = (store: IQuadStore, feature: string, endedBy: number): Promise<Record<string, unknown>[]> =>
-	readEndedBy(store, seqPathDomainDefinition, endedBy, { filters: equalTo({ [SEQ_PATH_FIELD.actuality]: feature }) });
+	readEndedBy(store, seqPathDomainDefinition, endedBy, { filters: equalTo({ [SEQ_PATH_FIELD.actuality]: feature }) }, REASONING_READ_CEILING);
 
 /** The records of a type whose field holds a value, each as its fields by name. */
 export const recordsWhere = (store: IQuadStore, label: string, field: string, value: string): Promise<Record<string, unknown>[]> =>
-	readEvery(store, { label, filters: equalTo({ [field]: value }) });
+	readUpTo(store, { label, filters: equalTo({ [field]: value }) }, MAX_PAGE_ROWS);
 
 /** Writes a subject's facts in a graph as one record, each field that holds a value, at the read level of its caller so the caller reads
  *  them back. A write outside a call is actuality's own, which reads at private. */

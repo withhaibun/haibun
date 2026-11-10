@@ -15,7 +15,8 @@ import { READING_LABEL, ReadingSchema, SEQ_PATH_LABEL, StatedRecordSchema } from
 import { fromJsonText } from "../../domains/json-text.js";
 import { SEQ_PATH_FIELD, SeqPathSchema, formatRecordName, linePathOf, parseRecordName } from "../../actuality/domains/seq-path.js";
 import type { IQuadStore } from "../ports.js";
-import { readEvery } from "../../records/pipelines/record-reads.js";
+import { readUpTo } from "../../records/pipelines/record-reads.js";
+import { MAX_PAGE_ROWS } from "../../domains/hypermedia.js";
 
 /** A JSON-LD reference to an individual: its `@id` and its `@type`. */
 export type TReference = { "@id": string; "@type": string };
@@ -39,7 +40,7 @@ type TStatementStore = Pick<IQuadStore, "query" | "readRecords" | "readRecord">;
  *  of each reading. */
 async function readingsByStatement(store: TStatementStore): Promise<Map<string, string>> {
 	const byStatement = new Map<string, string>();
-	for (const reading of await readEvery(store, { label: READING_LABEL })) {
+	for (const reading of await readUpTo(store, { label: READING_LABEL }, MAX_PAGE_ROWS)) {
 		for (const entry of Array.isArray(reading.stated) ? (reading.stated as string[]) : []) {
 			const record = fromJsonText(StatedRecordSchema).parse(entry);
 			if (record.kind === "edge") byStatement.set(`${record.s}\u0000${record.rel}\u0000${record.o}`, String(reading.id));

@@ -7,14 +7,24 @@
  * Mount-scoped: clustered reads and all() cover only the mounted graphs, never the peer's whole store.
  */
 import { RemoteInstance } from "./rpc-client.js";
-import { STORE_METHOD_PREFIX, requiredStoreCapability, sentWrites, writtenId } from "../../domains/store-protocol.js";
+import { STORE_METHOD_PREFIX, requiredStoreCapability, sentWrites, UnitsRemovedSchema, UnitsWrittenSchema, writtenId } from "../../domains/store-protocol.js";
 import { writesInFlight } from "../../domains/capability-context.js";
 import type { TRequestSigner } from "../../domains/authority-types.js";
 import type { z } from "zod";
 import type { AccessLevel, AccessQueryLevel } from "../../domains/resources.js";
 import { typedRecord } from "../../steps/domains/quad-types.js";
 import type { IQuadStore } from "../../steps/ports.js";
-import { WRITE_VERB, type TNode, type TReadVersion, type TRecordName, type TRemoval, type TWriteVerb } from "../../records/domains/unit.js";
+import {
+	WRITE_VERB,
+	type TNode,
+	type TReadVersion,
+	type TRecordName,
+	type TRemoval,
+	type TUnitRemoved,
+	type TUnitWrite,
+	type TUnitWritten,
+	type TWriteVerb,
+} from "../../records/domains/unit.js";
 import type {
 	TClusteredQuads,
 	TClusteredQuadsOpts,
@@ -66,6 +76,16 @@ export class RemoteQuadStore implements IQuadStore {
 
 	merge(node: TNode): Promise<string> {
 		return this.write(WRITE_VERB.merge, { node });
+	}
+
+	/** Writes the units at the serving instance in one call, within the writes of the step in progress, and returns how each ended. */
+	async writeMany(units: readonly TUnitWrite[]): Promise<TUnitWritten[]> {
+		return UnitsWrittenSchema.parse(await this.call("writeMany", { units, ...sentWrites(writesInFlight()) }));
+	}
+
+	/** Makes the removals at the serving instance in one call, and returns how each ended. */
+	async removeMany(removals: readonly TRemoval[]): Promise<TUnitRemoved[]> {
+		return UnitsRemovedSchema.parse(await this.call("removeMany", { removals }));
 	}
 
 	/** Writes a node at the serving instance within the writes of the step in progress, and throws a refusal of its unit as that

@@ -20,7 +20,8 @@ import { DOMAIN_DOMAIN_KEY, DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_RECORD_ID, DOMAIN
 import type { TWorld } from "../domains/world.js";
 import { Access, DOMAIN_PERSISTED_TYPE, FACT_LABEL, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "../../domains/resources.js";
 import { SEQ_PATH_EDGE, SEQ_PATH_FIELD, actualityFeatureOf, factIdOf, formatRecordName } from "../domains/seq-path.js";
-import { readEvery, equalTo } from "../../records/pipelines/record-reads.js";
+import { readUpTo, equalTo } from "../../records/pipelines/record-reads.js";
+import { MAX_PAGE_ROWS } from "../../domains/hypermedia.js";
 import { factDomainDefinition } from "../../records/domains/facts.js";
 import { streamContext, streamOver } from "../../transport/domains/step-stream-context.js";
 import { capabilityAllows } from "../../domains/actions.js";
@@ -132,7 +133,7 @@ class CapabilityStepper extends AStepper {
 
 /** Returns the value of the count fact of the step at `path`, or undefined where the store doesn't hold one. */
 const countFact = async (world: TWorld, path: number[]) =>
-	(await readEvery(world.shared.getStore(), { label: FACT_LABEL, filters: equalTo({ domain: TEST_DOMAIN.count }) })).find(
+	(await readUpTo(world.shared.getStore(), { label: FACT_LABEL, filters: equalTo({ domain: TEST_DOMAIN.count }) }, MAX_PAGE_ROWS)).find(
 		(fact) => fact.id === factIdOf({ actuality: actualityFeatureOf(world.tag), path }),
 	)?.value;
 

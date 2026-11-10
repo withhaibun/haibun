@@ -16,7 +16,8 @@ import { ACTIVITIES_ACTIONS, ACTIVITIES_STEPPER } from "./domains/activities-act
 import { readAction, requiredAction } from "../lib/domains/actions.js";
 import { Access } from "../lib/domains/resources.js";
 import VariablesStepper from "./variables-stepper.js";
-import { readEvery } from "../lib/records/pipelines/record-reads.js";
+import { readUpTo } from "../lib/records/pipelines/record-reads.js";
+import { MAX_PAGE_ROWS } from "../lib/domains/hypermedia.js";
 import { QuadStore, newStoreChain } from "../lib/steps/pipelines/quad-store.js";
 import { readDeclarationsOf } from "../lib/records/derivations/read-records.js";
 import { TEST_STEP } from "../lib/test/test-step.js";
@@ -61,7 +62,7 @@ describe("a waypoint a step saves", () => {
 
 	it("is kept as a record stating its outcome and its lines", async () => {
 		const { world } = await passWithDefaults(SAVE, STEPPERS);
-		expect(await readEvery(world.shared.getStore(), { label: SAVED_WAYPOINT_LABEL })).toMatchObject([{ id: OUTCOME, lines: [KNOCK_LINE] }]);
+		expect(await readUpTo(world.shared.getStore(), { label: SAVED_WAYPOINT_LABEL }, MAX_PAGE_ROWS)).toMatchObject([{ id: OUTCOME, lines: [KNOCK_LINE] }]);
 	});
 
 	it("requires the action every saved waypoint requires, and each of its lines requires its own", async () => {
@@ -80,7 +81,7 @@ describe("a waypoint a step saves", () => {
 
 	it("states its rule from its record as a later actuality's first feature starts, and every later feature keeps it", async () => {
 		const { world } = await passWithDefaults(SAVE, STEPPERS);
-		const [record] = await readEvery(world.shared.getStore(), { label: SAVED_WAYPOINT_LABEL });
+		const [record] = await readUpTo(world.shared.getStore(), { label: SAVED_WAYPOINT_LABEL }, MAX_PAGE_ROWS);
 		/** Keeps saved waypoints in a store that outlasts each feature's, holding the record as actuality starts, as the store a
 		 *  later process opens holds it. */
 		class HoldsTheRecord extends AStepper {

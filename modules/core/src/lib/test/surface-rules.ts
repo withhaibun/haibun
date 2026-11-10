@@ -76,6 +76,30 @@ export function oneReadFindings(sources: TSources): TFound[] {
 		});
 }
 
+export const READS_UNBOUNDED = "reads pages of records without a bound";
+/** A file that reads every record by its purpose: an export, and a test. */
+const READS_EVERY = /(\.test\.ts|\/export-import\.ts)$/;
+/** The texts of an end that doesn't bound a read. */
+const UNBOUNDED = new Set(["Number.POSITIVE_INFINITY", "Infinity"]);
+
+/** Each read of pages of records whose end doesn't state a bound, outside an export and the tests. */
+export function unboundedReadFindings(sources: TSources): TFound[] {
+	return [...sources]
+		.filter(([file]) => !READS_EVERY.test(file))
+		.flatMap(([file, source]) => {
+			const found: TFound[] = [];
+			const visit = (node: ts.Node): void => {
+				if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "readInPages") {
+					const end = node.arguments[2];
+					if (end !== undefined && UNBOUNDED.has(end.getText(source))) found.push({ file, finding: READS_UNBOUNDED, line: lineOf(node) });
+				}
+				ts.forEachChild(node, visit);
+			};
+			visit(source);
+			return found;
+		});
+}
+
 /** The heading of the vocabulary table in a document. */
 const VOCABULARY_HEADING = "## One vocabulary";
 /** A synonym the table's last column removes, written in backticks. */

@@ -12,7 +12,17 @@ import { z } from "zod";
 import { AccessLevelSchema } from "./resources.js";
 import type { IQuadStore } from "../steps/ports.js";
 import type { TRpcMethod } from "../transport/ports.js";
-import { ChangedSinceRead, NODE_KEY, WRITE_VERB, WriteOutsideContract, type TNode, type TRemoval } from "../records/domains/unit.js";
+import {
+	ChangedSinceRead,
+	NODE_KEY,
+	WRITE_VERB,
+	WriteOutsideContract,
+	type TNode,
+	type TRemoval,
+	type TUnitRemoved,
+	type TUnitWrite,
+	type TUnitWritten,
+} from "../records/domains/unit.js";
 import { runWritingWithin } from "./capability-context.js";
 import type { TStepWrites } from "../steps/domains/contract.js";
 
@@ -47,15 +57,30 @@ export type TStoreWriteResult = z.infer<typeof StoreWriteResultSchema>;
 export const sentWrites = (writes: TStepWrites | undefined) =>
 	writes === undefined ? {} : { writes: { step: writes.step, products: [...writes.products], changes: writes.changes.map(({ persistedAs, key }) => ({ persistedAs, key })) } };
 
+/** A unit of a batch as a transport carries it. */
+const UnitWriteSchema: z.ZodType<TUnitWrite> = z.discriminatedUnion("verb", [
+	z.object({ verb: z.literal(WRITE_VERB.create), node: NodeSchema }),
+	z.object({ verb: z.literal(WRITE_VERB.merge), node: NodeSchema }),
+	z.object({ verb: z.literal(WRITE_VERB.update), node: NodeSchema, version: z.string().nullable() }),
+]);
+
+/** How each unit of a batch ended, as a transport carries it. */
+export const UnitsWrittenSchema: z.ZodType<TUnitWritten[]> = z.array(z.union([z.object({ id: z.string() }), z.object({ refused: z.string() })]));
+
 /** A removal as a transport carries it. */
 const RemovalSchema: z.ZodType<TRemoval> = RecordNameSchema.extend({ edge: z.object({ rel: z.string(), to: RecordNameSchema }).optional() });
+
+/** How each removal of a batch ended, as a transport carries it. */
+export const UnitsRemovedSchema: z.ZodType<TUnitRemoved[]> = z.array(z.union([z.object({ removed: RecordNameSchema }), z.object({ refused: z.string() })]));
 
 /** Each method's param schema and read/write classification. This map is the one wire contract. */
 const STORE_METHODS = {
 	create: { write: true, params: WriteParamsSchema },
 	update: { write: true, params: WriteParamsSchema.extend({ version: z.string().nullable() }) },
 	merge: { write: true, params: WriteParamsSchema },
+	writeMany: { write: true, params: z.object({ units: z.array(UnitWriteSchema), writes: StepWritesSchema.optional() }) },
 	remove: { write: true, params: z.object({ removal: RemovalSchema }) },
+	removeMany: { write: true, params: z.object({ removals: z.array(RemovalSchema) }) },
 	versionOf: { write: false, params: z.object({ name: RecordNameSchema }) },
 	clear: { write: true, params: z.object({ namedGraph: z.string().optional() }) },
 	get: { write: false, params: z.object({ subject: z.string(), predicate: z.string(), namedGraph: z.string().optional() }) },
@@ -112,9 +137,17 @@ export async function handleStoreCall(store: IQuadStore, method: string, rawPara
 			const { node, writes, version } = STORE_METHODS.update.params.parse(rawParams);
 			return { result: await writtenOver(writes, () => store.update(node, version)) };
 		}
+		case "writeMany": {
+			const { units, writes } = STORE_METHODS.writeMany.params.parse(rawParams);
+			return { result: await runWritingWithin(writes === undefined ? undefined : { ...writes, refused: [] }, () => store.writeMany(units)) };
+		}
 		case "remove": {
 			const { removal } = STORE_METHODS.remove.params.parse(rawParams);
 			return { result: await store.remove(removal) };
+		}
+		case "removeMany": {
+			const { removals } = STORE_METHODS.removeMany.params.parse(rawParams);
+			return { result: await store.removeMany(removals) };
 		}
 		case "versionOf": {
 			const { name: record } = STORE_METHODS.versionOf.params.parse(rawParams);

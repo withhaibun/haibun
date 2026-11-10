@@ -7,7 +7,8 @@ import { calculateShouldClose, actualityFailure, staysAfterActuality } from "../
 import { passWithDefaults, failWithDefaults } from "../../test/lib.js";
 import { LogicStepper } from "../../test/logic-stepper.js";
 import { scenarioEventId } from "../derivations/lifecycle-events.js";
-import { equalTo, readEvery } from "../../records/pipelines/record-reads.js";
+import { equalTo, readUpTo } from "../../records/pipelines/record-reads.js";
+import { MAX_PAGE_ROWS } from "../../domains/hypermedia.js";
 import { SEQ_PATH_LABEL } from "../../domains/resources.js";
 import { SEQ_PATH_EDGE, SEQ_PATH_FIELD } from "../domains/seq-path.js";
 import { DECLARED_LINES } from "../../domains/digest.js";
@@ -152,7 +153,7 @@ describe("the digest of a scenario's declared lines", () => {
 	/** The digests each scenario's record states, in order. */
 	const digestsOf = async (content: string, passes = true) => {
 		const result = await (passes ? passWithDefaults : failWithDefaults)([{ path: "/features/noted.feature", content }], [NotingStepper]);
-		const records = await readEvery(result.world.shared.getStore(), { label: SEQ_PATH_LABEL, filters: equalTo({ [SEQ_PATH_FIELD.actualityLevel]: "scenario" }) });
+		const records = await readUpTo(result.world.shared.getStore(), { label: SEQ_PATH_LABEL, filters: equalTo({ [SEQ_PATH_FIELD.actualityLevel]: "scenario" }) }, MAX_PAGE_ROWS);
 		return records.sort((a, b) => String(a[SEQ_PATH_FIELD.id]).localeCompare(String(b[SEQ_PATH_FIELD.id]))).map((record) => record[SEQ_PATH_FIELD.digest]);
 	};
 
@@ -212,7 +213,7 @@ describe("the actuality the Executor moves", () => {
 			[scenarioEventId(1, 3), '"second"', "completed"],
 		]);
 		expect(actuality.features[1]?.firstFailure).toMatchObject({ step: "refuse here", message: "refused" });
-		const records = await readEvery(result.world.shared.getStore(), { label: SEQ_PATH_LABEL, sortBy: SEQ_PATH_FIELD.generatedAtTime, sortOrder: "asc" });
+		const records = await readUpTo(result.world.shared.getStore(), { label: SEQ_PATH_LABEL, sortBy: SEQ_PATH_FIELD.generatedAtTime, sortOrder: "asc" }, MAX_PAGE_ROWS);
 		const ids = new Set(records.map((record) => record[SEQ_PATH_FIELD.id]));
 		expect(
 			records.filter((record) => record[SEQ_PATH_EDGE.isPartOf] !== undefined && !ids.has(record[SEQ_PATH_EDGE.isPartOf])),

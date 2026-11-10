@@ -1,6 +1,6 @@
 /**
  * Reads records through a store's read function: one record, one record with its edges, the edges that reach a record and
- * every record of a read. Reads the quads a read of a store of quads needs. Every caller reads through
+ * the records of a read up to its bound. Reads the quads a read of a store of quads needs. Every caller reads through
  * these functions, so each read states its bound, its count and its order.
  */
 import { z } from "zod";
@@ -129,21 +129,26 @@ export async function incomingEdges(
 	return { edges: edgesOf(page.vertices, "in"), total: page.total, saturated: page.saturated };
 }
 
-/** Reads every record of a read, a page at a time from the read's offset to the first short page. Throws for a `perType` read,
- *  since it states the first records of each type. */
-export async function readEvery(store: TRecordReader, input: TGraphQueryInput): Promise<Record<string, unknown>[]> {
+/** Reads the records of a read, a page at a time from the read's offset, up to `bound` records. Throws where the store holds
+ *  more than `bound` records of the read, since a caller that acted on part of what it reads would act on part of the records,
+ *  and throws for a `perType` read, which states the first records of each type. */
+export async function readUpTo(store: TRecordReader, input: TGraphQueryInput, bound: number): Promise<Record<string, unknown>[]> {
 	const query = GraphQuerySchema.parse(input);
-	if (query.perType !== undefined) throw new Error("readEvery reads every record of a read, and a perType read states the first records of each type");
+	if (query.perType !== undefined) throw new Error("readUpTo reads the records of a read, and a perType read states the first records of each type");
+	const { offset } = statedQuery(query);
 	const read = (from: number, to: number) => store.readRecords({ ...query, offset: from, limit: to - from, skipCount: true });
-	return (await readInPages(read, statedQuery(query).offset, Number.POSITIVE_INFINITY, MAX_PAGE_ROWS)).vertices;
+	const { vertices } = await readInPages(read, offset, offset + bound + 1, MAX_PAGE_ROWS);
+	if (vertices.length > bound)
+		throw new Error(`the read of ${query.label === undefined ? "records" : query.label} holds more than its bound of ${bound} records; narrow it by a field, an edge or a level`);
+	return vertices;
 }
 
 /** Reads every record of a type that ended at or before `at`, an epoch time in milliseconds, under the read's conditions. An
  *  observation source reads these for a step that started at `at`, so the step doesn't read its own record, its parts or a later
  *  step. Throws for a type that doesn't persist its records. */
-export function readEndedBy(store: TRecordReader, type: TDomainDefinition, at: number, read: Omit<TGraphQueryInput, "label">): Promise<Record<string, unknown>[]> {
+export function readEndedBy(store: TRecordReader, type: TDomainDefinition, at: number, read: Omit<TGraphQueryInput, "label">, bound: number): Promise<Record<string, unknown>[]> {
 	const { topology } = type;
 	if (!isPersisted(topology)) throw new Error(`${type.selectors.join(", ")} doesn't persist its records, so a read can't bound them by when they ended`);
 	const ended: TSearchCondition = { predicate: endFieldOf(topology), operator: "lte", value: new Date(at).toISOString() };
-	return readEvery(store, { ...read, label: topology.persistedAs, filters: [...(read.filters === undefined ? [] : read.filters), ended] });
+	return readUpTo(store, { ...read, label: topology.persistedAs, filters: [...(read.filters === undefined ? [] : read.filters), ended] }, bound);
 }

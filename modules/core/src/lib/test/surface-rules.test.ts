@@ -7,7 +7,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { absenceCheckFindings, downstreamNameFindings } from "./surface-rules.js";
+import ts from "typescript";
+import { absenceCheckFindings, downstreamNameFindings, unboundedReadFindings } from "./surface-rules.js";
 
 const repository = mkdtempSync(join(tmpdir(), "haibun-surface-"));
 execFileSync("git", ["init", "-q"], { cwd: repository });
@@ -29,5 +30,17 @@ describe("the rules over a repository's text", () => {
 	it("finds a downstream name apart from the file that states the names", () => {
 		const found = downstreamNameFindings(repository, ["features"], { names: ["Acme"], statedIn: "features/rules.test.ts" }, []);
 		expect(found.map(({ file, line }) => `${file}:${line}`)).toEqual(["features/a.feature:4"]);
+	});
+
+	it("finds a read of pages without a bound, apart from an export and a test", () => {
+		const unbounded = "readInPages(read, 0, Number.POSITIVE_INFINITY, 500);";
+		const texts: Record<string, string> = {
+			"src/reads.ts": unbounded,
+			"src/bounded.ts": "readInPages(read, 0, LIMIT, 500);",
+			"src/graph/pipelines/export-import.ts": unbounded,
+			"src/reads.test.ts": unbounded,
+		};
+		const sources = new Map(Object.entries(texts).map(([file, text]) => [file, ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true)]));
+		expect(unboundedReadFindings(sources).map(({ file, finding }) => `${file} ${finding}`)).toEqual(["src/reads.ts reads pages of records without a bound"]);
 	});
 });

@@ -12,7 +12,8 @@ import { EARL_ASSERTION_EDGE, EARL_LABEL, EARL_OUTCOME } from "./domains/earl.js
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import WebPlaywright from "@haibun/web-playwright";
-import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { readUpTo } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { MAX_PAGE_ROWS } from "@haibun/core/lib/domains/hypermedia.js";
 
 const PASSES_URI = new URL("../files/test/passes.html", import.meta.url);
 const FAILS_URI = new URL("../files/test/fails.html", import.meta.url);
@@ -64,7 +65,7 @@ page is accessible accepting serious "0" and moderate "0"
 		expect(res.featureResults?.[0]?.stepResults?.[1]?.artifact).toMatchObject({ artifactType: "html" });
 		// Each rule axe applied is an assertion the checking step made, and a violation is a failed result.
 		const store = res.world.shared.getStore();
-		const failed = (await readEvery(store, { label: EARL_LABEL.testResult })).filter(({ outcome }) => outcome === EARL_OUTCOME.failed).map(({ id }) => String(id));
+		const failed = (await readUpTo(store, { label: EARL_LABEL.testResult }, MAX_PAGE_ROWS)).filter(({ outcome }) => outcome === EARL_OUTCOME.failed).map(({ id }) => String(id));
 		expect(failed.length).toBeGreaterThan(0);
 		const assertion = itemAt(await store.query({ predicate: EARL_ASSERTION_EDGE.result, object: itemAt(failed, 0), namedGraph: EARL_LABEL.assertion }), 0);
 		const step = itemAt(await store.query({ subject: assertion.subject, predicate: EARL_ASSERTION_EDGE.wasGeneratedBy, namedGraph: EARL_LABEL.assertion }), 0);

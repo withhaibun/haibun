@@ -12,7 +12,19 @@ import { densityOverQuadStore } from "@haibun/core/lib/records/pipelines/record-
 import { sliceQuadsPerType } from "@haibun/core/lib/steps/derivations/quad-sample.js";
 import type { TDeviceGraph, TDeviceQuads, TGraphSaturation } from "../ports.js";
 import { levelsOf, subjectKey } from "../derivations/quads.js";
-import { NODE_KEY, WRITE_VERB, type TNode, type TReadVersion, type TRecordName, type TRemoval, type TWriteVerb } from "@haibun/core/lib/records/domains/unit.js";
+import {
+	NODE_KEY,
+	WRITE_VERB,
+	type TNode,
+	type TReadVersion,
+	type TRecordName,
+	type TRemoval,
+	type TUnitWrite,
+	type TUnitRemoved,
+	type TUnitWritten,
+	type TWriteVerb,
+} from "@haibun/core/lib/records/domains/unit.js";
+import { removeEach, writeEach } from "@haibun/core/lib/records/pipelines/write-many.js";
 import { EDGE_TARGET } from "@haibun/core/lib/records/derivations/edge-declarations.js";
 import type { TPart } from "@haibun/core/lib/records/derivations/unit-parts.js";
 import { RecordVersions } from "@haibun/core/lib/records/pipelines/record-versions.js";
@@ -118,6 +130,16 @@ export class DeviceGraph implements TDeviceGraph {
 
 	merge(node: TNode): Promise<string> {
 		return this.inTurn(() => this.writeNow(WRITE_VERB.merge, node, undefined));
+	}
+
+	/** Writes each unit through its verb, one after another, and returns how each ended. */
+	writeMany(units: readonly TUnitWrite[]): Promise<TUnitWritten[]> {
+		return writeEach(this, units);
+	}
+
+	/** Makes each removal, one after another, and returns how each ended. */
+	removeMany(removals: readonly TRemoval[]): Promise<TUnitRemoved[]> {
+		return removeEach(this, removals);
 	}
 
 	/** Writes the unit a verb writes from a node in one transaction of the device's quads, each field in place of the quad of its

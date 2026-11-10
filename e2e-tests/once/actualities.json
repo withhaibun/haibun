@@ -121,7 +121,12 @@
 			"actuality": {
 				"text": "e2e-tests/once",
 				"status": "passed",
-				"tookMs": 100
+				"tookMs": 100,
+				"digest": {
+					"e2e-tests/once": "aa76efd39289af80e2a6d1122f1b1be86d79141a1ce60f59a64e68146a41b1cf",
+					"modules/core/src": "c0450427cb0cd5500f06b1b68e0dcce6e0939ec1657121a06c33c191f2eab21b",
+					"modules/logic/src": "f3328298d4f1b05791b80113a011f34af9f91808844a4be81121c158689e41be"
+				}
 			},
 			"features": {
 				"/features/once.feature": {

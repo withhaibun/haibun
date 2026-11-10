@@ -105,7 +105,7 @@ const unmetOf = ({ goal, unmet }: TGoalResolution): string => (unmet === undefin
 /** Proves a goal over the facts the store holds now. */
 async function resolutionOf(scope: TGoalScope, goal: string): Promise<TGoalResolution> {
 	const reader = readerOf(storeOf(scope));
-	return itemAt(await resolutions(scope, [goal], await reader.products()), 0);
+	return itemAt(await resolutions(scope, [goal], await reader.products(actualityFeatureOf(scope.ctx.world.tag))), 0);
 }
 
 /** Proves a step of a plan under the step that calls it, through the path every surface proves a step by, with the input its
@@ -224,7 +224,7 @@ export async function planAdvanced(scope: TGoalScope, parent: TFeatureStep, plan
 async function snapshotOf(scope: TGoalScope, asOf: readonly number[] | undefined) {
 	const { steppers, world } = scope.ctx;
 	const reader = readerOf(storeOf(scope), asOf);
-	const facts = await reader.products();
+	const facts = await reader.products(actualityFeatureOf(world.tag));
 	const signatures = stepSignatures(steppers);
 	// A reference names a record of its target, so the goal is the target where a step returns it.
 	const isReference = (domain: string) => world.domains[domain] !== undefined && refTargetOf(world.domains[domain], world.domains) !== undefined;

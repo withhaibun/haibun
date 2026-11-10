@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { EARL_ASSERTION_EDGE, EARL_LABEL, EARL_MODE, EARL_OUTCOME, earlDomainDefinitions, type TEarlAssertions } from "../domains/earl.js";
 import { writeEarlAssertions } from "./check-page.js";
-import { buildConcernCatalog, getJsonLdContext } from "@haibun/core/lib/domains/hypermedia.js";
+import { buildConcernCatalog, getJsonLdContext, MAX_PAGE_ROWS } from "@haibun/core/lib/domains/hypermedia.js";
 import { toRegisteredDomain } from "@haibun/core/lib/domains/domains.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
-import { readEvery, recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { readUpTo, recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { declaredTypeOf, storeDeclaring, TEST_LEVELS } from "@haibun/core/lib/test/declared-types.js";
 
 /** The EARL types, declared so the store reads their records. */
@@ -91,10 +91,10 @@ describe("writeEarlAssertions", () => {
 		const store = storeDeclaring(EARL_TYPES, TEST_LEVELS);
 		await writeEarlAssertions({ store }, assertions(STEP));
 		await writeEarlAssertions({ store }, assertions(`${STEP}.1`));
-		expect(await readEvery(store, { label: EARL_LABEL.assertion })).toHaveLength(4);
-		expect(await readEvery(store, { label: EARL_LABEL.testResult })).toHaveLength(4);
-		expect(await readEvery(store, { label: EARL_LABEL.testCase })).toHaveLength(2);
-		expect(await readEvery(store, { label: EARL_LABEL.assertor })).toHaveLength(1);
-		expect(await readEvery(store, { label: EARL_LABEL.testSubject })).toHaveLength(1);
+		expect(await readUpTo(store, { label: EARL_LABEL.assertion }, MAX_PAGE_ROWS)).toHaveLength(4);
+		expect(await readUpTo(store, { label: EARL_LABEL.testResult }, MAX_PAGE_ROWS)).toHaveLength(4);
+		expect(await readUpTo(store, { label: EARL_LABEL.testCase }, MAX_PAGE_ROWS)).toHaveLength(2);
+		expect(await readUpTo(store, { label: EARL_LABEL.assertor }, MAX_PAGE_ROWS)).toHaveLength(1);
+		expect(await readUpTo(store, { label: EARL_LABEL.testSubject }, MAX_PAGE_ROWS)).toHaveLength(1);
 	});
 });

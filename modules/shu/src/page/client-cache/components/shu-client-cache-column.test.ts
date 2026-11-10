@@ -9,7 +9,7 @@ import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
-import { actualityOf } from "@haibun/core/lib/seq-path.js";
+import { FEATURE_LEVEL, actualityOf } from "@haibun/core/lib/seq-path.js";
 import { ShuClientCacheColumn } from "./shu-client-cache-column.js";
 import "../../components/shu-monitor-column.js";
 import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
@@ -54,8 +54,8 @@ describe("the client cache view", () => {
 		});
 		// The actuality feature being recorded, and an earlier actuality's this device still holds, each named by the feature it ran.
 		const store = actualityStore();
-		await store.merge({ "@type": SEQ_PATH_LABEL, ...step(EARLIER, 0, { stepText: "Feature: An earlier actuality", called: "Haibun.feature", generatedAtTime: iso(500) }) });
-		await store.merge({ "@type": SEQ_PATH_LABEL, ...step(RUN, 0, { stepText: "Feature: The actuality being recorded", called: "Haibun.feature" }) });
+		await store.merge({ "@type": SEQ_PATH_LABEL, ...step(EARLIER, 0, { stepText: "An earlier actuality", actualityLevel: FEATURE_LEVEL, generatedAtTime: iso(500) }) });
+		await store.merge({ "@type": SEQ_PATH_LABEL, ...step(RUN, 0, { stepText: "The actuality being recorded", actualityLevel: FEATURE_LEVEL }) });
 		for (let i = 1; i < STEPS; i++) await store.merge({ "@type": SEQ_PATH_LABEL, ...step(RUN, i) });
 		installGraph(store);
 	});

@@ -3,7 +3,8 @@ import { heldRecordIri } from "../../test/declared-types.js";
 import { hostHandshake } from "../../test/rpc-answer.js";
 import { describe, expect, it } from "vitest";
 import { QuadStore, newStoreChain } from "../../steps/pipelines/quad-store.js";
-import { equalTo, readEvery, recordOf } from "../../records/pipelines/record-reads.js";
+import { equalTo, readUpTo, recordOf } from "../../records/pipelines/record-reads.js";
+import { MAX_PAGE_ROWS } from "../../domains/hypermedia.js";
 import { storeDeclaring } from "../../test/declared-types.js";
 import { handleStoreCall, isStoreMethod } from "../../domains/store-protocol.js";
 import { RemoteQuadStore } from "./remote-quad-store.js";
@@ -59,7 +60,7 @@ describe("RemoteQuadStore", () => {
 		await satellite.merge({ "@type": "Widget", id: "w-9", name: "Nine" });
 		const nine = { "@id": heldRecordIri("Widget", "w-9"), "@type": "Widget", id: "w-9", name: "Nine" };
 		expect(await recordOf(backing, "Widget", "w-9")).toEqual(nine);
-		expect(await readEvery(satellite, { label: "Widget", filters: equalTo({ id: "w-9" }) })).toEqual([nine]);
+		expect(await readUpTo(satellite, { label: "Widget", filters: equalTo({ id: "w-9" }) }, MAX_PAGE_ROWS)).toEqual([nine]);
 	});
 
 	it("stays mount-scoped: all() covers only the mounted graphs and clustered reads intersect the type filter", async () => {

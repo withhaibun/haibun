@@ -5,7 +5,8 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { z } from "zod";
 import { actualityFeatureOf, formatRecordName } from "@haibun/core/lib/seq-path.js";
 import type { QuadStore } from "@haibun/core/lib/quad-store.js";
-import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { readUpTo } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { MAX_PAGE_ROWS } from "@haibun/core/lib/domains/hypermedia.js";
 import { storeDeclaring } from "@haibun/core/lib/test/declared-types.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { asDomainKey, registerDomains } from "@haibun/core/lib/domains/domains.js";
@@ -58,7 +59,7 @@ describe("what a run logged, as a record", () => {
 		const monitor = monitorOver(store, WARNINGS.IGNORED);
 		monitor.onEvent(said());
 		await monitor.ended();
-		const [record] = await readEvery(store, { label: LOG_MESSAGE_LABEL });
+		const [record] = await readUpTo(store, { label: LOG_MESSAGE_LABEL }, MAX_PAGE_ROWS);
 		expect(record?.[LOG_MESSAGE_FIELD.message]).toBe("what it said");
 		expect(record?.[LOG_MESSAGE_FIELD.level]).toBe("warn");
 		expect(record?.[LOG_MESSAGE_FIELD.generatedAtTime]).toBe(new Date(1700).toISOString());
@@ -70,7 +71,7 @@ describe("what a run logged, as a record", () => {
 		monitor.onEvent(said({ message: "first", timestamp: 1700 }));
 		monitor.onEvent(said({ message: "second", timestamp: 1700 }));
 		await monitor.ended();
-		const records = await readEvery(store, { label: LOG_MESSAGE_LABEL });
+		const records = await readUpTo(store, { label: LOG_MESSAGE_LABEL }, MAX_PAGE_ROWS);
 		expect(records.map((r) => r[LOG_MESSAGE_FIELD.message]).sort()).toEqual(["first", "second"]);
 	});
 
@@ -78,7 +79,7 @@ describe("what a run logged, as a record", () => {
 		const monitor = monitorOver(store, WARNINGS.IGNORED);
 		monitor.onEvent({ id: "0.1", timestamp: 1700, kind: "lifecycle", level: "info", stage: "end" } as unknown as THaibunEvent);
 		await monitor.ended();
-		expect(await readEvery(store, { label: LOG_MESSAGE_LABEL })).toEqual([]);
+		expect(await readUpTo(store, { label: LOG_MESSAGE_LABEL }, MAX_PAGE_ROWS)).toEqual([]);
 	});
 
 	it("is part of the step it was logged during, named as any record of actuality is named", async () => {
@@ -86,7 +87,7 @@ describe("what a run logged, as a record", () => {
 		const monitor = monitorOver(store, WARNINGS.IGNORED);
 		monitor.onEvent(said({ id: "0.-1.525", message: "what went wrong" }));
 		await monitor.ended();
-		const [record] = await readEvery(store, { label: LOG_MESSAGE_LABEL });
+		const [record] = await readUpTo(store, { label: LOG_MESSAGE_LABEL }, MAX_PAGE_ROWS);
 		expect(record?.isPartOf).toBe(formatRecordName({ actuality: actualityFeatureOf(TAG), path: [0, -1, 525] }));
 		expect(record?.id, "its own name is that step's, and which of what it logged this is").toBe(
 			formatRecordName({ actuality: actualityFeatureOf(TAG), path: [0, -1, 525], ordinal: 0 }),
@@ -115,7 +116,7 @@ describe("what a run logged, as a record", () => {
 		expect(ended, "the feature has not ended while a record write is under way").toBe(false);
 		finish();
 		await ending;
-		expect((await readEvery(store, { label: LOG_MESSAGE_LABEL })).length, "the record the feature waited for").toBe(1);
+		expect((await readUpTo(store, { label: LOG_MESSAGE_LABEL }, MAX_PAGE_ROWS)).length, "the record the feature waited for").toBe(1);
 	});
 
 	it("reports a record write that fails once on the console, doesn't record the report, and fails the end of the feature", async () => {
@@ -158,7 +159,7 @@ describe("what a run logged, as a record", () => {
 		expect(writes, "one write for each log before the refusals arrive, and a refused write's own log isn't written").toBe(4);
 		expect(reported, "reported once").toHaveBeenCalledTimes(1);
 		expect(reported).toHaveBeenCalledWith(expect.stringMatching(/the store closed, and 3 records .* weren't written/));
-		expect((await readEvery(store, { label: LOG_MESSAGE_LABEL })).map((r) => r[LOG_MESSAGE_FIELD.message])).toEqual(["before the close"]);
+		expect((await readUpTo(store, { label: LOG_MESSAGE_LABEL }, MAX_PAGE_ROWS)).map((r) => r[LOG_MESSAGE_FIELD.message])).toEqual(["before the close"]);
 		reported.mockRestore();
 	});
 
@@ -187,7 +188,7 @@ describe("what a run produced, as a record", () => {
 			mimetype: "image/png",
 		} as unknown as THaibunEvent);
 		await monitor.ended();
-		const [record] = await readEvery(store, { label: RUN_ARTIFACT_LABEL });
+		const [record] = await readUpTo(store, { label: RUN_ARTIFACT_LABEL }, MAX_PAGE_ROWS);
 		expect(record).toMatchObject({
 			[RUN_ARTIFACT_FIELD.artifactType]: "image",
 			[RUN_ARTIFACT_FIELD.path]: "/artifacts/shot.png",
@@ -203,7 +204,7 @@ describe("what a run produced, as a record", () => {
 		monitor.onEvent(shot("/artifacts/one.png"));
 		monitor.onEvent(shot("/artifacts/two.png"));
 		await monitor.ended();
-		expect((await readEvery(store, { label: RUN_ARTIFACT_LABEL })).length).toBe(2);
+		expect((await readUpTo(store, { label: RUN_ARTIFACT_LABEL }, MAX_PAGE_ROWS)).length).toBe(2);
 	});
 
 	it("doesn't record an artifact that doesn't name a file: a quad a store announces, or a trace of actuality's own machinery", async () => {
@@ -211,7 +212,7 @@ describe("what a run produced, as a record", () => {
 		monitor.onEvent({ id: "0.1", timestamp: 1700, kind: "artifact", level: "debug", artifactType: "json", json: {} } as unknown as THaibunEvent);
 		monitor.onEvent({ id: "http-trace-1", timestamp: 1700, kind: "artifact", level: "debug", artifactType: "http-trace", trace: {} } as unknown as THaibunEvent);
 		await monitor.ended();
-		expect(await readEvery(store, { label: RUN_ARTIFACT_LABEL }), "an artifact is a file, and a record of it points at that file").toEqual([]);
+		expect(await readUpTo(store, { label: RUN_ARTIFACT_LABEL }, MAX_PAGE_ROWS), "an artifact is a file, and a record of it points at that file").toEqual([]);
 	});
 });
 

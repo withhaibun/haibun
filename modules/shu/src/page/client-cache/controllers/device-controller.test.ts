@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import type { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/domains/log-message.js";
-import { SEQ_PATH_FIELD, actualityFeatureOf } from "@haibun/core/lib/seq-path.js";
+import { ACTUALITY_FIELD, FEATURE_LEVEL, SEQ_PATH_FIELD, actualityFeatureOf } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { individualAsQuads } from "../derivations/quads.js";
 import {
@@ -28,12 +28,19 @@ const NEWER = actualityFeatureOf({ key: NEWER_ACTUALITY, featureNum: 1 });
 const NEWER_SECOND = actualityFeatureOf({ key: NEWER_ACTUALITY, featureNum: 2 });
 const iso = (n: number): string => new Date(n).toISOString();
 
-/** Writes an actuality feature: the step that declared it, a step, and what that step logged. */
+/** Writes an actuality feature: its record, a step, and what that step logged. */
 const aFeature = async (store: QuadStore, actualityFeature: string, feature: string, at: number): Promise<void> => {
-	const record = { actionStatus: "passed", accessLevel: "private", level: "info" };
-	await store.merge({ "@type": SEQ_PATH_LABEL, ...record, id: `${actualityFeature}.0`, stepText: `Feature: ${feature}`, called: "Haibun.feature", generatedAtTime: iso(at) });
+	const record = { actionStatus: "passed", accessLevel: "private", level: "info", [ACTUALITY_FIELD]: actualityFeature };
+	await store.merge({ "@type": SEQ_PATH_LABEL, ...record, id: `${actualityFeature}.0`, stepText: feature, actualityLevel: FEATURE_LEVEL, generatedAtTime: iso(at) });
 	await store.merge({ "@type": SEQ_PATH_LABEL, ...record, id: `${actualityFeature}.0.1`, stepText: "a step", called: "Stepper.act", generatedAtTime: iso(at + 100) });
-	await store.merge({ "@type": LOG_MESSAGE_LABEL, id: `${actualityFeature}.0.1@0`, message: "it said this", level: "info", generatedAtTime: iso(at + 200) });
+	await store.merge({
+		"@type": LOG_MESSAGE_LABEL,
+		id: `${actualityFeature}.0.1@0`,
+		message: "it said this",
+		level: "info",
+		[ACTUALITY_FIELD]: actualityFeature,
+		generatedAtTime: iso(at + 200),
+	});
 };
 
 /** A device holding two actualities: the older ran one feature, and the newer ran two. Each actuality's own record is
@@ -47,6 +54,7 @@ const aDevice = async (): Promise<QuadStore> => {
 		await store.merge({
 			"@type": SEQ_PATH_LABEL,
 			id: actualityFeatureOf({ key, featureNum: 0 }),
+			[ACTUALITY_FIELD]: actualityFeatureOf({ key, featureNum: 0 }),
 			stepText: "tests",
 			actionStatus: "passed",
 			accessLevel: "private",

@@ -9,7 +9,7 @@ import { MEDIA_TYPE } from "../../domains/media-types.js";
 import { BodyTextSchema, LinkedBodySchema, type TLinkedBody } from "../domains/body.js";
 import { formIn } from "../derivations/bodies.js";
 import { maximalText } from "../derivations/body-text.js";
-import { OUTGOING_EDGE_LIMIT, readEvery, recordOf, type TRecordReader } from "./record-reads.js";
+import { OUTGOING_EDGE_LIMIT, readUpTo, recordOf, type TRecordReader } from "./record-reads.js";
 import { levelOf } from "../../steps/domains/quad-types.js";
 
 /** Reads the bodies of one record with their text, in two reads: the bodies its edges reach, and those bodies by id. A page
@@ -68,7 +68,7 @@ export async function bodiesByMediaType(store: Pick<IQuadStore, "readRecords" | 
 export async function bodyTextsOf(store: TRecordReader, recordOfBody: ReadonlyMap<string, string>, mediaType: string): Promise<Map<string, string>> {
 	const texts = new Map<string, string>();
 	if (recordOfBody.size === 0) return texts;
-	for (const body of await readEvery(store, { label: BODY_LABEL, named: [...recordOfBody.keys()] })) {
+	for (const body of await readUpTo(store, { label: BODY_LABEL, named: [...recordOfBody.keys()] }, recordOfBody.size)) {
 		const read = LinkedBodySchema.parse(body);
 		const record = recordOfBody.get(read.id);
 		const text = formIn(read, [mediaType]);

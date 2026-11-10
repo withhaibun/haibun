@@ -3,13 +3,13 @@ import { QuadStore, newStoreChain } from "./quad-store.js";
 import { heldRecordIri, storeDeclaring } from "../../test/declared-types.js";
 import { bucketOf } from "../derivations/quad-sample.js";
 import { GraphQuerySchema } from "../domains/quad-types.js";
-import { readEvery } from "../../records/pipelines/record-reads.js";
+import { readUpTo } from "../../records/pipelines/record-reads.js";
 import { describe, it, expect, beforeEach, beforeAll } from "vitest";
 import { accessBound, runAuthorizedWith, runReadingAt, writeBound } from "../../domains/capability-context.js";
 import { readAction, readCeilingOf, writeAction } from "../../domains/actions.js";
 import { Access, LinkRelations, SEQ_PATH_LABEL, type AccessLevel } from "../../domains/resources.js";
 import { itemAt } from "../../domains/item-at.js";
-import { COUNT_CEILING } from "../../domains/hypermedia.js";
+import { COUNT_CEILING, MAX_PAGE_ROWS } from "../../domains/hypermedia.js";
 import { NotUnique, referenceTo } from "../../records/domains/unit.js";
 
 describe("QuadStore Contexts", () => {
@@ -302,7 +302,7 @@ describe("the level each quad a run holds is written and read at", () => {
 	it("writes at private a record whose level a private reader doesn't state, where its type is public, and actuality's at public", async () => {
 		await as(reader, () => store.merge({ "@type": NOTICE, id: "notice-1", text: "read privately" }));
 		await store.merge({ "@type": NOTICE, id: "notice-2", text: "actuality's" });
-		const read = await as(publicReader, () => readEvery(store, { label: NOTICE }));
+		const read = await as(publicReader, () => readUpTo(store, { label: NOTICE }, MAX_PAGE_ROWS));
 		expect(read.map(({ id, accessLevel }) => [id, accessLevel])).toEqual([["notice-2", Access.public]]);
 	});
 

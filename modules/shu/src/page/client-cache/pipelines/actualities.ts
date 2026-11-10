@@ -3,21 +3,22 @@
  *
  * A record's id names its actuality feature, and an actuality feature names the actuality whose feature it ran, so the ids themselves
  * separate what a device holds of many actualities, rather than a second index beside them. The actualities are read from
- * the step records: a step that declared a feature names a feature of an actuality for a reader.
+ * records of its features, each of which names a feature of an actuality for a reader.
  */
-import { FEATURE_START, declaredName } from "@haibun/core/lib/domains/protocol.js";
-import { SEQ_PATH_FIELD, SeqPathSchema, actualityOf, parseRecordName } from "@haibun/core/lib/seq-path.js";
+import { ACTUALITY_FIELD, FEATURE_LEVEL, SEQ_PATH_FIELD, SeqPathSchema, actualityFeatureOf, actualityOf, parseRecordName } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
-import type { TQuad } from "@haibun/core/lib/quad-types.js";
-import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { GraphQuerySchema, type TGraphQuery, type TQuad } from "@haibun/core/lib/quad-types.js";
+import { equalTo } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { MAX_PAGE_ROWS } from "@haibun/core/lib/domains/hypermedia.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import type { TCachedGraph, TDeviceReport } from "../ports.js";
 import { ACTUALITY_TYPES } from "../derivations/actuality-rows.js";
 
 /** An actuality as this device holds it: its key, the graph of its records, the features it ran, the actuality feature of its
- *  newest feature, and the moments its features span. */
-export type THeldActuality = { actuality: string; store: TCachedGraph; features: string[]; newest: string; first: number; last: number };
+ *  newest feature, the moments its features span, and the actuality features its records state, its own first. */
+export type THeldActuality = { actuality: string; store: TCachedGraph; features: string[]; newest: string; first: number; last: number; held: string[] };
 
-/** How many feature declarations the listing reads: what names the actualities a reader is offered. */
+/** How many records of features the listing reads: what names the actualities a reader is offered. */
 export const FEATURES_READ = 500;
 
 /** What holding an actuality reads and writes: the graphs of every actuality the device holds, the graph of the one the
@@ -31,28 +32,33 @@ export async function actualitiesHeld(graphs: TCachedGraph[]): Promise<THeldActu
 	return held.flat().sort((a, b) => b.first - a.first);
 }
 
-/** The actualities one graph holds. */
+/** The actualities one graph holds, from the records of its features, newest first, up to `FEATURES_READ` of them. */
 async function actualitiesIn(store: TCachedGraph): Promise<THeldActuality[]> {
-	// The declarations don't compare a step's `called`, so the read orders the type's steps by time, newest first, and keeps
-	// the steps that declared a feature.
-	const records = await readEvery(store, { label: SEQ_PATH_LABEL, sortBy: SEQ_PATH_FIELD.generatedAtTime, sortOrder: "desc" });
-	const declared = records
-		.map((record) => SeqPathSchema.parse(record))
-		.filter((step) => step[SEQ_PATH_FIELD.called]?.includes(`.${FEATURE_START}`))
-		.slice(0, FEATURES_READ);
+	const read = { label: SEQ_PATH_LABEL, filters: equalTo({ [SEQ_PATH_FIELD.actualityLevel]: FEATURE_LEVEL }), sortBy: SEQ_PATH_FIELD.generatedAtTime, sortOrder: "desc" };
+	const declared = (await store.readRecords(GraphQuerySchema.parse({ ...read, limit: FEATURES_READ, skipCount: true }))).vertices.map((record) => SeqPathSchema.parse(record));
 	const byActuality = new Map<string, THeldActuality>();
 	for (const step of declared) {
 		const name = parseRecordName(step.id);
-		if (name === undefined) throw new Error(`the step ${step.id} declared a feature, and its id doesn't name the actuality feature it ran in`);
+		if (name === undefined) throw new Error(`the record ${step.id} of a feature doesn't name the actuality feature it ran in`);
 		const at = Date.parse(step[SEQ_PATH_FIELD.generatedAtTime]);
-		if (Number.isNaN(at)) throw new Error(`the step ${step.id} states when it began as ${step[SEQ_PATH_FIELD.generatedAtTime]}, not an instant`);
-		const feature = declaredName(step[SEQ_PATH_FIELD.stepText], "feature");
+		if (Number.isNaN(at)) throw new Error(`the record ${step.id} states when its feature began as ${step[SEQ_PATH_FIELD.generatedAtTime]}, not an instant`);
+		const feature = step[SEQ_PATH_FIELD.stepText];
 		const actuality = actualityOf(name.actuality);
 		const held = byActuality.get(actuality);
-		// The newest declaration comes first, so each later one is of an earlier feature.
-		if (held === undefined) byActuality.set(actuality, { actuality, store, features: feature ? [feature] : [], newest: name.actuality, first: at, last: at });
+		// The newest feature comes first, so each later one is an earlier feature.
+		if (held === undefined)
+			byActuality.set(actuality, {
+				actuality,
+				store,
+				features: [feature],
+				newest: name.actuality,
+				first: at,
+				last: at,
+				held: [actualityFeatureOf({ key: actuality, featureNum: 0 }), name.actuality],
+			});
 		else {
-			if (feature && !held.features.includes(feature)) held.features.unshift(feature);
+			if (!held.features.includes(feature)) held.features.unshift(feature);
+			held.held.push(name.actuality);
 			held.first = at;
 		}
 	}
@@ -60,22 +66,27 @@ async function actualitiesIn(store: TCachedGraph): Promise<THeldActuality[]> {
 }
 
 /** Deletes every record of one actuality this device holds: its own record and the records of every feature, scenario and
- *  step it ran, with what they logged and produced. Returns how many went. A record's id names its actuality, so what to
- *  delete is read off the records themselves rather than a second index beside them. */
-export async function deleteActuality({ actuality, store }: THeldActuality): Promise<number> {
+ *  step it ran, with what they logged and produced, a page of each type at a time by the actuality features it holds. Returns
+ *  how many went. */
+export async function deleteActuality({ held, store }: THeldActuality): Promise<number> {
 	let gone = 0;
 	for (const type of ACTUALITY_TYPES) {
-		const ids = (await readEvery(store, { label: type.label }))
-			.map((record) => recordId(record, type.label))
-			.filter((id) => {
-				const name = parseRecordName(id);
-				return name !== undefined && actualityOf(name.actuality) === actuality;
-			});
-		for (const id of ids) await store.remove({ label: type.label, id: id });
-		gone += ids.length;
+		const page = GraphQuerySchema.parse({
+			label: type.label,
+			filters: [{ predicate: ACTUALITY_FIELD, operator: "in", value: itemAt(held, 0), values: held }],
+			limit: MAX_PAGE_ROWS,
+			skipCount: true,
+		});
+		for (let ids = await idsOf(store, page, type.label); ids.length > 0; ids = await idsOf(store, page, type.label)) {
+			for (const id of ids) await store.remove({ label: type.label, id });
+			gone += ids.length;
+		}
 	}
 	return gone;
 }
+
+/** The ids of a page of the records of a read. */
+const idsOf = async (store: TCachedGraph, read: TGraphQuery, label: string): Promise<string[]> => (await store.readRecords(read)).vertices.map((record) => recordId(record, label));
 
 /** A record's id, which every record of an actuality states. */
 function recordId(record: Record<string, unknown>, label: string): string {

@@ -29,7 +29,7 @@ import {
 	undeclaredLists,
 	unexercised,
 } from "./step-rules.js";
-import { absenceCheckFindings, downstreamNameFindings, oneReadFindings, onePathFindings, vocabularyFindings } from "./surface-rules.js";
+import { absenceCheckFindings, downstreamNameFindings, oneReadFindings, onePathFindings, unboundedReadFindings, vocabularyFindings } from "./surface-rules.js";
 
 /** What a repository's rules read, each path from its root. */
 export type TRepositoryRules = {
@@ -120,6 +120,10 @@ export function describeRepositoryRules(rules: TRepositoryRules): void {
 			it("reads the store in the logic engine only through its reader, apart from what one-read.baseline.json records", async () => {
 				const fix = "read the store through readerOf in haibun's modules/logic/src/pipelines/reads.ts, which returns the engine's reads";
 				await expectWithinBaseline({ baselineFile: baseline("one-read"), found: oneReadFindings(sources), testFile, fix });
+			});
+
+			it("states the bound of each read of pages of records outside an export and the tests", () => {
+				expect(described(unboundedReadFindings(sources))).toEqual([]);
 			});
 
 			const { vocabularyTable } = rules;

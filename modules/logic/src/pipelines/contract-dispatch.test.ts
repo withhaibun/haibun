@@ -13,7 +13,8 @@ import { actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
 import { CONTINUE_AFTER_ERROR, RECORDED_STATUS, VERDICT } from "@haibun/core/lib/domains/protocol.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
-import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { readUpTo } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { MAX_PAGE_ROWS } from "@haibun/core/lib/domains/hypermedia.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import LogicStepper from "../logic-stepper.js";
@@ -71,7 +72,7 @@ describe("dispatch's check of a call against its step's contract", () => {
 			[Haibun, Delegating, LogicStepper],
 			options,
 		);
-		const steps = await readEvery(world.shared.getStore(), { label: SEQ_PATH_LABEL });
+		const steps = await readUpTo(world.shared.getStore(), { label: SEQ_PATH_LABEL }, MAX_PAGE_ROWS);
 		const record = (line: string) => steps.find((step) => step[SEQ_PATH_FIELD.stepText] === line);
 		expect(record("delegate read from held")?.[SEQ_PATH_FIELD.error]).toBeUndefined();
 		expect(record("delegate read from held")?.[SEQ_PATH_FIELD.actionStatus]).toBe(RECORDED_STATUS.completed);

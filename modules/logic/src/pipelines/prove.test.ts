@@ -14,7 +14,8 @@ import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import ActivitiesStepper from "@haibun/core/steps/activities-stepper.js";
 import { AStepper, type IHasCycles, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 import { CONTINUE_AFTER_ERROR, RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
-import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { readUpTo } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { MAX_PAGE_ROWS } from "@haibun/core/lib/domains/hypermedia.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { DIFFERENT_BUILDS, EFFECT } from "../domains/logic.js";
@@ -65,7 +66,7 @@ describe("a proof that stops on an exception", () => {
 		expect(result.failure?.error.message).toContain(`The proof of \`${LINE}\` tries again a step that doesn't read as until. ${DIFFERENT_BUILDS}`);
 		const ran = result.featureResults?.map(({ ok }) => ok);
 		expect(ran, "the features after it run").toEqual([false, true]);
-		const steps = await readEvery(result.world.shared.getStore(), { label: SEQ_PATH_LABEL });
+		const steps = await readUpTo(result.world.shared.getStore(), { label: SEQ_PATH_LABEL }, MAX_PAGE_ROWS);
 		const line = steps.find((step) => step[SEQ_PATH_FIELD.stepText] === LINE);
 		expect(line?.[SEQ_PATH_FIELD.actionStatus], "the line's record ends").toBe(RECORDED_STATUS.failed);
 	});
@@ -77,7 +78,7 @@ describe("a debugger's command under a line", () => {
 		const world = worldPrompted(respondingPrompter((at) => (at === 0 ? "passes" : "continue")));
 		const result = await testWithWorld(world, [{ path: "/features/debugged", content: "debug step by step\ndidn't fails" }], [Haibun, TestSteps, DebuggerStepper, LogicStepper]);
 		expect(result.ok).toBe(true);
-		const steps = await readEvery(world.shared.getStore(), { label: SEQ_PATH_LABEL });
+		const steps = await readUpTo(world.shared.getStore(), { label: SEQ_PATH_LABEL }, MAX_PAGE_ROWS);
 		const pathOf = (text: string) => steps.filter((step) => step[SEQ_PATH_FIELD.stepText] === text).map((step) => step.id);
 		const [command, node] = [pathOf("passes"), pathOf("fails")];
 		expect(command, "the debugger's command keeps its record").toHaveLength(1);

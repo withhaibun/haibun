@@ -12,7 +12,8 @@ import { z } from "zod";
 import { Access, LinkRelations, PersistedVertexSchema, type TDomainDefinition } from "../lib/domains/resources.js";
 import { refDomainKey, type TIndividualRef } from "../lib/domains/domains.js";
 import { ACTIVITIES_ACTIONS, ACTIVITIES_STEPPER } from "./domains/activities-actions.js";
-import { readEvery } from "../lib/records/pipelines/record-reads.js";
+import { readUpTo } from "../lib/records/pipelines/record-reads.js";
+import { MAX_PAGE_ROWS } from "../lib/domains/hypermedia.js";
 import { packageOf } from "./root.js";
 import { itemAt } from "../lib/domains/item-at.js";
 import { PROV_PLAN } from "../lib/domains/vocabularies.js";
@@ -125,7 +126,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			this.feature = resolvedFeature.path;
 			if (this.savedStated) return;
 			this.savedStated = true;
-			const saved = await readEvery(this.getWorld().shared.getStore(), { label: SAVED_WAYPOINT_LABEL });
+			const saved = await readUpTo(this.getWorld().shared.getStore(), { label: SAVED_WAYPOINT_LABEL }, MAX_PAGE_ROWS);
 			this.registerSavedWaypoints(saved.map((record) => SavedWaypointSchema.parse(record)));
 		},
 		// A rule over step records reads the record of each step a feature's line states, so a substep doesn't apply it.

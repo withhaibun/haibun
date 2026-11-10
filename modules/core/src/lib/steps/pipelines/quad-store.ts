@@ -34,11 +34,25 @@ import type { IQuadStore, TFederatedGraphSource, TStoreLevels } from "../ports.j
 import { AccessLevelSchema, HELD_BY, LinkRelations, withinAccess, type AccessLevel, type AccessQueryLevel } from "../../domains/resources.js";
 import { seenAt, writesAtEveryLevel, writtenAt } from "../../domains/actions.js";
 import { distinctOf, readFromRecords, recordsOfQuads, type THeldRecord, type TReadDeclaration, type TReadDeclarations } from "../../records/derivations/read-records.js";
-import { quadsOfRead, readEvery, type TRecordReader } from "../../records/pipelines/record-reads.js";
+import { quadsOfRead, readUpTo, type TRecordReader } from "../../records/pipelines/record-reads.js";
 import { densityOverQuadStore } from "../../records/pipelines/record-density.js";
 import { QuadLayer } from "../../records/machines/quad-layer.js";
 import { sliceQuadsPerType } from "../derivations/quad-sample.js";
-import { curieOf, NotUnique, uniqueValuesOf, WRITE_VERB, type TNode, type TReadVersion, type TRecordName, type TRemoval, type TWriteVerb } from "../../records/domains/unit.js";
+import {
+	curieOf,
+	NotUnique,
+	uniqueValuesOf,
+	WRITE_VERB,
+	type TNode,
+	type TReadVersion,
+	type TRecordName,
+	type TRemoval,
+	type TUnitWrite,
+	type TUnitRemoved,
+	type TUnitWritten,
+	type TWriteVerb,
+} from "../../records/domains/unit.js";
+import { removeEach, writeEach } from "../../records/pipelines/write-many.js";
 import { EDGE_TARGET } from "../../records/derivations/edge-declarations.js";
 import {
 	changedFields,
@@ -277,6 +291,16 @@ export class QuadStore implements IQuadStore {
 
 	merge(node: TNode): Promise<string> {
 		return this.writeUnit(WRITE_VERB.merge, node, undefined, (store) => store.merge(node));
+	}
+
+	/** Writes each unit through its verb, one after another, and returns how each ended. */
+	writeMany(units: readonly TUnitWrite[]): Promise<TUnitWritten[]> {
+		return writeEach(this, units);
+	}
+
+	/** Makes each removal, one after another, and returns how each ended. */
+	removeMany(removals: readonly TRemoval[]): Promise<TUnitRemoved[]> {
+		return removeEach(this, removals);
 	}
 
 	/** What a write reads of a type's declaration: its id field, its schema's fields and its edges, or the id field alone for a type
@@ -629,7 +653,7 @@ export class QuadStore implements IQuadStore {
 				if (!reader) throw new Error(`the store that holds ${label} records was removed during the read; read again once a store holds them`);
 				const idField = this.declarations?.().of(label)?.id;
 				if (!idField) throw new Error(`${label} isn't a declared type, so a record it names can't be read by its id; declare the type`);
-				const vertices = await readEvery(reader, { label, named: [...ids], ...(accessLevel ? { accessLevel } : {}) });
+				const vertices = await readUpTo(reader, { label, named: [...ids], ...(accessLevel ? { accessLevel } : {}) }, ids.size);
 				return vertices.map(({ "@id": _iri, "@type": _type, ...fields }): THeldRecord => {
 					const id = fields[idField];
 					if (typeof id !== "string" && typeof id !== "number") throw new Error(`a ${label} record read from another store doesn't state its id field ${idField}`);

@@ -153,6 +153,10 @@ describe("what a step offers as a filter", () => {
 	it("includes endedAtTime, so a follower can request the steps that ended after its last read", () => {
 		expect(queryableFields({ schema: seqPathDomainDefinition.schema, topology: seqPathTopology() })).toContain("endedAtTime");
 	});
+
+	it("includes the step a record called, so a quantifier over steps reads them by an index", () => {
+		expect(queryableFields({ schema: seqPathDomainDefinition.schema, topology: seqPathTopology() })).toContain(SEQ_PATH_FIELD.called);
+	});
 });
 
 describe("a step's line", () => {

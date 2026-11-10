@@ -4,19 +4,21 @@
  * instrumentation, so a store's retention removes it with the steps' records of its time.
  */
 import { PROV_ENTITY } from "../../domains/vocabularies.js";
+import { ACTUALITY_FIELD } from "../../actuality/domains/seq-path.js";
 import { z } from "zod";
 import { Access, EDGE, FACT_LABEL, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "../../domains/resources.js";
 
 const FACT_DOMAIN = "fact";
 
 /** The fields of a fact's record. */
-export const FACT_FIELD = { id: "id", domain: "domain", value: "value", generatedAtTime: "generatedAtTime", accessLevel: "accessLevel" } as const;
+export const FACT_FIELD = { id: "id", domain: "domain", value: "value", generatedAtTime: "generatedAtTime", accessLevel: "accessLevel", actuality: ACTUALITY_FIELD } as const;
 
 export const FactSchema = PersistedVertexSchema.extend({
 	[FACT_FIELD.id]: z.string(),
 	[FACT_FIELD.domain]: z.string(),
 	[FACT_FIELD.value]: z.unknown(),
 	[FACT_FIELD.generatedAtTime]: z.string(),
+	[FACT_FIELD.actuality]: z.string(),
 });
 
 /** A fact as a reader of facts reads it: its id, its domain and its value. */
@@ -40,6 +42,8 @@ export const factDomainDefinition: TDomainDefinition = {
 			[FACT_FIELD.value]: LinkRelations.VALUE.rel,
 			[FACT_FIELD.generatedAtTime]: LinkRelations.GENERATED_AT_TIME.rel,
 			[FACT_FIELD.accessLevel]: LinkRelations.ACCESS_LEVEL.rel,
+			// Grouped-as, so a reader reads the facts of one actuality feature.
+			[FACT_FIELD.actuality]: LinkRelations.CONTEXT.rel,
 		},
 		// A step's caller may not hold a read action, so its write of a fact doesn't read whether the store holds the step's record.
 		edges: { [EDGE.wasGeneratedBy]: { rel: LinkRelations.WAS_GENERATED_BY.rel, range: SEQ_PATH_LABEL, reference: true } },

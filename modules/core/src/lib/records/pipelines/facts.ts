@@ -21,6 +21,7 @@ export async function assertFact(store: Pick<IQuadStore, "merge">, step: TRecord
 		[FACT_FIELD.id]: id,
 		[FACT_FIELD.domain]: product.domain,
 		[FACT_FIELD.value]: product.value,
+		[FACT_FIELD.actuality]: step.actuality,
 		[EDGE.wasGeneratedBy]: referenceTo(SEQ_PATH_LABEL, formatRecordName(step)),
 	});
 }

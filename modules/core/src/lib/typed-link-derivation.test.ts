@@ -20,7 +20,8 @@ import {
 import { commentBodyIdOf, createComment, readTypedLinks, readingIdFor } from "./records/pipelines/discourse-writes.js";
 import { DEFAULT_BODY_KIND } from "./records/derivations/bodies.js";
 import { MEDIA_TYPE } from "./domains/media-types.js";
-import { readEvery, recordOf } from "./records/pipelines/record-reads.js";
+import { readUpTo, recordOf } from "./records/pipelines/record-reads.js";
+import { MAX_PAGE_ROWS } from "./domains/hypermedia.js";
 import { declaredTypeOf, storeDeclaring, TEST_LEVELS } from "./test/declared-types.js";
 import { z } from "zod";
 import { FRAGMENT_SPEC } from "./domains/media-fragments.js";
@@ -101,8 +102,8 @@ describe("readTypedLinks", () => {
 	it("doesn't derive an anchor for an untyped reference to a passage: navigation stays in the link, the edge is record-level", async () => {
 		await readTypedLinks(store, vocab, source, "Also [§12.1.2](#FieldReport:spec-1:~:text=a%20clause).");
 		expect(await edgesOf(store, source.id, LinkRelations.MENTIONS.rel)).toEqual(["spec-1"]);
-		expect(await readEvery(store, { label: SPECIFIC_RESOURCE_LABEL })).toHaveLength(0);
-		expect(await readEvery(store, { label: TEXT_QUOTE_SELECTOR_LABEL })).toHaveLength(0);
+		expect(await readUpTo(store, { label: SPECIFIC_RESOURCE_LABEL }, MAX_PAGE_ROWS)).toHaveLength(0);
+		expect(await readUpTo(store, { label: TEXT_QUOTE_SELECTOR_LABEL }, MAX_PAGE_ROWS)).toHaveLength(0);
 	});
 
 	it("marks the anchors it writes with the reading that generated them", async () => {
@@ -117,8 +118,8 @@ describe("readTypedLinks", () => {
 		await readTypedLinks(store, vocab, source, "[the one that stays:cites](#FieldReport:stays-1)");
 		expect(await edgesOf(store, source.id, LinkRelations.CITES.rel)).toEqual(["stays-1"]);
 		expect(await edgesOf(store, source.id, LinkRelations.MENTIONS.rel)).toEqual(["by-hand-1"]);
-		expect(await readEvery(store, { label: SPECIFIC_RESOURCE_LABEL })).toHaveLength(0);
-		expect(await readEvery(store, { label: TEXT_QUOTE_SELECTOR_LABEL })).toHaveLength(0);
+		expect(await readUpTo(store, { label: SPECIFIC_RESOURCE_LABEL }, MAX_PAGE_ROWS)).toHaveLength(0);
+		expect(await readUpTo(store, { label: TEXT_QUOTE_SELECTOR_LABEL }, MAX_PAGE_ROWS)).toHaveLength(0);
 	});
 
 	it("states the same facts when the same text is read again", async () => {
@@ -130,7 +131,7 @@ describe("readTypedLinks", () => {
 
 	it("doesn't leave a reading for a text that doesn't state a fact", async () => {
 		await readTypedLinks(store, vocab, source, "Plain prose with no links.");
-		expect(await readEvery(store, { label: READING_LABEL })).toHaveLength(0);
+		expect(await readUpTo(store, { label: READING_LABEL }, MAX_PAGE_ROWS)).toHaveLength(0);
 	});
 
 	it("doesn't state a fact for an untyped link to a record that is not here; a typed link fails", async () => {

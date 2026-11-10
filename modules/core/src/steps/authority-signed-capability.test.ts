@@ -17,7 +17,8 @@ import { readAction } from "../lib/domains/actions.js";
 import type { TAuthorityEvidence } from "../lib/domains/authority-types.js";
 import { stubVerifier } from "../lib/test/fake-authority.js";
 import { itemAt } from "../lib/domains/item-at.js";
-import { readEvery } from "../lib/records/pipelines/record-reads.js";
+import { readUpTo } from "../lib/records/pipelines/record-reads.js";
+import { MAX_PAGE_ROWS } from "../lib/domains/hypermedia.js";
 import AuthorityStepper from "./authority-stepper.js";
 import ResourcesStepper from "./resources-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
@@ -94,7 +95,7 @@ holding capability cap at "urn:res:1", comment on "${TEST_NODE_LABEL}" "node-1" 
 		expect(result.ok).toBe(true);
 
 		const store = world.shared.getStore();
-		const comments = await readEvery(store, { label: COMMENT_LABEL });
+		const comments = await readUpTo(store, { label: COMMENT_LABEL }, MAX_PAGE_ROWS);
 		expect(comments.length).toBe(1);
 		expect(itemAt(comments, 0).author).toBe(SUBKEY_DID);
 
@@ -121,7 +122,7 @@ holding capability cap at "urn:res:2", comment on "${TEST_NODE_LABEL}" "node-1" 
 		expect(result.ok).toBe(false);
 		const refusals = result.featureResults?.flatMap((fr) => fr.stepResults.flatMap((sr) => (sr.ok ? [] : [sr.errorMessage]))) ?? [];
 		expect(refusals.join("\n")).toContain("its use exceeds the capability by target urn:res:2");
-		expect(await readEvery(world.shared.getStore(), { label: COMMENT_LABEL })).toHaveLength(0);
+		expect(await readUpTo(world.shared.getStore(), { label: COMMENT_LABEL }, MAX_PAGE_ROWS)).toHaveLength(0);
 	});
 
 	it("fails the step and doesn't write a record when the registered verifier rejects the signed capability", async () => {
@@ -141,7 +142,7 @@ holding capability cap at "urn:res:1", comment on "${TEST_NODE_LABEL}" "node-1" 
 		expect(result.ok).toBe(false);
 
 		const store = world.shared.getStore();
-		const comments = await readEvery(store, { label: COMMENT_LABEL });
+		const comments = await readUpTo(store, { label: COMMENT_LABEL }, MAX_PAGE_ROWS);
 		expect(comments.length).toBe(0);
 	});
 });

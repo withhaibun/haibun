@@ -18,7 +18,8 @@ import {
 	registeredDomain,
 } from "../../domains/domains.js";
 import { readDeclarationsOf } from "../../records/derivations/read-records.js";
-import { readEvery } from "../../records/pipelines/record-reads.js";
+import { readUpTo } from "../../records/pipelines/record-reads.js";
+import { MAX_PAGE_ROWS } from "../../domains/hypermedia.js";
 import { declaredRecordsReader } from "../../records/pipelines/declared-records.js";
 import { VARIABLE_FIELD, VariableSchema, type TVariable } from "../../records/domains/variables.js";
 import { QuadStore, newStoreChain } from "../../steps/pipelines/quad-store.js";
@@ -338,7 +339,7 @@ export class FeatureVariables {
 	}
 
 	private async variableRecords(): Promise<TVariable[]> {
-		return (await readEvery(this.store, { label: SHARED_GRAPH })).map((record) => parsedRecord(VariableSchema, SHARED_GRAPH, record, false));
+		return (await readUpTo(this.store, { label: SHARED_GRAPH }, MAX_PAGE_ROWS)).map((record) => parsedRecord(VariableSchema, SHARED_GRAPH, record, false));
 	}
 
 	/** Returns the record names of the steps that set each named variable: an empty list for a variable that a step didn't

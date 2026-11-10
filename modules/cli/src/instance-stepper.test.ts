@@ -26,7 +26,8 @@ import { recordActuality, verificationOf } from "./adapters/actualities.js";
 import { fileSystem } from "./adapters/processes.js";
 import { emptyOutcome } from "./pipelines/run-outcome.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
-import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { readUpTo } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { MAX_PAGE_ROWS } from "@haibun/core/lib/domains/hypermedia.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_EDGE, SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import { ACTUALITY_LEVELS, RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
@@ -380,7 +381,7 @@ describe("the records of a run's levels", () => {
 		say(event({ id: "feat-2", type: "feature", stage: "start", status: "running", featurePath: "/features/b.feature", featureName: "b" }));
 		say(event({ id: "feat-2.scen-1", type: "scenario", stage: "start", status: "running", scenarioName: "first" }));
 		await (s.steps.stopRun.action as (a: { run: string }) => Promise<TResult>)({ run: "a-run" });
-		const records = (await readEvery(s.getWorld().shared.getStore(), { label: SEQ_PATH_LABEL })).sort((a, b) =>
+		const records = (await readUpTo(s.getWorld().shared.getStore(), { label: SEQ_PATH_LABEL }, MAX_PAGE_ROWS)).sort((a, b) =>
 			String(a[SEQ_PATH_FIELD.id]).localeCompare(String(b[SEQ_PATH_FIELD.id])),
 		);
 		const { key } = HELD_NAMING;

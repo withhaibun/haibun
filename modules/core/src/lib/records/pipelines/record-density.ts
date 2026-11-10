@@ -1,13 +1,17 @@
 /** Counts a store's records in each division of a span of time, over a store that holds its records in memory. */
 import type { IQuadStore } from "../../steps/ports.js";
-import type { TDensityQuery, TDensityResult } from "../../steps/domains/quad-types.js";
+import type { TDensityQuery, TDensityResult, TSearchCondition } from "../../steps/domains/quad-types.js";
 import { bucketOf } from "../../steps/derivations/quad-sample.js";
 import { itemAt } from "../../domains/item-at.js";
-import { readEvery } from "./record-reads.js";
+import { readUpTo } from "./record-reads.js";
+import { MAX_PAGE_ROWS } from "../../domains/hypermedia.js";
 
 /** The group a record counts under: how it turned out, or the empty group where it doesn't state it, so a bucket's counts
  *  add up to what it holds. */
 const groupOf = (value: unknown): string => (value === undefined || value === null ? "" : String(value));
+
+/** The condition that keeps the records whose time is within the span. */
+const spanOf = ({ timeField, from, to }: TDensityQuery): TSearchCondition => ({ predicate: timeField, operator: "between", value: from, value2: to });
 
 /**
  * Counts the records in each division of a span, by how each turned out, over a store that holds its records. An
@@ -20,7 +24,7 @@ export async function densityOverQuadStore(store: IQuadStore, query: TDensityQue
 	if (Number.isNaN(from) || Number.isNaN(to)) throw new Error(`a density read spans instants, and this one names ${query.from} to ${query.to}; name two instants`);
 	if (to < from) throw new Error(`a density read spans forward, and this one names ${query.from} to ${query.to}; name the earlier instant first`);
 	const buckets: Record<string, number>[] = Array.from({ length: query.buckets }, () => ({}));
-	for (const individual of await readEvery(store, { label: query.label, filters: query.filters })) {
+	for (const individual of await readUpTo(store, { label: query.label, filters: [...(query.filters === undefined ? [] : query.filters), spanOf(query)] }, MAX_PAGE_ROWS)) {
 		const stamp = individual[query.timeField];
 		const at = typeof stamp === "string" || typeof stamp === "number" ? Date.parse(String(stamp)) : Number.NaN;
 		const bucket = Number.isNaN(at) ? -1 : bucketOf(at, from, to, query.buckets);

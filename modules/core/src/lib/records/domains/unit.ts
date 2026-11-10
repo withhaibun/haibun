@@ -63,9 +63,24 @@ export type TWritePort = {
 	/** Writes the node's fields into what the store holds of the record, or writes the record where it doesn't hold it, and
 	 *  returns its id. */
 	merge(node: TNode): Promise<string>;
+	/** Writes each unit through its verb, and returns how each ended in their order. A unit the store refuses, or whose write
+	 *  fails, isn't written, and the other units are written. A store with transactions writes the units in one. */
+	writeMany(units: readonly TUnitWrite[]): Promise<TUnitWritten[]>;
 	/** Removes what `removal` names: a record with what it owns, or one of its edges. */
 	remove(removal: TRemoval): Promise<void>;
+	/** Removes what each removal names, and returns how each ended in their order. A removal the store refuses, or that fails,
+	 *  isn't made, and the others are. A store with transactions makes the removals in one. */
+	removeMany(removals: readonly TRemoval[]): Promise<TUnitRemoved[]>;
 };
+
+/** How one removal of a batch ended: made, or why the store didn't make it. */
+export type TUnitRemoved = { removed: TRecordName } | { refused: string };
+
+/** One unit a batch writes: its verb and its node, and for an update the version its caller read. */
+export type TUnitWrite = { verb: typeof WRITE_VERB.create | typeof WRITE_VERB.merge; node: TNode } | { verb: typeof WRITE_VERB.update; node: TNode; version: TReadVersion };
+
+/** How one unit of a batch ended: the id of its record, or why the store didn't write it. */
+export type TUnitWritten = { id: string } | { refused: string };
 
 /** Returns the version a write states, and the version the store holds, as a refusal names them. */
 const statedText = (version: TReadVersion): string => (version === null ? "that the store didn't hold the record" : `version ${version}`);

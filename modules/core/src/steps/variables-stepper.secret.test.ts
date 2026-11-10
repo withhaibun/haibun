@@ -6,7 +6,8 @@ import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun-stepper.js";
 import { OBSCURED_VALUE } from "../lib/steps/domains/secrets.js";
 import { SHARED_GRAPH } from "../lib/actuality/pipelines/feature-variables.js";
-import { readEvery } from "../lib/records/pipelines/record-reads.js";
+import { readUpTo } from "../lib/records/pipelines/record-reads.js";
+import { MAX_PAGE_ROWS } from "../lib/domains/hypermedia.js";
 import { VARIABLE_FIELD } from "../lib/records/domains/variables.js";
 import { Access, FACT_LABEL, SEQ_PATH_LABEL } from "../lib/domains/resources.js";
 import type { THaibunEvent } from "../lib/domains/protocol.js";
@@ -42,7 +43,7 @@ describe("a secret variable's value", () => {
 		const { ran, store, events, stepRecords } = await runWithSecrets([...SET_SECRETS, ...SHOW_SECRETS]);
 		expect(ran.ok).toBe(true);
 
-		const variables = await readEvery(store, { label: SHARED_GRAPH });
+		const variables = await readUpTo(store, { label: SHARED_GRAPH }, MAX_PAGE_ROWS);
 		expect(variables.map((record) => [record[VARIABLE_FIELD.name], record[VARIABLE_FIELD.value], record[VARIABLE_FIELD.secret]]).sort()).toEqual(
 			SECRET_VARIABLES.map((name) => [name, OBSCURED_VALUE, true]).sort(),
 		);
@@ -55,7 +56,7 @@ describe("a secret variable's value", () => {
 		expect(events.length).toBeGreaterThan(0);
 		expect.soft(holdsSecret(events), "the emitted observations and lifecycle events hold the obscured value").toBe(false);
 
-		const facts = await readEvery(store, { label: FACT_LABEL });
+		const facts = await readUpTo(store, { label: FACT_LABEL }, MAX_PAGE_ROWS);
 		expect(facts).toHaveLength(SHOW_SECRETS.length);
 		expect.soft(holdsSecret(facts), "the facts of show var hold the obscured value").toBe(false);
 

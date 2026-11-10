@@ -11,7 +11,8 @@ import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import ActivitiesStepper from "@haibun/core/steps/activities-stepper.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
-import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { readUpTo } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { MAX_PAGE_ROWS } from "@haibun/core/lib/domains/hypermedia.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { AStepper, READING, untilWithoutDuration, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
@@ -161,7 +162,7 @@ describe("the readings of the logic engine", () => {
 	it("proves a statement under a line, each part of the proof at its position", async () => {
 		const result = await passWithDefaults('set who to "there"\nwhere variable "who" is "there", didn\'t didn\'t variable "who" is "there"', STEPPERS);
 		expect(result.ok).toBe(true);
-		const records = await readEvery(result.world.shared.getStore(), { label: SEQ_PATH_LABEL });
+		const records = await readUpTo(result.world.shared.getStore(), { label: SEQ_PATH_LABEL }, MAX_PAGE_ROWS);
 		const lines = records
 			.filter((record) => String(record[SEQ_PATH_FIELD.id]).includes(".0.1.0.2"))
 			.map((record) => [String(record[SEQ_PATH_FIELD.id]).split(".0.1.0.2")[1], record[SEQ_PATH_FIELD.verdict]]);

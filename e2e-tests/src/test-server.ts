@@ -28,7 +28,8 @@ import { Access, SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { callStepAsRoute } from "@haibun/core/lib/call-step.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { SEQ_PATH_FIELD, calledOf, actualityFeatureOf, formatRecordName } from "@haibun/core/lib/seq-path.js";
-import { readEvery, recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { equalTo, readUpTo, recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { MAX_PAGE_ROWS } from "@haibun/core/lib/domains/hypermedia.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { nextSeqPath, proveStep, stepperContext } from "@haibun/core/lib/step-dispatch.js";
 import { streamContext, streamOver } from "@haibun/core/lib/step-stream-context.js";
@@ -134,7 +135,7 @@ const cycles = (ts: TestServer): IStepperCycles => ({
 
 /** The records of the actuality's steps that called `called`, as `Stepper.action`. */
 const recordsCalling = async (world: TWorld, called: string) =>
-	(await readEvery(world.shared.getStore(), { label: SEQ_PATH_LABEL })).filter((record) => record[SEQ_PATH_FIELD.called] === called);
+	readUpTo(world.shared.getStore(), { label: SEQ_PATH_LABEL, filters: equalTo({ [SEQ_PATH_FIELD.called]: called }) }, MAX_PAGE_ROWS);
 
 /** The record of the step at `path` in the actuality's feature. */
 const recordAt = async (world: TWorld, path: number[]) => recordOf(world.shared.getStore(), SEQ_PATH_LABEL, formatRecordName({ actuality: actualityFeatureOf(world.tag), path }));
