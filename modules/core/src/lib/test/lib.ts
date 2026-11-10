@@ -108,7 +108,7 @@ function testProver(): TProver {
 		proveStatements: async (ctx, parent, statements, targetHostId) => (await prover()).proveStatements(ctx, parent, statements, targetHostId),
 		exceeding: async (candidate, bound) => (await prover()).exceeding(candidate, bound),
 		entailed: async (world, expression) => (await prover()).entailed(world, expression),
-		checkContract: async (statements, call) => (await prover()).checkContract(statements, call),
+		checkContract: async (world, checking, call) => (await prover()).checkContract(world, checking, call),
 	};
 }
 

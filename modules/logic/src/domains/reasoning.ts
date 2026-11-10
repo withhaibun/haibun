@@ -91,7 +91,18 @@ export const classExpressionDomainDefinition: TDomainDefinition = {
 	written: true,
 	description: "A class expression in Manchester syntax: a named class, and, or, {property} some {class}, {property} value {Type:id}, and inverse {property}",
 };
+/** A background by its name, whose steps' contracts a feature's claim chains, and the claim: a statement of a declared relation
+ *  over the variables the background's steps set. */
+export const DOMAIN_CLAIMED_FEATURE = "claimed-feature";
+export const DOMAIN_CONTRACT_CLAIM = "contract-claim";
 export const reasoningDomainDefinitions: TDomainDefinition[] = [
+	{ selectors: [DOMAIN_CLAIMED_FEATURE], schema: z.string().min(1), written: true, description: "A background by its name, whose steps' contracts a claim chains" },
+	{
+		selectors: [DOMAIN_CONTRACT_CLAIM],
+		schema: z.string().min(1),
+		written: true,
+		description: "A statement of a declared relation over the variables a background's steps set, as relation(variable, …), with ¬ before a negation",
+	},
 	{
 		selectors: [DOMAIN_CLAIM],
 		schema: ClaimProductsSchema.extend({ witness: z.union([ClaimWitnessSchema, DisjointnessWitnessSchema]).optional() }),

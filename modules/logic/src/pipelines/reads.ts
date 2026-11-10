@@ -17,6 +17,10 @@ import { REASONING_READ_CEILING, type TTypeRead } from "../domains/reasoning.js"
 import { MAX_PAGE_ROWS, readInPages } from "@haibun/core/lib/domains/hypermedia.js";
 import { GraphQuerySchema, isProjectionKey } from "@haibun/core/lib/steps/domains/quad-types.js";
 import { recordOfIri } from "@haibun/core/lib/records/derivations/record-iri.js";
+import { curieOf, type TRecordName } from "@haibun/core/lib/records/domains/unit.js";
+import { edgeRanges, type TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
+import { persistedDomainOf } from "@haibun/core/lib/domains/domains.js";
+import type { TField } from "@haibun/core/lib/steps/domains/contract.js";
 
 /** A proof's reads: the facts that hold a pattern, a type's records as facts up to the reasoning's ceiling, and the products of
  *  steps as typed records, the latest first. */
@@ -88,4 +92,51 @@ export async function writeFacts(store: IQuadStore, subject: string, namedGraph:
 	const accessLevel = ceiling === undefined ? Access.private : ceiling;
 	const facts = Object.fromEntries(Object.entries(fields).filter(([, object]) => object !== undefined));
 	await store.merge({ "@type": namedGraph, id: subject, ...facts, accessLevel });
+}
+
+/** A record a contract's check read: its id and its fields. */
+export type TNamedRecord = { readonly id: string; readonly fields: Readonly<Record<string, unknown>> };
+
+/** Reads the records a contract's check names: each record of `names`, and each record that an edge among the fields `follows`
+ *  lists reaches from a record read, transitively. Where the store doesn't hold a named record, the read skips it. Throws where a name's type isn't declared,
+ *  or a followed edge has more than one range. */
+export async function namedRecords(
+	store: IQuadStore,
+	domains: Record<string, TRegisteredDomain>,
+	names: readonly TRecordName[],
+	follows: readonly TField[],
+): Promise<TNamedRecord[]> {
+	const visited = new Set<string>();
+	const read: TNamedRecord[] = [];
+	const visit = async (reaching: readonly TRecordName[]): Promise<void> => {
+		const unread = reaching.filter((name) => !visited.has(curieOf(name)));
+		unread.forEach((name) => visited.add(curieOf(name)));
+		if (unread.length === 0) return;
+		const reads = await Promise.all(
+			unread.map(async (name) => {
+				const domain = persistedDomainOf(domains, name.label);
+				if (domain === undefined) throw new Error(`a contract's check names the ${name.label} record ${name.id}, and the loaded steppers don't declare ${name.label}`);
+				const record: unknown = await store.readRecord({ label: name.label, schema: domain.schema }, name.id);
+				return { name, domain, record: record === undefined ? undefined : (record as Record<string, unknown>) };
+			}),
+		);
+		const reached = reads.flatMap(({ name, domain, record }) => {
+			if (record === undefined) return [];
+			read.push({ id: name.id, fields: record });
+			return follows
+				.filter(({ persistedAs }) => persistedAs === name.label)
+				.flatMap(({ key }) => {
+					const edge = domain.topology.edges?.[key];
+					if (edge === undefined) return [];
+					const ranges = edgeRanges(edge);
+					const [range] = ranges;
+					if (range === undefined || ranges.length > 1) throw new Error(`a contract follows ${name.label}.${key}, whose edge doesn't state one range`);
+					const value = record[key];
+					return (Array.isArray(value) ? value : value === undefined || value === null ? [] : [value]).map((id) => ({ label: range, id: String(id) }));
+				});
+		});
+		await visit(reached);
+	};
+	await visit(names);
+	return read;
 }

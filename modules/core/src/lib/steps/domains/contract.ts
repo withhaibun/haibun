@@ -46,17 +46,17 @@ export const parameter = (name: string): TContractArgument => ({ parameter: name
 /** The argument that names the call's products, and the one that names the call's principal. */
 export const PRODUCTS: TContractArgument = { products: true };
 export const PRINCIPAL: TContractArgument = { principal: true };
+/** The principal of a call that actuality makes as itself, which holds every action. */
+export const ACTUALITY_PRINCIPAL = "urn:haibun:actuality";
 
-/** The verb that writes a step's products where the store doesn't hold their record, and keeps the record it holds where that
- *  states the same fields, apart from its provenance; a held record that states other values of them refuses the call's write. */
-export const KEEP_VERB = "keep";
-/** The verbs dispatch writes a step's products with: a record the store doesn't hold, fields merged into what it holds, or a record
- *  written once and kept. */
-export type TProductsVerb = typeof WRITE_VERB.create | typeof WRITE_VERB.merge | typeof KEEP_VERB;
+/** The verbs dispatch writes a step's products with: a record the store doesn't hold, or fields merged into what it holds. */
+export type TProductsVerb = typeof WRITE_VERB.create | typeof WRITE_VERB.merge;
 
 /** A step's contract. A descriptor's contract names its domains by their keys. `states` holds over the parameters and the
  *  products, `requires` over recorded facts before the call, `changes` lists the fields of the writes beyond the products, and
- *  `assumed` marks products that rest on input from outside actuality. A step that writes declares `changes`, empty where its only
+ *  `assumed` marks products that rest on input from outside actuality. `complete` lists the fields whose records this instance
+ *  holds in full: a check reads the records an argument names, and the records each listed edge reaches, and a negated statement
+ *  over fields the list holds is proved where those records don't derive it. A step that writes declares `changes`, empty where its only
  *  writes are its products. `written` names the verb dispatch writes the products with, as one record of the stored type of
  *  their domain, once `states` holds over them; a step that declares it doesn't write its products itself. */
 export type TStepContract<D extends string = string> = {
@@ -65,6 +65,7 @@ export type TStepContract<D extends string = string> = {
 	readonly states?: readonly TStatement[];
 	readonly requires?: readonly TStatement[];
 	readonly changes?: readonly TField[];
+	readonly complete?: readonly TField[];
 	readonly assumed?: boolean;
 };
 
@@ -123,19 +124,25 @@ export const CONTRACT_CHECK = { requires: "requires", states: "states" } as cons
 export type TContractCheck = (typeof CONTRACT_CHECK)[keyof typeof CONTRACT_CHECK];
 
 /** What a check reads a call by: its arguments by parameter name, its principal, and its products once its action returned them.
- *  A check replaces each argument of a statement by the call's value of it; actuality acting as itself doesn't state a principal. */
-export type TContractCall = { readonly parameters: Readonly<Record<string, unknown>>; readonly principal?: string; readonly products?: Readonly<Record<string, unknown>> };
+ *  A check replaces each argument of a statement by the call's value of it. A call actuality makes as itself states
+ *  `ACTUALITY_PRINCIPAL`, and a call without a principal or every action doesn't state one. */
+export type TContractCall = { readonly parameters: Readonly<Record<string, unknown>>; readonly principal?: string; readonly products?: unknown };
 
 /** A statement's verdict in a call's check: proved, refuted or unknown, and the triple that determined it. */
 export type TStatementVerdict = { readonly statement: TStatement; readonly verdict: TVerdict; readonly decidedBy: string };
 
+/** The statements a check reads and the fields its contract states complete. */
+export type TContractChecking = { readonly statements: readonly TStatement[]; readonly complete: readonly TField[] };
+
 /** A call's check: each statement's verdict, and EYE's proof of the check where a statement isn't proved. */
 export type TContractChecked = { readonly verdicts: readonly TStatementVerdict[]; readonly proof?: string };
 
-/** Returns the statements of a step's contract that a check of `check` reads, empty where the contract doesn't state them. */
-export function contractStatements(step: { readonly contract?: TStepContract }, check: TContractCheck): readonly TStatement[] {
+/** Returns the statements of a step's contract that a check of `check` reads, empty where the contract doesn't state them, and
+ *  the fields the contract states complete. */
+export function contractChecking(step: { readonly contract?: TStepContract }, check: TContractCheck): TContractChecking {
 	const statements = step.contract?.[check];
-	return statements === undefined ? [] : statements;
+	const complete = step.contract?.complete;
+	return { statements: statements === undefined ? [] : statements, complete: complete === undefined ? [] : complete };
 }
 
 /** The writes the contract of a step in progress allows: the stored label of each type its products are written as, whose

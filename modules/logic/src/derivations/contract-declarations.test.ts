@@ -42,6 +42,7 @@ describe("the declarations check of contracts", () => {
 			[{ requires: [holds(REVOKED, parameter("grant"), PRINCIPAL)] }, ARITY],
 			[{ requires: [holds(REVOKED, parameter("door"))] }, UNNAMED_PARAMETER],
 			[{ changes: [{ persistedAs: "Grant", key: "expired" }] }, UNDECLARED_FIELD],
+			[{ complete: [{ persistedAs: "Grant", key: "expired" }] }, UNDECLARED_FIELD],
 		];
 		for (const [contract, finding] of refused)
 			expect(

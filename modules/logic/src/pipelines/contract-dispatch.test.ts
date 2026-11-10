@@ -1,14 +1,16 @@
 /**
- * Dispatch checks a call against its step's contract: its `requires` before the action runs, and its `states` over the products.
+ * Dispatch checks a call against its step's contract: its `requires` before the action runs, over the records its arguments name,
+ * which the check reads from the store, and its `states` over the products.
  * A statement that isn't proved refuses the call: the action doesn't run where `requires` refuses it, the products aren't kept
  * where `states` refuses them, since the step fails, the step's record holds the check's proof, and the refusal names the statement, its verdict and
  * the triple that determined it. Dispatch writes the products of a call whose contract holds, and doesn't write the products of a refused call. A products write
- * that `keep` names keeps a held record that states the same fields, and refuses one that states others.
+ * that `create` names is refused where the store holds the record, whatever fields it states.
  */
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
-import { doesntHold, holds, KEEP_VERB, parameter, PRODUCTS, type TRelation } from "@haibun/core/lib/steps/domains/contract.js";
+import { doesntHold, field, holds, parameter, PRODUCTS, type TRelation } from "@haibun/core/lib/steps/domains/contract.js";
+import { refDomainKey } from "@haibun/core/lib/domains/domains.js";
 import { DEF_PROTO_OPTIONS, failWithDefaults } from "@haibun/core/lib/test/lib.js";
 import { actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
 import { CONTINUE_AFTER_ERROR, RECORDED_STATUS, VERDICT } from "@haibun/core/lib/domains/protocol.js";
@@ -32,13 +34,22 @@ const GRANTS: Record<string, Record<string, string>> = {
 };
 const GrantSchema = z.object({ id: z.string(), allowedAction: z.string(), revoked: z.string().optional() });
 const GRANT_DOMAIN = "contract-grant";
+/** The stored type of a grant, which a line holds before a delegation names it. */
+const GRANT = {
+	schema: GrantSchema,
+	topology: {
+		persistedAs: "ContractGrant",
+		accessLevel: Access.private,
+		id: "id",
+		properties: { id: LinkRelations.IDENTIFIER.rel, allowedAction: LinkRelations.TAG.rel, revoked: LinkRelations.REVOKED.rel },
+	},
+};
+const HELD_GRANT_DOMAIN = "contract-held-grant";
 const DELEGATION_DOMAIN = "contract-delegation";
 /** The stored type of a delegation, which dispatch writes. */
 const DELEGATION_LABEL = "ContractDelegation";
 const ACTIONS = ["read", "write"];
 const ACTION_DOMAIN = "contract-action";
-/** The delegation a kept write names, whichever action it allows. */
-const KEPT_ID = "urn:delegation:kept";
 
 /** Delegates a grant: a delegation from a grant that isn't revoked, which allows the action the line names. */
 class Delegating extends AStepper implements IHasCycles {
@@ -48,6 +59,7 @@ class Delegating extends AStepper implements IHasCycles {
 		getConcerns: () => ({
 			domains: [
 				{ selectors: [GRANT_DOMAIN], schema: GrantSchema, description: "A grant a line names", written: true, coerce: (proto) => GrantSchema.parse(GRANTS[String(proto.value)]) },
+				{ selectors: [HELD_GRANT_DOMAIN], ...GRANT, description: "A grant the store holds" },
 				{
 					selectors: [DELEGATION_DOMAIN],
 					schema: GrantSchema,
@@ -65,25 +77,26 @@ class Delegating extends AStepper implements IHasCycles {
 		}),
 	};
 	steps = {
+		hold: {
+			description: TEST_STEP,
+			gwta: `hold grant {grant: ${GRANT_DOMAIN}}`,
+			contract: { products: HELD_GRANT_DOMAIN, written: WRITE_VERB.create },
+			action: ({ grant }: { grant: z.infer<typeof GrantSchema> }) => Promise.resolve(actionOKWithProducts(grant)),
+		},
 		delegate: {
 			description: TEST_STEP,
-			gwta: `delegate {action: ${ACTION_DOMAIN}} from {grant: ${GRANT_DOMAIN}}`,
+			gwta: `delegate {action: ${ACTION_DOMAIN}} from {grant: ${refDomainKey(HELD_GRANT_DOMAIN)}}`,
 			contract: {
 				products: DELEGATION_DOMAIN,
 				written: WRITE_VERB.create,
 				requires: [doesntHold(REVOKED, parameter("grant"))],
 				states: [holds(ALLOWS, PRODUCTS, parameter("action"))],
+				complete: [field(GRANT, "revoked")],
 			},
-			action: ({ action, grant }: { action: string; grant: z.infer<typeof GrantSchema> }) => {
+			action: ({ action }: { action: string }) => {
 				this.ran.push(action);
-				return Promise.resolve(actionOKWithProducts({ id: `urn:delegation:${action}`, allowedAction: grant.allowedAction }));
+				return Promise.resolve(actionOKWithProducts({ id: `urn:delegation:${action}`, allowedAction: "read" }));
 			},
-		},
-		keep: {
-			description: TEST_STEP,
-			gwta: `keep a delegation allowing {action: ${ACTION_DOMAIN}}`,
-			contract: { products: DELEGATION_DOMAIN, written: KEEP_VERB },
-			action: ({ action }: { action: string }) => Promise.resolve(actionOKWithProducts({ id: KEPT_ID, allowedAction: action })),
 		},
 	} as const satisfies TStepperSteps;
 }
@@ -105,15 +118,22 @@ describe("dispatch's check of a call against its step's contract", () => {
 	it("runs a call whose contract holds and writes its products, refuses one whose `requires` doesn't before its action and one whose `states` doesn't over its products, and doesn't write the products of either", {
 		timeout: 120_000,
 	}, async () => {
-		const { world, written, record: records } = await ran(["delegate read from held", "delegate read from revoked", "delegate write from held"]);
+		const [fromHeld, fromRevoked, writeFromHeld] = [
+			`delegate read from "${GRANTS.held?.id}"`,
+			`delegate read from "${GRANTS.revoked?.id}"`,
+			`delegate write from "${GRANTS.held?.id}"`,
+		];
+		const { world, written, record: records } = await ran([`hold grant held\nhold grant revoked\n${fromHeld}`, fromRevoked, writeFromHeld]);
 		const record = (line: string) => records(line)[0];
-		expect(record("delegate read from held")?.[SEQ_PATH_FIELD.error]).toBeUndefined();
-		expect(record("delegate read from held")?.[SEQ_PATH_FIELD.actionStatus]).toBe(RECORDED_STATUS.completed);
-		const required = record("delegate read from revoked");
-		expect(required?.[SEQ_PATH_FIELD.error]).toContain("The call is refused before its action runs: its contract requires ¬revoked_grant({grant}), which is refuted");
+		expect(record(fromHeld)?.[SEQ_PATH_FIELD.error]).toBeUndefined();
+		expect(record(fromHeld)?.[SEQ_PATH_FIELD.actionStatus]).toBe(RECORDED_STATUS.completed);
+		const required = record(fromRevoked);
+		expect(required?.[SEQ_PATH_FIELD.error], "the check reads the held grant the line names").toContain(
+			"The call is refused before its action runs: its contract requires ¬revoked_grant({grant}), which is refuted",
+		);
 		expect(required?.[SEQ_PATH_FIELD.verdict]).toBe(VERDICT.refuted);
-		expect(String(required?.[SEQ_PATH_FIELD.proof])).toContain("revoked_grant");
-		const stated = record("delegate write from held");
+		expect(String(required?.[SEQ_PATH_FIELD.proof]), "EYE's proof cites the held grant's revocation").toContain("2026-11-01T00:00:00Z");
+		const stated = record(writeFromHeld);
 		expect(stated?.[SEQ_PATH_FIELD.error]).toContain("The call's products are refused and aren't kept: its contract states allows_action(products, {action}), which is unknown");
 		expect(stated?.[SEQ_PATH_FIELD.actionStatus], "the step whose products are refused fails").toBe(RECORDED_STATUS.failed);
 		expect(stated?.[SEQ_PATH_FIELD.proof]).toBeDefined();
@@ -125,20 +145,17 @@ describe("dispatch's check of a call against its step's contract", () => {
 		).toEqual(["urn:delegation:read"]);
 	});
 
-	it("keeps a record its products state again, and refuses products that state another value of a field the held record states", { timeout: 120_000 }, async () => {
-		const again = "keep a delegation allowing read";
-		const other = "keep a delegation allowing write";
-		const { written, record } = await ran([again, again, other]);
+	it("refuses a create of products whose record the store holds, though the products state the same fields", { timeout: 120_000 }, async () => {
+		const line = `delegate read from "${GRANTS.held?.id}"`;
+		const { written, record } = await ran([`hold grant held\n${line}`, line]);
+		const refused = record(line).filter((step) => step[SEQ_PATH_FIELD.actionStatus] === RECORDED_STATUS.failed);
 		expect(
-			record(again).map((step) => step[SEQ_PATH_FIELD.actionStatus]),
-			"the same record written again is kept",
-		).toEqual([RECORDED_STATUS.completed, RECORDED_STATUS.completed]);
-		const refused = record(other)[0];
-		expect(refused?.[SEQ_PATH_FIELD.actionStatus]).toBe(RECORDED_STATUS.failed);
-		expect(refused?.[SEQ_PATH_FIELD.error]).toContain('allowedAction "read"');
-		expect(
-			written.map(({ id, allowedAction }) => [id, allowedAction]),
-			"the held record keeps its fields",
-		).toEqual([[KEPT_ID, "read"]]);
+			record(line)
+				.map((step) => step[SEQ_PATH_FIELD.actionStatus])
+				.sort(),
+			"the second create of the held record fails",
+		).toEqual([RECORDED_STATUS.completed, RECORDED_STATUS.failed].sort());
+		expect(refused[0]?.[SEQ_PATH_FIELD.error]).toContain("urn:delegation:read");
+		expect(written.map(({ id }) => id)).toEqual(["urn:delegation:read"]);
 	});
 });

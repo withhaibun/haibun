@@ -113,12 +113,12 @@
 			"actuality": {
 				"text": "mcp-server",
 				"status": "passed",
-				"tookMs": 800,
+				"tookMs": 500,
 				"digest": {
 					"mcp-server": "6c710ec3b9f627f32df0a59fb03960978e4eae1e54af532c3183aad1cbe2d155",
-					"modules/core/src": "48b7b526c83652a653272d738e854348ea687fae8c2ca963ac1434a1b8eafa0f",
+					"modules/core/src": "c7a1cb1f00a6e7ba14c1cc4b7459ec47016fa799b967fd2e5d496ae108c58b5e",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
-					"modules/logic/src": "41ed26d83535d745b8c0b3cb978e781c273694cdb004b6f05bde063b763d4dad",
+					"modules/logic/src": "2527815525da4f34b7807ec9c12de7a7047b15a50148bbbcc750d851f740b200",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/web-playwright/src": "d5cb7cb5594a5294aaf6c41ac81acea324121fa0e84702a580f120c11e8d327c",
@@ -129,7 +129,7 @@
 				"/features/mcp-client.feature": {
 					"text": "/features/mcp-client",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 400,
 					"steps": 9
 				}
 			}
@@ -193,16 +193,16 @@
 			"actuality": {
 				"text": "mcp-server",
 				"status": "passed",
-				"tookMs": 500,
+				"tookMs": 600,
 				"digest": {
 					"mcp-server": "6c710ec3b9f627f32df0a59fb03960978e4eae1e54af532c3183aad1cbe2d155",
-					"modules/core/src": "74bfb58c967cf20fdde144f954bb6aee38dc2f01225a846ed7bdbc0fbc12eaa9",
-					"modules/domain-storage/src": "0774ebfedf37f5cffb3ef84ed5a7fc859ed90fedf1887299cfe903e34b6910c3",
-					"modules/logic/src": "0dd7a713eb0a4fd95129150bf6faae21f1c90ede5fcea633b323ef70f1398517",
+					"modules/core/src": "57585ea7ec2f69947c8dbe43974b7cc135455f3c1af4b9d88af55d4dde1f0b5d",
+					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
+					"modules/logic/src": "abf216e242c84b97e7c765f2822f519f09b64976656d5100d2eb3f96d94cd709",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
-					"modules/web-playwright/src": "6b2bb22bc74732eab8fc5b62da9b90a1081e67c676360c79bb5904208409285e",
-					"modules/web-server-hono/src": "f3feecea6f84624e6c24a8bc5c91a84fe5111b1fd2210ae654e2b7b4867581be"
+					"modules/web-playwright/src": "d5cb7cb5594a5294aaf6c41ac81acea324121fa0e84702a580f120c11e8d327c",
+					"modules/web-server-hono/src": "b00ab949c09047ae70f7d56dec3f3d2fae924a50128601c49e1f376b7afbadbd"
 				}
 			},
 			"features": {
