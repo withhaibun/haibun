@@ -100,15 +100,17 @@ export const features: TKirejiExport = {
 		"The monitor shows a step's screenshot on that step's row. The screenshot doesn't get a row of its own, so a step and its product are read together. Actuality takes a screenshot after each WebPlaywright step. The navigation that opened this page produced one.",
 		waitFor({ target: IDS.MONITOR.PRODUCED }),
 
-		"Each column holds its own settings. The pane shows a column's settings when a person presses the pane's controls toggle. The monitor's settings hold the log's level and whether the log shows substeps. A substep is a step that actuality runs to carry out another step. The log hides substeps by default, so a person reading what the feature did sees the feature's own steps. Showing substeps lists them. Each substep's row links to the step it carries out. The screenshot that actuality takes after each browser step is a substep, so showing substeps shows it.",
-		inElement({ container: `"${MONITOR_PANE}"`, what: `click ${IDS.COLUMN_PANE.CONTROLS_TOGGLE}` }),
+		"Each column holds its own settings. The pane shows a column's settings when a person primes the settings tap action and taps the pane. The monitor's settings hold the log's level and whether the log shows substeps. A substep is a step that actuality runs to carry out another step. The log hides substeps by default, so a person reading what the feature did sees the feature's own steps. Showing substeps lists them. Each substep's row links to the step it carries out. The screenshot that actuality takes after each browser step is a substep, so showing substeps shows it.",
+		click({ target: IDS.TAP_ACTIONS.SETTINGS }),
+		click({ target: `"${MONITOR_PANE}"` }),
 		inElement({ container: `"${MONITOR_PANE}"`, what: `click ${IDS.MONITOR.SUBSTEPS}` }),
 		waitFor({ target: IDS.MONITOR.ESTABLISHED_BY }),
 
 		"Turning substeps off shows the feature's own steps again. Each step's products stay on its row.",
 		inElement({ container: `"${MONITOR_PANE}"`, what: `click ${IDS.MONITOR.SUBSTEPS}` }),
 		waitFor({ target: IDS.MONITOR.PRODUCED }),
-		inElement({ container: `"${MONITOR_PANE}"`, what: `click ${IDS.COLUMN_PANE.CONTROLS_TOGGLE}` }),
+		click({ target: IDS.TAP_ACTIONS.SETTINGS }),
+		click({ target: `"${MONITOR_PANE}"` }),
 
 		"The log's scroll rail shows the shared cursor. A person moves the cursor on the rail. The page doesn't have a separate range control. The cursor always marks a moment of actuality, so the rail shows its mark from the start. The mark is at the live edge until a person moves the cursor.",
 		waitFor({ target: IDS.SCROLLBAR.RAIL }),
@@ -116,8 +118,9 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "The log narrows to its rail, and the playback controls move the cursor" }),
 
-		"A minimized monitor shows a narrow form of itself. It hides its rows and keeps its rail. The rail keeps the cursor's mark. The column's strip is the rail, so a click on the strip acts on the rail and doesn't restore the rows. Only the pane's minimize control restores the column.",
-		inElement({ container: `"${MONITOR_PANE}"`, what: `click ${IDS.COLUMN_PANE.MINIMIZE}` }),
+		"A minimized monitor shows a narrow form of itself. It hides its rows and keeps its rail. The rail keeps the cursor's mark. The column's strip is the rail, so a click on the strip acts on the rail and doesn't restore the rows. Priming minimize and tapping the pane minimizes it.",
+		click({ target: IDS.TAP_ACTIONS.MINIMIZE }),
+		click({ target: `"${MONITOR_PANE}"` }),
 		waitFor({ target: IDS.SCROLLBAR.RAIL }),
 		waitFor({ target: IDS.SCROLLBAR.CURSOR }),
 
@@ -133,8 +136,9 @@ export const features: TKirejiExport = {
 		"A second press on the current-time control closes the popover, so the popover doesn't cover the controls that later scenarios click.",
 		click({ target: IDS.APP.TIME_OFFSET }),
 
-		"The minimize control restores the column. The rows return. The rail is the same element and still shows the cursor's mark.",
-		inElement({ container: `"${MONITOR_PANE}"`, what: `click ${IDS.COLUMN_PANE.MINIMIZE}` }),
+		"Tapping minimize again restores the column. The rows return. The rail is the same element and still shows the cursor's mark.",
+		click({ target: IDS.TAP_ACTIONS.MINIMIZE }),
+		click({ target: `"${MONITOR_PANE}"` }),
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
 		waitFor({ target: IDS.SCROLLBAR.CURSOR }),
 

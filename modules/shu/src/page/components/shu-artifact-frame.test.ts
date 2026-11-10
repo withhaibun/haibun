@@ -7,11 +7,9 @@ import { SHU_EVENT } from "../../domains/elements.js";
 
 const STEP = "the import authority's signing identity is created";
 const stepCaption = (frame: Element) => (frame.shadowRoot as ShadowRoot).querySelector(".step-caption")?.textContent;
-/** Presses the frame's fullscreen control, and waits for the frame to draw. */
+/** Toggles the frame's maximize action via tap action, and waits for the frame to draw. */
 async function toggleFullscreen(frame: Element): Promise<void> {
-	const button = (frame.shadowRoot as ShadowRoot).querySelector<HTMLButtonElement>(".fullscreen-btn");
-	if (button === null) throw new Error("the frame doesn't render its fullscreen control");
-	button.click();
+	(frame as ShuArtifactFrame).applyTapAction("maximize");
 	await (frame as ShuArtifactFrame).updateComplete;
 }
 // A frame's data-step-id holds the id of the step that produced its artifact. The document column sets the caption when the

@@ -11,7 +11,6 @@
  * a mount may set the host's display inline (e.g. display:block), which would disable a tag-level flex.
  */
 import { html, type TemplateResult } from "lit";
-import "../../components/shu-copy-button.js";
 import { SHU_ICON_BUTTON, shuRowSeparated } from "../../components/styles.js";
 import { SETTINGS_GROUP, type TSettingsGroup } from "../../../domains/elements.js";
 
@@ -77,9 +76,7 @@ export function rotateControls(o: { xyId: string; zId: string; onRotate: (aim: "
 
 export function viewActions(o: {
 	fitId: string;
-	copyId: string;
 	onFit: () => void;
-	getCopyText: () => string;
 	/** The head-on rotations on the head itself, for a host without an orientation settings group. */
 	rotate?: { xyId: string; zId: string; onRotate: (aim: "xy" | "z") => void };
 	/** The stateful view toggles, in row order: each holds a state and shows it pressed. A glyph-only face reads as an
@@ -98,6 +95,5 @@ export function viewActions(o: {
 					)
 				: ""
 		}
-		${o.rotate ? rotateControls(o.rotate) : ""}
-		<shu-copy-button data-testid=${o.copyId} label="⧉" title="copy the graph to the clipboard" .sourceProvider=${o.getCopyText}></shu-copy-button>`;
+		${o.rotate ? rotateControls(o.rotate) : ""}`;
 }

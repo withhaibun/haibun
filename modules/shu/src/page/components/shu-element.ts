@@ -37,12 +37,14 @@
 
 import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
-import { LitElement, type TemplateResult } from "lit";
+import { LitElement, type PropertyValues, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { SignalWatcher } from "@lit-labs/signals";
 import { z } from "zod";
-import { SHU_TAG, SHU_ATTR, SHU_EVENT, SPINE_SLOT } from "../../domains/elements.js";
+import { SHU_TAG, SHU_ATTR, SHU_EVENT, SPINE_SLOT, INDEX_PANE_KEY, type TTapAction } from "../../domains/elements.js";
+import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { activePane } from "../controllers/page-cell-controller.js";
+import { getPageClipboard, getPageTapAction } from "../controllers/tap-action-controller.js";
 import type { TSharedCell } from "../ports.js";
 import type { TLinkedData } from "@haibun/core/lib/domains/hypermedia.js";
 import { unwrap as unwrapWrappers } from "@haibun/core/lib/domains/zod-unwrap.js";
@@ -52,6 +54,7 @@ import { unwrap as unwrapWrappers } from "@haibun/core/lib/domains/zod-unwrap.js
 export const EmptyStateSchema = z.object({});
 
 export type { TLinkedData };
+export type ZodObjectOrWrapped = z.ZodObject<z.ZodRawShape>;
 import { getRels } from "../controllers/catalog-controller.js";
 import { recordTime } from "../derivations/record-fields.js";
 import * as PageHash from "../controllers/hash-controller.js";
@@ -267,6 +270,10 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 		// Reflect any changed attributeFields back onto their attributes (inverse of #reflectAttribute), including during
 		// a restore, so a bound attribute a subclass declared (e.g. a pane's `pinned`) stays in sync without per-caller code.
 		this.#reflectFieldsToAttributes(Object.keys(partial));
+		if (this.hasAttribute(SHU_ATTR.TAP_ACTION)) {
+			const action = this.getAttribute(SHU_ATTR.TAP_ACTION) as TTapAction;
+			this.toggleAttribute(SHU_ATTR.TAP_TARGET, this.acceptsTapAction(action));
+		}
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.STATE_CHANGE, { detail: this.state, bubbles: true, composed: true }));
 	}
 
@@ -345,6 +352,7 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 		super.connectedCallback();
 		this.#installActiveView();
 		this.#installColumnDisplay();
+		this.#installTapAction();
 		this.onConnected();
 	}
 
@@ -357,13 +365,16 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 	attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
 		super.attributeChangedCallback(name, oldValue, newValue);
 		this.#reflectAttribute(name, newValue);
-		if (name === SHU_ATTR.SHOW_CONTROLS) this.requestUpdate();
+		if (name === SHU_ATTR.SHOW_CONTROLS && !("showControls" in this._schema.shape)) this.requestUpdate();
 		this.onAttributeChanged(name, oldValue, newValue);
 	}
 
 	/** Reflect a bound attribute (declared in static attributeFields) into state via the schema; setState validates (fail-fast). */
 	#reflectAttribute(name: string, val: string | null): void {
-		const field = (this.constructor as typeof ShuElement).attributeFields[name];
+		let field = (this.constructor as typeof ShuElement).attributeFields[name];
+		if (!field && name === SHU_ATTR.SHOW_CONTROLS && "showControls" in this._schema.shape) {
+			field = "showControls";
+		}
 		if (!field) return;
 		const fieldSchema = this._schema.shape[field];
 		if (!fieldSchema) throw new Error(`<${this.localName}>: attributeFields maps "${name}" → state field "${field}", which is absent from the schema`);
@@ -386,7 +397,10 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 	 *  change each write reports reaches #reflectAttribute, which reads it as the state the element already holds. Fields
 	 *  without a bound attribute are ignored. */
 	#reflectFieldsToAttributes(changed: string[]): void {
-		const attributeFields = (this.constructor as typeof ShuElement).attributeFields;
+		const attributeFields: Record<string, string> = { ...(this.constructor as typeof ShuElement).attributeFields };
+		if ("showControls" in this._schema.shape && !attributeFields[SHU_ATTR.SHOW_CONTROLS]) {
+			attributeFields[SHU_ATTR.SHOW_CONTROLS] = "showControls";
+		}
 		const bound = Object.entries(attributeFields).filter(([, field]) => changed.includes(field));
 		if (bound.length === 0) return;
 		for (const [attr, field] of bound) reflectAttributeValue(this, attr, this._schema.shape[field], this.#fields[field], (this.#initial as Record<string, unknown>)[field]);
@@ -457,9 +471,131 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 		this.autoTeardown(signal.subscribe(handler));
 	}
 
-	/** Whether this component should show its toolbar/controls. Set via data-show-controls attribute. */
+	#installTapAction(): void {
+		const update = (action: TTapAction | null): void => {
+			if (action === null) {
+				this.removeAttribute(SHU_ATTR.TAP_ACTION);
+				this.removeAttribute(SHU_ATTR.TAP_TARGET);
+			} else {
+				this.setAttribute(SHU_ATTR.TAP_ACTION, action);
+				this.toggleAttribute(SHU_ATTR.TAP_TARGET, this.acceptsTapAction(action));
+			}
+		};
+		update(getPageTapAction().state.get());
+		this.watchSignal(getPageTapAction().state, update);
+	}
+
+	protected override updated(changedProperties: PropertyValues): void {
+		super.updated(changedProperties);
+		const primed = getPageTapAction().state.get();
+		if (primed !== null) {
+			this.toggleAttribute(SHU_ATTR.TAP_TARGET, this.acceptsTapAction(primed));
+		}
+	}
+
+	/** Whether this element accepts the primed tap action. Derived from its schema, state, and copyable content. */
+	acceptsTapAction(action: TTapAction): boolean {
+		switch (action) {
+			case "close":
+				return "closable" in this._schema.shape && this.#fields.closable === true;
+			case "minimize":
+				return "minimized" in this._schema.shape;
+			case "maximize":
+				return "maximized" in this._schema.shape;
+			case "settings":
+				return "showControls" in this._schema.shape;
+			case "pin":
+				return "pinned" in this._schema.shape;
+			case "position":
+				return "docked" in this._schema.shape && this.#fields.columnType !== INDEX_PANE_KEY;
+			case "copy":
+				return this.copyText() !== null;
+			default:
+				return false;
+		}
+	}
+
+	/** Apply the primed tap action to this element. */
+	applyTapAction(action: TTapAction): void {
+		if (!this.acceptsTapAction(action)) return;
+		switch (action) {
+			case "close":
+				this.onTapClose();
+				break;
+			case "minimize":
+				this.onTapMinimize();
+				break;
+			case "maximize":
+				this.onTapMaximize();
+				break;
+			case "settings":
+				this.onTapSettings();
+				break;
+			case "pin":
+				this.onTapPin();
+				break;
+			case "position":
+				this.onTapPosition();
+				break;
+			case "copy":
+				this.onTapCopy();
+				break;
+		}
+	}
+
+	/** Returns this view's content formatted as text for clipboard copy, or null when not copyable. */
+	copyText(): string | null {
+		const summary = this.summarizeForContext();
+		return summary ? JSON.stringify(summary, null, 2) : null;
+	}
+
+	protected onTapClose(): void {
+		// Subclasses override
+	}
+
+	protected onTapMinimize(): void {
+		if ("minimized" in this._schema.shape) {
+			this.setState({ minimized: !this.#fields.minimized } as unknown as Partial<z.infer<T>>);
+		}
+	}
+
+	protected onTapMaximize(): void {
+		if ("maximized" in this._schema.shape) {
+			this.setState({ maximized: !this.#fields.maximized } as unknown as Partial<z.infer<T>>);
+		}
+	}
+
+	protected onTapSettings(): void {
+		if ("showControls" in this._schema.shape) {
+			this.setState({ showControls: !this.#fields.showControls } as unknown as Partial<z.infer<T>>);
+		}
+	}
+
+	protected onTapPin(): void {
+		if ("pinned" in this._schema.shape) {
+			this.setState({ pinned: !this.#fields.pinned } as unknown as Partial<z.infer<T>>);
+		}
+	}
+
+	protected onTapPosition(): void {
+		if ("docked" in this._schema.shape && this.#fields.columnType !== INDEX_PANE_KEY) {
+			this.setState({ docked: !this.#fields.docked } as unknown as Partial<z.infer<T>>);
+		}
+	}
+
+	protected onTapCopy(): void {
+		const text = this.copyText();
+		if (text !== null) {
+			void getPageClipboard().copy(text);
+		}
+	}
+
+	/** Whether this component should show its toolbar/controls. Set via data-show-controls attribute or showControls state. */
 	protected get showControls(): boolean {
-		return this.hasAttribute("data-show-controls");
+		if ("showControls" in this._schema.shape) {
+			return Boolean(this.#fields.showControls);
+		}
+		return this.hasAttribute(SHU_ATTR.SHOW_CONTROLS);
 	}
 
 	/** Force a re-render. Most callers should not need this, mutate state via `setState` instead. Kept as an explicit escape hatch for callers that need to refresh after side-channel state change. */
@@ -533,6 +669,28 @@ function attributeValueOf(fieldSchema: z.ZodTypeAny | undefined, value: unknown,
 		return value === true ? "" : "false";
 	}
 	return value === undefined || value === null || value === "" ? null : String(value);
+}
+
+/** Find the single finest target element in a composed event path that accepts the primed tap action. */
+export function findTapTarget(path: readonly EventTarget[], action: TTapAction): HTMLElement | null {
+	for (const node of path) {
+		if (node instanceof HTMLElement && (node.dataset.testid === SHU_TEST_IDS.TAP_ACTIONS.TOOLBAR || node.dataset.testid?.startsWith("tap-action-"))) {
+			return null;
+		}
+	}
+	for (const node of path) {
+		if (!(node instanceof HTMLElement)) continue;
+		if (action === "copy") {
+			const text = node.getAttribute(SHU_ATTR.DATA_COPY);
+			if (text !== null && text !== "") {
+				return node;
+			}
+		}
+		if (node instanceof ShuElement && node.acceptsTapAction(action)) {
+			return node;
+		}
+	}
+	return null;
 }
 
 /** Re-export so components import the time-sync class names from the same module as ShuElement. */

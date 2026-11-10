@@ -90,8 +90,8 @@ describe("what a reader may do here", () => {
 		if (refusal === null || refusal === undefined) throw new Error("the panel doesn't render the refusal of its read");
 		await refusal.updateComplete;
 		expect(refusal.shadowRoot?.textContent, "what went wrong, in the panel rather than only in a console").toContain("graphQuery: step not registered");
-		const copy = refusal.shadowRoot?.querySelector("shu-copy-button") as (HTMLElement & { source: string }) | null;
-		expect(copy?.source, "and it can be taken away as text").toBe("graphQuery: step not registered");
+		const copyable = refusal.shadowRoot?.querySelector('[data-copy="graphQuery: step not registered"]');
+		expect(copyable, "and it can be taken away as text").toBeTruthy();
 	});
 
 	it("states plainly when this page's key doesn't hold a delegation", async () => {

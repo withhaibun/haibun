@@ -17,10 +17,12 @@ import { describe, it, expect, afterEach, beforeEach, beforeAll } from "vitest";
 import { ShuColumnPane } from "./shu-column-pane.js";
 import { ShuColumnStrip } from "./shu-column-strip.js";
 import { SHU_EVENT, SHU_ATTR, SHU_TAG, SPINE_SLOT } from "../../domains/elements.js";
-import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { pagePreferences } from "../root.js";
 import { clearStoredFields, installTestMediaQueries, storeFields } from "../../test/setup.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
+import { ShuEntityColumn } from "./shu-entity-column.js";
+import type { EntityColumnSchema } from "../../domains/schemas.js";
+import type { ShuElement } from "./shu-element.js";
 
 /** Flush any pending debounced persistence and clear the pane prefs cookie so tests are isolated. */
 function resetPanePrefs(): void {
@@ -56,7 +58,7 @@ async function nextFrame(el: HTMLElement): Promise<void> {
 	if (liteEl.updateComplete) await liteEl.updateComplete;
 }
 
-describe("shu-column-pane buttons", () => {
+describe("shu-column-pane tap actions", () => {
 	let pane: ShuColumnPane;
 
 	beforeEach(async () => {
@@ -67,63 +69,55 @@ describe("shu-column-pane buttons", () => {
 		await nextFrame(pane);
 	});
 
-	const click = async (selector: string) => {
-		const btn = pane.shadowRoot?.querySelector(selector) as HTMLButtonElement | null;
-		if (!btn) throw new Error(`button not found: ${selector}`);
-		btn.click();
+	const tap = async (action: "close" | "minimize" | "maximize" | "pin" | "position" | "settings") => {
+		pane.applyTapAction(action);
 		await nextFrame(pane);
 	};
 
 	it("minimize toggles collapsed + data-minimized host attributes", async () => {
 		expect(pane.hasAttribute("collapsed")).toBe(false);
-		await click(".pane-minimize");
+		await tap("minimize");
 		expect(pane.hasAttribute("collapsed")).toBe(true);
 		expect(pane.hasAttribute(SHU_ATTR.DATA_MINIMIZED)).toBe(true);
-		await click(".pane-minimize");
+		await tap("minimize");
 		expect(pane.hasAttribute("collapsed")).toBe(false);
 		expect(pane.hasAttribute(SHU_ATTR.DATA_MINIMIZED)).toBe(false);
 	});
 
-	it("maximize sets aria-pressed on its button and dispatches column-maximize with detail", async () => {
+	it("maximize dispatches column-maximize with detail", async () => {
 		let seen: { maximized: boolean } | null = null;
 		pane.addEventListener(SHU_EVENT.COLUMN_MAXIMIZE, (e) => {
 			seen = (e as CustomEvent).detail;
 		});
-		await click(".pane-maximize");
+		await tap("maximize");
 		expect(pane.hasAttribute(SHU_ATTR.DATA_MAXIMIZED)).toBe(true);
-		const btn = pane.shadowRoot?.querySelector(".pane-maximize") as HTMLButtonElement;
-		expect(btn.getAttribute("aria-pressed")).toBe("true");
 		expect(seen).toEqual({ maximized: true });
 	});
 
-	it("controls-toggle sets data-show-controls on the slotted child and reflects aria-pressed", async () => {
-		const child = document.createElement("div");
+	it("controls-toggle sets data-show-controls on the slotted child", async () => {
+		const child = new ShuEntityColumn();
 		pane.appendChild(child);
+		pane.setMinimized(true);
 		await nextFrame(pane);
-		await click(".pane-controls");
+		await tap("settings");
 		expect(child.hasAttribute(SHU_ATTR.SHOW_CONTROLS)).toBe(true);
-		const btn = pane.shadowRoot?.querySelector(".pane-controls") as HTMLButtonElement;
-		expect(btn.getAttribute("aria-pressed")).toBe("true");
-		await click(".pane-controls");
+		await tap("settings");
 		expect(child.hasAttribute(SHU_ATTR.SHOW_CONTROLS)).toBe(false);
 	});
 
-	it("pin toggles host pinned attribute and reflects aria-pressed", async () => {
-		await click(".pane-pin");
+	it("pin toggles host pinned attribute", async () => {
+		await tap("pin");
 		expect(pane.hasAttribute("pinned")).toBe(true); // presence is what the pane strip's prune reads; the value is not significant
-		const btn = pane.shadowRoot?.querySelector(".pane-pin") as HTMLButtonElement;
-		expect(btn.getAttribute("aria-pressed")).toBe("true");
-		await click(".pane-pin");
+		await tap("pin");
 		expect(pane.hasAttribute("pinned")).toBe(false); // unpin removes it
-		expect(btn.getAttribute("aria-pressed")).toBe("false");
 	});
 
-	it("close button dispatches column-close (it doesn't remove the DOM node on its own, the pane machine owns that)", async () => {
+	it("close dispatches column-close (it doesn't remove the DOM node on its own, the pane machine owns that)", async () => {
 		let closed = false;
 		pane.addEventListener(SHU_EVENT.COLUMN_CLOSE, () => {
 			closed = true;
 		});
-		await click(".pane-close");
+		await tap("close");
 		expect(closed).toBe(true);
 		expect(pane.isConnected).toBe(true);
 	});
@@ -176,7 +170,7 @@ describe("shu-column-pane buttons", () => {
 	});
 
 	it("persists width, minimize, and pin per column key and restores all on a fresh pane with that key (the reload contract)", async () => {
-		await click(".pane-pin"); // pin the column
+		await tap("pin"); // pin the column
 		stripWidth(pane.parentElement as HTMLElement, 1000);
 		pane.setWidth(0.28);
 		pane.setMinimized(true);
@@ -192,10 +186,10 @@ describe("shu-column-pane buttons", () => {
 	});
 
 	it("drops a closed column's width, minimize and pin, so reopening one is a new column, not the dismissed one", async () => {
-		await click(".pane-pin");
+		await tap("pin");
 		pane.setWidth(280);
 		pane.setMinimized(true);
-		await click(".pane-close"); // the reader dismisses the column
+		await tap("close"); // the reader dismisses the column
 		pagePreferences().flush(); // a pending write must not restore what the close dropped
 		const again = makePane(); // same label → same columnKey
 		document.body.appendChild(again);
@@ -457,13 +451,9 @@ describe("a column whose spine is a narrow form of itself", () => {
 
 	it("is opened again by the control that minimized it, which is the only way back when the strip keeps its clicks", async () => {
 		const pane = await spined();
-		const restore = pane.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.COLUMN_PANE.MINIMIZE}"]`) as HTMLButtonElement | null;
-		if (!restore) throw new Error("a collapsed pane didn't render a control that opens it");
-		expect(restore.title, "and shows which way it goes").toBe("Restore");
-		restore.click();
+		pane.applyTapAction("minimize");
 		await nextFrame(pane);
 		expect(pane.isCollapsed, "the column is back").toBe(false);
-		expect(pane.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.COLUMN_PANE.MINIMIZE}"]`)?.getAttribute("title")).toBe("Minimize");
 	});
 });
 
@@ -485,13 +475,13 @@ describe("a column that doesn't declare a spine view", () => {
 
 describe("a docked pane", () => {
 	let pane: ShuColumnPane;
-	let view: HTMLElement;
+	let view: ShuElement<typeof EntityColumnSchema>;
 
 	beforeEach(async () => {
 		resetPanePrefs();
 		document.body.innerHTML = "";
 		pane = makePane("Docked");
-		view = document.createElement("div");
+		view = new ShuEntityColumn();
 		pane.appendChild(view);
 		document.body.appendChild(pane);
 		await nextFrame(pane);
@@ -505,28 +495,19 @@ describe("a docked pane", () => {
 		await nextFrame(pane);
 	};
 
-	it("docks open from its control, marks the strip and its view, and returns to the strip from it", async () => {
+	it("docks open from position tap action, marks the strip and its view, and returns to the strip from it", async () => {
 		const told: boolean[] = [];
 		pane.addEventListener(SHU_EVENT.COLUMN_DOCK, (e) => told.push((e as CustomEvent).detail.docked));
-		await press(`[data-testid="${SHU_TEST_IDS.COLUMN_PANE.DOCK}"]`);
+		pane.applyTapAction("position");
+		await nextFrame(pane);
 		expect(pane.docked).toBe(true);
 		expect(pane.isCollapsed, "a pane the reader docks opens").toBe(false);
 		expect(view.hasAttribute(SHU_ATTR.DOCKED), "its view holds the axis along which it is laid out").toBe(true);
-		await press(`[data-testid="${SHU_TEST_IDS.COLUMN_PANE.DOCK}"]`);
+		pane.applyTapAction("position");
+		await nextFrame(pane);
 		expect(pane.docked).toBe(false);
 		expect(view.hasAttribute(SHU_ATTR.DOCKED)).toBe(false);
 		expect(told).toEqual([true, false]);
-	});
-
-	it("shows every control but the close on a pane that doesn't close, whatever it is called", async () => {
-		const query = makePane("", "query");
-		query.setAttribute("closable", "false");
-		document.body.appendChild(query);
-		await nextFrame(query);
-		const header = query.shadowRoot?.querySelector(".pane-header") as HTMLElement;
-		expect(header, "a pane without a label still heads itself").not.toBeNull();
-		const controls = Array.from(header.querySelectorAll(".pane-controls-group > button")).map((b) => b.className.replace("pane-icon ", ""));
-		expect(controls).toEqual(["pane-minimize", "pane-maximize", "pane-dock", "pane-controls", "pane-pin"]);
 	});
 
 	it("closes to the strip a column collapses to, its header and its spine, and opens from its header", async () => {
@@ -542,12 +523,14 @@ describe("a docked pane", () => {
 	it("opens from its strip as its view's controls show and as it maximizes to fill the app, and a drag of its edge ends the maximize", async () => {
 		pane.setDocked(true);
 		await nextFrame(pane);
-		await press(`[data-testid="${SHU_TEST_IDS.COLUMN_PANE.CONTROLS_TOGGLE}"]`);
+		pane.applyTapAction("settings");
+		await nextFrame(pane);
 		expect(view.hasAttribute(SHU_ATTR.SHOW_CONTROLS)).toBe(true);
 		expect(pane.isCollapsed, "the controls show inside the pane, so it opens").toBe(false);
 		pane.close();
 		await nextFrame(pane);
-		await press(`[data-testid="${SHU_TEST_IDS.COLUMN_PANE.MAXIMIZE}"]`);
+		pane.applyTapAction("maximize");
+		await nextFrame(pane);
 		expect(pane.isCollapsed, "maximizing opens it").toBe(false);
 		expect(Number.parseFloat(pane.style.height), "and it fills the app").toBe(100);
 		inShadow(".resize-handle")?.dispatchEvent(new PointerEvent("pointerdown", { pointerId: 1, clientY: 500, bubbles: true }));
@@ -560,16 +543,18 @@ describe("a docked pane", () => {
 		await nextFrame(pane);
 		const asked: Event[] = [];
 		pane.addEventListener(SHU_EVENT.COLUMN_EXPAND, (e) => asked.push(e));
-		await press(`[data-testid="${SHU_TEST_IDS.COLUMN_PANE.CONTROLS_TOGGLE}"]`);
+		pane.applyTapAction("settings");
+		await nextFrame(pane);
 		expect(asked).toHaveLength(1);
 	});
 
-	it("closes from its minimize control to its strip without minimizing the column", async () => {
+	it("closes from its minimize tap action to its strip without minimizing the column", async () => {
 		const minimized: unknown[] = [];
 		pane.addEventListener(SHU_EVENT.COLUMN_MINIMIZE, (e) => minimized.push(e));
 		pane.setDocked(true, true);
 		await nextFrame(pane);
-		await press(".pane-minimize");
+		pane.applyTapAction("minimize");
+		await nextFrame(pane);
 		expect(pane.isCollapsed).toBe(true);
 		expect(pane.hasAttribute(SHU_ATTR.DATA_MINIMIZED), "the column's remembered minimize is untouched").toBe(false);
 		expect(minimized, "and the address doesn't receive a minimize").toHaveLength(0);

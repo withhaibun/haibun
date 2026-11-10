@@ -4,9 +4,7 @@ import * as Panes from "../pipelines/panes.js";
 import * as PageHash from "../pipelines/page-hash.js";
 import { heldCatalog, holdsCatalog } from "../pipelines/held-catalog.js";
 import { recordComponent, uiOfComponent } from "../derivations/catalog.js";
-import { storedSetting } from "../derivations/settings.js";
 import * as Kinds from "../derivations/pane-kinds.js";
-import { INITIAL_SHOWN_CONTROLS, ShownControlsSchema, shownControlsKey } from "../domains/settings.js";
 import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import type { TPagePane } from "../machines/panes.js";
 import type { TPaneMarks, TStripElement } from "../ports.js";
@@ -55,8 +53,7 @@ const scope = (): Panes.TPanesScope => ({
 	address: { get: () => PageHash.getHash(pageHashScope()), push: (hash) => PageHash.pushHash(pageHashScope(), hash) },
 	active: activePane,
 	minimizedBefore: (id) => pagePreferences().read(SHU_TAG.COLUMN_PANE, id)?.minimized === true,
-	showsControls: (tag) =>
-		storedSetting(`the controls of <${tag}>`, ShownControlsSchema, pagePreferences().read(SHU_TAG.COLUMN_PANE, shownControlsKey(tag)), INITIAL_SHOWN_CONTROLS).shown,
+	showsControls: () => false,
 	showControlsAttribute: SHU_ATTR.SHOW_CONTROLS,
 	kinds: PANE_CONTEXT,
 });

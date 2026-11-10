@@ -27,7 +27,6 @@ import { ShuElement, type TLinkedData } from "../../components/shu-element.js";
 import { shuBaseStyles } from "../../components/styles.js";
 import { revealInDocument } from "../../components/reveal.js";
 import { paneHref } from "../../components/ref-navigation.js";
-import "../../components/shu-copy-button.js";
 import "../../components/shu-refusal.js";
 import { SOURCE_FORMATS, SOURCE_FORMAT_IDS, sourceFormat, type TSourceFormat } from "../domains/sources.js";
 import { lineAfterKey, linesOf, provenanceOf, statusOf, summaryOf } from "../derivations/source-lines.js";
@@ -94,6 +93,11 @@ class ShuGraphSource extends ShuElement<typeof GraphSourceStateSchema> {
 
 	constructor() {
 		super(GraphSourceStateSchema, { format: SOURCE_FORMATS[0].id });
+	}
+
+	override copyText(): string | null {
+		const axioms = this.#axioms.page;
+		return axioms ? axioms.text : null;
 	}
 
 	/** The axioms a pane request carries, and the frame it opens at first. */
@@ -166,7 +170,6 @@ class ShuGraphSource extends ShuElement<typeof GraphSourceStateSchema> {
 					axioms.frames.find(({ name }) => name === line),
 					this.#lit,
 				)}</span>
-				<shu-copy-button label="⧉" title=${`copy the ${format.label} text to the clipboard`} .source=${axioms.text}></shu-copy-button>
 				<button type="button" title=${`download the ${format.label} text as ${file}`} @click=${() => saveFile(axioms.text, file)}>⤓</button>
 			</div>
 			<ol

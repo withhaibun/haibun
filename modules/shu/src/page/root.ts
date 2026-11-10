@@ -65,6 +65,7 @@ import { liveEventStream, type TLiveStreamSource } from "./adapters/live-event-s
 import { CarriedEventStream } from "./adapters/carried-event-stream.js";
 import { INITIAL_STREAM_STATUS, STREAM_EVENT, streamTransition, type TStreamEvent, type TStreamStatus } from "./machines/event-stream.js";
 import { INITIAL_REGISTRY, registryTransition, type TRegistryEvent, type TRegistryState } from "./machines/registry.js";
+import { INITIAL_TAP_ACTION, tapActionTransition, type TTapActionEvent, type TTapActionState } from "./machines/tap-action.js";
 import type { TReadStepsScope, TRegistryReads } from "./pipelines/read-steps.js";
 import type { TRecordStore } from "./pipelines/open-record.js";
 import { pageDeviceStore } from "./client-cache/root.js";
@@ -89,6 +90,7 @@ const REGISTRY_KEY = "__SHU_STEP_REGISTRY__";
 const REGISTRY_READS_KEY = "__SHU_STEP_REGISTRY_READS__";
 const PANES_KEY = "__SHU_PANES__";
 const PANES_HELD_KEY = "__SHU_PANES_HELD__";
+const TAP_ACTION_KEY = "__SHU_TAP_ACTION__";
 const REMEDIES_KEY = "__SHU_REMEDIES__";
 const RECORDS_KEY = "__SHU_ENTITY_STORE__";
 
@@ -137,6 +139,9 @@ export const pageHashScope = (): THashScope => ({ location: pageLocation(), held
 
 /** Returns the page's panes, held across its bundles, and empty on each new page. */
 export const pagePanes = (): Machine<TPanesState, TPanesEvent> => pagePinned(PANES_KEY, () => machine(INITIAL_PANES, panesTransition));
+
+/** Returns the page's primed tap action machine, held across its bundles. */
+export const pageTapAction = (): Machine<TTapActionState, TTapActionEvent> => pagePinned(TAP_ACTION_KEY, () => machine(INITIAL_TAP_ACTION, tapActionTransition));
 
 /** Returns what the page holds of its panes beside their machine. */
 export const panesHeld = (): TPanesHeld =>

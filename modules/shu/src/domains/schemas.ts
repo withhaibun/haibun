@@ -76,6 +76,8 @@ export const ColumnPaneSchema = z.object({
 	height: z.number().gt(0).lte(1).optional(),
 	// User-minimized: a persisted choice, distinct from the strip's transient accordion auto-collapse.
 	minimized: z.boolean(),
+	maximized: z.boolean(),
+	docked: z.boolean(),
 	closable: z.boolean(),
 	pinned: z.boolean(),
 	// Free-form: the pane strip writes the component tag for component panes; CSS only matches the well-known values.
@@ -96,6 +98,7 @@ export const EntityColumnSchema = z.object({
 	showAnnotations: z.boolean(),
 	/** Enter the inline annotated view to author the first annotation on a body that doesn't have one yet (transient). */
 	annotateMode: z.boolean(),
+	showControls: z.boolean(),
 });
 
 // --- Filter column ---
@@ -170,7 +173,7 @@ export type TBundle = z.infer<typeof BundleSchema>;
 /** The actions bar's modes. search browses and filters the graph, and is the default. step runs a haibun step. The ask mode
  *  converses with a model, and the mode control offers it only where actuality registers an ask-capable step. */
 export const BAR_MODES = ["search", "ask", "step"] as const;
-export const ActionsBarSchema = z.object({ mode: z.enum(BAR_MODES) });
+export const ActionsBarSchema = z.object({ mode: z.enum(BAR_MODES), showControls: z.boolean().optional() });
 
 // --- Record steps ---
 

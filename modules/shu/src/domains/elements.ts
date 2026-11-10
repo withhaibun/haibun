@@ -34,6 +34,10 @@ export const DEEP_LINK_PREFIX = "#?";
 /** Where the site serves its JSON-LD @context: the well-known address, and its alias under the namespace. */
 export const CONTEXT_DOCUMENT = { wellKnown: "/.well-known/haibun-context.jsonld", namespace: "/ns/context.jsonld" } as const;
 
+/** The seven actions offered by the lower-right toolbar of the page strip. */
+export const SHU_TAP_ACTIONS = ["close", "minimize", "maximize", "settings", "pin", "position", "copy"] as const;
+export type TTapAction = (typeof SHU_TAP_ACTIONS)[number];
+
 export const SHU_EVENT = {
 	/** A view in the graph bundle opens a pane (a `TPaneOpen` detail): that bundle's panes aren't the page's. */
 	PANE_OPEN: "pane-open",
@@ -156,7 +160,6 @@ export const SHU_TAG = {
 	VIEWS_PICKER: "shu-views-picker",
 	AFFORDANCES_PANEL: "shu-affordances-panel",
 	DOMAIN_CHAIN_VIEW: "shu-domain-chain-view",
-	COPY_BUTTON: "shu-copy-button",
 	REF: "shu-ref",
 	TYPE_COLUMN: "shu-type-column",
 	THEME_SWITCH: "shu-theme-switch",
@@ -191,6 +194,10 @@ export const SEARCH_SLOT = "search";
 export const PRODUCTS_LABEL = "Result";
 
 export const SHU_ATTR = {
+	TAP_ACTION: "data-tap-action",
+	TAP_TARGET: "data-tap-target",
+	TAP_ACTIVE: "data-tap-active",
+	DATA_COPY: "data-copy",
 	DATA_MINIMIZED: "data-minimized",
 	/** On a view opened at a moment of actuality's history: that moment, which the view shows (`TimelineViewController`). */
 	SNAPSHOT_TIME: "data-snapshot-time",

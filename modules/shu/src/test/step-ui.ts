@@ -100,21 +100,25 @@ export function createStepUI(wp: WebPlaywright) {
 	const { waitFor, click, setValue, selectionOption, press, shouldSeeTestId, type: typeText } = withAction(wp);
 
 	/** Wait for the bar's pane to attach. The bar opens its pane from the address as the pane attaches, so once the pane's
-	 *  control is on the page, whether the bar is open is settled, and a check of it doesn't race the address. */
+	 *  header is on the page, whether the bar is open is settled, and a check of it doesn't race the address. */
 	const actionsPaneAttached: TKirejiStep[] = [
-		setAs({ what: ACTIONS_PANE_CONTROL, domain: "page-locator", value: `"${ACTIONS_PANE} [data-testid='${IDS.COLUMN_PANE.MINIMIZE}']"` }),
+		setAs({ what: ACTIONS_PANE_CONTROL, domain: "page-locator", value: `"${ACTIONS_PANE} .pane-header"` }),
 		waitFor({ target: ACTIONS_PANE_CONTROL }),
 	];
 
-	/** Ensure the actions bar is open: its pane's minimize control opens a pane standing at its strip. Uses MODE_SELECT (always present when the bar is open, regardless of Ask availability) so this works without an LLM provider. The `where … , …` form is idempotent: the click is skipped when MODE_SELECT is already on the page. */
+	/** Ensure the actions bar is open: its pane's header or tap action opens a pane standing at its strip. Uses MODE_SELECT (always present when the bar is open, regardless of Ask availability) so this works without an LLM provider. The `where … , …` form is idempotent: the click is skipped when MODE_SELECT is already on the page. */
 	const expandActionsBar: TKirejiStep[] = [
 		...actionsPaneAttached,
-		`where didn't has test id ${IDS.APP.MODE_SELECT}, in "${ACTIONS_PANE}", click ${IDS.COLUMN_PANE.MINIMIZE}`,
+		`where didn't has test id ${IDS.APP.MODE_SELECT}, in "${ACTIONS_PANE}", click .pane-header`,
 		waitFor({ target: IDS.APP.MODE_SELECT }),
 	];
 
-	/** Close the actions bar if it is open: the inverse of expandActionsBar (MODE_SELECT present ⇒ its pane's minimize control closes it to its strip). Idempotent: skipped when already closed. The open docked bar floats over lower content (e.g. a graph), so close it before interacting with the content beneath it. */
-	const collapseActionsBar: TKirejiStep[] = [...actionsPaneAttached, `where has test id ${IDS.APP.MODE_SELECT}, in "${ACTIONS_PANE}", click ${IDS.COLUMN_PANE.MINIMIZE}`];
+	/** Close the actions bar if it is open: the inverse of expandActionsBar (MODE_SELECT present ⇒ minimize tap action closes it to its strip). Idempotent: skipped when already closed. The open docked bar floats over lower content (e.g. a graph), so close it before interacting with the content beneath it. */
+	const collapseActionsBar: TKirejiStep[] = [
+		...actionsPaneAttached,
+		`where has test id ${IDS.APP.MODE_SELECT}, click "${IDS.TAP_ACTIONS.MINIMIZE}" by test id`,
+		`where has test id ${IDS.APP.MODE_SELECT}, in "${ACTIONS_PANE}", click .pane-header`,
+	];
 
 	const enterStepMode: TKirejiStep[] = [...expandActionsBar, selectionOption({ option: '"Step"', field: IDS.APP.MODE_SELECT }), waitFor({ target: IDS.APP.STEP_SELECT })];
 
@@ -123,10 +127,11 @@ export function createStepUI(wp: WebPlaywright) {
 	 *  is already here. */
 	const enterSearchMode: TKirejiStep[] = [...expandActionsBar, selectionOption({ option: '"Search"', field: IDS.APP.MODE_SELECT }), waitFor({ target: IDS.APP.TEXT_SEARCH })];
 
-	/** Show the settings of the view in the actions pane, which its pane's settings control holds. `marker` is a control
+	/** Show the settings of the view in the actions pane, which the settings tap action holds. `marker` is a control
 	 *  those settings hold, which states whether they are shown: the press is skipped where it is already on the page. */
 	const showPaneSettings = (marker: string): TKirejiStep[] => [
-		`where didn't has test id ${marker}, in "${ACTIONS_PANE}", click ${IDS.COLUMN_PANE.CONTROLS_TOGGLE}`,
+		`where didn't has test id ${marker}, click "${IDS.TAP_ACTIONS.SETTINGS}" by test id`,
+		`where didn't has test id ${marker}, click "${ACTIONS_PANE}"`,
 		waitFor({ target: marker }),
 	];
 

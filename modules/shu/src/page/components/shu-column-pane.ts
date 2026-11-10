@@ -24,42 +24,19 @@
  * and its collapsed form is its spine laid out along the width, in the header row. The pane stays where it is in the DOM
  * either way, so its view isn't disconnected. `PaneDock` holds what docking adds.
  */
-import { html, css, nothing, unsafeCSS, type TemplateResult } from "lit";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { html, css, unsafeCSS, type TemplateResult } from "lit";
+import { ShuElement, type TLinkedData, type ZodObjectOrWrapped } from "./shu-element.js";
 import { PAGE_STRIP_FOOTPRINT, SHU_EVENT, SHU_ATTR, SPINE_SLOT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { ColumnPaneSchema } from "../../domains/schemas.js";
+import { INDEX_PANE_KEY, type TTapAction } from "../../domains/elements.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
-import { storeFields } from "../controllers/setting-controller.js";
-import { shownControlsKey } from "../domains/settings.js";
 import { startPointerDrag } from "./pointer-drag.js";
 import { PaneDock } from "./pane-dock.js";
 
-const ICON = { MIN: "―", RESTORE: "▭", MAX: "⤢", DOCK: "⤓", UNDOCK: "⤒", CONTROLS: "⚙", PIN: "📌", CLOSE: "×" } as const;
-const CLASS = {
-	MIN: "pane-minimize",
-	MAX: "pane-maximize",
-	DOCK: "pane-dock",
-	CONTROLS: "pane-controls",
-	PIN: "pane-pin",
-	CLOSE: "pane-close",
-	GROUP: "pane-controls-group",
-	HEADER: "pane-header",
-	LABEL: "pane-label",
-	CONTENT: "pane-content",
-	SPINE: "pane-spine",
-	RESIZE: "resize-handle",
-} as const;
-const TEST_ID = {
-	MIN: SHU_TEST_IDS.COLUMN_PANE.MINIMIZE,
-	MAX: SHU_TEST_IDS.COLUMN_PANE.MAXIMIZE,
-	DOCK: SHU_TEST_IDS.COLUMN_PANE.DOCK,
-	CONTROLS: SHU_TEST_IDS.COLUMN_PANE.CONTROLS_TOGGLE,
-	CLOSE: SHU_TEST_IDS.COLUMN_PANE.CLOSE,
-	SPINE: SHU_TEST_IDS.COLUMN_PANE.SPINE,
-	BROWSER_COLUMN: "browser-column",
-} as const;
+const CLASS = { HEADER: "pane-header", LABEL: "pane-label", CONTENT: "pane-content", SPINE: "pane-spine", RESIZE: "resize-handle" } as const;
+const TEST_ID = { SPINE: SHU_TEST_IDS.COLUMN_PANE.SPINE, BROWSER_COLUMN: "browser-column" } as const;
 
 const MIN_RESIZED_WIDTH = 120;
 
@@ -211,10 +188,18 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	];
 
 	constructor() {
-		super(ColumnPaneSchema, { label: "", active: false, minimized: false, closable: true, pinned: false, columnType: "query" });
+		super(ColumnPaneSchema, { label: "", active: false, minimized: false, maximized: false, docked: false, closable: true, pinned: false, columnType: "query" });
 	}
 
-	static attributeFields = { label: "label", active: "active", closable: "closable", pinned: "pinned", "column-type": "columnType" };
+	static attributeFields = {
+		label: "label",
+		active: "active",
+		closable: "closable",
+		pinned: "pinned",
+		"column-type": "columnType",
+		"data-maximized": "maximized",
+		docked: "docked",
+	};
 
 	/** Width, user-minimize, and pin are kept per column across reloads (ShuElement.persistFields), keyed by the column's identity; `pinned` is a bidirectional attributeField, so restoring it re-asserts the `pinned` attribute the pane strip's prune reads. Maximize is deliberately not kept: the URL hash alone holds it. */
 	static persistFields = ["width", "height", "minimized", "pinned"] as const;
@@ -382,8 +367,53 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		this.#reflectLayout();
 	}
 
-	private onMinimize = (e: Event): void => {
-		e.stopPropagation();
+	override acceptsTapAction(action: TTapAction): boolean {
+		switch (action) {
+			case "close":
+				return this.state.closable === true;
+			case "minimize":
+				return true;
+			case "maximize":
+				return true;
+			case "settings":
+				return this.isCollapsed && Boolean((this.columnView as ShuElement<ZodObjectOrWrapped> | undefined)?.acceptsTapAction?.("settings"));
+			case "pin":
+				return true;
+			case "position":
+				return this.state.columnType !== INDEX_PANE_KEY;
+			case "copy":
+				return false;
+			default:
+				return false;
+		}
+	}
+
+	protected override onTapClose(): void {
+		this.onClose();
+	}
+
+	protected override onTapMinimize(): void {
+		this.onMinimize();
+	}
+
+	protected override onTapMaximize(): void {
+		this.onMaximize();
+	}
+
+	protected override onTapPosition(): void {
+		this.onDock();
+	}
+
+	protected override onTapSettings(): void {
+		if (this.isCollapsed) {
+			this.open();
+			const child = this.columnView as ShuElement<ZodObjectOrWrapped> | undefined;
+			child?.applyTapAction?.("settings");
+		}
+	}
+
+	private onMinimize = (e?: Event): void => {
+		e?.stopPropagation();
 		if (this.docked) return this.#setDockClosed(!this.#dockClosed);
 		const minimize = !this.state.minimized;
 		this.setMinimized(minimize);
@@ -401,45 +431,31 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	}
 
 	/** Maximizing shows the pane's view, so a collapsed pane opens as it maximizes. */
-	private onMaximize = (e: Event): void => {
-		e.stopPropagation();
+	private onMaximize = (e?: Event): void => {
+		e?.stopPropagation();
 		const maximize = !this.hasAttribute(SHU_ATTR.DATA_MAXIMIZED);
 		if (maximize) this.open();
 		this.setMaximized(maximize);
 	};
 
-	/** The view's controls show inside the pane, so a collapsed pane opens as they show. */
-	private onControlsToggle = (e: Event): void => {
-		e.stopPropagation();
-		const child = this.columnView as (HTMLElement & { refresh?: () => void }) | undefined;
-		if (!child) return;
-		const show = !child.hasAttribute(SHU_ATTR.SHOW_CONTROLS);
-		if (show) child.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
-		else child.removeAttribute(SHU_ATTR.SHOW_CONTROLS);
-		storeFields(SHU_TAG.COLUMN_PANE, shownControlsKey(child.tagName.toLowerCase()), { shown: show });
-		child.refresh?.();
-		if (show) this.open();
-		this.requestUpdate();
-	};
-
 	/** Dock the pane, open, or return it to the strip, and announce it to the strip and the address. */
-	private onDock = (e: Event): void => {
-		e.stopPropagation();
+	private onDock = (e?: Event): void => {
+		e?.stopPropagation();
 		const docked = !this.docked;
 		this.setDocked(docked, true);
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_DOCK, { detail: { docked }, bubbles: true, composed: true }));
 	};
 
-	private onPin = (e: Event): void => {
-		e.stopPropagation();
+	private onPin = (e?: Event): void => {
+		e?.stopPropagation();
 		this.setState({ pinned: !this.state.pinned }); // the `pinned` attribute (read by the pane strip's prune) reflects automatically
 	};
 
 	/** Closing is the reader dismissing this column, so its remembered width, minimize and pin go with it: a column
 	 *  opened again at the same identity is a new one, and would otherwise arrive still pinned (or still minimized) from
 	 *  a column the reader had closed. A pane removed by a prune or a reload keeps what it persisted, which is the purpose of persisting it. */
-	private onClose = (e: Event): void => {
-		e.stopPropagation();
+	private onClose = (e?: Event): void => {
+		e?.stopPropagation();
 		this.forgetPersisted();
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_CLOSE, { bubbles: true, composed: true }));
 	};
@@ -536,7 +552,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	}
 
 	render(): TemplateResult {
-		const { label, closable, columnType, pinned } = this.state;
+		const { label, columnType } = this.state;
 		const collapsed = this.isCollapsed;
 		// A column whose spine is a narrow form of itself keeps being rendered while collapsed, and is marked as
 		// serving as the spine so it can render only what fits the strip. Everything else is swapped for the view
@@ -550,25 +566,15 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		this.toggleAttribute(SHU_ATTR.HAS_SPINE, hasSpine);
 		const controlsActive = !!this.columnView?.hasAttribute?.(SHU_ATTR.SHOW_CONTROLS);
 		const maximized = this.hasAttribute(SHU_ATTR.DATA_MAXIMIZED);
-		const docked = this.docked;
+		const _docked = this.docked;
 		this.toggleAttribute(SHU_ATTR.DATA_CONTROLS_ON, controlsActive);
 		this.toggleAttribute(SHU_ATTR.DATA_MAXIMIZED, maximized);
-		// Every pane's header holds the same controls, whatever the pane is called and wherever it stands.
-		const controlsGroup = html`<span class=${CLASS.GROUP}>
-				<button class="pane-icon ${CLASS.MIN}" type="button" data-testid=${TEST_ID.MIN} title=${collapsed ? "Restore" : "Minimize"} aria-label=${collapsed ? "Restore column" : "Minimize column"} aria-pressed=${collapsed} @click=${this.onMinimize}>${collapsed ? ICON.RESTORE : ICON.MIN}</button>
-				<button class="pane-icon ${CLASS.MAX}" type="button" data-testid=${TEST_ID.MAX} title=${maximized ? "Restore" : "Maximize"} aria-label="Maximize column" aria-pressed=${maximized} @click=${this.onMaximize}>${ICON.MAX}</button>
-				<button class="pane-icon ${CLASS.DOCK}" type="button" data-testid=${TEST_ID.DOCK} title=${docked ? "Return to the strip" : "Dock along the bottom"} aria-label=${docked ? "Return column to the strip" : "Dock column along the bottom"} aria-pressed=${docked} @click=${this.onDock}>${docked ? ICON.UNDOCK : ICON.DOCK}</button>
-				<button class="pane-icon ${CLASS.CONTROLS}" type="button" data-testid=${TEST_ID.CONTROLS} title=${controlsActive ? "Hide controls" : "Show controls"} aria-label="Toggle controls" aria-pressed=${controlsActive} @click=${this.onControlsToggle}>${ICON.CONTROLS}</button>
-				<button class="pane-icon ${CLASS.PIN}" type="button" title=${pinned ? "Unpin column" : "Pin column"} aria-label="Pin column" aria-pressed=${pinned} @click=${this.onPin}>${ICON.PIN}</button>
-				${closable ? html`<button class="pane-icon ${CLASS.CLOSE}" type="button" data-testid=${TEST_ID.CLOSE} title="Close" aria-label="Close column" @click=${this.onClose}>${ICON.CLOSE}</button>` : nothing}
-			</span>`;
 		const spine = html`<div class=${CLASS.SPINE} data-testid=${TEST_ID.SPINE}>
 			<slot name=${ownSpine ? "" : SPINE_SLOT} @slotchange=${this.onSlotChange}></slot>
 		</div>`;
 		return html`
 			<div class=${CLASS.HEADER} data-testid=${columnType !== "query" ? TEST_ID.BROWSER_COLUMN : ""}>
 				<span class=${CLASS.LABEL} data-testid=${SHU_TEST_IDS.COLUMN_PANE.LABEL} title=${label}>${label}</span>
-				${controlsGroup}
 			</div>
 			${collapsed ? spine : html`<div class=${CLASS.CONTENT}><slot @slotchange=${this.onSlotChange}></slot></div>`}
 			<div class=${CLASS.RESIZE} @pointerdown=${this.onResizeDown}></div>

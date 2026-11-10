@@ -47,12 +47,3 @@ export const INITIAL_WINDOW_SIZE: TWindowSize = { rows: "500" };
 
 /** The key of the one stored instance of a page-wide setting. */
 export const PAGE_SETTING_KEY = "";
-
-/** Whether a view's controls show in its pane. `<shu-column-pane>` stores it by the view's tag (`shownControlsKey`), so
- *  each view of a tag opens with its controls as the reader last set them. */
-export const ShownControlsSchema = z.object({ shown: z.boolean() });
-export type TShownControls = z.infer<typeof ShownControlsSchema>;
-export const INITIAL_SHOWN_CONTROLS: TShownControls = { shown: false };
-
-/** The key under which `<shu-column-pane>` stores whether a view of `tag` shows its controls. */
-export const shownControlsKey = (tag: string): string => `controls:${tag}`;

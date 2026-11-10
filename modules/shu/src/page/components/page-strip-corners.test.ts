@@ -65,7 +65,7 @@ describe("the page strip's corners", () => {
 	it("open one popover at a time above the strip, and close the corner open when its control is pressed again", async () => {
 		const page = aCornersPage();
 		renderControls(page);
-		control(page.host, "settings-button").click();
+		page.corners.openSettings();
 		await settled();
 		expect(page.corners.openCorner).toBe("settings");
 		expect(page.popover.showPopover).toHaveBeenCalledTimes(1);

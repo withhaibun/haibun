@@ -4,6 +4,16 @@
  * them; shu must not name them here.
  */
 export const SHU_TEST_IDS = {
+	TAP_ACTIONS: {
+		TOOLBAR: "tap-actions-toolbar",
+		CLOSE: "tap-action-close",
+		MINIMIZE: "tap-action-minimize",
+		MAXIMIZE: "tap-action-maximize",
+		SETTINGS: "tap-action-settings",
+		PIN: "tap-action-pin",
+		POSITION: "tap-action-position",
+		COPY: "tap-action-copy",
+	},
 	APP: {
 		ROOT: "shu-app",
 		HEADER: "shu-header",
@@ -153,14 +163,6 @@ export const SHU_TEST_IDS = {
 	WHY: "why",
 	PLAYBACK: { PLAY: "playback-play", SPEED: "playback-speed", RESTART: "playback-restart", LIVE: "playback-live" },
 	COLUMN_PANE: {
-		/** Minimize when the column is open, restore when it is a strip: the one control that owns that state, and on a
-		 *  column whose strip caches its own clicks (the log's rail) the only way back to the column. */
-		MINIMIZE: "pane-minimize",
-		MAXIMIZE: "pane-maximize",
-		/** Dock the column along the bottom of the app, or return a docked pane to the strip. */
-		DOCK: "pane-dock",
-		CONTROLS_TOGGLE: "pane-controls-toggle",
-		CLOSE: "pane-close",
 		SPINE: "pane-spine",
 		/** The column's label in its header. A press on it activates the column. */
 		LABEL: "pane-label",
@@ -222,7 +224,6 @@ export const SHU_TEST_IDS = {
 		FIT: "class-browser-fit",
 		ROTATE_XY: "class-browser-rotate-xy",
 		ROTATE_Z: "class-browser-rotate-z",
-		COPY_GRAPH: "class-browser-copy-graph",
 		INDIVIDUALS_VIEW: "class-browser-individuals",
 	},
 	POLYMORPHIC_VIEW: {
@@ -258,7 +259,6 @@ export const SHU_TEST_IDS = {
 		SETTINGS: { layout: "polymorphic-settings-layout", filters: "polymorphic-settings-filters", scenes: "polymorphic-settings-scenes" },
 		ROTATE_XY: "polymorphic-rotate-xy",
 		ROTATE_Z: "polymorphic-rotate-z",
-		COPY_GRAPH: "polymorphic-copy-graph",
 		LATEST_STEP: "polymorphic-latest-step",
 		SCENE_PICKER: "polymorphic-scene-picker",
 		SCENE_NAME: "polymorphic-scene-name",

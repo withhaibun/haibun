@@ -68,14 +68,11 @@ describe("the graph view's settings groups", () => {
 });
 
 describe("the graph view's head", () => {
-	it("keeps fit and copy beside a settings icon for each group, whichever group is open", () => {
+	it("keeps fit beside a settings icon for each group, whichever group is open", () => {
 		for (const openGroup of [null, "layout", "filters", "scenes"] as const) {
 			const head = document.createElement("div");
-			render(
-				html`${viewActions({ fitId: IDS.FIT, copyId: IDS.COPY_GRAPH, onFit: () => undefined, getCopyText: () => "", settings: { openGroup, idFor: (group) => IDS.SETTINGS[group], onGroup: () => undefined } })}`,
-				head,
-			);
-			expect(shown(head, [IDS.FIT, IDS.COPY_GRAPH, ...Object.values(IDS.SETTINGS)]), `with ${openGroup} open`).toEqual([IDS.FIT, IDS.COPY_GRAPH, ...Object.values(IDS.SETTINGS)]);
+			render(html`${viewActions({ fitId: IDS.FIT, onFit: () => undefined, settings: { openGroup, idFor: (group) => IDS.SETTINGS[group], onGroup: () => undefined } })}`, head);
+			expect(shown(head, [IDS.FIT, ...Object.values(IDS.SETTINGS)]), `with ${openGroup} open`).toEqual([IDS.FIT, ...Object.values(IDS.SETTINGS)]);
 			const pressed = [...head.querySelectorAll('[aria-pressed="true"]')].map((b) => b.getAttribute("data-testid"));
 			expect(pressed, "one group open at a time").toEqual(openGroup === null ? [] : [IDS.SETTINGS[openGroup]]);
 		}

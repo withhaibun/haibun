@@ -216,7 +216,8 @@ export const backgrounds: TKirejiExport = {
 		...within("Press a column's label", PAGE, `${PANE}[data-column-key*="{match}"] ${testId(SHU_TEST_IDS.COLUMN_PANE.LABEL)} >> nth=0`, "click", views.activateColumn("{match}")),
 		"Activity: Close a column",
 		`compose ${TARGET} as page-locator with ${PANE}[data-column-key*="{match}"]`,
-		`in ${TARGET}, click "${SHU_TEST_IDS.COLUMN_PANE.CLOSE}" by test id`,
+		`click "${SHU_TEST_IDS.TAP_ACTIONS.CLOSE}" by test id`,
+		`click ${TARGET}`,
 		`wait until ${TARGET} is gone`,
 		`waypoint ${views.closeColumn("{match}")}`,
 

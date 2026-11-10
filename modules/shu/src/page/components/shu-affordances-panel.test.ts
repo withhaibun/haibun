@@ -83,10 +83,6 @@ describe("shu-affordances-panel", () => {
 			class FakeSpinner extends HTMLElement {}
 			customElements.define("shu-spinner", FakeSpinner);
 		}
-		if (!customElements.get("shu-copy-button")) {
-			class FakeCopyBtn extends HTMLElement {}
-			customElements.define("shu-copy-button", FakeCopyBtn);
-		}
 		declareFakeGraphPresenter({}, []);
 	});
 

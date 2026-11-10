@@ -109,6 +109,7 @@ const PolymorphicStateSchema = z.object({
 	/** Which settings group's row is open under the head, exclusive; null keeps the head to one row. Transient
 	 *  disclosure: not persisted, a reload starts with the head alone. */
 	openSettings: z.enum(SETTINGS_GROUP_NAMES).nullable(),
+	showControls: z.boolean(),
 });
 
 /** The graph view before a reader chooses an option: the force view, ungrouped and unflattened, depth by valid time, without pins, with the head alone (CA4D7). */
@@ -126,6 +127,7 @@ const POLYMORPHIC_INITIAL_STATE: z.input<typeof PolymorphicStateSchema> = {
 	readAsDocument: false,
 	dl: false,
 	openSettings: null,
+	showControls: false,
 };
 
 /**
@@ -141,7 +143,7 @@ const POLYMORPHIC_INITIAL_STATE: z.input<typeof PolymorphicStateSchema> = {
  */
 export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof PolymorphicStateSchema> {
 	/** Layout choices persist across reloads (ShuElement.persistFields; singleton key). */
-	static persistFields = ["viewType", "flatten", "grouped", "groupBy", "zBasis", "labelAsZ", "pins", "follow", "prune", "readAsDocument", "dl"] as const;
+	static persistFields = ["viewType", "flatten", "grouped", "groupBy", "zBasis", "labelAsZ", "pins", "follow", "prune", "readAsDocument", "dl", "showControls"] as const;
 
 	// Control-bar inputs the scene derives from its data/layout (via graph-scene-changed): the axes that vary with the
 	// data. type + role are always offered, so they seed the pre-data render; suppressesGrouping is false in the force view.
@@ -312,9 +314,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 				<div class="view-controls">
 					${viewActions({
 						fitId: POLYMORPHIC_IDS.FIT,
-						copyId: POLYMORPHIC_IDS.COPY_GRAPH,
 						onFit: () => this.fitGraph(),
-						getCopyText: () => this.mountedScene.graphCopyText(),
 						toggles: [
 							{
 								id: POLYMORPHIC_IDS.FOLLOW,
@@ -363,7 +363,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 				</div>
 			</div>
 			${this.renderSettingsRow(open)}
-			<shu-graph-filter data-persist-scope=${this.persistKey}></shu-graph-filter>
+			<shu-graph-filter data-persist-scope=${this.persistKey} ?data-show-controls=${this.state.openSettings === "filters" || this.showControls}></shu-graph-filter>
 			<div class="graph-area"><shu-graph-scene></shu-graph-scene></div>
 			</div>
 		`;
@@ -403,12 +403,12 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	}
 
 	/** The ∇ group shows the filter: the element stays mounted (its live chip feed and persistence run regardless) and
-	 *  gates its own visibility on `show-controls`, so opening the group is setting that one attribute. */
+	 *  gates its own visibility on `data-show-controls`, so opening the group is setting that one attribute. */
 	protected updated(): void {
 		const f = this.filterEl;
 		if (!f) return;
-		if (this.state.openSettings === "filters") f.setAttribute("show-controls", "");
-		else f.removeAttribute("show-controls");
+		if (this.state.openSettings === "filters" || this.showControls) f.setAttribute("data-show-controls", "");
+		else f.removeAttribute("data-show-controls");
 	}
 
 	/** The view's own root: every feature that drives the graph waits for it. */
