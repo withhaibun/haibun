@@ -14,6 +14,7 @@ export type Obj3D = {
 	quaternion?: { copy(q: unknown): void };
 	material?: { opacity: number; transparent: boolean };
 	children?: unknown[];
+	raycast?: () => unknown;
 	/** Parent another object to this one, as a group does its parts. */
 	add?(child: unknown): void;
 	remove?(child: unknown): void;

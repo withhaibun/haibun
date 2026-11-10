@@ -32,6 +32,7 @@ import type { Adornment } from "../derivations/graph-layout.js";
 import { CameraController } from "../controllers/camera-controller.js";
 import { PickController, type TPickThree } from "../controllers/pick-controller.js";
 import { GanttOverlay, type GanttThree } from "./gantt-overlay.js";
+import { EgoOverlay, type EgoThree } from "./ego-overlay.js";
 import { sceneDataHash, visibleGraph, type TSceneData } from "../derivations/scene-data.js";
 import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../../domains/elements.js";
 import { defineElement } from "../../controllers/element-controller.js";
@@ -51,7 +52,7 @@ import { LABEL_FONT_FALLBACKS } from "../../../domains/serving.js";
 import { DEFAULT_REGULATION_THRESHOLDS, evaluateRegulation, newRegulationState, recordFrameTime } from "../derivations/regulation.js";
 import { GRAPH_DRAWING_BLIP, GRAPH_FRAME_BLIP, GRAPH_REGULATION_BLIP, type TDrawingReason, type TWakeCause } from "../../../domains/graph-blips.js";
 import { actorBars, seqLabelOf, seqNodesOf, sequenceExtentOf, type SeqNode } from "../derivations/sequence-model.js";
-import { type FGNode, type FGLink, type XYZ, GRAPH_SCENE_EVENT, linkEndId } from "../domains/graph-types.js";
+import { type FGNode, type FGLink, type XYZ, GRAPH_SCENE_EVENT, linkEndId, isPlaced } from "../domains/graph-types.js";
 import { forceLayout, type IGraphLayout } from "../derivations/polymorphic-layout.js";
 import { NODE_TEXT_COLOR, chipTextHeight } from "../derivations/layout-forces.js";
 import { paintMarkScene, type ShapeThree } from "./node-shapes.js";
@@ -609,9 +610,12 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			this.hoverSubject = id;
 			this.updateHoverInfo(node ?? null);
 			this.applyFocus();
+			if (node && isPlaced(node)) this.egoOverlay.show(node, this.nodeMap, this.currentLinks);
+			else this.egoOverlay.hide();
 		},
 		left: () => {
 			this.updateHoverInfo(null);
+			this.egoOverlay.hide();
 			if (this.hoverSubject) {
 				this.hoverSubject = null;
 				this.applyFocus();
@@ -658,6 +662,18 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			return this.enclosureCtl.unitEdges;
 		},
 		colors: () => ({ text: this.compassFgColor, accent: this.compassAccentColor }),
+	});
+
+	// The virtual ego-neighborhood hover overlay in 3D (WebGL / WebXR).
+	private egoOverlay = new EgoOverlay({
+		three: () => aframeThree() as EgoThree | undefined,
+		parent: () => this.enclosureParent(),
+		camera: () => this.fgCamera,
+		colors: () => ({ text: this.chipTextColor, accent: this.compassAccentColor, highlight: this.activeHighlightColor, border: NODE_BORDER_COLOR }),
+		markFor: (n) => this.markFor(n),
+		chipLabelOf: (n, m) => this.chipLabelOf(n, m),
+		markDirty: (cause) => this.markDirty(cause),
+		clock: this.#parts.clock,
 	});
 
 	constructor() {
@@ -867,6 +883,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			this.layoutTimer = undefined;
 			this.cameraCtl.end();
 			this.ganttOverlay.dispose();
+			this.egoOverlay.dispose();
 			this.enclosureCtl.dispose(); // boxes + the shared unit geometries (the gantt ghost reuses unitEdges but never disposes it)
 			// Release the scene's WebGL context deterministically: a context otherwise frees only at GC, and past the
 			// browser's concurrent-context cap the OLDEST context is silently lost, closed views must never be able to
@@ -979,6 +996,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		for (const l of this.currentLinks) l.__label?.faceCamera(q);
 		for (const label of this.enclosureCtl.labels()) label.faceCamera(q);
 		for (const label of this.ganttOverlay.labels()) label.faceCamera(q);
+		for (const label of this.egoOverlay.labels()) label.faceCamera(q);
 	}
 
 	private configureGraph(g: FGInstance): void {
