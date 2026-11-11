@@ -113,7 +113,7 @@
 			"actuality": {
 				"text": "mcp-server",
 				"status": "passed",
-				"tookMs": 600,
+				"tookMs": 700,
 				"digest": {
 					"mcp-server": "6c710ec3b9f627f32df0a59fb03960978e4eae1e54af532c3183aad1cbe2d155",
 					"modules/core/src": "f31e89cbcddd64d644792cb81fbdc4169d6dff570d3a66718bb5b9de28439453",
@@ -129,7 +129,7 @@
 				"/features/mcp-client.feature": {
 					"text": "/features/mcp-client",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 600,
 					"steps": 9
 				}
 			}

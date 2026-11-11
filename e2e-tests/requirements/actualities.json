@@ -544,7 +544,7 @@
 			"actuality": {
 				"text": "e2e-tests/requirements, node_modules/@haibun/cli/waypoints, node_modules/@haibun/logic/waypoints, node_modules/@haibun/core/waypoints",
 				"status": "passed",
-				"tookMs": 54700,
+				"tookMs": 61800,
 				"digest": {
 					"e2e-tests/requirements": "6ae656c0ff9fc5fd05522df94ca1444b34828b4cda6f2f508bb4ca9411cf1bc0",
 					"e2e-tests/src": "abf3b937865d1eae3ddf3137cadf0d8c6876188f3a403bc0b7fcedf837986f69",
@@ -572,7 +572,7 @@
 				"/features/01-prose-and-steps.feature.ts": {
 					"text": "Prose and steps",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 800,
 					"steps": 26
 				},
 				"/features/02-authority.feature.ts": {
@@ -596,19 +596,19 @@
 				"/features/05-goals.feature.ts": {
 					"text": "Goals over producer rules",
 					"status": "passed",
-					"tookMs": 1900,
+					"tookMs": 2300,
 					"steps": 41
 				},
 				"/features/06-world-and-products.feature.ts": {
 					"text": "The world's data and a step's products",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 700,
 					"steps": 21
 				},
 				"/features/07-records.feature.ts": {
 					"text": "Records, events and actualities",
 					"status": "passed",
-					"tookMs": 2500,
+					"tookMs": 2800,
 					"steps": 33
 				},
 				"/features/08-timing.feature.ts": {
@@ -620,13 +620,13 @@
 				"/features/09-surfaces.feature.ts": {
 					"text": "One path for every surface",
 					"status": "passed",
-					"tookMs": 900,
+					"tookMs": 1000,
 					"steps": 77
 				},
 				"/features/10-cli.feature.ts": {
 					"text": "The command line",
 					"status": "passed",
-					"tookMs": 1100,
+					"tookMs": 1300,
 					"steps": 11
 				},
 				"/features/11-performance.feature.ts": {
@@ -656,13 +656,13 @@
 				"/features/15-combined-statements.feature.ts": {
 					"text": "Combined statements",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 600,
 					"steps": 44
 				},
 				"/features/16-class-expressions.feature.ts": {
 					"text": "Class expressions",
 					"status": "passed",
-					"tookMs": 43900,
+					"tookMs": 49300,
 					"steps": 93
 				}
 			}

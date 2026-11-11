@@ -106,7 +106,7 @@
 			"actuality": {
 				"text": "modules/shu/tests-basic-auth",
 				"status": "passed",
-				"tookMs": 3400,
+				"tookMs": 3500,
 				"digest": {
 					"modules/core/src": "f31e89cbcddd64d644792cb81fbdc4169d6dff570d3a66718bb5b9de28439453",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",

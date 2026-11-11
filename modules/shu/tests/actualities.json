@@ -412,7 +412,7 @@
 			"actuality": {
 				"text": "modules/shu/tests, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 46400,
+				"tookMs": 49400,
 				"digest": {
 					"modules/cli/src": "2a30b0f7dc93f355455a023940b456906449b7bde09947dd20bce2b9d3b83e50",
 					"modules/core/src": "f31e89cbcddd64d644792cb81fbdc4169d6dff570d3a66718bb5b9de28439453",
@@ -438,7 +438,7 @@
 				"/features/federate.feature.ts": {
 					"text": "Federated graph reads from a sibling instance",
 					"status": "passed",
-					"tookMs": 1400,
+					"tookMs": 1300,
 					"steps": 6
 				},
 				"/features/monitor-serves.feature.ts": {
@@ -450,19 +450,19 @@
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
-					"tookMs": 32900,
-					"steps": 767
+					"tookMs": 35100,
+					"steps": 771
 				},
 				"/features/remote-store.feature.ts": {
 					"text": "A satellite instance keeps its records in the main instance's store",
 					"status": "passed",
-					"tookMs": 1400,
+					"tookMs": 2100,
 					"steps": 8
 				},
 				"/features/voice-ui.feature.ts": {
 					"text": "UI extension propagation: domain ui → concern catalog → SPA actions bar",
 					"status": "passed",
-					"tookMs": 2500,
+					"tookMs": 2700,
 					"steps": 211
 				}
 			}

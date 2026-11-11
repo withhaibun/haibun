@@ -44,7 +44,7 @@
 			"actuality": {
 				"text": "e2e-tests/capability, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
 				"status": "passed",
-				"tookMs": 900,
+				"tookMs": 1000,
 				"digest": {
 					"e2e-tests/capability": "f60a467b1916bade9b199593dc655ac9b6694b0c489cd1975c9c83bf14918d77",
 					"e2e-tests/src": "abf3b937865d1eae3ddf3137cadf0d8c6876188f3a403bc0b7fcedf837986f69",

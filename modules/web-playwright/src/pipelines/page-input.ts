@@ -31,13 +31,13 @@ export const enterInto = (session: BrowserSession, what: string, field: TStepVal
 export const selectOption = (session: BrowserSession, option: string, field: TStepValue): Promise<TActionResult> =>
 	attempted(`select "${option}" for ${String(field.value)}`, () => session.withScope(async (scope) => void (await locateByDomain(scope, field).selectOption({ label: option }))));
 
-/** Clicks a target; a forced click doesn't wait for the target to be visible and take the click. */
-export const click = (session: BrowserSession, target: TStepValue, force: boolean): Promise<TActionResult> =>
-	attempted(`click ${String(target.value)}`, () => session.withScope((scope) => locateByDomain(scope, target).click({ force })));
+/** Clicks a target once it is visible and takes the click. */
+export const click = (session: BrowserSession, target: TStepValue): Promise<TActionResult> =>
+	attempted(`click ${String(target.value)}`, () => session.withScope((scope) => locateByDomain(scope, target).click()));
 
 /** Moves the pointer over the element a target locates, as a reader pointing at it does; the pointer leaves it for the next target. */
-export const hoverOver = (session: BrowserSession, target: TStepValue, force: boolean): Promise<TActionResult> =>
-	attempted(`hover over ${String(target.value)}`, () => session.withScope((scope) => locateByDomain(scope, target).first().hover({ force })));
+export const hoverOver = (session: BrowserSession, target: TStepValue): Promise<TActionResult> =>
+	attempted(`hover over ${String(target.value)}`, () => session.withScope((scope) => locateByDomain(scope, target).first().hover()));
 
 /** Turns the mouse wheel over the element a target locates, up by the element's own height, as a reader reading back does. */
 export const scrollUpAScreen = (session: BrowserSession, target: TStepValue): Promise<TActionResult> =>

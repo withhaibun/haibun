@@ -360,24 +360,24 @@
 			"actuality": {
 				"text": "modules/shu/tests/federate-peer",
 				"status": "passed",
-				"tookMs": 100,
+				"tookMs": 200,
 				"digest": {
-					"modules/core/src": "1d4f90006983956232794c51b717c8ed7f25cdf6a707e0b536a58640e58f9af5",
+					"modules/core/src": "f31e89cbcddd64d644792cb81fbdc4169d6dff570d3a66718bb5b9de28439453",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
 					"modules/logic/src": "82e3c2d9cbf349686d57762184e962bbaa43d723dcc3352332bcc6b9ca914fba",
 					"modules/shu/src": "86adc87b972e81d13b14e0d26b8749b4296d5cafba753de67ad216ba465b689e",
 					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
-					"modules/web-playwright/src": "62c21be618f6d7208163056ab1a73ce26146a4b4beaad556e947c2523e9f3fec",
-					"modules/web-server-hono/src": "0e3398b018439a22d3b40078769ba8216ba4acab71ebb300d92402614238bf46"
+					"modules/web-playwright/src": "4aa35c85f88ab96beed3d2b70c7099011b99cd624b258d0584145c4464c25696",
+					"modules/web-server-hono/src": "90fb329c609079c9f91bfccb920e8b542f7d0ed7da87f2a46fdfdd43dfc1504e"
 				}
 			},
 			"features": {
 				"/features/serve.feature": {
 					"text": "/features/serve",
 					"status": "passed",
-					"tookMs": 0,
+					"tookMs": 100,
 					"steps": 4
 				}
 			}
@@ -497,15 +497,15 @@
 				"status": "passed",
 				"tookMs": 100,
 				"digest": {
-					"modules/core/src": "1d4f90006983956232794c51b717c8ed7f25cdf6a707e0b536a58640e58f9af5",
+					"modules/core/src": "f31e89cbcddd64d644792cb81fbdc4169d6dff570d3a66718bb5b9de28439453",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
 					"modules/logic/src": "82e3c2d9cbf349686d57762184e962bbaa43d723dcc3352332bcc6b9ca914fba",
 					"modules/shu/src": "86adc87b972e81d13b14e0d26b8749b4296d5cafba753de67ad216ba465b689e",
 					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
-					"modules/web-playwright/src": "62c21be618f6d7208163056ab1a73ce26146a4b4beaad556e947c2523e9f3fec",
-					"modules/web-server-hono/src": "0e3398b018439a22d3b40078769ba8216ba4acab71ebb300d92402614238bf46"
+					"modules/web-playwright/src": "4aa35c85f88ab96beed3d2b70c7099011b99cd624b258d0584145c4464c25696",
+					"modules/web-server-hono/src": "90fb329c609079c9f91bfccb920e8b542f7d0ed7da87f2a46fdfdd43dfc1504e"
 				}
 			},
 			"features": {
