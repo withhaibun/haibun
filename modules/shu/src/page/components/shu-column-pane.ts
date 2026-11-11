@@ -412,6 +412,53 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		}
 	}
 
+	override isTapActionApplied(action: TTapAction): boolean {
+		switch (action) {
+			case "minimize":
+				return this.isCollapsed;
+			case "maximize":
+				return this.hasAttribute(SHU_ATTR.DATA_MAXIMIZED);
+			case "pin":
+				return this.state.pinned;
+			case "position":
+				return this.docked;
+			case "settings":
+				return this.hasAttribute(SHU_ATTR.DATA_CONTROLS_ON) || Boolean(this.columnView?.hasAttribute?.(SHU_ATTR.SHOW_CONTROLS));
+			default:
+				return false;
+		}
+	}
+
+	override undoTapAction(action: TTapAction): void {
+		switch (action) {
+			case "minimize":
+				this.setMinimized(false);
+				this.open();
+				break;
+			case "maximize":
+				this.onMaximize();
+				break;
+			case "pin":
+				this.onPin();
+				break;
+			case "position":
+				this.onDock();
+				break;
+			case "settings":
+				this.onControlsToggle();
+				break;
+			default:
+				super.undoTapAction(action);
+		}
+	}
+
+	private onControlsToggle = (e?: Event): void => {
+		e?.stopPropagation();
+		const child = this.columnView as ShuElement<ZodObjectOrWrapped> | undefined;
+		child?.applyTapAction?.("settings");
+		this.requestUpdate();
+	};
+
 	private onMinimize = (e?: Event): void => {
 		e?.stopPropagation();
 		if (this.docked) return this.#setDockClosed(!this.#dockClosed);
@@ -575,6 +622,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		return html`
 			<div class=${CLASS.HEADER} data-testid=${columnType !== "query" ? TEST_ID.BROWSER_COLUMN : ""}>
 				<span class=${CLASS.LABEL} data-testid=${SHU_TEST_IDS.COLUMN_PANE.LABEL} title=${label}>${label}</span>
+				${this.renderTapUndoButtons()}
 			</div>
 			${collapsed ? spine : html`<div class=${CLASS.CONTENT}><slot @slotchange=${this.onSlotChange}></slot></div>`}
 			<div class=${CLASS.RESIZE} @pointerdown=${this.onResizeDown}></div>

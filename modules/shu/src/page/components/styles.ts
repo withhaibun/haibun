@@ -261,6 +261,13 @@ export const SHU_BASE = `
 	.future-event { opacity: 0.4; }
 	${JSON_DISCLOSURE_CSS}
 	.time-current { background: var(--shu-accent-soft); border-left: calc(var(--shu-border-w) * 3) solid var(--shu-accent); }
+	.pane-controls-group, .tap-undo-group {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--shu-space-1);
+		margin-left: auto;
+		flex-shrink: 0;
+	}
 `;
 
 /** The shared base sheet as a lit `CSSResult`, for `static styles = [shuBaseStyles, css\`…\`]`. One object across all components → lit builds the constructable `CSSStyleSheet` once and adopts it by reference into every shadow root (one parse, N light adoptions). It only consumes tokens and doesn't declare them, so it never blocks the document-level theme cascade. String-injecting shadow roots (manual `innerHTML`, template `<style>`) use the `SHU_BASE` string form instead. */

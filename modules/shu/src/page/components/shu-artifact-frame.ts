@@ -5,10 +5,11 @@
 import { html, css, unsafeCSS, nothing, type TemplateResult } from "lit";
 import { property, state } from "lit/decorators.js";
 import { z } from "zod";
-import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
+import { SHU_ATTR, SHU_EVENT, SHU_TAG, type TTapAction } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { shownOrReported } from "../controllers/artifact-controller.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 
 export const ArtifactFrameSchema = z.object({ maximized: z.boolean(), closable: z.boolean() });
 
@@ -61,7 +62,7 @@ export class ShuArtifactFrame extends ShuElement<typeof ArtifactFrameSchema> {
 		return null;
 	}
 
-	static styles = css`${unsafeCSS(STYLES)}`;
+	static styles = [shuBaseStyles, shuIconButtonStyles, css`${unsafeCSS(STYLES)}`];
 
 	/** The words that name the artifact; a frame without a caption shows a bare bar. */
 	@property() accessor caption = "";
@@ -72,6 +73,19 @@ export class ShuArtifactFrame extends ShuElement<typeof ArtifactFrameSchema> {
 
 	constructor() {
 		super(ArtifactFrameSchema, { maximized: false, closable: false });
+	}
+
+	override isTapActionApplied(action: TTapAction): boolean {
+		if (action === "maximize") return this.expanded;
+		return super.isTapActionApplied(action);
+	}
+
+	override undoTapAction(action: TTapAction): void {
+		if (action === "maximize") {
+			this.setFullscreen(false);
+			return;
+		}
+		super.undoTapAction(action);
 	}
 
 	protected override onTapMaximize(): void {
@@ -199,7 +213,7 @@ export class ShuArtifactFrame extends ShuElement<typeof ArtifactFrameSchema> {
 	};
 
 	render(): TemplateResult {
-		return html`<div class="frame"><div class=${this.caption === "" ? "caption bare" : "caption"}>${this.caption === "" ? nothing : html`<span>${this.caption}</span>`}</div>
+		return html`<div class="frame"><div class=${this.caption === "" ? "caption bare" : "caption"}>${this.caption === "" ? nothing : html`<span>${this.caption}</span>`}${this.renderTapUndoButtons()}</div>
 			<div class="content" @click=${this.onContentClick}><slot></slot></div>
 			<div class="step-caption">${this.stepText}</div></div>`;
 	}

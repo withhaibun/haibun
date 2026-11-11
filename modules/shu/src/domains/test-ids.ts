@@ -1,3 +1,5 @@
+import type { TTapAction } from "./elements.js";
+
 /**
  * Test IDs for Playwright targeting of components defined in @haibun/shu.
  * The components that declare external-component test ids (domains via getConcerns()) hold
@@ -13,6 +15,12 @@ export const SHU_TEST_IDS = {
 		PIN: "tap-action-pin",
 		POSITION: "tap-action-position",
 		COPY: "tap-action-copy",
+		UNDO_CLOSE: "tap-undo-close",
+		UNDO_MINIMIZE: "tap-undo-minimize",
+		UNDO_MAXIMIZE: "tap-undo-maximize",
+		UNDO_SETTINGS: "tap-undo-settings",
+		UNDO_PIN: "tap-undo-pin",
+		UNDO_POSITION: "tap-undo-position",
 	},
 	APP: {
 		ROOT: "shu-app",
@@ -276,3 +284,13 @@ export const SHU_TEST_IDS = {
 		FINDING: "domain-chain-finding",
 	},
 } as const;
+
+export const SHU_TAP_UNDO_TEST_IDS: Readonly<Record<TTapAction, string>> = {
+	close: SHU_TEST_IDS.TAP_ACTIONS.UNDO_CLOSE,
+	minimize: SHU_TEST_IDS.TAP_ACTIONS.UNDO_MINIMIZE,
+	maximize: SHU_TEST_IDS.TAP_ACTIONS.UNDO_MAXIMIZE,
+	settings: SHU_TEST_IDS.TAP_ACTIONS.UNDO_SETTINGS,
+	pin: SHU_TEST_IDS.TAP_ACTIONS.UNDO_PIN,
+	position: SHU_TEST_IDS.TAP_ACTIONS.UNDO_POSITION,
+	copy: "tap-undo-copy",
+};

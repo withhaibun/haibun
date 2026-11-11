@@ -37,12 +37,12 @@
 
 import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
-import { LitElement, type PropertyValues, type TemplateResult } from "lit";
+import { html, nothing, LitElement, type PropertyValues, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { SignalWatcher } from "@lit-labs/signals";
 import { z } from "zod";
-import { SHU_TAG, SHU_ATTR, SHU_EVENT, SPINE_SLOT, INDEX_PANE_KEY, type TTapAction } from "../../domains/elements.js";
-import { SHU_TEST_IDS } from "../../domains/test-ids.js";
+import { SHU_TAG, SHU_ATTR, SHU_EVENT, SPINE_SLOT, INDEX_PANE_KEY, SHU_TAP_ACTIONS, SHU_TAP_ACTION_ICONS, type TTapAction } from "../../domains/elements.js";
+import { SHU_TEST_IDS, SHU_TAP_UNDO_TEST_IDS } from "../../domains/test-ids.js";
 import { activePane } from "../controllers/page-cell-controller.js";
 import { getPageClipboard, getPageTapAction } from "../controllers/tap-action-controller.js";
 import type { TSharedCell } from "../ports.js";
@@ -596,6 +596,84 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 			return Boolean(this.#fields.showControls);
 		}
 		return this.hasAttribute(SHU_ATTR.SHOW_CONTROLS);
+	}
+
+	/** Whether a tap action is currently in its applied state on this element. */
+	isTapActionApplied(action: TTapAction): boolean {
+		switch (action) {
+			case "minimize":
+				return "minimized" in this._schema.shape && Boolean(this.#fields.minimized);
+			case "maximize":
+				return "maximized" in this._schema.shape && Boolean(this.#fields.maximized);
+			case "settings":
+				return "showControls" in this._schema.shape && Boolean(this.#fields.showControls);
+			case "pin":
+				return "pinned" in this._schema.shape && Boolean(this.#fields.pinned);
+			case "position":
+				return "docked" in this._schema.shape && Boolean(this.#fields.docked);
+			default:
+				return false;
+		}
+	}
+
+	/** The tap actions currently in their applied state on this element that can be undone. */
+	appliedTapActions(): TTapAction[] {
+		const actions: TTapAction[] = [];
+		for (const action of SHU_TAP_ACTIONS) {
+			if (action === "copy" || action === "close") continue;
+			if (this.isTapActionApplied(action)) actions.push(action);
+		}
+		return actions;
+	}
+
+	/** Reverses a previously applied tap action on this element. */
+	undoTapAction(action: TTapAction): void {
+		switch (action) {
+			case "minimize":
+				this.onTapMinimize();
+				break;
+			case "maximize":
+				this.onTapMaximize();
+				break;
+			case "settings":
+				this.onTapSettings();
+				break;
+			case "pin":
+				this.onTapPin();
+				break;
+			case "position":
+				this.onTapPosition();
+				break;
+		}
+	}
+
+	/** Renders highlighted undo buttons for all tap actions currently applied to this element. */
+	renderTapUndoButtons(): TemplateResult | typeof nothing {
+		const actions = this.appliedTapActions();
+		if (actions.length === 0) return nothing;
+		return html`
+			<span class="pane-controls-group tap-undo-group">
+				${actions.map((action) => {
+					const icon = SHU_TAP_ACTION_ICONS[action];
+					const testId = SHU_TAP_UNDO_TEST_IDS[action];
+					return html`
+						<button
+							class="pane-icon tap-undo"
+							type="button"
+							aria-pressed="true"
+							data-tap-undo=${action}
+							data-testid=${testId}
+							title="Undo ${action}"
+							aria-label="Undo ${action}"
+							@click=${(e: Event) => {
+								e.stopPropagation();
+								this.undoTapAction(action);
+							}}
+						>${icon}</button>
+					`;
+				})}
+			</span>
+		`;
 	}
 
 	/** Force a re-render. Most callers should not need this, mutate state via `setState` instead. Kept as an explicit escape hatch for callers that need to refresh after side-channel state change. */
