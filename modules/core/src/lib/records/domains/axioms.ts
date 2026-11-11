@@ -5,6 +5,7 @@
  */
 import { z } from "zod";
 import { IndividualAddressSchema } from "../../domains/typed-links.js";
+import { IndividualWithEdgesSchema } from "../../steps/domains/quad-types.js";
 
 /** The symbols of DL notation the axioms and a claim's witness write, which a graph's labels draw: subsumption and its failure,
  *  the existential and universal restrictions, union, intersection, the top class, membership and its failure, and entailment. */
@@ -63,3 +64,12 @@ export type TGraphAxioms = z.infer<typeof GraphAxiomsSchema>;
 export const AXIOMS_COMPONENT = "shu-graph-source";
 /** The domain of a graph's axioms, which the step that returns them declares. */
 export const DOMAIN_GRAPH_AXIOMS = "graph-axioms";
+
+/** The frame that states a Class or Property record itself, as a graph's axioms state it: its axioms in DL notation, one to a
+ *  line, and its Manchester syntax. */
+export const RecordFrameSchema = z.object({ lines: z.array(z.string()), manchester: z.string() }).strict();
+export type TRecordFrame = z.infer<typeof RecordFrameSchema>;
+
+/** An individual as a site reads it: the record, the edges either way, how many edges point at it, and the frame of a Class or
+ *  Property record. */
+export const FramedIndividualSchema = IndividualWithEdgesSchema.extend({ frame: RecordFrameSchema.optional() });

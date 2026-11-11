@@ -23,13 +23,11 @@ import {
 	DOMAIN_DENSITY_QUERY,
 	DensityResultSchema,
 	type TDensityRequest,
-	IndividualWithEdgesSchema,
 } from "@haibun/core/lib/quad-types.js";
-import { recordWithEdges } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { compiledDensity, readRecordQuery } from "@haibun/core/lib/records/pipelines/record-query.js";
 import { DOMAIN_RECORD_ID, DOMAIN_LINK, DOMAIN_PRINCIPAL_REF, type TIndividualRef } from "@haibun/core/lib/domains/domains.js";
-import { clusteredQuads, federate, graphAxiomsOf, selectValues, servingSite } from "./pipelines/graph-source.js";
-import { DOMAIN_GRAPH_AXIOMS } from "@haibun/core/lib/records/domains/axioms.js";
+import { clusteredQuads, federate, graphAxiomsOf, recordWithFrame, selectValues, servingSite } from "./pipelines/graph-source.js";
+import { DOMAIN_GRAPH_AXIOMS, FramedIndividualSchema } from "@haibun/core/lib/records/domains/axioms.js";
 import { GraphViewSchema, ViewAxiomsSchema, type TGraphView } from "./domains/graph-view.js";
 import { SHU_TAG } from "./domains/elements.js";
 import { POLYMORPHIC_VIEW_JS } from "./domains/serving.js";
@@ -74,7 +72,11 @@ const SubjectServedSchema = z.object({ subject: z.string(), site: z.string() });
 /** The site from which a peer's reads were federated. */
 const SiteFederatedSchema = z.object({ site: z.string() });
 const GRAPH_SOURCE_DOMAINS: TDomainDefinition[] = [
-	{ selectors: [DOMAIN_INDIVIDUAL_WITH_EDGES], schema: IndividualWithEdgesSchema, description: "A record, the edges either way, and how many edges point at it" },
+	{
+		selectors: [DOMAIN_INDIVIDUAL_WITH_EDGES],
+		schema: FramedIndividualSchema,
+		description: "A record, the edges either way, how many edges point at it, and the frame of a Class or Property record",
+	},
 	{ selectors: [DOMAIN_SELECT_VALUES], schema: ShuSelectValuesSchema, description: "The values a field of a type holds, which a filter selects from" },
 	{ selectors: [DOMAIN_CLUSTERED_QUADS], schema: ClusteredQuadsSchema, description: "The clustered sample a graph view draws" },
 	{ selectors: [DOMAIN_SUBJECT_SERVED], schema: SubjectServedSchema, description: "A subject the merged graph holds, and the site that serves it" },
@@ -125,7 +127,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			readsAt: Access.public,
 			gwta: `get individual {label: ${DOMAIN_PERSISTED_TYPE}} {id: ${DOMAIN_RECORD_ID}} with edges`,
 			description:
-				"Returns the record of the given type and id, the edges either way, and how many edges point at it, from the store this instance holds. Fails where the record isn't held, stating the collection that lists the records the instance holds.",
+				"Returns the record of the given type and id, the edges either way, how many edges point at it, and the frame of a Class or Property record, from the store this instance holds. Fails where the record isn't held, stating the collection that lists the records the instance holds.",
 			recordIds: { id: "label" },
 			fallback: true,
 			contract: { products: DOMAIN_INDIVIDUAL_WITH_EDGES },
@@ -133,7 +135,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			// this instance holds, which is what a site without a graph engine of its own has; a deployment that gates a
 			// read by what a reader may see declares its own step, and the page reads through that one instead.
 			action: async ({ label, id }: { label: string; id: string }) => {
-				const held = await recordWithEdges(this.getWorld().shared.getStore(), label, id);
+				const held = await recordWithFrame(this.getWorld().shared.getStore(), label, id);
 				return held === undefined
 					? actionNotOK(`actuality doesn't hold the ${label} record ${id}; the ${label} collection lists the records it holds`, { remedy: typeCollectionRemedy(label) })
 					: actionOKWithProducts(held);

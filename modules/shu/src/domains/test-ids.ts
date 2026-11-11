@@ -86,6 +86,8 @@ export const SHU_TEST_IDS = {
 		ENTITY_DETAILS: "entity-details",
 		/** The record's type, a link to the type's view. */
 		ENTITY_TYPE_LINK: "entity-type-link",
+		/** The frame that states a Class or Property record: its axioms in DL notation and in Manchester syntax. */
+		ENTITY_FRAME: "entity-frame",
 		/** A call the record offers, by its rel: `entity-offer-{rel}`. */
 		ENTITY_OFFER: "entity-offer",
 		ENTITY_STEP: "entity-step",

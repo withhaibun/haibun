@@ -19,6 +19,7 @@ import { EntityController } from "../controllers/entity-controller.js";
 import { unread, type TEntityResult, type TEntityView, type TAnnotationDraft } from "../domains/entity.js";
 import { LOAD_STATUS } from "../domains/load.js";
 import type { TLinkedBody } from "@haibun/core/lib/records/domains/body.js";
+import type { TRecordFrame } from "@haibun/core/lib/records/domains/axioms.js";
 import { fragmentReads, isFragment, pageOfPassage, pdfPage, type TFragment } from "@haibun/core/lib/domains/media-fragments.js";
 import {
 	edgeRecordType,
@@ -69,6 +70,14 @@ type EdgeData = { type: string; target: VertexData; direction?: "out" | "in" };
  *  element upgrades once its module loads, with the properties the column set on it. A single-file bundle holds the
  *  module, and reads it without a fetch. */
 const annotatedBody = loadedOnFirstUse(() => import("./shu-annotated-body.js").then(() => undefined));
+
+/** Returns the frame of a Class or Property record as HTML: its axioms in DL notation, one to a line, and then its Manchester
+ *  syntax. A record of another type doesn't state a frame, and returns empty text. */
+const frameHtml = (frame: TRecordFrame | undefined): string =>
+	frame === undefined ? "" : `<pre data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_FRAME}">${esc([...frame.lines, "", frame.manchester].join("\n"))}</pre>`;
+
+/** Returns the text a field's value copies as: a list's items joined, else the value as text. */
+const copyTextOf = (v: unknown): string => (Array.isArray(v) ? v.join(", ") : v === null || v === undefined ? "" : String(v));
 
 /** How many fields the field table shows open. A record with many fields dumps them all at once, so a table holding more
  *  starts closed behind a summary naming how many, and a reader opens it when a field is the question. */
@@ -229,6 +238,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const { _type, _summary, _component, _links, _undo, _seqPath, ...data } = products;
 		this.vertex = data;
 		this.edges = [];
+		this.#frame = undefined;
 		this.incomingCount = counted(0);
 		this.products = products;
 		this.annotationsList = [];
@@ -239,6 +249,9 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	/** Write a note the reader authored in the body, and re-resolve so it reads back anchored. The body reports what was
 	 *  selected and written; the individual (and the entity handle that reaches it) is the column's, so the write is too. */
 	private readonly annotateDraft = (draft: TAnnotationDraft): Promise<TWritten> => this.entity.annotate(draft);
+
+	/** The frame that states a Class or Property record, as the axioms pane shows it; undefined for a record of another type. */
+	#frame: TRecordFrame | undefined;
 
 	/** Why the record wasn't read, where its read was refused. */
 	#refusal: TPageRefusal | undefined = undefined;
@@ -261,6 +274,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	private applyEntity(result: TEntityResult): void {
 		this.vertex = result.vertex;
 		this.edges = result.edges as EdgeData[];
+		this.#frame = result.frame;
 		this.incomingCount = result.incomingCount;
 		this.products = result;
 		this.#statedError = this.statedError();
@@ -365,7 +379,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const bodyLiterals = this.renderBodyLiterals(persistedAs);
 		const governance = this.renderGovernance(persistedAs);
 		const isStub = Object.values(fields).filter((v) => (Array.isArray(v) ? v.length > 0 : v)).length <= 1 && contentIframe.length === 0 && bodyLiterals.length === 0;
-		const typeLine = this.typeLine(persistedAs);
+		// A Class or Property record states its frame below its type.
+		const typeLine = `${this.typeLine(persistedAs)}${frameHtml(this.#frame)}`;
 
 		let contentHtml: string;
 		if (isStub) {
@@ -379,9 +394,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			const detailRows = detailEntries
 				.map(([k, v]) => {
 					if (this.isTypeField(k)) return this.typeRow(k, v);
-					const rawVal = Array.isArray(v) ? v.join(", ") : v === null || v === undefined ? "" : String(v);
 					const valueHtml = Array.isArray(v) ? v.map((item) => this.formatFieldValue(item, k)).join(", ") : this.formatFieldValue(v, k);
-					return `<tr><td class="field-name">${this.predicateLink(k)}${this.vocabBadge(k)}</td><td data-testid="entity-field-${escAttr(k)}" data-copy="${escAttr(rawVal)}">${valueHtml}</td></tr>`;
+					return `<tr><td class="field-name">${this.predicateLink(k)}${this.vocabBadge(k)}</td><td data-testid="entity-field-${escAttr(k)}" data-copy="${escAttr(copyTextOf(v))}">${valueHtml}</td></tr>`;
 				})
 				.join("");
 			const detailTable = detailRows ? `<table class="detail-table fields-table" data-testid="entity-fields">${detailRows}</table>` : "";
@@ -396,10 +410,9 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 							.flatMap((k) => {
 								const v = fields[k];
 								if (!v || (Array.isArray(v) && v.length === 0)) return [];
-								const rawVal = Array.isArray(v) ? v.join(", ") : v === null || v === undefined ? "" : String(v);
 								const valueHtml = Array.isArray(v) ? v.map((item) => this.fieldValueHtml(item, k)).join(", ") : this.fieldValueHtml(v, k);
 								return [
-									`<span class="summary-field" data-testid="entity-field-${escAttr(k)}" data-copy="${escAttr(rawVal)}">${this.predicateLink(k)}${this.vocabBadge(k)} ${valueHtml}</span>`,
+									`<span class="summary-field" data-testid="entity-field-${escAttr(k)}" data-copy="${escAttr(copyTextOf(v))}">${this.predicateLink(k)}${this.vocabBadge(k)} ${valueHtml}</span>`,
 								];
 							})
 							.join(" ")}</div>`

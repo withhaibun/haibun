@@ -12,6 +12,7 @@ import { CountedFields, CountedSchema } from "../../domains/hypermedia.js";
 import type { TJsonArtifact } from "../../domains/protocol.js";
 import { ellipsize } from "../../domains/util.js";
 import { conditionExpression, KEYWORD, manchesterOf } from "../../records/domains/class-expression.js";
+import type { TRecordFrame } from "../../records/domains/axioms.js";
 
 /**
  * The named graph of the variables actuality holds. The quad store reads it here, so it doesn't import feature-variables.
@@ -233,9 +234,10 @@ export const IncomingEdgesSchema = z.object({ edges: z.array(QuadEdgeSchema), ..
 export type TIncomingEdges = z.infer<typeof IncomingEdgesSchema>;
 
 /** An individual as a view reads it: the record, the edges either way, and how many edges point at it. A site reading its
- *  own store and a page reading what it holds return this one shape. */
+ *  own store and a page reading what it holds return this one shape, and a site's read adds the frame of a Class or Property
+ *  record, which `FramedIndividualSchema` checks. */
 export const IndividualWithEdgesSchema = z.object({ vertex: z.record(z.string(), z.unknown()), edges: z.array(QuadEdgeSchema), incomingCount: CountedSchema });
-export type TIndividualWithEdges = z.infer<typeof IndividualWithEdgesSchema>;
+export type TIndividualWithEdges = z.infer<typeof IndividualWithEdgesSchema> & { frame?: TRecordFrame };
 
 export interface TQuad {
 	subject: string;

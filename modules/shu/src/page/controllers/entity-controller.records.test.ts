@@ -66,14 +66,17 @@ describe("an open of a record", () => {
 		expect(view.annotations.map((a) => a.body)).toEqual(["first note"]);
 	});
 
-	it("serves an already-resolved individual from the session copy without refetching it", async () => {
-		const { dispatch, calls } = stubDispatch();
+	it("shows a held individual at once from the copy the page holds, and reads it again, so a held copy gains the fields a read returns", async () => {
+		let read = 0;
+		const { dispatch, calls } = stubDispatch({ entity: () => (++read === 1 ? entity("Hi") : { ...entity("Hi"), frame: { lines: ["Email ⊑ Message"], manchester: "" } }) });
 		handle = setupShuTest({ dispatch });
-		await openRecord("Email", "e1", "private");
-		expect(calls.entity).toBe(1);
-		await openRecord("Email", "e1", "private");
-		expect(calls.entity).toBe(1);
+		await openRecord("Email", "e1", "public");
+		const opening = openRecord("Email", "e1", "private");
 		expect(recordView("Email", "e1").provenance).toBe("cache");
+		await opening;
+		expect(calls.entity).toBe(2);
+		expect(recordView("Email", "e1").provenance).toBe("live");
+		expect(recordView("Email", "e1").entity?.frame?.lines).toEqual(["Email ⊑ Message"]);
 	});
 
 	it("reports the server's error when the server rejects the read of the individual", async () => {

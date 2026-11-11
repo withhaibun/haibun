@@ -37,8 +37,8 @@ export const followRecords = (listener: OpenRecord.TRecordListener): (() => void
 
 /**
  * EntityController: a view's handle to one record (`page/pipelines/open-record.ts`): the record, the notes anchored in it,
- * and how the page read it. A view holds one and calls `open(label, id, accessLevel)`. The page reads each record once and
- * keeps it current, for every view of it, so the controller passes the record's view to its host on the open, on an
+ * and how the page read it. A view holds one and calls `open(label, id, accessLevel)`. The page holds each record, reads it
+ * on each open, and keeps it current, for every view of it, so the controller passes the record's view to its host on the open, on an
  * observed change, and on a new note, by one path.
  */
 export class EntityController implements ReactiveController {

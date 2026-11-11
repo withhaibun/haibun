@@ -17,6 +17,8 @@ import { requestSigner } from "@haibun/core/lib/domains/session-authority.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { withOntologySchema } from "../derivations/ontology-projection.js";
 import { buildGraphModelFromQuads } from "../derivations/graph-model.js";
+import { recordFrame } from "../derivations/record-frame.js";
+import { recordWithEdges } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import type { TOpenPeerGraphSource, TPeerCalls } from "../ports.js";
 import { RPC_METHOD } from "../domains/elements.js";
 import { AUTHORITY_CAPABILITIES } from "@haibun/core/lib/domains/actions.js";
@@ -196,4 +198,11 @@ export async function selectValues(world: TWorld, label: string): Promise<Record
 	const store = world.shared.getStore();
 	const filtered = Object.entries(properties).filter(([, definition]) => relOf(definition) === LinkRelations.CONTEXT.rel);
 	return Object.fromEntries(await Promise.all(filtered.map(async ([property]) => [property, (await store.distinctPropertyValues(label, property)).values] as const)));
+}
+
+/** Returns the record of `label` and `id` in `store` with its edges either way, how many edges point at it, and the frame of a
+ *  Class or Property record; undefined where the store doesn't hold it. */
+export async function recordWithFrame(store: Parameters<typeof recordWithEdges>[0], label: string, id: string) {
+	const held = await recordWithEdges(store, label, id);
+	return held === undefined ? undefined : { ...held, frame: recordFrame(label, held) };
 }

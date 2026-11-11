@@ -3,7 +3,7 @@
  * `or` and ⊔, an intersection of superclasses is `,` and ⊓, a domain is ∃p.⊤ ⊑ D and a range is ⊤ ⊑ ∀p.R. A name that
  * Manchester syntax doesn't read as written, such as one with a space, is an IRI in angle brackets.
  */
-import { DL_SYMBOL, FRAME_KIND } from "../domains/axioms.js";
+import { DL_SYMBOL, FRAME_KIND, type TFrame, type TGraphAxioms } from "../domains/axioms.js";
 
 /** A frame's axioms: its Manchester syntax and its DL notation. */
 export type TAxioms = { manchester: string; dl: string };
@@ -15,6 +15,10 @@ const SECTION = "\n    ";
 export const BETWEEN_AXIOMS = " · ";
 /** Separates the frames of a graph's Manchester text. */
 export const BETWEEN_FRAMES = "\n\n";
+
+/** The frame of `axioms` that states the record `id` itself: the class frame of a Class record, the property frame of a
+ *  Property record, else its individual frame. A graph's axioms list class and property frames before individual frames. */
+export const frameStating = ({ frames }: TGraphAxioms, id: string): TFrame | undefined => frames.find(({ kind, name }) => name === `${kind} ${id}`);
 
 /** A name as Manchester syntax and DL notation write it. */
 export const manchesterName = (name: string): string => (WRITTEN_NAME.test(name) ? name : `<${encodeURI(name)}>`);

@@ -3,7 +3,7 @@ import { FRAME_KIND, type TGraphAxioms } from "@haibun/core/lib/records/domains/
 import { axiomOverlay, sameOverlay, withAxioms } from "./axiom-overlay.js";
 import { edgeKey } from "./focus-policy.js";
 import type { TDrawn } from "./source-lines.js";
-import { CLASS_LABEL } from "@haibun/core/lib/domains/resources.js";
+import { CLASS_LABEL, PROPERTY_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { ONTOLOGY_FIELD } from "@haibun/core/lib/records/domains/ontology.js";
 import { graphAxioms } from "../../../derivations/graph-axioms.js";
 import type { GraphModel } from "../../../domains/graph-model.js";
@@ -51,16 +51,21 @@ describe("the graph's DL view", () => {
 });
 
 describe("the DL view of a graph", () => {
-	/** Two emails, one a reply to the other, and the Class record of Email, which the ontology states a kind of prov:Entity. */
+	/** Two emails, one a reply to the other, the Class record of Email, which the ontology states a kind of prov:Entity, and the
+	 *  Property record of inReplyTo, whose domain is Email. */
 	const MODEL: GraphModel = {
 		nodes: [
 			{ id: "m1", type: "Email", properties: {} },
 			{ id: "m2", type: "Email", properties: {} },
 			{ id: "Email", type: CLASS_LABEL, properties: {} },
+			{ id: "inReplyTo", type: PROPERTY_LABEL, properties: {} },
 		],
 		edges: [{ from: "m2", to: "m1", predicate: "inReplyTo", graph: "Email" }],
 	};
-	const ONTOLOGY = [{ subject: "Email", predicate: ONTOLOGY_FIELD.subClassOf, object: "prov:Entity", namedGraph: "ontology", timestamp: 0 }];
+	const ONTOLOGY = [
+		{ subject: "Email", predicate: ONTOLOGY_FIELD.subClassOf, object: "prov:Entity" },
+		{ subject: "inReplyTo", predicate: ONTOLOGY_FIELD.domain, object: "Email" },
+	];
 	const drawn: TDrawn = { nodes: MODEL.nodes.map(({ id }) => id), edges: MODEL.edges };
 
 	it("derives from the node and edge set the graph draws: the same ids, with axioms added", () => {
@@ -72,6 +77,7 @@ describe("the DL view of a graph", () => {
 		expect([...overlay.nodes.keys()].sort()).toEqual([...drawn.nodes].sort());
 		expect([...overlay.edges.keys()]).toEqual(drawn.edges.map(({ from, predicate, to }) => edgeKey(from, predicate, to)));
 		expect(overlay.nodes.get("Email")?.lines, "a Class record carries its class's ⊑ axiom and its own type").toEqual(["Email ⊑ prov:Entity", "∈ Class"]);
+		expect(overlay.nodes.get("inReplyTo")?.lines, "a Property record carries its property's axioms and its own type").toEqual(["∃inReplyTo.⊤ ⊑ Email", "∈ Property"]);
 		expect(overlay.nodes.get("m1")?.lines, "an individual carries its asserted type and its entailed one").toEqual(["∈ Email", "⊨ ∈ prov:Entity"]);
 	});
 });

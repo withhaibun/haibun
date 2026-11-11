@@ -1,6 +1,6 @@
 /**
- * The records the page shows (`page/domains/entity.ts`), each read once and kept current: a record opens from the copy the
- * page holds, or reads through the site, and its notes read by the same provenance. An observed quad updates a field of a
+ * The records the page shows (`page/domains/entity.ts`), each kept current: a record opens from the copy the page holds and
+ * reads through the site on each open, and its notes read by the same provenance. An observed quad updates a field of a
  * held record in place, an observed edge of a held record reads the record again, and a note anchored in a held record from
  * any page reads its notes again.
  */
@@ -128,21 +128,17 @@ async function readAnnotationsInto(scope: TOpenScope, entry: TEntry): Promise<vo
 	if (seq === entry.annotationSeq) entry.view = { ...entry.view, annotations: read.value };
 }
 
-/** Opens a record and its notes, and calls the listeners at each step. A held record opens at once as `cache`. Another
- *  record reads through `readAt`, as `offline` where the page carries a record of actuality and `live` otherwise; a refused
- *  read holds the refusal. */
+/** Opens a record and its notes, and calls the listeners at each step. A held record shows at once as `cache`, and every
+ *  open reads the record through `readAt`, as `offline` where the page carries a record of actuality and `live` otherwise:
+ *  a held copy read at another level, or by a read that doesn't state every field, lacks fields this read returns. A
+ *  refused first read holds the refusal. */
 export async function openRecord(scope: TOpenScope, label: string, id: string, accessLevel: string): Promise<void> {
 	followQuads(scope);
 	const entry = entryOf(scope.store, label, id, accessLevel);
-	if (entry.view.entity !== undefined) {
-		entry.view = { ...entry.view, status: LOAD_STATUS.COMPLETED, provenance: "cache" };
-		notify(scope, id);
-	} else {
-		entry.view = unreadView(LOAD_STATUS.RUNNING);
-		notify(scope, id);
-		await readRecordInto(scope, entry);
-		if (entry.view.entity === undefined) return;
-	}
+	entry.view = entry.view.entity === undefined ? unreadView(LOAD_STATUS.RUNNING) : { ...entry.view, status: LOAD_STATUS.COMPLETED, provenance: "cache" };
+	notify(scope, id);
+	await readRecordInto(scope, entry);
+	if (entry.view.entity === undefined) return;
 	await readAnnotationsInto(scope, entry);
 	notify(scope, id);
 }

@@ -1,7 +1,7 @@
 /**
  * The graph's DL view: the axioms of what the graph shows, mapped onto the same nodes and edges the scene draws. An individual
- * carries the type its record asserts (∈) and the types the ontology entails (⊨ ∈), a Class record carries its class's axioms,
- * and an edge carries its property's. A refused claim's witness marks in place the records that exceed its subsumption (∉) and
+ * carries the type its record asserts (∈) and the types the ontology entails (⊨ ∈), a Class or Property record carries its
+ * class's or property's axioms, and an edge carries its property's. A refused claim's witness marks in place the records that exceed its subsumption (∉) and
  * the class it names (⋢), a claim K contradicts marks the individual, the two disjoint classes and the disjointness between them
  * with the vocabulary that states it, and a derivation's witness marks the records its proof wrote with the axioms of their frames. A node or
  * an edge the scene doesn't draw doesn't carry an axiom.
@@ -38,14 +38,16 @@ export function axiomOverlay(drawn: TDrawn, axioms: TGraphAxioms, witness: TWitn
 			if (id === undefined || !drawnNodes.has(id) || frame.assertedBy === undefined) continue;
 			const entailed = frame.entailed === undefined ? [] : frame.entailed;
 			carry(nodes, id, [`${DL_SYMBOL.member} ${frame.assertedBy.persistedAs}`, ...entailed.map((type) => `${DL_SYMBOL.entails} ${DL_SYMBOL.member} ${type}`)], frame.name);
-		} else if (frame.kind === FRAME_KIND.class) {
-			// A class frame carries its axioms on the Class record that is the class; a type's records carry their types.
-			for (const id of frame.nodes) if (drawnNodes.has(id) && frame.name === `${FRAME_KIND.class} ${id}`) carry(nodes, id, frame.dl.split(BETWEEN_AXIOMS), frame.name);
-		} else
-			for (const { from, label, to } of frame.edges) {
-				const key = edgeKey(from, label, to);
-				if (drawnEdges.has(key)) carry(edges, key, frame.dl.split(BETWEEN_AXIOMS), frame.name);
-			}
+			continue;
+		}
+		// A class or property frame carries its axioms on the Class or Property record it states, and on each edge of its
+		// property; a type's records carry their types.
+		const lines = frame.dl.split(BETWEEN_AXIOMS);
+		for (const id of frame.nodes) if (drawnNodes.has(id) && frame.name === `${frame.kind} ${id}`) carry(nodes, id, lines, frame.name);
+		for (const { from, label, to } of frame.edges) {
+			const key = edgeKey(from, label, to);
+			if (drawnEdges.has(key)) carry(edges, key, lines, frame.name);
+		}
 	}
 	const witnessed = new Set<string>();
 	const mark = (id: string, lines: string[], kind: string): void => {

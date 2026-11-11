@@ -1,13 +1,13 @@
 /**
  * The axioms of what a graph model shows, in DL notation: an individual frame for each record, with its type as its class and
  * each literal property and each edge to another record as a fact; a class frame for each type it shows, with its superclasses;
- * and a property frame for each property it shows, with the union of its domain and of its range. A frame names the record that
+ * and a property frame for each property it shows and each Property record, with the union of its domain and of its range. A frame names the record that
  * asserted it and states the record's line where the record is a step's. A node that stands for the records a sample leaves out
  * isn't a record, so it and its edges don't state a frame.
  */
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { ONTOLOGY_FIELD } from "@haibun/core/lib/records/domains/ontology.js";
-import { CLASS_LABEL } from "@haibun/core/lib/domains/resources.js";
+import { CLASS_LABEL, PROPERTY_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { DL_SYMBOL, FRAME_KIND, type TGraphAxioms, type TFrame } from "@haibun/core/lib/records/domains/axioms.js";
 import { registeredVocabularies, vocabularyName, vocabularyOf } from "@haibun/core/lib/domains/vocabulary-registry.js";
 import { NAMESPACE } from "@haibun/core/lib/domains/vocabularies.js";
@@ -41,9 +41,12 @@ function literalValue(node: GraphNode, property: string, value: unknown): string
 	throw new Error(`the property ${property} of ${node.id} holds a ${typeof value}, and a graph model holds text, a number or a boolean for a property`);
 }
 
+/** A statement of the ontology the axioms read: a term, a field of the ontology, and its value. */
+export type TOntologyStatement = Pick<TQuad, "subject" | "predicate" | "object">;
+
 /** Returns the axioms of a graph model, with the classes and properties the ontology's quads state for what it shows. An
  *  edge's property is the link relation its type declares for it, as `relOf` returns it. */
-export function graphAxioms({ nodes, edges }: GraphModel, ontology: readonly TQuad[], relOf: (type: string, edge: string) => string): TGraphAxioms {
+export function graphAxioms({ nodes, edges }: GraphModel, ontology: readonly TOntologyStatement[], relOf: (type: string, edge: string) => string): TGraphAxioms {
 	const records = new Map(nodes.filter((node) => node.isCluster !== true).map((node) => [node.id, node]));
 	// A record's edge to its Class states the class assertion its individual frame states from its type, so it isn't a property.
 	const shownEdges = edges.filter((edge) => records.has(edge.from) && records.has(edge.to) && edge.predicate !== INSTANCE_OF);
@@ -127,13 +130,15 @@ export function graphAxioms({ nodes, edges }: GraphModel, ontology: readonly TQu
 		if (held === undefined) byRel.set(rel, [edge]);
 		else held.push(edge);
 	}
+	// A Property record is a property as well as an individual of Property: its node carries the property's own axioms.
+	for (const node of records.values()) if (node.type === PROPERTY_LABEL && !byRel.has(node.id)) byRel.set(node.id, []);
 	const properties = [...byRel].map(
 		([rel, held]): TFrame => ({
 			name: `${FRAME_KIND.property} ${rel}`,
 			kind: FRAME_KIND.property,
 			...propertyAxioms(rel, objectsOf(rel, ONTOLOGY_FIELD.domain), objectsOf(rel, ONTOLOGY_FIELD.range), objectsOf(rel, ONTOLOGY_FIELD.subPropertyOf)),
 			statement: `the link relation ${rel}`,
-			nodes: [],
+			nodes: records.get(rel)?.type === PROPERTY_LABEL ? [rel] : [],
 			edges: held.map(({ from, predicate, to }) => ({ from, label: predicate, to })),
 		}),
 	);

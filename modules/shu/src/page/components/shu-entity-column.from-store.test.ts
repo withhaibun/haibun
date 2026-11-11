@@ -36,9 +36,14 @@ describe("shu-entity-column stored-copy indication", () => {
 		expect(badge(el)).toBeUndefined();
 	});
 
-	it("indicates it when the individual is served from the copy already held, rather than fetched again", async () => {
+	it("indicates it while a second view shows the copy already held, until the read of that view returns", async () => {
 		await open(); // resolves and holds it
-		const second = await open(); // a second view of the same individual is served from that copy
+		const second = document.body.appendChild(new ShuEntityColumn());
+		const opening = second.open("t1", "Task");
+		await second.updateComplete;
 		expect(badge(second)).toContain("copy held this session");
+		await opening;
+		await second.updateComplete;
+		expect(badge(second)).toBeUndefined();
 	});
 });
