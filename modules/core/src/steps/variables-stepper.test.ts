@@ -462,9 +462,12 @@ set quoted to "snap.hilighted"
 variable quoted is "snap.hilighted"`;
 		expect((await passWithDefaults(content, steppers)).ok).toBe(true);
 	});
-	it.each(["file.json", "/api/items", "https://example.com/a", "did:web:example.com"])("refuses an unquoted %s, which doesn't name a variable", async (term) => {
+	it.each(["file.json", "https://example.com/a", "did:web:example.com"])("refuses an unquoted %s, which starts as a variable's name and doesn't name one", async (term) => {
 		const res = await failWithDefaults(`set named to ${term}`, steppers);
 		expect(res.failure?.error.message).toContain(`${term} doesn't name a variable or an environment variable. Quote it to pass it as a literal.`);
+	});
+	it.each(["/api/items", "#alerts", ".item.active", "[data-id=a.b]"])("takes an unquoted %s, which starts with a symbol, as the literal it states", async (term) => {
+		expect((await passWithDefaults(`set named to ${term}\nvariable named is "${term}"`, steppers)).ok).toBe(true);
 	});
 	it("passes when variable is in env", async () => {
 		const content = `variable "fromenv" exists`;

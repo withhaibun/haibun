@@ -600,7 +600,7 @@ For `Origin.defined` (the common case for unquoted variable references):
 4. Domain value: If the parameter's domain lists values (an enum) and the term is one of them, the term is that value, so `click "username" by placeholder` and `make an HTTP GET to ...` don't need quotes. A variable of the same name still wins
 5. Otherwise the term is refused, and the message states to quote it to pass it as a literal. A dot path that names a field its variable doesn't have is refused with the fields the variable has
 
-A number, JSON, and a length of time for a duration parameter (`pause for 30 s`) are literals as the line writes them.
+A number, a length of time for a duration parameter (`pause for 30 s`) and a term that starts with a symbol are literals as the line writes them. A variable's name starts with a letter, a digit or an underscore, so a term that starts with any other character, as JSON, a CSS selector (`#alerts`, `.item.active`), a path (`/api/items`) or a glob (`*.json`) does, isn't looked up, and a dot in it isn't a field path. Such a term is quoted only where it holds a quote, or a comma or a colon that ends its placeholder.
 
 For `Origin.quoted` (quoted strings like `"literal value"`):
 - If `{varName}` syntax inside quotes, resolve via runtimeArgs → stored

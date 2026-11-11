@@ -110,13 +110,15 @@ Referring to an undefined variable causes an error.
 
     didn't set missing setting to UndefinedVar
 
-**7. Literals are quoted**
+**7. Literals**
 
-An unquoted term names a variable, so a literal is quoted. An unquoted term that doesn't name a variable is refused, whatever characters it contains. A number and JSON are literals as written.
+A variable's name starts with a letter, a digit or an underscore. An unquoted term that starts that way names a variable, and is refused where it doesn't name one, so a literal that starts with a letter is quoted. A number, and a term that starts with a symbol, as JSON, a path or a CSS selector does, are literals as written, and a dot in one isn't a field path.
 
-    set endpoint to "/api/items"
+    set greeting to "hello world"
+    didn't set greeting to hello.world
+    set endpoint to /api/items
     variable endpoint is "/api/items"
-    didn't set endpoint to /api/items
+    set alert as page-locator to #alerts .item.active
 
 #### Stepper variables
 

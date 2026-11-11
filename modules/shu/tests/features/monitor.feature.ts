@@ -33,7 +33,7 @@ const testIdSetup = registerTestIds(IDS);
 const MONITOR_PANE = paneOfComponent(SHU_TAG.MONITOR_COLUMN);
 const DOCUMENT_PANE = paneOfComponent(SHU_TAG.DOCUMENT_COLUMN);
 /** States that the toolbar's notice reads `text`. */
-const notice = (text: string): string[] => [`set tap-notice as page-locator to "[data-testid='${IDS.TAP_ACTIONS.NOTICE}']:has-text('${text}')"`, "wait for tap-notice"];
+const notice = (text: string): string[] => [`set tap-notice as page-locator to [data-testid='${IDS.TAP_ACTIONS.NOTICE}']:has-text('${text}')`, "wait for tap-notice"];
 /** Waits for the monitor's pane to carry `attribute`, and presses the undo control the pane's header shows for the action
  *  `undo`, which removes the attribute again. */
 const undone = (attribute: string, undo: string): string[] => [
@@ -219,7 +219,7 @@ export const features: TKirejiExport = {
 		click({ target: IDS.TAP_ACTIONS.CLOSE }),
 		...notice("Close"),
 		'press "Escape"',
-		`set primed-close as page-locator to "[data-testid='${IDS.TAP_ACTIONS.CLOSE}'][aria-pressed='true']"`,
+		`set primed-close as page-locator to [data-testid='${IDS.TAP_ACTIONS.CLOSE}'][aria-pressed='true']`,
 		"wait until primed-close is gone",
 
 		scenario({ scenario: "Close removes the pressed pane" }),

@@ -412,15 +412,15 @@
 			"actuality": {
 				"text": "modules/shu/tests, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 44700,
+				"tookMs": 48700,
 				"digest": {
 					"modules/cli/src": "2a30b0f7dc93f355455a023940b456906449b7bde09947dd20bce2b9d3b83e50",
-					"modules/core/src": "b4ea559bdacf150cb9b6fc31ed23d6739de4d6f2502d96b08ebc54277aac8bff",
+					"modules/core/src": "740f5953aaa9d7a43e11d3b3b7e6680d4d4fb976241a9c023599e92c076bf7b5",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
 					"modules/logic/src": "7fa7e09a87d618340a3396078a9ad43b31d6d9f96ee5b0c9e12b20dc7f115cfc",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/shu/src": "e8ddd375a4cb65b1be8520cbf6d1b1ed16bab3dd8ee6c78c7c4bb2893c5c79a3",
-					"modules/shu/tests": "b7b090db92f6bbbc68c2e3806cdbda85ec1c82ab6d1217d1a804d094ecb627ce",
+					"modules/shu/src": "4370811a9468ad5d1ddd515d75a29ad69c8dec09755d737c98dcc5adc088bdbd",
+					"modules/shu/tests": "51430df310b0f937321f043028c2889ae625ff43ea21cbc78c92c9230458e403",
 					"modules/shu/waypoints": "7dc9c4a47d546a40d28e609997d2236967c01ebb925e55511322e4abc6772a86",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
@@ -438,7 +438,7 @@
 				"/features/federate.feature.ts": {
 					"text": "Federated graph reads from a sibling instance",
 					"status": "passed",
-					"tookMs": 1300,
+					"tookMs": 1400,
 					"steps": 6
 				},
 				"/features/monitor-serves.feature.ts": {
@@ -450,19 +450,19 @@
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
-					"tookMs": 32100,
-					"steps": 765
+					"tookMs": 34200,
+					"steps": 767
 				},
 				"/features/remote-store.feature.ts": {
 					"text": "A satellite instance keeps its records in the main instance's store",
 					"status": "passed",
-					"tookMs": 1400,
+					"tookMs": 1700,
 					"steps": 8
 				},
 				"/features/voice-ui.feature.ts": {
 					"text": "UI extension propagation: domain ui → concern catalog → SPA actions bar",
 					"status": "passed",
-					"tookMs": 2300,
+					"tookMs": 2600,
 					"steps": 211
 				}
 			}

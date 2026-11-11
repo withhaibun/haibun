@@ -15,6 +15,9 @@ const TYPE_VAR = "b_";
 const TYPE_ENV_OR_VAR_OR_LITERAL = "t_";
 /** The characters that wrap a placeholder to state its origin: an environment variable, a variable or a quoted literal. */
 const ORIGIN_DELIMITERS = ["$", "`", "<", '"'];
+/** How a variable's name starts: a letter, a digit or an underscore. A bare term that starts with any other character, as a CSS
+ *  selector, a path or a glob does, is a literal, so a line doesn't quote it and a dot in it isn't a field path. */
+const VARIABLE_START = /^[\p{L}\p{N}_]/u;
 /** The most placeholders one phrase holds. A phrase with more is refused. */
 const MOST_PLACEHOLDERS = 400;
 
@@ -121,8 +124,8 @@ export function getNamedMatches(regexp: RegExp, what: string) {
 	return named?.groups;
 }
 
-/** A bare term's origin and term: an environment variable written `$NAME$`, a literal written as JSON, a number or a
- *  duration, or a defined name. */
+/** A bare term's origin and term: an environment variable written `$NAME$`; a literal, which is a number, a duration or a term
+ *  that starts with a symbol, as JSON and a CSS selector do; or a defined name. */
 function bareTerm(ph: TStepValue, t: string): void {
 	const envMatch = /^\$([A-Za-z_][A-Za-z0-9_]*)\$$/.exec(t);
 	if (envMatch) {
@@ -131,7 +134,7 @@ function bareTerm(ph: TStepValue, t: string): void {
 		return;
 	}
 	const tTrim = t.trim();
-	if (tTrim.startsWith("{") || tTrim.startsWith("[") || /^-?\d+(\.\d+)?$/.test(tTrim) || (ph.domain === DOMAIN_DURATION && DURATION_TERM.test(tTrim))) {
+	if (!VARIABLE_START.test(tTrim) || /^\d+(\.\d+)?$/.test(tTrim) || (ph.domain === DOMAIN_DURATION && DURATION_TERM.test(tTrim))) {
 		ph.term = tTrim;
 		ph.origin = Origin.quoted;
 	} else ph.origin = Origin.defined;

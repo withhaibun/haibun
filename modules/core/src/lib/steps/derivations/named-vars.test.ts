@@ -2,7 +2,7 @@ import { describe, it, test, expect } from "vitest";
 
 import { OK, TStepArgs, Origin } from "../../domains/protocol.js";
 import { AStepper } from "../domains/stepper.js";
-import { getNamedMatches, lineOfCall, namedInterpolation } from "./named-vars.js";
+import { getNamedMatches, lineOfCall, matchGwtaToAction, namedInterpolation } from "./named-vars.js";
 import { Resolver } from "../../actuality/pipelines/resolver.js";
 import { createSteppers } from "../../domains/util.js";
 import { getDefaultWorld } from "../../test/lib.js";
@@ -71,6 +71,17 @@ describe("a compiled phrase", () => {
 		if (first.stepValuesMap?.what === undefined) throw new Error("the phrase names {what}");
 		first.stepValuesMap.what.term = "changed";
 		expect(namedInterpolation("set {what} to {value}").stepValuesMap?.what?.term).toBe("what");
+	});
+});
+
+describe("a bare term's origin", () => {
+	const step = { gwta: "click {target}", description: "Clicks a target.", action: () => Promise.resolve(OK) };
+	const originOf = (line: string) => matchGwtaToAction(step.gwta, line, "click", "Test", step)?.stepValuesMap?.target;
+	it.each(["#alerts", ".item.active", "[data-id=a.b]", "/api/items", "*.json", "> li"])("reads %s, which starts with a symbol, as a literal", (term) => {
+		expect(originOf(`click ${term}`)).toMatchObject({ term, origin: Origin.quoted });
+	});
+	it.each(["greeting", "snap.highlighted", "_private"])("reads %s, which starts as a variable's name, as a defined term", (term) => {
+		expect(originOf(`click ${term}`)).toMatchObject({ term, origin: Origin.defined });
 	});
 });
 

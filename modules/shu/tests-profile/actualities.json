@@ -195,13 +195,13 @@
 			"actuality": {
 				"text": "modules/shu/tests-profile, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 16800,
+				"tookMs": 17900,
 				"digest": {
-					"modules/core/src": "b4ea559bdacf150cb9b6fc31ed23d6739de4d6f2502d96b08ebc54277aac8bff",
+					"modules/core/src": "740f5953aaa9d7a43e11d3b3b7e6680d4d4fb976241a9c023599e92c076bf7b5",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
 					"modules/logic/src": "7fa7e09a87d618340a3396078a9ad43b31d6d9f96ee5b0c9e12b20dc7f115cfc",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/shu/src": "e8ddd375a4cb65b1be8520cbf6d1b1ed16bab3dd8ee6c78c7c4bb2893c5c79a3",
+					"modules/shu/src": "4370811a9468ad5d1ddd515d75a29ad69c8dec09755d737c98dcc5adc088bdbd",
 					"modules/shu/tests-profile": "eb1cfda576cf4aae1ca5a8d0e0ffbb36426f51454e736ef0380eff5f3fe07f9f",
 					"modules/shu/waypoints": "7dc9c4a47d546a40d28e609997d2236967c01ebb925e55511322e4abc6772a86",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
@@ -214,19 +214,19 @@
 				"/features/b-reading-a-cached-actuality.feature.ts": {
 					"text": "Reading an actuality this device holds",
 					"status": "passed",
-					"tookMs": 3200,
+					"tookMs": 3400,
 					"steps": 221
 				},
 				"/features/c-reading-a-report.feature.ts": {
 					"text": "Reading a report of this actuality",
 					"status": "passed",
-					"tookMs": 2700,
+					"tookMs": 3000,
 					"steps": 225
 				},
 				"/features/d-two-origins.feature.ts": {
 					"text": "What a reader holds is held per address",
 					"status": "passed",
-					"tookMs": 3300,
+					"tookMs": 3400,
 					"steps": 216
 				},
 				"/features/e-deleting-an-actuality.feature.ts": {
@@ -459,13 +459,13 @@
 			"actuality": {
 				"text": "modules/shu/tests-profile, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 3500,
+				"tookMs": 3700,
 				"digest": {
-					"modules/core/src": "b4ea559bdacf150cb9b6fc31ed23d6739de4d6f2502d96b08ebc54277aac8bff",
+					"modules/core/src": "740f5953aaa9d7a43e11d3b3b7e6680d4d4fb976241a9c023599e92c076bf7b5",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
 					"modules/logic/src": "7fa7e09a87d618340a3396078a9ad43b31d6d9f96ee5b0c9e12b20dc7f115cfc",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/shu/src": "e8ddd375a4cb65b1be8520cbf6d1b1ed16bab3dd8ee6c78c7c4bb2893c5c79a3",
+					"modules/shu/src": "4370811a9468ad5d1ddd515d75a29ad69c8dec09755d737c98dcc5adc088bdbd",
 					"modules/shu/tests-profile": "eb1cfda576cf4aae1ca5a8d0e0ffbb36426f51454e736ef0380eff5f3fe07f9f",
 					"modules/shu/waypoints": "7dc9c4a47d546a40d28e609997d2236967c01ebb925e55511322e4abc6772a86",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",

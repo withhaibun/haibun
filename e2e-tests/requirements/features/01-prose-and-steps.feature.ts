@@ -16,7 +16,9 @@ export const features: TKirejiExport = {
 		'variable greeting is "hello"',
 
 		scenario({ scenario: "A placeholder takes a literal, a variable or a value of its domain" }),
-		"Essential, for every surface. A bare term that isn't a variable or a domain value is refused. Source: feature-variables.ts and docs/architecture.md, Variable Resolution.",
+		"Essential, for every surface. A bare term that starts with a symbol, as a CSS selector does, is a literal, and any other bare term that isn't a variable or a domain value is refused. Source: named-vars.ts, feature-variables.ts and docs/architecture.md, Variable Resolution.",
+		"set alerts to #alerts .item.active",
+		'variable alerts is "#alerts .item.active"',
 		'set who to "Ada"',
 		'set {who} greeted to "yes"',
 		'variable Ada greeted is "yes"',
