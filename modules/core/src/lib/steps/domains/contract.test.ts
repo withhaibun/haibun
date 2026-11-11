@@ -24,8 +24,8 @@ import {
 
 /** A record type as a stepper declares one, and two relations its statements share. */
 const CAPABILITY = { schema: z.object({ id: z.string(), revoked: z.string() }), topology: { persistedAs: "Capability" } };
-const REVOKED: TRelation = { name: "revoked_capability", arity: 1, rules: "" };
-const CONTROLS: TRelation = { name: "controls", arity: 2, rules: "" };
+const REVOKED: TRelation = { name: "revoked_capability", phrase: { holds: "{capability} is revoked", doesntHold: "{capability} isn't revoked" }, rules: "" };
+const CONTROLS: TRelation = { name: "controls", phrase: { holds: "{principal} controls {capability}", doesntHold: "{principal} doesn't control {capability}" }, rules: "" };
 
 describe("contract.products", () => {
 	it("reads a domain, a map of fields and a statement parameter, and an empty form for a step without a contract", () => {
@@ -55,7 +55,7 @@ describe("contract terms", () => {
 
 	it("renders a statement in Unicode notation and as the N3 triple it asserts", () => {
 		const statement = holds(CONTROLS, PRINCIPAL, parameter("parent"));
-		expect(statementNotation(statement)).toBe("controls(principal, {parent})");
+		expect(statementNotation(statement)).toBe("controls(principal, parent)");
 		expect(statementNotation(doesntHold(REVOKED, PRODUCTS))).toBe("¬revoked_capability(products)");
 		expect(statementN3(statement, (argument) => ("parameter" in argument ? `<urn:p:${argument.parameter}>` : "<urn:p:me>"))).toBe(
 			`(<urn:p:me> <urn:p:parent>) <${RELATION_NAMESPACE}controls> true .`,

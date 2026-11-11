@@ -21,9 +21,9 @@ import type { AStepper } from "@haibun/core/lib/astepper.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { answeredFor } from "@haibun/core/lib/call-step.js";
 import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
-import { stepsInstructions, toolDefinition } from "@haibun/core/lib/step-discovery.js";
+import { statesObject, stepsInstructions, toolDefinition } from "@haibun/core/lib/step-discovery.js";
 import { actingAs, authorizedWith, callerHolds, restingOn, runActingAs, runAsCaller, shownTo } from "@haibun/core/lib/domains/capability-context.js";
-import { ACTUALITY_HEADER, actualityRefusal, refusalSaid } from "@haibun/core/lib/rpc-wire.js";
+import { ACTUALITY_HEADER, actualityRefusal, refusalSaid, type TStatementRefusal } from "@haibun/core/lib/rpc-wire.js";
 import { admitsOrigin, PRESENTED_REQUEST_HEADERS } from "../domains/web-server.js";
 import type { Context, IWebServer, TCapabilityVerifier } from "../ports.js";
 import { actionsOf } from "../derivations/actions.js";
@@ -48,8 +48,13 @@ const mcpTools = (registry: StepRegistry): Tool[] => {
 	return [...held.filter((step) => step.kaname), ...held.filter((step) => !step.kaname)].map(toolDefinition);
 };
 
-/** A tool's result that refuses its call or states why its step failed. */
-const failedTool = (text: string): CallToolResult => ({ isError: true, content: [{ type: "text", text }] });
+/** A tool's result that refuses its call or states why its step failed, with the refusal record of the contract statement that
+ *  refused it as its structured content, where one did. */
+const failedTool = (text: string, refusal?: TStatementRefusal): CallToolResult => ({
+	isError: true,
+	content: [{ type: "text", text }],
+	...(refusal === undefined ? {} : { structuredContent: refusal }),
+});
 
 /** Calls a step by its method, as a tool call names it, as `caller`. A model reads what its call changed next, so a call
  *  whose step names the read that serves it receives that read. */
@@ -60,8 +65,11 @@ async function callTool(parts: TMcpParts, name: string, args: Record<string, unk
 		if ("refused" in called) return failedTool(refusalSaid(await recordedRefusal(within, caller, called)));
 		const dispatched = dispatchedAs(within, caller);
 		const result = await runActingAs(caller.principal, async () => answeredFor(dispatched, called.tool, await proveClaimed(dispatched, called.featureStep)), caller.restsOn);
-		if (!result.ok) return failedTool(result.errorMessage === undefined ? `the step ${name} failed without stating why` : result.errorMessage);
-		return { content: [{ type: "text", text: JSON.stringify(result.products === undefined ? {} : result.products, null, 2) }] };
+		if (!result.ok) return failedTool(result.errorMessage === undefined ? `the step ${name} failed without stating why` : result.errorMessage, result.contract?.statement);
+		const products = result.products === undefined ? {} : result.products;
+		// A tool whose output schema states an object returns its products as structured content too, as MCP's specification of an output schema states.
+		const structured = statesObject(called.tool.descriptor.outputSchema) ? { structuredContent: products } : {};
+		return { content: [{ type: "text", text: JSON.stringify(products, null, 2) }], ...structured };
 	} catch (err: unknown) {
 		return failedTool(`the step ${name} didn't run: ${errorDetail(err)}`);
 	}

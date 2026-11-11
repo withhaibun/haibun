@@ -11,6 +11,7 @@
  *     placeholders, such as a waypoint's head, shows as its sentence with an input for each placeholder, and the call
  *     states the statement with each input's term.
  */
+import { describedWithContract } from "@haibun/core/lib/contract.js";
 import { html, css, nothing, type TemplateResult } from "lit";
 import { z } from "zod";
 import { property, state } from "lit/decorators.js";
@@ -469,7 +470,6 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 		return parts;
 	}
 
-	/** The form: the step's pattern as a sentence, with an input in place of each parameter. */
 	/** The lines of what a typed claim checks, each as the instance states it, under the claim's inputs. */
 	#entailmentTpl(): TemplateResult | typeof nothing {
 		const shown = this.entailment;
@@ -478,11 +478,14 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 		return html`<div class="entailment" data-testid=${this.#testId("step-entailment")}>${lines.map((line) => html`<div>${line}</div>`)}</div>`;
 	}
 
+	/** The form: the step's pattern as a sentence, with an input in place of each parameter, described by the step's description and
+	 *  its contract's sentences. */
 	#renderForm(desc: TStepDefinition): TemplateResult {
 		const properties = this.#inputSchemaOf(desc).properties ?? {};
 		const parts = this.#sentence(desc.pattern, (name) => this.#paramInput(desc, properties, name));
 		const executed = this.#call.executed;
-		return html`<form class="step-form step-sentence" @submit=${this.#onSubmit}>${parts}
+		const described = describedWithContract(desc);
+		return html`<form class="step-form step-sentence" title=${described} aria-description=${described} @submit=${this.#onSubmit}>${parts}
 			<button type="submit" class=${executed ? "run-inline rerun" : "run-inline"} title=${executed ? "Re-run" : "Run"} data-testid=${this.#testId("step-run")}>${executed ? "⟳▶" : "▶"}</button></form>`;
 	}
 

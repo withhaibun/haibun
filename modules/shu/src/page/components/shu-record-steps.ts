@@ -150,7 +150,7 @@ export class ShuRecordSteps extends ShuElement<typeof RecordStepsStateSchema> {
 				?disabled=${!allowed}
 				title=${tooltip}
 				aria-label=${step.verb}
-				aria-describedby=${tooltip}
+				aria-description=${tooltip}
 				@click=${() => this.#choose(step)}
 			>
 				${allowed ? nothing : html`<span class="lock-mark" aria-hidden="true">🔒</span>`}

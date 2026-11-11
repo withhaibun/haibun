@@ -143,6 +143,7 @@ const WIRE_AT: Record<number, string> = {
 	5: "2734b32c629e02db",
 	6: "b7deb6ae3be169bd",
 	7: "4b1867015f8118eb",
+	8: "b9e29fcbc7b4bb35",
 };
 const wireShape = (): string =>
 	createHash("sha256")

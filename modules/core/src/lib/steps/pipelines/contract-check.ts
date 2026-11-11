@@ -3,8 +3,9 @@
  * against the contract's `requires`; once the action returns products, they are checked against its `states`. A value whose
  * domain refers to a stored type is the check's reference to its record by the record's typed CURIE, and the check reads the
  * record from the store. A statement that
- * is refuted or unknown refuses the call, and the refusal names the statement, its verdict and the triple that determined it.
- * The step's record holds the proof of the check, which EYE states.
+ * is refuted or unknown refuses the call. The refusal states two sentences: what was refused and the statement's sentence with its
+ * verdict and the triple that determined it, then the remedy the verdict determines. The step's record holds the proof of the
+ * check, which EYE states.
  */
 import { proverOf, type TWorld } from "../../actuality/domains/world.js";
 import { VERDICT, type TActionResult } from "../../domains/protocol.js";
@@ -13,7 +14,7 @@ import { isPersisted } from "../../domains/resources.js";
 import { normalizeDomainKey, refTargetOf } from "../../domains/domains.js";
 import { referenceTo } from "../../records/domains/unit.js";
 import { actingAs, actingFor } from "../../domains/capability-context.js";
-import { ACTUALITY_PRINCIPAL, CONTRACT_CHECK, contractChecking, contractProducts, statementNotation, type TContractCall, type TContractCheck } from "../domains/contract.js";
+import { ACTUALITY_PRINCIPAL, CONTRACT_CHECK, contractChecking, contractProducts, type TContractCall, type TContractCheck } from "../domains/contract.js";
 import { stepParts } from "../domains/phrase.js";
 import type { TStepperStep } from "../domains/stepper.js";
 
@@ -22,6 +23,12 @@ const REFUSED_AT: Record<TContractCheck, string> = {
 	[CONTRACT_CHECK.requires]: "The call is refused before its action runs: its contract requires",
 	[CONTRACT_CHECK.states]: "The call's products are refused and aren't kept: its contract states",
 };
+
+/** The remedy of a refused statement, by its verdict. */
+const REMEDY_OF = {
+	[VERDICT.refuted]: "Call the step with values for which the statement holds, since the records the check read refute it.",
+	[VERDICT.unknown]: "Record the facts the statement reads, since the records the check read don't derive it or its negation.",
+} as const;
 
 /** Returns the refusal of a call whose contract's `check` statements don't all hold, or undefined where every one holds or the
  *  contract doesn't state one. */
@@ -34,12 +41,12 @@ export async function contractRefusal(world: TWorld, step: TStepperStep, check: 
 	const { verdicts, proof } = await proverOf(world).checkContract(world, checking, { ...call, parameters, ...products });
 	const refusing = verdicts.find(({ verdict }) => verdict !== VERDICT.proved);
 	if (refusing === undefined) return undefined;
-	const { verdict, decidedBy } = refusing;
+	const { verdict, decidedBy, sentence } = refusing;
 	if (verdict !== VERDICT.refuted && verdict !== VERDICT.unknown)
 		throw new Error(`a contract's check states ${verdict} for a statement, and a check states proved, refuted or unknown`);
-	if (proof === undefined) throw new Error(`a contract's check refused ${statementNotation(refusing.statement)} without its proof, and a refusal names its proof`);
-	const statement = { statement: statementNotation(refusing.statement), verdict, decidedBy };
-	return actionNotOK(`${REFUSED_AT[check]} ${statement.statement}, which is ${verdict}: ${decidedBy}.`, { contract: { statement, proof } });
+	if (proof === undefined) throw new Error(`a contract's check refused "${sentence}" without its proof, and a refusal names its proof`);
+	const statement = { statement: sentence, verdict, decidedBy, remedy: REMEDY_OF[verdict] };
+	return actionNotOK(`${REFUSED_AT[check]} that ${sentence}, which is ${verdict}: ${decidedBy}. ${statement.remedy}`, { contract: { statement, proof } });
 }
 
 /** Returns a call's value as its check reads it: the reference to the record a value names by its id, where the value's domain

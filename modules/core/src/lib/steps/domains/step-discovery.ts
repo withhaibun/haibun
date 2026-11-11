@@ -14,7 +14,7 @@ import { StepMethodSchema, type TStepMethod } from "./step-method.js";
 import { DomainKeySchema } from "../../domains/domains.js";
 import { Access, AccessLevelSchema } from "../../domains/resources.js";
 import type { TEntailment } from "../../records/domains/claim.js";
-import { StepContractSchema } from "./contract.js";
+import { contractLines, StepContractSchema } from "./contract.js";
 
 /** The lines and the methods of the steps that show actuality's declarations: the steps a caller may call, their
  *  definitions, and the steppers. The `Haibun` stepper declares them, so the configuration of an instance that serves
@@ -180,7 +180,19 @@ export type TStepSummaries = z.infer<typeof StepSummariesSchema>;
 export type TStepDefinitions = z.infer<typeof StepDefinitionsSchema>;
 
 /** A tool as MCP defines it. A model provider sends the same fields under its own field names. */
-export type TToolDefinition = { name: string; description: string; inputSchema: TInputSchema; annotations: { title: string; readOnlyHint: boolean; destructiveHint: boolean } };
+export type TToolDefinition = {
+	name: string;
+	description: string;
+	inputSchema: TInputSchema;
+	outputSchema?: TObjectSchema;
+	annotations: { title: string; readOnlyHint: boolean; destructiveHint: boolean };
+};
+
+/** A JSON Schema of an object, as a tool's output schema states its structured content. */
+type TObjectSchema = { type: "object"; properties?: Record<string, object>; required?: string[]; [key: string]: unknown };
+
+/** Whether a step's products schema states an object, as a tool's output schema states its structured content. */
+export const statesObject = (schema: TStepDescriptor["outputSchema"]): schema is TObjectSchema => schema?.type === "object";
 
 /** The read of the summaries of a stepper's steps, by the stepper's name and the hyphen that separates a method's
  *  stepper from its step. */
@@ -217,13 +229,21 @@ export const readStepSummaries = shownIn(StepSummariesSchema);
 /** Parses the products of a read of the step definitions. */
 export const readStepDefinitions = shownIn(StepDefinitionsSchema);
 
-/** A step as a tool: its method as the name, its pattern with its description, the capability it requires, the origin
- *  of the instance that runs it, and the schema of its arguments. */
+/** A step as a tool: its method as the name, its pattern with its description, its contract's sentences, the capability it
+ *  requires, the origin of the instance that runs it, the schema of its arguments, and the schema of its products where they
+ *  state an object. */
 export function toolDefinition(step: TStepDescriptor): TToolDefinition {
-	const parts = [step.pattern, step.description, `Requires capability ${step.capability}.`, step.remoteOrigin === undefined ? undefined : `Runs at ${step.remoteOrigin}.`];
+	const parts = [
+		step.pattern,
+		step.description,
+		...contractLines(step.contract),
+		`Requires capability ${step.capability}.`,
+		step.remoteOrigin === undefined ? undefined : `Runs at ${step.remoteOrigin}.`,
+	];
 	// A read leaves the records as they are, and MCP takes a tool that doesn't state it reads as one that may destroy, so an act states it may.
 	const annotations = { title: prettifyGwta(step.pattern), readOnlyHint: step.read, destructiveHint: !step.read };
-	return { name: step.method, description: parts.filter((part) => part !== undefined).join("\n\n"), inputSchema: step.inputSchema, annotations };
+	const output = statesObject(step.outputSchema) ? { outputSchema: step.outputSchema } : {};
+	return { name: step.method, description: parts.filter((part) => part !== undefined).join("\n\n"), inputSchema: step.inputSchema, ...output, annotations };
 }
 
 /** Returns a step's pattern as a reader reads it, without its optional groups (`set( empty)? {what}`). */

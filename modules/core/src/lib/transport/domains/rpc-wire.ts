@@ -36,7 +36,7 @@ export const ACTION_BEGIN = "action.begin";
 /** The RPC protocol version this code implements. Every call states it. The handshake response holds it. An instance
  *  refuses a call at another version. A client refuses a handshake response at another version. A change to the wire
  *  requires a higher version. rpc-wire.test.ts compares the wire's shape with the shape recorded for this version. */
-export const RPC_PROTOCOL = 7;
+export const RPC_PROTOCOL = 8;
 
 /** What every call's envelope holds. */
 export const RpcEnvelopeSchema = z.object({
@@ -88,9 +88,15 @@ export const RemedySchema = z.discriminatedUnion("do", [
 ]);
 export type TRemedy = z.infer<typeof RemedySchema>;
 
-/** The statement of a step's contract that refused a call: the statement in Unicode notation, its verdict, and the triple that
- *  determined the verdict. The refused step's record holds the statement's proof, which the refusal's `step` names. */
-export const StatementRefusalSchema = z.object({ statement: z.string().min(1), verdict: z.enum([VERDICT.refuted, VERDICT.unknown]), decidedBy: z.string().min(1) });
+/** The statement of a step's contract that refused a call: the statement's sentence, its verdict, the triple that determined the
+ *  verdict, and the remedy the verdict determines. The refused step's record holds the statement's proof, which the refusal's
+ *  `step` names. */
+export const StatementRefusalSchema = z.object({
+	statement: z.string().min(1),
+	verdict: z.enum([VERDICT.refuted, VERDICT.unknown]),
+	decidedBy: z.string().min(1),
+	remedy: z.string().min(1),
+});
 export type TStatementRefusal = z.infer<typeof StatementRefusalSchema>;
 
 /** The remedies that reload, by what they read again. */

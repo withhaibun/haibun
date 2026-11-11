@@ -110,13 +110,19 @@ export const namedInterpolation = (inp: string): TInterpolation => {
 	return stepValuesMap === undefined ? { regexPattern } : { regexPattern, stepValuesMap: copiedValues(stepValuesMap) };
 };
 
-/** The step action a line resolves to under a phrase, or undefined where the line doesn't match it. The phrase's placeholders are
- *  copied only for a line that matches, since resolution tries each phrase against each line. */
-export const matchGwtaToAction = (gwta: string, actionable: string, actionName: string, stepperName: string, step: TStepperStep) => {
-	const { anchored, stepValuesMap } = compiledOf(gwta);
-	const matched = anchored.exec(actionable);
+/** Each placeholder's term and origin in a line that a phrase matches, or undefined where it doesn't match. The phrase's
+ *  placeholders are copied only for a line that matches, since resolution tries each phrase against each line. */
+export function phraseValues(phrase: string, line: string): Record<string, TStepValue> | undefined {
+	const { anchored, stepValuesMap } = compiledOf(phrase);
+	const matched = anchored.exec(line);
 	if (matched === null) return undefined;
-	return matchedAction(matched, actionName, stepperName, step, stepValuesMap === undefined ? undefined : copiedValues(stepValuesMap));
+	return stepValuesMap === undefined ? {} : matchedValues(matched, copiedValues(stepValuesMap));
+}
+
+/** The step action a line resolves to under a phrase, or undefined where the line doesn't match it. */
+export const matchGwtaToAction = (gwta: string, actionable: string, actionName: string, stepperName: string, step: TStepperStep): TStepAction | undefined => {
+	const stepValuesMap = phraseValues(gwta, actionable);
+	return stepValuesMap === undefined ? undefined : { actionName, stepperName, step, stepValuesMap };
 };
 
 export function getNamedMatches(regexp: RegExp, what: string) {
@@ -140,10 +146,9 @@ function bareTerm(ph: TStepValue, t: string): void {
 	} else ph.origin = Origin.defined;
 }
 
-/** The step action of a line an expression matched, with each placeholder given the term and the origin its capture states. */
-function matchedAction(matched: RegExpExecArray, actionName: string, stepperName: string, step: TStepperStep, stepValuesMap?: Record<string, TStepValue>): TStepAction {
-	const { groups } = matched;
-	if (groups !== undefined && stepValuesMap !== undefined) {
+/** The placeholders of a line an expression matched, each given the term and the origin its capture states. */
+function matchedValues({ groups }: RegExpExecArray, stepValuesMap: Record<string, TStepValue>): Record<string, TStepValue> {
+	if (groups !== undefined) {
 		for (const [i, [key, ph]] of Object.entries(stepValuesMap).entries()) {
 			// A quoted capture is read first, then a backticked one, then an environment variable, then a bare literal. A quoted
 			// term states a quote within it as \".
@@ -162,7 +167,7 @@ function matchedAction(matched: RegExpExecArray, actionName: string, stepperName
 			}
 		}
 	}
-	return { actionName, stepperName, step, stepValuesMap: stepValuesMap === undefined ? {} : stepValuesMap };
+	return stepValuesMap;
 }
 
 /** A step's line with each placeholder given its term, as a feature line states it: the step's optional wording is left

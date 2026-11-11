@@ -14,7 +14,17 @@ import type { TWorld } from "../../actuality/domains/world.js";
 import { DOMAIN_DOMAIN_KEY, DOMAIN_RECORD_ID, DOMAIN_STATEMENT, registeredDomain } from "../../domains/domains.js";
 import type { TInputSchema, TStepDescriptor } from "../domains/step-discovery.js";
 import { resolveOutputSchema } from "./tool-validation.js";
-import { contractProducts, StepContractSchema } from "../domains/contract.js";
+import { CONTRACT_CHECK, contractProducts, StepContractSchema, type TContractSentences, type TStepContract } from "../domains/contract.js";
+import { statementSentence } from "./predicate-registry.js";
+
+/** A contract as a descriptor carries it: its products, and the sentence of each statement it requires and states. */
+function contractSentences({ products, ...contract }: TStepContract): TContractSentences {
+	const sentences = Object.values(CONTRACT_CHECK).flatMap((check) => {
+		const statements = contract[check];
+		return statements === undefined || statements.length === 0 ? [] : [[check, statements.map(statementSentence)]];
+	});
+	return StepContractSchema.parse({ products, ...Object.fromEntries(sentences) });
+}
 
 /** A step's descriptor and the domain key of each of its parameters, by parameter name. */
 export type TStepDeclaration = { descriptor: TStepDescriptor; paramDomainKeys: Map<string, string> };
@@ -51,7 +61,7 @@ export function stepDeclaration(stepper: AStepper, stepName: string, stepDef: TS
 		pattern: patternOf(stepName, stepDef),
 		description: stepDef.description,
 		paramDomains: Object.fromEntries([...paramDomainKeys].map(([name, key]) => [name, DomainKeySchema.parse(key)])),
-		...(stepDef.contract === undefined ? {} : { contract: StepContractSchema.parse(stepDef.contract) }),
+		...(stepDef.contract === undefined ? {} : { contract: contractSentences(stepDef.contract) }),
 		...(stepDef.recordIds ? { recordIds: stepDef.recordIds } : {}),
 		...(stepDef.recordData ? { recordData: stepDef.recordData } : {}),
 		capability: requiredAction(stepperName, stepName, stepDef),

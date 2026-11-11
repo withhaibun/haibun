@@ -24,8 +24,16 @@ import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import LogicStepper from "../logic-stepper.js";
 
 const RULES = "@prefix h: <https://withhaibun.github.io/ns/> .";
-const REVOKED: TRelation = { name: "revoked_grant", arity: 1, rules: `${RULES}\n{ ?g h:revoked ?at } => { (?g) <urn:haibun:relation:revoked_grant> true } .` };
-const ALLOWS: TRelation = { name: "allows_action", arity: 2, rules: `${RULES}\n{ ?g h:allowedAction ?a } => { (?g ?a) <urn:haibun:relation:allows_action> true } .` };
+const REVOKED: TRelation = {
+	name: "revoked_grant",
+	phrase: { holds: "{grant} is revoked", doesntHold: "{grant} isn't revoked" },
+	rules: `${RULES}\n{ ?g h:revoked ?at } => { (?g) <urn:haibun:relation:revoked_grant> true } .`,
+};
+const ALLOWS: TRelation = {
+	name: "allows_action",
+	phrase: { holds: "{grant} allows {action}", doesntHold: "{grant} doesn't allow {action}" },
+	rules: `${RULES}\n{ ?g h:allowedAction ?a } => { (?g ?a) <urn:haibun:relation:allows_action> true } .`,
+};
 
 /** The grants a line names, by name. */
 const GRANTS: Record<string, Record<string, string>> = {
@@ -148,15 +156,15 @@ describe("dispatch's check of a call against its step's contract", () => {
 		expect(record(fromHeld)?.[SEQ_PATH_FIELD.actionStatus]).toBe(RECORDED_STATUS.completed);
 		const required = record(fromRevoked);
 		expect(required?.[SEQ_PATH_FIELD.error], "the check reads the held grant the line names").toContain(
-			"The call is refused before its action runs: its contract requires ¬revoked_grant({grant}), which is refuted",
+			"The call is refused before its action runs: its contract requires that grant isn't revoked, which is refuted",
 		);
 		expect(required?.[SEQ_PATH_FIELD.verdict]).toBe(VERDICT.refuted);
 		expect(String(required?.[SEQ_PATH_FIELD.proof]), "EYE's proof cites the held grant's revocation").toContain("2026-11-01T00:00:00Z");
 		expect(record(fromNamedRevoked)?.[SEQ_PATH_FIELD.error], "the check reads the held grant a derivation of the line's name names").toContain(
-			"its contract requires ¬revoked_grant(ContractGrant:grantNamed({name})), which is refuted",
+			"its contract requires that ContractGrant:grantNamed(name) isn't revoked, which is refuted",
 		);
 		const stated = record(writeFromHeld);
-		expect(stated?.[SEQ_PATH_FIELD.error]).toContain("The call's products are refused and aren't kept: its contract states allows_action(products, {action}), which is unknown");
+		expect(stated?.[SEQ_PATH_FIELD.error]).toContain("The call's products are refused and aren't kept: its contract states that products allows action, which is unknown");
 		expect(stated?.[SEQ_PATH_FIELD.actionStatus], "the step whose products are refused fails").toBe(RECORDED_STATUS.failed);
 		expect(stated?.[SEQ_PATH_FIELD.proof]).toBeDefined();
 		const delegating = world.runtime.steppers?.find((stepper) => stepper instanceof Delegating);

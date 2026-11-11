@@ -1,6 +1,7 @@
 /**
  * The declarations check refuses a contract whose terms the registry doesn't list: a relation the steppers don't declare, a statement
- * whose arguments don't match its relation's arity, a parameter the pattern doesn't name, and a field that the declared types don't hold.
+ * whose arguments don't match its relation's arity, a parameter the pattern doesn't name, a field that the declared types don't hold, and a
+ * relation whose sentences don't parse back to their statements' terms.
  */
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
@@ -10,7 +11,7 @@ import { Access, LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { actionOK } from "@haibun/core/lib/domains/util.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
 import { fromJsonText } from "@haibun/core/lib/domains/json-text.js";
-import { ARITY, contractFindings, UNDECLARED_FIELD, UNDECLARED_RELATION, UNNAMED_PARAMETER } from "./contract-declarations.js";
+import { ARITY, contractFindings, relationFindings, UNDECLARED_FIELD, UNDECLARED_RELATION, UNNAMED_PARAMETER, UNPARSED_SENTENCE } from "./contract-declarations.js";
 
 const GrantSchema = z.object({ id: z.string(), revoked: z.string() });
 const GRANT = {
@@ -19,8 +20,8 @@ const GRANT = {
 	description: "A grant a holder acts under",
 	topology: { persistedAs: "Grant", id: "id", accessLevel: Access.private, properties: { id: LinkRelations.IDENTIFIER.rel } },
 };
-const REVOKED: TRelation = { name: "revoked_grant", arity: 1, rules: "" };
-const UNDECLARED: TRelation = { name: "undeclared", arity: 1, rules: "" };
+const REVOKED: TRelation = { name: "revoked_grant", phrase: { holds: "{grant} is revoked", doesntHold: "{grant} isn't revoked" }, rules: "" };
+const UNDECLARED: TRelation = { name: "undeclared", phrase: { holds: "{grant} is undeclared", doesntHold: "{grant} isn't undeclared" }, rules: "" };
 
 /** A stepper that declares a grant type, the relation `revoked_grant`, and one step with `contract`. */
 const declaring = (contract: TStepContract): AStepper =>
@@ -49,5 +50,15 @@ describe("the declarations check of contracts", () => {
 				contractFindings([declaring(contract)]).map(({ finding: found }) => found.split(" (")[0]),
 				finding,
 			).toEqual([finding]);
+	});
+
+	it("holds a relation whose sentences parse back to their statements' terms, and refuses one whose phrases another's parse or that name other places", () => {
+		expect(relationFindings([REVOKED, UNDECLARED]), "each sentence, held or not, parses to its own term").toEqual([]);
+		const shadowed: TRelation = { ...UNDECLARED, name: "shadowed", phrase: REVOKED.phrase };
+		const placed: TRelation = { ...UNDECLARED, name: "placed", phrase: { holds: "{grant} is placed", doesntHold: "{door} isn't placed" } };
+		expect(relationFindings([REVOKED, shadowed, placed])).toEqual([
+			{ method: "shadowed", finding: UNPARSED_SENTENCE },
+			{ method: "placed", finding: UNPARSED_SENTENCE },
+		]);
 	});
 });

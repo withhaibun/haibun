@@ -14,13 +14,21 @@ const RULES = "@prefix h: <https://withhaibun.github.io/ns/> .";
 /** Two records that allow one action. */
 const SHARES: TRelation = {
 	name: "shares_action",
-	arity: 2,
+	phrase: { holds: "{a} shares an action with {b}", doesntHold: "{a} doesn't share an action with {b}" },
 	rules: `${RULES}\n{ ?a h:allowedAction ?x . ?b h:allowedAction ?x } => { (?a ?b) <urn:haibun:relation:shares_action> true } .`,
 };
 /** A record that states when it was revoked. */
-const REVOKED: TRelation = { name: "revoked_record", arity: 1, rules: `${RULES}\n{ ?c h:revoked ?at } => { (?c) <urn:haibun:relation:revoked_record> true } .` };
+const REVOKED: TRelation = {
+	name: "revoked_record",
+	phrase: { holds: "{record} is revoked", doesntHold: "{record} isn't revoked" },
+	rules: `${RULES}\n{ ?c h:revoked ?at } => { (?c) <urn:haibun:relation:revoked_record> true } .`,
+};
 /** A record its principal controls. */
-const CONTROLS: TRelation = { name: "controls_record", arity: 2, rules: `${RULES}\n{ ?c h:controller ?p } => { (?p ?c) <urn:haibun:relation:controls_record> true } .` };
+const CONTROLS: TRelation = {
+	name: "controls_record",
+	phrase: { holds: "{principal} controls {record}", doesntHold: "{principal} doesn't control {record}" },
+	rules: `${RULES}\n{ ?c h:controller ?p } => { (?p ?c) <urn:haibun:relation:controls_record> true } .`,
+};
 
 const PARENT = { id: "urn:cap:parent", allowedAction: "read", controller: "did:key:zHolder" };
 const call = (parent: Record<string, unknown>, products?: Record<string, unknown>) => ({

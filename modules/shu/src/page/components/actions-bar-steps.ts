@@ -8,7 +8,7 @@
 import { html, nothing, type ReactiveController, type TemplateResult } from "lit";
 import { RPC_METHOD, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { prettifyGwta, VALIDATE_STEP_METHOD, waypointMark, type TPredicate, type TStepDefinition, type TStepValidation } from "@haibun/core/lib/step-discovery.js";
-import { contractProducts } from "@haibun/core/lib/contract.js";
+import { contractLines, contractProducts } from "@haibun/core/lib/contract.js";
 import type { TEntailment } from "@haibun/core/lib/records/domains/claim.js";
 import { callStep } from "../controllers/read-controller.js";
 import type { TPageRefusal } from "../domains/refusal.js";
@@ -41,7 +41,8 @@ export function stepSecondary(step: TStepDefinition): string {
 	return "";
 }
 
-/** What an option reveals when focused: what the step does, each input's domain, the output's, and the capability it requires.
+/** What an option reveals when focused: what the step does, each input's domain, the output's, the capability it requires and
+ *  its contract's sentences.
  *  The label already shows the pattern, so this does not repeat it. */
 export function stepDetails(step: TStepDefinition): string {
 	const lines: string[] = [step.description];
@@ -52,7 +53,7 @@ export function stepDetails(step: TStepDefinition): string {
 	const { domain } = contractProducts(step);
 	if (domain) lines.push(`outputs: ${domain}`);
 	if (step.capability) lines.push(`capability: ${step.capability}`);
-	return lines.join("\n");
+	return [...lines, ...contractLines(step.contract)].join("\n");
 }
 
 /** The understanding commands, which work on anything a reader is shown. */

@@ -10,7 +10,8 @@
  */
 import type { TProver } from "@haibun/core/lib/actuality/ports.js";
 import { VERDICT } from "@haibun/core/lib/domains/protocol.js";
-import type { TRelation, TStatementVerdict } from "@haibun/core/lib/steps/domains/contract.js";
+import type { TRelation, TStatement, TStatementVerdict } from "@haibun/core/lib/steps/domains/contract.js";
+import { statementSentence } from "@haibun/core/lib/steps/derivations/predicate-registry.js";
 import { callFacts, callTriple, fieldPredicate, referencedRecords, relationPredicate, relationReads, relationsQuery, tripleKey } from "../derivations/contract-terms.js";
 import { patternText } from "../derivations/n3.js";
 import type { TLogicEngine, TReasoner } from "../ports.js";
@@ -37,20 +38,23 @@ export function contractChecks(relations: readonly TRelation[], reasoner: TReaso
 		const derived = await check(rules, query, facts);
 		// The quads of a list state its items through rdf:first and rdf:rest; a relation's triple is a quad of its predicate.
 		const selected = new Set(derived.filter(({ predicate }) => predicates.has(predicate.value)).map(({ subject, predicate }) => tripleKey(subject, predicate, derived)));
-		const verdicts = triples.map(({ statement, triple }): TStatementVerdict => {
-			const text = patternText(triple);
-			const holds = selected.has(tripleKey(triple.subject, triple.predicate, derived));
-			if (statement.negated) {
-				if (holds) return { statement, verdict: VERDICT.refuted, decidedBy: `${DERIVE} ${text}` };
-				const readBy = reads.get(statement.relation.name);
-				if (readBy === undefined) throw new Error(`a contract's statement names the relation ${statement.relation.name}, which the steppers don't declare`);
-				const open = [...readBy].filter((predicate) => !held.has(predicate));
-				return open.length === 0
-					? { statement, verdict: VERDICT.proved, decidedBy: `${DONT_DERIVE} ${text}, over ${[...readBy].join(", ")}, which the contract states complete` }
-					: { statement, verdict: VERDICT.unknown, decidedBy: `${DONT_DERIVE} ${text}, and the contract doesn't state ${open.join(", ")} complete` };
-			}
-			return holds ? { statement, verdict: VERDICT.proved, decidedBy: `${DERIVE} ${text}` } : { statement, verdict: VERDICT.unknown, decidedBy: `${DONT_DERIVE} ${text}` };
-		});
+		const judged = (statement: TStatement, holds: boolean, text: string): Pick<TStatementVerdict, "verdict" | "decidedBy"> => {
+			if (!statement.negated) return holds ? { verdict: VERDICT.proved, decidedBy: `${DERIVE} ${text}` } : { verdict: VERDICT.unknown, decidedBy: `${DONT_DERIVE} ${text}` };
+			if (holds) return { verdict: VERDICT.refuted, decidedBy: `${DERIVE} ${text}` };
+			const readBy = reads.get(statement.relation.name);
+			if (readBy === undefined) throw new Error(`a contract's statement names the relation ${statement.relation.name}, which the steppers don't declare`);
+			const open = [...readBy].filter((predicate) => !held.has(predicate));
+			return open.length === 0
+				? { verdict: VERDICT.proved, decidedBy: `${DONT_DERIVE} ${text}, over ${[...readBy].join(", ")}, which the contract states complete` }
+				: { verdict: VERDICT.unknown, decidedBy: `${DONT_DERIVE} ${text}, and the contract doesn't state ${open.join(", ")} complete` };
+		};
+		const verdicts = triples.map(
+			({ statement, triple }): TStatementVerdict => ({
+				statement,
+				sentence: statementSentence(statement),
+				...judged(statement, selected.has(tripleKey(triple.subject, triple.predicate, derived)), patternText(triple)),
+			}),
+		);
 		if (verdicts.every(({ verdict }) => verdict === VERDICT.proved)) return { verdicts };
 		return { verdicts, proof: await derive(reasoner, `${rules}\n${facts}`, query, true, {}, "a contract's check reads the call's facts and the records it read") };
 	};

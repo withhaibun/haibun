@@ -115,7 +115,11 @@ const DOMAIN_NODE = "test-node";
 const DOMAIN_PLACED_NODE = "test-placed-node";
 /** A node placed under another, directly or through nodes between them. */
 const BELOW_PREDICATE = `<${RELATION_NAMESPACE}below>`;
-const BELOW: TRelation = { name: "below", arity: 2, rules: `{ (?a ?b) ${BELOW_PREDICATE} true . (?b ?c) ${BELOW_PREDICATE} true } => { (?a ?c) ${BELOW_PREDICATE} true } .` };
+const BELOW: TRelation = {
+	name: "below",
+	phrase: { holds: "{a} is below {b}", doesntHold: "{a} isn't below {b}" },
+	rules: `{ (?a ?b) ${BELOW_PREDICATE} true . (?b ?c) ${BELOW_PREDICATE} true } => { (?a ?c) ${BELOW_PREDICATE} true } .`,
+};
 
 const cycles = (ts: TestServer): IStepperCycles => ({
 	getConcerns: () => ({

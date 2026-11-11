@@ -121,7 +121,7 @@ import { z } from "zod";
 import { STEPS_CHANGED } from "@haibun/core/lib/domains/protocol.js";
 import { PREFERENCES_COOKIE_PREFIX } from "../page/adapters/prefs-cookie.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
-import type { TStepContract } from "@haibun/core/lib/contract.js";
+import type { TStatedContract } from "@haibun/core/lib/contract.js";
 
 type TShuTestConfig = {
 	/** Optional dispatch for in-test RPCs. Default throws on every call, naming the unconfigured method, tests opt in by supplying a function that returns wire results for the methods they exercise. */
@@ -220,7 +220,7 @@ export function stepsShown(
 			/** Whether the page may call the step, which it may where this isn't stated. */
 			callable?: boolean;
 			paramDomains?: Record<string, string>;
-			contract?: TStepContract;
+			contract?: TStatedContract;
 			recordData?: Record<string, string>;
 			inputSchema?: TStepDefinition["inputSchema"];
 			outputSchema?: Record<string, unknown>;

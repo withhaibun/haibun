@@ -19,7 +19,7 @@ import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { declaringSteps, setupShuTest, stepsChanged, stepsReadAgain, stepsShown, type TShuTestHandle } from "../../test/setup.js";
 import { StepMethodSchema } from "@haibun/core/lib/steps/domains/step-method.js";
 import { DomainKeySchema } from "@haibun/core/lib/domains/domains.js";
-import { StepContractSchema, type TStepContract } from "@haibun/core/lib/contract.js";
+import { StepContractSchema, type TStatedContract } from "@haibun/core/lib/contract.js";
 
 /** The steps actuality offers. */
 const offered: TStepDefinition[] = [];
@@ -30,7 +30,7 @@ const anActuality = () => setupShuTest({ dispatch: declaringSteps(() => stepsSho
 const step = (
 	method: string,
 	pattern: string,
-	extra: Partial<Omit<TStepDefinition, "paramDomains" | "contract">> & { paramDomains?: Record<string, string>; contract?: TStepContract } = {},
+	extra: Partial<Omit<TStepDefinition, "paramDomains" | "contract">> & { paramDomains?: Record<string, string>; contract?: TStatedContract } = {},
 ) => {
 	const [stepperName, stepName] = method.split("-");
 	const { paramDomains = {}, contract, ...rest } = extra;

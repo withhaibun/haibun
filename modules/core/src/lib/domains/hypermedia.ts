@@ -26,6 +26,7 @@ import {
 } from "./resources.js";
 import { ACTUALITY_FIELD } from "../actuality/domains/seq-path.js";
 import type { TSearchCondition } from "../steps/domains/quad-types.js";
+import { describedWithContract, type TContractSentences } from "../steps/domains/contract.js";
 
 /** Resolve a property def to its rel, regardless of plain-string or object (content / term) form. */
 export function relOf(def: TPropertyDef): TRel {
@@ -536,10 +537,13 @@ export const RecordStepSchema = StepLinkSchema.extend({ verb: z.string().min(1),
 export type TRecordStep = z.infer<typeof RecordStepSchema>;
 
 /** Returns the link to a step, from what its declaration states, with `params` naming the record it takes. */
-export const stepLinkOf = (step: { method: string; description: string; read: boolean; capability: string; kaname: boolean }, params?: Record<string, unknown>): TStepLink => ({
+export const stepLinkOf = (
+	step: { method: string; description: string; read: boolean; capability: string; kaname: boolean; contract?: TContractSentences },
+	params?: Record<string, unknown>,
+): TStepLink => ({
 	method: step.method,
 	...(params === undefined ? {} : { params }),
-	summary: step.description,
+	summary: describedWithContract(step),
 	asks: step.read ? "read" : "act",
 	capability: step.capability,
 	...(step.kaname ? { kaname: true } : {}),

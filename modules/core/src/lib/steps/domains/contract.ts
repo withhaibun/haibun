@@ -27,9 +27,13 @@ export function field<S extends z.ZodObject>(definition: { readonly schema: S; r
 	return { persistedAs: definition.topology.persistedAs, key };
 }
 
-/** A relation that statements share, declared once as a named const by the stepper whose rules state it: its name, and the N3
- *  rules that derive it, which are empty where the relation is a recorded fact. */
-export type TRelation = { readonly name: string; readonly arity: number; readonly rules: string };
+/** The sentences of a relation's statements: a phrase whose placeholders name the relation's places in order, for a statement
+ *  that holds and for one that doesn't, such as `{capability} is revoked` and `{capability} isn't revoked`. */
+export type TRelationPhrase = { readonly holds: string; readonly doesntHold: string };
+
+/** A relation that statements share, declared once as a named const by the stepper whose rules state it: its name, its phrase,
+ *  whose places are its arity, and the N3 rules that derive it, which are empty where the relation is a recorded fact. */
+export type TRelation = { readonly name: string; readonly phrase: TRelationPhrase; readonly rules: string };
 
 /** A derivation of a record's id from the call's values of its arguments, as a named function, whose name the notation states. */
 export type TDerivation = (...values: string[]) => string;
@@ -82,9 +86,30 @@ export type TStepContract<D extends string = string> = {
 	readonly assumed?: boolean;
 };
 
-/** A contract as a descriptor carries it. The statement form has the shape of a map of one field, `of`, which
- *  `contractProducts` reads as the statement form. */
-export const StepContractSchema = z.object({ products: z.union([DomainKeySchema, z.record(z.string(), DomainKeySchema)]).optional() });
+/** A contract as a descriptor carries it: its products, and its `requires` and `states` statements as their sentences. The
+ *  statement form of the products has the shape of a map of one field, `of`, which `contractProducts` reads as the statement form. */
+export const StepContractSchema = z.object({
+	products: z.union([DomainKeySchema, z.record(z.string(), DomainKeySchema)]).optional(),
+	requires: z.array(z.string().min(1)).optional(),
+	states: z.array(z.string().min(1)).optional(),
+});
+export type TContractSentences = z.infer<typeof StepContractSchema>;
+/** A contract as a page's fixture states it: its products, and its statements' sentences, without the domain keys' brand. */
+export type TStatedContract = { readonly products?: TContractProducts; readonly requires?: readonly string[]; readonly states?: readonly string[] };
+
+/** The heading of each kind of a contract's statements, as a reader reads it: what holds before a call, and what holds after it. */
+const CONTRACT_SAID = { requires: "Before the call", states: "After the call" } as const;
+
+/** The lines that state a descriptor's contract: the sentences of what it requires, and of what it states. */
+export const contractLines = (contract: TContractSentences | undefined): string[] =>
+	(["requires", "states"] as const).flatMap((check) => {
+		const sentences = contract?.[check];
+		return sentences === undefined ? [] : [`${CONTRACT_SAID[check]}: ${sentences.join("; ")}.`];
+	});
+
+/** A step's description with its contract's sentences, as a control's tooltip and accessible description state it. */
+export const describedWithContract = ({ description, contract }: { readonly description: string; readonly contract?: TContractSentences }): string =>
+	[description, ...contractLines(contract)].join(" ");
 
 /** The products a contract declares, in the one form it states: the domain, the domain of each field, or the statement
  *  parameter. A step without a contract has an empty form. */
@@ -96,7 +121,7 @@ const isStatementProducts = (products: object): products is { readonly [OF]: str
 };
 
 /** Returns the products the contract of a step or a descriptor declares. */
-export function contractProducts<D extends string>({ contract }: { readonly contract?: TStepContract<D> }): TDeclaredProducts<D> {
+export function contractProducts<D extends string>({ contract }: { readonly contract?: Pick<TStepContract<D>, "products"> }): TDeclaredProducts<D> {
 	const products = contract?.products;
 	if (products === undefined) return {};
 	if (typeof products === "string") return { domain: products };
@@ -105,19 +130,19 @@ export function contractProducts<D extends string>({ contract }: { readonly cont
 }
 
 /** Returns each domain the contract declares its products in: the domain, or the domain of each field. */
-export function productDomains(step: { readonly contract?: TStepContract }): string[] {
+export function productDomains(step: { readonly contract?: Pick<TStepContract, "products"> }): string[] {
 	const { domain, fields } = contractProducts(step);
 	if (domain !== undefined) return [domain];
 	return fields === undefined ? [] : Object.values(fields);
 }
 
-/** The text an argument renders as: a parameter by its name in braces, the products, the principal, a field as `Type.key`, or a
- *  derived record as `Type:derivation(arguments)`. */
-const argumentText = (argument: TContractArgument): string => {
-	if ("parameter" in argument) return `{${argument.parameter}}`;
+/** The term an argument renders as: a parameter by its name, the products, the principal, a field as `Type.key`, or a derived
+ *  record as `Type:derivation(arguments)`. */
+export const argumentTerm = (argument: TContractArgument): string => {
+	if ("parameter" in argument) return argument.parameter;
 	if ("products" in argument) return "products";
 	if ("principal" in argument) return "principal";
-	if ("derived" in argument) return `${argument.derived.persistedAs}:${argument.derived.derivation.name}(${argument.derived.args.map(argumentText).join(", ")})`;
+	if ("derived" in argument) return `${argument.derived.persistedAs}:${argument.derived.derivation.name}(${argument.derived.args.map(argumentTerm).join(", ")})`;
 	return `${argument.persistedAs}.${argument.key}`;
 };
 
@@ -132,7 +157,7 @@ export const statementN3 = ({ relation, args }: TStatement, termOf: (argument: T
 	`(${args.map(termOf).join(" ")}) <${RELATION_NAMESPACE}${relation.name}> true .`;
 
 /** Returns a statement in Unicode notation, as the views show it: `name(a, b)`, with `¬` before a negation. */
-export const statementNotation = ({ relation, args, negated }: TStatement): string => `${negated ? "¬" : ""}${relation.name}(${args.map(argumentText).join(", ")})`;
+export const statementNotation = ({ relation, args, negated }: TStatement): string => `${negated ? "¬" : ""}${relation.name}(${args.map(argumentTerm).join(", ")})`;
 
 /** The statements a call is checked against: those that hold before its action, and those that hold over its products. */
 export const CONTRACT_CHECK = { requires: "requires", states: "states" } as const;
@@ -143,8 +168,9 @@ export type TContractCheck = (typeof CONTRACT_CHECK)[keyof typeof CONTRACT_CHECK
  *  `ACTUALITY_PRINCIPAL`, and a call without a principal or every action doesn't state one. */
 export type TContractCall = { readonly parameters: Readonly<Record<string, unknown>>; readonly principal?: string; readonly products?: unknown };
 
-/** A statement's verdict in a call's check: proved, refuted or unknown, and the triple that determined it. */
-export type TStatementVerdict = { readonly statement: TStatement; readonly verdict: TVerdict; readonly decidedBy: string };
+/** A statement's verdict in a call's check: the statement and its sentence, proved, refuted or unknown, and the triple that
+ *  determined it. */
+export type TStatementVerdict = { readonly statement: TStatement; readonly sentence: string; readonly verdict: TVerdict; readonly decidedBy: string };
 
 /** The statements a check reads and the fields its contract states complete. */
 export type TContractChecking = { readonly statements: readonly TStatement[]; readonly complete: readonly TField[] };

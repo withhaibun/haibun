@@ -19,7 +19,7 @@ import WebServerStepper from "./web-server-stepper.js";
 
 const REVOKED: TRelation = {
 	name: "revoked_grant",
-	arity: 1,
+	phrase: { holds: "{grant} is revoked", doesntHold: "{grant} isn't revoked" },
 	rules: "@prefix h: <https://withhaibun.github.io/ns/> .\n{ ?g h:revoked ?at } => { (?g) <urn:haibun:relation:revoked_grant> true } .",
 };
 const GrantSchema = z.object({ id: z.string(), revoked: z.string().optional() });
@@ -94,8 +94,9 @@ describe("a call over RPC that its step's contract refuses", () => {
 		expect(result.ok).toBe(true);
 		const calling = result.world.runtime.steppers?.find((stepper) => stepper instanceof Calling);
 		const refusal = (calling as Calling).refusal;
-		expect(refusal?.error).toContain("its contract requires ¬revoked_grant({grant}), which is refuted");
-		expect(refusal?.statement?.statement).toBe("¬revoked_grant({grant})");
+		expect(refusal?.error).toContain("its contract requires that grant isn't revoked, which is refuted");
+		expect(refusal?.statement?.statement).toBe("grant isn't revoked");
+		expect(refusal?.error, "the second sentence is the remedy the verdict determines").toContain(refusal?.statement?.remedy);
 		expect(refusal?.statement?.verdict).toBe(VERDICT.refuted);
 		expect(refusal?.statement?.decidedBy).toContain("revoked_grant");
 	});
