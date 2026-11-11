@@ -6,7 +6,7 @@
  * The raycast itself needs a real browser (a feature test covers it); this is the arithmetic under it.
  */
 import { describe, it, expect } from "vitest";
-import { ndcToClient, clientToNdc, NDC_EDGE, type TCanvasRect, type TNdc, type TClientPoint } from "./project.js";
+import { cameraBasis, ndcToClient, clientToNdc, NDC_EDGE, type TCanvasRect, type TNdc, type TClientPoint } from "./project.js";
 import { ndcOnScreen } from "../../../test/screen-share.js";
 
 /** The round trip is arithmetic, not measurement: it holds to floating-point precision, not to a tolerance. */
@@ -76,5 +76,18 @@ describe("polymorphic node projection", () => {
 		]) {
 			expect(ndcOnScreen(clientToNdc(outside, rect))).toBe(false);
 		}
+	});
+});
+
+describe("cameraBasis", () => {
+	it("reads the camera's right, up and back directions as the columns of its world matrix", () => {
+		// A camera turned a quarter about y and tilted an eighth about x: R = Ry(90°) · Rx(45°), stored column by column.
+		const h = Math.SQRT1_2;
+		const elements = [0, 0, -1, 0, h, h, 0, 0, h, -h, 0, 0, 0, 0, 0, 1] as const;
+		const { right, up, back } = cameraBasis(elements);
+		expect(right).toEqual({ x: 0, y: 0, z: -1 });
+		expect(up).toEqual({ x: h, y: h, z: 0 });
+		expect(back).toEqual({ x: h, y: -h, z: 0 });
+		expect(up.x, "the world x axis has a component along the camera's up, so the compass draws it tilted").toBeCloseTo(h);
 	});
 });

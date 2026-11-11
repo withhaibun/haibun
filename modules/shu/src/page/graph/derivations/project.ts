@@ -31,11 +31,16 @@ export function clientToNdc(point: TClientPoint, rect: TCanvasRect): TNdc {
 	return { x: ((point.x - rect.left) / rect.width) * NDC_SPAN - NDC_EDGE, y: NDC_EDGE - ((point.y - rect.top) / rect.height) * NDC_SPAN };
 }
 
-/** A camera's world matrix, column by column, as far as its up direction. */
-type TBasisColumns = readonly [number, number, number, number, number, number, number, ...number[]];
+/** A camera's world matrix, column by column, as far as its back direction. */
+type TBasisColumns = readonly [number, number, number, number, number, number, number, number, number, number, number, ...number[]];
 
-/** Returns the camera's right and up directions in world space: the first two columns of its world matrix. */
-export const cameraBasis = (m: TBasisColumns): { right: TXyz; up: TXyz } => ({ right: { x: m[0], y: m[1], z: m[2] }, up: { x: m[4], y: m[5], z: m[6] } });
+/** Returns the camera's right, up and back directions in world space: the first three columns of its world matrix. A world
+ *  direction's component along each is where it points on screen and toward the camera. */
+export const cameraBasis = (m: TBasisColumns): { right: TXyz; up: TXyz; back: TXyz } => ({
+	right: { x: m[0], y: m[1], z: m[2] },
+	up: { x: m[4], y: m[5], z: m[6] },
+	back: { x: m[8], y: m[9], z: m[10] },
+});
 
 /** A direction in world space. */
 type TXyz = { x: number; y: number; z: number };

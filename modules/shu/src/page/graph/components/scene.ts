@@ -18,6 +18,7 @@ import type { TAframeScene } from "../adapters/frame-loop.js";
 import { configureLabelFonts, makeTroikaChip, makeTroikaText, spriteVisual, type ChipThree } from "./troika-label.js";
 import { FULL_BURN, GLOW_RAMP, BREATH_MS } from "../derivations/highlight.js";
 import { typeAvatar } from "../derivations/type-avatar.js";
+import { cameraBasis } from "../derivations/project.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { PAGE_TERMS, type TCounted } from "@haibun/core/lib/domains/hypermedia.js";
 import { isSubPropertyOf } from "@haibun/core/lib/domains/resources.js";
@@ -293,6 +294,13 @@ const FORCEGRAPH_OBJECT = "forcegraphGroup";
 /** The library's A-Frame entity: its component, which holds the inner three-forcegraph instance, and its objects. */
 type TForcegraphElement = Element & { components?: { forcegraph?: { forceGraph?: TGraphEnginePacing } }; getObject3D(type: string): unknown };
 type TSceneElement = HTMLElement & TAframeScene & { renderer?: TSceneRenderer; camera?: TSceneCamera; emit(name: string, detail?: unknown, bubbles?: boolean): void };
+
+/** The compass's world axes, each with its label, and whether it is drawn in the accent colour: time lies along z. */
+const COMPASS_AXES = [
+	{ axis: "x", label: "x", accent: false },
+	{ axis: "y", label: "y", accent: false },
+	{ axis: "z", label: "t", accent: true },
+] as const;
 
 export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	readonly #observers = new ObserverController(this);
@@ -1354,12 +1362,12 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		// Drop shadow makes lines and labels read on any scene colour without a filled background
 		ctx.shadowColor = "rgba(0,0,0,0.75)";
 		ctx.shadowBlur = 3;
-		// depth sort: back axes paint first so front ones always read on top
-		const axes = [
-			{ sx: m[0], sy: -m[1], depth: -m[2], label: "x", color: fgColor },
-			{ sx: m[4], sy: -m[5], depth: -m[6], label: "y", color: fgColor },
-			{ sx: m[8], sy: -m[9], depth: -m[10], label: "t", color: accentColor },
-		].sort((a, b) => a.depth - b.depth);
+		// Each world axis points on screen along its component on the camera's right and up, and toward the camera along its
+		// component on the camera's back. The axes further back paint first, so the front ones read on top.
+		const { right, up, back } = cameraBasis(m);
+		const axes = COMPASS_AXES.map(({ axis, label, accent }) => ({ sx: right[axis], sy: -up[axis], depth: back[axis], label, color: accent ? accentColor : fgColor })).sort(
+			(a, b) => a.depth - b.depth,
+		);
 		for (const ax of axes) {
 			const toward = ax.depth > 0;
 			// Negative half: short dashed tick in the dim colour
