@@ -5,7 +5,7 @@
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { Download, Locator, Page } from "playwright";
-import { stepInFlight } from "@haibun/core/lib/domains/capability-context.js";
+import { inCall, type TStepInFlight } from "@haibun/core/lib/domains/capability-context.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { VideoStartArtifact } from "@haibun/core/lib/domains/protocol.js";
 import type { TBrowserPages, TTwin } from "../ports.js";
@@ -70,7 +70,7 @@ export class BrowserSession {
 	/** The current tab's page, opened where the tab doesn't hold one. */
 	async page(): Promise<Page> {
 		const { world, captureVideo, relayed } = this.#context;
-		const driving = relayed() ? stepInFlight()?.outermost : undefined;
+		const driving = relayed() ? inCall()?.step?.outermost : undefined;
 		if (driving !== undefined) this.#drivingFor.add(driving);
 		const { featureNum } = world.tag;
 		const opening = !this.hasPage(this.tab);
@@ -152,7 +152,7 @@ export class BrowserSession {
 	/** Lets go of the relayed browser once the outermost step of the last call that drove it ends: the debugger leaves its
 	 *  tabs, and with it Chrome's debugging infobar, until a step drives it again. A turn's calls run within its step, so
 	 *  they drive it on one connection. */
-	async releaseAfter(step: ReturnType<typeof stepInFlight>): Promise<void> {
+	async releaseAfter(step: TStepInFlight | undefined): Promise<void> {
 		if (!step || step.outermost !== step.seqPath || !this.#drivingFor.delete(step.seqPath) || this.#drivingFor.size > 0) return;
 		this.#front = undefined;
 		if (this.#pages) await this.#pages.disconnect();

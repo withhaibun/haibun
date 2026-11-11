@@ -21,7 +21,7 @@ import { DOMAIN_STATEMENT, registeredDomain } from "../../domains/domains.js";
 import { proveClaimed, type DispatchContext } from "../../actuality/pipelines/step-dispatch.js";
 import { allocateSyntheticSeqPath } from "../../domains/host-id.js";
 import type { TSeqPath, TStepResult } from "../../domains/protocol.js";
-import { runAsCaller } from "../../domains/capability-context.js";
+import { callerAt, runInCall } from "../../domains/capability-context.js";
 import { actionsToReadAndWrite } from "../../domains/actions.js";
 
 /**
@@ -125,7 +125,7 @@ export function callStepAsRoute(world: TWorld, method: string, input: Record<str
 	const { capability, readsAt, writesAt } = runRegistry(world).named(method).descriptor;
 	if (readsAt === undefined) throw new Error(`${method} is called from a route and doesn't state readsAt, the level of the records it reads`);
 	const held = [capability, ...actionsToReadAndWrite(readsAt, writesAt === undefined ? [] : writesAt)];
-	return runAsCaller({ held, principal }, () => callStatedStepFrom({ getWorld: () => world, steppers: runSteppers(world) }, method, input));
+	return runInCall(callerAt({ held, principal }), () => callStatedStepFrom({ getWorld: () => world, steppers: runSteppers(world) }, method, input));
 }
 
 /** Returns the result of `tool` for a caller that reads what the step changed. It calls the read step that the

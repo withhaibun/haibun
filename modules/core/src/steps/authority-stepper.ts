@@ -3,14 +3,14 @@ import { z } from "zod";
 import { fromJsonText } from "../lib/domains/json-text.js";
 import { persistPrincipalIndividual } from "../lib/domains/principal-individual.js";
 import { proverOf, type TWorld } from "../lib/actuality/domains/world.js";
-import { AStepper, READING, type IHasCycles, type IStepperCycles, type TCallContext, type TEndFeature, type TStepperSteps } from "../lib/steps/domains/stepper.js";
+import { AStepper, READING, type IHasCycles, type IStepperCycles, type TStepContext, type TEndFeature, type TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/domains/util.js";
 import { counted, CountedFields } from "../lib/domains/hypermedia.js";
 import { SessionAuthority } from "../lib/pipelines/session-authority.js";
 import { AUTHORITY_KEY } from "../lib/domains/session-authority.js";
 import { DELEGATIONS_READ_ACTION, DOMAIN_HELD_CALLS, HeldCallsSchema, type IAuthority } from "../lib/domains/authority-types.js";
 import { DOMAIN_ACTIONS, DOMAIN_JSON, DOMAIN_LINK, DOMAIN_PRINCIPAL_REF } from "../lib/domains/domains.js";
-import { actingAs, actingFor, callerHolds, runActingAs, runAuthorizedWith } from "../lib/domains/capability-context.js";
+import { actingFor, inCall, runAuthorizedWith, runInCall } from "../lib/domains/capability-context.js";
 import { AUTHORITY_CAPABILITIES, delegatedActions, permissionOf, readAction, witnessOf } from "../lib/domains/actions.js";
 import { activeSitePrincipal, SITE_DID_PREFIX } from "../lib/domains/host-id.js";
 import { Access, AccessLevelSchema, PRINCIPAL_LABEL } from "../lib/domains/resources.js";
@@ -121,7 +121,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			description:
 				"Returns the signed delegations that this instance recorded to the key that signs the call, as the documents a holder presents. The step omits a revoked delegation. A key's holder reads the delegations to determine what the key may do here. The step returns only the calling key's delegations.",
 			action: async () => {
-				const controller = actingAs();
+				const controller = inCall()?.principal;
 				if (!controller) return actionNotOK("the call doesn't prove a key, and the delegation read returns only the signing key's delegations. Sign the call.");
 				return actionOKWithProducts(await this.getAuthority().delegationsTo(controller));
 			},
@@ -146,7 +146,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			reading: READING.within,
 			context: async ({ actions }) => {
 				// The statement holds each listed action its caller's actions contain, which the reasoner proves.
-				const held = callerHolds();
+				const held = inCall()?.held;
 				const listed = actions as string[];
 				const beyond = await proverOf(this.getWorld()).exceeding({ actions: listed }, { actions: held === undefined ? [] : [held].flat() });
 				const narrowed = listed.filter((action) => !beyond.some(({ value }) => value === action));
@@ -167,7 +167,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 	 * cryptography, so verification depends on the registered verifier. Refuses a document that doesn't parse, a caller that
 	 * doesn't prove a key, and evidence the verifier refuses.
 	 */
-	private async underCapability(cap: unknown, target: string): Promise<TCallContext | { refused: string }> {
+	private async underCapability(cap: unknown, target: string): Promise<TStepContext | { refused: string }> {
 		// A variable keeps its own domain. A record stores a signed document as JSON text, so `cap` can hold that text.
 		// fromJsonText parses the text as the document.
 		const parsed = fromJsonText(signedCapabilitySchema).safeParse(cap);
@@ -192,7 +192,8 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 		// doesn't list them. They run as the principal the verifier returns, or as the capability's controller.
 		const allowed = verified.allowedAction ?? delegatedActions(capability);
 		const principal = verified.principal ?? capability.controller;
-		return <T>(run: () => Promise<T>) => runAuthorizedWith(allowed, () => runActingAs(principal, run, verified.restsOn));
+		return <T>(run: () => Promise<T>) =>
+			runInCall({ ...inCall(), capabilityAction: allowed, held: allowed, outside: true, principal, restsOn: verified.restsOn, step: undefined }, run);
 	}
 
 	private getAuthority(): IAuthority {

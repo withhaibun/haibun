@@ -16,7 +16,7 @@ import { STEPS_CHANGED, type THaibunEvent } from "../lib/domains/protocol.js";
 import { readStepDefinitions, readStepSummaries, SHOW_STEPS_LINE, SHOW_STEPS_METHOD, type TStepSummaries } from "../lib/steps/domains/step-discovery.js";
 import type { TStepResult } from "../lib/domains/protocol.js";
 import { validateStep } from "../lib/pipelines/step-validation.js";
-import { RUN_AUTHORITY, readingAsOf, runAuthorizedWith, runShowing } from "../lib/domains/capability-context.js";
+import { inCall, RUN_AUTHORITY, runAuthorizedWith, runInCall } from "../lib/domains/capability-context.js";
 import { TEST_STEP } from "../lib/test/test-step.js";
 
 describe("until", () => {
@@ -241,7 +241,7 @@ describe("show steps", () => {
 		const read: Array<readonly number[] | undefined> = [];
 		class ReadsAsOf extends AStepper {
 			description = "Records the step whose actuality a read reads.";
-			steps = { readsAsOf: { description: TEST_STEP, gwta: "read as of the step", action: () => (read.push(readingAsOf()), Promise.resolve(actionOK())) } };
+			steps = { readsAsOf: { description: TEST_STEP, gwta: "read as of the step", action: () => (read.push(inCall()?.asOf), Promise.resolve(actionOK())) } };
 		}
 		const result = await passWithDefaults("as of 0.1, read as of the step\nread as of the step", [Haibun, ReadsAsOf, LogicStepper]);
 		expect(result.ok, JSON.stringify(result.failure)).toBe(true);
@@ -274,7 +274,7 @@ describe("show steps", () => {
 					action: async () => {
 						const haibun = this.getWorld().runtime.steppers?.find((stepper) => stepper instanceof Haibun) as Haibun;
 						const list = async () => readStepSummaries((await haibun.steps.showSteps.action()).products);
-						shown.push(await runAuthorizedWith(["Read:public"], list), await runShowing(RUN_AUTHORITY, () => runAuthorizedWith(["Read:public"], list)));
+						shown.push(await runAuthorizedWith(["Read:public"], list), await runInCall({ ...inCall(), shown: RUN_AUTHORITY }, () => runAuthorizedWith(["Read:public"], list)));
 						return actionOK();
 					},
 				},

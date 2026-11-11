@@ -9,7 +9,7 @@ import { LogicStepper } from "../lib/test/logic-stepper.js";
 import { AStepper } from "../lib/steps/domains/stepper.js";
 import { OK } from "../lib/domains/protocol.js";
 import { actionNotOK } from "../lib/domains/util.js";
-import { readingAt, runActingAs } from "../lib/domains/capability-context.js";
+import { inCall, readingAt, runInCall } from "../lib/domains/capability-context.js";
 import { getAuthority } from "../lib/domains/session-authority.js";
 import { buildStepRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { DELEGATIONS_READ_ACTION, DELEGATIONS_READ_METHOD } from "../lib/domains/authority-types.js";
@@ -117,7 +117,7 @@ describe("delegations to the caller", () => {
 		const stepper = new AuthorityStepper();
 		await stepper.setWorld(world, [stepper]);
 		addStepperConcerns(world, [stepper]);
-		return { world, stepper, readAs: (controller?: string) => runActingAs(controller, () => stepper.steps.delegationsTo.action()) };
+		return { world, stepper, readAs: (controller?: string) => runInCall({ ...inCall(), principal: controller, step: undefined }, () => stepper.steps.delegationsTo.action()) };
 	};
 
 	it("requires the action that only a key's own root grants, under the method that pages and launched instances call", async () => {

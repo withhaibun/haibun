@@ -14,18 +14,7 @@ import { normalizeDomainKey } from "../../domains/domains.js";
 import { assertFact } from "../../records/pipelines/facts.js";
 import { entailmentRecorded } from "../../records/derivations/claim.js";
 import { doStepperCycle, enterPhase } from "../../steps/pipelines/stepper-cycles.js";
-import {
-	actingAs,
-	askedIn,
-	callerHolds,
-	readScope,
-	runInStep,
-	runInvoking,
-	runReadingOnceAsHeld,
-	runStatedAt,
-	stepInFlight,
-	writtenLevel,
-} from "../../domains/capability-context.js";
+import { inCall, nestedOf, runInCall, writtenLevel } from "../../domains/capability-context.js";
 import { capabilityAllows } from "../../domains/actions.js";
 import { SEQ_PATH_LABEL } from "../../domains/resources.js";
 import { SEQ_PATH_ACCESS, actualityFeatureOf, type TRecordName } from "../domains/seq-path.js";
@@ -51,19 +40,9 @@ import { stepEndEvent, stepStartEvent } from "../derivations/lifecycle-events.js
 import { moveActuality } from "./move-actuality.js";
 import { contractProducts, stepWrites } from "../../steps/domains/contract.js";
 
-/** How a step is proved and its calls dispatched. `grantedCapability` is the action the call invoked. `held` is what its caller holds, and it
- *  bounds what the step reads. A holder in this process invokes from what it holds, so it passes one list for both.
- *  `delegation` is the delegation the call was made under, and `attributedTo` the agent the call is attributed to, such as
- *  the model whose turn made it, where the caller states them. The step's record states both. */
-export type DispatchContext = {
-	registry: StepRegistry;
-	world: TWorld;
-	steppers: AStepper[];
-	grantedCapability?: string | string[];
-	held?: string | string[];
-	delegation?: string;
-	attributedTo?: string;
-};
+/** Where a step is proved and its calls dispatched: actuality's registry, its world and its steppers. The record of the call
+ *  in progress (`inCall`) holds the call's authority, so a dispatch context doesn't hold it. */
+export type DispatchContext = { registry: StepRegistry; world: TWorld; steppers: AStepper[] };
 
 /** The actions a capability names: one, several, or an empty list where the call doesn't state a capability. */
 const actionsOf = (capability: string | string[] | undefined): string[] => (capability === undefined ? [] : [capability].flat());
@@ -138,29 +117,6 @@ export async function provedList(ctx: DispatchContext, parent: TFeatureStep, sta
 	return { list: read };
 }
 
-/**
- * The authority a call runs under. A capability the dispatch context states takes precedence over callerHolds(). A step
- * dispatched from inside another step invokes from what the caller holds, under the chain the caller presented. Its action is
- * the one in that chain that allows it. The route that dispatched the step doesn't change whether it is refused, and a step
- * doesn't run beyond what that chain holds. A statement that narrows authority sets what its own statements hold in the same
- * way. `holding only` is one such statement.
- */
-function authorityOf(ctx: DispatchContext): { grantedCapability: string | string[] | undefined; held: string | string[] | undefined } {
-	const grantedCapability = ctx.grantedCapability ?? callerHolds();
-	return { grantedCapability, held: ctx.held ?? grantedCapability };
-}
-
-/**
- * Runs `run` as a dispatched step's own work runs: under the authority of its call, with the read scope in force as the
- * statement's scope, and at the broadest read its caller holds. A caller that doesn't hold a read action is refused each read
- * and write of records, so a step doesn't read a record for a caller who couldn't read that record. The logic engine's prover
- * reads a quantifier's members, a waypoint's arguments and a node's arguments through it.
- */
-export function runAsDispatched<T>(ctx: DispatchContext, run: () => Promise<T>): Promise<T> {
-	const { grantedCapability, held } = authorityOf(ctx);
-	return runInvoking({ invoked: grantedCapability, held }, () => runStatedAt(readScope(), () => runReadingOnceAsHeld(held, run)));
-}
-
 /** What a node of a proof performs in place of a step's action: the proof of its statements, which its caller resolves. */
 export type TPerform = () => Promise<TActionResult>;
 
@@ -174,7 +130,7 @@ export const proveStep = (ctx: DispatchContext, featureStep: TFeatureStep): Prom
  */
 export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureStep, perform?: TPerform): Promise<TStepResult> {
 	const { registry, world, steppers } = ctx;
-	const { grantedCapability, held } = authorityOf(ctx);
+	const call = inCall();
 	const { action } = featureStep;
 	const start = Timer.since();
 
@@ -187,7 +143,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	// feature reads, and the read's result is the step's result. The rule tests `programmatic` and not `isSubStep`, because
 	// a read beneath a combinator is also a substep, and actuality records it. A read a transport carries within a step, such
 	// as a model's tool call during a turn, is that step's act, so actuality records it too.
-	const recorded = !(action.step.read === true && featureStep.programmatic === true && stepInFlight() === undefined);
+	const recorded = !(action.step.read === true && featureStep.programmatic === true && call?.step === undefined);
 	// Actuality holds two records of the steps a feature has finished. `world.runtime.steps` holds how many ran, when they
 	// began and ended, and which one failed. foldStep updates it as each step settles. `world.runtime.stepResults` holds
 	// the most recent RESULTS_READ_IN_FULL results in full, since a reader of the result reads what those steps produced.
@@ -229,14 +185,12 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 
 	// The read scope in force where the statement was stated. Its arguments are read in this scope, and
 	// authorizeToolCapability refuses a step that reads above its ceiling.
-	const statedAt = readScope();
-	const refusal = refusalOf(() =>
-		authorizeToolCapability(tool.descriptor, { invoked: grantedCapability, held }, statedAt !== undefined && "ceiling" in statedAt ? statedAt.ceiling : undefined),
-	);
+	const statedAt = call?.readScope;
+	const refusal = refusalOf(() => authorizeToolCapability(tool.descriptor, { ...call }, statedAt !== undefined && "ceiling" in statedAt ? statedAt.ceiling : undefined));
 	// A feature's or a scenario's start is recorded without the step's cycles, after its caller's capability is checked.
 	if (action.actionName === FEATURE_START || action.actionName === SCENARIO_START) {
 		if (refusal !== undefined) throw refusal;
-		const started = await writeStepStart(world, featureStep, {}, { ranVia: "local" }, callOf(ctx));
+		const started = await writeStepStart(world, featureStep, {}, { ranVia: "local" }, callOf());
 		await writeStepEnd(world, started, { status: RECORDED_STATUS.completed });
 		return stepResultOf({ ok: true }, action, start, Timer.since(), featureStep);
 	}
@@ -244,11 +198,11 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	// actions the caller held, where the caller isn't actuality acting as itself. It states the principal that proved its
 	// identity, where one did, and the delegation the call was made under, where the caller states one.
 	const authorization: TStepAuthorization = {
-		...(!capabilityAllows(grantedCapability, "*")
-			? { invoked: actionsOf(grantedCapability).find((action) => capabilityAllows(action, tool.descriptor.capability)), ...heldAs(actionsOf(held)) }
+		...(!capabilityAllows(call?.capabilityAction, "*")
+			? { capabilityAction: actionsOf(call?.capabilityAction).find((action) => capabilityAllows(action, tool.descriptor.capability)), ...heldAs(actionsOf(call?.held)) }
 			: {}),
-		controller: actingAs(),
-		...(ctx.delegation === undefined ? {} : { delegation: ctx.delegation }),
+		controller: call?.principal,
+		...(call?.delegation === undefined ? {} : { delegation: call.delegation }),
 	};
 	// The step as its records state it. A domain's `recordedAs` replaces a value too large to repeat in the records.
 	const stated = asRecorded(featureStep, world.domains);
@@ -256,7 +210,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	let started: TStepRecord | undefined;
 	if (recorded) {
 		await moveActuality(world, stepStartEvent(stated, called, tool.isAsync, world.clock.now()));
-		started = await writeStepStart(world, stated, authorization, { ranVia: tool.transport, ranOn: tool.descriptor.remoteOrigin }, callOf(ctx));
+		started = await writeStepStart(world, stated, authorization, { ranVia: tool.transport, ranOn: tool.descriptor.remoteOrigin }, callOf());
 	}
 	// A refused call ends as failed with the refusal, so its record states why it didn't run, and the refusal reaches the caller.
 	if (refusal !== undefined) {
@@ -273,36 +227,34 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	const step = { seqPath: featureStep.seqPath.join("."), reportsAt: featureStep.isSubStep ? SUBSTEP_LEVEL : undefined, writes: stepWrites(action.step, method, persistedAsOf) };
 	let actionResult: TActionResult | undefined;
 	let lastStepResult: TStepResult | undefined;
-	await runInStep(step, () =>
-		runAsDispatched(ctx, async () => {
-			let doAction = true;
-			while (doAction) {
-				await doStepperCycle(steppers, "beforeStep", <TBeforeStep>{ featureStep });
-				enterPhase(`the step ${step.seqPath}, ${featureStep.in}`);
-				// The handler validates the step's products against the step's domain. A tool of another host or process
-				// validates them where it runs.
-				actionResult = await (perform === undefined ? tool.handler(featureStep, world) : perform());
-				if (actionResult.ok) {
-					if (actionResult.products && recorded) actionResult = { ...actionResult, products: { ...actionResult.products, [TRACE_SEQ_PATH]: featureStep.seqPath } };
-					actionResult = augmentViewHypermedia(world, action.step, actionResult, steppers);
-					// A fact is a record of actuality. Actuality doesn't record a read over a transport as a step or assert its products.
-					if (recorded) await autoAssertProducts(world, { actuality: actualityFeatureOf(world.tag), path: featureStep.seqPath }, action.step, actionResult);
-				}
-				// A nested call's failure is part of its line's proof, so only a line's failure is logged as an error.
-				if (!actionResult.ok && featureStep.isSubStep !== true) {
-					world.eventLogger.log(featureStep, "error", actionResult.errorMessage);
-				}
-				const placed = stepResultOf(actionResult, action, start, Timer.since(), stated);
-				place(placed);
-				const instructions: Array<TAfterStepResult | undefined> = await doStepperCycle(steppers, "afterStep", <TAfterStep>{ featureStep, actionResult });
-				doAction = instructions.some((i) => i?.rerunStep);
-				// An afterStep cycle can fail a step that passed, so actuality counts the outcome afterStepOutcome computes.
-				actionResult = afterStepOutcome(actionResult, instructions);
-				lastStepResult = stepResultOf(actionResult, action, start, placed.end ?? Timer.since(), stated);
-				settle(placed, lastStepResult);
+	await runInCall(nestedOf(call, step), async () => {
+		let doAction = true;
+		while (doAction) {
+			await doStepperCycle(steppers, "beforeStep", <TBeforeStep>{ featureStep });
+			enterPhase(`the step ${step.seqPath}, ${featureStep.in}`);
+			// The handler validates the step's products against the step's domain. A tool of another host or process
+			// validates them where it runs.
+			actionResult = await (perform === undefined ? tool.handler(featureStep, world) : perform());
+			if (actionResult.ok) {
+				if (actionResult.products && recorded) actionResult = { ...actionResult, products: { ...actionResult.products, [TRACE_SEQ_PATH]: featureStep.seqPath } };
+				actionResult = augmentViewHypermedia(world, action.step, actionResult, steppers);
+				// A fact is a record of actuality. Actuality doesn't record a read over a transport as a step or assert its products.
+				if (recorded) await autoAssertProducts(world, { actuality: actualityFeatureOf(world.tag), path: featureStep.seqPath }, action.step, actionResult);
 			}
-		}),
-	);
+			// A nested call's failure is part of its line's proof, so only a line's failure is logged as an error.
+			if (!actionResult.ok && featureStep.isSubStep !== true) {
+				world.eventLogger.log(featureStep, "error", actionResult.errorMessage);
+			}
+			const placed = stepResultOf(actionResult, action, start, Timer.since(), stated);
+			place(placed);
+			const instructions: Array<TAfterStepResult | undefined> = await doStepperCycle(steppers, "afterStep", <TAfterStep>{ featureStep, actionResult });
+			doAction = instructions.some((i) => i?.rerunStep);
+			// An afterStep cycle can fail a step that passed, so actuality counts the outcome afterStepOutcome computes.
+			actionResult = afterStepOutcome(actionResult, instructions);
+			lastStepResult = stepResultOf(actionResult, action, start, placed.end ?? Timer.since(), stated);
+			settle(placed, lastStepResult);
+		}
+	});
 	if (!actionResult || !lastStepResult) {
 		throw new Error(`${action.stepperName}.${action.actionName} didn't record an action result`);
 	}
@@ -344,14 +296,10 @@ function refusalOf(authorize: () => void): Error | undefined {
 }
 
 /** Returns the call a step's record states: the level at which the call writes a SeqPath record, which is its read level, the
- *  ask that holds the call, and the agent that the dispatch context names. */
-function callOf(ctx: DispatchContext): TStepCall {
-	const asked = askedIn();
-	return {
-		accessLevel: writtenLevel(SEQ_PATH_ACCESS),
-		...(asked === undefined ? {} : { askedIn: asked }),
-		...(ctx.attributedTo === undefined ? {} : { attributedTo: ctx.attributedTo }),
-	};
+ *  ask that holds the call, and the agent to which the call is attributed. */
+function callOf(): TStepCall {
+	const { ask, attributedTo } = { ...inCall() };
+	return { accessLevel: writtenLevel(SEQ_PATH_ACCESS), ...(ask === undefined ? {} : { askedIn: ask }), ...(attributedTo === undefined ? {} : { attributedTo }) };
 }
 
 /**

@@ -33,7 +33,7 @@ import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import { SHOW_STEP_DEFINITIONS_METHOD, SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, readStepDefinitions, type TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import { streamContext, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
-import { authorizedWith, readingAt } from "@haibun/core/lib/domains/capability-context.js";
+import { inCall, readingAt } from "@haibun/core/lib/domains/capability-context.js";
 import { Access, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type AccessLevel } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import { recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
@@ -76,7 +76,7 @@ class PingStepper extends AStepper {
 				webserver.addRpcMethods(
 					PROBE_PREFIX,
 					{ description: "returns what a call holds" },
-					{ [PROBE_NAME]: { action: ActionSchema.parse(PROBE_ACTION), handle: async () => ({ held: authorizedWith(), at: readingAt() ?? "unbounded" }) } },
+					{ [PROBE_NAME]: { action: ActionSchema.parse(PROBE_ACTION), handle: async () => ({ held: inCall()?.capabilityAction, at: readingAt() ?? "unbounded" }) } },
 				);
 				return OK;
 			},

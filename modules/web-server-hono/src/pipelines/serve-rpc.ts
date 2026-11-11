@@ -26,7 +26,7 @@ import { mayCall } from "@haibun/core/lib/domains/actions.js";
 import { activeSitePrincipal, allocateSyntheticSeqPath } from "@haibun/core/lib/domains/host-id.js";
 import { SERVING } from "@haibun/core/lib/domains/serving.js";
 import { streamContext } from "@haibun/core/lib/step-stream-context.js";
-import { runAsCaller, runReadingAt } from "@haibun/core/lib/domains/capability-context.js";
+import { callerAt, runInCall, runReadingAt } from "@haibun/core/lib/domains/capability-context.js";
 import type { IWebServer, TCapabilityVerifier } from "../ports.js";
 import type { IStepTransport, ITransport } from "../domains/transport.js";
 import { notARead } from "../domains/web-server.js";
@@ -64,7 +64,7 @@ export function serveRpc({ world, steppers, webserver, transport, verifier }: TS
 		// A streamed call is held open only while the authority it was allowed under holds.
 		const stream = streamContext.getStore();
 		if (stream) verifier.endWhenLapsed(restsOn, stream.signal, stream.end);
-		const caller: TCaller = { granted, held, principal, restsOn, delegate: verifier.delegateOf(authority) };
+		const caller: TCaller = { capabilityAction: granted, held, principal, restsOn, delegate: verifier.delegateOf(authority) };
 
 		// A method of a served family is gated by the action it declares, verified as a step's capability is, without an
 		// ungated default.
@@ -76,7 +76,7 @@ export function serveRpc({ world, steppers, webserver, transport, verifier }: TS
 				// Whoever proved themselves at this boundary acts inside it, holding what it presented and reading within the
 				// read it holds, or the narrower level it requested, as in a dispatched step. A caller that doesn't
 				// hold a read action is refused each read and write of records.
-				return await runAsCaller(caller, () => runReadingAt(msg.readingAt, () => served.handle(params)));
+				return await runInCall(callerAt(caller), () => runReadingAt(msg.readingAt, () => served.handle(params)));
 			} catch (err) {
 				return callFailed(method, `the served method failed: ${errorDetail(err)}`, refusalCarried(err)?.remedy);
 			}

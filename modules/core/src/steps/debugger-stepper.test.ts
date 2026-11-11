@@ -15,6 +15,7 @@ import { addStepperConcerns } from "../lib/actuality/pipelines/executor.js";
 import { DOMAIN_TEXT } from "../lib/domains/domains.js";
 import { itemAt } from "../lib/domains/item-at.js";
 import { TEST_STEP } from "../lib/test/test-step.js";
+import { runAuthorizedWith } from "../lib/domains/capability-context.js";
 
 /** A prompter that continues at each prompt, whose prompts a test counts. */
 const continuing = (): IPrompter => {
@@ -150,7 +151,7 @@ describe("DebuggerStepper RPC dispatch", () => {
 
 		const featureStep = buildFeatureStepForTransport(tool, {}, [0, 99]);
 		expect(featureStep.programmatic).toBe(true);
-		const result = await dispatchStep({ registry, world, steppers, grantedCapability: tool.descriptor.capability }, featureStep);
+		const result = await runAuthorizedWith(tool.descriptor.capability, () => dispatchStep({ registry, world, steppers }, featureStep));
 		expect(result.ok).toBe(false);
 		expect(result.errorMessage).toBe("intentional failure");
 	});
@@ -177,7 +178,7 @@ describe("DebuggerStepper RPC dispatch", () => {
 		if (!tool) throw new Error("echo not registered");
 
 		const featureStep = buildFeatureStepForTransport(tool, { what: "hi" }, [0, 100]);
-		const result = await dispatchStep({ registry, world, steppers, grantedCapability: tool.descriptor.capability }, featureStep);
+		const result = await runAuthorizedWith(tool.descriptor.capability, () => dispatchStep({ registry, world, steppers }, featureStep));
 		expect(result.ok).toBe(true);
 	});
 });

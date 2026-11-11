@@ -7,7 +7,7 @@ import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TEventKind } from "
 import type { TFeatureStep } from "../domains/stepper.js";
 import { formatSeqPath } from "../../actuality/domains/seq-path.js";
 import { failFastOrLog } from "../../domains/dev-mode.js";
-import { stepInFlight, writeBound } from "../../domains/capability-context.js";
+import { inCall, writeBound } from "../../domains/capability-context.js";
 import { writtenAt } from "../../domains/actions.js";
 import { Access } from "../../domains/resources.js";
 import type { IEventLogger, TEventSink, TEventSubscriber, TSecrets, TSubscribeOptions } from "../ports.js";
@@ -129,7 +129,7 @@ export class EventLogger implements IEventLogger {
 	}
 
 	private emitLog(level: THaibunLogLevel, message: string, attributes: Record<string, unknown> | undefined): void {
-		const seqPath = stepInFlight()?.seqPath;
+		const seqPath = inCall()?.step?.seqPath;
 		const id = seqPath ? `${seqPath}.log.${Date.now()}` : `log.${Date.now()}`;
 		this.emit(LogEvent.parse({ id, timestamp: Date.now(), kind: "log", level: this.reportedAt(level), message, attributes }));
 	}
@@ -138,7 +138,7 @@ export class EventLogger implements IEventLogger {
 	 *  error keeps its own level, so a view shows a fault during a quieter step. The cap keeps a call made into a running
 	 *  instance from putting the caller's narration into actuality's history. */
 	private reportedAt(level: THaibunLogLevel): THaibunLogLevel {
-		const ceiling = stepInFlight()?.reportsAt;
+		const ceiling = inCall()?.step?.reportsAt;
 		if (ceiling === undefined || HAIBUN_LOG_LEVELS.indexOf(level) >= HAIBUN_LOG_LEVELS.indexOf(UNCAPPED_LEVEL)) return level;
 		return HAIBUN_LOG_LEVELS.indexOf(level) > HAIBUN_LOG_LEVELS.indexOf(ceiling) ? ceiling : level;
 	}

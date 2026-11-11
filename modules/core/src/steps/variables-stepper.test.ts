@@ -18,6 +18,7 @@ import { buildFeatureStepForTransport } from "../lib/steps/pipelines/call-step.j
 import { StepRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { addStepperConcerns } from "../lib/actuality/pipelines/executor.js";
 import { typeCollectionRemedy } from "../lib/domains/typed-links.js";
+import { runAuthorizedWith } from "../lib/domains/capability-context.js";
 
 const steppers = [VariablesStepper, Haibun, LogicStepper];
 
@@ -402,7 +403,7 @@ describe("a set's refusal", () => {
 		const tool = registry.get(`${VariablesStepper.name}-setAs`);
 		if (!tool) throw new Error("setAs isn't registered");
 		const call = buildFeatureStepForTransport(tool, { what: "count", domain: "number", value: "many" }, [0, 1]);
-		const result = await dispatchStep({ registry, world, steppers: callers, grantedCapability: [tool.descriptor.capability, readAction(Access.public)] }, call);
+		const result = await runAuthorizedWith([tool.descriptor.capability, readAction(Access.public)], () => dispatchStep({ registry, world, steppers: callers }, call));
 		expect(result).toMatchObject({ ok: false, remedy: typeCollectionRemedy("number") });
 		expect(result.errorMessage).toContain("the domain number rejects the value of count: ");
 		expect(result.errorMessage).toContain("Set a value the domain takes");
@@ -514,7 +515,7 @@ describe("a transport's call", () => {
 		const tool = registry.get(`${VariablesStepper.name}-set`);
 		if (!tool) throw new Error("set isn't registered");
 		const call = buildFeatureStepForTransport(tool, { what: "greeting", value: "hi" }, [0, 1]);
-		const result = await dispatchStep({ registry, world, steppers: callers, grantedCapability: [tool.descriptor.capability, readAction(Access.public)] }, call);
+		const result = await runAuthorizedWith([tool.descriptor.capability, readAction(Access.public)], () => dispatchStep({ registry, world, steppers: callers }, call));
 		expect(result.ok, result.errorMessage).toBe(true);
 		expect(await world.shared.get("greeting")).toBe("hi");
 	});

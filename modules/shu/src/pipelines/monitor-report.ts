@@ -12,7 +12,7 @@ import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { stepperContext } from "@haibun/core/lib/step-dispatch.js";
 import { callStepByName, NO_INPUT } from "@haibun/core/lib/steps/pipelines/call-step.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
-import { actingAs, runActingAs, shownTo } from "@haibun/core/lib/domains/capability-context.js";
+import { inCall, runInCall, shownTo } from "@haibun/core/lib/domains/capability-context.js";
 import { SHU_TAG } from "../domains/elements.js";
 import type { THydration } from "../domains/hydration.js";
 import { hashOf, hashWithColumns } from "../page/derivations/address.js";
@@ -74,7 +74,7 @@ async function viewProductsOf(scope: TReportScope): Promise<Record<string, unkno
 	for (const stepper of steppers) {
 		for (const name of REFRESHED_AT_THE_END.filter((one) => stepper.steps?.[one] !== undefined)) {
 			const key = stepMethodName(stepper, name);
-			const products = await productsIn(world, key, async () => (await runActingAs(actingAs(), () => callStepByName(ctx, key, NO_INPUT))).result);
+			const products = await productsIn(world, key, async () => (await runInCall({ ...inCall(), step: undefined }, () => callStepByName(ctx, key, NO_INPUT))).result);
 			if (products !== undefined) viewProducts[key] = products;
 		}
 	}

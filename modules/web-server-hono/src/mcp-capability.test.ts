@@ -6,7 +6,7 @@ import { TEST_DOMAIN, declaresTestDomains } from "@haibun/core/lib/test/test-dom
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { actionNotOK, actionOKWithProducts, getStepperOptionName } from "@haibun/core/lib/domains/util.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
-import { actingAs, readingAt } from "@haibun/core/lib/domains/capability-context.js";
+import { inCall, readingAt } from "@haibun/core/lib/domains/capability-context.js";
 import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import FakeAuthorityStepper, { DOMAIN_FAKE_HOLDER, FakeInvoker } from "@haibun/core/lib/test/fake-authority.js";
@@ -45,7 +45,7 @@ class ProtectedStepper extends AStepper {
 			action: async () => {
 				if (++arrived === CALLS_IN_FLIGHT) allArrived.resolve();
 				await allArrived.promise;
-				return actionOKWithProducts({ echoed: actingAs() ?? "" });
+				return actionOKWithProducts({ echoed: inCall()?.principal ?? "" });
 			},
 		},
 		verifyCallersAnsweredApart: {

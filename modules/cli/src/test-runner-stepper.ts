@@ -26,7 +26,7 @@ import { fromJsonText, JsonObjectTextSchema } from "@haibun/core/lib/domains/jso
 import { AStepper, type IHasCycles, type IHasOptions, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts, boolOrError, getStepperOption, intOrError } from "@haibun/core/lib/domains/util.js";
 import { callStepFrom } from "@haibun/core/lib/call-step.js";
-import { actingAs, runActingAs } from "@haibun/core/lib/domains/capability-context.js";
+import { inCall, runInCall } from "@haibun/core/lib/domains/capability-context.js";
 import { persistPrincipalIndividual } from "@haibun/core/lib/domains/principal-individual.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { RECORDED_STATUS, type TRecordedStatus } from "@haibun/core/lib/domains/protocol.js";
@@ -526,7 +526,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		// doesn't take one.
 		const hostId = stands ? this.cap("RUN_HOST_ID", RUNNER_DEFAULTS.hostId) : 0;
 		const start = () => this.callSupervisor(runStartedSchema, SUPERVISOR.start, { where, filter, from, port, run: id, hostId });
-		const started = actingAs() === undefined ? await runActingAs(TEST_RUNNER_AUTHOR, start) : await start();
+		const started = inCall()?.principal === undefined ? await runInCall({ ...inCall(), principal: TEST_RUNNER_AUTHOR, step: undefined }, start) : await start();
 		if (started.ok === false) return { ok: false, why: started.why };
 		const tracked: TTrackedRun = { id, filter, where, record: started.products.record, cursor: 0, host: hostId };
 		this.inFlight = tracked;

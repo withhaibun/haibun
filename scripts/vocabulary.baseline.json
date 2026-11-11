@@ -22,7 +22,7 @@
 		"names passed, failed, untested as \"completed\"": 2
 	},
 	"modules/core/src/lib/actuality/derivations/step-records.ts": {
-		"names action as invoked": 4
+		"names action as invoked": 1
 	},
 	"modules/core/src/lib/actuality/machines/actuality.test.ts": {
 		"names passed, failed, untested as \"completed\"": 12,
@@ -39,22 +39,21 @@
 		"names record as step result": 1
 	},
 	"modules/core/src/lib/actuality/pipelines/step-dispatch.test.ts": {
-		"names action as invoked": 18,
+		"names action as invoked": 12,
 		"names record as step result": 1
 	},
 	"modules/core/src/lib/actuality/pipelines/step-dispatch.ts": {
-		"names action as invoked": 5
+		"names action as invoked": 1
 	},
 	"modules/core/src/lib/domains/actions.ts": {
 		"names action as granted": 8,
-		"names action as invoked": 9
+		"names action as invoked": 6
 	},
 	"modules/core/src/lib/domains/authority-types.ts": {
 		"names action as invoked": 2
 	},
 	"modules/core/src/lib/domains/capability-context.ts": {
-		"names action as granted": 2,
-		"names action as invoked": 4
+		"names action as invoked": 2
 	},
 	"modules/core/src/lib/domains/domains.ts": {
 		"names action as granted": 1
@@ -193,8 +192,7 @@
 		"names action as invoked": 2
 	},
 	"modules/web-server-hono/src/pipelines/dispatch-call.ts": {
-		"names action as granted": 3,
-		"names action as invoked": 2
+		"names action as invoked": 1
 	},
 	"modules/web-server-hono/src/pipelines/event-stream.test.ts": {
 		"names action as granted": 2
@@ -203,7 +201,7 @@
 		"names action as invoked": 2
 	},
 	"modules/web-server-hono/src/pipelines/mcp.ts": {
-		"names action as granted": 3
+		"names action as granted": 2
 	},
 	"modules/web-server-hono/src/pipelines/serve-rpc.ts": {
 		"names action as granted": 3

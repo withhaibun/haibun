@@ -283,14 +283,14 @@ export const ruleStatedAt = ({ source }: TWaypointRule): string => (source.lineN
 type TActionStep = { action(args: TStepArgs, featureStep: TFeatureStep): Promise<TActionResult> | TActionResult; reading?: undefined; rule?: undefined; context?: undefined };
 /** The context a step opens around each call of the statements it states, such as a narrowed authority or an element of a
  *  page: it runs a call inside the context and returns the call's result. */
-export type TCallContext = <T>(run: () => Promise<T>) => Promise<T>;
+export type TStepContext = <T>(run: () => Promise<T>) => Promise<T>;
 
 /** A step that the logic engine proves by its reading. A waypoint's step holds its rule, and a step that reads as `within`
  *  opens its context from its arguments, or refuses with the reason it can't open it. */
 type TReadingStep = {
 	reading: TReading;
 	rule?: TWaypointRule;
-	context?: (args: TStepArgs, featureStep: TFeatureStep) => Promise<TCallContext | { refused: string }>;
+	context?: (args: TStepArgs, featureStep: TFeatureStep) => Promise<TStepContext | { refused: string }>;
 	action?: undefined;
 };
 

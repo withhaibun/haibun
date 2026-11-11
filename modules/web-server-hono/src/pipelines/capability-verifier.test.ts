@@ -11,7 +11,7 @@ import { DELEGATIONS_READ_ACTION } from "@haibun/core/lib/domains/authority-type
 import { REFUSED_INVOCATION, RELOAD } from "@haibun/core/lib/rpc-wire.js";
 import { SessionAuthority } from "@haibun/core/lib/pipelines/session-authority.js";
 import { AUTHORITY_KEY } from "@haibun/core/lib/domains/session-authority.js";
-import { runActingAs } from "@haibun/core/lib/domains/capability-context.js";
+import { inCall, runInCall } from "@haibun/core/lib/domains/capability-context.js";
 import { currentPrincipal } from "@haibun/core/lib/pipelines/principal.js";
 import type { TRuntime, TWorld } from "@haibun/core/lib/world.js";
 import type { IAuthorityVerifier, TAuthorityAct, TAuthorityEvidence, TDelegations, TVerdict } from "@haibun/core/lib/domains/authority-types.js";
@@ -146,7 +146,7 @@ describe("who is acting", () => {
 	const world = { runtime: { keys: {} } } as unknown as TWorld;
 
 	it("is whoever proved themselves at the boundary this call came through", async () => {
-		await runActingAs(READER, () => {
+		await runInCall({ ...inCall(), principal: READER, step: undefined }, () => {
 			expect(currentPrincipal(world)).toBe(READER);
 			return Promise.resolve();
 		});
@@ -154,7 +154,7 @@ describe("who is acting", () => {
 
 	it("is whoever actuality acts as where the call didn't present a proof, and does not outlast the call that proved it", async () => {
 		const ownWorld = { runtime: { keys: { principal: "did:site:0" } } } as unknown as TWorld;
-		await runActingAs(READER, () => {
+		await runInCall({ ...inCall(), principal: READER, step: undefined }, () => {
 			expect(currentPrincipal(ownWorld), "a proof about this call speaks for it").toBe(READER);
 			return Promise.resolve();
 		});

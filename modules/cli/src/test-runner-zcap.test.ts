@@ -12,7 +12,7 @@ import InstanceStepper from "./instance-stepper.js";
 import { SUPERVISOR_CAPABILITIES } from "./domains/run.js";
 import { openRunRegistry } from "@haibun/core/lib/step-registry.js";
 import { callStepByName } from "@haibun/core/lib/call-step.js";
-import { runAuthorizedWith } from "@haibun/core/lib/domains/capability-context.js";
+import { inCall, runAuthorizedWith, runInCall } from "@haibun/core/lib/domains/capability-context.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { addStepperConcerns } from "@haibun/core/phases/Executor.js";
 import { QuadStore, newStoreChain } from "@haibun/core/lib/quad-store.js";
@@ -42,10 +42,11 @@ function harness() {
 	// Opens the registry the way the Executor opens it. A step calls another step through this registry.
 	const registry = openRunRegistry(world, steppers);
 	/** Calls a step by name through callStepByName, as a caller without a feature file does. Held actions authorize the
-	 *  call the way they authorize a statement narrowed to them. A grantedCapability authorizes the call the way an RPC
+	 *  call the way they authorize a statement narrowed to them. A presented capability authorizes the call the way an RPC
 	 *  or MCP caller is authorized. */
-	const call = async (method: string, input: Record<string, unknown> = {}, held?: string[], grantedCapability?: string) => {
-		const dispatch = () => callStepByName({ registry, world, steppers, grantedCapability }, method, input);
+	const call = async (method: string, input: Record<string, unknown> = {}, held?: string[], presented?: string) => {
+		const dispatch = () => callStepByName({ registry, world, steppers }, method, input);
+		if (presented !== undefined) return await runInCall({ ...inCall(), capabilityAction: presented, held: held ?? presented }, dispatch);
 		return held ? await runAuthorizedWith(held, dispatch) : await dispatch();
 	};
 	return { world, call };

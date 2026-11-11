@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { UrakataRegistry, type TTickReporter } from "./urakata.js";
 import { URAKATA_LABEL, type IUrakataTicker } from "../domains/urakata.js";
 import { getDefaultWorld } from "../test/lib.js";
-import { accessBound, actingAs, runActingAs, runAuthorizedWith } from "../domains/capability-context.js";
+import { accessBound, inCall, runAuthorizedWith, runInCall } from "../domains/capability-context.js";
 import { SessionAuthority } from "./session-authority.js";
 import { AUTHORITY_KEY } from "../domains/session-authority.js";
 import { actionsToReadAndWrite, EVERY_ACTION, readAction, writeAction, writtenAt } from "../domains/actions.js";
@@ -83,9 +83,9 @@ describe("UrakataRegistry", () => {
 		const bounds: ReturnType<typeof accessBound>[] = [];
 		const actors: (string | undefined)[] = [];
 		const needs = actionsToReadAndWrite(Access.private, [Access.private, Access.public]);
-		const ticker: IUrakataTicker = { id: "bound", description: "test", intervalMs: 5, needs, tick: () => void (bounds.push(accessBound()), actors.push(actingAs())) };
+		const ticker: IUrakataTicker = { id: "bound", description: "test", intervalMs: 5, needs, tick: () => void (bounds.push(accessBound()), actors.push(inCall()?.principal)) };
 		// Registers the ticker inside a step that holds every action. A feature line of actuality holds the same authority.
-		const u = await runAuthorizedWith([EVERY_ACTION], () => runActingAs(STARTER, () => Promise.resolve(registry.register(ticker))));
+		const u = await runAuthorizedWith([EVERY_ACTION], () => runInCall({ ...inCall(), principal: STARTER, step: undefined }, () => Promise.resolve(registry.register(ticker))));
 		await until(() => expect(bounds.length).toBeGreaterThan(0));
 		await registry.stop(u.id);
 		expect(bounds[0], "the tick holds its ticker's needs and doesn't hold every action the starting step held").toEqual({ ceiling: Access.private, held: needs });
@@ -115,7 +115,9 @@ describe("UrakataRegistry", () => {
 		const registry = new UrakataRegistry(world, reporting());
 		const ticker: IUrakataTicker = { id: "resting", description: "test", intervalMs: 5, needs: [readAction(Access.private)], tick: () => undefined };
 		const restsOn = { capabilities: ["urn:cap:starter"] };
-		const u = await runAuthorizedWith([readAction(Access.private)], () => runActingAs(STARTER, () => Promise.resolve(registry.register(ticker)), restsOn));
+		const u = await runAuthorizedWith([readAction(Access.private)], () =>
+			runInCall({ ...inCall(), principal: STARTER, restsOn: restsOn, step: undefined }, () => Promise.resolve(registry.register(ticker))),
+		);
 		authority.revoked("urn:cap:starter");
 		await until(() => expect(registry.get(u.id).stoppedAt).toBeDefined());
 		expect(registry.get(u.id).stopReason).toBe("urn:cap:starter was revoked");

@@ -4,7 +4,7 @@ import { OBSCURED_VALUE } from "../domains/secrets.js";
 import type { TEventSink, TSecrets } from "../ports.js";
 import { serializedEvent } from "../derivations/serialized-event.js";
 import { BlipEvent, ImageArtifact, LogEvent, type THaibunEvent } from "../../domains/protocol.js";
-import { runAuthorizedWith, runInStep, runReadingAt } from "../../domains/capability-context.js";
+import { inCall, inStep, runAuthorizedWith, runInCall, runReadingAt } from "../../domains/capability-context.js";
 import { readAction, writeAction } from "../../domains/actions.js";
 import { Access } from "../../domains/resources.js";
 import { itemAt } from "../../domains/item-at.js";
@@ -145,19 +145,19 @@ describe("EventLogger", () => {
 
 		it("reports at most at the level of the step in flight, so a call into a running instance stays out of actuality's history", () => {
 			const heard = said();
-			runInStep(DURING_A_TRACE_STEP, () => logger.info("what the caller's own step logged"));
+			runInCall(inStep(inCall(), DURING_A_TRACE_STEP), () => logger.info("what the caller's own step logged"));
 			expect(itemAt(heard, 0).level, "logged during a step that reports at trace").toBe("trace");
 		});
 
 		it("keeps the level of a statement quieter than its step", () => {
 			const heard = said();
-			runInStep(DURING_A_TRACE_STEP, () => logger.debug("quieter than the step"));
+			runInCall(inStep(inCall(), DURING_A_TRACE_STEP), () => logger.debug("quieter than the step"));
 			expect(itemAt(heard, 0).level).toBe("debug");
 		});
 
 		it("reports a warning and an error at their own levels during a quieter step", () => {
 			const heard = said();
-			runInStep(DURING_A_TRACE_STEP, () => {
+			runInCall(inStep(inCall(), DURING_A_TRACE_STEP), () => {
 				logger.warn("something is wrong");
 				logger.error("something failed");
 			});
@@ -174,7 +174,7 @@ describe("the level of an artifact", () => {
 		logger.subscribe((event) => emitted.push(event as { level?: string }), { kinds: ["artifact"] });
 		// A producer parses an artifact with its schema, which sets the level to info.
 		const screenshot = (path: string, id: string) => ImageArtifact.parse({ kind: "artifact", artifactType: "image", path, id, timestamp: 1 });
-		runInStep({ seqPath: "0.1.2", reportsAt: "trace" }, () => logger.artifact(screenshot("a.png", "x")));
+		runInCall(inStep(inCall(), { seqPath: "0.1.2", reportsAt: "trace" }), () => logger.artifact(screenshot("a.png", "x")));
 		logger.artifact(screenshot("b.png", "y"));
 		expect(
 			emitted.map((e) => (e as { level?: string }).level),

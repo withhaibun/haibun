@@ -3,7 +3,7 @@
  * on it, and records each mounted route as an endpoint.
  */
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
-import { runAsReaderAt, runAsRequest } from "@haibun/core/lib/domains/capability-context.js";
+import { readerAt, REQUEST_CALL, runInCall } from "@haibun/core/lib/domains/capability-context.js";
 import { Hono } from "hono";
 import { LinearRouter } from "hono/router/linear-router";
 import { bodyLimit } from "hono/body-limit";
@@ -106,8 +106,8 @@ export class ServerHono implements IWebServer {
 		}
 		return new Promise((resolve, reject) => {
 			try {
-				// Each request is served as a request of its own, which holds only what its route states (runAsRequest).
-				const server = serve({ fetch: (req, env) => runAsRequest(async () => await this._app.fetch(req, env)), port, hostname: host }, () => {
+				// Each request is served as a request of its own, which holds only what its route states (REQUEST_CALL).
+				const server = serve({ fetch: (req, env) => runInCall(REQUEST_CALL, async () => await this._app.fetch(req, env)), port, hostname: host }, () => {
 					this._port = port;
 					this.servers.set(port, server);
 					ServerHono.listeningPorts.set(port, why);
@@ -289,7 +289,7 @@ export class ServerHono implements IWebServer {
 	 *  request holds only what its route states. */
 	private registerRoute(type: TRouteTypes, path: string, [handler, ...more]: TRequestHandler[], { reads }: TRoutePurpose): void {
 		if (!handler) throw new Error(`ServerHono: a ${type} route at "${path}" doesn't have a handler`);
-		const answering: TRequestHandler = reads === undefined ? handler : (c) => runAsReaderAt(reads, async () => await handler(c));
+		const answering: TRequestHandler = reads === undefined ? handler : (c) => runInCall(readerAt(reads), async () => await handler(c));
 		this._app.on(type.toUpperCase(), path, answering, ...more);
 	}
 

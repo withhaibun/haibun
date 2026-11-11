@@ -14,7 +14,7 @@ import { LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL, logMessageDomainDefinition } from
 import { RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL, runArtifactDomainDefinition } from "@haibun/core/lib/domains/run-artifact.js";
 import type { THaibunEvent, TLogEvent } from "@haibun/core/lib/domains/protocol.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
-import { RUN_AUTHORITY } from "@haibun/core/lib/domains/capability-context.js";
+import { RUN_AUTHORITY, runAuthorizedWith } from "@haibun/core/lib/domains/capability-context.js";
 import { StepRegistry, createStepTool } from "@haibun/core/lib/steps/pipelines/step-registry.js";
 import { buildFeatureStepForTransport } from "@haibun/core/lib/steps/pipelines/call-step.js";
 import { dispatchStep } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
@@ -265,9 +265,8 @@ describe("what a page logs, as a call a transport carries", () => {
 			if (event.kind === "log") logged.push(event);
 		});
 		const path = [0, -1, 5, 1];
-		const result = await dispatchStep(
-			{ registry, world, steppers: [monitor], grantedCapability: RUN_AUTHORITY },
-			buildFeatureStepForTransport(tool, { event: { level: "info", message: "the page said", source: "the page" } }, path),
+		const result = await runAuthorizedWith(RUN_AUTHORITY, () =>
+			dispatchStep({ registry, world, steppers: [monitor] }, buildFeatureStepForTransport(tool, { event: { level: "info", message: "the page said", source: "the page" } }, path)),
 		);
 		expect(result.ok, result.errorMessage).toBe(true);
 		expect(logged, "the event reaches the event log").toEqual([expect.objectContaining({ level: "info", message: "[the page] the page said" })]);

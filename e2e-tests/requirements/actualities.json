@@ -544,47 +544,47 @@
 			"actuality": {
 				"text": "e2e-tests/requirements, node_modules/@haibun/cli/waypoints, node_modules/@haibun/logic/waypoints, node_modules/@haibun/core/waypoints",
 				"status": "passed",
-				"tookMs": 61800,
+				"tookMs": 56400,
 				"digest": {
 					"e2e-tests/requirements": "6ae656c0ff9fc5fd05522df94ca1444b34828b4cda6f2f508bb4ca9411cf1bc0",
 					"e2e-tests/src": "abf3b937865d1eae3ddf3137cadf0d8c6876188f3a403bc0b7fcedf837986f69",
-					"modules/cli/src": "2a30b0f7dc93f355455a023940b456906449b7bde09947dd20bce2b9d3b83e50",
+					"modules/cli/src": "21291a269f682b5387a23040d17fe97483461231d07423e53722d906b0ca881e",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "f31e89cbcddd64d644792cb81fbdc4169d6dff570d3a66718bb5b9de28439453",
+					"modules/core/src": "ddab62a72bc3c6c49667c5daa23c3733e6fbf0f84e7c5df65c30a911d1502fad",
 					"modules/core/waypoints": "f573c51de6e8154e49adbb5d98a25b3fd1872742dfdab0f3d6ec8f6164759860",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
-					"modules/logic/src": "82e3c2d9cbf349686d57762184e962bbaa43d723dcc3352332bcc6b9ca914fba",
+					"modules/logic/src": "8fcadb6f57b8249e14954bd8166a40c1a7f8e7855af3cdcfa14db48b103ebbd5",
 					"modules/logic/waypoints": "156399b8cca79a483d951d021c5c5ecab8aba6ae2fa90c56b054b3e31601801b",
 					"modules/monitor-otel/src": "4fbef0f2c78fed7b3e2d03ec4ab094bef11766724e5f5f6efb73491ea1d4dea6",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/out-junit/src": "22d1ca5d4f4449cae6186ff8d84c1f0b182e7591e1ffda9520a38daa3e8681d2",
 					"modules/recorder/src": "079caf826dbcad8943531b3f8f716e79a45d55f1668d29417e2a230978236208",
-					"modules/shu/src": "86adc87b972e81d13b14e0d26b8749b4296d5cafba753de67ad216ba465b689e",
+					"modules/shu/src": "fbaf7274634ab2a794f1fcc3dd6f6b45163d1c627cf1d480d79ac5e5ad705748",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/utils/src": "698b48ed8fbac4dc3c0483e6bb3ccd88640ebc98696b8cc493b5740d1017db8d",
 					"modules/web-accessibility-axe/src": "ee53bd6b78b538fd9d910ca47bea66a7d15872feea8280ce26cd5ec33a620f7d",
-					"modules/web-playwright/src": "4aa35c85f88ab96beed3d2b70c7099011b99cd624b258d0584145c4464c25696",
-					"modules/web-server-hono/src": "90fb329c609079c9f91bfccb920e8b542f7d0ed7da87f2a46fdfdd43dfc1504e"
+					"modules/web-playwright/src": "0cce4ac71cd217af08118528166c5d7d5f1eabc7ff1580f70767f0a74c6f8a42",
+					"modules/web-server-hono/src": "e526a6d2e4816ddae7a0fbcbedaed08ca7fed1a2bc7f44492b738aa9a690384d"
 				}
 			},
 			"features": {
 				"/features/01-prose-and-steps.feature.ts": {
 					"text": "Prose and steps",
 					"status": "passed",
-					"tookMs": 800,
+					"tookMs": 700,
 					"steps": 26
 				},
 				"/features/02-authority.feature.ts": {
 					"text": "Capabilities authorize every call",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 700,
 					"steps": 59
 				},
 				"/features/03-activities.feature.ts": {
 					"text": "Waypoints and ensure",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 400,
 					"steps": 69
 				},
 				"/features/04-combinators.feature.ts": {
@@ -596,19 +596,19 @@
 				"/features/05-goals.feature.ts": {
 					"text": "Goals over producer rules",
 					"status": "passed",
-					"tookMs": 2300,
+					"tookMs": 1900,
 					"steps": 41
 				},
 				"/features/06-world-and-products.feature.ts": {
 					"text": "The world's data and a step's products",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 500,
 					"steps": 21
 				},
 				"/features/07-records.feature.ts": {
 					"text": "Records, events and actualities",
 					"status": "passed",
-					"tookMs": 2800,
+					"tookMs": 2400,
 					"steps": 33
 				},
 				"/features/08-timing.feature.ts": {
@@ -620,13 +620,13 @@
 				"/features/09-surfaces.feature.ts": {
 					"text": "One path for every surface",
 					"status": "passed",
-					"tookMs": 1000,
+					"tookMs": 800,
 					"steps": 77
 				},
 				"/features/10-cli.feature.ts": {
 					"text": "The command line",
 					"status": "passed",
-					"tookMs": 1300,
+					"tookMs": 1100,
 					"steps": 11
 				},
 				"/features/11-performance.feature.ts": {
@@ -656,13 +656,13 @@
 				"/features/15-combined-statements.feature.ts": {
 					"text": "Combined statements",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 500,
 					"steps": 44
 				},
 				"/features/16-class-expressions.feature.ts": {
 					"text": "Class expressions",
 					"status": "passed",
-					"tookMs": 49300,
+					"tookMs": 45700,
 					"steps": 93
 				}
 			}

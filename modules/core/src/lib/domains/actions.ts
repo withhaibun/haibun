@@ -81,9 +81,9 @@ export function lackedAction(held: string | string[] | undefined, step: TCalled)
 	return undefined;
 }
 
-/** The authority of one call. `invoked` is the action the call invoked. `held` is what its caller holds, and bounds what the
+/** The authority of one call. `capabilityAction` is the action the call invoked. `held` is what its caller holds, and bounds what the
  *  call reads under the invoked action. */
-export type TCallAuthority = { invoked: string | string[] | undefined; held: string | string[] | undefined };
+export type TCallAuthority = { capabilityAction?: string | string[]; held?: string | string[] };
 
 /**
  * Returns the action a call lacks to run `step`. The call must have invoked the action the step requires, and its caller
@@ -91,7 +91,7 @@ export type TCallAuthority = { invoked: string | string[] | undefined; held: str
  * chain the caller presented bounds what the step reads under that action. Returns undefined where the call has both.
  */
 export function lackedByCall(call: TCallAuthority, step: TCalled): string | undefined {
-	if (!capabilityAllows(call.invoked, step.capability)) return step.capability;
+	if (!capabilityAllows(call.capabilityAction, step.capability)) return step.capability;
 	if (step.readsAt && !capabilityAllows(call.held, readAction(step.readsAt))) return readAction(step.readsAt);
 	return undefined;
 }

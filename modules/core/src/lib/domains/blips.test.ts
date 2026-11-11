@@ -5,7 +5,7 @@ import { recordBlip } from "../pipelines/record-blip.js";
 import { eventHubOfTest } from "../test/lib.js";
 import type { THaibunEvent } from "./protocol.js";
 import type { TWorld } from "../actuality/domains/world.js";
-import { runInStep } from "./capability-context.js";
+import { inCall, inStep, runInCall } from "./capability-context.js";
 
 /** A world whose clock reads the time `at` holds. */
 const make = (at: { now: number }) => {
@@ -38,7 +38,7 @@ describe("blips: fine-grained occurrences that actuality doesn't retain", () => 
 		const { world, eventLogger } = make({ now: 0 });
 		const seen: THaibunEvent[] = [];
 		eventLogger.subscribe((e) => seen.push(e), { kinds: ["blip"] });
-		runInStep({ seqPath: "0.1.2.3", reportsAt: undefined }, () => recordBlip(world, SCROLL.name, 1, { view: "shu-document-column" }));
+		runInCall(inStep(inCall(), { seqPath: "0.1.2.3", reportsAt: undefined }), () => recordBlip(world, SCROLL.name, 1, { view: "shu-document-column" }));
 		expect(seen).toHaveLength(1);
 		expect(seen[0]).toMatchObject({ kind: "blip", name: SCROLL.name, seqPath: "0.1.2.3", value: 1, attributes: { view: "shu-document-column" } });
 	});

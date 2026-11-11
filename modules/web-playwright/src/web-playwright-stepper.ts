@@ -16,7 +16,7 @@ import {
 	type TStepperSteps,
 } from "@haibun/core/lib/astepper.js";
 import { ActionSchema, readAction, type TAction } from "@haibun/core/lib/domains/actions.js";
-import { stepInFlight } from "@haibun/core/lib/domains/capability-context.js";
+import { inCall } from "@haibun/core/lib/domains/capability-context.js";
 import { DOMAIN_FILE_PATH, DOMAIN_GLOB, DOMAIN_JSON, DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_STATEMENT, DOMAIN_TEXT, DOMAIN_VARIABLE_NAME } from "@haibun/core/lib/domains/domains.js";
 import { DOMAIN_IMAGE_REFERENCE } from "@haibun/core/lib/domains/media-object.js";
 import { Access } from "@haibun/core/lib/domains/resources.js";
@@ -243,7 +243,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			return Promise.resolve();
 		},
 		afterStep: async ({ featureStep }) => {
-			await this.session.releaseAfter(stepInFlight());
+			await this.session.releaseAfter(inCall()?.step);
 			// A page error fails the step that acted on the page, never another stepper's step dispatched meanwhile.
 			if (featureStep.action.stepperName !== constructorName(this)) return {};
 			const thrown = this.session.stepErrors();

@@ -15,7 +15,7 @@ import { recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { storeDeclaring, TEST_LEVELS } from "@haibun/core/lib/test/declared-types.js";
 import { ActionSchema, readAction } from "@haibun/core/lib/domains/actions.js";
 import { Access } from "@haibun/core/lib/domains/resources.js";
-import { actingAs, callerHolds, readingAt, runActingAs, runAuthorizedWith, runInStep, runReadingAt, stepInFlight } from "@haibun/core/lib/domains/capability-context.js";
+import { inCall, inStep, readingAt, runAuthorizedWith, runInCall, runReadingAt } from "@haibun/core/lib/domains/capability-context.js";
 
 const mockLogger = eventHubOfTest();
 
@@ -171,10 +171,14 @@ describe("ServerHono", () => {
 				const read = await Promise.resolve()
 					.then(readingAt)
 					.then(String, (e: unknown) => `refused: ${String(e)}`);
-				return c.json({ step: String(stepInFlight()?.seqPath), authorized: callerHolds(), as: String(actingAs()), read });
+				return c.json({ step: String(inCall()?.step?.seqPath), authorized: inCall()?.held, as: String(inCall()?.principal), read });
 			});
 			await runAuthorizedWith(["*"], () =>
-				runReadingAt(undefined, () => runActingAs("did:example:instance", () => runInStep({ seqPath: "0.1.0.3", reportsAt: undefined }, () => server.listen("test", port)))),
+				runReadingAt(undefined, () =>
+					runInCall({ ...inCall(), principal: "did:example:instance", step: undefined }, () =>
+						runInCall(inStep(inCall(), { seqPath: "0.1.0.3", reportsAt: undefined }), () => server.listen("test", port)),
+					),
+				),
 			);
 			const seen = await (await fetch(`http://127.0.0.1:${port}/as`)).json();
 			expect(seen).toEqual({ step: "undefined", authorized: [], as: "undefined", read: expect.stringMatching(/^refused: .*requires a read action/) });
@@ -182,7 +186,7 @@ describe("ServerHono", () => {
 
 		it("runs a route whose purpose states a read as a reader at that level", async () => {
 			const port = await freePort();
-			server.addRoute("get", "/public", { ...P, reads: Access.public }, (c) => c.json({ read: readingAt(), authorized: callerHolds() }));
+			server.addRoute("get", "/public", { ...P, reads: Access.public }, (c) => c.json({ read: readingAt(), authorized: inCall()?.held }));
 			await server.listen("test", port);
 			expect(await (await fetch(`http://127.0.0.1:${port}/public`)).json()).toEqual({ read: Access.public, authorized: [readAction(Access.public)] });
 		});

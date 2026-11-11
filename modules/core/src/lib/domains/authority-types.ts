@@ -50,7 +50,8 @@ export const DELEGATIONS_READ_ACTION = "Authority:readOwnDelegations";
  * down. `expires` is the earliest expiry among them. A call held open ends once one of these capabilities is revoked or
  * expires.
  */
-export type TRestsOn = { capabilities: string[]; expires?: string };
+export const RestsOnSchema = z.object({ capabilities: z.array(z.string()), expires: z.string().optional() });
+export type TRestsOn = z.infer<typeof RestsOnSchema>;
 
 /** A verifier's verdict. An `ok` verdict states the principal that proved the evidence, the actions the chain allows,
  *  the one action an invocation invoked, and `restsOn`. A verdict that isn't `ok` states why the verifier refused the

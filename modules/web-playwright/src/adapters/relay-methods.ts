@@ -5,7 +5,7 @@
  * only the key that attached the browser sends for it.
  */
 import { streamContext } from "@haibun/core/lib/step-stream-context.js";
-import { actingAs } from "@haibun/core/lib/domains/capability-context.js";
+import { inCall } from "@haibun/core/lib/domains/capability-context.js";
 import type { TRpcMethod } from "@haibun/core/lib/transport/ports.js";
 import type { TAction } from "@haibun/core/lib/domains/actions.js";
 import type { BrowserRelay } from "./cdp-relay.js";
@@ -22,7 +22,7 @@ export function relayMethods(relay: BrowserRelay, attachAction: TAction): Record
 					(message: TRelayMessage) => stream.emit({ message }),
 					stream.signal,
 					() => stream.emit({ message: { method: RELAY_ATTACHED } }),
-					actingAs(),
+					inCall()?.principal,
 				);
 				return { detached: true };
 			},
@@ -31,7 +31,7 @@ export function relayMethods(relay: BrowserRelay, attachAction: TAction): Record
 			action: attachAction,
 			handle: (params) => {
 				const { messages } = RelayBatchSchema.parse(params);
-				relay.receive(messages, actingAs());
+				relay.receive(messages, inCall()?.principal);
 				return Promise.resolve({ received: messages.length });
 			},
 		},

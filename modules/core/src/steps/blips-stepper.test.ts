@@ -10,7 +10,7 @@ import { OK } from "../lib/domains/protocol.js";
 import { eventHubOfTest, failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
 import { LogicStepper } from "../lib/test/logic-stepper.js";
 import type { TWorld } from "../lib/actuality/domains/world.js";
-import { runInStep } from "../lib/domains/capability-context.js";
+import { inCall, inStep, runInCall } from "../lib/domains/capability-context.js";
 import { itemAt } from "../lib/domains/item-at.js";
 import { TEST_STEP } from "../lib/test/test-step.js";
 
@@ -72,7 +72,7 @@ describe("a watch: which occurrences, in what order", () => {
 		declareBlips(SCROLL);
 		const { world, eventLogger } = make();
 		blipWatch.start(eventLogger, [SCROLL.name]);
-		runInStep({ seqPath: "0.2.3", reportsAt: undefined }, () => recordBlip(world, SCROLL.name, 4, { view: "a" }));
+		runInCall(inStep(inCall(), { seqPath: "0.2.3", reportsAt: undefined }), () => recordBlip(world, SCROLL.name, 4, { view: "a" }));
 		expect(renderWatch(blipWatch.occurrences(), blipWatch.seen, blipWatch.totals())).toContain("step=0.2.3");
 	});
 

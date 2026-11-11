@@ -15,7 +15,7 @@ import { VERDICT, type TActionResult, type TStepResult } from "@haibun/core/lib/
 import { actionNotOK, actionOKWithProducts, actionUnknown } from "@haibun/core/lib/domains/util.js";
 import { itemAt, valueAt } from "@haibun/core/lib/domains/item-at.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
-import { actingAs } from "@haibun/core/lib/domains/capability-context.js";
+import { inCall } from "@haibun/core/lib/domains/capability-context.js";
 import { DOMAIN_DOMAIN_KEY, refTargetOf } from "@haibun/core/lib/domains/domains.js";
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { ACTUALITY_FIELD, SEQ_PATH_FIELD, actualityFeatureOf, factIdOf, producingStepRecord, stepRecordOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
@@ -195,7 +195,7 @@ export async function planBegun(scope: TGoalScope, parent: TFeatureStep, goal: s
 	if ((await resolutionOf(scope, goal)).verdict === VERDICT.proved)
 		return actionNotOK(`\`${parent.in}\` doesn't need a plan: a fact of ${goal} already holds. Read it with \`resolve "${goal}"\`.`);
 	const plan = stepRecordOf(scope.ctx.world.tag, parent.seqPath);
-	const owner = actingAs();
+	const owner = inCall()?.principal;
 	await writePlan(storeOf(scope), plan, { goal, factIds: [], ...(owner === undefined ? {} : { owner }) });
 	return await planProducts(scope, parent.in, plan, goal, []);
 }
@@ -205,7 +205,7 @@ export async function planBegun(scope: TGoalScope, parent: TFeatureStep, goal: s
 export async function planAdvanced(scope: TGoalScope, parent: TFeatureStep, plan: string, args: Record<string, unknown>): Promise<TActionResult> {
 	const store = storeOf(scope);
 	const held = await readPlan(store, plan);
-	if (held.owner !== actingAs()) {
+	if (held.owner !== inCall()?.principal) {
 		const began = held.owner === undefined ? "a caller without a principal" : held.owner;
 		return actionNotOK(`\`${parent.in}\` advances a plan that ${began} began. Begin a plan of your own with \`plan "${held.goal}"\`.`);
 	}

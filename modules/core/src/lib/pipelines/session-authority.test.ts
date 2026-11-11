@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SessionAuthority } from "./session-authority.js";
-import { readingAt, runActingAs, runAuthorizedWith, runReadingAt } from "../domains/capability-context.js";
+import { inCall, readingAt, runAuthorizedWith, runInCall, runReadingAt } from "../domains/capability-context.js";
 import { EVERY_ACTION, readAction } from "../domains/actions.js";
 import { AUTHORITY_CAPABILITIES } from "../domains/actions.js";
 import { Access } from "../domains/resources.js";
@@ -66,7 +66,7 @@ describe("SessionAuthority", () => {
 			const { authority, acts } = recording();
 			await runAuthorizedWith([EVERY_ACTION], () => authority.recordDelegation({ id: "urn:cap:owner" }));
 			await runAuthorizedWith([AUTHORITY_CAPABILITIES.revoke, readAction(Access.public)], () =>
-				runActingAs("did:key:zLauncher", () => runReadingAt(Access.public, () => authority.revoke("urn:cap:panel"))),
+				runInCall({ ...inCall(), principal: "did:key:zLauncher", step: undefined }, () => runReadingAt(Access.public, () => authority.revoke("urn:cap:panel"))),
 			);
 			expect(acts).toEqual([
 				{ act: "record urn:cap:owner", by: { root: true }, readAt: "unbounded" },

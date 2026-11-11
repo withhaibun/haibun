@@ -11,7 +11,8 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { z } from "zod";
 import { ClaimWitnessSchema, DisjointnessWitnessSchema } from "@haibun/core/lib/records/domains/axioms.js";
 import type { DispatchContext } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
-import { dispatchStep, nextSeqPath, proveStep, runAsDispatched } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
+import { dispatchStep, nextSeqPath, proveStep } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
+import { inCall, nestedOf, runInCall, type TCallContext } from "@haibun/core/lib/domains/capability-context.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { boundValue, type TListItem } from "@haibun/core/lib/domains/lists.js";
 import type { TProver } from "@haibun/core/lib/actuality/ports.js";
@@ -22,7 +23,7 @@ import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { refusalCarried, type TRemedy } from "@haibun/core/lib/rpc-wire.js";
 import { declaredRelations } from "../derivations/contract-declarations.js";
 import { contractChecks } from "./contract-checks.js";
-import { READING, UNTIL_DURATION, untilWithoutDuration, type AStepper, type TCallContext, type TFeatureStep, type TWaypointRule } from "@haibun/core/lib/steps/domains/stepper.js";
+import { READING, UNTIL_DURATION, untilWithoutDuration, type AStepper, type TStepContext, type TFeatureStep, type TWaypointRule } from "@haibun/core/lib/steps/domains/stepper.js";
 import { formatSeqPath } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import {
 	APPLY_MODE,
@@ -93,7 +94,9 @@ class Proof {
 	/** The products of the last result under each position, where that result holds products. */
 	private readonly productsUnder = new Map<string, Record<string, unknown>>();
 	private readonly opened = new Map<string, TOpened>();
-	private readonly contexts = new Map<string, TCallContext>();
+	private readonly contexts = new Map<string, TStepContext>();
+	/** The record of the work of the line's own node once it opens. Each node after it is a step dispatched beneath the line. */
+	private lineWork: TCallContext | undefined;
 	/** The arguments each open node read when it opened, by position. */
 	private readonly argsAt = new Map<string, TStepArgs>();
 	/** Each quantifier's members by the value its variable binds, by the quantifier's node. */
@@ -216,14 +219,18 @@ class Proof {
 		return contexts.reduce<() => Promise<T>>((inner, context) => () => context(inner), run)();
 	}
 
-	private contextAt(path: readonly number[]): TCallContext {
+	private contextAt(path: readonly number[]): TStepContext {
 		const context = this.contexts.get(keyOf(path));
 		if (context === undefined) throw this.differentBuilds("runs a call inside a context it didn't open");
 		return context;
 	}
 
 	/** Performs the effect a query needs, and returns its outcome as the engine reads it. */
-	async perform(need: Extract<TProofState, { need: string }>): Promise<string> {
+	perform(need: Extract<TProofState, { need: string }>): Promise<string> {
+		return this.lineWork === undefined ? this.performed(need) : runInCall(this.lineWork, () => this.performed(need));
+	}
+
+	private async performed(need: Extract<TProofState, { need: string }>): Promise<string> {
 		const { path, request } = need;
 		if (need.need === EFFECT.call) return await this.call(path, request as TNodeRequest);
 		if (need.need === EFFECT.open) return await this.open(path, request as TNodeRequest);
@@ -307,7 +314,7 @@ class Proof {
 		const step = this.instance(node, path, request.bindings);
 		// A node reads its arguments and opens its context inside the contexts that enclose it, so a statement holds less than its
 		// caller, and never more.
-		const opening = await this.withinContexts(request.bindings, () => runAsDispatched(this.ctx, () => this.contextOf(node, step))).catch((caught: unknown) => ({
+		const opening = await this.withinContexts(request.bindings, () => runInCall(nestedOf(inCall()), () => this.contextOf(node, step))).catch((caught: unknown) => ({
 			refused: errorDetail(caught),
 		}));
 		const at = this.ctx.world.clock.now();
@@ -315,6 +322,7 @@ class Proof {
 		const closed = Promise.withResolvers<TActionResult>();
 		const dispatched = this.withinContexts(request.bindings, () =>
 			dispatchStep(this.ctx, step, () => {
+				if (path.length === 0) this.lineWork = inCall();
 				begun.resolve("begun");
 				return "refused" in opening ? Promise.resolve({ ok: false, errorMessage: opening.refused, verdict: VERDICT.unknown }) : closed.promise;
 			}),
@@ -337,7 +345,7 @@ class Proof {
 
 	/** A node's arguments and the context it opens: a step that reads as within opens its own, and every other node runs its
 	 *  calls as they are. */
-	private async contextOf(node: TNode, step: TFeatureStep): Promise<{ context: TCallContext; args: TStepArgs } | { refused: string }> {
+	private async contextOf(node: TNode, step: TFeatureStep): Promise<{ context: TStepContext; args: TStepArgs } | { refused: string }> {
 		const read = await argumentsOf(step, this.ctx.world, this.ctx.steppers);
 		if ("refused" in read) return read;
 		const { context } = node.step.action.step;
@@ -409,7 +417,7 @@ class Proof {
 	 *  and returns them as rows, or the read's refusal. */
 	private async members(path: readonly number[], { node, bindings }: TNodeRequest): Promise<string> {
 		try {
-			const members = await this.withinContexts(bindings, () => runAsDispatched(this.ctx, () => this.membersOf(path, node)));
+			const members = await this.withinContexts(bindings, () => runInCall(nestedOf(inCall()), () => this.membersOf(path, node)));
 			return `rows(${list(members.map(atom))})`;
 		} catch (caught) {
 			return `refused(${atom(errorDetail(caught))})`;

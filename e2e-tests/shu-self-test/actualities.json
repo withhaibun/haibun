@@ -236,27 +236,27 @@
 			"actuality": {
 				"text": "e2e-tests/shu-self-test, node_modules/@haibun/web-playwright/waypoints, node_modules/@haibun/shu/waypoints",
 				"status": "passed",
-				"tookMs": 132300,
+				"tookMs": 118200,
 				"digest": {
 					"e2e-tests/shu-self-test": "6b59f60e18cd3fb26c3549cc6f3168dfc26f0c030975de3f3c4a0855a12ad8e8",
-					"modules/core/src": "f31e89cbcddd64d644792cb81fbdc4169d6dff570d3a66718bb5b9de28439453",
+					"modules/core/src": "ddab62a72bc3c6c49667c5daa23c3733e6fbf0f84e7c5df65c30a911d1502fad",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
-					"modules/logic/src": "82e3c2d9cbf349686d57762184e962bbaa43d723dcc3352332bcc6b9ca914fba",
+					"modules/logic/src": "8fcadb6f57b8249e14954bd8166a40c1a7f8e7855af3cdcfa14db48b103ebbd5",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/shu/src": "86adc87b972e81d13b14e0d26b8749b4296d5cafba753de67ad216ba465b689e",
+					"modules/shu/src": "fbaf7274634ab2a794f1fcc3dd6f6b45163d1c627cf1d480d79ac5e5ad705748",
 					"modules/shu/waypoints": "7dc9c4a47d546a40d28e609997d2236967c01ebb925e55511322e4abc6772a86",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
-					"modules/web-playwright/src": "4aa35c85f88ab96beed3d2b70c7099011b99cd624b258d0584145c4464c25696",
+					"modules/web-playwright/src": "0cce4ac71cd217af08118528166c5d7d5f1eabc7ff1580f70767f0a74c6f8a42",
 					"modules/web-playwright/waypoints": "383e3b858b728ae0354b196cb44f66a61e33747a5d3fe420fae9c78ee6dfaf10",
-					"modules/web-server-hono/src": "90fb329c609079c9f91bfccb920e8b542f7d0ed7da87f2a46fdfdd43dfc1504e"
+					"modules/web-server-hono/src": "e526a6d2e4816ddae7a0fbcbedaed08ca7fed1a2bc7f44492b738aa9a690384d"
 				}
 			},
 			"features": {
 				"/features/shu-self-test.feature.ts": {
 					"text": "Shu SPA Self-Test",
 					"status": "passed",
-					"tookMs": 128500,
+					"tookMs": 114700,
 					"steps": 698
 				},
 				"/features/z-post.feature.ts": {

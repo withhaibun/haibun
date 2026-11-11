@@ -67,7 +67,7 @@ import {
 	whoseQuery,
 	type TFieldComparison,
 } from "../lib/domains/lists.js";
-import { runAsOf, shownTo } from "../lib/domains/capability-context.js";
+import { inCall, runInCall, shownTo } from "../lib/domains/capability-context.js";
 import { validateStep } from "../lib/pipelines/step-validation.js";
 import { Access } from "../lib/domains/resources.js";
 import { EntailmentSchema } from "../lib/records/domains/claim.js";
@@ -272,7 +272,7 @@ class Haibun extends AStepper implements IHasCycles {
 			description: "Proves the statement as of a step of actuality, so a read the statement makes that reads actuality at a step, such as the affordances, reads it at that step.",
 			contract: { products: { of: "statement" } },
 			reading: READING.within,
-			context: ({ asOf }) => Promise.resolve(<T>(run: () => Promise<T>) => runAsOf(StepPathValueSchema.parse(asOf), run)),
+			context: ({ asOf }) => Promise.resolve(<T>(run: () => Promise<T>) => runInCall({ ...inCall(), asOf: StepPathValueSchema.parse(asOf) }, run)),
 		},
 		forEach: {
 			gwta: `for each {what: ${DOMAIN_VARIABLE_NAME}} of {list: ${DOMAIN_STATEMENT}}: {statement: ${DOMAIN_STATEMENT}}`,

@@ -18,7 +18,7 @@ import { ACTIVITIES_STEPPER } from "@haibun/core/steps/domains/activities-action
 import { z } from "zod";
 import { Access, type TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_ACCESS } from "@haibun/core/lib/actuality/domains/seq-path.js";
-import { callerHolds, readingAsOf } from "@haibun/core/lib/domains/capability-context.js";
+import { inCall } from "@haibun/core/lib/domains/capability-context.js";
 import { DOMAIN_APPLICABLE_STEPS, DOMAIN_GOAL_RESOLUTION, DOMAIN_PLAN_ID, DOMAIN_PLAN_PROGRESS, goalDomainDefinitions } from "@haibun/core/lib/domains/goal-resolution.js";
 import { stepMembers } from "./pipelines/reads.js";
 import { applicableStepsAt, ensured, planAdvanced, planBegun, resolved, type TGoalScope } from "./pipelines/goals.js";
@@ -142,7 +142,7 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 
 	/** What a goal's proof reads, under the caller's authority. */
 	private goalScope(): TGoalScope {
-		return { ctx: stepperContext(this.getWorld(), this.steppers), reasoner: reasoner(), held: callerHolds(), stepper: this.constructor.name };
+		return { ctx: stepperContext(this.getWorld(), this.steppers), reasoner: reasoner(), held: inCall()?.held, stepper: this.constructor.name };
 	}
 
 	steps = {
@@ -216,7 +216,7 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 			gwta: "show the applicable steps",
 			description: "Returns the steps the caller may call next and the resolution of each goal a step returns, over the facts that hold now, or, under `as of`, at a step.",
 			contract: { products: DOMAIN_APPLICABLE_STEPS },
-			action: (_args, featureStep: TFeatureStep) => applicableStepsAt(this.goalScope(), featureStep, readingAsOf()),
+			action: (_args, featureStep: TFeatureStep) => applicableStepsAt(this.goalScope(), featureStep, inCall()?.asOf),
 		},
 		applicableSteps: {
 			gwta: "applicable steps",
@@ -224,7 +224,7 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 			readsAt: Access.public,
 			description: "Reads the applicable steps, as a page does after a step, now, or, under `as of`, at a step; a read from outside isn't recorded as actuality's step.",
 			contract: { products: DOMAIN_APPLICABLE_STEPS },
-			action: (_args, featureStep: TFeatureStep) => applicableStepsAt(this.goalScope(), featureStep, readingAsOf()),
+			action: (_args, featureStep: TFeatureStep) => applicableStepsAt(this.goalScope(), featureStep, inCall()?.asOf),
 		},
 		showDerivation: {
 			gwta: `show derivation of {statement: ${DOMAIN_STATEMENT}}`,

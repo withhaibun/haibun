@@ -45,7 +45,7 @@ import { actualityEnded, transition, type TActuality, type TActualityMove } from
 import { writeLevelRecord, type TLevelMoved, type TLevelRecords } from "@haibun/core/lib/actuality/pipelines/move-actuality.js";
 import type { TLevelNaming, TStepRecord } from "@haibun/core/lib/actuality/derivations/step-records.js";
 import { SEQ_PATH_EDGE, SEQ_PATH_FIELD, actualityFeatureOf, formatRecordName } from "@haibun/core/lib/seq-path.js";
-import { actingAs, askedIn } from "@haibun/core/lib/domains/capability-context.js";
+import { inCall } from "@haibun/core/lib/domains/capability-context.js";
 import { signInOf, verifiedRun } from "./pipelines/run-conditions.js";
 import { INSTANCE_PORT_ENV, KEY_ENV, RUN_DOMAIN, RUN_TAIL_CHARS, RunTail, SUPERVISOR_CAPABILITIES, runDomainDefinitions, runEnvironment } from "./domains/run.js";
 import { DOMAIN_FILE_PATH, DOMAIN_NUMBER } from "@haibun/core/lib/domains/domains.js";
@@ -355,8 +355,8 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		if (port > 0) this.holdSignInAt(port, signInOf(supervisorPorts, bases, cwd, env));
 		// A standing run can outlive its feature, but not this process.
 		const child = supervisorPorts.processes.forkCli(["-c", config, bases.join(","), filter], { cwd, env });
-		const performedBy = actingAs();
-		const ask = askedIn();
+		const performedBy = inCall()?.principal;
+		const ask = inCall()?.ask;
 		const stated = {
 			...(performedBy === undefined ? {} : { [SEQ_PATH_EDGE.performedBy]: performedBy }),
 			...(ask === undefined ? {} : { [SEQ_PATH_EDGE.askedIn]: ask }),

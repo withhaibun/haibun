@@ -13,7 +13,7 @@ import { actionNotOK } from "../../domains/util.js";
 import { isPersisted } from "../../domains/resources.js";
 import { normalizeDomainKey, refTargetOf } from "../../domains/domains.js";
 import { referenceTo } from "../../records/domains/unit.js";
-import { actingAs, actingFor } from "../../domains/capability-context.js";
+import { actingFor, inCall } from "../../domains/capability-context.js";
 import { ACTUALITY_PRINCIPAL, CONTRACT_CHECK, contractChecking, contractProducts, type TContractCall, type TContractCheck } from "../domains/contract.js";
 import { stepParts } from "../domains/phrase.js";
 import type { TStepperStep } from "../domains/stepper.js";
@@ -62,7 +62,7 @@ function checkedValue(world: TWorld, domain: string | undefined, value: unknown)
 /** Returns the principal a call's check reads: the principal the call proved, else `ACTUALITY_PRINCIPAL` where the call holds
  *  every action as actuality's own, else undefined. */
 export function callPrincipal(): string | undefined {
-	const principal = actingAs();
+	const principal = inCall()?.principal;
 	if (principal !== undefined) return principal;
 	return actingFor()?.root === true ? ACTUALITY_PRINCIPAL : undefined;
 }

@@ -1,190 +1,85 @@
 /**
- * Holds the capability that authorized the running step, for the duration of that step.
+ * Holds the record of the call in progress, for the duration of that call.
  *
- * A step that dispatches another step runs it under its own capability. Otherwise the route to an action would
- * determine whether the action is allowed or refused. An AsyncLocalStorage store holds the capability instead of
- * `world.runtime`, for two reasons. The async chain scopes the capability to the dispatch that set it, so concurrent
- * dispatches don't read each other's capability. The store isn't a mutable field that unrelated code can assign, so a step can't
- * change its authorization by writing to the world.
+ * A call's record states the action it invoked, the actions its caller holds, who the caller proved to be and what that
+ * proof rests on, the delegation and the attributed agent, the read scope, the ask, the listing it is shown and the step in
+ * flight. One AsyncLocalStorage store holds the record instead of `world.runtime`, for two reasons. The async chain scopes
+ * the record to the dispatch that set it, so concurrent calls don't read each other's record. The store isn't a mutable
+ * field that unrelated code can assign, so a step can't change its authorization by writing to the world. `runInCall` is
+ * the one function that sets it, and `callerAt` and `nestedOf` derive the record of an outside caller and of a nested step.
  *
  * The step-stream-context module uses the same pattern for the streaming side-channel.
  *
- * This module doesn't defend against code in this process. Such code can import this module and call
- * `runAuthorizedWith` or `runInvoking` itself. The capability check applies to callers that reach a step over a
- * transport (RPC, MCP, a model's tool call). Those callers can't execute code here. A stepper registered in the
- * configuration already executes inside the process.
+ * This module doesn't defend against code in this process. Such code can import this module and call `runInCall` itself.
+ * The capability check applies to callers that reach a step over a transport (RPC, MCP, a model's tool call). Those
+ * callers can't execute code here. A stepper registered in the configuration already executes inside the process.
  */
 import { AsyncLocalStorage } from "node:async_hooks";
-import { Access, ACCESS_BROADEST_FIRST, narrowerCeiling, type AccessLevel } from "./resources.js";
-import { capabilityAllows, EVERY_ACTION, readAction, readCeilingOf, writtenAt, type TAccessBound, type TCallAuthority } from "./actions.js";
-import type { TActingFor, TRestsOn } from "./authority-types.js";
+import { z } from "zod";
+import { Access, narrowerCeiling, type AccessLevel } from "./resources.js";
+import { capabilityAllows, EVERY_ACTION, readAction, readCeilingOf, writtenAt, type TAccessBound } from "./actions.js";
+import { RestsOnSchema, type TActingFor, type TRestsOn } from "./authority-types.js";
 import type { THaibunLogLevel } from "./protocol.js";
 import type { TStepWrites } from "../steps/domains/contract.js";
 import { RefusedCall, refusalSaid, type TRpcRefusal } from "../transport/domains/rpc-wire.js";
 
-const capabilityStore = new AsyncLocalStorage<TCallAuthority>();
-
-/**
- * Runs `within` with `capability` as the authorization of every step it dispatches in this process. `capability` is both
- * what the call invokes and what it holds. A delegation holder invokes the held action that allows each step, so what
- * it may invoke and what it holds are one list. Actuality's own feature and a turn that holds its asker's delegation
- * are such holders.
- */
-export function runAuthorizedWith<T>(capability: string | string[] | undefined, within: () => Promise<T>): Promise<T> {
-	return capabilityStore.run({ invoked: capability, held: capability }, within);
-}
-
-/**
- * Runs `within` as a call that a caller outside the process invoked. A ZCAP-LD invocation names one action, and the
- * call is authorized for that action alone. The chain the caller presents proves what the caller holds. What the
- * caller holds bounds what the call reads and is shown.
- */
-export function runInvoking<T>(authority: TCallAuthority, within: () => Promise<T>): Promise<T> {
-	return capabilityStore.run(authority, within);
-}
-
-/** The authority that actuality's own features hold. Actuality acts for the instance itself, so a step that its features
- *  state is the instance's own act. A statement that narrows the authority for part of a feature states the narrower one. */
-export const RUN_AUTHORITY = [EVERY_ACTION];
-
-/** Returns the capability that authorized the calling step, or undefined outside a dispatch. */
-export function authorizedWith(): string | string[] | undefined {
-	return capabilityStore.getStore()?.invoked;
-}
-
-/** Returns what the calling step's caller holds, or undefined outside a dispatch. What the caller holds bounds what the
- *  step reads, writes and is shown. */
-export function callerHolds(): string | string[] | undefined {
-	return capabilityStore.getStore()?.held;
-}
-
-const shownStore = new AsyncLocalStorage<string | string[] | undefined>();
-
-/** Runs `within` so that each listing of steps it makes shows what `held` allows. A caller that acts for another is shown
- *  what the other holds. It calls only what it holds itself, so a listed step it may not call is one the other may allow. */
-export function runShowing<T>(held: string | string[] | undefined, within: () => Promise<T>): Promise<T> {
-	return shownStore.run(held, within);
-}
-
-/** Returns what a listing of steps shows the calling step. That is what the caller it acts for holds, else what its own
- *  caller holds. */
-export function shownTo(): string | string[] | undefined {
-	return shownStore.getStore() ?? callerHolds();
-}
-
-const asOfStore = new AsyncLocalStorage<readonly number[]>();
-
-/** Runs `within` as of the step at `path`: a read that reads actuality at a step reads it at that step. */
-export function runAsOf<T>(path: readonly number[], within: () => Promise<T>): Promise<T> {
-	return asOfStore.run(path, within);
-}
-
-/** Returns the path of the step whose actuality the calling read reads, or undefined where it reads actuality as it is now. */
-export function readingAsOf(): readonly number[] | undefined {
-	return asOfStore.getStore();
-}
-
-const askStore = new AsyncLocalStorage<string | undefined>();
-
-/**
- * Holds the id of the ask a step runs under. The ask is the exchange that called the step. A step that records what it
- * did reads the id.
- *
- * The id is scoped like the capability, for the same reason. A world field would hold one value for the whole process,
- * so a second ask in flight would read or clear the first ask's id. The async context scopes the id to the call that
- * set it.
- */
-export function runAsking<T>(askId: string | undefined, within: () => Promise<T>): Promise<T> {
-	return askStore.run(askId, within);
-}
-
-/** Returns the id of the ask the calling step runs under, or undefined where a caller didn't set one. */
-export function askedIn(): string | undefined {
-	return askStore.getStore();
-}
-
-const actingStore = new AsyncLocalStorage<{ principal: string | undefined; restsOn: TRestsOn | undefined }>();
-
-/**
- * Holds the principal a call proved, for the duration of that call.
- *
- * A boundary that checks a proof determines the principal that made it. An act done under that proof is that
- * principal's act. The async context holds the principal instead of the world, for the same reason as the capability.
- * A world field would hold one value for the whole process, so each of two requests in flight would be recorded as the
- * other. The async context scopes the principal to the call that proved it. `runActingAs` exits the step context, so
- * the call isn't part of the step during which it arrived. A request a server receives isn't part of the step that
- * started the server either. The first step the call runs is the outermost step of the call.
- */
-export function runActingAs<T>(principal: string | undefined, within: () => Promise<T>, restsOn?: TRestsOn): Promise<T> {
-	return actingStore.run({ principal, restsOn }, () => stepStore.exit(within));
-}
-
-/** Returns the principal this call acts as, or undefined where the call doesn't act as a principal. A boundary sets the
- *  principal it verified, and a tick sets the principal that started its ticker. */
-export function actingAs(): string | undefined {
-	return actingStore.getStore()?.principal;
-}
-
-/** Returns what this call's proof rests on: the capabilities of its delegation chain and the time the first expires.
- *  Returns undefined where the call didn't present a proof. Actuality's own statements don't present one. */
-export function restingOn(): TRestsOn | undefined {
-	return actingStore.getStore()?.restsOn;
-}
-
-/** Returns the principal of an authority act. It returns the root where the calling step's authorization
- *  allows every action. Actuality's own features and its owner hold that authorization. Else it returns the key the
- *  caller proved. That key acts only within its delegation. Else it returns undefined. */
-export function actingFor(): TActingFor | undefined {
-	if (capabilityAllows(authorizedWith(), EVERY_ACTION)) return { root: true };
-	const controller = actingAs();
-	return controller ? { root: false, controller } : undefined;
-}
+/** The actions a call names: one, several, or undefined where the call doesn't state any. */
+type TActions = string | string[] | undefined;
+const ActionsSchema = z.union([z.string(), z.array(z.string())]).optional();
 
 /** The running step. It holds the step's seqPath, the log level at which the step's logs report, the writes its contract
  *  allows where it declares them, and the seqPath of the outermost step of its call. A step that another step didn't dispatch
  *  is its own outermost step. */
-type TStepInFlight = { seqPath: string; reportsAt: THaibunLogLevel | undefined; writes?: TStepWrites; outermost: string };
-
-const stepStore = new AsyncLocalStorage<TStepInFlight | undefined>();
-
-/**
- * Holds the step a call is part of, for the duration of the step's dispatch.
- *
- * Each write, log and record of a step names that step. A world field would hold one step for the whole process. Two
- * readers' calls into actuality are two steps in flight, and each would name the step dispatched last. A step that
- * dispatched another would name the inner step until the inner step ended. Each call reads its own step from the
- * async context.
- */
-export function runInStep<T>(step: Omit<TStepInFlight, "outermost">, within: () => T): T {
-	return stepStore.run({ ...step, outermost: stepStore.getStore()?.outermost ?? step.seqPath }, within);
-}
-
-/** Returns the step this call is part of, or undefined outside a dispatch. */
-export function stepInFlight(): TStepInFlight | undefined {
-	return stepStore.getStore();
-}
-
-const delegatedWritesStore = new AsyncLocalStorage<TStepWrites | undefined>();
-
-/** Holds the writes the contract of another instance's step allows, for the duration of a store call that instance sends while
- *  the step runs. The serving store checks the call's writes against them, as the step's own instance checks its writes. */
-export function runWritingWithin<T>(writes: TStepWrites | undefined, within: () => T): T {
-	return delegatedWritesStore.run(writes, within);
-}
-
-/** Returns the writes the contract of the step in progress allows: the step this call is part of, or the step of another
- *  instance whose store call this is. Undefined outside a step, and for a step on the contracts baseline. */
-export function writesInFlight(): TStepWrites | undefined {
-	const step = stepStore.getStore();
-	return step === undefined ? delegatedWritesStore.getStore() : step.writes;
-}
+export type TStepInFlight = { seqPath: string; reportsAt: THaibunLogLevel | undefined; writes?: TStepWrites; outermost: string };
 
 /** The read scope of a call. `ceiling` is the broadest level the call reads, and is undefined for the instance's own reads.
  *  A call whose caller doesn't hold a read action holds `refusal` in place of a ceiling. `from` is the list of held actions
  *  the scope was derived from, so a dispatch under the same list doesn't derive it again. */
 export type TReadScope = ({ ceiling: AccessLevel | undefined } | { refusal: TRpcRefusal }) & { from?: string | string[] };
 
-const readScopeStore = new AsyncLocalStorage<TReadScope>();
+/**
+ * The record of one call.
+ * - `capabilityAction` is the action the call invoked, and `held` the actions its caller holds. A step dispatched beneath another
+ *   invokes from `held`. `outside` states that the caller is outside actuality.
+ * - `principal` is who proved themselves at the boundary, and `restsOn` the capabilities on which its proof rests.
+ * - `delegation` is the delegation under which the call was made, and `attributedTo` the agent to which the call is
+ *   attributed, such as the model whose turn made it.
+ * - `readScope` bounds what the call reads. `stated` holds the read scope of the statement a dispatch states, and `asOf`
+ *   the path of the step whose actuality a read reads.
+ * - `ask` is the id of the exchange that called the step, `shown` what a listing of steps shows, `step` the step in flight,
+ *   and `delegatedWrites` the writes the contract of another instance's step allows for a store call that instance sends.
+ */
+export const CallContextSchema = z
+	.object({
+		capabilityAction: ActionsSchema,
+		held: ActionsSchema,
+		outside: z.literal(true).optional(),
+		principal: z.string().optional(),
+		restsOn: RestsOnSchema.optional(),
+		delegation: z.string().optional(),
+		attributedTo: z.string().optional(),
+		readScope: z.custom<TReadScope>().optional(),
+		stated: z.object({ scope: z.custom<TReadScope>().optional() }).optional(),
+		asOf: z.array(z.number()).readonly().optional(),
+		ask: z.string().optional(),
+		shown: ActionsSchema,
+		step: z.custom<TStepInFlight>().optional(),
+		delegatedWrites: z.custom<TStepWrites>().optional(),
+	})
+	.strict();
+export type TCallContext = z.infer<typeof CallContextSchema>;
+
+const callStore = new AsyncLocalStorage<TCallContext>();
+
+/** Runs `within` as the call `call` states. */
+export function runInCall<T>(call: TCallContext, within: () => T): T {
+	return callStore.run(call, within);
+}
+
+/** Returns the record of the call in progress, or undefined outside a call, where the code doesn't hold an action or read records. */
+export function inCall(): TCallContext | undefined {
+	return callStore.getStore();
+}
 
 /** The refusal of a read of records in a call whose caller doesn't hold a read action. Its remedy requests the narrowest read
  *  action from a key that delegates it. */
@@ -195,52 +90,115 @@ const WITHOUT_READ: TRpcRefusal = {
 /** The message of the refusal of a read without a read action: its cause, then its remedy in words. */
 export const WITHOUT_READ_REFUSAL = refusalSaid(WITHOUT_READ);
 
+/** Returns the read scope at the broadest read that `held` allows, narrowed by `scope`. A scope derived from `held` itself is
+ *  returned as it is, so a dispatch under the same list doesn't derive it again. Where `held` doesn't hold a read action, the
+ *  scope refuses each read of records. A scope that refuses each read keeps its refusal. */
+function heldScope(scope: TReadScope | undefined, held: TActions): TReadScope {
+	if (scope !== undefined && held !== undefined && scope.from === held) return scope;
+	const ceiling = readCeilingOf(held);
+	if (ceiling === undefined) return { refusal: WITHOUT_READ, from: held };
+	if (scope !== undefined && "refusal" in scope) return scope;
+	return { ceiling: narrowerCeiling(scope?.ceiling, ceiling), from: held };
+}
+
+/** Who a boundary states a call is: the actions it holds, the actions its request presented where they are narrower, as a
+ *  transport's caller states them, the principal it acts as, and the capabilities on which that principal's proof rests. */
+export type TBoundaryCaller = { held: string[]; capabilityAction?: string[]; principal: string | undefined; restsOn?: TRestsOn };
+
 /**
- * Holds the broadest level a read may see, for the duration of the call that set it.
+ * Returns the record of the caller a boundary states, in place of the record of the code that reached the boundary: it
+ * invokes what its request presented, or what it holds where the caller doesn't state that, acts as its principal outside any
+ * step, and reads at the broadest read it holds, or is refused each read of records where it doesn't hold a read. A server's
+ * request reaches its handler in the async context in which the server began listening, so each boundary and route runs
+ * under this record to hold what it states rather than what that step held.
+ */
+export function callerAt(caller: TBoundaryCaller): TCallContext {
+	const { held, principal, restsOn } = caller;
+	return CallContextSchema.parse({
+		capabilityAction: caller.capabilityAction ?? held,
+		held,
+		outside: true,
+		...(principal === undefined ? {} : { principal }),
+		...(restsOn === undefined ? {} : { restsOn }),
+		readScope: heldScope(undefined, held),
+	});
+}
+
+/** Returns `call` inside the step `step`: each write, log and record of the call names that step, and the outermost step of
+ *  the call stays the first step the call ran. */
+export function inStep(call: TCallContext | undefined, step: Omit<TStepInFlight, "outermost">): TCallContext {
+	return { ...call, step: { ...step, outermost: call?.step?.outermost ?? step.seqPath } };
+}
+
+/**
+ * Returns the record of the work of a step dispatched under `call`, inside `step` where the work is a step's. The work invokes
+ * from what the caller holds, under the chain the caller presented, so a step it dispatches is allowed by the held action that
+ * allows it. The read scope in force is the statement's scope, and the work reads at the broadest read its caller holds. The
+ * agent to which a call is attributed is attributed with that call alone, so the work beneath the call doesn't state the agent.
+ */
+export function nestedOf(call: TCallContext | undefined, step?: Omit<TStepInFlight, "outermost">): TCallContext {
+	const { attributedTo: _attributed, ...within } = { ...call };
+	const nested = { ...within, capabilityAction: call?.held, stated: { scope: call?.readScope }, readScope: heldScope(call?.readScope, call?.held) };
+	return step === undefined ? nested : inStep(nested, step);
+}
+
+/**
+ * Runs `within` with `capability` as the authorization of every step it dispatches in this process. `capability` is both
+ * what the call invokes and what it holds. A delegation holder invokes the held action that allows each step, so what
+ * it may invoke and what it holds are one list. Actuality's own feature and a statement that narrows what it holds are
+ * such holders.
+ */
+export function runAuthorizedWith<T>(capability: TActions, within: () => Promise<T>): Promise<T> {
+	return runInCall({ ...inCall(), capabilityAction: capability, held: capability }, within);
+}
+
+/** The authority that actuality's own features hold. Actuality acts for the instance itself, so a step that its features
+ *  state is the instance's own act. A statement that narrows the authority for part of a feature states the narrower one. */
+export const RUN_AUTHORITY = [EVERY_ACTION];
+
+/** Returns what a listing of steps shows the calling step. That is what the caller it acts for holds, else what its own
+ *  caller holds. */
+export function shownTo(): TActions {
+	const call = inCall();
+	return call?.shown ?? call?.held;
+}
+
+/** Returns the principal of an authority act. It returns the root where actuality acts as itself: an outside caller isn't
+ *  present and the call holds every action. Else it returns the key the caller proved. That key acts only within its
+ *  delegation. Else it returns undefined. */
+export function actingFor(): TActingFor | undefined {
+	const { outside, held, principal } = { ...inCall() };
+	if (outside !== true && capabilityAllows(held, EVERY_ACTION)) return { root: true };
+	return principal ? { root: false, controller: principal } : undefined;
+}
+
+/** Returns the writes the contract of the step in progress allows: the step this call is part of, or the step of another
+ *  instance whose store call this is. Undefined outside a step, and for a step on the contracts baseline. */
+export function writesInFlight(): TStepWrites | undefined {
+	const { step, delegatedWrites } = { ...inCall() };
+	return step === undefined ? delegatedWrites : step.writes;
+}
+
+/**
+ * Runs `within` at the broadest level `ceiling` allows, narrowed by the ceiling in force.
  *
- * An opt-in ceiling would leave each read that omitted it unbounded. The boundary that receives a call sets
- * the caller's ceiling once. That ceiling bounds every read inside the call, whether or not the read states an access
- * level. A read that names its own level reads at the narrower of that level and the ceiling.
- *
- * The ceiling is scoped like the capability, for the same reasons. The async chain bounds it to the call that set it.
- * It isn't a world field that later code can widen. A scope set inside another takes the narrower of its own level and
- * the ceiling in force. A call inside a boundary therefore doesn't read above the boundary's ceiling. A model turn that
- * reads at its context's resolved level is such a call. A scope set inside a call whose caller doesn't hold a read action
- * keeps that call's refusal.
+ * An opt-in ceiling would leave each read that omitted it unbounded. The boundary that receives a call sets the caller's
+ * ceiling once. That ceiling bounds every read inside the call, whether or not the read states an access level. A read
+ * that names its own level reads at the narrower of that level and the ceiling. A call inside a boundary therefore doesn't
+ * read above the boundary's ceiling. A model turn that reads at its context's resolved level is such a call. A scope set
+ * inside a call whose caller doesn't hold a read action keeps that call's refusal.
  */
 export function runReadingAt<T>(ceiling: AccessLevel | undefined, within: () => Promise<T>): Promise<T> {
-	const scope = readScopeStore.getStore();
+	const call = inCall();
+	const scope = call?.readScope;
 	if (scope !== undefined && "refusal" in scope) return within();
-	return readScopeStore.run({ ceiling: narrowerCeiling(scope?.ceiling, ceiling), from: scope?.from }, within);
-}
-
-/** Runs `within` at the broadest read that `held` allows, narrowed by the scope in force. Where `held` doesn't hold a read
- *  action, each read of records within it throws `WITHOUT_READ_REFUSAL`, and its writes are written within `writeBound`. A
- *  step, a served method and a tick run under what their caller holds. A boundary clears the scope in force first, so the
- *  scope is its caller's alone (`runAsCaller`). */
-export function runReadingAsHeld<T>(held: string | string[] | undefined, within: () => Promise<T>): Promise<T> {
-	const ceiling = readCeilingOf(held);
-	if (ceiling === undefined) return readScopeStore.run({ refusal: WITHOUT_READ, from: held }, within);
-	const scope = readScopeStore.getStore();
-	if (scope !== undefined && "refusal" in scope) return within();
-	return readScopeStore.run({ ceiling: narrowerCeiling(scope?.ceiling, ceiling), from: held }, within);
-}
-
-/** Runs `within` at the read `held` allows, unless the scope in force was derived from `held` itself, as a boundary's is for
- *  the step it dispatches, so the ceiling is derived once. */
-export function runReadingOnceAsHeld<T>(held: string | string[] | undefined, within: () => Promise<T>): Promise<T> {
-	return held !== undefined && readScopeStore.getStore()?.from === held ? within() : runReadingAsHeld(held, within);
-}
-
-/** Returns the read scope in force, or undefined outside a call. Dispatch holds it as the scope of the statement. */
-export function readScope(): TReadScope | undefined {
-	return readScopeStore.getStore();
+	return runInCall({ ...call, readScope: { ceiling: narrowerCeiling(scope?.ceiling, ceiling), from: scope?.from } }, within);
 }
 
 /** Returns the ceiling in force, or undefined where a ceiling doesn't bound the caller. A line of actuality's own
  *  features isn't bounded by a ceiling. Throws the scope's refusal where the caller doesn't hold a read action. */
 export function readingAt(): AccessLevel | undefined {
-	const scope = readScopeStore.getStore();
+	const scope = inCall()?.readScope;
 	if (scope === undefined) return undefined;
 	if ("refusal" in scope) throw new RefusedCall(scope.refusal);
 	return scope.ceiling;
@@ -250,42 +208,30 @@ export function readingAt(): AccessLevel | undefined {
  *  instance's own work reads without a ceiling and doesn't state a level. */
 export function readLevel(): AccessLevel {
 	const ceiling = readingAt();
-	if (ceiling === undefined)
-		throw new Error("readLevel returns the read level of a call, and this code runs outside one. Run it inside dispatchStep, runReadingAt or runReadingAsHeld.");
+	if (ceiling === undefined) throw new Error("readLevel returns the read level of a call, and this code runs outside one. Run it inside dispatchStep or runReadingAt.");
 	return ceiling;
 }
 
-const statedAtStore = new AsyncLocalStorage<{ scope: TReadScope | undefined }>();
-
-/**
- * Runs `within` as the step a statement states, and holds `scope` as the statement's read scope. `scope` is the scope in
- * force at dispatch, before the step's own authority narrows it. A statement's arguments are its author's, so
- * `readingAsStated` reads them in the author's scope. The step reads in its own scope.
- */
-export function runStatedAt<T>(scope: TReadScope | undefined, within: () => Promise<T>): Promise<T> {
-	return statedAtStore.run({ scope }, within);
-}
-
 /** Runs `within` in the read scope of the dispatched statement, so `within` reads the statement's arguments in that scope.
- *  Outside a dispatch it runs `within` in the scope in force. */
+ *  A statement's arguments are its author's, so they are read in the author's scope, and the step reads in its own. Outside
+ *  a dispatch it runs `within` in the scope in force. */
 export function readingAsStated<T>(within: () => Promise<T>): Promise<T> {
-	const stated = statedAtStore.getStore();
-	if (stated === undefined) return within();
-	return stated.scope === undefined ? readScopeStore.exit(within) : readScopeStore.run(stated.scope, within);
+	const call = inCall();
+	return call?.stated === undefined ? within() : runInCall({ ...call, readScope: call.stated.scope }, within);
 }
 
 /** Returns the bound of the call in progress: its ceiling and what its caller holds. Every store reads within this bound.
  *  Throws the scope's refusal where the caller doesn't hold a read action. */
 export function accessBound(): TAccessBound {
-	return { ceiling: readingAt(), held: callerHolds() };
+	return { ceiling: readingAt(), held: inCall()?.held };
 }
 
 /** Returns the bound that a write and an event of the call in progress are written within: the call's ceiling and what its
  *  caller holds. A caller that doesn't hold a read action hasn't read a record, so a ceiling doesn't bound its writes. Its
  *  write is gated by the write's own action, and `writtenAt` writes it at the level it states or its type declares. */
 export function writeBound(): TAccessBound {
-	const scope = readScopeStore.getStore();
-	return { ceiling: scope !== undefined && "ceiling" in scope ? scope.ceiling : undefined, held: callerHolds() };
+	const { readScope: scope, held } = { ...inCall() };
+	return { ceiling: scope !== undefined && "ceiling" in scope ? scope.ceiling : undefined, held };
 }
 
 /** Returns the level the call in progress writes a record of a type declared at `declared`, where the record doesn't state a
@@ -294,48 +240,16 @@ export function writtenLevel(declared: AccessLevel): AccessLevel {
 	return writtenAt(undefined, declared, writeBound());
 }
 
-/** Who a boundary states a call is: the actions it holds, the actions its request presented where they are narrower, as a
- *  transport's caller states them, the principal it acts as, and the capabilities on which that principal's proof rests. */
-export type TBoundaryCaller = { held: string[]; granted?: string[]; principal: string | undefined; restsOn?: TRestsOn };
+/** A request as a server receives it: it holds an empty list of actions, acts as an unnamed principal outside any step, and
+ *  is refused each read of records. Node serves a request in the async context in which its server began listening, so a
+ *  request would otherwise hold what the step that started the server held. A route states what it holds: a boundary that
+ *  verifies the request's proof runs as that caller, a route that reads public records states a public read, and a route
+ *  that writes acts through a declared step. */
+export const REQUEST_CALL = callerAt({ held: [], principal: undefined });
 
-/**
- * Runs `within` as the caller a boundary states, in place of the authority of the code that reached the boundary: it calls
- * under what its request presented, or what it holds where the caller doesn't state that, acts as its principal, and reads at the
- * broadest read it holds, or is refused each read of records where it doesn't hold a read. The read scope in force is
- * cleared first, so the scope is the caller's alone. A server's request reaches its handler in the async context in which
- * the server began listening, so each boundary and route runs this way to hold what it states rather than what that step held.
- */
-export function runAsCaller<T>(caller: TBoundaryCaller, within: () => Promise<T>): Promise<T> {
-	const { held, principal, restsOn } = caller;
-	return runInvoking({ invoked: caller.granted ?? held, held }, () =>
-		runActingAs(principal, () => readScopeStore.exit(() => runReadingAsHeld(held, () => statedAtStore.exit(within))), restsOn),
-	);
-}
-
-/** A request as a server receives it: it holds an empty list of actions and acts as an unnamed principal. */
-const REQUEST_CALLER: TBoundaryCaller = { held: [], principal: undefined };
-
-/** A caller that holds a read at one level alone, by level: a route that serves what a level may read states it. */
-const READERS = /* @__PURE__ */ new Map<AccessLevel, TBoundaryCaller>(ACCESS_BROADEST_FIRST.map((level) => [level, { held: [readAction(level)], principal: undefined }]));
-
-/** Runs `within` as a caller that holds a read at `level` alone: a route that serves a document readers at that
- *  level may read, such as a DID document or a status list, states its read this way. */
-export function runAsReaderAt<T>(level: AccessLevel, within: () => Promise<T>): Promise<T> {
-	const reader = READERS.get(level);
-	if (reader === undefined) throw new Error(`${level} isn't an access level, so a route doesn't read at it`);
-	return runAsCaller(reader, within);
-}
-
-/**
- * Runs `within` as a request a server received: it holds an empty list of actions, acts as an unnamed principal, runs
- * outside any step, and is refused each read of records. Node serves a request in the async context in which its server
- * began listening, so a request would otherwise hold what the step that started the server held. A route states what it
- * holds: a boundary that verifies the request's proof runs as that caller, a route that reads public records states a
- * public read, and a route that writes acts through a declared step.
- */
-export function runAsRequest<T>(within: () => Promise<T>): Promise<T> {
-	return runAsCaller(REQUEST_CALLER, within);
-}
+/** Returns the record of a caller that holds a read at `level` alone: a route that serves a document readers at that level may
+ *  read, such as a DID document or a status list, states its read this way. */
+export const readerAt = (level: AccessLevel): TCallContext => callerAt({ held: [readAction(level)], principal: undefined });
 
 /**
  * Runs `within` as the instance itself, without the ceiling of the call that contains it. Only the authority's own
@@ -344,13 +258,5 @@ export function runAsRequest<T>(within: () => Promise<T>): Promise<T> {
  * verdict, the delegations the key already holds, or the act's result.
  */
 export function runReadingAsTheInstance<T>(within: () => Promise<T>): Promise<T> {
-	return readScopeStore.run({ ceiling: undefined }, within);
-}
-
-/** Runs `within` as a tick, for work that outlives the step that started it. The tick holds only `needs` and reads at the
- *  broadest level `needs` allows. Where `needs` doesn't hold a read action, the tick's reads of records are refused. It
- *  acts as `startedBy` under `restsOn`. `startedBy` is the principal that started the ticker, and `restsOn` is
- *  the basis of that start's proof. */
-export function runAsTicking<T>(needs: readonly string[], startedBy: string | undefined, restsOn: TRestsOn | undefined, within: () => Promise<T>): Promise<T> {
-	return runAsCaller({ held: [...needs], principal: startedBy, restsOn }, within);
+	return runInCall({ ...inCall(), readScope: { ceiling: undefined } }, within);
 }

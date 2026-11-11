@@ -4,7 +4,7 @@
  */
 import { BlipEvent } from "../domains/protocol.js";
 import type { TWorld } from "../actuality/domains/world.js";
-import { stepInFlight } from "../domains/capability-context.js";
+import { inCall } from "../domains/capability-context.js";
 import { blipDeclared } from "../domains/blips.js";
 
 /**
@@ -20,7 +20,7 @@ export function recordBlip(world: TWorld, name: string, value?: number, attribut
 	// omitting attributes a declaration requires is caught here rather than downstream.
 	const declaredAttributes = declared.attributes ? declared.attributes.parse(attributes ?? {}) : attributes;
 	const timestamp = world.clock.now();
-	const seqPath = stepInFlight()?.seqPath;
+	const seqPath = inCall()?.step?.seqPath;
 	// emitter is set here so emit() never walks a stack for a per-frame recording.
 	world.eventLogger.emit(
 		BlipEvent.parse({

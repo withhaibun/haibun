@@ -22,13 +22,13 @@ import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { answeredFor } from "@haibun/core/lib/call-step.js";
 import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { statesObject, stepsInstructions, toolDefinition } from "@haibun/core/lib/step-discovery.js";
-import { actingAs, authorizedWith, callerHolds, restingOn, runActingAs, runAsCaller, shownTo } from "@haibun/core/lib/domains/capability-context.js";
+import { callerAt, inCall, runInCall, shownTo } from "@haibun/core/lib/domains/capability-context.js";
 import { ACTUALITY_HEADER, actualityRefusal, refusalSaid, type TStatementRefusal } from "@haibun/core/lib/rpc-wire.js";
 import { admitsOrigin, PRESENTED_REQUEST_HEADERS } from "../domains/web-server.js";
 import type { Context, IWebServer, TCapabilityVerifier } from "../ports.js";
 import { actionsOf } from "../derivations/actions.js";
-import { calledStep, dispatchedAs, recordedRefusal, type TCaller, type TDispatchWithin } from "./dispatch-call.js";
-import { proveClaimed } from "@haibun/core/lib/step-dispatch.js";
+import { calledStep, recordedRefusal, type TCaller } from "./dispatch-call.js";
+import { proveClaimed, type DispatchContext } from "@haibun/core/lib/step-dispatch.js";
 import { refuseInvocation } from "./capability-verifier.js";
 
 /** The name this MCP server states to its callers. */
@@ -59,12 +59,11 @@ const failedTool = (text: string, refusal?: TStatementRefusal): CallToolResult =
 /** Calls a step by its method, as a tool call names it, as `caller`. A model reads what its call changed next, so a call
  *  whose step names the read that serves it receives that read. */
 async function callTool(parts: TMcpParts, name: string, args: Record<string, unknown>, caller: TCaller): Promise<CallToolResult> {
-	const within: TDispatchWithin = { registry: parts.registry(), world: parts.world, steppers: parts.steppers };
+	const within: DispatchContext = { registry: parts.registry(), world: parts.world, steppers: parts.steppers };
 	try {
 		const called = calledStep(within, { method: name, params: args, asks: undefined, under: undefined }, caller);
 		if ("refused" in called) return failedTool(refusalSaid(await recordedRefusal(within, caller, called)));
-		const dispatched = dispatchedAs(within, caller);
-		const result = await runActingAs(caller.principal, async () => answeredFor(dispatched, called.tool, await proveClaimed(dispatched, called.featureStep)), caller.restsOn);
+		const result = await runInCall(callerAt(caller), async () => answeredFor(within, called.tool, await proveClaimed(within, called.featureStep)));
 		if (!result.ok) return failedTool(result.errorMessage === undefined ? `the step ${name} failed without stating why` : result.errorMessage, result.contract?.statement);
 		const products = result.products === undefined ? {} : result.products;
 		// A tool whose output schema states an object returns its products as structured content too, as MCP's specification of an output schema states.
@@ -77,9 +76,9 @@ async function callTool(parts: TMcpParts, name: string, args: Record<string, unk
 
 /** The caller of the request in progress, as the endpoint's middleware verified it. */
 function callerOfRequest(verifier: TCapabilityVerifier): TCaller {
-	const held = actionsOf(callerHolds());
-	const principal = actingAs();
-	return { granted: actionsOf(authorizedWith()), held, principal, restsOn: restingOn(), delegate: verifier.delegateOf({ held, principal }) };
+	const { principal, restsOn, ...call } = { ...inCall() };
+	const held = actionsOf(call.held);
+	return { capabilityAction: actionsOf(call.capabilityAction), held, principal, restsOn, delegate: verifier.delegateOf({ held, principal }) };
 }
 
 /**
@@ -147,7 +146,7 @@ function verifiedRequests({ world, verifier, webserver }: TMcpParts) {
 		if (otherActuality) return c.json(otherActuality, 400);
 		// An event stream is sent uncompressed.
 		c.header("Cache-Control", "no-transform");
-		await runAsCaller({ granted, held, principal, restsOn }, next);
+		await runInCall(callerAt({ capabilityAction: granted, held, principal, restsOn }), next);
 	};
 }
 
@@ -175,7 +174,7 @@ async function servedRequest(parts: TMcpParts, c: Context): Promise<Response> {
 		const held = new AbortController();
 		held.signal.addEventListener("abort", () => (stopListening(), void mcpServer.close()), { once: true });
 		c.req.raw.signal.addEventListener("abort", () => held.abort("the client left"), { once: true });
-		parts.verifier.endWhenLapsed(restingOn(), held.signal, (reason) => held.abort(reason));
+		parts.verifier.endWhenLapsed(inCall()?.restsOn, held.signal, (reason) => held.abort(reason));
 		const opened = await transport.handleRequest(context);
 		if (!opened) throw new Error("[MCP] the transport didn't open the stream; the request's Accept header must include text/event-stream");
 		return opened;

@@ -25,7 +25,7 @@
 
 import { allocateSyntheticSeqPath } from "../domains/host-id.js";
 import { releaseSeqPaths } from "../actuality/pipelines/step-dispatch.js";
-import { actingAs, callerHolds, restingOn, runAsTicking } from "../domains/capability-context.js";
+import { callerAt, inCall, runInCall } from "../domains/capability-context.js";
 import { capabilityAllows } from "../domains/actions.js";
 import type { TRestsOn } from "../domains/authority-types.js";
 import { getAuthority } from "../domains/session-authority.js";
@@ -74,9 +74,9 @@ export class UrakataRegistry implements IUrakataRegistry {
 	register(spec: IUrakataTicker): TUrakata {
 		if (this.entries.has(spec.id)) throw new Error(`an urakata of id "${spec.id}" is already registered; stop it or register another id`);
 		// The registry checks the starting step here once, so a missing action fails at the start rather than on every tick.
-		// Outside a dispatch callerHolds() returns undefined, and the check passes. A feature statement of actuality holds
+		// Outside a dispatch inCall()?.held returns undefined, and the check passes. A feature statement of actuality holds
 		// RUN_AUTHORITY, which allows every action.
-		const held = callerHolds();
+		const held = inCall()?.held;
 		const missing = held === undefined ? [] : spec.needs.filter((action) => !capabilityAllows(held, action));
 		if (missing.length > 0) {
 			throw new Error(`Can't start ${spec.description}: it needs ${missing.join(", ")}, which the caller doesn't hold. Delegate ${missing.join(", ")} to the key that starts it.`);
@@ -92,10 +92,10 @@ export class UrakataRegistry implements IUrakataRegistry {
 			tickIndex: 0,
 			errorCount: 0,
 			generatedAtTime: new Date(),
-			startedBy: actingAs(),
+			startedBy: inCall()?.principal,
 			holds: [...spec.needs],
 		};
-		const restsOn = restingOn();
+		const restsOn = inCall()?.restsOn;
 		this.entries.set(spec.id, this.startTicker(spec, urakata, restsOn));
 		if (restsOn) this.stopWhenLapsed(urakata, restsOn);
 		this.persist(urakata);
@@ -151,7 +151,7 @@ export class UrakataRegistry implements IUrakataRegistry {
 			// reads at the access ceiling those actions grant, and acts as its starter. It doesn't inherit the actions the
 			// starting step held through the async context. That context lasts for the life of the process and would grant
 			// a tick more than its work requires.
-			const settled: Promise<void> = runAsTicking(spec.needs, urakata.startedBy, restsOn, async () => {
+			const settled: Promise<void> = runInCall(callerAt({ held: [...spec.needs], principal: urakata.startedBy, restsOn }), async () => {
 				try {
 					await Promise.resolve(spec.tick({ seqPath: tickSeqPath, tickIndex: urakata.tickIndex - 1, signal: controller.signal }));
 					if (!controller.signal.aborted) this.tickHeld(urakata, tickSeqPath);

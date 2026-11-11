@@ -5,47 +5,36 @@
  * under the same authority. The same mechanism would carry the capability into work that a step starts and leaves
  * running. Work that ticks on its own therefore runs under a capability it sets instead of the step's.
  */
-import { describe, expect, it } from "vitest";
-import {
-	actingAs,
-	authorizedWith,
-	callerHolds,
-	readingAt,
-	runActingAs,
-	runAsCaller,
-	runAuthorizedWith,
-	runInStep,
-	runReadingAt,
-	runShowing,
-	shownTo,
-	stepInFlight,
-} from "./capability-context.js";
+import { readFileSync } from "node:fs";
+import { describe, expect, expectTypeOf, it } from "vitest";
+import { callerAt, inCall, inStep, nestedOf, readingAt, WITHOUT_READ_REFUSAL, runAuthorizedWith, runInCall, runReadingAt, shownTo } from "./capability-context.js";
 import { readAction } from "./actions.js";
 import { Access } from "./resources.js";
+import type { DispatchContext } from "../actuality/pipelines/step-dispatch.js";
 
 describe("the capability a step runs under", () => {
 	it("is undefined outside a dispatch", () => {
-		expect(authorizedWith()).toBeUndefined();
+		expect(inCall()?.capabilityAction).toBeUndefined();
 	});
 
 	it("reaches the calls the step makes, including asynchronous ones", async () => {
 		const seen = await runAuthorizedWith("Instance:run", async () => {
 			await new Promise((resolve) => setTimeout(resolve, 1));
-			return authorizedWith();
+			return inCall()?.capabilityAction;
 		});
 		expect(seen).toBe("Instance:run");
 	});
 
 	it("ends with the step, so a later call doesn't inherit it", async () => {
 		await runAuthorizedWith("Instance:run", () => Promise.resolve(undefined));
-		expect(authorizedWith()).toBeUndefined();
+		expect(inCall()?.capabilityAction).toBeUndefined();
 	});
 
 	it("is replaced in work that a step starts and leaves running", async () => {
 		let ticked: string | string[] | undefined = "unset";
 		// The timer schedules work that outlives the step. That work sets an undefined capability, as a tick sets its own.
 		await runAuthorizedWith("Instance:run", () => {
-			setTimeout(() => void runAuthorizedWith(undefined, () => Promise.resolve(void (ticked = authorizedWith()))), 1);
+			setTimeout(() => void runAuthorizedWith(undefined, () => Promise.resolve(void (ticked = inCall()?.capabilityAction))), 1);
 			return Promise.resolve();
 		});
 		await new Promise((resolve) => setTimeout(resolve, 10));
@@ -54,8 +43,8 @@ describe("the capability a step runs under", () => {
 
 	it("nests: an inner call may run under a narrower capability without changing the outer one", async () => {
 		await runAuthorizedWith("Instance:run", async () => {
-			await runAuthorizedWith("Instance:read", async () => expect(authorizedWith()).toBe("Instance:read"));
-			expect(authorizedWith()).toBe("Instance:run");
+			await runAuthorizedWith("Instance:read", async () => expect(inCall()?.capabilityAction).toBe("Instance:read"));
+			expect(inCall()?.capabilityAction).toBe("Instance:run");
 		});
 	});
 });
@@ -67,7 +56,9 @@ describe("the steps a listing shows", () => {
 
 	it("are those another caller holds where the caller acts for it, and the caller still calls only what it holds", async () => {
 		const seen = await runAuthorizedWith(["*"], () =>
-			runShowing(authorizedWith(), () => runAuthorizedWith("Read:public", () => Promise.resolve({ shown: shownTo(), held: authorizedWith() }))),
+			runInCall({ ...inCall(), shown: inCall()?.capabilityAction }, () =>
+				runAuthorizedWith("Read:public", () => Promise.resolve({ shown: shownTo(), held: inCall()?.capabilityAction })),
+			),
 		);
 		expect(seen).toEqual({ shown: ["*"], held: "Read:public" });
 	});
@@ -107,12 +98,14 @@ describe("the outermost step of a call", () => {
 	const step = (seqPath: string) => ({ seqPath, reportsAt: undefined });
 
 	it("is the call's first step, for every step inside the call", () => {
-		const inner = runInStep(step("0.1"), () => runInStep(step("0.1.1"), () => stepInFlight()));
+		const inner = runInCall(inStep(inCall(), step("0.1")), () => runInCall(inStep(inCall(), step("0.1.1")), () => inCall()?.step));
 		expect(inner).toEqual({ seqPath: "0.1.1", reportsAt: undefined, outermost: "0.1" });
 	});
 
 	it("begins again where a call proves its principal, since that call isn't part of the step during which it arrived", async () => {
-		const arrived = await runInStep(step("0.1"), () => runActingAs("did:example:caller", () => Promise.resolve(runInStep(step("0.9"), () => stepInFlight()))));
+		const arrived = await runInCall(inStep(inCall(), step("0.1")), () =>
+			runInCall({ ...inCall(), principal: "did:example:caller", step: undefined }, () => Promise.resolve(runInCall(inStep(inCall(), step("0.9")), () => inCall()?.step))),
+		);
 		expect(arrived?.outermost).toBe("0.9");
 	});
 });
@@ -122,8 +115,13 @@ describe("a caller a boundary states", () => {
 		const held = [readAction(Access.public)];
 		const seen = await runAuthorizedWith(["*"], () =>
 			runReadingAt(undefined, () =>
-				runActingAs("did:example:instance", () =>
-					runAsCaller({ held, principal: "did:example:wallet" }, async () => ({ authorized: authorizedWith(), held: callerHolds(), as: actingAs(), at: readingAt() })),
+				runInCall({ ...inCall(), principal: "did:example:instance", step: undefined }, () =>
+					runInCall(callerAt({ held, principal: "did:example:wallet" }), async () => ({
+						authorized: inCall()?.capabilityAction,
+						held: inCall()?.held,
+						as: inCall()?.principal,
+						at: readingAt(),
+					})),
 				),
 			),
 		);
@@ -131,6 +129,64 @@ describe("a caller a boundary states", () => {
 	});
 
 	it("refuses each read where the caller doesn't hold one", async () => {
-		await expect(runAsCaller({ held: [], principal: undefined }, async () => readingAt())).rejects.toThrow(/requires a read action/);
+		await expect(runInCall(callerAt({ held: [], principal: undefined }), async () => readingAt())).rejects.toThrow(/requires a read action/);
+	});
+});
+
+describe("the record of an outside caller", () => {
+	const READ = [readAction(Access.public)];
+	it.each([
+		[
+			"invokes what its request presented, and holds what its chain allows",
+			{ held: ["*"], capabilityAction: ["A:run"], principal: "did:a" },
+			{ capabilityAction: ["A:run"], held: ["*"], principal: "did:a" },
+		],
+		["invokes what it holds where its request doesn't state a narrower action", { held: READ, principal: undefined }, { capabilityAction: READ, held: READ }],
+		["rests on the capabilities its proof states", { held: READ, principal: "did:a", restsOn: { capabilities: ["urn:c"] } }, { restsOn: { capabilities: ["urn:c"] } }],
+	])("%s", (_, caller, expected) => {
+		expect(callerAt(caller)).toMatchObject({ ...expected, outside: true });
+	});
+
+	it("reads at the broadest read it holds, and is refused each read where it doesn't hold one", () => {
+		expect(callerAt({ held: READ, principal: undefined }).readScope).toEqual({ ceiling: Access.public, from: READ });
+		expect(() => runInCall(callerAt({ held: [], principal: undefined }), readingAt)).toThrow(WITHOUT_READ_REFUSAL);
+	});
+
+	it("doesn't carry the step, the ask or the statement of the code that reached the boundary", () => {
+		const reached = inStep({ ask: "ask-1", stated: { scope: undefined }, held: ["*"] }, { seqPath: "0.1", reportsAt: undefined });
+		expect(runInCall(reached, () => callerAt({ held: READ, principal: undefined }))).not.toHaveProperty("step");
+	});
+});
+
+describe("the record of a step dispatched beneath another", () => {
+	const call = callerAt({ held: ["*"], capabilityAction: ["A:run"], principal: "did:a" });
+	it.each([
+		["invokes from what the caller holds", nestedOf(call), { capabilityAction: ["*"], held: ["*"], principal: "did:a", outside: true }],
+		["keeps the read scope in force as the statement's scope", nestedOf(call), { stated: { scope: call.readScope }, readScope: call.readScope }],
+		[
+			"is inside the step, whose call's first step stays outermost",
+			nestedOf(inStep(call, { seqPath: "0.1", reportsAt: undefined }), { seqPath: "0.1.1", reportsAt: undefined }),
+			{ step: { seqPath: "0.1.1", reportsAt: undefined, outermost: "0.1" } },
+		],
+	])("%s", (_, nested, expected) => {
+		expect(nested).toMatchObject(expected);
+	});
+
+	it("doesn't state the agent the call is attributed with, which made the call and not the work beneath it", () => {
+		expect(nestedOf({ ...call, attributedTo: "a-model", delegation: "urn:d" })).toMatchObject({ delegation: "urn:d" });
+		expect(nestedOf({ ...call, attributedTo: "a-model" })).not.toHaveProperty("attributedTo");
+	});
+
+	it("reads at the broadest read a narrower holding allows", () => {
+		const narrowed = { ...call, held: [readAction(Access.public)] };
+		expect(nestedOf(narrowed).readScope).toEqual({ ceiling: Access.public, from: narrowed.held });
+	});
+});
+
+describe("the call record", () => {
+	it("is held by one store, and a dispatch context doesn't hold authority", () => {
+		const source = readFileSync(new URL("./capability-context.ts", import.meta.url), "utf8");
+		expect(source.match(/new AsyncLocalStorage/g)).toHaveLength(1);
+		expectTypeOf<keyof DispatchContext>().toEqualTypeOf<"registry" | "world" | "steppers">();
 	});
 });

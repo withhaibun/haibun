@@ -14,7 +14,7 @@ import type { TStepFailure } from "../domains/step-failure.js";
 /** The authorization a step's own record states. A step actuality runs as itself holds every action, so its record
  *  doesn't state the invoked and held actions. The record of a caller's step states both. A record states the principal
  *  that proved its identity, and the delegation the call was made under, where its caller states them. */
-export type TStepAuthorization = { invoked?: string; held?: string; controller?: string; delegation?: string };
+export type TStepAuthorization = { capabilityAction?: string; held?: string; controller?: string; delegation?: string };
 
 /** The call a step's record states: the read level of the call, the ask that holds the call, and the agent that made the
  *  call, where its caller names them. */
@@ -63,7 +63,7 @@ export function startRecord(actualityFeature: string, featureStep: TFeatureStep,
 		...(call.attributedTo === undefined ? {} : { [SEQ_PATH_FIELD.attributedTo]: call.attributedTo }),
 		...(authorization.delegation === undefined ? {} : { [SEQ_PATH_FIELD.delegation]: authorization.delegation }),
 		...(ran.ranOn === undefined ? {} : { [SEQ_PATH_FIELD.ranOn]: ran.ranOn }),
-		...(authorization.invoked === undefined ? {} : { [SEQ_PATH_FIELD.capabilityAction]: authorization.invoked }),
+		...(authorization.capabilityAction === undefined ? {} : { [SEQ_PATH_FIELD.capabilityAction]: authorization.capabilityAction }),
 		...(authorization.held === undefined ? {} : { [SEQ_PATH_FIELD.allowedAction]: authorization.held }),
 		...(authorization.controller === undefined ? {} : { [LinkRelations.PERFORMED_BY.rel]: authorization.controller }),
 		...(featureStep.source?.path ? { [SEQ_PATH_FIELD.path]: featureStep.source.path } : {}),

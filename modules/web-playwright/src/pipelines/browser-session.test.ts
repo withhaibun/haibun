@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 import type { Page } from "playwright";
-import { runInStep } from "@haibun/core/lib/domains/capability-context.js";
+import { inCall, inStep, runInCall } from "@haibun/core/lib/domains/capability-context.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import type { TBrowserPages } from "../ports.js";
 import { BrowserSession } from "./browser-session.js";
@@ -108,9 +108,9 @@ describe("the page in front (PF32)", () => {
 	it("comes to the front again after the relayed browser is let go, whose next connection may show another tab", async () => {
 		const { session, fronted } = sessionOverStandIns(true);
 		const step = { seqPath: "0.1.1", reportsAt: undefined };
-		await runInStep(step, () => session.withPage(() => "before the release"));
+		await runInCall(inStep(inCall(), step), () => session.withPage(() => "before the release"));
 		await session.releaseAfter({ ...step, outermost: step.seqPath });
-		await runInStep(step, () => session.withPage(() => "after the release"));
+		await runInCall(inStep(inCall(), step), () => session.withPage(() => "after the release"));
 		expect(fronted).toEqual(["tab 0", "tab 0"]);
 	});
 });

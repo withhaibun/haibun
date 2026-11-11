@@ -23,7 +23,7 @@ import {
 	type TUnitWrite,
 	type TUnitWritten,
 } from "../records/domains/unit.js";
-import { runWritingWithin } from "./capability-context.js";
+import { inCall, runInCall } from "./capability-context.js";
 import type { TStepWrites } from "../steps/domains/contract.js";
 
 export const STORE_METHOD_PREFIX = "store.";
@@ -139,7 +139,7 @@ export async function handleStoreCall(store: IQuadStore, method: string, rawPara
 		}
 		case "writeMany": {
 			const { units, writes } = STORE_METHODS.writeMany.params.parse(rawParams);
-			return { result: await runWritingWithin(writes === undefined ? undefined : { ...writes, refused: [] }, () => store.writeMany(units)) };
+			return { result: await runInCall({ ...inCall(), delegatedWrites: writes === undefined ? undefined : { ...writes, refused: [] } }, () => store.writeMany(units)) };
 		}
 		case "remove": {
 			const { removal } = STORE_METHODS.remove.params.parse(rawParams);
@@ -190,7 +190,7 @@ export async function handleStoreCall(store: IQuadStore, method: string, rawPara
  *  refusal of a record that changed since its read or of a write outside the step's contract. */
 async function writtenOver(writes: z.infer<typeof StepWritesSchema> | undefined, write: () => Promise<string>): Promise<TStoreWriteResult> {
 	try {
-		return await runWritingWithin(writes === undefined ? undefined : { ...writes, refused: [] }, write);
+		return await runInCall({ ...inCall(), delegatedWrites: writes === undefined ? undefined : { ...writes, refused: [] } }, write);
 	} catch (error) {
 		if (error instanceof ChangedSinceRead) return { changedSinceRead: { record: error.record, read: error.read, held: error.held } };
 		if (error instanceof WriteOutsideContract) return { outsideContract: { step: error.step, outside: [...error.outside] } };

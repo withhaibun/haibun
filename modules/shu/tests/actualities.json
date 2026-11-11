@@ -412,20 +412,20 @@
 			"actuality": {
 				"text": "modules/shu/tests, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 49400,
+				"tookMs": 44800,
 				"digest": {
-					"modules/cli/src": "2a30b0f7dc93f355455a023940b456906449b7bde09947dd20bce2b9d3b83e50",
-					"modules/core/src": "f31e89cbcddd64d644792cb81fbdc4169d6dff570d3a66718bb5b9de28439453",
+					"modules/cli/src": "21291a269f682b5387a23040d17fe97483461231d07423e53722d906b0ca881e",
+					"modules/core/src": "ddab62a72bc3c6c49667c5daa23c3733e6fbf0f84e7c5df65c30a911d1502fad",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
-					"modules/logic/src": "82e3c2d9cbf349686d57762184e962bbaa43d723dcc3352332bcc6b9ca914fba",
+					"modules/logic/src": "8fcadb6f57b8249e14954bd8166a40c1a7f8e7855af3cdcfa14db48b103ebbd5",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/shu/src": "86adc87b972e81d13b14e0d26b8749b4296d5cafba753de67ad216ba465b689e",
+					"modules/shu/src": "fbaf7274634ab2a794f1fcc3dd6f6b45163d1c627cf1d480d79ac5e5ad705748",
 					"modules/shu/tests": "51430df310b0f937321f043028c2889ae625ff43ea21cbc78c92c9230458e403",
 					"modules/shu/waypoints": "7dc9c4a47d546a40d28e609997d2236967c01ebb925e55511322e4abc6772a86",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
-					"modules/web-playwright/src": "4aa35c85f88ab96beed3d2b70c7099011b99cd624b258d0584145c4464c25696",
-					"modules/web-server-hono/src": "90fb329c609079c9f91bfccb920e8b542f7d0ed7da87f2a46fdfdd43dfc1504e"
+					"modules/web-playwright/src": "0cce4ac71cd217af08118528166c5d7d5f1eabc7ff1580f70767f0a74c6f8a42",
+					"modules/web-server-hono/src": "e526a6d2e4816ddae7a0fbcbedaed08ca7fed1a2bc7f44492b738aa9a690384d"
 				}
 			},
 			"features": {
@@ -444,25 +444,25 @@
 				"/features/monitor-serves.feature.ts": {
 					"text": "The monitor serves shu on a port of its own",
 					"status": "passed",
-					"tookMs": 1600,
+					"tookMs": 1300,
 					"steps": 198
 				},
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
-					"tookMs": 35100,
-					"steps": 771
+					"tookMs": 32000,
+					"steps": 765
 				},
 				"/features/remote-store.feature.ts": {
 					"text": "A satellite instance keeps its records in the main instance's store",
 					"status": "passed",
-					"tookMs": 2100,
+					"tookMs": 1500,
 					"steps": 8
 				},
 				"/features/voice-ui.feature.ts": {
 					"text": "UI extension propagation: domain ui → concern catalog → SPA actions bar",
 					"status": "passed",
-					"tookMs": 2700,
+					"tookMs": 2200,
 					"steps": 211
 				}
 			}

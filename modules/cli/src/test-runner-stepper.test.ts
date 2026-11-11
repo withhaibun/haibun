@@ -15,7 +15,6 @@ import { answerOfRun, askParams, stepAtRun } from "./test-runner-stepper.js";
 import type { TStepDescriptor } from "@haibun/core/lib/step-discovery.js";
 import { emptyOutcome, readRunOutput, runEvents } from "./pipelines/run-outcome.js";
 import { RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
-import { actingAs } from "@haibun/core/lib/domains/capability-context.js";
 import { Access } from "@haibun/core/lib/domains/resources.js";
 import { principalDomainDefinition } from "@haibun/core/lib/domains/resource-domains.js";
 import { readAction } from "@haibun/core/lib/domains/actions.js";
@@ -31,7 +30,7 @@ import { QuadStore, newStoreChain } from "@haibun/core/lib/quad-store.js";
 import nodeFS from "node:fs";
 import path from "node:path";
 import { ACTUALITIES_FILE } from "@haibun/core/lib/adapters/dependency-state.js";
-import { RUN_AUTHORITY, runAuthorizedWith } from "@haibun/core/lib/domains/capability-context.js";
+import { inCall, RUN_AUTHORITY, runAuthorizedWith } from "@haibun/core/lib/domains/capability-context.js";
 import { RUN_DOMAIN, SUPERVISOR_CAPABILITIES, runDomainDefinitions } from "./domains/run.js";
 import { DomainKeySchema } from "@haibun/core/lib/domains/domains.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
@@ -66,7 +65,7 @@ class InstanceStepper extends AStepper implements IHasCycles {
 			capability: SUPERVISOR_CAPABILITIES.run,
 			contract: { products: RUN_DOMAIN.started },
 			action: (input: { where: string; filter: string; from: string; port: number; run: string; hostId: number }) => {
-				this.calls.push({ step: "startRun", input, actingAs: actingAs() });
+				this.calls.push({ step: "startRun", input, actingAs: inCall()?.principal });
 				if (this.refusal !== undefined) return Promise.resolve(actionNotOK(this.refusal));
 				return Promise.resolve(actionOKWithProducts({ run: input.run, where: input.where, filter: input.filter, record: "1700000000000-0" }));
 			},
