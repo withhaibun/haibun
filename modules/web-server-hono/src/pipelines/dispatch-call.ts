@@ -13,9 +13,8 @@ import { proveClaimed, type DispatchContext } from "@haibun/core/lib/step-dispat
 import { validatedFeatureStep } from "@haibun/core/lib/call-step.js";
 import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import type { StepTool } from "@haibun/core/lib/step-registry.js";
-import { lackedByCall } from "@haibun/core/lib/domains/actions.js";
 import { allocateCallPath } from "@haibun/core/lib/domains/host-id.js";
-import { callerAt, runInCall, runReadingAt } from "@haibun/core/lib/domains/capability-context.js";
+import { callerAt, mayRun, runInCall, runReadingAt } from "@haibun/core/lib/domains/capability-context.js";
 import type { AccessLevel } from "@haibun/core/lib/domains/resources.js";
 import { notARead } from "../domains/web-server.js";
 
@@ -40,7 +39,7 @@ export type TCalledStep = { tool: StepTool; featureStep: TFeatureStep } | { refu
 export function calledStep({ registry, world, steppers }: DispatchContext, call: TStepCall, caller: TCaller): TCalledStep {
 	const { method, params, asks, under } = call;
 	const tool = registry.get(method);
-	const lacked = tool && lackedByCall(caller, tool.descriptor);
+	const lacked = tool && mayRun(callerAt(caller), tool.descriptor);
 	const built = (step: StepTool) => validatedFeatureStep(step, params, allocateCallPath(world, under), world, steppers);
 	if (!tool || lacked) return { refused: refusal(method, lacked, caller.delegate), ...(tool && lacked && !tool.descriptor.read ? gatedOf(() => built(tool)) : {}) };
 	if (asks === "read" && !tool.descriptor.read) return { refused: { error: notARead(method) } };

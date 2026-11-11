@@ -22,5 +22,5 @@ export function heldAuthority(runtime: TRuntime, need: string): IAuthority {
 /** Returns the signer a client in this process uses for its requests to other hosts. The signer reads actuality's
  *  authority at each call, so a client created before the invoker's registration still signs with that invoker. */
 export function requestSigner(runtime: TRuntime): TRequestSigner {
-	return (request, action) => heldAuthority(runtime, `invoking ${action} at ${request.url}`).signRequest(request, action);
+	return (request, action, delegator) => heldAuthority(runtime, `invoking ${action} at ${request.url}`).signRequest(request, action, delegator);
 }

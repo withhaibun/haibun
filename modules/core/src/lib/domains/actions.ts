@@ -28,8 +28,6 @@ const ACTION_GRAMMAR = /^(\*|[A-Za-z][\w.-]*(:[\w.-]*)?\*?)$/;
  *  grammar, and a refusal states the grammar's pattern; one this module builds is stated in that grammar. */
 export const ActionSchema = z.string().regex(ACTION_GRAMMAR).brand<"Action">();
 export type TAction = z.infer<typeof ActionSchema>;
-/** The actions a caller held for a step, read from the comma-separated list a record states them in, each in an action's grammar. */
-export const heldActions = (held: string): TAction[] => actionList(held).map((action) => ActionSchema.parse(action));
 
 /** The action a read at `level` requires. */
 export const readAction = (level: AccessLevel): TAction => `${READ_PREFIX}${level}` as TAction;
@@ -71,7 +69,10 @@ export function requiredAction(stepperName: string, stepName: string, step: TSte
 }
 
 /** The fields a gate or a listing reads from a step: the action the step requires, and its `readsAt` level where it states one. */
-type TCalled = { capability: TAction; readsAt?: AccessLevel };
+export type TCalled = { capability: TAction; readsAt?: AccessLevel };
+
+/** Returns the actions `stated` names: one, several, or an empty list where a call doesn't state any. */
+export const actionsOf = (stated: string | string[] | undefined): string[] => (stated === undefined ? [] : [stated].flat());
 
 /** Returns the action a caller holding `held` lacks to call `step`. That is the step's required action, or else a read at
  *  the step's `readsAt` level. Returns undefined where the caller holds both. */
@@ -81,24 +82,9 @@ export function lackedAction(held: string | string[] | undefined, step: TCalled)
 	return undefined;
 }
 
-/** The authority of one call. `capabilityAction` is the action the call invoked. `held` is what its caller holds, and bounds what the
- *  call reads under the invoked action. */
-export type TCallAuthority = { capabilityAction?: string | string[]; held?: string | string[] };
-
-/**
- * Returns the action a call lacks to run `step`. The call must have invoked the action the step requires, and its caller
- * must hold a read at the step's `readsAt` level. ZCAP-LD authorizes an invocation for the one action it names. The
- * chain the caller presented bounds what the step reads under that action. Returns undefined where the call has both.
- */
-export function lackedByCall(call: TCallAuthority, step: TCalled): string | undefined {
-	if (!capabilityAllows(call.capabilityAction, step.capability)) return step.capability;
-	if (step.readsAt && !capabilityAllows(call.held, readAction(step.readsAt))) return readAction(step.readsAt);
-	return undefined;
-}
-
 /** Returns whether a caller holding `held` may call `step`. It returns true where `lackedAction` returns undefined. A
- *  listing of a caller's steps calls this function, and so does a gate that reads only what a caller holds. A gate on an
- *  invoked call calls `lackedByCall`. */
+ *  listing of a caller's steps calls this function, and so does a gate that reads only what a caller holds. The gate of a
+ *  dispatched step calls `mayRun`. */
 export function mayCall(held: string | string[] | undefined, step: TCalled): boolean {
 	return lackedAction(held, step) === undefined;
 }

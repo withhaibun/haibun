@@ -11,7 +11,7 @@
  * stores for its status (RECORDED_STATUS). This file declares the schema, the domain
  * selectors and the domain definition that steppers register.
  */
-import { ActionSchema, heldActions } from "../../domains/actions.js";
+import { ActionSchema } from "../../domains/actions.js";
 import { itemAt } from "../../domains/item-at.js";
 import { z } from "zod";
 import { ACTUALITY_LEVELS, HAIBUN_LOG_LEVELS, RECORDED_STATUS, VERDICT, type TActualityLevel } from "../../domains/protocol.js";
@@ -25,6 +25,7 @@ import {
 	LinkRelations,
 	PersistedVertexSchema,
 	PRINCIPAL_LABEL,
+	RESOURCE_LABEL,
 	SEQ_PATH_LABEL,
 	type TDomainDefinition,
 } from "../../domains/resources.js";
@@ -231,10 +232,11 @@ export const SEQ_PATH_FIELD = {
 	/** The name of the view this step showed, as the site declares it. The site's declaration holds how the view
 	 *  looks, so the record holds the view's name and not a copy of the declaration. */
 	showed: "showed",
-	/** The capability a caller must hold to run this step. It is written only where the step declares one. */
+	/** The action the call presented that allows this step. It is written only on the step a caller named, so a step dispatched
+	 *  beneath another doesn't state one. */
 	capabilityAction: "capabilityAction",
-	/** The actions of the grant the caller held that allowed this step. The record holds the actions and never the token.
-	 *  A bearer token is the grant itself, so a record of the token would copy the secret. */
+	/** The action the caller held that allowed this step. The record holds the action and never the token. A bearer token is
+	 *  the grant itself, so a record of the token would copy the secret. */
 	allowedAction: "allowedAction",
 	generatedAtTime: "generatedAtTime",
 	endedAtTime: "endedAtTime",
@@ -265,8 +267,6 @@ export const SEQ_PATH_FIELD = {
 	result: "result",
 	/** The agent the call is attributed to, where its caller states one: the model whose turn made the call. */
 	attributedTo: "attributedTo",
-	/** The delegation the call was made under, where its caller states one. */
-	delegation: "delegation",
 	/** A level's digests as JSON text (digest.ts): the actuality's of each dependency root, and a scenario's of its declared lines. */
 	digest: "digest",
 	/** The record of the start-up step that ended this record as interrupted, where its process ended before it did. */
@@ -285,6 +285,9 @@ export const SEQ_PATH_EDGE = {
 	performedBy: "performedBy",
 	/** The Comment that holds the ask under which an actuality started, where one did. Its rel is `as:inReplyTo`. */
 	askedIn: "askedIn",
+	/** The record of the delegation under which the call was made, where its caller states one. The edge reaches the
+	 *  deployment's record of the capability, so a reader walks from a capability to each step it authorized in one hop. */
+	delegation: "delegation",
 } as const;
 
 // Non-strict: emitSeqPathStart writes isPartOf, precededBy and performedBy in the
@@ -311,8 +314,7 @@ export const SeqPathSchema = PersistedVertexSchema.extend({
 	[SEQ_PATH_FIELD.proof]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.showed]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.capabilityAction]: OPTIONAL_ACTION,
-	// The actions the caller held, as the comma-separated list that states them, which a step's line reads as actions.
-	[SEQ_PATH_FIELD.allowedAction]: OPTIONAL_TEXT,
+	[SEQ_PATH_FIELD.allowedAction]: OPTIONAL_ACTION,
 	[SEQ_PATH_FIELD.generatedAtTime]: z.string(),
 	[SEQ_PATH_FIELD.endedAtTime]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.path]: OPTIONAL_TEXT,
@@ -328,7 +330,6 @@ export const SeqPathSchema = PersistedVertexSchema.extend({
 	[SEQ_PATH_FIELD.params]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.result]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.attributedTo]: OPTIONAL_TEXT,
-	[SEQ_PATH_FIELD.delegation]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.digest]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.endedBy]: OPTIONAL_TEXT,
 	// A store that writes an edge for each edge field the schema declares writes the ask as an edge, so a read of the records
@@ -338,7 +339,8 @@ export const SeqPathSchema = PersistedVertexSchema.extend({
 export type TSeqPath = z.infer<typeof SeqPathSchema>;
 
 /** A step as a line reads it: its words, the action that ran it, how it ended and why where it failed, when it began and
- *   ended and how long it took, how it reached what ran it, and the capability it required, what allowed it and who held it. */
+ *   ended and how long it took, how it reached what ran it, and the action the call presented, the held action that allowed it
+ *   and who held it. */
 export const StepLineSchema = z.object({
 	text: z.string(),
 	called: OPTIONAL_TEXT,
@@ -348,7 +350,7 @@ export const StepLineSchema = z.object({
 	ended: OPTIONAL_TEXT,
 	tookMs: z.number().optional(),
 	dispatch: z.object({ via: z.enum(RAN_VIA), on: OPTIONAL_TEXT }).optional(),
-	action: z.object({ required: ActionSchema, allowed: z.array(ActionSchema).optional(), holder: OPTIONAL_TEXT }).optional(),
+	action: z.object({ presented: OPTIONAL_ACTION, allowed: OPTIONAL_ACTION, holder: OPTIONAL_TEXT }).optional(),
 });
 export type TStepLine = z.infer<typeof StepLineSchema>;
 
@@ -359,8 +361,8 @@ export function stepLine(record: Record<string, unknown>): TStepLine {
 	const ended = step[SEQ_PATH_FIELD.endedAtTime];
 	const via = step[SEQ_PATH_FIELD.ranVia];
 	const on = step[SEQ_PATH_FIELD.ranOn];
-	const required = step[SEQ_PATH_FIELD.capabilityAction];
-	const allowed = step[SEQ_PATH_FIELD.allowedAction];
+	const capabilityAction = step[SEQ_PATH_FIELD.capabilityAction];
+	const allowedAction = step[SEQ_PATH_FIELD.allowedAction];
 	const performedBy = record[SEQ_PATH_EDGE.performedBy];
 	if (performedBy !== undefined && typeof performedBy !== "string") throw new Error(`the step ${step.id} names the principal who performed it as ${typeof performedBy}, not an id`);
 	const called = step[SEQ_PATH_FIELD.called];
@@ -373,9 +375,15 @@ export function stepLine(record: Record<string, unknown>): TStepLine {
 		...(error === undefined ? {} : { error }),
 		...(ended === undefined ? {} : { ended, tookMs: Date.parse(ended) - Date.parse(began) }),
 		...(via === undefined ? {} : { dispatch: on === undefined ? { via } : { via, on } }),
-		...(required === undefined
+		...(capabilityAction === undefined && allowedAction === undefined
 			? {}
-			: { action: { required, ...(allowed === undefined ? {} : { allowed: heldActions(allowed) }), ...(performedBy === undefined ? {} : { holder: performedBy }) } }),
+			: {
+					action: {
+						...(capabilityAction === undefined ? {} : { presented: capabilityAction }),
+						...(allowedAction === undefined ? {} : { allowed: allowedAction }),
+						...(performedBy === undefined ? {} : { holder: performedBy }),
+					},
+				}),
 	};
 }
 
@@ -427,8 +435,6 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 			// The result is a text of its own, so it is a Body of its own kind beside the parameters.
 			[SEQ_PATH_FIELD.result]: { rel: LinkRelations.CONTENT.rel, mediaType: MEDIA_TYPE.plain, kind: SEQ_PATH_FIELD.result },
 			[SEQ_PATH_FIELD.attributedTo]: LinkRelations.ATTRIBUTED_TO.rel,
-			// Grouped-as, so the type offers "the calls made under this delegation" as a filter.
-			[SEQ_PATH_FIELD.delegation]: LinkRelations.CONTEXT.rel,
 			// Grouped-as, so the type offers the records of one state as a filter, such as the scenarios that declare the same lines.
 			[SEQ_PATH_FIELD.digest]: LinkRelations.CONTEXT.rel,
 			[SEQ_PATH_FIELD.endedBy]: LinkRelations.WAS_ENDED_BY.rel,
@@ -438,6 +444,9 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 			[SEQ_PATH_EDGE.precededBy]: { rel: LinkRelations.PRECEDED_BY.rel, range: SEQ_PATH_LABEL },
 			[SEQ_PATH_EDGE.performedBy]: { rel: LinkRelations.PERFORMED_BY.rel, range: PRINCIPAL_LABEL },
 			[SEQ_PATH_EDGE.askedIn]: { rel: LinkRelations.IN_REPLY_TO.rel, range: COMMENT_LABEL },
+			// The deployment declares the type of its capability records, so the edge reaches a record of any type, which the store
+			// may not hold where the delegation is the root of its chain.
+			[SEQ_PATH_EDGE.delegation]: { rel: LinkRelations.CAPABILITY.rel, range: RESOURCE_LABEL, reference: true },
 		},
 		// endedAtTime orders steps by their end. A reader that follows actuality compares recordedAtTime with the time of
 		// its last read. actuality selects the steps of one feature of an actuality, called selects the steps that called one

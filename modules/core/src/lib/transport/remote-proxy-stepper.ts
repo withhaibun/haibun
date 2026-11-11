@@ -9,6 +9,7 @@ import type { TWorld } from "../actuality/domains/world.js";
 import type { StepRegistry } from "../steps/pipelines/step-registry.js";
 import type { TStepDescriptor } from "../steps/domains/step-discovery.js";
 import { requestSigner } from "../domains/session-authority.js";
+import { delegatorOf, inCall } from "../domains/capability-context.js";
 import type { TRemoteSteps } from "./ports.js";
 import { remoteSteps } from "./root.js";
 import { readRemoteHost, remoteTools, type TRemoteHost } from "./pipelines/remote-host.js";
@@ -26,7 +27,9 @@ export class RemoteStepperProxy extends AStepper {
 		const host = new URL(remoteUrl).host;
 		this.name = `RemoteProxy_${host.replace(/[^a-zA-Z0-9]/g, "_")}`;
 		this.description = `Proxy for remote stepper host at ${remoteUrl}`;
-		this.rpc = remoteSteps(remoteUrl, (request, action) => requestSigner(this.getWorld().runtime)(request, action));
+		// A step on the remote host acts for the caller outside actuality where one called it, so it presents only that caller's
+		// delegation to this instance's key.
+		this.rpc = remoteSteps(remoteUrl, (request, action) => requestSigner(this.getWorld().runtime)(request, action, delegatorOf(inCall())));
 	}
 
 	async setWorld(world: TWorld, steppers: AStepper[]): Promise<void> {

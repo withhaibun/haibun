@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { AccessLevel } from "./resources.js";
+import type { TRpcRefusal } from "../transport/domains/rpc-wire.js";
 
 /**
  * This module declares only the framework's model of authority. A step declares the action it requires, a caller
@@ -47,11 +48,14 @@ export const DELEGATIONS_READ_ACTION = "Authority:readOwnDelegations";
 
 /**
  * The capabilities on which a verified proof rests. `capabilities` lists the capabilities of its chain from the root
- * down. `expires` is the earliest expiry among them. A call held open ends once one of these capabilities is revoked or
- * expires.
+ * down. `expires` is the earliest expiry among them. `delegation` names the record of the delegation the proof presents,
+ * the last of its chain, by the type the deployment records it as and its id. A call held open ends once one of these
+ * capabilities is revoked or expires.
  */
-export const RestsOnSchema = z.object({ capabilities: z.array(z.string()), expires: z.string().optional() });
+export const RestsOnSchema = z.object({ capabilities: z.array(z.string()), expires: z.string().optional(), delegation: z.object({ label: z.string(), id: z.string() }) });
 export type TRestsOn = z.infer<typeof RestsOnSchema>;
+/** The chain a held call watches: its capabilities and its earliest expiry. */
+export type TChain = Pick<TRestsOn, "capabilities" | "expires">;
 
 /** A verifier's verdict. An `ok` verdict states the principal that proved the evidence, the actions the chain allows,
  *  the one action an invocation invoked, and `restsOn`. A verdict that isn't `ok` states why the verifier refused the
@@ -74,6 +78,9 @@ export interface IAuthorityVerifier {
 	/** Records a capability's revocation. `by` may revoke a capability it signed or one below it, and the root may revoke
 	 *  any capability. */
 	revoke(capabilityId: string, by: TActingFor): Promise<TAuthorityAct>;
+	/** Returns why a chain doesn't hold where one of its capabilities, or an ancestor of one, was revoked. Returns undefined
+	 *  while each holds. */
+	revokedIn(capabilities: readonly string[]): Promise<string | undefined>;
 }
 
 /** The principal of an authority act. It is the root where the caller holds every action, or else the key the caller
@@ -86,8 +93,19 @@ export type TAuthorityAct = { ok: true; id: string; at: string } | { ok: false; 
 /** A request this process sends, in the form a signature covers. A request such as a GET omits `body`. */
 export type TOutgoingRequest = { method: string; url: string; headers: Record<string, string>; body?: string };
 
-/** Signs a request that invokes `action` at the server that receives it. Returns the headers to send with the request. */
-export type TRequestSigner = (request: TOutgoingRequest, action: string) => Promise<Record<string, string>>;
+/** Signs a request that invokes `action` at the server that receives it. Returns the headers to send with the request.
+ *  `delegator` is the key of a caller outside actuality for whom the request acts: the request presents only a delegation that
+ *  key made to this process's key. Without `delegator` the request acts for actuality itself and presents this process's own
+ *  delegation. */
+export type TRequestSigner = (request: TOutgoingRequest, action: string, delegator?: string) => Promise<Record<string, string>>;
+
+/** The refusal of a request that acts for `delegator` at `target` where that host didn't record a delegation of `action` from
+ *  `delegator` to this process's key `key`. A step on another host doesn't run under this process's own delegation for a caller,
+ *  so the caller delegates the action to this process's key. */
+export const undelegatedRefusal = (delegator: string, action: string, target: string, key: string): TRpcRefusal => ({
+	error: `${target} doesn't hold a delegation of ${action} from ${delegator} to this instance's key ${key}, and a step on another host runs for a caller only under the caller's delegation. Delegate ${action} at ${target} from ${delegator} to ${key}`,
+	remedy: { do: "request", action },
+});
 
 /**
  * Signs a request this process sends. The request invokes an action at the server that receives it, under authority
@@ -120,7 +138,10 @@ export interface IAuthority {
 	revoked(capabilityId: string): void;
 	/** Returns a signal that aborts with the reason once a held call's `restsOn` lapses. It lapses where a capability it
 	 *  names is revoked or its expiry passes. `release` stops watching, and is called when the call ends. */
-	holdWhile(restsOn: TRestsOn): { signal: AbortSignal; release(): void };
+	holdWhile(chain: TChain): { signal: AbortSignal; release(): void };
+	/** Returns why `chain` doesn't hold now: its expiry passed, or one of its capabilities was revoked, as the revocation records
+	 *  state at the time of the call. Returns undefined while the chain holds. A nested step's gate reads it. */
+	lapsed(chain: TChain): Promise<string | undefined>;
 	/** The number of calls held open on each capability. */
 	heldCalls(): THeldCalls;
 	clear(): void;

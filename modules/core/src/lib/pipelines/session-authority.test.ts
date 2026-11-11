@@ -56,6 +56,7 @@ describe("SessionAuthority", () => {
 					acts.push({ act: `record ${String(document.id)}`, by, readAt: readingAt() ?? "unbounded" }), { ok: true, id: String(document.id), at: AT }
 				),
 				revoke: async (id, by) => (acts.push({ act: `revoke ${id}`, by, readAt: readingAt() ?? "unbounded" }), { ok: true, id, at: AT }),
+				revokedIn: async () => undefined,
 			};
 			const authority = new SessionAuthority(actualityClock());
 			authority.registerVerifier(verifier);
@@ -122,6 +123,19 @@ describe("SessionAuthority", () => {
 		});
 	});
 
+	describe("a chain read again at a nested step", () => {
+		it("lapses once its expiry passed or a capability of it was revoked, as the verifier's records state, and holds otherwise", async () => {
+			const authority = new SessionAuthority(actualityClock());
+			authority.registerVerifier(
+				stubVerifier({ verify: async () => ({ ok: true }), revokedIn: async (ids) => (ids.includes("urn:cap:revoked") ? "urn:cap:revoked was revoked" : undefined) }),
+			);
+			expect(await authority.lapsed({ capabilities: ["urn:cap:1"], expires: "2099-01-01T00:00:00.000Z" })).toBeUndefined();
+			expect(await authority.lapsed({ capabilities: ["urn:cap:1"], expires: "2020-01-01T00:00:00.000Z" })).toBe("the authority it rests on expired at 2020-01-01T00:00:00.000Z");
+			expect(await authority.lapsed({ capabilities: ["urn:root", "urn:cap:revoked"] })).toBe("urn:cap:revoked was revoked");
+			await expect(new SessionAuthority(actualityClock()).lapsed({ capabilities: ["urn:cap:1"] }), "without a verifier").rejects.toThrow(/a verifier isn't registered/);
+		});
+	});
+
 	describe("authority this process presents elsewhere", () => {
 		const request: TOutgoingRequest = { method: "POST", url: "http://peer.example/rpc/m", headers: { "content-type": "application/json" }, body: "{}" };
 
@@ -131,10 +145,15 @@ describe("SessionAuthority", () => {
 			);
 		});
 
-		it("passes the request and the action to the registered invoker", async () => {
+		it("passes the request, the action and the caller it acts for to the registered invoker", async () => {
 			const authority = new SessionAuthority(actualityClock());
-			authority.registerInvoker({ sign: (signed, action) => Promise.resolve({ ...signed.headers, "capability-invocation": `signed action="${action}"` }) });
-			expect(await authority.signRequest(request, "Peer:act")).toEqual({ "content-type": "application/json", "capability-invocation": 'signed action="Peer:act"' });
+			authority.registerInvoker({
+				sign: (signed, action, delegator) => Promise.resolve({ ...signed.headers, "capability-invocation": `signed action="${action}" for ${delegator}` }),
+			});
+			expect(await authority.signRequest(request, "Peer:act", "did:a")).toEqual({
+				"content-type": "application/json",
+				"capability-invocation": 'signed action="Peer:act" for did:a',
+			});
 		});
 	});
 });

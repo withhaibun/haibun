@@ -17,7 +17,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { z } from "zod";
 import { Access, narrowerCeiling, type AccessLevel } from "./resources.js";
-import { capabilityAllows, EVERY_ACTION, readAction, readCeilingOf, writtenAt, type TAccessBound } from "./actions.js";
+import { capabilityAllows, EVERY_ACTION, lackedAction, readAction, readCeilingOf, writtenAt, type TAccessBound, type TCalled } from "./actions.js";
 import { RestsOnSchema, type TActingFor, type TRestsOn } from "./authority-types.js";
 import type { THaibunLogLevel } from "./protocol.js";
 import type { TStepWrites } from "../steps/domains/contract.js";
@@ -40,10 +40,11 @@ export type TReadScope = ({ ceiling: AccessLevel | undefined } | { refusal: TRpc
 /**
  * The record of one call.
  * - `capabilityAction` is the action the call invoked, and `held` the actions its caller holds. A step dispatched beneath another
- *   invokes from `held`. `outside` states that the caller is outside actuality.
+ *   doesn't hold a capabilityAction, and runs under the held action that allows it. `outside` states that the caller is outside
+ *   actuality.
  * - `principal` is who proved themselves at the boundary, and `restsOn` the capabilities on which its proof rests.
- * - `delegation` is the delegation under which the call was made, and `attributedTo` the agent to which the call is
- *   attributed, such as the model whose turn made it.
+ * - `delegation` names the record of the delegation under which the call was made, and `attributedTo` the agent to which the
+ *   call is attributed, such as the model whose turn made it.
  * - `readScope` bounds what the call reads. `stated` holds the read scope of the statement a dispatch states, and `asOf`
  *   the path of the step whose actuality a read reads.
  * - `ask` is the id of the exchange that called the step, `shown` what a listing of steps shows, `step` the step in flight,
@@ -56,7 +57,7 @@ export const CallContextSchema = z
 		outside: z.literal(true).optional(),
 		principal: z.string().optional(),
 		restsOn: RestsOnSchema.optional(),
-		delegation: z.string().optional(),
+		delegation: RestsOnSchema.shape.delegation.optional(),
 		attributedTo: z.string().optional(),
 		readScope: z.custom<TReadScope>().optional(),
 		stated: z.object({ scope: z.custom<TReadScope>().optional() }).optional(),
@@ -108,7 +109,8 @@ export type TBoundaryCaller = { held: string[]; capabilityAction?: string[]; pri
 /**
  * Returns the record of the caller a boundary states, in place of the record of the code that reached the boundary: it
  * invokes what its request presented, or what it holds where the caller doesn't state that, acts as its principal outside any
- * step, and reads at the broadest read it holds, or is refused each read of records where it doesn't hold a read. A server's
+ * step under the delegation its proof presents, and reads at the broadest read it holds, or is refused each read of records
+ * where it doesn't hold a read. A server's
  * request reaches its handler in the async context in which the server began listening, so each boundary and route runs
  * under this record to hold what it states rather than what that step held.
  */
@@ -119,7 +121,7 @@ export function callerAt(caller: TBoundaryCaller): TCallContext {
 		held,
 		outside: true,
 		...(principal === undefined ? {} : { principal }),
-		...(restsOn === undefined ? {} : { restsOn }),
+		...(restsOn === undefined ? {} : { restsOn, delegation: restsOn.delegation }),
 		readScope: heldScope(undefined, held),
 	});
 }
@@ -131,15 +133,48 @@ export function inStep(call: TCallContext | undefined, step: Omit<TStepInFlight,
 }
 
 /**
- * Returns the record of the work of a step dispatched under `call`, inside `step` where the work is a step's. The work invokes
- * from what the caller holds, under the chain the caller presented, so a step it dispatches is allowed by the held action that
- * allows it. The read scope in force is the statement's scope, and the work reads at the broadest read its caller holds. The
- * agent to which a call is attributed is attributed with that call alone, so the work beneath the call doesn't state the agent.
+ * Returns the record of the work of a step dispatched under `call`, inside `step` where the work is a step's. The work doesn't
+ * state a capabilityAction, since a caller didn't name it: a step it dispatches runs under the held action that allows it, within
+ * the chain the caller presented. The read scope in force is the statement's scope, and the work reads at the broadest read its
+ * caller holds. The agent to which a call is attributed is attributed with that call alone, so the work beneath the call
+ * doesn't state the agent.
  */
 export function nestedOf(call: TCallContext | undefined, step?: Omit<TStepInFlight, "outermost">): TCallContext {
-	const { attributedTo: _attributed, ...within } = { ...call };
-	const nested = { ...within, capabilityAction: call?.held, stated: { scope: call?.readScope }, readScope: heldScope(call?.readScope, call?.held) };
+	const { attributedTo: _attributed, capabilityAction: _presented, ...within } = { ...call };
+	const nested = { ...within, stated: { scope: call?.readScope }, readScope: heldScope(call?.readScope, call?.held) };
 	return step === undefined ? nested : inStep(nested, step);
+}
+
+/** Returns whether `call` is the work beneath a step rather than the step a caller named. `nestedOf` drops its capabilityAction,
+ *  so the record states which it is, whether or not the work runs inside a step. */
+export const isNested = (call: TCallContext | undefined): boolean => call?.capabilityAction === undefined;
+
+/**
+ * Returns the action `call` lacks to run `step`, or undefined where it may run it. It is the one gate of a dispatched step.
+ * The step a call names is checked against the call's capabilityAction, which is ZCAP-LD's check of an invocation, and
+ * against a read at its `readsAt` level among the actions held. A step dispatched beneath another is checked against the
+ * actions held and its `readsAt` level, so the chain the caller presented bounds every nested step, and the instance's
+ * own authority doesn't.
+ */
+export function mayRun(call: TCallContext | undefined, step: TCalled): string | undefined {
+	if (!isNested(call) && !capabilityAllows(call?.capabilityAction, step.capability)) return step.capability;
+	return lackedAction(call?.held, step);
+}
+
+/** Returns whether `call` is actuality acting as itself: an outside caller isn't present and the call holds every action. */
+export const actsAsItself = (call: TCallContext | undefined): boolean => call?.outside !== true && capabilityAllows(call?.held, EVERY_ACTION);
+
+/**
+ * Returns the key for whom a request to another host acts within `call`: the principal of a caller outside actuality, whose
+ * delegation to this instance's key the request presents. Returns undefined within actuality's own call, whose request presents
+ * the instance's own delegation. Throws for a caller outside actuality that didn't prove a key, since such a caller can't
+ * have delegated to the instance's key.
+ */
+export function delegatorOf(call: TCallContext | undefined): string | undefined {
+	if (call?.outside !== true) return undefined;
+	if (call.principal === undefined)
+		throw new RefusedCall({ error: "a step on another host runs for a caller only under the caller's delegation, and this caller didn't prove a key. Sign the call" });
+	return call.principal;
 }
 
 /**
@@ -167,9 +202,9 @@ export function shownTo(): TActions {
  *  present and the call holds every action. Else it returns the key the caller proved. That key acts only within its
  *  delegation. Else it returns undefined. */
 export function actingFor(): TActingFor | undefined {
-	const { outside, held, principal } = { ...inCall() };
-	if (outside !== true && capabilityAllows(held, EVERY_ACTION)) return { root: true };
-	return principal ? { root: false, controller: principal } : undefined;
+	const call = inCall();
+	if (actsAsItself(call)) return { root: true };
+	return call?.principal ? { root: false, controller: call.principal } : undefined;
 }
 
 /** Returns the writes the contract of the step in progress allows: the step this call is part of, or the step of another

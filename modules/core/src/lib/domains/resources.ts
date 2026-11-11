@@ -404,6 +404,8 @@ export const LinkRelations = {
 	SERVICE: { rel: "service", uri: "did:service", range: "iri" },
 	ALLOWED_ACTION: { rel: "allowedAction", uri: "sec:allowedAction", range: "literal", presentation: "governance" as TRelPresentation },
 	CAPABILITY_ACTION: { rel: "capabilityAction", uri: "sec:capabilityAction", range: "literal", presentation: "governance" as TRelPresentation },
+	/** The capability an act was performed under, as ZCAP-LD's invocation names it. */
+	CAPABILITY: { rel: "capability", uri: "sec:capability", range: "iri", presentation: "governance" as TRelPresentation },
 	PUBLIC_KEY: { rel: "publicKey", uri: "sec:publicKeyMultibase", range: "literal" },
 	EXPIRES: { rel: "expires", uri: "sec:expiration", range: "literal" },
 	REVOKED: { rel: "revoked", uri: "sec:revoked", range: "literal", presentation: "governance" as TRelPresentation },

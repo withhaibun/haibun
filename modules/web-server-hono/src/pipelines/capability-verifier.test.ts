@@ -14,36 +14,26 @@ import { AUTHORITY_KEY } from "@haibun/core/lib/domains/session-authority.js";
 import { inCall, runInCall } from "@haibun/core/lib/domains/capability-context.js";
 import { currentPrincipal } from "@haibun/core/lib/pipelines/principal.js";
 import type { TRuntime, TWorld } from "@haibun/core/lib/world.js";
-import type { IAuthorityVerifier, TAuthorityAct, TAuthorityEvidence, TDelegations, TVerdict } from "@haibun/core/lib/domains/authority-types.js";
+import type { IAuthorityVerifier, TAuthorityEvidence, TVerdict } from "@haibun/core/lib/domains/authority-types.js";
+import { stubVerifier } from "@haibun/core/lib/test/fake-authority.js";
 import { actualityClock } from "@haibun/core/lib/actuality/root.js";
 
 const READER = "did:key:zReader";
 const ACTION = "comment.grant";
 
 /** Stands for whatever a deployment registers: this one accepts a request naming the reader, and refuses the rest. */
-class StubVerifier implements IAuthorityVerifier {
-	verify(evidence: TAuthorityEvidence): Promise<TVerdict> {
-		const invoked = evidence.kind === "request" ? evidence.headers["capability-invocation"] : undefined;
-		// A key invoking its own root holds the read of its own delegations, without a delegated action.
-		if (invoked?.includes(DELEGATIONS_READ_ACTION))
-			return Promise.resolve({ ok: true, principal: READER, allowedAction: [DELEGATIONS_READ_ACTION], invoked: DELEGATIONS_READ_ACTION });
-		return Promise.resolve(
-			invoked?.includes(ACTION) ? { ok: true, principal: READER, allowedAction: [ACTION, "comment.deny"], invoked: ACTION } : { ok: false, error: "not this one" },
-		);
-	}
-
-	delegationsTo(): Promise<TDelegations> {
-		return Promise.resolve({ delegations: [] });
-	}
-
-	record(): Promise<TAuthorityAct> {
-		return Promise.resolve({ ok: false, error: "the stub verifier doesn't record a delegation" });
-	}
-
-	revoke(): Promise<TAuthorityAct> {
-		return Promise.resolve({ ok: false, error: "the stub verifier doesn't revoke a delegation" });
-	}
-}
+const readerVerifier = (): IAuthorityVerifier =>
+	stubVerifier({
+		verify: (evidence: TAuthorityEvidence): Promise<TVerdict> => {
+			const invoked = evidence.kind === "request" ? evidence.headers["capability-invocation"] : undefined;
+			// A key invoking its own root holds the read of its own delegations, without a delegated action.
+			if (invoked?.includes(DELEGATIONS_READ_ACTION))
+				return Promise.resolve({ ok: true, principal: READER, allowedAction: [DELEGATIONS_READ_ACTION], invoked: DELEGATIONS_READ_ACTION });
+			return Promise.resolve(
+				invoked?.includes(ACTION) ? { ok: true, principal: READER, allowedAction: [ACTION, "comment.deny"], invoked: ACTION } : { ok: false, error: "not this one" },
+			);
+		},
+	});
 
 /** What a deployment allows without a delegation when it doesn't state an action, and when anyone may read it. */
 const READ_PUBLIC = "Read:public";
@@ -62,7 +52,7 @@ const signedRequest = (action: string) => ({
 describe("what a request carries to a boundary", () => {
 	it("grants the action a proof invokes, holds what its chain allows, and states who proved it, so what is done under it can name them", async () => {
 		const authority = new SessionAuthority(actualityClock());
-		authority.registerVerifier(new StubVerifier());
+		authority.registerVerifier(readerVerifier());
 		const carried = await grantedCapabilityForRequest(signedRequest(ACTION), runtimeWith(authority), NOBODY);
 		expect(carried.granted, "the action the request invoked, and not another its delegation allows").toEqual([ACTION]);
 		expect(carried.held, "what the delegation the request proved allows, which bounds the call").toEqual([ACTION, "comment.deny"]);
@@ -71,13 +61,13 @@ describe("what a request carries to a boundary", () => {
 
 	it("grants what the deployment allows without a delegation beside what a proof invokes", async () => {
 		const authority = new SessionAuthority(actualityClock());
-		authority.registerVerifier(new StubVerifier());
+		authority.registerVerifier(readerVerifier());
 		expect((await grantedCapabilityForRequest(signedRequest(ACTION), runtimeWith(authority), PUBLIC_SITE)).granted).toEqual([READ_PUBLIC, ACTION]);
 	});
 
 	it("refuses a request whose proof fails, without granting an action or naming a principal", async () => {
 		const authority = new SessionAuthority(actualityClock());
-		authority.registerVerifier(new StubVerifier());
+		authority.registerVerifier(readerVerifier());
 		const carried = await grantedCapabilityForRequest(signedRequest("comment.revoke"), runtimeWith(authority), PUBLIC_SITE);
 		expect(carried.refused, "the request is refused, with the verifier's reason").toBe("the presented authority failed verification: not this one");
 		expect(carried.granted, "a refused proof doesn't allow an action, even one that doesn't need a delegation").toEqual([]);
@@ -91,7 +81,7 @@ describe("what a request carries to a boundary", () => {
 
 	it("holds what doesn't need a delegation and doesn't name a principal for a request that doesn't present authority, whatever else it carries", async () => {
 		const authority = new SessionAuthority(actualityClock());
-		authority.registerVerifier(new StubVerifier());
+		authority.registerVerifier(readerVerifier());
 		const presentingNothing = { method: "POST", url: "http://site.test:8123/rpc/x", headers: { authorization: "Bearer tkn" } };
 		expect(await grantedCapabilityForRequest(presentingNothing, runtimeWith(authority), NOBODY), "a secret it carries isn't authority").toEqual({ granted: [], held: [] });
 		expect(await grantedCapabilityForRequest(presentingNothing, runtimeWith(authority), PUBLIC_SITE), "and anyone may read a public site").toEqual({
@@ -102,7 +92,7 @@ describe("what a request carries to a boundary", () => {
 
 	it("doesn't hold what a caller holds without a delegation for a page of another site sending through a reader's browser, where a proof still does", async () => {
 		const authority = new SessionAuthority(actualityClock());
-		authority.registerVerifier(new StubVerifier());
+		authority.registerVerifier(readerVerifier());
 		const fromAnotherSite = { host: "site.test:8123", origin: "https://elsewhere.example" };
 		const unproven = { method: "POST", url: "http://site.test:8123/rpc/x", headers: fromAnotherSite };
 		expect(await grantedCapabilityForRequest(unproven, runtimeWith(authority), PUBLIC_SITE), "another site's page isn't the caller").toEqual({ granted: [], held: [] });
@@ -117,7 +107,7 @@ describe("a route that requires an action", () => {
 	/** A route serving only a request that allows the action, at a deployment allowing `allowed` without a delegation. */
 	const held = (allowed: string[]) => {
 		const authority = new SessionAuthority(actualityClock());
-		authority.registerVerifier(new StubVerifier());
+		authority.registerVerifier(readerVerifier());
 		const app = new Hono();
 		app.get("/held/*", requiring(ACTION, runtimeWith(authority), serving(allowed)), (c) => c.text("held"));
 		return (headers: Record<string, string> = {}) => app.request("http://site.test:8123/held/one", { headers });

@@ -14,8 +14,9 @@ import { normalizeDomainKey } from "../../domains/domains.js";
 import { assertFact } from "../../records/pipelines/facts.js";
 import { entailmentRecorded } from "../../records/derivations/claim.js";
 import { doStepperCycle, enterPhase } from "../../steps/pipelines/stepper-cycles.js";
-import { inCall, nestedOf, runInCall, writtenLevel } from "../../domains/capability-context.js";
-import { capabilityAllows } from "../../domains/actions.js";
+import { inCall, isNested, nestedOf, runInCall, writtenLevel, type TCallContext } from "../../domains/capability-context.js";
+import { heldAuthority } from "../../domains/session-authority.js";
+import { authorityRefusal, RefusedCall } from "../../transport/domains/rpc-wire.js";
 import { SEQ_PATH_LABEL } from "../../domains/resources.js";
 import { SEQ_PATH_ACCESS, actualityFeatureOf, type TRecordName } from "../domains/seq-path.js";
 import { listedStatement, runRegistry, type StepRegistry } from "../../steps/pipelines/step-registry.js";
@@ -26,6 +27,7 @@ import { augmentViewHypermedia, isViewOnlyDomain, productsRetained } from "../..
 import { RESULTS_READ_IN_FULL, afterStepOutcome, foldStep, retainedProducts, stepResultOf } from "../derivations/step-results.js";
 import {
 	asRecorded,
+	authorizationOf,
 	endRecord,
 	resultText,
 	startRecord,
@@ -43,12 +45,6 @@ import { contractProducts, stepWrites } from "../../steps/domains/contract.js";
 /** Where a step is proved and its calls dispatched: actuality's registry, its world and its steppers. The record of the call
  *  in progress (`inCall`) holds the call's authority, so a dispatch context doesn't hold it. */
 export type DispatchContext = { registry: StepRegistry; world: TWorld; steppers: AStepper[] };
-
-/** The actions a capability names: one, several, or an empty list where the call doesn't state a capability. */
-const actionsOf = (capability: string | string[] | undefined): string[] => (capability === undefined ? [] : [capability].flat());
-
-/** The actions a caller held, as a step's record states them, where it held any. */
-const heldAs = (held: string[]): { held?: string } => (held.length === 0 ? {} : { held: held.join(", ") });
 
 /** The view a step's end states it showed, where it showed one. */
 const shown = (showed: string | undefined): { showed?: string } => (showed === undefined ? {} : { showed });
@@ -184,9 +180,14 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	}
 
 	// The read scope in force where the statement was stated. Its arguments are read in this scope, and
-	// authorizeToolCapability refuses a step that reads above its ceiling.
+	// authorizeToolCapability refuses a step that reads above its ceiling. A nested step is refused first where the chain its
+	// call rests on lapsed since the call began.
 	const statedAt = call?.readScope;
-	const refusal = refusalOf(() => authorizeToolCapability(tool.descriptor, { ...call }, statedAt !== undefined && "ceiling" in statedAt ? statedAt.ceiling : undefined));
+	const lapse = await lapseOf(world, call);
+	const refusal =
+		lapse === undefined
+			? refusalOf(() => authorizeToolCapability(tool.descriptor, call, statedAt !== undefined && "ceiling" in statedAt ? statedAt.ceiling : undefined))
+			: new RefusedCall(authorityRefusal(`${method}: ${lapse}`));
 	// A feature's or a scenario's start is recorded without the step's cycles, after its caller's capability is checked.
 	if (action.actionName === FEATURE_START || action.actionName === SCENARIO_START) {
 		if (refusal !== undefined) throw refusal;
@@ -194,16 +195,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		await writeStepEnd(world, started, { status: RECORDED_STATUS.completed });
 		return stepResultOf({ ok: true }, action, start, Timer.since(), featureStep);
 	}
-	// The authorization the step's own record states. The record states the invoked action that allows the step and the
-	// actions the caller held, where the caller isn't actuality acting as itself. It states the principal that proved its
-	// identity, where one did, and the delegation the call was made under, where the caller states one.
-	const authorization: TStepAuthorization = {
-		...(!capabilityAllows(call?.capabilityAction, "*")
-			? { capabilityAction: actionsOf(call?.capabilityAction).find((action) => capabilityAllows(action, tool.descriptor.capability)), ...heldAs(actionsOf(call?.held)) }
-			: {}),
-		controller: call?.principal,
-		...(call?.delegation === undefined ? {} : { delegation: call.delegation }),
-	};
+	const authorization = authorizationOf(call, tool.descriptor.capability);
 	// The step as its records state it. A domain's `recordedAs` replaces a value too large to repeat in the records.
 	const stated = asRecorded(featureStep, world.domains);
 	const called = { stepperName: action.stepperName, actionName: action.actionName, stepValuesMap: stated.action.stepValuesMap };
@@ -282,6 +274,14 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		...result,
 	});
 	return lastStepResult;
+}
+
+/** Returns why the chain a nested step's call rests on doesn't hold now, as actuality's authority reads its expiry and its
+ *  revocation records at the time of the step, or undefined where it holds or the step isn't nested in a call that rests on a
+ *  chain. A call that outlives its chain stops at its next nested step. */
+async function lapseOf(world: TWorld, call: TCallContext | undefined): Promise<string | undefined> {
+	if (!isNested(call) || call?.restsOn === undefined) return undefined;
+	return await heldAuthority(world.runtime, "checking the chain a nested step rests on").lapsed(call.restsOn);
 }
 
 /** Returns the error `authorize` throws, or undefined where it doesn't throw. Throws what isn't an Error, since a refusal is one. */

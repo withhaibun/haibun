@@ -3,7 +3,8 @@
  * step's level. A refusal of a lacked action carries the request of that action as its remedy.
  */
 import { withinAccess, type AccessLevel } from "../../domains/resources.js";
-import { lackedByCall, type TCallAuthority } from "../../domains/actions.js";
+import { actionsOf } from "../../domains/actions.js";
+import { mayRun, type TCallContext } from "../../domains/capability-context.js";
 import { RefusedCall, type TRemedy, type TRpcRefusal } from "../../transport/domains/rpc-wire.js";
 import type { TStepDescriptor } from "../domains/step-discovery.js";
 
@@ -13,12 +14,18 @@ const requestOf = (action: string): TRemedy => ({ do: "request", action });
 /** A refusal that names the action the step requires. A caller can request that action from a holder. */
 const namedRefusal = (method: string, required: string): TRpcRefusal => ({ error: `${method}: capability ${required} required`, remedy: requestOf(required) });
 
-/** Refuses a call that its caller may not make. A call is refused where it didn't invoke the step's action, or where its
- *  caller doesn't hold a read at the step's `readsAt` level. A call is also refused where the read in force is narrower
- *  than the step's `readsAt` level. A refusal of a lacked action carries the request of that action as its remedy. */
-export function authorizeToolCapability(step: Pick<TStepDescriptor, "method" | "capability" | "readsAt">, call: TCallAuthority, readsIn: AccessLevel | undefined): void {
-	const lacked = lackedByCall(call, step);
-	if (lacked) throw new RefusedCall(namedRefusal(step.method, lacked));
+/** The refusal of a dispatched step that names the action the step requires and the actions the caller holds, which the
+ *  step's record states. */
+function heldRefusal(method: string, required: string, held: string[]): TRpcRefusal {
+	const named = namedRefusal(method, required);
+	return { ...named, error: `${named.error}, and the caller holds ${held.length === 0 ? "an empty list of actions" : held.join(", ")}` };
+}
+
+/** Refuses a call that its caller may not make, as `mayRun` determines. A call is also refused where the read in force is
+ *  narrower than the step's `readsAt` level. A refusal of a lacked action carries the request of that action as its remedy. */
+export function authorizeToolCapability(step: Pick<TStepDescriptor, "method" | "capability" | "readsAt">, call: TCallContext | undefined, readsIn: AccessLevel | undefined): void {
+	const lacked = mayRun(call, step);
+	if (lacked) throw new RefusedCall(heldRefusal(step.method, lacked, actionsOf(call?.held)));
 	if (step.readsAt && readsIn && !withinAccess(step.readsAt, readsIn)) throw new Error(`${step.method} reads at ${step.readsAt}, and this call reads at ${readsIn}`);
 }
 

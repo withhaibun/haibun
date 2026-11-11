@@ -13,7 +13,7 @@ import { addStepperConcerns } from "../actuality/pipelines/executor.js";
 import { FakeInvoker } from "../test/fake-authority.js";
 import { SessionAuthority } from "../pipelines/session-authority.js";
 import { AUTHORITY_KEY } from "../domains/session-authority.js";
-import { RUN_AUTHORITY, runAuthorizedWith } from "../domains/capability-context.js";
+import { callerAt, RUN_AUTHORITY, runAuthorizedWith, runInCall } from "../domains/capability-context.js";
 import type { TWorld } from "../actuality/domains/world.js";
 import { SITE_DID_PREFIX } from "../domains/host-id.js";
 import { DOMAIN_STRING, asDomainKey, DOMAIN_TEXT } from "../domains/domains.js";
@@ -173,6 +173,14 @@ describe("RemoteStepperProxy", () => {
 		const result = await tool.handler(featureStep, world);
 		expect(result.ok).toBe(true);
 		expect(result.products).toMatchObject({ echoed: "hello" });
+	});
+
+	it("refuses a step on the host for a caller outside actuality without the caller's delegation to this instance's key, and names the remedy", async () => {
+		const tool = await hostTool("echo");
+		const call = () => tool.handler(buildFeatureStepForTransport(tool, { message: "hello" }, [0, 1]), world);
+		const result = await runInCall(callerAt({ held: ["*"], principal: "did:example:caller" }), call);
+		expect(result.ok).toBe(false);
+		expect(result.ok ? undefined : result.errorMessage).toContain(`Delegate EchoStepper:echo at http://localhost:${port} from did:example:caller to proxy`);
 	});
 
 	it("doesn't return products for a step that doesn't declare them, whatever the host's response carries in their place", async () => {

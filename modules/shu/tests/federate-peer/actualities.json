@@ -254,15 +254,15 @@
 				"status": "passed",
 				"tookMs": 100,
 				"digest": {
-					"modules/core/src": "06bbc596c4ba8d03d72dd1d22b30e181cda4d065b2068ef443de9528fdd4b289",
+					"modules/core/src": "9297819164c43d75c1348bcb122d69e90e4882ef4a024e5cc6d8ed37a56e28f3",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
 					"modules/logic/src": "7c0f032ae8eb707c1074f265eed434eb83bb5d9ea047c45bdb922e9c96e21d2c",
-					"modules/shu/src": "fbaf7274634ab2a794f1fcc3dd6f6b45163d1c627cf1d480d79ac5e5ad705748",
+					"modules/shu/src": "626489b39938020b99a1c25c96e970822ec96f64399a355914582b8cbd1910a8",
 					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/web-playwright/src": "0cce4ac71cd217af08118528166c5d7d5f1eabc7ff1580f70767f0a74c6f8a42",
-					"modules/web-server-hono/src": "c12cd569d275efd78ea7c1c65dc03256c02501efe7273cfc8293398c957d0ff9"
+					"modules/web-server-hono/src": "12533736f8ac842459a481bfed9968a17b6f5f93bb2e09498654439752e63711"
 				}
 			},
 			"features": {
@@ -362,15 +362,15 @@
 				"status": "passed",
 				"tookMs": 100,
 				"digest": {
-					"modules/core/src": "06bbc596c4ba8d03d72dd1d22b30e181cda4d065b2068ef443de9528fdd4b289",
+					"modules/core/src": "9297819164c43d75c1348bcb122d69e90e4882ef4a024e5cc6d8ed37a56e28f3",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
 					"modules/logic/src": "7c0f032ae8eb707c1074f265eed434eb83bb5d9ea047c45bdb922e9c96e21d2c",
-					"modules/shu/src": "fbaf7274634ab2a794f1fcc3dd6f6b45163d1c627cf1d480d79ac5e5ad705748",
+					"modules/shu/src": "626489b39938020b99a1c25c96e970822ec96f64399a355914582b8cbd1910a8",
 					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/web-playwright/src": "0cce4ac71cd217af08118528166c5d7d5f1eabc7ff1580f70767f0a74c6f8a42",
-					"modules/web-server-hono/src": "c12cd569d275efd78ea7c1c65dc03256c02501efe7273cfc8293398c957d0ff9"
+					"modules/web-server-hono/src": "12533736f8ac842459a481bfed9968a17b6f5f93bb2e09498654439752e63711"
 				}
 			},
 			"features": {
@@ -497,22 +497,22 @@
 				"status": "passed",
 				"tookMs": 100,
 				"digest": {
-					"modules/core/src": "06bbc596c4ba8d03d72dd1d22b30e181cda4d065b2068ef443de9528fdd4b289",
+					"modules/core/src": "9297819164c43d75c1348bcb122d69e90e4882ef4a024e5cc6d8ed37a56e28f3",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
 					"modules/logic/src": "7c0f032ae8eb707c1074f265eed434eb83bb5d9ea047c45bdb922e9c96e21d2c",
-					"modules/shu/src": "fbaf7274634ab2a794f1fcc3dd6f6b45163d1c627cf1d480d79ac5e5ad705748",
+					"modules/shu/src": "626489b39938020b99a1c25c96e970822ec96f64399a355914582b8cbd1910a8",
 					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/web-playwright/src": "0cce4ac71cd217af08118528166c5d7d5f1eabc7ff1580f70767f0a74c6f8a42",
-					"modules/web-server-hono/src": "c12cd569d275efd78ea7c1c65dc03256c02501efe7273cfc8293398c957d0ff9"
+					"modules/web-server-hono/src": "12533736f8ac842459a481bfed9968a17b6f5f93bb2e09498654439752e63711"
 				}
 			},
 			"features": {
 				"/features/serve.feature": {
 					"text": "/features/serve",
 					"status": "passed",
-					"tookMs": 0,
+					"tookMs": 100,
 					"steps": 4
 				}
 			}
@@ -605,15 +605,15 @@
 				"status": "passed",
 				"tookMs": 100,
 				"digest": {
-					"modules/core/src": "06bbc596c4ba8d03d72dd1d22b30e181cda4d065b2068ef443de9528fdd4b289",
+					"modules/core/src": "9297819164c43d75c1348bcb122d69e90e4882ef4a024e5cc6d8ed37a56e28f3",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
 					"modules/logic/src": "7c0f032ae8eb707c1074f265eed434eb83bb5d9ea047c45bdb922e9c96e21d2c",
-					"modules/shu/src": "fbaf7274634ab2a794f1fcc3dd6f6b45163d1c627cf1d480d79ac5e5ad705748",
+					"modules/shu/src": "626489b39938020b99a1c25c96e970822ec96f64399a355914582b8cbd1910a8",
 					"modules/shu/tests/federate-peer": "8a07c8cef89922cca093cbb48b3e132e89dbaa77bcca6a6d94929c7757efd163",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/web-playwright/src": "0cce4ac71cd217af08118528166c5d7d5f1eabc7ff1580f70767f0a74c6f8a42",
-					"modules/web-server-hono/src": "c12cd569d275efd78ea7c1c65dc03256c02501efe7273cfc8293398c957d0ff9"
+					"modules/web-server-hono/src": "12533736f8ac842459a481bfed9968a17b6f5f93bb2e09498654439752e63711"
 				}
 			},
 			"features": {

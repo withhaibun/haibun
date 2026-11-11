@@ -13,15 +13,18 @@ import type {
 	TActingFor,
 	TAuthorityAct,
 	TAuthorityEvidence,
+	TChain,
 	TDelegations,
 	THeldCalls,
 	TOutgoingRequest,
-	TRestsOn,
 	TVerdict,
 } from "../domains/authority-types.js";
 
 /** The longest delay a timer accepts. A longer delay fires at once. */
 const LONGEST_TIMER_MS = 2 ** 31 - 1;
+
+/** Why a call stops where the chain it rests on expired at `expires`. */
+const expiredAt = (expires: string) => `the authority it rests on expired at ${expires}`;
 
 export class SessionAuthority implements IAuthority {
 	/** Reads the time an expiry is compared with, and runs the task that ends a held call at its expiry. */
@@ -49,9 +52,9 @@ export class SessionAuthority implements IAuthority {
 		this.invoker = invoker;
 	}
 
-	signRequest(request: TOutgoingRequest, action: string): Promise<Record<string, string>> {
+	signRequest(request: TOutgoingRequest, action: string, delegator?: string): Promise<Record<string, string>> {
 		if (!this.invoker) throw new Error(`a signer isn't registered, so this process can't invoke ${action} at ${request.url}`);
-		return this.invoker.sign(request, action);
+		return this.invoker.sign(request, action, delegator);
 	}
 
 	verifyEvidence(evidence: TAuthorityEvidence): Promise<TVerdict> {
@@ -88,7 +91,14 @@ export class SessionAuthority implements IAuthority {
 		if (calls !== undefined) for (const call of calls) call.abort(`${capabilityId} was revoked`);
 	}
 
-	holdWhile({ capabilities, expires }: TRestsOn): { signal: AbortSignal; release(): void } {
+	async lapsed({ capabilities, expires }: TChain): Promise<string | undefined> {
+		const verifier = this.verifier;
+		if (!verifier) throw new Error("a call rests on a chain, and a verifier isn't registered to read its revocations");
+		if (expires !== undefined && !(Date.parse(expires) > this.clock.now())) return expiredAt(expires);
+		return await runReadingAsTheInstance(() => verifier.revokedIn(capabilities));
+	}
+
+	holdWhile({ capabilities, expires }: TChain): { signal: AbortSignal; release(): void } {
 		const call = new AbortController();
 		for (const id of capabilities) {
 			const calls = this.held.get(id);
@@ -100,7 +110,7 @@ export class SessionAuthority implements IAuthority {
 		if (Number.isNaN(until)) throw new Error(`a held call rests on authority with an expiry that isn't a time: ${expires}`);
 		const expiring = () => {
 			const left = (until as number) - this.clock.now();
-			if (left <= 0) call.abort(`the authority it rests on expired at ${expires}`);
+			if (left <= 0) call.abort(expiredAt(String(expires)));
 			else cancel = this.clock.after(Math.min(left, LONGEST_TIMER_MS), expiring, true);
 		};
 		if (until !== undefined) expiring();

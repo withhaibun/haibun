@@ -10,11 +10,33 @@ import type { TWorld } from "../domains/world.js";
 import { SEQ_PATH_EDGE, SEQ_PATH_FIELD, STEP_LEVEL, calledOf, actualityFeatureOf, formatRecordName, levelPath, type TRecordName } from "../domains/seq-path.js";
 import type { TActuality, TActualityMove } from "../machines/actuality.js";
 import type { TStepFailure } from "../domains/step-failure.js";
+import { actsAsItself, isNested, type TCallContext } from "../../domains/capability-context.js";
+import { actionsOf, capabilityAllows } from "../../domains/actions.js";
+import { referenceTo } from "../../records/domains/unit.js";
 
-/** The authorization a step's own record states. A step actuality runs as itself holds every action, so its record
- *  doesn't state the invoked and held actions. The record of a caller's step states both. A record states the principal
- *  that proved its identity, and the delegation the call was made under, where its caller states them. */
-export type TStepAuthorization = { capabilityAction?: string; held?: string; controller?: string; delegation?: string };
+/** The authorization a step's own record states: the call's capabilityAction where the caller named the step, the held action
+ *  that allowed the step, the principal that proved its identity, and the record of the delegation the call was made under. */
+export type TStepAuthorization = { capabilityAction?: string; allowedAction?: string; controller?: string; delegation?: TCallContext["delegation"] };
+
+/**
+ * Returns the authorization the record of a step that requires `required` states within `call`. A step actuality runs as itself
+ * holds every action, so its record doesn't state the presented and allowed actions. The step a caller named states the action
+ * the call presented that allows it. Every step of a caller's call states the held action that allowed it, so a record of a step
+ * dispatched beneath another, which doesn't state a capabilityAction, reads as allowed within the call. A refused step's record
+ * doesn't state either, and its error names the lacked action and the actions held. The principal and the delegation are stated where the
+ * call states them.
+ */
+export function authorizationOf(call: TCallContext | undefined, required: string): TStepAuthorization {
+	const allowing = (actions: string | string[] | undefined) => (actsAsItself(call) ? undefined : actionsOf(actions).find((action) => capabilityAllows(action, required)));
+	const capabilityAction = isNested(call) ? undefined : allowing(call?.capabilityAction);
+	const allowed = allowing(call?.held);
+	return {
+		...(capabilityAction === undefined ? {} : { capabilityAction }),
+		...(allowed === undefined ? {} : { allowedAction: allowed }),
+		...(call?.principal === undefined ? {} : { controller: call.principal }),
+		...(call?.delegation === undefined ? {} : { delegation: call.delegation }),
+	};
+}
 
 /** The call a step's record states: the read level of the call, the ask that holds the call, and the agent that made the
  *  call, where its caller names them. */
@@ -61,10 +83,10 @@ export function startRecord(actualityFeature: string, featureStep: TFeatureStep,
 		...(params === undefined ? {} : { [SEQ_PATH_FIELD.params]: params }),
 		...(call.askedIn === undefined ? {} : { [SEQ_PATH_EDGE.askedIn]: call.askedIn }),
 		...(call.attributedTo === undefined ? {} : { [SEQ_PATH_FIELD.attributedTo]: call.attributedTo }),
-		...(authorization.delegation === undefined ? {} : { [SEQ_PATH_FIELD.delegation]: authorization.delegation }),
+		...(authorization.delegation === undefined ? {} : { [SEQ_PATH_EDGE.delegation]: referenceTo(authorization.delegation.label, authorization.delegation.id) }),
 		...(ran.ranOn === undefined ? {} : { [SEQ_PATH_FIELD.ranOn]: ran.ranOn }),
 		...(authorization.capabilityAction === undefined ? {} : { [SEQ_PATH_FIELD.capabilityAction]: authorization.capabilityAction }),
-		...(authorization.held === undefined ? {} : { [SEQ_PATH_FIELD.allowedAction]: authorization.held }),
+		...(authorization.allowedAction === undefined ? {} : { [SEQ_PATH_FIELD.allowedAction]: authorization.allowedAction }),
 		...(authorization.controller === undefined ? {} : { [LinkRelations.PERFORMED_BY.rel]: authorization.controller }),
 		...(featureStep.source?.path ? { [SEQ_PATH_FIELD.path]: featureStep.source.path } : {}),
 	};

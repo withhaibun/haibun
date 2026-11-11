@@ -16,6 +16,7 @@ import { mayFrame } from "./derivations/content-security-policy.js";
 import { EMBEDDER_ORIGIN_OPTION, PAGE_ASSETS, PAGE_BUNDLE_JS } from "./domains/serving.js";
 import { gunzipSync } from "node:zlib";
 import { actualityClock } from "@haibun/core/lib/actuality/root.js";
+import { stubVerifier } from "@haibun/core/lib/test/fake-authority.js";
 
 /** A page's script nonce, as a test states one. */
 const NONCE = "a-test-nonce";
@@ -88,13 +89,7 @@ describe("the app a deployment serves", () => {
 			new RegExp(`"build":\\{"version":"${currentVersion}","builtAt":"\\d{4}-\\d{2}-\\d{2}T`),
 		);
 		const authority = new SessionAuthority(actualityClock());
-		const recordsNothing = async () => ({ ok: false as const, error: "records nothing" });
-		authority.registerVerifier({
-			verify: async () => ({ ok: false as const, error: "the stand-in refuses every proof" }),
-			delegationsTo: async () => ({ delegations: [] }),
-			record: recordsNothing,
-			revoke: recordsNothing,
-		});
+		authority.registerVerifier(stubVerifier({ verify: async () => ({ ok: false as const, error: "the stand-in refuses every proof" }) }));
 		(world.runtime.keys ??= {})[AUTHORITY_KEY] = authority;
 		expect(served(), "a verifier registered after the app was served").toContain('"verifiesDelegations":true');
 	});

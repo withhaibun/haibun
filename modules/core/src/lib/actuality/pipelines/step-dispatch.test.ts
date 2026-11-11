@@ -642,13 +642,13 @@ describe("step-dispatch", () => {
 			};
 			const fieldOf = (path: number[], field: string) => world.shared.getStore().get(formatRecordName({ actuality: actualityFeatureOf(world.tag), path }), field, SEQ_PATH_LABEL);
 			const caller = { registry, world, steppers };
-			const delegated = { capabilityAction: RUN_AUTHORITY, held: RUN_AUTHORITY, delegation: "urn:uuid:a-delegation", attributedTo: "a-model" };
+			const delegated = { capabilityAction: RUN_AUTHORITY, held: RUN_AUTHORITY, delegation: { label: "Capability", id: "urn:uuid:a-delegation" }, attributedTo: "a-model" };
 			const greeting = buildFeatureStepForTransport(toolOf("PlainStepper-greet"), { name: "Ada" }, [0, 30, 1]);
 			await runReadingAt(Access.public, () => runInCall({ ...inCall(), ...delegated, ask: "cmt-ask-1" }, () => dispatchStep(caller, greeting)));
 			expect(await fieldOf([0, 30, 1], SEQ_PATH_FIELD.params), "the call's parameters").toBe('{"name":"Ada"}');
 			expect(await fieldOf([0, 30, 1], SEQ_PATH_EDGE.askedIn), "the ask it ran under").toBe("cmt-ask-1");
 			expect(await fieldOf([0, 30, 1], SEQ_PATH_FIELD.attributedTo), "the agent its caller names").toBe("a-model");
-			expect(await fieldOf([0, 30, 1], SEQ_PATH_FIELD.delegation), "the delegation its caller names").toBe("urn:uuid:a-delegation");
+			expect(await fieldOf([0, 30, 1], SEQ_PATH_EDGE.delegation), "an edge to the record of the delegation its caller names").toBe("urn:uuid:a-delegation");
 			expect(await fieldOf([0, 30, 1], LinkRelations.ACCESS_LEVEL.rel), "the read level of the call").toBe(Access.public);
 			await runAuthorizedWith(RUN_AUTHORITY, () => dispatchStep(caller, buildFeatureStepForTransport(toolOf("ProductStepper-getCount"), {}, [0, 30, 2])));
 			expect(JSON.parse(String(await fieldOf([0, 30, 2], SEQ_PATH_FIELD.result))), "the result it read back").toMatchObject({ count: 42 });

@@ -198,7 +198,6 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		.log-row .produced img { height: 1.4em; width: auto; border: var(--shu-border-w) solid var(--shu-border); border-radius: 2px; display: block; }
 		.log-row .dispatch { color: var(--shu-fg-muted); font-size: var(--shu-font-xs); margin-left: var(--shu-space-2); }
 		.log-row .capability { color: var(--shu-fg-muted); font-size: var(--shu-font-xs); margin-left: var(--shu-space-2); }
-		.log-row .capability.refused { color: var(--shu-error); }
 		.loader { display: inline-block; width: 10px; height: 10px; border: 2px solid var(--shu-border); border-top-color: var(--shu-accent);
 			border-radius: 50%; animation: spin 1.2s linear infinite; vertical-align: middle; }
 		@keyframes spin { to { transform: rotate(360deg); } }
@@ -412,16 +411,14 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			if (index === this.#currentIdx) cls += ` ${TIME_SYNC_CLASS.CURRENT}`;
 		}
 		// Where the step ran, how long it took, and what it had to hold to run: its own record states all of it, so a row
-		// states it rather than being paired with a separate account of the same act. A step that doesn't require a capability
-		// doesn't state one, so the rows mentioning a capability are exactly the acts that needed one.
+		// states it rather than being paired with a separate account of the same act. A row states the held action that allowed
+		// the step, so the rows mentioning a capability are exactly the acts a caller's capability allowed.
 		const dispatch = r.line?.dispatch;
 		const tookMs = r.line?.tookMs;
 		const dispatchText = dispatch ? html`${dispatch.via}${dispatch.on ? html` ${originLink(dispatch.on)}` : ""}${tookMs === undefined ? "" : ` ${tookMs}ms`}` : "";
-		const action = r.line?.action;
-		const capabilityRefused = action !== undefined && action.allowed === undefined;
-		const capability = action
-			? html`${capabilityRefused ? "🔒" : "🔓"} ${actionRef(action.required)}${action.holder ? html` ${recordRef(principalAddress(action.holder), action.holder)}` : ""}`
-			: "";
+		const allowed = r.line?.action?.allowed;
+		const holder = r.line?.action?.holder;
+		const capability = allowed ? html`🔓 ${actionRef(allowed)}${holder ? html` ${recordRef(principalAddress(holder), holder)}` : ""}` : "";
 		// What the step produced, beside its words: the row of the step a reader sees is where a screenshot taken during it
 		// is shown, and pressing one opens the image itself.
 		const produced = r.produced?.length
@@ -436,7 +433,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 				: "";
 		return html`<div class="log-row${cls}" data-testid=${testId}>
 			<span class="time-group" data-testid=${SHU_TEST_IDS.TIME_CURSOR.MOMENT} @click=${this.onTimeClick(r.timestamp)}>${stepPath}<span class="time">${r.time}</span></span>
-			<span class="row-content" @click=${this.onRowClick(r)}>${r.status === RECORDED_STATUS.running ? html`<span class="loader"></span>` : html`<span class="icon">${r.icon}</span>`} <span class="step">${r.step}</span> <span class="msg">${r.message}</span>${dispatchText ? html` <span class="dispatch">${dispatchText}</span>` : ""}${capability ? html` <span class="capability${capabilityRefused ? " refused" : ""}" title="capability required to run this step">${capability}</span>` : ""}${produced}</span>
+			<span class="row-content" @click=${this.onRowClick(r)}>${r.status === RECORDED_STATUS.running ? html`<span class="loader"></span>` : html`<span class="icon">${r.icon}</span>`} <span class="step">${r.step}</span> <span class="msg">${r.message}</span>${dispatchText ? html` <span class="dispatch">${dispatchText}</span>` : ""}${capability ? html` <span class="capability" title="the held action that allowed this step">${capability}</span>` : ""}${produced}</span>
 		</div>`;
 	};
 }

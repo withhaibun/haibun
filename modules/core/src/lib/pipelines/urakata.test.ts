@@ -114,7 +114,7 @@ describe("UrakataRegistry", () => {
 		world.runtime.keys = { ...world.runtime.keys, [AUTHORITY_KEY]: authority };
 		const registry = new UrakataRegistry(world, reporting());
 		const ticker: IUrakataTicker = { id: "resting", description: "test", intervalMs: 5, needs: [readAction(Access.private)], tick: () => undefined };
-		const restsOn = { capabilities: ["urn:cap:starter"] };
+		const restsOn = { capabilities: ["urn:cap:starter"], delegation: { label: "Capability", id: "urn:cap:starter" } };
 		const u = await runAuthorizedWith([readAction(Access.private)], () =>
 			runInCall({ ...inCall(), principal: STARTER, restsOn: restsOn, step: undefined }, () => Promise.resolve(registry.register(ticker))),
 		);

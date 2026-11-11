@@ -152,8 +152,8 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		});
 	}
 
-	/** A step's words, its action and how it ended, where and how long it ran, and the capability it required. The glyph
-	 *  of how it ended is the one the log and the rail use. */
+	/** A step's words, its action and how it ended, where and how long it ran, and the action its call presented or that it was
+	 *  allowed within its call, with the held action that allowed it. The glyph of how it ended is the one the log and the rail use. */
 	private renderLine(line: TStepLine): TemplateResult {
 		const { dispatch, action } = line;
 		return html`
@@ -161,7 +161,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 			<div class="field"><span class="label">Action:</span> <span class="value">${STATUS_MARKS.get(line.status)?.icon} ${line.called === undefined ? "" : calledRef(line.called)}</span></div>
 			${line.error === undefined ? "" : html`<div class="field"><span class="label">Error:</span> <span class="value" style="color:var(--shu-error)">${line.error}</span></div>`}
 			<div class="section"><span class="label">Ran:</span> <span class="value">${dispatch === undefined ? "" : dispatch.via}${dispatch?.on === undefined ? "" : html` ${originLink(dispatch.on)}`}${line.tookMs === undefined ? "" : ` ${line.tookMs}ms`}</span></div>
-			${action === undefined ? "" : html`<div class="field"><span class="label">Capability:</span> <span class="value">${actionRef(action.required)}${action.allowed === undefined ? "" : html` allowed by${action.allowed.map((held) => html` ${actionRef(held)}`)}`}</span></div>`}`;
+			${action === undefined ? "" : html`<div class="field"><span class="label">Capability:</span> <span class="value">${action.presented === undefined ? "allowed within its call" : html`presented ${actionRef(action.presented)}`}${action.allowed === undefined ? "" : html` allowed by ${actionRef(action.allowed)}`}</span></div>`}`;
 	}
 
 	private renderContent(key: string, data: TStepData, id: string): TemplateResult {

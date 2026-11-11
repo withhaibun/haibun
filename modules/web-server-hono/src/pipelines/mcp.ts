@@ -26,7 +26,7 @@ import { callerAt, inCall, runInCall, shownTo } from "@haibun/core/lib/domains/c
 import { ACTUALITY_HEADER, actualityRefusal, refusalSaid, type TStatementRefusal } from "@haibun/core/lib/rpc-wire.js";
 import { admitsOrigin, PRESENTED_REQUEST_HEADERS } from "../domains/web-server.js";
 import type { Context, IWebServer, TCapabilityVerifier } from "../ports.js";
-import { actionsOf } from "../derivations/actions.js";
+import { actionsOf } from "@haibun/core/lib/domains/actions.js";
 import { calledStep, recordedRefusal, type TCaller } from "./dispatch-call.js";
 import { proveClaimed, type DispatchContext } from "@haibun/core/lib/step-dispatch.js";
 import { refuseInvocation } from "./capability-verifier.js";

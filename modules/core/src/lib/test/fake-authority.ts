@@ -5,7 +5,9 @@
  * header presents the body's digest where the request has a body. Its verifier rejects a request whose digest doesn't
  * match its body. It accepts the request when the actions a test granted the holder allow the invoked action. Core's
  * `capabilityAllows` determines whether a granted action allows the invoked one. Each holder's grant is one capability.
- * A verdict's `restsOn` names that capability. Withdrawing a grant reports that capability as revoked. The stand-in
+ * A verdict's `restsOn` names that capability. Withdrawing a grant reports that capability as revoked, and the verifier reads that
+ * capability as revoked afterwards. The stand-in doesn't hold a delegation, so its invoker refuses to sign for a caller outside
+ * actuality. The stand-in
  * doesn't prove an identity, so code outside a test doesn't register it. A launched fixture's config loads it as
  * `@haibun/core/lib/test/fake-authority`.
  */
@@ -17,7 +19,18 @@ import type { TDomainDefinition } from "../domains/resources.js";
 import { OK } from "../domains/protocol.js";
 import { getAuthority, heldAuthority } from "../domains/session-authority.js";
 import { capabilityAllows } from "../domains/actions.js";
-import type { IAuthorityInvoker, IAuthorityVerifier, TActingFor, TAuthorityAct, TAuthorityEvidence, TDelegations, TOutgoingRequest, TVerdict } from "../domains/authority-types.js";
+import {
+	undelegatedRefusal,
+	type IAuthorityInvoker,
+	type IAuthorityVerifier,
+	type TActingFor,
+	type TAuthorityAct,
+	type TAuthorityEvidence,
+	type TDelegations,
+	type TOutgoingRequest,
+	type TVerdict,
+} from "../domains/authority-types.js";
+import { RefusedCall } from "../transport/domains/rpc-wire.js";
 import { TEST_STEP } from "./test-step.js";
 
 const HOLDER_HEADER = "fake-holder";
@@ -35,17 +48,23 @@ const digestOf = (body: string): string => `SHA-256=${createHash("sha256").updat
 
 /** Returns the capability id of a holder's grant. */
 export const fakeGrant = (holder: string): string => `urn:fake-grant:${holder}`;
+/** The type of a grant's record, which a verdict names. The stand-in doesn't write the record. */
+const FAKE_GRANT_LABEL = "FakeGrant";
+/** Returns the chain of a verdict for a holder's grant or for a document: the one capability and its record. */
+const restingOn = (capability: string) => ({ capabilities: [capability], delegation: { label: FAKE_GRANT_LABEL, id: capability } });
 
 export class FakeInvoker implements IAuthorityInvoker {
 	constructor(private readonly holder: string) {}
 
-	sign = (request: TOutgoingRequest, action: string): Promise<Record<string, string>> =>
-		Promise.resolve({
+	sign = (request: TOutgoingRequest, action: string, delegator?: string): Promise<Record<string, string>> => {
+		if (delegator !== undefined) throw new RefusedCall(undelegatedRefusal(delegator, action, new URL(request.url).origin, this.holder));
+		return Promise.resolve({
 			...request.headers,
 			[INVOCATION_HEADER]: `fake action="${action}"`,
 			[HOLDER_HEADER]: this.holder,
 			...(request.body === undefined ? {} : { digest: digestOf(request.body) }),
 		});
+	};
 }
 
 class FakeVerifier implements IAuthorityVerifier {
@@ -61,7 +80,7 @@ class FakeVerifier implements IAuthorityVerifier {
 			return Promise.resolve({ ok: false, error: "the presented digest is not of this request's body" });
 		const granted = this.grants.get(holder);
 		if (!capabilityAllows(granted, action)) return Promise.resolve({ ok: false, error: `${holder} doesn't hold a grant for ${action}` });
-		return Promise.resolve({ ok: true, principal: holder, allowedAction: granted, invoked: action, restsOn: { capabilities: [fakeGrant(holder)] } });
+		return Promise.resolve({ ok: true, principal: holder, allowedAction: granted, invoked: action, restsOn: restingOn(fakeGrant(holder)) });
 	}
 
 	/** Accepts a document that its controller or the root presents and that delegates only actions the controller's grant
@@ -74,7 +93,7 @@ class FakeVerifier implements IAuthorityVerifier {
 		const granted = this.grants.get(controller);
 		const beyond = delegated.filter((action) => !capabilityAllows(granted, action));
 		if (beyond.length > 0) return { ok: false, error: `${controller} doesn't hold a grant for ${beyond.join(", ")}` };
-		return { ok: true, principal: controller, allowedAction: delegated, restsOn: { capabilities: [String(id)] } };
+		return { ok: true, principal: controller, allowedAction: delegated, restsOn: restingOn(String(id)) };
 	}
 
 	delegationsTo(): Promise<TDelegations> {
@@ -89,14 +108,21 @@ class FakeVerifier implements IAuthorityVerifier {
 	revoke(): Promise<TAuthorityAct> {
 		return Promise.resolve({ ok: false, error: "the fake authority doesn't revoke a capability: withdraw a grant with `withdraw authority from {holder}`" });
 	}
+
+	/** Reads a holder's grant as revoked once a test withdrew it. */
+	revokedIn(capabilities: readonly string[]): Promise<string | undefined> {
+		const withdrawn = capabilities.find((capability) => capability.startsWith(fakeGrant("")) && !this.grants.has(capability.slice(fakeGrant("").length)));
+		return Promise.resolve(withdrawn === undefined ? undefined : `${withdrawn} was withdrawn`);
+	}
 }
 
 /** Returns a verifier built from the methods a test supplies. `verify` is required. `delegationsTo` defaults to an empty
- *  list. `record` and `revoke` default to a refusal. */
+ *  list, `record` and `revoke` default to a refusal, and `revokedIn` reads every capability as held. */
 export const stubVerifier = (stated: Pick<IAuthorityVerifier, "verify"> & Partial<IAuthorityVerifier>): IAuthorityVerifier => ({
 	delegationsTo: () => Promise.resolve({ delegations: [] }),
 	record: () => Promise.resolve({ ok: false, error: "the stub verifier doesn't record a delegation" }),
 	revoke: () => Promise.resolve({ ok: false, error: "the stub verifier doesn't revoke a capability" }),
+	revokedIn: () => Promise.resolve(undefined),
 	...stated,
 });
 
