@@ -124,7 +124,7 @@
 				"tookMs": 100,
 				"digest": {
 					"e2e-tests/once": "aa76efd39289af80e2a6d1122f1b1be86d79141a1ce60f59a64e68146a41b1cf",
-					"modules/core/src": "77a7efbe1c307a9a0b81a2f63d081cd15d3d14a461be3f17f472bc630fb41910",
+					"modules/core/src": "b4ea559bdacf150cb9b6fc31ed23d6739de4d6f2502d96b08ebc54277aac8bff",
 					"modules/logic/src": "7fa7e09a87d618340a3396078a9ad43b31d6d9f96ee5b0c9e12b20dc7f115cfc"
 				}
 			},

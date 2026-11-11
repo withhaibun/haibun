@@ -364,7 +364,7 @@ describe("step-dispatch", () => {
 			buildFeatureStepForTransport(carrierTool(step.stepperName, step.stepName, step.description, {}), input, seqPath);
 
 		it("states a call a transport carries as the feature line for that call", () => {
-			const tool = carrierTool("S", "click", "click( invisible)? {target: page-target}", { target: "page-target" });
+			const tool = carrierTool("S", "click", "click {target: page-target}( with force)?", { target: "page-target" });
 			expect(buildFeatureStepForTransport(tool, { target: "Knock" }, [0]).in).toBe('click "Knock"');
 		});
 
