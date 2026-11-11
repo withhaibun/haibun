@@ -53,7 +53,7 @@
 			"actuality": {
 				"text": "vscode-extension/lsp-server",
 				"status": "passed",
-				"tookMs": 0,
+				"tookMs": 100,
 				"digest": {
 					"modules/core/src": "9297819164c43d75c1348bcb122d69e90e4882ef4a024e5cc6d8ed37a56e28f3",
 					"modules/logic/src": "7c0f032ae8eb707c1074f265eed434eb83bb5d9ea047c45bdb922e9c96e21d2c",

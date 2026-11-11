@@ -512,7 +512,7 @@
 				"/features/serve.feature": {
 					"text": "/features/serve",
 					"status": "passed",
-					"tookMs": 100,
+					"tookMs": 0,
 					"steps": 4
 				}
 			}

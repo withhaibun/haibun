@@ -544,7 +544,7 @@
 			"actuality": {
 				"text": "e2e-tests/requirements, node_modules/@haibun/cli/waypoints, node_modules/@haibun/logic/waypoints, node_modules/@haibun/core/waypoints",
 				"status": "passed",
-				"tookMs": 54300,
+				"tookMs": 52700,
 				"digest": {
 					"e2e-tests/requirements": "ed05c254f2829dc054b538ddb76da6de75a24318b66cbeac85c80b04767b0634",
 					"e2e-tests/src": "6b6b58f64026ff1c6202081ed15de0151412fbf6e53077e108c5c044692afeba",
@@ -572,13 +572,13 @@
 				"/features/01-prose-and-steps.feature.ts": {
 					"text": "Prose and steps",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 600,
 					"steps": 26
 				},
 				"/features/02-authority.feature.ts": {
 					"text": "Capabilities authorize every call",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 500,
 					"steps": 59
 				},
 				"/features/03-activities.feature.ts": {
@@ -596,7 +596,7 @@
 				"/features/05-goals.feature.ts": {
 					"text": "Goals over producer rules",
 					"status": "passed",
-					"tookMs": 1900,
+					"tookMs": 1800,
 					"steps": 41
 				},
 				"/features/06-world-and-products.feature.ts": {
@@ -608,7 +608,7 @@
 				"/features/07-records.feature.ts": {
 					"text": "Records, events and actualities",
 					"status": "passed",
-					"tookMs": 2200,
+					"tookMs": 2100,
 					"steps": 33
 				},
 				"/features/08-timing.feature.ts": {
@@ -620,7 +620,7 @@
 				"/features/09-surfaces.feature.ts": {
 					"text": "One path for every surface",
 					"status": "passed",
-					"tookMs": 800,
+					"tookMs": 700,
 					"steps": 77
 				},
 				"/features/10-cli.feature.ts": {
@@ -662,7 +662,7 @@
 				"/features/16-class-expressions.feature.ts": {
 					"text": "Class expressions",
 					"status": "passed",
-					"tookMs": 43900,
+					"tookMs": 42800,
 					"steps": 93
 				}
 			}

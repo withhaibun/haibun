@@ -412,7 +412,7 @@
 			"actuality": {
 				"text": "modules/shu/tests, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 49300,
+				"tookMs": 44100,
 				"digest": {
 					"modules/cli/src": "21291a269f682b5387a23040d17fe97483461231d07423e53722d906b0ca881e",
 					"modules/core/src": "9297819164c43d75c1348bcb122d69e90e4882ef4a024e5cc6d8ed37a56e28f3",
@@ -432,31 +432,31 @@
 				"/features/address.feature.ts": {
 					"text": "An address names a type",
 					"status": "passed",
-					"tookMs": 1400,
+					"tookMs": 1200,
 					"steps": 207
 				},
 				"/features/federate.feature.ts": {
 					"text": "Federated graph reads from a sibling instance",
 					"status": "passed",
-					"tookMs": 1700,
+					"tookMs": 1300,
 					"steps": 6
 				},
 				"/features/monitor-serves.feature.ts": {
 					"text": "The monitor serves shu on a port of its own",
 					"status": "passed",
-					"tookMs": 1400,
+					"tookMs": 1500,
 					"steps": 198
 				},
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
-					"tookMs": 35000,
-					"steps": 771
+					"tookMs": 31100,
+					"steps": 762
 				},
 				"/features/remote-store.feature.ts": {
 					"text": "A satellite instance keeps its records in the main instance's store",
 					"status": "passed",
-					"tookMs": 1800,
+					"tookMs": 1400,
 					"steps": 8
 				},
 				"/features/voice-ui.feature.ts": {

@@ -590,7 +590,7 @@
 			"actuality": {
 				"text": "e2e-tests/tests, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
 				"status": "passed",
-				"tookMs": 24500,
+				"tookMs": 22900,
 				"digest": {
 					"e2e-tests/src": "6b6b58f64026ff1c6202081ed15de0151412fbf6e53077e108c5c044692afeba",
 					"e2e-tests/tests": "f4df00ba606dcafde9fd364da0aba0564c5d4c58348e6d70d2a469b74fcf1a61",
@@ -623,7 +623,7 @@
 				"/features/a11y-pass.feature": {
 					"text": "/features/a11y-pass",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 800,
 					"steps": 13
 				},
 				"/features/after-every.feature": {
@@ -659,13 +659,13 @@
 				"/features/counter.feature": {
 					"text": "/features/counter",
 					"status": "passed",
-					"tookMs": 1600,
+					"tookMs": 900,
 					"steps": 21
 				},
 				"/features/counter.feature.ts": {
 					"text": "Counts feature",
 					"status": "passed",
-					"tookMs": 2100,
+					"tookMs": 1300,
 					"steps": 21
 				},
 				"/features/counts.feature.ts": {
@@ -677,7 +677,7 @@
 				"/features/elements.feature": {
 					"text": "/features/elements",
 					"status": "passed",
-					"tookMs": 800,
+					"tookMs": 900,
 					"steps": 17
 				},
 				"/features/executor-rpc.feature.ts": {
@@ -713,13 +713,13 @@
 				"/features/page-visits.feature.ts": {
 					"text": "Visit pages",
 					"status": "passed",
-					"tookMs": 2100,
+					"tookMs": 1900,
 					"steps": 65
 				},
 				"/features/popup.feature": {
 					"text": "/features/popup",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 800,
 					"steps": 14
 				},
 				"/features/qrcode.feature": {
@@ -755,7 +755,7 @@
 				"/features/visited-pages.feature": {
 					"text": "/features/visited-pages",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 700,
 					"steps": 31
 				},
 				"/features/workflow.feature.ts": {
