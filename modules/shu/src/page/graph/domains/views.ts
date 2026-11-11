@@ -35,4 +35,4 @@ const nodeShapeClass = (v: ViewType): string => (v === VIEW.gantt ? "gantt-bar" 
 export const viewChangeRebuildsNodes = (prev: ViewType, next: ViewType): boolean => nodeShapeClass(prev) !== nodeShapeClass(next);
 
 /** How an accessible reading states a node the reader dropped, and one a focus or a preview dims. */
-export const READ_STATE = { pinned: "pinned", dimmed: "dimmed" } as const;
+export const READ_STATE = { pinned: "pinned", dimmed: "dimmed", egoCenter: "ego centre", egoNeighbour: "shown at the edge" } as const;

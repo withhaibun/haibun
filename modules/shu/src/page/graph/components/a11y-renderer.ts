@@ -43,8 +43,14 @@ export type TA11yRendererDeps = {
 	onFocus(id: string): void;
 };
 
-/** What the picture shows of the nodes: the active node, each node's focus tier, and the nodes the reader dropped. */
-export type TReadingMarks = { active: string | null; tierOf: (n: FGNode) => FocusState; pinned: (id: string) => boolean };
+/** What the picture shows of the nodes: the active node, each node's focus tier, the nodes the reader dropped, and the node
+ *  the ego overlay shows with the neighbours it shows at the viewport's edge. */
+export type TReadingMarks = {
+	active: string | null;
+	tierOf: (n: FGNode) => FocusState;
+	pinned: (id: string) => boolean;
+	ego: { center: string; neighbours: ReadonlySet<string> } | undefined;
+};
 
 const NODE_ID_ATTR = "data-node-id";
 const DIMMED: FocusState = "dimmed";
@@ -316,13 +322,18 @@ export class A11yRenderer implements TGraphRenderer {
 		const drawn = this.lastDrawn;
 		const content = this.contentEl;
 		if (drawn === undefined || content === undefined) return;
-		const { active, tierOf, pinned } = this.deps.marks();
+		const { active, tierOf, pinned, ego } = this.deps.marks();
 		const byId = new Map(drawn.nodes.map((n) => [n.id, n]));
 		for (const entry of content.querySelectorAll<HTMLElement>(`ol > li > [${NODE_ID_ATTR}]`)) {
 			const id = entry.getAttribute(NODE_ID_ATTR);
 			const n = id === null ? undefined : byId.get(id);
 			if (n === undefined) throw new Error(`A11yRenderer: an entry names node ${id}, which the last draw doesn't hold`);
-			const states = [n.type, ...(pinned(n.id) ? [READ_STATE.pinned] : []), ...(tierOf(n) === DIMMED ? [READ_STATE.dimmed] : [])];
+			const states = [
+				n.type,
+				...(pinned(n.id) ? [READ_STATE.pinned] : []),
+				...(tierOf(n) === DIMMED ? [READ_STATE.dimmed] : []),
+				...(ego?.center === n.id ? [READ_STATE.egoCenter] : ego?.neighbours.has(n.id) ? [READ_STATE.egoNeighbour] : []),
+			];
 			entry.textContent = `${this.deps.labelOf(n)} (${states.join(", ")})`;
 			const li = entry.parentElement;
 			if (n.id === active) {

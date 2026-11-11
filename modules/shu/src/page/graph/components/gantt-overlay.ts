@@ -8,7 +8,7 @@ import { ganttBarSpan, GANTT_BAR_D, GANTT_BAR_H, GANTT_GHOST_PAD, GANTT_MIN_BAR_
 import type { Adornment } from "../derivations/graph-layout.js";
 import { isPlaced, type FGNode, type LabelVisual } from "../domains/graph-types.js";
 import { makeTroikaText } from "./troika-label.js";
-import { ENCLOSURE_LABEL_HEIGHT, ENCLOSURE_LABEL_RENDER_ORDER, ENCLOSURE_RENDER_ORDER, type Disposable, type EnclosureThree, type Obj3D } from "./enclosure.js";
+import { ENCLOSURE_LABEL_HEIGHT, ENCLOSURE_LABEL_RENDER_ORDER, ENCLOSURE_RENDER_ORDER, disposeGroup, type Disposable, type EnclosureThree, type Obj3D } from "./enclosure.js";
 
 /** The enclosures' slice of THREE and the line geometry the ruler builds. */
 export type GanttThree = EnclosureThree & {
@@ -124,16 +124,4 @@ export class GanttOverlay {
 			emphasis: false,
 		});
 	}
-}
-
-/** Detach a group from its parent and release each child's material and text, and its geometry where the group owns it. */
-function disposeGroup(group: Obj3D, ownsGeometry: boolean): void {
-	if (group.children !== undefined)
-		for (const child of [...group.children]) {
-			const c = child as { geometry?: Disposable; material?: Disposable; dispose?: () => void };
-			if (ownsGeometry) c.geometry?.dispose();
-			c.material?.dispose();
-			c.dispose?.(); // a troika label owns its text's geometry
-		}
-	group.parent?.remove(group);
 }

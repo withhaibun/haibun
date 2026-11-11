@@ -1,78 +1,44 @@
 import { describe, expect, it } from "vitest";
-import { evaluateEgoCorridorHit, pointInBox, pointToSegmentDistance, type TEgoNeighbourTarget } from "./ego-corridor.js";
+import { EGO_CORRIDOR, evaluateEgoCorridorHit, pointInBox, pointToSegmentDistance, type TEgoNeighbourTarget } from "./ego-corridor.js";
 
 describe("pointToSegmentDistance", () => {
-	it("computes perpendicular distance to horizontal segment", () => {
-		const res = pointToSegmentDistance(50, 20, 0, 0, 100, 0);
-		expect(res.distance).toBe(20);
-		expect(res.t).toBeCloseTo(0.5);
-		expect(res.projX).toBeCloseTo(50);
-		expect(res.projY).toBeCloseTo(0);
+	it("returns the perpendicular distance and the share of the segment at the nearest point", () => {
+		expect(pointToSegmentDistance({ x: 50, y: 20 }, { x: 0, y: 0 }, { x: 100, y: 0 })).toEqual({ distance: 20, t: 0.5 });
 	});
-
-	it("clamps to endpoint A when before start", () => {
-		const res = pointToSegmentDistance(-10, 0, 0, 0, 100, 0);
-		expect(res.distance).toBe(10);
-		expect(res.t).toBe(0);
-		expect(res.projX).toBe(0);
-	});
-
-	it("clamps to endpoint B when past end", () => {
-		const res = pointToSegmentDistance(120, 0, 0, 0, 100, 0);
-		expect(res.distance).toBe(20);
-		expect(res.t).toBe(1);
-		expect(res.projX).toBe(100);
+	it("clamps to the segment's ends", () => {
+		expect(pointToSegmentDistance({ x: -10, y: 0 }, { x: 0, y: 0 }, { x: 100, y: 0 })).toEqual({ distance: 10, t: 0 });
+		expect(pointToSegmentDistance({ x: 120, y: 0 }, { x: 0, y: 0 }, { x: 100, y: 0 })).toEqual({ distance: 20, t: 1 });
 	});
 });
 
 describe("pointInBox", () => {
-	it("detects points inside box with padding", () => {
-		expect(pointInBox(15, 15, 10, 10, 20, 20, 0)).toBe(true);
-		expect(pointInBox(5, 5, 10, 10, 20, 20, 6)).toBe(true);
-		expect(pointInBox(2, 2, 10, 10, 20, 20, 2)).toBe(false);
+	it("holds a point within the box widened by its padding", () => {
+		const box = { x: 20, y: 20, width: 20, height: 20 };
+		expect(pointInBox({ x: 15, y: 15 }, box, 0)).toBe(true);
+		expect(pointInBox({ x: 5, y: 5 }, box, 6)).toBe(true);
+		expect(pointInBox({ x: 2, y: 2 }, box, 2)).toBe(false);
 	});
 });
 
 describe("evaluateEgoCorridorHit", () => {
 	const center = { x: 500, y: 400, width: 40, height: 20 };
+	const spoke = (to: number) => [
+		{ x: 500, y: 400 },
+		{ x: (500 + to) / 2, y: 400 },
+		{ x: to, y: 400 },
+	];
 	const neighbours: TEgoNeighbourTarget[] = [
-		{ id: "left-1", pos: { x: 100, y: 400 }, width: 80, height: 20 },
-		{ id: "right-1", pos: { x: 900, y: 400 }, width: 80, height: 20 },
+		{ id: "left-1", box: { x: 100, y: 400, width: 80, height: 20 }, spokePoints: spoke(100) },
+		{ id: "right-1", box: { x: 900, y: 400, width: 80, height: 20 }, spokePoints: spoke(900) },
 	];
 
-	it("detects center hit when pointer is on center node", () => {
-		const hit = evaluateEgoCorridorHit({ x: 505, y: 402 }, center, neighbours);
-		expect(hit.kind).toBe("center");
-	});
-
-	it("detects chip hit when pointer is over a destination neighbour chip", () => {
-		// Chip left-1 is centered at x=100, y=400 with width=80 -> span is [60, 140]
-		const hitRightHalf = evaluateEgoCorridorHit({ x: 120, y: 400 }, center, neighbours);
-		expect(hitRightHalf.kind).toBe("chip");
-		if (hitRightHalf.kind === "chip") {
-			expect(hitRightHalf.neighbourId).toBe("left-1");
-		}
-
-		const hitLeftHalf = evaluateEgoCorridorHit({ x: 75, y: 400 }, center, neighbours);
-		expect(hitLeftHalf.kind).toBe("chip");
-		if (hitLeftHalf.kind === "chip") {
-			expect(hitLeftHalf.neighbourId).toBe("left-1");
-		}
-	});
-
-	it("detects spoke hit when pointer moves along the radial connector", () => {
-		// Midpoint between center (500, 400) and left-1 (100, 400), with 15px vertical offset
-		const hit = evaluateEgoCorridorHit({ x: 300, y: 415 }, center, neighbours, { corridorRadius: 40 });
-		expect(hit.kind).toBe("spoke");
-		if (hit.kind === "spoke") {
-			expect(hit.neighbourId).toBe("left-1");
-			expect(hit.spokeDistance).toBeCloseTo(15);
-			expect(hit.t).toBeCloseTo(0.5);
-		}
-	});
-
-	it("returns miss when pointer wanders far into empty space", () => {
-		const hit = evaluateEgoCorridorHit({ x: 300, y: 600 }, center, neighbours, { corridorRadius: 40 });
-		expect(hit.kind).toBe("miss");
+	it.each([
+		["the node's box", { x: 505, y: 402 }, { kind: "center" }],
+		["a chip's right half", { x: 120, y: 400 }, { kind: "chip", neighbourId: "left-1" }],
+		["a chip's left half", { x: 75, y: 400 }, { kind: "chip", neighbourId: "left-1" }],
+		["a spoke's corridor", { x: 300, y: 415 }, { kind: "spoke", neighbourId: "left-1", spokeDistance: 15, t: 0.5 }],
+		["empty space beyond every corridor", { x: 300, y: 400 + EGO_CORRIDOR.radius + 1 }, { kind: "miss" }],
+	])("reads a pointer on %s", (_, pointer, hit) => {
+		expect(evaluateEgoCorridorHit(pointer, center, neighbours)).toEqual(hit);
 	});
 });

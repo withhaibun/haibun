@@ -1,456 +1,151 @@
 /**
- * Derivation of the virtual ego-neighborhood overlay.
- *
- * Positions virtual 1-hop neighbours out towards the outer perimeter / edge of the viewport
- * framing the hovered node:
- * - Hovered center node remains unshifted at (x0, y0, z0).
- * - Virtual neighbours are distributed angularly towards the outer edge of the viewport (viewBounds).
- * - Neighbours are placed on the center node's focal plane (z = z0) so font size is uniform
- *   without perspective distortion.
- * - Staggers radii across inner/outer edge tiers to avoid congestion.
- * - Applies 2D AABB collision relaxation along the perimeter so chips never overlap.
- * - Staggers and offsets edge predicate labels perpendicularly.
+ * The layout of the ego overlay: the 1-hop neighbours of a hovered node, and where the overlay shows each neighbour outside
+ * the viewport. The hovered node stays where it is. A neighbour inside the viewport isn't moved and doesn't get a chip, since
+ * the scene already draws it and its edge. An off-screen neighbour's chip is placed where its edge's curve crosses the
+ * viewport's margin, so its spoke lies on the edge the scene draws. Where the curve crosses within the first
+ * `EGO_MIN_CROSSING` of its length, the chip is placed where the straight direction to the neighbour reaches the margin. Chips
+ * that overlap are then moved apart along the margin.
  */
 import { isPlaced, linkEndId, type FGLink, type FGNode, type XYZ } from "../domains/graph-types.js";
 
 export type TEgoNeighbour = { node: FGNode & XYZ; link: FGLink; direction: "out" | "in" };
 
+/** A hovered node, the neighbours the overlay reads, and how many neighbours the node has. */
 export type TEgoGraph = { center: FGNode & XYZ; neighbours: TEgoNeighbour[]; totalNeighbours: number };
 
-export type TEgoPositionedNeighbour = { node: FGNode & XYZ; link: FGLink; direction: "out" | "in"; pos: XYZ; predicatePos: XYZ; isOffscreen?: boolean; spokePoints: XYZ[] };
+/** An off-screen neighbour as the overlay shows it: its chip's place, its predicate's place, and the points of its spoke. */
+export type TEgoPlaced = TEgoNeighbour & { pos: XYZ; predicatePos: XYZ; spokePoints: XYZ[] };
 
-export type TEgoPositions = { center: XYZ; neighbours: TEgoPositionedNeighbour[]; scale: number };
-
-export type TEgoPositionOptions = {
-	viewBounds?: { rx: number; ry: number };
-	focalPlane?: boolean;
-	camBasis?: { right: XYZ; up: XYZ };
-	project?: (point: XYZ) => TNdcPoint;
-	curvature?: number;
-};
-
-export const DEFAULT_MAX_EGO_NEIGHBOURS = 16;
-export const DEFAULT_VIEWPORT_MARGIN = 0.88;
-export const VIEWPORT_ONSCREEN_MARGIN = 1.0;
-export const VIRTUAL_PERIMETER_MARGIN = 0.88;
-export const GRAPH_LINK_CURVATURE = 0.25;
-
-export const EGO_RING_INNER_RADIUS = 48;
-export const EGO_RING_OUTER_RADIUS = 74;
-export const EGO_CHIP_HEIGHT = 4.2;
-export const EGO_COLLISION_PADDING = 2.8;
-export const EGO_PREDICATE_OFFSET = 3.2;
-
-/**
- * Calculates a 3D point along the curved edge between two nodes.
- * Matches three-forcegraph's quadratic bezier formulation with linkCurvature:
- * - u = 0 is center node
- * - u = 1 is neighbour node
- * - 0 < u < 1 samples along the curve
- */
-export function pointAlongLink(center: XYZ, neighbour: XYZ, direction: "out" | "in", curvature: number, u: number): XYZ {
-	const source = direction === "out" ? center : neighbour;
-	const target = direction === "out" ? neighbour : center;
-	const t = direction === "out" ? u : 1 - u;
-
-	if (curvature === 0) {
-		return { x: source.x + t * (target.x - source.x), y: source.y + t * (target.y - source.y), z: source.z + t * (target.z - source.z) };
-	}
-
-	const dx = target.x - source.x;
-	const dy = target.y - source.y;
-	const dz = target.z - source.z;
-	const midX = (source.x + target.x) / 2;
-	const midY = (source.y + target.y) / 2;
-	const midZ = (source.z + target.z) / 2;
-
-	let offX = 0;
-	let offY = 0;
-	let offZ = 0;
-	if (dx !== 0 || dy !== 0) {
-		offX = curvature * dy;
-		offY = -curvature * dx;
-		offZ = 0;
-	} else {
-		offX = -curvature * dz;
-	}
-
-	const cpX = midX + offX;
-	const cpY = midY + offY;
-	const cpZ = midZ + offZ;
-
-	const mt = 1 - t;
-	const a = mt * mt;
-	const b = 2 * mt * t;
-	const c = t * t;
-
-	return { x: a * source.x + b * cpX + c * target.x, y: a * source.y + b * cpY + c * target.y, z: a * source.z + b * cpZ + c * target.z };
-}
-
-/** Samples N points along the curved spoke from u = 0 (center) to u = targetU. */
-export function sampleCurvedSpoke(center: XYZ, neighbour: XYZ, direction: "out" | "in", curvature: number, targetU: number, segments?: number): XYZ[] {
-	const count = segments !== undefined ? segments : 12;
-	const points: XYZ[] = [];
-	for (let i = 0; i <= count; i++) {
-		const u = (i / count) * targetU;
-		points.push(pointAlongLink(center, neighbour, direction, curvature, u));
-	}
-	return points;
-}
-
-/** Approximate the visual width of a chip based on its label text. */
-export function approximateChipWidth(name: string): number {
-	const len = Math.min(name.length, 64);
-	return 2 * (2.0 + len * 0.85);
-}
-
-/** Extract 1-hop neighbours and incident links for a center node. */
-export function extractEgoGraph(centerId: string, nodeMap: Map<string, FGNode>, links: Iterable<FGLink>, maxNeighbours: number): TEgoGraph | undefined {
-	const rawCenter = nodeMap.get(centerId);
-	if (!rawCenter || !isPlaced(rawCenter)) return undefined;
-	const center = rawCenter;
-
-	const seen = new Set<string>();
-	const neighbours: TEgoNeighbour[] = [];
-
-	for (const link of links) {
-		const sId = linkEndId(link.source);
-		const tId = linkEndId(link.target);
-		if (sId === centerId && tId !== centerId) {
-			if (!seen.has(tId)) {
-				seen.add(tId);
-				const n = nodeMap.get(tId);
-				if (n && isPlaced(n)) {
-					neighbours.push({ node: n, link, direction: "out" });
-				}
-			}
-		} else if (tId === centerId && sId !== centerId) {
-			if (!seen.has(sId)) {
-				seen.add(sId);
-				const n = nodeMap.get(sId);
-				if (n && isPlaced(n)) {
-					neighbours.push({ node: n, link, direction: "in" });
-				}
-			}
-		}
-	}
-
-	return { center, neighbours: neighbours.slice(0, maxNeighbours), totalNeighbours: neighbours.length };
-}
-
-type TConstellationItem = {
-	item: TEgoNeighbour;
-	angle: number;
-	width: number;
-	tier: number;
-	isOffscreen: boolean;
-	x: number;
-	y: number;
-	z: number;
-	predicatePos: XYZ;
-	spokePoints: XYZ[];
-};
-
-/**
- * Computes curved perimeter positions along each real edge's curve:
- * - Neighbours already in the visible viewport DO NOT MOVE (stay at original x, y, z).
- * - Off-screen neighbours are placed along the curved edge at the visible perimeter.
- * - Staggers radial curve parameter across tiers for neighbours sharing similar angles.
- * - Guarantees that the virtual spoke exactly overlaps the real curved edge line.
- */
-function layoutConstellation(
-	ego: TEgoGraph,
-	bounds?: { rx: number; ry: number },
-	camBasis?: { right: XYZ; up: XYZ },
-	project?: (point: XYZ) => TNdcPoint,
-	curvatureOption?: number,
-	focalPlane?: boolean,
-): TConstellationItem[] {
-	const { center, neighbours } = ego;
-	const count = neighbours.length;
-	if (count === 0) return [];
-
-	const x0 = center.x;
-	const y0 = center.y;
-	const z0 = center.z;
-
-	const rx = bounds ? bounds.rx : EGO_RING_OUTER_RADIUS;
-	const ry = bounds ? bounds.ry : EGO_RING_INNER_RADIUS;
-	const baseRadius = Math.max(48, Math.min(rx, ry) * 0.92);
-	const curvature = curvatureOption !== undefined ? curvatureOption : GRAPH_LINK_CURVATURE;
-
-	// 1. Calculate ray directions, angles, and viewport visibility for each neighbour
-	const items: TConstellationItem[] = neighbours.map((item, idx) => {
-		const dx = item.node.x - x0;
-		const dy = item.node.y - y0;
-		const dz = item.node.z - z0;
-
-		// Project direction to camera basis (screen plane) to determine angular ordering
-		const sx = camBasis ? dx * camBasis.right.x + dy * camBasis.right.y + dz * camBasis.right.z : dx;
-		const sy = camBasis ? dx * camBasis.up.x + dy * camBasis.up.y + dz * camBasis.up.z : dy;
-		const angle = Math.hypot(sx, sy) > 0.001 ? Math.atan2(sy, sx) : -Math.PI + (2 * Math.PI * idx) / count;
-		const width = approximateChipWidth(item.node.name);
-
-		let isVisible = false;
-		if (project) {
-			const ndc = project(item.node);
-			isVisible = ndc.inFront && Math.abs(ndc.x) <= VIEWPORT_ONSCREEN_MARGIN && Math.abs(ndc.y) <= VIEWPORT_ONSCREEN_MARGIN;
-		} else if (bounds) {
-			isVisible = Math.abs(sx) <= bounds.rx && Math.abs(sy) <= bounds.ry;
-		} else {
-			isVisible = Math.hypot(dx, dy) <= EGO_RING_INNER_RADIUS;
-		}
-
-		return { item, angle, width, tier: 0, isOffscreen: !isVisible, x: item.node.x, y: item.node.y, z: item.node.z, predicatePos: { x: x0, y: y0, z: z0 }, spokePoints: [] };
-	});
-
-	// 2. Sort by angular position around center
-	items.sort((a, b) => a.angle - b.angle);
-
-	// 3. Stagger radial distance across tiers for off-screen neighbours with similar angles (< 25 degrees / ~0.44 rad)
-	const MIN_ANGULAR_GAP = 0.44;
-	for (let i = 0; i < items.length; i++) {
-		const current = items[i];
-		if (!current) continue;
-		let tier = 0;
-		for (let j = 0; j < i; j++) {
-			const prev = items[j];
-			if (!prev) continue;
-			const angleDiff = Math.abs(current.angle - prev.angle);
-			if (angleDiff < MIN_ANGULAR_GAP && prev.tier >= tier) {
-				tier = prev.tier + 1;
-			}
-		}
-		current.tier = tier;
-	}
-
-	// 4. Place each neighbour along the curve of the edge
-	for (const entry of items) {
-		if (!entry.isOffscreen) {
-			// Node is already in visible viewport: DO NOT MOVE IT!
-			entry.x = entry.item.node.x;
-			entry.y = entry.item.node.y;
-			entry.z = entry.item.node.z;
-			entry.predicatePos = pointAlongLink(center, entry.item.node, entry.item.direction, curvature, 0.5);
-			entry.spokePoints = sampleCurvedSpoke(center, entry.item.node, entry.item.direction, curvature, 1.0);
-			continue;
-		}
-
-		const dx = entry.item.node.x - x0;
-		const dy = entry.item.node.y - y0;
-		const dz = entry.item.node.z - z0;
-		const sx = camBasis ? dx * camBasis.right.x + dy * camBasis.right.y + dz * camBasis.right.z : dx;
-		const sy = camBasis ? dx * camBasis.up.x + dy * camBasis.up.y + dz * camBasis.up.z : dy;
-
-		// Calculate direct perimeter rectangle intersection in camera basis
-		const tx = Math.abs(sx) > 0.001 ? rx / Math.abs(sx) : Infinity;
-		const ty = Math.abs(sy) > 0.001 ? ry / Math.abs(sy) : Infinity;
-		const tPerim = Math.min(tx, ty);
-		const perimSx = sx * tPerim;
-		const perimSy = sy * tPerim;
-
-		// Find where the curved edge reaches the visible perimeter
-		let low = 0.0;
-		let high = 1.0;
-		for (let iter = 0; iter < 12; iter++) {
-			const mid = (low + high) / 2;
-			const pt = pointAlongLink(center, entry.item.node, entry.item.direction, curvature, mid);
-			let inside = false;
-			if (project) {
-				const ndc = project(pt);
-				inside = ndc.inFront && Math.abs(ndc.x) <= VIRTUAL_PERIMETER_MARGIN && Math.abs(ndc.y) <= VIRTUAL_PERIMETER_MARGIN;
-			} else if (bounds) {
-				const pSx = camBasis ? (pt.x - x0) * camBasis.right.x + (pt.y - y0) * camBasis.right.y + (pt.z - z0) * camBasis.right.z : pt.x - x0;
-				const pSy = camBasis ? (pt.x - x0) * camBasis.up.x + (pt.y - y0) * camBasis.up.y + (pt.z - z0) * camBasis.up.z : pt.y - y0;
-				inside = Math.abs(pSx) <= rx && Math.abs(pSy) <= ry;
-			} else {
-				inside = Math.hypot(pt.x - x0, pt.y - y0) <= baseRadius;
-			}
-			if (inside) {
-				low = mid;
-			} else {
-				high = mid;
-			}
-		}
-
-		// If the curve reached the visible perimeter with low >= 0.2, use it; otherwise use direct perimeter intersection
-		let perimPt: XYZ;
-		let spokeU = 1.0;
-		if (low >= 0.2) {
-			spokeU = low;
-			perimPt = pointAlongLink(center, entry.item.node, entry.item.direction, curvature, spokeU);
-		} else {
-			const right = camBasis ? camBasis.right : { x: 1, y: 0, z: 0 };
-			const up = camBasis ? camBasis.up : { x: 0, y: 1, z: 0 };
-			perimPt = { x: x0 + perimSx * right.x + perimSy * up.x, y: y0 + perimSx * right.y + perimSy * up.y, z: z0 + perimSx * right.z + perimSy * up.z };
-		}
-
-		entry.x = perimPt.x;
-		entry.y = perimPt.y;
-		entry.z = focalPlane ? perimPt.z : entry.item.node.z;
-		entry.predicatePos = pointAlongLink(center, entry.item.node, entry.item.direction, curvature, spokeU * 0.5);
-		entry.spokePoints = sampleCurvedSpoke(center, entry.item.node, entry.item.direction, curvature, spokeU);
-	}
-
-	// 5. 2D AABB collision relaxation pass in camera plane so virtual perimeter chips never overlap
-	const right = camBasis ? camBasis.right : { x: 1, y: 0, z: 0 };
-	const up = camBasis ? camBasis.up : { x: 0, y: 1, z: 0 };
-
-	const offscreenItems = items.filter((item) => item.isOffscreen);
-	if (offscreenItems.length > 1) {
-		const pad = 3.0;
-		const chipH = EGO_CHIP_HEIGHT + 1.2;
-
-		// Project 3D positions onto screen plane (sx, sy) relative to center
-		const screenPos = offscreenItems.map((entry) => {
-			const dx = entry.x - x0;
-			const dy = entry.y - y0;
-			const dz = entry.z - z0;
-			const sx = dx * right.x + dy * right.y + dz * right.z;
-			const sy = dx * up.x + dy * up.y + dz * up.z;
-			const w = entry.width + 6.0;
-			return { entry, sx, sy, origSx: sx, origSy: sy, w, h: chipH };
-		});
-
-		const relaxIterations = 24;
-		for (let iter = 0; iter < relaxIterations; iter++) {
-			for (let i = 0; i < screenPos.length; i++) {
-				const itemA = screenPos[i];
-				if (!itemA) continue;
-				for (let j = i + 1; j < screenPos.length; j++) {
-					const itemB = screenPos[j];
-					if (!itemB) continue;
-
-					const dx = itemB.sx - itemA.sx;
-					const dy = itemB.sy - itemA.sy;
-					const minX = (itemA.w + itemB.w) / 2 + pad;
-					const minY = (itemA.h + itemB.h) / 2 + pad;
-					const ovX = minX - Math.abs(dx);
-					const ovY = minY - Math.abs(dy);
-
-					if (ovX > 0 && ovY > 0) {
-						// Relax tangentially along the perimeter edge:
-						// If near top/bottom perimeter (|sy| > |sx|), distribute horizontally (in X)
-						// If near left/right perimeter (|sx| >= |sy|), distribute vertically (in Y)
-						const nearTopOrBottom = Math.abs(itemA.sy) > Math.abs(itemA.sx);
-						if (nearTopOrBottom && ovX > 0) {
-							const shiftX = (ovX / 2) * (dx < 0 ? -1 : 1);
-							itemA.sx -= shiftX;
-							itemB.sx += shiftX;
-						} else {
-							const shiftY = (ovY / 2) * (dy < 0 ? -1 : 1);
-							itemA.sy -= shiftY;
-							itemB.sy += shiftY;
-						}
-					}
-				}
-			}
-		}
-
-		// Apply relaxed camera plane displacements back to 3D positions
-		for (const sp of screenPos) {
-			const dsx = sp.sx - sp.origSx;
-			const dsy = sp.sy - sp.origSy;
-			sp.entry.x += dsx * right.x + dsy * up.x;
-			sp.entry.y += dsx * right.y + dsy * up.y;
-			sp.entry.z += dsx * right.z + dsy * up.z;
-
-			// Append relaxed chip endpoint to spokePoints so spoke ends cleanly at chip
-			if (sp.entry.spokePoints.length > 0) {
-				const lastIdx = sp.entry.spokePoints.length - 1;
-				sp.entry.spokePoints[lastIdx] = { x: sp.entry.x, y: sp.entry.y, z: sp.entry.z };
-			}
-		}
-	}
-
-	return items;
-}
-
-/**
- * Computes ego overlay positions:
- * - Center is unchanged: (x0, y0, z0).
- * - Visible on-screen neighbours remain unshifted at their real coordinates.
- * - Off-screen neighbours are placed along the curved edge at the visible perimeter.
- * - Predicate positions and spoke points lie strictly on the curved edge.
- */
-export function computeEgoPositions(ego: TEgoGraph, scale: number, options?: TEgoPositionOptions): TEgoPositions {
-	const { center } = ego;
-	const s = Math.max(0.2, Math.min(scale, 1));
-	const x0 = center.x;
-	const y0 = center.y;
-	const z0 = center.z;
-
-	const constellation = layoutConstellation(ego, options?.viewBounds, options?.camBasis, options?.project, options?.curvature, options?.focalPlane);
-
-	const neighbours: TEgoPositionedNeighbour[] = constellation.map((entry) => {
-		// Only scale off-screen positions; on-screen nodes stay fixed at their real coordinates
-		const targetX = entry.isOffscreen ? x0 + s * (entry.x - x0) : entry.x;
-		const targetY = entry.isOffscreen ? y0 + s * (entry.y - y0) : entry.y;
-		const targetZ = entry.isOffscreen && options?.focalPlane ? z0 + s * (entry.z - z0) : entry.z;
-
-		const spokePoints = entry.spokePoints.map((pt, idx) => {
-			if (!entry.isOffscreen || s === 1.0) return pt;
-			if (idx === 0) return pt;
-			return { x: x0 + s * (pt.x - x0), y: y0 + s * (pt.y - y0), z: options?.focalPlane ? z0 + s * (pt.z - z0) : pt.z };
-		});
-
-		const predicatePos =
-			entry.isOffscreen && s !== 1.0
-				? { x: x0 + s * (entry.predicatePos.x - x0), y: y0 + s * (entry.predicatePos.y - y0), z: options?.focalPlane ? z0 + s * (entry.predicatePos.z - z0) : entry.predicatePos.z }
-				: entry.predicatePos;
-
-		return {
-			node: entry.item.node,
-			link: entry.item.link,
-			direction: entry.item.direction,
-			pos: { x: targetX, y: targetY, z: targetZ },
-			predicatePos,
-			isOffscreen: entry.isOffscreen,
-			spokePoints,
-		};
-	});
-
-	return { center: { x: x0, y: y0, z: z0 }, neighbours, scale: s };
-}
-
+/** A point in normalized device coordinates, and whether it is in front of the camera. */
 export type TNdcPoint = { x: number; y: number; inFront: boolean };
 
-/**
- * Determines optimal lateral scale factor s in (0.85, 1] to keep chips firmly at the outer perimeter
- * without clumping inward towards the ego node.
- */
-export function computeViewportFitScale(ego: TEgoGraph, project: (point: XYZ) => TNdcPoint, margin: number, options?: TEgoPositionOptions): number {
-	if (ego.neighbours.length === 0) return 1.0;
+/** The camera as the layout reads it: its right and up directions, its projection, and the margin's half extents in world
+ *  units at the hovered node. */
+export type TEgoView = { basis: { right: XYZ; up: XYZ }; project: (point: XYZ) => TNdcPoint; bounds: { rx: number; ry: number } };
 
-	const testScale = (s: number): boolean => {
-		const positions = computeEgoPositions(ego, s, options);
-		for (const n of positions.neighbours) {
-			if (!n.isOffscreen) continue;
-			const ndc = project(n.pos);
-			if (!ndc.inFront) return false;
-			if (Math.abs(ndc.x) > margin || Math.abs(ndc.y) > margin) {
-				return false;
-			}
-		}
-		return true;
-	};
+/** How many neighbours the overlay reads; a count chip states the rest. */
+export const MAX_EGO_NEIGHBOURS = 16;
+/** The curvature of the scene's links, which a spoke follows. */
+export const GRAPH_LINK_CURVATURE = 0.25;
+export const EGO_CHIP_HEIGHT = 4.2;
+/** The share of the viewport's half extent within which a chip is placed, so its text stays on screen. */
+export const EGO_VIEWPORT_MARGIN = 0.88;
+/** The width a chip's avatar and padding add to its text. */
+export const EGO_CHIP_PADDING = 6;
+const CHIP_TEXT = { base: 2, perChar: 0.85, maxChars: 64 } as const;
+const SPOKE_SEGMENTS = 12;
+const CROSSING_ITERATIONS = 12;
+const EGO_MIN_CROSSING = 0.2;
+const RELAX_ITERATIONS = 24;
+/** The space kept between two chips, and the height of a chip's row. */
+const CHIP_GAP = 3;
+const CHIP_ROW = EGO_CHIP_HEIGHT + 1.2;
+/** A projected length below which a direction doesn't state an angle. */
+const NO_DIRECTION = 0.001;
 
-	if (testScale(1.0)) return 1.0;
+const add = (p: XYZ, d: XYZ, k: number): XYZ => ({ x: p.x + d.x * k, y: p.y + d.y * k, z: p.z + d.z * k });
+const dot = (a: XYZ, b: XYZ): number => a.x * b.x + a.y * b.y + a.z * b.z;
+const minus = (a: XYZ, b: XYZ): XYZ => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z });
+const within = ({ x, y, inFront }: TNdcPoint, margin: number): boolean => inFront && Math.abs(x) <= margin && Math.abs(y) <= margin;
 
-	// Binary search for maximum scale in [0.2, 1.0] to bring chips within viewport margin
-	let low = 0.2;
-	let high = 1.0;
-	let best = low;
+/** Returns the point at share `u` of the curved link from `center` (u = 0) to `neighbour` (u = 1), on the quadratic Bézier
+ *  curve three-forcegraph draws for a link of `GRAPH_LINK_CURVATURE` from its source to its target. */
+export function pointAlongLink(center: XYZ, neighbour: XYZ, direction: "out" | "in", u: number): XYZ {
+	const [source, target, t] = direction === "out" ? [center, neighbour, u] : [neighbour, center, 1 - u];
+	const d = minus(target, source);
+	const offset = d.x !== 0 || d.y !== 0 ? { x: d.y, y: -d.x, z: 0 } : { x: -d.z, y: 0, z: 0 };
+	const control = add(add(source, d, 0.5), offset, GRAPH_LINK_CURVATURE);
+	const [a, b, c] = [(1 - t) ** 2, 2 * (1 - t) * t, t ** 2];
+	return { x: a * source.x + b * control.x + c * target.x, y: a * source.y + b * control.y + c * target.y, z: a * source.z + b * control.z + c * target.z };
+}
 
-	for (let iter = 0; iter < 8; iter++) {
-		const mid = (low + high) / 2;
-		if (testScale(mid)) {
-			best = mid;
-			low = mid;
-		} else {
-			high = mid;
-		}
+const spokeOf = (n: TEgoNeighbour, center: XYZ, toU: number): XYZ[] =>
+	Array.from({ length: SPOKE_SEGMENTS + 1 }, (_, i) => pointAlongLink(center, n.node, n.direction, (i / SPOKE_SEGMENTS) * toU));
+
+/** Returns the width of a chip that reads `name`. */
+export const approximateChipWidth = (name: string): number => 2 * (CHIP_TEXT.base + Math.min(name.length, CHIP_TEXT.maxChars) * CHIP_TEXT.perChar);
+
+/** Returns the hovered node `centerId` with its neighbours by each link, the first `MAX_EGO_NEIGHBOURS` of them, and how many
+ *  there are. Undefined where the node isn't placed. */
+export function extractEgoGraph(centerId: string, nodeMap: Map<string, FGNode>, links: Iterable<FGLink>): TEgoGraph | undefined {
+	const center = nodeMap.get(centerId);
+	if (!center || !isPlaced(center)) return undefined;
+	const neighbours = new Map<string, TEgoNeighbour>();
+	for (const link of links) {
+		const [from, to] = [linkEndId(link.source), linkEndId(link.target)];
+		const [otherId, direction] = from === centerId ? [to, "out" as const] : [from, "in" as const];
+		if ((from === centerId) === (to === centerId) || neighbours.has(otherId)) continue;
+		const node = nodeMap.get(otherId);
+		if (node && isPlaced(node)) neighbours.set(otherId, { node, link, direction });
 	}
+	return { center, neighbours: [...neighbours.values()].slice(0, MAX_EGO_NEIGHBOURS), totalNeighbours: neighbours.size };
+}
 
-	return best;
+/** Returns the share of a neighbour's link at which its curve leaves the viewport's margin, by bisection. */
+function crossingOf(n: TEgoNeighbour, center: XYZ, view: TEgoView): number {
+	let [inside, outside] = [0, 1];
+	for (let i = 0; i < CROSSING_ITERATIONS; i++) {
+		const mid = (inside + outside) / 2;
+		if (within(view.project(pointAlongLink(center, n.node, n.direction, mid)), EGO_VIEWPORT_MARGIN)) inside = mid;
+		else outside = mid;
+	}
+	return inside;
+}
+
+/** Returns where the straight direction (sx, sy) from `center` reaches the margin. A direction too short to state an angle
+ *  takes `spread`, the neighbour's share of a turn, so the chip lands on the margin. */
+function marginPoint(center: XYZ, sx: number, sy: number, spread: number, { basis, bounds }: TEgoView): XYZ {
+	const [dx, dy] = Math.hypot(sx, sy) > NO_DIRECTION ? [sx, sy] : [Math.cos(2 * Math.PI * spread), Math.sin(2 * Math.PI * spread)];
+	const t = Math.min(Math.abs(dx) > NO_DIRECTION ? bounds.rx / Math.abs(dx) : Infinity, Math.abs(dy) > NO_DIRECTION ? bounds.ry / Math.abs(dy) : Infinity);
+	return add(add(center, basis.right, dx * t), basis.up, dy * t);
+}
+
+/** Moves overlapping chips apart along the margin: across the screen near its top or bottom, and up the screen near its
+ *  sides, in the camera's plane. A spoke ends at its chip. */
+function relax(placed: TEgoPlaced[], center: XYZ, { basis }: TEgoView): void {
+	const chips = placed.map((p) => ({
+		p,
+		sx: dot(minus(p.pos, center), basis.right),
+		sy: dot(minus(p.pos, center), basis.up),
+		w: approximateChipWidth(p.node.name) + EGO_CHIP_PADDING,
+	}));
+	const moved = chips.map(({ sx, sy }) => ({ sx, sy }));
+	for (let iter = 0; iter < RELAX_ITERATIONS; iter++)
+		for (let i = 0; i < chips.length; i++)
+			for (let j = i + 1; j < chips.length; j++) {
+				const [a, b] = [chips[i], chips[j]];
+				if (a === undefined || b === undefined) throw new Error(`relax reads chips ${i} and ${j} of ${chips.length}`);
+				const [dx, dy] = [b.sx - a.sx, b.sy - a.sy];
+				const overlapX = (a.w + b.w) / 2 + CHIP_GAP - Math.abs(dx);
+				const overlapY = CHIP_ROW + CHIP_GAP - Math.abs(dy);
+				if (overlapX <= 0 || overlapY <= 0) continue;
+				const acrossScreen = Math.abs(a.sy) > Math.abs(a.sx);
+				const shift = (acrossScreen ? overlapX : overlapY) / 2;
+				const sign = (acrossScreen ? dx : dy) < 0 ? -1 : 1;
+				if (acrossScreen) [a.sx, b.sx] = [a.sx - shift * sign, b.sx + shift * sign];
+				else [a.sy, b.sy] = [a.sy - shift * sign, b.sy + shift * sign];
+			}
+	chips.forEach(({ p, sx, sy }, i) => {
+		const from = moved[i];
+		if (from === undefined) throw new Error(`relax moves chip ${i} without its start`);
+		p.pos = add(add(p.pos, basis.right, sx - from.sx), basis.up, sy - from.sy);
+		p.spokePoints[p.spokePoints.length - 1] = p.pos;
+	});
+}
+
+/** Returns where the overlay shows each neighbour of `ego` that is outside the viewport `view` reads. */
+export function placeOffscreen(ego: TEgoGraph, view: TEgoView): TEgoPlaced[] {
+	const { center, neighbours } = ego;
+	const placed = neighbours.flatMap((n, i): TEgoPlaced[] => {
+		if (within(view.project(n.node), 1)) return [];
+		const crossing = crossingOf(n, center, view);
+		const u = crossing >= EGO_MIN_CROSSING ? crossing : 1;
+		const d = minus(n.node, center);
+		const pos = u === crossing ? pointAlongLink(center, n.node, n.direction, u) : marginPoint(center, dot(d, view.basis.right), dot(d, view.basis.up), i / neighbours.length, view);
+		const spokePoints = spokeOf(n, center, u);
+		spokePoints[spokePoints.length - 1] = pos;
+		return [{ ...n, pos, predicatePos: pointAlongLink(center, n.node, n.direction, u / 2), spokePoints }];
+	});
+	relax(placed, center, view);
+	return placed;
 }

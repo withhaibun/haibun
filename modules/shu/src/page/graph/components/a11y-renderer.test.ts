@@ -23,7 +23,7 @@ function harness(over: Partial<TA11yRendererDeps> = {}) {
 	document.body.replaceChildren(region);
 	const onActivate = vi.fn();
 	const onFocus = vi.fn();
-	const marks: TReadingMarks = { active: null, tierOf: () => "resting", pinned: () => false };
+	const marks: TReadingMarks = { active: null, tierOf: () => "resting", pinned: () => false, ego: undefined };
 	const deps: TA11yRendererDeps = { region: () => region, bars: () => null, labelOf: (n) => n.name, marks: () => marks, groups: () => [], onActivate, onFocus, ...over };
 	return { renderer: new A11yRenderer(deps), region, onActivate, onFocus };
 }
@@ -182,7 +182,7 @@ describe("A11yRenderer: the graph as an accessible document", () => {
 
 	it("states the active node as the current entry, moves it to the next node made active, and doesn't state an entry current while the active node isn't drawn", () => {
 		let active: string | null = "c1";
-		const { renderer, region } = harness({ marks: () => ({ active, tierOf: () => "resting", pinned: () => false }) });
+		const { renderer, region } = harness({ marks: () => ({ active, tierOf: () => "resting", pinned: () => false, ego: undefined }) });
 		renderer.draw({ nodes, links });
 		const current = () => [...region.querySelectorAll('ol > li > [aria-current="true"]')].map((b) => b.getAttribute("data-node-id"));
 		expect(current()).toEqual(["c1"]);
@@ -197,7 +197,9 @@ describe("A11yRenderer: the graph as an accessible document", () => {
 	it("states a node a focus or a preview dims, and a node the reader dropped, and stops stating either once it doesn't hold", () => {
 		let dimmed = new Set(["c2"]);
 		let pinned = new Set(["p1"]);
-		const { renderer, region } = harness({ marks: () => ({ active: null, tierOf: (n) => (dimmed.has(n.id) ? "dimmed" : "full"), pinned: (id) => pinned.has(id) }) });
+		const { renderer, region } = harness({
+			marks: () => ({ active: null, tierOf: (n) => (dimmed.has(n.id) ? "dimmed" : "full"), pinned: (id) => pinned.has(id), ego: undefined }),
+		});
 		renderer.draw({ nodes, links });
 		const entry = (id: string) => region.querySelector(`ol > li > [data-node-id="${id}"]`)?.textContent;
 		expect(entry("c2")).toBe(`a reply (Comment, ${READ_STATE.dimmed})`);
@@ -206,6 +208,17 @@ describe("A11yRenderer: the graph as an accessible document", () => {
 		[dimmed, pinned] = [new Set(), new Set()];
 		renderer.mark();
 		expect([entry("c2"), entry("p1")]).toEqual(["a reply (Comment)", "the agent (Principal)"]);
+	});
+
+	it("states the node the ego overlay shows, and the neighbours it shows at the viewport's edge", () => {
+		const { renderer, region } = harness({ marks: () => ({ active: null, tierOf: () => "full", pinned: () => false, ego: { center: "c1", neighbours: new Set(["p1"]) } }) });
+		renderer.draw({ nodes, links });
+		const entry = (id: string) => region.querySelector(`ol > li > [data-node-id="${id}"]`)?.textContent;
+		expect([entry("c1"), entry("p1"), entry("c2")]).toEqual([
+			`a comment (Comment, ${READ_STATE.egoCenter})`,
+			`the agent (Principal, ${READ_STATE.egoNeighbour})`,
+			"a reply (Comment)",
+		]);
 	});
 
 	it("names each node by what its chip reads, which is the value that places its depth where chips read that", () => {

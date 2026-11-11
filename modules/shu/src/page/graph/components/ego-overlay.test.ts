@@ -28,8 +28,15 @@ vi.mock("troika-three-text", () => ({
 	},
 }));
 
-import { EgoOverlay } from "./ego-overlay.js";
+import { EgoOverlay, type EgoThree } from "./ego-overlay.js";
+import { EGO_FADE_MS } from "../derivations/ego-fade.js";
+import { MAX_EGO_NEIGHBOURS } from "../derivations/ego-layout.js";
+import type { TSceneCamera } from "../ports.js";
 import type { FGLink, FGNode, Obj3D, XYZ } from "../domains/graph-types.js";
+
+/** The scene's projection in these tests: 50 world units from (10, 20) reach the viewport's edge. */
+const ndcOf = (p: XYZ) => ({ x: (p.x - 10) / 50, y: (p.y - 20) / 50, z: 0.5 });
+const disposed = { geometries: 0 };
 
 function makePart(): Obj3D & { add: () => void; remove: () => void; computeLineDistances: () => void } {
 	return {
@@ -63,8 +70,7 @@ function makeVector3(x = 0, y = 0, z = 0) {
 			this.z = nz;
 		},
 		project() {
-			const ndcX = this.x > 10 ? 0.8 : this.x < 10 ? -0.8 : 0.0;
-			return { x: ndcX, y: 0.0, z: 0.5 };
+			return ndcOf(this);
 		},
 	};
 }
@@ -84,11 +90,8 @@ const mockThree = {
 		setAttribute() {
 			/* noop */
 		}
-		setFromPoints() {
-			return this;
-		}
 		dispose() {
-			/* noop */
+			disposed.geometries++;
 		}
 	},
 	Float32BufferAttribute: class {},
@@ -111,191 +114,103 @@ const mockThree = {
 	Vector3: makeVector3,
 };
 
+const RECT = { left: 0, top: 0, width: 1000, height: 800 };
+const CAMERA = { matrixWorld: { elements: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] } } as unknown as TSceneCamera;
+const center: FGNode & XYZ = { id: "c1", name: "Center Node", type: "Email", x: 10, y: 20, z: 100 };
+const node = (id: string, x: number): FGNode & XYZ => ({ id, name: `Node ${id}`, type: "Person", x, y: 20, z: 250 });
+
+/** Returns an overlay over `neighbours` of the centre node, with a clock the test advances. */
+function overlayOf(neighbours: Array<FGNode & XYZ>) {
+	const clock = { at: 1000, now: () => clock.at };
+	const overlay = new EgoOverlay({
+		three: () => mockThree as unknown as EgoThree,
+		parent: () => makePart(),
+		camera: () => CAMERA,
+		worldPerPxAt: () => 0.1,
+		colors: () => ({ text: "#000", accent: "#00f", highlight: "#fc0", border: "#fff" }),
+		markFor: (n) => ({ color: "#eee", type: n.type, kind: "chip", id: n.id, label: n.name, role: { kind: "free" } }),
+		chipLabelOf: (n) => n.name,
+		markDirty: vi.fn(),
+		shownChanged: vi.fn(),
+		clock,
+	});
+	const nodeMap = new Map<string, FGNode>([center, ...neighbours].map((n) => [n.id, n]));
+	const links: FGLink[] = neighbours.map((n) => ({ source: center.id, target: n.id, predicate: "knows" }));
+	const show = () => overlay.show(center, nodeMap, links, RECT);
+	const advance = (ms: number) => {
+		clock.at += ms;
+		overlay.tick();
+	};
+	return { overlay, show, advance };
+}
+
+/** The client point just inside the chip that `overlay` shows first. */
+function onFirstChip(overlay: EgoOverlay) {
+	const chip = overlay.labels()[0];
+	if (chip === undefined) throw new Error("the overlay doesn't show a chip");
+	const ndc = ndcOf(chip.object.position);
+	return { x: ((ndc.x + 1) / 2) * RECT.width + 5, y: ((1 - ndc.y) / 2) * RECT.height + 5 };
+}
+
 describe("EgoOverlay", () => {
-	const center: FGNode & XYZ = { id: "c1", name: "Center Node", type: "Email", x: 10, y: 20, z: 100 };
-	const neighbour: FGNode & XYZ = { id: "n1", name: "Neighbour Node", type: "Person", x: 50, y: 80, z: 250 };
-
-	const nodeMap = new Map<string, FGNode>([
-		["c1", center],
-		["n1", neighbour],
-	]);
-	const links: FGLink[] = [{ source: "c1", target: "n1", predicate: "from" }];
-
-	it("anchors central ego chip at identical (x0, y0, z0) and preserves neighbour z (time)", () => {
-		const parentGroup = makePart();
-		const parentAdd = vi.fn();
-		parentGroup.add = parentAdd;
-
-		let mockTime = 1000;
-		const overlay = new EgoOverlay({
-			three: () => mockThree,
-			parent: () => parentGroup,
-			camera: () => ({}),
-			colors: () => ({ text: "#000", accent: "#00f", highlight: "#fc0", border: "#fff" }),
-			markFor: (n) => ({ color: "#eee", type: n.type, kind: "chip", id: n.id, label: n.name, role: { kind: "free" } }),
-			chipLabelOf: (n) => n.name,
-			markDirty: vi.fn(),
-			clock: {
-				now: () => mockTime,
-				frame: (cb) => {
-					mockTime += 200;
-					cb();
-					return () => undefined;
-				},
-			},
-		});
-
-		overlay.show(center, nodeMap, links);
-		expect(parentAdd).toHaveBeenCalled();
-		expect(overlay.activeCenterId).toBe("c1");
-		expect(overlay.isVisible).toBe(true);
-
-		// Animate forward to completion
-		mockTime += 200;
-
-		const rect = { left: 0, top: 0, width: 1000, height: 800 };
-		const centerHit = overlay.testPointer({ x: 500, y: 400 }, rect);
-		expect(centerHit.kind).toBe("center");
-
-		const spokeHit = overlay.testPointer({ x: 700, y: 405 }, rect);
-		expect(spokeHit.kind).toBe("spoke");
-		if (spokeHit.kind === "spoke") {
-			expect(spokeHit.neighbourId).toBe("n1");
-		}
-
-		const chipHit = overlay.testPointer({ x: 910, y: 400 }, rect);
-		expect(chipHit.kind).toBe("chip");
-		if (chipHit.kind === "chip") {
-			expect(chipHit.neighbourId).toBe("n1");
-		}
-
-		// Virtual chip right half and bottom span should also register hit
-		const chipRightHit = overlay.testPointer({ x: 950, y: 410 }, rect);
-		expect(chipRightHit.kind).toBe("chip");
-
-		const picked = overlay.pickNeighbour({ x: 950, y: 410 }, rect);
-		expect(picked?.id).toBe("n1");
-
-		overlay.hide();
-		mockTime += 200;
+	it("doesn't show for a node without neighbours", () => {
+		const { overlay, show } = overlayOf([]);
+		show();
 		expect(overlay.isVisible).toBe(false);
 	});
 
-	it("retains visibility when hovering a virtual neighbour during hide", () => {
-		const parentGroup = makePart();
-		let mockTime = 1000;
-		let pendingFrame: (() => void) | undefined;
-		const overlay = new EgoOverlay({
-			three: () => mockThree,
-			parent: () => parentGroup,
-			camera: () => ({}),
-			colors: () => ({ text: "#000", accent: "#00f", highlight: "#fc0", border: "#fff" }),
-			markFor: (n) => ({ color: "#eee", type: n.type, kind: "chip", id: n.id, label: n.name, role: { kind: "free" } }),
-			chipLabelOf: (n) => n.name,
-			markDirty: vi.fn(),
-			clock: {
-				now: () => mockTime,
-				frame: (cb) => {
-					pendingFrame = cb;
-					return () => undefined;
-				},
-			},
-		});
+	it("doesn't show where every neighbour is on screen, since the scene draws them", () => {
+		const { overlay, show } = overlayOf([node("in1", 30)]);
+		show();
+		expect(overlay.isVisible).toBe(false);
+	});
 
-		overlay.show(center, nodeMap, links);
-		expect(overlay.isVisible).toBe(true);
+	it("shows one off-screen neighbour as a chip and a predicate, fades in, and then rests", () => {
+		const { overlay, show, advance } = overlayOf([node("n1", 400), node("in1", 30)]);
+		show();
+		expect(overlay.shown).toEqual({ center: "c1", neighbours: new Set(["n1"]) });
+		expect(overlay.labels()).toHaveLength(2);
+		expect(overlay.fading).toBe(true);
+		advance(EGO_FADE_MS.in);
+		expect(overlay.fading).toBe(false);
+	});
 
-		mockTime += 400;
-		pendingFrame?.();
+	it("states the neighbours past the ones it shows as one count chip", () => {
+		const many = Array.from({ length: MAX_EGO_NEIGHBOURS + 3 }, (_, i) => node(`n${i}`, 400 + i));
+		const { overlay, show } = overlayOf(many);
+		show();
+		expect(overlay.labels()).toHaveLength(MAX_EGO_NEIGHBOURS * 2 + 1);
+	});
 
+	it("reverses a fade-out where the pointer returns to a chip, and stays shown", () => {
+		const { overlay, show, advance } = overlayOf([node("n1", 400)]);
+		show();
+		advance(EGO_FADE_MS.in);
+		const chip = onFirstChip(overlay);
 		overlay.hide();
+		advance(EGO_FADE_MS.out / 2);
+		expect(overlay.testPointer(chip, RECT).kind).toBe("chip");
+		advance(EGO_FADE_MS.in);
 		expect(overlay.isVisible).toBe(true);
-
-		// Hovering virtual neighbour chip cancels hide and keeps visible
-		const rect = { left: 0, top: 0, width: 1000, height: 800 };
-		const hit = overlay.testPointer({ x: 950, y: 410 }, rect);
-		expect(hit.kind).toBe("chip");
-
-		mockTime += 500;
-		pendingFrame?.();
-		expect(overlay.isVisible).toBe(true);
+		expect(overlay.fading).toBe(false);
 	});
 
-	it("does not create duplicate virtual chips for neighbours already in the visible viewport", () => {
-		const parentGroup = makePart();
-		const parentAdd = vi.fn();
-		parentGroup.add = parentAdd;
-
-		const inViewportNeighbour: FGNode & XYZ = { id: "in1", name: "In Viewport", type: "Person", x: 15, y: 25, z: 100 };
-		const localNodeMap = new Map<string, FGNode>([
-			["c1", center],
-			["in1", inViewportNeighbour],
-		]);
-		const localLinks: FGLink[] = [{ source: "c1", target: "in1", predicate: "knows" }];
-
-		let localTime = 1000;
-		const overlay = new EgoOverlay({
-			three: () => mockThree,
-			parent: () => parentGroup,
-			camera: () => ({ position: { x: 10, y: 20, z: 300 }, matrixWorld: { elements: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] } }),
-			colors: () => ({ text: "#000", accent: "#00f", highlight: "#fc0", border: "#fff" }),
-			markFor: (n) => ({ color: "#eee", type: n.type, kind: "chip", id: n.id, label: n.name, role: { kind: "free" } }),
-			chipLabelOf: (n) => n.name,
-			markDirty: vi.fn(),
-			clock: {
-				now: () => localTime,
-				frame: (cb) => {
-					localTime += 200;
-					cb();
-					return () => undefined;
-				},
-			},
-		});
-
-		overlay.show(center, localNodeMap, localLinks);
-		expect(overlay.isVisible).toBe(true);
-
-		// Labels returned by overlay should NOT contain virtual chips for in-viewport nodes
-		expect(overlay.labels()).toHaveLength(0);
-
-		// But corridor tracking still recognizes the in-viewport target position
-		const rect = { left: 0, top: 0, width: 1000, height: 800 };
-		const hit = overlay.testPointer({ x: 900, y: 400 }, rect);
-		expect(hit.kind).toBe("chip");
-		if (hit.kind === "chip") {
-			expect(hit.neighbourId).toBe("in1");
-		}
+	it("reads a pointer on a chip as that chip, and picks its neighbour", () => {
+		const { overlay, show, advance } = overlayOf([node("n1", 400)]);
+		show();
+		advance(EGO_FADE_MS.in);
+		expect(overlay.testPointer(onFirstChip(overlay), RECT)).toEqual({ kind: "chip", neighbourId: "n1" });
+		expect(overlay.pickNeighbour(onFirstChip(overlay), RECT)?.id).toBe("n1");
 	});
 
-	it("animates virtual chips from their current graph position rather than the ego node", () => {
-		const parentGroup = makePart();
-		const offscreenNeighbour: FGNode & XYZ = { id: "off1", name: "Offscreen", type: "Person", x: 600, y: 400, z: 100 };
-		const localNodeMap = new Map<string, FGNode>([
-			["c1", center],
-			["off1", offscreenNeighbour],
-		]);
-		const localLinks: FGLink[] = [{ source: "c1", target: "off1", predicate: "knows" }];
-
-		let mockTime = 1000;
-		const overlay = new EgoOverlay({
-			three: () => mockThree,
-			parent: () => parentGroup,
-			camera: () => ({ position: { x: 10, y: 20, z: 300 }, matrixWorld: { elements: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] } }),
-			colors: () => ({ text: "#000", accent: "#00f", highlight: "#fc0", border: "#fff" }),
-			markFor: (n) => ({ color: "#eee", type: n.type, kind: "chip", id: n.id, label: n.name, role: { kind: "free" } }),
-			chipLabelOf: (n) => n.name,
-			markDirty: vi.fn(),
-			clock: {
-				now: () => mockTime,
-				frame: (cb) => {
-					mockTime += 200;
-					cb();
-					return () => undefined;
-				},
-			},
-		});
-
-		overlay.show(center, localNodeMap, localLinks);
-		expect(overlay.isVisible).toBe(true);
+	it("releases its geometry once a fade-out ends", () => {
+		const { overlay, show, advance } = overlayOf([node("n1", 400)]);
+		show();
+		advance(EGO_FADE_MS.in);
+		const before = disposed.geometries;
+		overlay.hide();
+		advance(EGO_FADE_MS.out);
+		expect(overlay.isVisible).toBe(false);
+		expect(disposed.geometries - before, "the chip's frame and the spokes").toBe(2);
 	});
 });

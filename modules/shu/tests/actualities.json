@@ -419,7 +419,7 @@
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
 					"modules/logic/src": "7fa7e09a87d618340a3396078a9ad43b31d6d9f96ee5b0c9e12b20dc7f115cfc",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/shu/src": "381402287a1207c6f16e29ec3e9375ac9e4f54effc2e8e1481608b054f6b3690",
+					"modules/shu/src": "2dc634c4e1cfa8423de20cd524d91da2cb0fe49f8a2ec0ba24227ab921c04395",
 					"modules/shu/tests": "d4c750232110a64c1b8df201ceb409eba7f312ee88bbc149bf76726f21fc62cd",
 					"modules/shu/waypoints": "bfae321ffd2708f482a922a3ef2c66f6d26f650df292d3bad220aa21885568de",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
@@ -444,14 +444,14 @@
 				"/features/monitor-serves.feature.ts": {
 					"text": "The monitor serves shu on a port of its own",
 					"status": "passed",
-					"tookMs": 1500,
+					"tookMs": 1400,
 					"steps": 204
 				},
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
-					"tookMs": 27400,
-					"steps": 704
+					"tookMs": 26900,
+					"steps": 711
 				},
 				"/features/remote-store.feature.ts": {
 					"text": "A satellite instance keeps its records in the main instance's store",
@@ -462,7 +462,7 @@
 				"/features/voice-ui.feature.ts": {
 					"text": "UI extension propagation: domain ui → concern catalog → SPA actions bar",
 					"status": "passed",
-					"tookMs": 2000,
+					"tookMs": 2200,
 					"steps": 217
 				}
 			}

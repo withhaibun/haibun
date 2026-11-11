@@ -1,11 +1,7 @@
 /**
- * Derivation for ego-overlay hit testing along radial edge spokes and destination chips.
- *
- * Keeps the virtual ego-neighbourhood active as the user moves outward along any spoke
- * towards a destination neighbour chip:
- * - Generous 2D capsule corridors along each spoke so cursor transit is never finnicky.
- * - Hit testing against the central ego node and perimeter chips.
- * - Snaps to the closest spoke when travelling between center and perimeter.
+ * The hit test of the ego overlay, in client pixels: the hovered node's box, each off-screen neighbour's chip, and a corridor
+ * around each spoke, so a pointer that travels from the node to a chip keeps the overlay shown. The node's box comes first,
+ * then a chip, then the nearest spoke within `EGO_CORRIDOR.radius`.
  */
 
 export type TEgoCorridorHit =
@@ -14,105 +10,42 @@ export type TEgoCorridorHit =
 	| { kind: "spoke"; neighbourId: string; spokeDistance: number; t: number }
 	| { kind: "miss" };
 
-export type TEgoNeighbourTarget = { id: string; pos: { x: number; y: number }; width: number; height: number; spokePoints?: { x: number; y: number }[] };
+type TPixel = { x: number; y: number };
 
-export type TEgoCorridorOptions = { corridorRadius?: number; centerPadding?: number; chipPadding?: number };
+/** A box by its centre and its size, in client pixels. */
+export type TPixelBox = TPixel & { width: number; height: number };
 
-export const DEFAULT_CORRIDOR_RADIUS = 50;
-export const DEFAULT_CENTER_PADDING = 24;
-export const DEFAULT_CHIP_PADDING = 12;
+/** An off-screen neighbour as the hit test reads it: its chip's box and its spoke's points, in client pixels. */
+export type TEgoNeighbourTarget = { id: string; box: TPixelBox; spokePoints: TPixel[] };
 
-/**
- * Computes the minimum 2D Euclidean distance from point P to line segment A->B.
- * Returns the distance, the normalized progress t in [0, 1], and the projected point.
- */
-export function pointToSegmentDistance(px: number, py: number, ax: number, ay: number, bx: number, by: number): { distance: number; t: number; projX: number; projY: number } {
-	const dx = bx - ax;
-	const dy = by - ay;
+/** The pixels around the node's box and a chip's box that still hit them, and the radius of a spoke's corridor. */
+export const EGO_CORRIDOR = { centerPadding: 32, chipPadding: 24, radius: 55 } as const;
+
+/** Returns the distance from `p` to the segment from `a` to `b`, and the share of the segment at the nearest point. */
+export function pointToSegmentDistance(p: TPixel, a: TPixel, b: TPixel): { distance: number; t: number } {
+	const [dx, dy] = [b.x - a.x, b.y - a.y];
 	const lenSq = dx * dx + dy * dy;
-	if (lenSq === 0) {
-		const d = Math.hypot(px - ax, py - ay);
-		return { distance: d, t: 0, projX: ax, projY: ay };
-	}
-	const rawT = ((px - ax) * dx + (py - ay) * dy) / lenSq;
-	const t = Math.max(0, Math.min(1, rawT));
-	const projX = ax + t * dx;
-	const projY = ay + t * dy;
-	const distance = Math.hypot(px - projX, py - projY);
-	return { distance, t, projX, projY };
+	const t = lenSq === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq));
+	return { distance: Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy)), t };
 }
 
-/**
- * Tests if point (px, py) lies inside an axis-aligned box with optional padding.
- */
-export function pointInBox(px: number, py: number, left: number, top: number, width: number, height: number, padding: number): boolean {
-	return px >= left - padding && px <= left + width + padding && py >= top - padding && py <= top + height + padding;
-}
+/** Whether `p` lies in `box` widened by `padding` on each side. */
+export const pointInBox = (p: TPixel, box: TPixelBox, padding: number): boolean =>
+	Math.abs(p.x - box.x) <= box.width / 2 + padding && Math.abs(p.y - box.y) <= box.height / 2 + padding;
 
-/**
- * Evaluates pointer coordinates against the active ego constellation.
- *
- * Precedence:
- * 1. Center node area -> "center"
- * 2. Any neighbour chip bounding box -> "chip"
- * 3. Any spoke corridor within corridorRadius -> "spoke" (closest spoke)
- * 4. Otherwise -> "miss"
- */
-export function evaluateEgoCorridorHit(
-	pointer: { x: number; y: number },
-	center: { x: number; y: number; width?: number; height?: number },
-	neighbours: readonly TEgoNeighbourTarget[],
-	options?: TEgoCorridorOptions,
-): TEgoCorridorHit {
-	const centerPad = options && options.centerPadding !== undefined ? options.centerPadding : DEFAULT_CENTER_PADDING;
-	const chipPad = options && options.chipPadding !== undefined ? options.chipPadding : DEFAULT_CHIP_PADDING;
-	const corridorRadius = options && options.corridorRadius !== undefined ? options.corridorRadius : DEFAULT_CORRIDOR_RADIUS;
-
-	// 1. Center check
-	const cW = center.width !== undefined ? center.width : 32;
-	const cH = center.height !== undefined ? center.height : 16;
-	if (pointInBox(pointer.x, pointer.y, center.x - cW / 2, center.y - cH / 2, cW, cH, centerPad)) {
-		return { kind: "center" };
-	}
-
-	// 2. Chip bounding box check: n.pos is the chip's center (client coordinates)
-	for (const n of neighbours) {
-		if (pointInBox(pointer.x, pointer.y, n.pos.x - n.width / 2, n.pos.y - n.height / 2, n.width, n.height, chipPad)) {
-			return { kind: "chip", neighbourId: n.id };
+/** Returns what of the overlay `pointer` hits: the node's box `center`, a neighbour's chip, the nearest spoke within its
+ *  corridor, or a miss. */
+export function evaluateEgoCorridorHit(pointer: TPixel, center: TPixelBox, neighbours: readonly TEgoNeighbourTarget[]): TEgoCorridorHit {
+	if (pointInBox(pointer, center, EGO_CORRIDOR.centerPadding)) return { kind: "center" };
+	const chip = neighbours.find(({ box }) => pointInBox(pointer, box, EGO_CORRIDOR.chipPadding));
+	if (chip) return { kind: "chip", neighbourId: chip.id };
+	let nearest: TEgoCorridorHit & { kind: "spoke" } = { kind: "spoke", neighbourId: "", spokeDistance: EGO_CORRIDOR.radius, t: 0 };
+	for (const { id, spokePoints } of neighbours)
+		for (let i = 1; i < spokePoints.length; i++) {
+			const [a, b] = [spokePoints[i - 1], spokePoints[i]];
+			if (a === undefined || b === undefined) throw new Error(`the spoke of ${id} lacks its point ${i}`);
+			const { distance, t } = pointToSegmentDistance(pointer, a, b);
+			if (distance <= nearest.spokeDistance) nearest = { kind: "spoke", neighbourId: id, spokeDistance: distance, t: (i - 1 + t) / (spokePoints.length - 1) };
 		}
-	}
-
-	// 3. Spoke corridor check (find closest spoke within corridorRadius, supporting curved polyline spokes)
-	let closest: { neighbourId: string; spokeDistance: number; t: number } | undefined;
-
-	for (const n of neighbours) {
-		const pts = n.spokePoints;
-		if (pts && pts.length > 1) {
-			for (let i = 0; i < pts.length - 1; i++) {
-				const pA = pts[i];
-				const pB = pts[i + 1];
-				if (!pA || !pB) continue;
-				const seg = pointToSegmentDistance(pointer.x, pointer.y, pA.x, pA.y, pB.x, pB.y);
-				if (seg.distance <= corridorRadius) {
-					const overallT = (i + seg.t) / (pts.length - 1);
-					if (!closest || seg.distance < closest.spokeDistance) {
-						closest = { neighbourId: n.id, spokeDistance: seg.distance, t: overallT };
-					}
-				}
-			}
-		} else {
-			const seg = pointToSegmentDistance(pointer.x, pointer.y, center.x, center.y, n.pos.x, n.pos.y);
-			if (seg.distance <= corridorRadius) {
-				if (!closest || seg.distance < closest.spokeDistance) {
-					closest = { neighbourId: n.id, spokeDistance: seg.distance, t: seg.t };
-				}
-			}
-		}
-	}
-
-	if (closest) {
-		return { kind: "spoke", neighbourId: closest.neighbourId, spokeDistance: closest.spokeDistance, t: closest.t };
-	}
-
-	return { kind: "miss" };
+	return nearest.neighbourId === "" ? { kind: "miss" } : nearest;
 }

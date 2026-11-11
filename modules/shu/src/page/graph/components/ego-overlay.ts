@@ -1,540 +1,319 @@
 /**
- * EgoOverlay: 3D scene overlay that presents a virtual 1-hop ego-neighborhood around a hovered node.
- *
- * Requirements:
- * - Hovered node does not shift from (x0, y0, z0).
- * - Central ego node is at the exact same position (x0, y0, z0) with full-burn highlight.
- * - Virtual neighbour nodes maintain their z (temporal) coordinates strictly invariant (zi_ego = zi).
- * - Lateral (x, y) coordinates distribute into an orbital constellation using available viewport area.
- * - Chips are relaxed with 2D AABB collision avoidance so text never overlaps.
- * - Edge predicates are staggered and offset perpendicularly to prevent text overlap.
- * - Virtual nodes are clearly distinguished:
- *   - Translucent background (0.82 opacity)
- *   - Distinct dashed accent outline border
- *   - Virtual indicator badge prefix (~TA, ~CI)
- *   - Dashed radial connector lines
- * - Native Three.js objects (Group, Troika text/chips, LineSegments, LineLoop) in world space,
- *   billboarded each frame and fully compatible with WebXR / VR.
+ * EgoOverlay: the 1-hop neighbours of a hovered node that lie outside the viewport, drawn in the scene's world space. The
+ * hovered node doesn't move. Each off-screen neighbour gets a virtual chip at the viewport's margin (`ego-layout.ts`), framed
+ * by a dashed outline, badged `~` before its type's initials, joined to the hovered node by a dashed spoke on its edge's
+ * curve, and labelled with the edge's predicate. Neighbours past `MAX_EGO_NEIGHBOURS` read as one count chip above the node.
+ * The overlay fades in and out by `derivations/ego-fade.ts`, and the scene draws only while a fade runs. A neighbour inside the
+ * viewport is drawn by the scene, so the overlay doesn't show the node where every neighbour is on screen.
  */
 import { evaluateEgoCorridorHit, type TEgoCorridorHit, type TEgoNeighbourTarget } from "../derivations/ego-corridor.js";
 import {
 	approximateChipWidth,
-	computeEgoPositions,
-	DEFAULT_MAX_EGO_NEIGHBOURS,
 	EGO_CHIP_HEIGHT,
+	EGO_CHIP_PADDING,
+	EGO_VIEWPORT_MARGIN,
 	extractEgoGraph,
-	type TEgoGraph,
-	type TEgoPositionedNeighbour,
-	type TEgoPositions,
+	placeOffscreen,
+	type TEgoPlaced,
+	type TEgoView,
 } from "../derivations/ego-layout.js";
 import { FULL_BURN } from "../derivations/highlight.js";
-import { ndcToClient, type TCanvasRect } from "../derivations/project.js";
+import { cameraBasis, ndcToClient, type TCanvasRect } from "../derivations/project.js";
+import type { TSceneCamera } from "../ports.js";
 import { teleportStation } from "../derivations/teleport-transition.js";
 import { typeAvatar } from "../derivations/type-avatar.js";
+import { EGO_HIDDEN, fadeEnded, fadeOpacity, fadeToward, type TEgoFade } from "../derivations/ego-fade.js";
+import type { TWakeCause } from "../../../domains/graph-blips.js";
 import type { NodeMark } from "../domains/graph-scene.js";
 import type { FGLink, FGNode, LabelVisual, NodeVisual, Obj3D, XYZ } from "../domains/graph-types.js";
+import { disposeGroup } from "./enclosure.js";
 import { makeTroikaChip, makeTroikaText, type ChipThree } from "./troika-label.js";
 
 export const EGO_OVERLAY_RENDER_ORDER = 800;
-export const EGO_TELEPORT_IN_MS = 360;
-export const EGO_TELEPORT_OUT_MS = 220;
-const CHIP_TEXT_HEIGHT = 3.0;
+const CHIP_TEXT_HEIGHT = 3;
+const PREDICATE_TEXT_HEIGHT = CHIP_TEXT_HEIGHT * 0.75;
+/** The share of a chip's opacity, and of a spoke's, that the overlay draws at full fade. */
+const CHIP_OPACITY = 0.9;
+const SPOKE_OPACITY = 0.85;
+/** The dashes of spokes and chip frames, in world units. */
+const DASH = { dashSize: 1.8, gapSize: 1 } as const;
+/** The space between a chip and its frame, and the frame's depth in front of the chip, in world units. */
+const FRAME_PAD = 0.35;
+const FRAME_DEPTH = 0.05;
+/** The share of the chip's text height that the chip's text starts in from its point. */
+const CHIP_MARGIN = CHIP_TEXT_HEIGHT * 0.12;
+/** The distance from the hovered node up to the count chip, in chip heights. */
+const COUNT_RISE = 2;
+/** The share of its spoke past which a pointer on a spoke picks the neighbour. */
+const PICK_SPOKE_SHARE = 0.6;
+/** The least size of the hovered node's box and of a chip's box in the hit test, in client pixels. */
+const MIN_CENTER_PX = { width: 100, height: 32 } as const;
+const MIN_CHIP_PX = { width: 80, height: 28 } as const;
+const VIRTUAL_BADGE = "~";
 
-export type EgoThree = {
-	Vector3: new (
-		x?: number,
-		y?: number,
-		z?: number,
-	) => { x: number; y: number; z: number; set(x: number, y: number, z: number): void; project(camera: unknown): { x: number; y: number; z: number } };
-	Group: new () => Obj3D & { add(child: unknown): void; remove(child: unknown): void; children?: unknown[] };
-	BufferGeometry: new () => Disposable & { setAttribute(name: string, attr: unknown): void; setFromPoints(points: unknown[]): unknown };
+export type EgoThree = ChipThree & {
+	Vector3: new () => { set(x: number, y: number, z: number): void; project(camera: unknown): { x: number; y: number; z: number } };
+	BufferGeometry: new () => { setAttribute(name: string, attr: unknown): void; dispose(): void };
 	Float32BufferAttribute: new (array: number[], itemSize: number) => unknown;
 	LineSegments: new (g: unknown, m: unknown) => Obj3D & { computeLineDistances(): void };
-	LineLoop: new (g: unknown, m: unknown) => Obj3D & { computeLineDistances(): void };
-	LineDashedMaterial: new (opts: unknown) => Disposable & { opacity: number };
+	LineDashedMaterial: new (opts: Record<string, unknown>) => { opacity: number; dispose(): void };
 };
 
 export type TEgoOverlayDeps = {
-	three: () => unknown;
-	camera: () => unknown;
+	three: () => EgoThree | undefined;
+	camera: () => TSceneCamera | undefined;
+	/** The world length of one client pixel at a point, null until the camera is ready. */
+	worldPerPxAt: (pos: XYZ) => number | null;
 	parent: () => Obj3D | undefined;
-	clock: { now: () => number; frame: (cb: () => void) => void };
+	clock: { now: () => number };
 	colors: () => { text: string; border: string; highlight: string; accent: string };
 	markFor: (node: FGNode) => NodeMark;
 	chipLabelOf: (node: FGNode, mark: NodeMark) => string;
-	markDirty: (kind: "label" | "focus") => void;
+	markDirty: (cause: TWakeCause) => void;
+	/** Called where the overlay starts or stops showing, so the graph's reading states it. */
+	shownChanged: () => void;
 };
 
-type TVirtualNeighbour = { target: TEgoPositionedNeighbour; visual: NodeVisual; label?: LabelVisual };
+type TVirtual = { placed: TEgoPlaced; label: string; visual: NodeVisual; predicate: LabelVisual };
 
-type TActiveOverlay = {
-	centerId: string;
-	group: Obj3D & { add(child: unknown): void; remove(child: unknown): void; children?: unknown[] };
-	lineMesh?: Obj3D & { geometry?: Disposable; material?: { opacity: number; dispose?: () => void } };
-	visuals: NodeVisual[];
-	labels: LabelVisual[];
-	virtualNeighbours: TVirtualNeighbour[];
-	targetPositions: TEgoPositions;
-	egoGraph: TEgoGraph;
+/** A shown overlay: what it was shown for, its group, its chips, its labels, the geometry it owns, and its spokes. */
+type TActive = {
+	center: FGNode & XYZ;
+	shownFor: Parameters<EgoOverlay["show"]>;
+	group: Obj3D;
+	virtuals: TVirtual[];
+	faced: Array<NodeVisual | LabelVisual>;
+	geometries: Array<{ dispose(): void }>;
+	spokes: { opacity: number } | undefined;
 };
 
-type Disposable = { dispose?: () => void };
-
+/** The overlay's chips and labels, and the hit test of its chips and spokes. */
 export class EgoOverlay {
-	readonly deps: TEgoOverlayDeps;
-	#active: TActiveOverlay | undefined;
-	#opacity = 0;
-	#animating = false;
-	#animStart = 0;
-	#animFrom = 0;
-	#animTo = 0;
-	#lastTick = 0;
-	#dashUniform?: { value: number };
+	#active: TActive | undefined;
+	#fade: TEgoFade = EGO_HIDDEN;
+	/** Whether a fade runs, which the scene draws. */
+	#fading = false;
 
-	constructor(deps: TEgoOverlayDeps) {
-		this.deps = deps;
-	}
+	constructor(private readonly deps: TEgoOverlayDeps) {}
 
-	get activeCenterId(): string | undefined {
-		return this.#active?.centerId;
+	/** The hovered node and the neighbours the overlay shows at the margin, which the graph's reading states. */
+	get shown(): { center: string; neighbours: ReadonlySet<string> } | undefined {
+		const active = this.#active;
+		return active === undefined ? undefined : { center: active.center.id, neighbours: new Set(active.virtuals.map(({ placed }) => placed.node.id)) };
 	}
 
 	get isVisible(): boolean {
 		return this.#active !== undefined;
 	}
 
-	/** Returns active overlay labels and visuals to billboard towards camera and advances animated dash uniform. */
-	labels(): Array<{ faceCamera: (q: { x: number; y: number; z: number; w: number }) => void }> {
-		if (!this.#active) return [];
-		if (this.#dashUniform) {
-			const now = this.deps.clock.now();
-			const dt = this.#lastTick > 0 ? Math.min(0.1, (now - this.#lastTick) / 1000) : 0.016;
-			this.#lastTick = now;
-			this.#dashUniform.value += 12 * dt;
-		}
-		return [...this.#active.labels, ...this.#active.visuals];
+	get fading(): boolean {
+		return this.#fading;
 	}
 
-	/**
-	 * Activate and display ego overlay for `hoveredNode`.
-	 * Idempotent if already active for this node.
-	 */
-	show(hoveredNode: FGNode & XYZ, nodeMap: Map<string, FGNode>, links: Iterable<FGLink>): void {
-		if (this.#active?.centerId === hoveredNode.id) return;
+	/** The chips and labels to turn toward the camera. */
+	labels(): ReadonlyArray<NodeVisual | LabelVisual> {
+		return this.#active === undefined ? [] : this.#active.faced;
+	}
 
-		const parent = this.deps.parent();
-		if (!parent) return;
-
-		const T = this.deps.three() as unknown as EgoThree;
-		if (!T) return;
-
-		// Clear existing overlay if any
+	/** Shows the overlay for `hovered`, whose neighbours `nodeMap` and `links` state, on the canvas `rect`, and starts its fade-in. A
+	 *  node it already shows keeps its overlay. A node without an off-screen neighbour, or a scene without its camera,
+	 *  doesn't show it. */
+	show(hovered: FGNode & XYZ, nodeMap: Map<string, FGNode>, links: readonly FGLink[], rect: TCanvasRect): void {
+		if (this.#active?.center.id === hovered.id) return this.keepVisible();
 		this.hideImmediate();
-
-		const egoGraph = extractEgoGraph(hoveredNode.id, nodeMap, links, DEFAULT_MAX_EGO_NEIGHBOURS);
-		if (!egoGraph || egoGraph.neighbours.length === 0) return;
-
-		// Calculate viewport perimeter bounds from camera distance to hovered node
-		const camera = this.deps.camera() as
-			| { fov?: number; aspect?: number; position?: { x: number; y: number; z: number }; matrixWorld?: { elements: number[] }; updateMatrixWorld?: (force: boolean) => void }
-			| undefined;
-		camera?.updateMatrixWorld?.(true);
-
-		const camElements = camera?.matrixWorld?.elements;
-		const hasWorldTranslation = camElements && camElements.length >= 15 && (camElements[12] !== 0 || camElements[13] !== 0 || camElements[14] !== 0);
-		const camWorldX = hasWorldTranslation ? camElements[12] : camera?.position?.x;
-		const camWorldY = hasWorldTranslation ? camElements[13] : camera?.position?.y;
-		const camWorldZ = hasWorldTranslation ? camElements[14] : camera?.position?.z;
-
-		let viewBounds: { rx: number; ry: number } | undefined;
-		let camBasis: { right: XYZ; up: XYZ } | undefined;
-		if (camera && camWorldX !== undefined && camWorldY !== undefined && camWorldZ !== undefined) {
-			const dist = Math.hypot(camWorldX - hoveredNode.x, camWorldY - hoveredNode.y, camWorldZ - hoveredNode.z);
-			const fov = camera.fov !== undefined ? camera.fov : 50;
-			const fovRad = (fov * Math.PI) / 180;
-			const visibleHalfH = dist * Math.tan(fovRad / 2);
-			const aspect = camera.aspect !== undefined ? camera.aspect : 1.6;
-			const visibleHalfW = visibleHalfH * aspect;
-			// Push out towards the perimeter / edge (88% of half extent to maximize screen space)
-			viewBounds = { rx: Math.max(30, visibleHalfW * 0.88), ry: Math.max(20, visibleHalfH * 0.88) };
-			if (camElements && camElements.length >= 7) {
-				const rX = camElements[0] !== undefined ? camElements[0] : 1;
-				const rY = camElements[1] !== undefined ? camElements[1] : 0;
-				const rZ = camElements[2] !== undefined ? camElements[2] : 0;
-				const uX = camElements[4] !== undefined ? camElements[4] : 0;
-				const uY = camElements[5] !== undefined ? camElements[5] : 1;
-				const uZ = camElements[6] !== undefined ? camElements[6] : 0;
-				camBasis = { right: { x: rX, y: rY, z: rZ }, up: { x: uX, y: uY, z: uZ } };
-			}
-		}
-
-		const v = new T.Vector3();
-		const el8 = camElements ? camElements[8] : undefined;
-		const el9 = camElements ? camElements[9] : undefined;
-		const el10 = camElements ? camElements[10] : undefined;
-		const fwdX = el8 !== undefined ? -el8 : 0;
-		const fwdY = el9 !== undefined ? -el9 : 0;
-		const fwdZ = el10 !== undefined ? -el10 : -1;
-		const rawLen = Math.hypot(fwdX, fwdY, fwdZ);
-		const fwdLen = rawLen > 0 ? rawLen : 1;
-		const forwardX = fwdX / fwdLen;
-		const forwardY = fwdY / fwdLen;
-		const forwardZ = fwdZ / fwdLen;
-
-		const project = (point: XYZ) => {
-			if (!camera || camWorldX === undefined || camWorldY === undefined || camWorldZ === undefined) return { x: 0, y: 0, inFront: true };
-			const toX = point.x - camWorldX;
-			const toY = point.y - camWorldY;
-			const toZ = point.z - camWorldZ;
-			const dot = toX * forwardX + toY * forwardY + toZ * forwardZ;
-			const inFront = dot > 0.1;
-			v.set(point.x, point.y, point.z);
-			const p = v.project(camera);
-			return { x: p.x, y: p.y, inFront: inFront && p.z < 1 };
-		};
-
-		// Keep virtual neighbour chips firmly along the outer visible perimeter (scale = 1.0)
-		const targetPositions = computeEgoPositions(egoGraph, 1.0, { viewBounds, focalPlane: true, camBasis, project });
-
-		const group = new T.Group();
-		(group as Obj3D & { name?: string }).name = "shu-ego-overlay";
-
-		const visuals: NodeVisual[] = [];
-		const labels: LabelVisual[] = [];
-		const virtualNeighbours: TVirtualNeighbour[] = [];
+		const [T, camera, parent, ego] = [this.deps.three(), this.deps.camera(), this.deps.parent(), extractEgoGraph(hovered.id, nodeMap, links)];
+		if (!T || !camera || !parent || !ego) return;
+		const view = this.#view(T, camera, ego.center, rect);
+		if (view === undefined) return;
+		const placed = placeOffscreen(ego, view);
+		if (placed.length === 0) return;
 		const colors = this.deps.colors();
-
-		// Shared animated dashed material for spokes and local framing borders
-		const dashUniform = { value: 0 };
-		this.#dashUniform = dashUniform;
-
-		const material = new T.LineDashedMaterial({ color: colors.accent, dashSize: 1.8, gapSize: 1.0, transparent: true, opacity: 0.9, depthWrite: false, depthTest: false });
-		const matWithShader = material as unknown as { onBeforeCompile?: (s: { uniforms: Record<string, unknown>; fragmentShader: string }) => void };
-		matWithShader.onBeforeCompile = (shader) => {
-			shader.uniforms.uDashOffset = dashUniform;
-			shader.fragmentShader = shader.fragmentShader
-				.replace("uniform float totalSize;", "uniform float totalSize;\nuniform float uDashOffset;")
-				.replace("mod( vLineDistance", "mod( vLineDistance + uDashOffset");
-		};
-
-		// Virtual perimeter neighbour chips and radial connector lines (ONLY for off-screen neighbours!)
-		const linePoints: number[] = [];
-		for (const n of targetPositions.neighbours) {
-			if (!n.isOffscreen) {
-				// Node is ALREADY in the visible viewport: DO NOT MOVE IT or duplicate it!
-				// The real node and real edge are already rendered in the 3D graph scene.
-				continue;
-			}
-
-			const mark = this.deps.markFor(n.node);
-			const labelText = this.deps.chipLabelOf(n.node, mark);
-			const rawAvatar = typeAvatar(mark.type);
-			const virtualAvatar = rawAvatar ? `~${rawAvatar}` : "~";
-
-			// Dynamic animated dashed framing border that updates to match exact measured chip bounds
-			const pad = 0.35;
-			const boxGeo = new T.BufferGeometry();
-			let boxLines: Obj3D & { computeLineDistances: () => void };
-
-			const updateBox = (w: number, h: number, cx: number, cy: number) => {
-				const x1 = cx - w / 2 - pad;
-				const x2 = cx + w / 2 + pad;
-				const y1 = cy - h / 2 - pad;
-				const y2 = cy + h / 2 + pad;
-				const z = 0.05;
-				const bp = [x1, y2, z, x2, y2, z, x2, y2, z, x2, y1, z, x2, y1, z, x1, y1, z, x1, y1, z, x1, y2, z];
-				boxGeo.setAttribute("position", new T.Float32BufferAttribute(bp, 3));
-				boxLines?.computeLineDistances();
+		const group = new T.Group();
+		const material = new T.LineDashedMaterial({ color: colors.accent, ...DASH, transparent: true, opacity: SPOKE_OPACITY, depthWrite: false, depthTest: false });
+		const geometries: Array<{ dispose(): void }> = [];
+		const lines = (points: number[], renderOrder: number) => {
+			const geometry = new T.BufferGeometry();
+			geometries.push(geometry);
+			const line = new T.LineSegments(geometry, material);
+			const draw = (at: number[]): void => {
+				geometry.setAttribute("position", new T.Float32BufferAttribute(at, 3));
+				line.computeLineDistances();
 			};
-
-			const visual = makeTroikaChip(labelText, mark.color, T as unknown as ChipThree, {
+			draw(points);
+			line.raycast = () => undefined;
+			line.renderOrder = renderOrder;
+			return { line, draw };
+		};
+		// A chip's frame surrounds its box: the estimate of its text's width until the measured text lands, then its
+		// background's measured box.
+		const frame = (w: number, h: number, cx: number, cy: number): number[] => {
+			const [x1, x2, y1, y2, z] = [cx - w / 2 - FRAME_PAD, cx + w / 2 + FRAME_PAD, cy - h / 2 - FRAME_PAD, cy + h / 2 + FRAME_PAD, FRAME_DEPTH];
+			return [x1, y2, z, x2, y2, z, x2, y2, z, x2, y1, z, x2, y1, z, x1, y1, z, x1, y1, z, x1, y2, z];
+		};
+		const chip = (text: string, color: string, avatar: string): NodeVisual => {
+			const [w, h] = [approximateChipWidth(text) + EGO_CHIP_PADDING, EGO_CHIP_HEIGHT];
+			const outline = lines(frame(w, h, w / 2 - CHIP_MARGIN, CHIP_MARGIN - h / 2), EGO_OVERLAY_RENDER_ORDER + 1);
+			const visual: NodeVisual = makeTroikaChip(text, color, T, {
 				fontSize: CHIP_TEXT_HEIGHT,
 				renderOrder: EGO_OVERLAY_RENDER_ORDER + 1,
 				textColor: colors.text,
 				borderColor: colors.accent,
 				highlightColor: colors.highlight,
-				avatar: virtualAvatar,
+				avatar,
 				laidOut: () => {
-					const bg = visual.pickTarget as unknown as { position: { x: number; y: number }; scale: { x: number; y: number } };
-					if (bg && bg.scale.x > 0 && bg.scale.y > 0) {
-						updateBox(bg.scale.x, bg.scale.y, bg.position.x, bg.position.y);
-					}
+					const { scale, position } = visual.pickTarget;
+					outline.draw(frame(scale.x, scale.y, position.x, position.y));
 					this.deps.markDirty("label");
 				},
 			});
-			visual.object.position.set(n.pos.x, n.pos.y, n.pos.z);
 			visual.pickTarget.raycast = () => undefined;
-
-			// Initial box bounds matching Troika anchor and estimated width
-			const initW = approximateChipWidth(labelText) + (virtualAvatar ? 6 : 0);
-			const initH = EGO_CHIP_HEIGHT;
-			const margin = CHIP_TEXT_HEIGHT * 0.12;
-			updateBox(initW, initH, -margin + initW / 2, margin - initH / 2);
-
-			boxLines = new T.LineSegments(boxGeo, material);
-			boxLines.computeLineDistances();
-			boxLines.raycast = () => undefined;
-			boxLines.renderOrder = EGO_OVERLAY_RENDER_ORDER + 1;
-			(visual.object as unknown as { add: (c: unknown) => void }).add(boxLines);
-
-			group.add(visual.object);
-			visuals.push(visual);
-
-			// Connect curved spoke from center to neighbour (following exact quadratic link curvature)
-			if (n.spokePoints && n.spokePoints.length > 1) {
-				for (let j = 0; j < n.spokePoints.length - 1; j++) {
-					const pA = n.spokePoints[j];
-					const pB = n.spokePoints[j + 1];
-					if (pA && pB) {
-						linePoints.push(pA.x, pA.y, pA.z, pB.x, pB.y, pB.z);
-					}
-				}
-			} else {
-				linePoints.push(targetPositions.center.x, targetPositions.center.y, targetPositions.center.z, n.pos.x, n.pos.y, n.pos.z);
-			}
-
-			// Predicate label at staggered, perpendicularly offset position
-			let predLabel: LabelVisual | undefined;
-			if (n.link.predicate && n.predicatePos) {
-				predLabel = makeTroikaText(n.link.predicate, {
-					fontSize: CHIP_TEXT_HEIGHT * 0.75,
-					color: colors.accent,
-					renderOrder: EGO_OVERLAY_RENDER_ORDER + 2,
-					anchor: { x: "center", y: "middle" },
-					emphasis: false,
-				});
-				predLabel.object.position.set(n.predicatePos.x, n.predicatePos.y, n.predicatePos.z);
-				group.add(predLabel.object);
-				labels.push(predLabel);
-			}
-
-			virtualNeighbours.push({ target: n, visual, label: predLabel });
-		}
-
-		// Radial connector spokes
-		let lineMesh: (Obj3D & { geometry?: Disposable; material?: { opacity: number; dispose?: () => void } }) | undefined;
-		if (linePoints.length > 0) {
-			const geometry = new T.BufferGeometry();
-			geometry.setAttribute("position", new T.Float32BufferAttribute(linePoints, 3));
-			const lines = new T.LineSegments(geometry, material);
-			lines.computeLineDistances();
-			lines.raycast = () => undefined;
-			lines.renderOrder = EGO_OVERLAY_RENDER_ORDER;
-			group.add(lines);
-			lineMesh = lines;
-		}
-
-		this.#active = { centerId: hoveredNode.id, group, lineMesh, visuals, labels, virtualNeighbours, targetPositions, egoGraph };
-		this.#applyState(0);
-		parent.add?.(group);
-
-		this.#lastTick = this.deps.clock.now();
-		this.#startTransition(1);
-	}
-
-	/** Smoothly hide and dismiss the overlay. */
-	hide(): void {
-		if (!this.#active) return;
-		if (this.#animTo !== 0) this.#startTransition(0);
-	}
-
-	/** Cancels any active hide transition and keeps the overlay at full opacity. */
-	keepVisible(): void {
-		if (!this.#active) return;
-		if (this.#animTo !== 1) this.#startTransition(1);
-	}
-
-	/** Immediately dismiss and dispose of overlay resources. */
-	hideImmediate(): void {
-		if (!this.#active) return;
-		this.#disposeActive();
-		this.#active = undefined;
-		this.#opacity = 0;
-		this.#animating = false;
-	}
-
-	dispose(): void {
-		this.hideImmediate();
-	}
-
-	#startTransition(to: number): void {
-		this.#animFrom = this.#opacity;
-		this.#animTo = to;
-		this.#animStart = this.deps.clock.now();
-		if (!this.#animating) {
-			this.#animating = true;
-			this.#tickAnimation();
-		}
-	}
-
-	#tickAnimation(): void {
-		if (!this.#animating || !this.#active) return;
-
-		const duration = this.#animTo === 1 ? EGO_TELEPORT_IN_MS : EGO_TELEPORT_OUT_MS;
-		const elapsed = this.deps.clock.now() - this.#animStart;
-		const progress = Math.min(1, Math.max(0, elapsed / duration));
-
-		this.#opacity = this.#animFrom + (this.#animTo - this.#animFrom) * progress;
-		this.#applyState(this.#opacity);
-		this.deps.markDirty("focus");
-
-		if (progress < 1) {
-			this.deps.clock.frame(() => this.#tickAnimation());
-		} else {
-			this.#animating = false;
-			if (this.#animTo === 0) {
-				this.hideImmediate();
-			}
-		}
-	}
-
-	#applyState(alpha: number): void {
-		if (!this.#active) return;
-		const { virtualNeighbours, lineMesh } = this.#active;
-
-		for (const vn of virtualNeighbours) {
-			const origin = { x: vn.target.node.x, y: vn.target.node.y, z: vn.target.node.z };
-			const station = teleportStation(origin, vn.target.pos, alpha);
-			vn.visual.object.position.set(station.pos.x, station.pos.y, station.pos.z);
-			vn.visual.opacity = station.opacity * 0.9;
-			if (vn.label) {
-				const predStation = teleportStation(origin, vn.target.predicatePos, alpha);
-				vn.label.object.position.set(predStation.pos.x, predStation.pos.y, predStation.pos.z);
-				vn.label.opacity = predStation.opacity;
-			}
-		}
-
-		if (lineMesh?.material) {
-			lineMesh.material.opacity = alpha * 0.85;
-		}
-	}
-
-	/**
-	 * Tests pointer coordinates against the active ego constellation.
-	 * Highlights the hovered neighbour chip and spoke if within corridor.
-	 */
-	testPointer(pointer: { x: number; y: number }, rect: TCanvasRect): TEgoCorridorHit {
-		if (!this.#active) return { kind: "miss" };
-		const camera = this.deps.camera() as
-			| { fov?: number; position?: { x: number; y: number; z: number }; matrixWorld?: { elements: number[] }; updateMatrixWorld?: (force: boolean) => void }
-			| undefined;
-		const T = this.deps.three() as unknown as EgoThree;
-		if (!camera || !T) return { kind: "miss" };
-		camera.updateMatrixWorld?.(true);
-
-		const { center, neighbours } = this.#active.targetPositions;
-		const centerNode = this.#active.egoGraph.center;
-		const v = new T.Vector3();
-
-		v.set(center.x, center.y, center.z);
-		const cNdc = v.project(camera);
-		const cPixel = ndcToClient({ x: cNdc.x, y: cNdc.y }, rect);
-
-		// Estimate pixels per 3D unit at center distance if camera geometry is available
-		const cDist = camera.position ? Math.hypot(camera.position.x - center.x, camera.position.y - center.y, camera.position.z - center.z) : undefined;
-		const cFov = camera.fov !== undefined ? (camera.fov * Math.PI) / 180 : undefined;
-		const cPxPerUnit = cDist && cFov && rect.height > 0 ? rect.height / (2 * cDist * Math.tan(cFov / 2)) : 4;
-
-		const centerW = Math.max(100, approximateChipWidth(centerNode.name) * cPxPerUnit);
-		const centerH = Math.max(32, 16 * cPxPerUnit);
-
-		const targets: TEgoNeighbourTarget[] = [];
-		for (let i = 0; i < neighbours.length; i++) {
-			const n = neighbours[i];
-			if (!n) continue;
-			v.set(n.pos.x, n.pos.y, n.pos.z);
-			const pNdc = v.project(camera);
-			const pPixel = ndcToClient({ x: pNdc.x, y: pNdc.y }, rect);
-
-			const nDist = camera.position ? Math.hypot(camera.position.x - n.pos.x, camera.position.y - n.pos.y, camera.position.z - n.pos.z) : undefined;
-			const nPxPerUnit = nDist && cFov && rect.height > 0 ? rect.height / (2 * nDist * Math.tan(cFov / 2)) : 4;
-
-			const mark = this.deps.markFor(n.node);
-			const label = this.deps.chipLabelOf(n.node, mark);
-			const rawAvatar = typeAvatar(mark.type);
-			const virtualAvatar = rawAvatar ? `~${rawAvatar}` : "~";
-			const chip3dW = approximateChipWidth(label) + (virtualAvatar ? 6 : 0);
-			const chip3dH = EGO_CHIP_HEIGHT;
-
-			const w = Math.max(80, chip3dW * nPxPerUnit);
-			const h = Math.max(28, chip3dH * nPxPerUnit);
-			const spokePoints = n.spokePoints?.map((pt) => {
-				v.set(pt.x, pt.y, pt.z);
-				const ptNdc = v.project(camera);
-				return ndcToClient({ x: ptNdc.x, y: ptNdc.y }, rect);
+			visual.object.add?.(outline.line);
+			group.add?.(visual.object);
+			return visual;
+		};
+		const virtuals = placed.map((p): TVirtual => {
+			const mark = this.deps.markFor(p.node);
+			const label = this.deps.chipLabelOf(p.node, mark);
+			const predicate = makeTroikaText(p.link.predicate, {
+				fontSize: PREDICATE_TEXT_HEIGHT,
+				color: colors.accent,
+				renderOrder: EGO_OVERLAY_RENDER_ORDER + 2,
+				anchor: { x: "center", y: "middle" },
+				emphasis: false,
 			});
-
-			// Troika chip quad anchor is top-left (content flows right + down).
-			// evaluateEgoCorridorHit tests pointInBox with pos as the chip's center:
-			targets.push({ id: n.node.id, pos: { x: pPixel.x + w / 2, y: pPixel.y + h / 2 }, width: w, height: h, spokePoints });
-		}
-
-		const hit = evaluateEgoCorridorHit(pointer, { x: cPixel.x + centerW / 2, y: cPixel.y + centerH / 2, width: centerW, height: centerH }, targets, {
-			centerPadding: 32,
-			corridorRadius: 55,
-			chipPadding: 24,
+			group.add?.(predicate.object);
+			return { placed: p, label, visual: chip(label, mark.color, `${VIRTUAL_BADGE}${typeAvatar(mark.type)}`), predicate };
 		});
+		const spokePoints = placed.flatMap(({ spokePoints: s }) => s.slice(1).flatMap((b, i) => [s[i], b].flatMap((p) => (p === undefined ? [] : [p.x, p.y, p.z]))));
+		const spoke = lines(spokePoints, EGO_OVERLAY_RENDER_ORDER).line;
+		group.add?.(spoke);
+		const rest = ego.totalNeighbours - ego.neighbours.length;
+		const counted = rest > 0 ? [chip(`+${rest}`, colors.accent, VIRTUAL_BADGE)] : [];
+		for (const c of counted)
+			c.object.position.set(
+				ego.center.x + view.basis.up.x * EGO_CHIP_HEIGHT * COUNT_RISE,
+				ego.center.y + view.basis.up.y * EGO_CHIP_HEIGHT * COUNT_RISE,
+				ego.center.z + view.basis.up.z * EGO_CHIP_HEIGHT * COUNT_RISE,
+			);
+		const faced = [...virtuals.flatMap(({ visual, predicate }) => [visual, predicate]), ...counted];
+		this.#active = { center: ego.center, shownFor: [hovered, nodeMap, links, rect], group, virtuals, faced, geometries, spokes: spoke.material };
+		parent.add?.(group);
+		this.deps.shownChanged();
+		this.#fade = EGO_HIDDEN;
+		this.#fadeTo(1);
+		this.tick();
+	}
 
-		if (hit.kind !== "miss") {
-			this.keepVisible();
+	/** Fades the overlay out; it is released once the fade ends. */
+	hide(): void {
+		this.#fadeTo(0);
+	}
+
+	/** Fades the overlay back in, from the opacity it holds, where it fades out. */
+	keepVisible(): void {
+		this.#fadeTo(1);
+	}
+
+	/** Shows the overlay again in the colours the theme states now, at the fade it holds. */
+	restyle(): void {
+		const active = this.#active;
+		if (active === undefined) return;
+		const [fade, fading] = [this.#fade, this.#fading];
+		this.hideImmediate();
+		this.show(...active.shownFor);
+		[this.#fade, this.#fading] = [fade, fading];
+		this.tick();
+	}
+
+	/** Places each chip and label at the fade's opacity now, and releases the overlay once a fade-out ends. */
+	tick(): void {
+		const active = this.#active;
+		if (active === undefined) return;
+		const now = this.deps.clock.now();
+		const alpha = fadeOpacity(this.#fade, now);
+		for (const { placed, visual, predicate } of active.virtuals) {
+			const chip = teleportStation(placed.node, placed.pos, alpha);
+			visual.object.position.set(chip.pos.x, chip.pos.y, chip.pos.z);
+			visual.opacity = chip.opacity * CHIP_OPACITY;
+			const label = teleportStation(placed.node, placed.predicatePos, alpha);
+			predicate.object.position.set(label.pos.x, label.pos.y, label.pos.z);
+			predicate.opacity = label.opacity;
 		}
+		if (active.spokes) active.spokes.opacity = alpha * SPOKE_OPACITY;
+		this.#fading = !fadeEnded(this.#fade, now);
+		if (!this.#fading && this.#fade.to === 0) this.hideImmediate();
+	}
 
-		const highlightId = hit.kind === "chip" || hit.kind === "spoke" ? hit.neighbourId : undefined;
-		this.applyHighlight(highlightId);
+	/** Releases the overlay at once. */
+	hideImmediate(): void {
+		const active = this.#active;
+		if (active === undefined) return;
+		disposeGroup(active.group, false);
+		for (const geometry of active.geometries) geometry.dispose();
+		this.#active = undefined;
+		[this.#fade, this.#fading] = [EGO_HIDDEN, false];
+		this.deps.shownChanged();
+	}
 
+	/** Returns what of the overlay the client point `pointer` hits on the canvas `rect`, keeps a hit overlay shown, and
+	 *  lights the chip of a neighbour it hits. */
+	testPointer(pointer: { x: number; y: number }, rect: TCanvasRect): TEgoCorridorHit {
+		const active = this.#active;
+		const [T, camera] = [this.deps.three(), this.deps.camera()];
+		if (active === undefined || !T || !camera) return { kind: "miss" };
+		const v = new T.Vector3();
+		const client = (p: XYZ) => {
+			v.set(p.x, p.y, p.z);
+			return ndcToClient(v.project(camera), rect);
+		};
+		const box = (p: XYZ, worldWidth: number, least: { width: number; height: number }) => {
+			const perPx = this.deps.worldPerPxAt(p);
+			const [width, height] = perPx === null ? [least.width, least.height] : [Math.max(least.width, worldWidth / perPx), Math.max(least.height, EGO_CHIP_HEIGHT / perPx)];
+			// A chip's point is its top-left corner, and the hit test reads a box by its centre.
+			const at = client(p);
+			return { x: at.x + width / 2, y: at.y + height / 2, width, height };
+		};
+		const targets = active.virtuals.map(
+			({ placed, label }): TEgoNeighbourTarget => ({
+				id: placed.node.id,
+				box: box(placed.pos, approximateChipWidth(label) + EGO_CHIP_PADDING, MIN_CHIP_PX),
+				spokePoints: placed.spokePoints.map(client),
+			}),
+		);
+		const hit = evaluateEgoCorridorHit(pointer, box(active.center, approximateChipWidth(active.center.name), MIN_CENTER_PX), targets);
+		if (hit.kind !== "miss") this.keepVisible();
+		const lit = hit.kind === "chip" || hit.kind === "spoke" ? hit.neighbourId : undefined;
+		for (const { placed, visual } of active.virtuals) visual.setHighlighted(placed.node.id === lit, FULL_BURN);
+		this.deps.markDirty("ego");
 		return hit;
 	}
 
-	/**
-	 * Returns the real FGNode for a clicked neighbour if pointer hits its chip or destination end of spoke.
-	 */
+	/** Returns the neighbour whose chip, or whose spoke past `PICK_SPOKE_SHARE`, the client point `pointer` hits. */
 	pickNeighbour(pointer: { x: number; y: number }, rect: TCanvasRect): FGNode | undefined {
-		if (!this.#active || !this.isVisible) return undefined;
 		const hit = this.testPointer(pointer, rect);
-		if (hit.kind === "chip" || (hit.kind === "spoke" && hit.t > 0.6)) {
-			const match = this.#active.targetPositions.neighbours.find((n) => n.node.id === hit.neighbourId);
-			return match ? match.node : undefined;
-		}
-		return undefined;
+		const picked = hit.kind === "chip" || (hit.kind === "spoke" && hit.t > PICK_SPOKE_SHARE) ? hit.neighbourId : undefined;
+		return this.#active?.virtuals.find(({ placed }) => placed.node.id === picked)?.placed.node;
 	}
 
-	applyHighlight(neighbourId: string | undefined): void {
-		if (!this.#active) return;
-		for (const n of this.#active.targetPositions.neighbours) {
-			const isTarget = neighbourId !== undefined && n.node.id === neighbourId;
-			n.node.__visual?.setHighlighted(isTarget, FULL_BURN);
-		}
-		for (const vn of this.#active.virtualNeighbours) {
-			const isTarget = neighbourId !== undefined && vn.target.node.id === neighbourId;
-			vn.visual.setHighlighted(isTarget, FULL_BURN);
-		}
-		this.deps.markDirty("focus");
+	#fadeTo(to: 0 | 1): void {
+		if (this.#active === undefined) return;
+		this.#fade = fadeToward(this.#fade, to, this.deps.clock.now());
+		this.#fading = true;
+		this.deps.markDirty("ego");
 	}
 
-	#disposeActive(): void {
-		if (!this.#active) return;
-		for (const n of this.#active.targetPositions.neighbours) {
-			n.node.__visual?.setHighlighted(false, FULL_BURN);
-		}
-		this.#dashUniform = undefined;
-		this.#lastTick = 0;
-		const { group, lineMesh, labels } = this.#active;
-		for (const label of labels) {
-			label.dispose();
-		}
-		if (lineMesh) {
-			lineMesh.geometry?.dispose?.();
-			lineMesh.material?.dispose?.();
-		}
-		if (group.children) {
-			for (const child of [...group.children]) {
-				const c = child as { geometry?: Disposable; material?: Disposable; dispose?: () => void };
-				c.geometry?.dispose?.();
-				c.material?.dispose?.();
-				c.dispose?.();
-			}
-		}
-		const parent = this.deps.parent();
-		parent?.remove?.(group);
+	/** Returns the camera as the layout reads it at `center`, undefined until the camera is ready. */
+	#view(T: EgoThree, camera: TSceneCamera, center: XYZ, rect: TCanvasRect): TEgoView | undefined {
+		camera.updateMatrixWorld?.(true);
+		const [perPx, matrix] = [this.deps.worldPerPxAt(center), camera.matrixWorld];
+		if (perPx === null || matrix === undefined) return undefined;
+		const v = new T.Vector3();
+		const project = (p: XYZ) => {
+			v.set(p.x, p.y, p.z);
+			const ndc = v.project(camera);
+			return { x: ndc.x, y: ndc.y, inFront: Math.abs(ndc.z) < 1 };
+		};
+		const half = (px: number) => (px / 2) * perPx * EGO_VIEWPORT_MARGIN;
+		return { basis: cameraBasis(matrix.elements), project, bounds: { rx: half(rect.width), ry: half(rect.height) } };
 	}
 }

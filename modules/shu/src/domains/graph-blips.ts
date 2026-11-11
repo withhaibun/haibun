@@ -27,7 +27,7 @@ export const GRAPH_REGULATION_BLIP = "haibun.shu.graph.regulation";
 /** Lists the discrete changes that wake a scene: the visible model changed, the camera moved, the arrangement changed,
  *  the container or canvas resized, the theme changed, the active node's breath, a focus to apply, the pointer moved
  *  over the canvas, a label's text was laid out, or particles travel a new link. */
-const WAKE_CAUSES = ["data", "camera", "arrange", "resize", "theme", "breath", "focus", "pointer", "label", "particles"] as const;
+const WAKE_CAUSES = ["data", "camera", "arrange", "resize", "theme", "breath", "focus", "pointer", "label", "particles", "ego"] as const;
 export type TWakeCause = (typeof WAKE_CAUSES)[number];
 
 /** Lists the reasons a scene draws. `rest` means the scene doesn't draw. A motion in progress is a drag, a tween, the

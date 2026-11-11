@@ -33,6 +33,7 @@ import { CameraController } from "../controllers/camera-controller.js";
 import { PickController, type TPickThree } from "../controllers/pick-controller.js";
 import { GanttOverlay, type GanttThree } from "./gantt-overlay.js";
 import { EgoOverlay, type EgoThree } from "./ego-overlay.js";
+import { GRAPH_LINK_CURVATURE } from "../derivations/ego-layout.js";
 import { sceneDataHash, visibleGraph, type TSceneData } from "../derivations/scene-data.js";
 import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../../domains/elements.js";
 import { defineElement } from "../../controllers/element-controller.js";
@@ -168,6 +169,8 @@ const DATA_DEBOUNCE_MS = 500;
 // renderer draws before the tick after it stops the loop: two ticks draw one frame. A motion (layout settle, tween,
 // drag, magnify ease, camera damping) keeps the scene drawing for as long as it moves, and no longer.
 const DIRTY_GRACE_FRAMES = 2;
+/** How long the ego overlay stays after the pointer leaves its node, chips and spokes. */
+const EGO_GRACE_MS = 500;
 // The library moves a particle a hundredth of its link each drawn frame, so a particle takes this many frames to cross.
 const PARTICLE_CROSSING_FRAMES = 100;
 // Cadence for the canvas-geometry wake detector (mouse-pick bounds + viewport aspect watchdog), sampled even when idle.
@@ -619,31 +622,25 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		},
 		hovered: (node, e) => {
 			if (this.#parts.engine.mode === "settling") return;
-			const id = node?.id ?? null;
-			if (this.hoverSubject === id && id !== null) return;
-
-			if (this.egoOverlay.isVisible && e && this.fgCanvas) {
-				const rect = this.fgCanvas.getBoundingClientRect();
-				const hit = this.egoOverlay.testPointer({ x: e.clientX, y: e.clientY }, rect);
-				if (hit.kind !== "miss") {
-					this.clearEgoGrace();
-					if (hit.kind === "chip") {
-						const n = this.nodeMap.get(hit.neighbourId);
-						if (n) this.updateHoverInfo(n);
-					}
-					return;
-				}
-			}
-
+			// A node under the pointer comes before the ego overlay's chips and spokes, which reach off-screen neighbours.
 			if (node && isPlaced(node)) {
+				if (this.hoverSubject === node.id) return;
 				this.clearEgoGrace();
-				this.hoverSubject = id;
+				this.hoverSubject = node.id;
 				this.updateHoverInfo(node);
 				this.applyFocus();
-				this.egoOverlay.show(node, this.nodeMap, this.currentLinks);
-			} else {
-				this.scheduleEgoGrace();
+				this.showEgo(node);
+				return;
 			}
+			const hit = e && this.fgCanvas ? this.egoOverlay.testPointer({ x: e.clientX, y: e.clientY }, this.fgCanvas.getBoundingClientRect()) : undefined;
+			if (hit === undefined || hit.kind === "miss") return this.scheduleEgoGrace();
+			this.clearEgoGrace();
+			// A neighbour's chip or spoke focuses that neighbour through the focus controller, as a hover on it would.
+			const neighbour = hit.kind === "center" ? undefined : this.nodeMap.get(hit.neighbourId);
+			if (neighbour === undefined || this.hoverSubject === neighbour.id) return;
+			this.hoverSubject = neighbour.id;
+			this.updateHoverInfo(neighbour);
+			this.applyFocus();
 		},
 		left: () => {
 			this.clearEgoGrace();
@@ -666,9 +663,14 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		}
 	}
 
+	/** Shows the ego overlay for `node` on the canvas. */
+	private showEgo(node: FGNode & XYZ): void {
+		if (this.fgCanvas) this.egoOverlay.show(node, this.nodeMap, this.currentLinks, this.fgCanvas.getBoundingClientRect());
+	}
+
 	private scheduleEgoGrace(): void {
 		if (this.egoGraceTimer !== undefined) return;
-		this.egoGraceTimer = this.#parts.clock.after(500, () => {
+		this.egoGraceTimer = this.#parts.clock.after(EGO_GRACE_MS, () => {
 			this.egoGraceTimer = undefined;
 			this.egoOverlay.hide();
 			if (this.hoverSubject) {
@@ -723,6 +725,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		three: () => aframeThree() as EgoThree | undefined,
 		parent: () => this.enclosureParent(),
 		camera: () => this.fgCamera,
+		worldPerPxAt: (pos) => this.cameraCtl.camera.worldPerPxAt(pos),
+		shownChanged: () => this.#reading?.mark(),
 		colors: () => ({ text: this.chipTextColor, accent: this.compassAccentColor, highlight: this.activeHighlightColor, border: NODE_BORDER_COLOR }),
 		markFor: (n) => this.markFor(n),
 		chipLabelOf: (n, m) => this.chipLabelOf(n, m),
@@ -918,7 +922,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			region: () => this.querySelector<HTMLElement>("#polymorphic-a11y"),
 			bars: () => this.actorBars(),
 			labelOf: (n) => this.chipLabelOf(n, this.markFor(n)),
-			marks: () => ({ active: this.activeSubject, tierOf: this.focusCtl.tierOf(), pinned: (id) => this.userPins.has(id) }),
+			marks: () => ({ active: this.activeSubject, tierOf: this.focusCtl.tierOf(), pinned: (id) => this.userPins.has(id), ego: this.egoOverlay.shown }),
 			groups: () => (this.groupingActive() ? [...groupTitles(this.nodeMap.values(), this.groupBy, roleNounFor).values()] : []),
 			onActivate: (id) => this.openNode(id),
 			onFocus: (id) => this.setHoveredNode(id),
@@ -939,7 +943,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			this.cameraCtl.end();
 			this.ganttOverlay.dispose();
 			this.clearEgoGrace();
-			this.egoOverlay.dispose();
+			this.egoOverlay.hideImmediate();
 			this.enclosureCtl.dispose(); // boxes + the shared unit geometries (the gantt ghost reuses unitEdges but never disposes it)
 			// Release the scene's WebGL context deterministically: a context otherwise frees only at GC, and past the
 			// browser's concurrent-context cap the OLDEST context is silently lost, closed views must never be able to
@@ -1064,7 +1068,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			.linkColor((l) => this.focusCtl.lineRgbaFor(l))
 			.linkOpacity(1)
 			.linkWidth(0.5)
-			.linkCurvature(0.25)
+			.linkCurvature(GRAPH_LINK_CURVATURE)
 			.linkDirectionalParticleWidth(1.8)
 			.linkDirectionalParticleColor(() => this.particleColor)
 			// A persistent arrowhead marks each edge's direction; its colour comes from lineRgbaFor so it dims/highlights with
@@ -1416,6 +1420,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		for (const l of this.currentLinks) if (l.__label) l.__label.color = this.edgeLabelColor;
 		this.enclosureCtl.recolorLabels(this.edgeLabelColor);
 		if (this.focusId) this.applyFocus(); // re-assert focus colours under the new theme
+		this.egoOverlay.restyle();
 		this.markDirty("theme");
 	}
 
@@ -1482,7 +1487,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		if (this.#parts.engine.mode !== "frozen") return "settle";
 		if (this.focusCtl.magnifying) return "magnify";
 		if (this.focusDirty) return "focus";
-		if (this.egoOverlay.isVisible) return "focus";
+		if (this.egoOverlay.fading) return "ego";
 		return frame < this.dirtyUntilFrame ? this.dirtyCause : "rest";
 	}
 
@@ -1502,6 +1507,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.#parts.frame.add("retarget-magnify", () => this.focusCtl.retargetMagnify(), 15);
 		this.#parts.frame.add("magnify", () => this.focusCtl.updateMagnify(), EVERY_FRAME);
 
+		this.#parts.frame.add("ego", () => this.egoOverlay.tick(), EVERY_FRAME);
 		this.#parts.frame.add("billboard", () => this.billboardLabels(), EVERY_FRAME); // troika labels are meshes, orient them to the camera each frame
 		this.#parts.frame.add("layout-tween", () => this.updateLayoutTween(), EVERY_FRAME);
 		// Track the group containers on a throttled cadence WHILE the layout is settling, so they form and follow the
@@ -1966,7 +1972,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.applyFocus();
 		if (n && isPlaced(n)) {
 			this.clearEgoGrace();
-			this.egoOverlay.show(n, this.nodeMap, this.currentLinks);
+			this.showEgo(n);
 		} else {
 			this.egoOverlay.hide();
 		}

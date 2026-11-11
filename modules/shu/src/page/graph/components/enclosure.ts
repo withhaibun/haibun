@@ -238,3 +238,28 @@ export class EnclosureController {
 		this.unitEdgesGeo?.dispose();
 	}
 }
+
+/** A scene object as its release reads it: its parts and its parent. */
+type TReleasable = { children?: unknown[]; parent?: { remove?(child: unknown): void } | null };
+/** A part as its release reads it: its geometry, its material, and its own release. */
+type TPart = TReleasable & { geometry?: Partial<Disposable>; material?: Partial<Disposable>; dispose?: () => void };
+
+/** Detaches a group from its parent and releases each of its parts, and theirs: each material once, each label's text, and
+ *  each geometry where the group owns it. Parts may share one material. */
+export function disposeGroup(group: TReleasable, ownsGeometry: boolean): void {
+	const released = new Set<unknown>();
+	const release = (node: TReleasable): void => {
+		if (node.children !== undefined)
+			for (const child of [...node.children] as TPart[]) {
+				release(child);
+				if (ownsGeometry) child.geometry?.dispose?.();
+				if (child.material !== undefined && !released.has(child.material)) {
+					released.add(child.material);
+					child.material.dispose?.();
+				}
+				child.dispose?.(); // a troika label owns its text's geometry
+			}
+	};
+	release(group);
+	group.parent?.remove?.(group);
+}

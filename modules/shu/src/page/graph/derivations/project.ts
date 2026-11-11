@@ -30,3 +30,12 @@ export function ndcToClient(ndc: TNdc, rect: TCanvasRect): TClientPoint {
 export function clientToNdc(point: TClientPoint, rect: TCanvasRect): TNdc {
 	return { x: ((point.x - rect.left) / rect.width) * NDC_SPAN - NDC_EDGE, y: NDC_EDGE - ((point.y - rect.top) / rect.height) * NDC_SPAN };
 }
+
+/** A camera's world matrix, column by column, as far as its up direction. */
+type TBasisColumns = readonly [number, number, number, number, number, number, number, ...number[]];
+
+/** Returns the camera's right and up directions in world space: the first two columns of its world matrix. */
+export const cameraBasis = (m: TBasisColumns): { right: TXyz; up: TXyz } => ({ right: { x: m[0], y: m[1], z: m[2] }, up: { x: m[4], y: m[5], z: m[6] } });
+
+/** A direction in world space. */
+type TXyz = { x: number; y: number; z: number };
