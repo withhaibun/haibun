@@ -36,7 +36,7 @@ const TAP_ACTION_BUTTONS: ReadonlyArray<{ action: TTapAction; icon: string; labe
 export const CORNERS = ["settings", "playback", "access", "status"] as const;
 type TCorner = (typeof CORNERS)[number];
 
-/** How each corner's popover closes. A picker closes on a click away. Playback is a panel used beside the view (set the
+/** How each corner's popover closes. A picker closes on a press away. Playback is a panel used beside the view (set the
  *  playback running, then open a node to see it at that moment), so only its own control closes it. A new corner states
  *  which it is. */
 const CORNER_DISMISS: Record<TCorner, "click-away" | "panel"> = { settings: "click-away", access: "click-away", playback: "panel", status: "click-away" };
@@ -112,7 +112,7 @@ export class PageStripCorners implements ReactiveController {
 
 	hostConnected(): void {
 		this.#unsubTapAction = getPageTapAction().state.subscribe(() => this.#host.requestUpdate());
-		document.addEventListener("click", this.#onDocumentClick, true);
+		document.addEventListener("pointerdown", this.#onDocumentPress, true);
 		// An extension in the permissions area reports what awaits from anywhere in the page, so the mark shows before the
 		// popover has been opened.
 		document.addEventListener(AWAITING_DECISION, this.#onAwaiting);
@@ -127,7 +127,7 @@ export class PageStripCorners implements ReactiveController {
 
 	hostDisconnected(): void {
 		this.#unsubTapAction?.();
-		document.removeEventListener("click", this.#onDocumentClick, true);
+		document.removeEventListener("pointerdown", this.#onDocumentPress, true);
 		document.removeEventListener(AWAITING_DECISION, this.#onAwaiting);
 		this.#host.removeEventListener(PERMISSIONS_SUMMARY, this.#onSummary);
 	}
@@ -205,7 +205,7 @@ export class PageStripCorners implements ReactiveController {
 				.map((tag) => `<${tag}></${tag}>`)
 				.join(""),
 		);
-		// A manual popover, so it stays put on a click elsewhere; the dismiss rule above closes the pickers. The click does
+		// A manual popover, so it stays put on a press elsewhere; the dismiss rule above closes the pickers. The click does
 		// not reach the strip.
 		return html`<div class="corner-popover" popover="manual" data-testid=${this.#open ? `${prefix}${this.#open}-popover` : nothing} @click=${(e: Event) => e.stopPropagation()}>${content}
 			<div class="permissions-extensions" ?hidden=${this.#open !== "access"}>${extensions}</div>
@@ -284,8 +284,9 @@ export class PageStripCorners implements ReactiveController {
 		return this.#host.renderRoot.querySelector<HTMLElement>(".corner-popover");
 	}
 
-	/** A click outside the strip closes an open picker, and leaves a panel open. */
-	#onDocumentClick = (e: Event): void => {
+	/** A press outside the strip closes an open picker, and leaves a panel open. A tap action takes the click of a press on a
+	 *  pane, so the press closes the picker. */
+	#onDocumentPress = (e: Event): void => {
 		if (this.#open && CORNER_DISMISS[this.#open] === "click-away" && !e.composedPath().includes(this.#host)) this.close();
 	};
 

@@ -39,6 +39,13 @@ function flattenTestIds(ids: Record<string, unknown>): string[] {
 
 /** The steps that declare each test id of `idSets` (id-set objects and bare id arrays), once each, under the `page-test-id`
  *  domain, so a feature's lines name a test id by its bare name. */
+/** The page locator of the pane a tap action taps. */
+const TAPPED_PANE = "tapped-pane";
+
+/** Taps the pane that the selector `pane` matches with the tap action whose test id is `action`: the action's control, then
+ *  the pane. A quoted target is the text of an element, so the pane is a page locator. */
+export const tapPane = (action: string, pane: string): TKirejiStep[] => [`set ${TAPPED_PANE} as page-locator to "${pane}"`, `click "${action}" by test id`, `click ${TAPPED_PANE}`];
+
 export const registerTestIds = (...idSets: Array<Record<string, unknown> | ReadonlyArray<string>>): TKirejiStep[] =>
 	[...new Set(idSets.flatMap((set) => (Array.isArray(set) ? [...set] : flattenTestIds(set as Record<string, unknown>))))].map(registerTestIdStep);
 
@@ -109,7 +116,7 @@ export function createStepUI(wp: WebPlaywright) {
 	/** Ensure the actions bar is open: its pane's header or tap action opens a pane standing at its strip. Uses MODE_SELECT (always present when the bar is open, regardless of Ask availability) so this works without an LLM provider. The `where … , …` form is idempotent: the click is skipped when MODE_SELECT is already on the page. */
 	const expandActionsBar: TKirejiStep[] = [
 		...actionsPaneAttached,
-		`where didn't has test id ${IDS.APP.MODE_SELECT}, in "${ACTIONS_PANE}", click .pane-header`,
+		`where didn't has test id ${IDS.APP.MODE_SELECT}, click ${ACTIONS_PANE_CONTROL}`,
 		waitFor({ target: IDS.APP.MODE_SELECT }),
 	];
 
@@ -117,7 +124,7 @@ export function createStepUI(wp: WebPlaywright) {
 	const collapseActionsBar: TKirejiStep[] = [
 		...actionsPaneAttached,
 		`where has test id ${IDS.APP.MODE_SELECT}, click "${IDS.TAP_ACTIONS.MINIMIZE}" by test id`,
-		`where has test id ${IDS.APP.MODE_SELECT}, in "${ACTIONS_PANE}", click .pane-header`,
+		`where has test id ${IDS.APP.MODE_SELECT}, click ${ACTIONS_PANE_CONTROL}`,
 	];
 
 	const enterStepMode: TKirejiStep[] = [...expandActionsBar, selectionOption({ option: '"Step"', field: IDS.APP.MODE_SELECT }), waitFor({ target: IDS.APP.STEP_SELECT })];
@@ -130,8 +137,9 @@ export function createStepUI(wp: WebPlaywright) {
 	/** Show the settings of the view in the actions pane, which the settings tap action holds. `marker` is a control
 	 *  those settings hold, which states whether they are shown: the press is skipped where it is already on the page. */
 	const showPaneSettings = (marker: string): TKirejiStep[] => [
+		...actionsPaneAttached,
 		`where didn't has test id ${marker}, click "${IDS.TAP_ACTIONS.SETTINGS}" by test id`,
-		`where didn't has test id ${marker}, click "${ACTIONS_PANE}"`,
+		`where didn't has test id ${marker}, click ${ACTIONS_PANE_CONTROL}`,
 		waitFor({ target: marker }),
 	];
 

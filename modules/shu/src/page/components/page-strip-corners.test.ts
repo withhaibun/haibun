@@ -77,16 +77,17 @@ describe("the page strip's corners", () => {
 		expect(page.popover.hidePopover).toHaveBeenCalledTimes(1);
 	});
 
-	it("close a picker on a click elsewhere, leave the playback panel open, and don't close a popover on a click inside the strip", async () => {
+	it("close a picker on a press elsewhere, leave the playback panel open, and don't close a popover on a press inside the strip", async () => {
+		const press = (at: EventTarget) => at.dispatchEvent(new Event("pointerdown", { bubbles: true, composed: true }));
 		const page = aCornersPage();
 		renderControls(page);
 		for (const corner of CORNERS) {
 			pressCorner(page, corner);
 			await settled();
-			page.host.click();
-			expect(page.corners.openCorner, `${corner}: a click inside the strip`).toBe(corner);
-			document.body.click();
-			expect(page.corners.openCorner, `${corner}: a click elsewhere`).toBe(corner === PANEL ? corner : null);
+			press(page.host);
+			expect(page.corners.openCorner, `${corner}: a press inside the strip`).toBe(corner);
+			press(document.body);
+			expect(page.corners.openCorner, `${corner}: a press elsewhere`).toBe(corner === PANEL ? corner : null);
 			page.corners.close();
 		}
 	});

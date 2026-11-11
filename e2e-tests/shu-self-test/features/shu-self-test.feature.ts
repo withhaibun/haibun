@@ -6,7 +6,7 @@ import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import ShuStepper from "@haibun/shu/shu-stepper.js";
 import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
 import { SHU_TAG } from "@haibun/shu/domains/elements.js";
-import { createStepUI, registerTestIds } from "@haibun/shu/test/step-ui.js";
+import { createStepUI, paneOfComponent, registerTestIds, tapPane } from "@haibun/shu/test/step-ui.js";
 import { COMMENT_DOMAIN, COMMENT_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { DOMAIN_PAGE_TEST_ID } from "@haibun/web-playwright/domains.js";
 import { domains } from "@haibun/shu/waypoints/backgrounds/domains.feature.ts";
@@ -41,7 +41,7 @@ const CACHE_LOG_DISCONNECTED = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-disconnec
 const RPC_GLOB = "**/rpc/**";
 const STREAM_GLOB = "**/sse*";
 /** The monitor's pane. Every open column has the same pane controls, so a click on a control is scoped to this pane. */
-const MONITOR_PANE = `shu-column-pane[column-type="${SHU_TAG.MONITOR_COLUMN}"]`;
+const MONITOR_PANE = paneOfComponent(SHU_TAG.MONITOR_COLUMN);
 const CHAIN_PANE = SHU_TAG.DOMAIN_CHAIN_VIEW;
 const MAIN_GRAPH_PANE = `shu-column-pane:has(${SHU_TAG.POLYMORPHIC_GRAPH_VIEW}:not([data-external]))`;
 /** The canvas of the graph view that the domain chain view mounts in its graph slot. */
@@ -101,16 +101,14 @@ export const features: TKirejiExport = {
 		waitFor({ target: IDS.MONITOR.PRODUCED }),
 
 		"Each column holds its own settings. The pane shows a column's settings when a person primes the settings tap action and taps the pane. The monitor's settings hold the log's level and whether the log shows substeps. A substep is a step that actuality runs to carry out another step. The log hides substeps by default, so a person reading what the feature did sees the feature's own steps. Showing substeps lists them. Each substep's row links to the step it carries out. The screenshot that actuality takes after each browser step is a substep, so showing substeps shows it.",
-		click({ target: IDS.TAP_ACTIONS.SETTINGS }),
-		click({ target: `"${MONITOR_PANE}"` }),
+		...tapPane(IDS.TAP_ACTIONS.SETTINGS, MONITOR_PANE),
 		inElement({ container: `"${MONITOR_PANE}"`, what: `click ${IDS.MONITOR.SUBSTEPS}` }),
 		waitFor({ target: IDS.MONITOR.ESTABLISHED_BY }),
 
 		"Turning substeps off shows the feature's own steps again. Each step's products stay on its row.",
 		inElement({ container: `"${MONITOR_PANE}"`, what: `click ${IDS.MONITOR.SUBSTEPS}` }),
 		waitFor({ target: IDS.MONITOR.PRODUCED }),
-		click({ target: IDS.TAP_ACTIONS.SETTINGS }),
-		click({ target: `"${MONITOR_PANE}"` }),
+		...tapPane(IDS.TAP_ACTIONS.SETTINGS, MONITOR_PANE),
 
 		"The log's scroll rail shows the shared cursor. A person moves the cursor on the rail. The page doesn't have a separate range control. The cursor always marks a moment of actuality, so the rail shows its mark from the start. The mark is at the live edge until a person moves the cursor.",
 		waitFor({ target: IDS.SCROLLBAR.RAIL }),
@@ -119,8 +117,7 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "The log narrows to its rail, and the playback controls move the cursor" }),
 
 		"A minimized monitor shows a narrow form of itself. It hides its rows and keeps its rail. The rail keeps the cursor's mark. The column's strip is the rail, so a click on the strip acts on the rail and doesn't restore the rows. Priming minimize and tapping the pane minimizes it.",
-		click({ target: IDS.TAP_ACTIONS.MINIMIZE }),
-		click({ target: `"${MONITOR_PANE}"` }),
+		...tapPane(IDS.TAP_ACTIONS.MINIMIZE, MONITOR_PANE),
 		waitFor({ target: IDS.SCROLLBAR.RAIL }),
 		waitFor({ target: IDS.SCROLLBAR.CURSOR }),
 
@@ -137,8 +134,7 @@ export const features: TKirejiExport = {
 		click({ target: IDS.APP.TIME_OFFSET }),
 
 		"Tapping minimize again restores the column. The rows return. The rail is the same element and still shows the cursor's mark.",
-		click({ target: IDS.TAP_ACTIONS.MINIMIZE }),
-		click({ target: `"${MONITOR_PANE}"` }),
+		...tapPane(IDS.TAP_ACTIONS.MINIMIZE, MONITOR_PANE),
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
 		waitFor({ target: IDS.SCROLLBAR.CURSOR }),
 
@@ -253,8 +249,7 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "A closed affordances pane stays closed through a later step and a reload" }),
 
 		"A reader closes the affordances pane. A later step runs, and the page reloads. Both leave the pane closed. The server replays its event history to every page that connects, and a view shown in that history must not reopen itself.",
-		setAs({ what: "affordances-pane-close", domain: "page-locator", value: `"${SHU_TAG.COLUMN_PANE}[data-column-key='shu-affordances-panel'] .pane-close"` }),
-		click({ target: "affordances-pane-close" }),
+		...tapPane(IDS.TAP_ACTIONS.CLOSE, `${SHU_TAG.COLUMN_PANE}[data-column-key='shu-affordances-panel']`),
 		"page has settled",
 		page.testIdIsGone(`"${IDS.AFFORDANCES.GOALS_LIST}"`),
 		set({ what: "closed-pane-check", value: '"still closed"' }),
