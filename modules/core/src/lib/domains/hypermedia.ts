@@ -255,7 +255,16 @@ function subPropertyOfRel(rel: string): string | string[] | undefined {
 	return undefined;
 }
 import { NAMESPACE, RDFS_CLASS, RDF_PROPERTY, XSD_BOOLEAN, XSD_DATE, XSD_DATE_TIME, XSD_DECIMAL, XSD_DOUBLE, XSD_INTEGER } from "./vocabularies.js";
-import { AccessLevelSchema, DOMAIN_PERSISTED_TYPE, GeneratedAtTimeTextSchema, HAIBUN_NS, fieldIri, type TRecordNamespace, type TRegisteredDomain } from "./resources.js";
+import {
+	AccessLevelSchema,
+	DOMAIN_PERSISTED_TYPE,
+	topologyEdges,
+	GeneratedAtTimeTextSchema,
+	HAIBUN_NS,
+	fieldIri,
+	type TRecordNamespace,
+	type TRegisteredDomain,
+} from "./resources.js";
 import { DOMAIN_UNION, hypermediaDomainMap, refTargetOf } from "./domains.js";
 import { jsonSchemaFor } from "./json-schema-of.js";
 import { unwrap, unwrapToShape, zodTypeLabel } from "./zod-unwrap.js";
@@ -391,7 +400,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 		}
 
 		const edges: Record<string, TEdgeConcern> = {};
-		for (const [edgeField, edgeDef] of topology.edges === undefined ? [] : Object.entries(topology.edges)) {
+		for (const [edgeField, edgeDef] of Object.entries(topologyEdges(topology))) {
 			const rel = edgeDef.rel ?? edgeRel(edgeField);
 			if (!rel) throw new Error(`persisted domain "${label}" edge "${edgeField}" doesn't have a rel: add it to EdgePredicates or give an explicit rel`);
 			if (!REL_CONTEXT[rel]) throw new Error(`persisted domain "${label}" edge "${edgeField}" has unknown rel "${rel}"`);

@@ -123,7 +123,7 @@
 				"/features/behind-basic-auth.feature.ts": {
 					"text": "A page behind basic auth",
 					"status": "passed",
-					"tookMs": 2100,
+					"tookMs": 2000,
 					"steps": 217
 				}
 			}

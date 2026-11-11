@@ -2,25 +2,19 @@
  * Reads the bodies of records through a store's read function: one record's bodies with their text, the text of a form of a
  * record's body in a media type, a body's maximal text, and a record's markdown.
  */
-import { GraphQuerySchema } from "../../steps/domains/quad-types.js";
 import { type IQuadStore } from "../../steps/ports.js";
 import { BODY_LABEL, LinkRelations, type AccessQueryLevel } from "../../domains/resources.js";
 import { MEDIA_TYPE } from "../../domains/media-types.js";
 import { BodyTextSchema, LinkedBodySchema, type TLinkedBody } from "../domains/body.js";
-import { formIn } from "../derivations/bodies.js";
+import { formIn, linkedBodiesOf } from "../derivations/bodies.js";
 import { maximalText } from "../derivations/body-text.js";
-import { OUTGOING_EDGE_LIMIT, readUpTo, recordOf, type TRecordReader } from "./record-reads.js";
-import { levelOf } from "../../steps/domains/quad-types.js";
+import { readUpTo, recordOf, unitOf, type TRecordReader } from "./record-reads.js";
 
-/** Reads the bodies of one record with their text, in two reads: the bodies its edges reach, and those bodies by id. A page
- *  of bodies doesn't hold their text, and a read of named bodies holds it. */
-export async function bodiesOf(store: TRecordReader, label: string, id: string, accessLevel?: AccessQueryLevel): Promise<TLinkedBody[]> {
-	const level = levelOf(accessLevel);
-	const linked = await store.readRecords(GraphQuerySchema.parse({ referencedBy: { label, id }, label: BODY_LABEL, limit: OUTGOING_EDGE_LIMIT, skipCount: true, ...level }));
-	const named = linked.vertices.map((body) => LinkedBodySchema.parse(body).id);
-	if (named.length === 0) return [];
-	const read = await store.readRecords(GraphQuerySchema.parse({ label: BODY_LABEL, named, limit: named.length, skipCount: true, ...level }));
-	return read.vertices.map((body) => LinkedBodySchema.parse(body));
+/** Reads the bodies one record owns, with their text, in one read of the record's unit. Returns an empty list where the store
+ *  doesn't hold the record at the level. */
+export async function unitBodiesOf(store: TRecordReader, label: string, id: string, accessLevel?: AccessQueryLevel): Promise<TLinkedBody[]> {
+	const unit = await unitOf(store, label, id, accessLevel);
+	return unit === undefined ? [] : linkedBodiesOf(unit);
 }
 
 /** Returns the first of `bodies` that holds a form in the first of `mediaTypes` any of them holds. */
@@ -35,7 +29,7 @@ export async function bodyByMediaTypes(
 	mediaTypes: readonly string[],
 	accessLevel?: AccessQueryLevel,
 ): Promise<string | undefined> {
-	const body = bodyIn(await bodiesOf(store, record.label, record.id, accessLevel), mediaTypes);
+	const body = bodyIn(await unitBodiesOf(store, record.label, record.id, accessLevel), mediaTypes);
 	return body === undefined ? undefined : formIn(body, mediaTypes);
 }
 
@@ -44,7 +38,7 @@ export async function bodyByMediaTypes(
  *  reads it, so the text it sends holds what each form holds. Returns undefined where the record doesn't hold a form in one
  *  of them. */
 export async function maximalTextIn(store: TRecordReader, record: { label: string; id: string }, mediaTypes: readonly string[]): Promise<string | undefined> {
-	const body = bodyIn(await bodiesOf(store, record.label, record.id), mediaTypes);
+	const body = bodyIn(await unitBodiesOf(store, record.label, record.id), mediaTypes);
 	return body === undefined ? undefined : maximalText(BodyTextSchema.parse(body));
 }
 

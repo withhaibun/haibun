@@ -33,7 +33,15 @@ import {
 import type { IQuadStore, TFederatedGraphSource, TStoreLevels } from "../ports.js";
 import { AccessLevelSchema, HELD_BY, LinkRelations, withinAccess, type AccessLevel, type AccessQueryLevel } from "../../domains/resources.js";
 import { seenAt, writesAtEveryLevel, writtenAt } from "../../domains/actions.js";
-import { distinctOf, readFromRecords, recordsOfQuads, type THeldRecord, type TReadDeclaration, type TReadDeclarations } from "../../records/derivations/read-records.js";
+import {
+	distinctOf,
+	ownedEdges,
+	readFromRecords,
+	recordsOfQuads,
+	type THeldRecord,
+	type TReadDeclaration,
+	type TReadDeclarations,
+} from "../../records/derivations/read-records.js";
 import { quadsOfRead, readUpTo, type TRecordReader } from "../../records/pipelines/record-reads.js";
 import { densityOverQuadStore } from "../../records/pipelines/record-density.js";
 import { QuadLayer } from "../../records/machines/quad-layer.js";
@@ -611,9 +619,15 @@ export class QuadStore implements IQuadStore {
 	private async ownRecords(query: TGraphQuery, parsed: boolean): Promise<TRecordsPage> {
 		const declarations = this.declarations;
 		if (!declarations) throw new Error("this store doesn't hold the declarations of its types, so it doesn't read records by type; build it with the declarations it reads");
-		const held = recordsOfQuads(await quadsOfRead(query, (pattern) => Promise.resolve(this.localQuery(pattern))));
-		const elsewhere = query.referencedBy ? await this.referencedElsewhere(held, query) : [];
 		const declared = declarations();
+		const held = recordsOfQuads(
+			await quadsOfRead(
+				query,
+				(pattern) => Promise.resolve(this.localQuery(pattern)),
+				(label) => ownedEdges(declared, label),
+			),
+		);
+		const elsewhere = query.referencedBy ? await this.referencedElsewhere(held, query) : [];
 		if (parsed)
 			for (const { label, fields } of held) {
 				const schema = declared.of(label)?.schema;

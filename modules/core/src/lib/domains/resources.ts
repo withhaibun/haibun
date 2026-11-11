@@ -178,6 +178,10 @@ export const BODY_LABEL = "Body";
 /** The edge from any resource to a Body sub-resource. */
 export const HAS_BODY_EDGE = "hasBody";
 
+/** The edge from a record to the Bodies that hold its text. The record owns them: a write of the record writes them with it, a
+ *  read of its unit embeds them with their text, and its removal removes them. */
+export const OWNED_BODY = { rel: HAS_BODY_EDGE, range: BODY_LABEL, owns: true } as const;
+
 /**
  * A Reading records one reading of a text that asserts what the text's links state (`prov:Activity`). Each source has
  * one Reading. It names the source it read (`prov:used`), the step that read it and the statements it made. Reading a
@@ -616,6 +620,13 @@ export function isContentPropertyDef(def: TPropertyDef | undefined): def is TCon
 	return typeof def === "object" && def !== null && def.rel === "content";
 }
 
+/** Returns the edges a topology declares. A type with a content property owns the Bodies a write partitions its content into,
+ *  through `hasBody`, where its topology doesn't declare that edge. */
+export function topologyEdges({ properties, edges }: Pick<THypermediaTopology, "properties" | "edges">): Record<string, TEdgeDef> {
+	const declared = edges === undefined ? {} : edges;
+	return Object.values(properties).some(isContentPropertyDef) && declared[HAS_BODY_EDGE] === undefined ? { [HAS_BODY_EDGE]: OWNED_BODY, ...declared } : declared;
+}
+
 /** Returns the vocabulary IRI a property declares (TTermPropertyDef), or undefined where it doesn't declare one and its rel's IRI applies. */
 export function propertyIriOf(def: TPropertyDef | undefined): string | undefined {
 	return typeof def === "object" && def !== null && "iri" in def ? def.iri : undefined;
@@ -995,7 +1006,7 @@ export const COMMENT_TOPOLOGY: THypermediaTopology = {
 		[LinkRelations.CONTEXT.rel]: LinkRelations.CONTEXT.rel,
 	},
 	edges: {
-		[HAS_BODY_EDGE]: { rel: LinkRelations.HAS_BODY.rel, range: BODY_LABEL, owns: true },
+		[HAS_BODY_EDGE]: OWNED_BODY,
 		// The author as a navigable edge to that agent. A comment links to the person, service or model that wrote it
 		// and doesn't only name it in a string. The edge reaches any type, since an author is a Principal or a model's
 		// record that responds, as the addressee is. The property with the same rel remains because author is a sort

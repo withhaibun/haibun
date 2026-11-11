@@ -113,7 +113,7 @@ export type TReading = { key: string; body: string; media: string; text?: string
 export const readingKey = (body: string, media: string): string => `${body} ${media}`;
 
 /** Returns the bodies a record links through `hasBody`. Throws for a body that doesn't state its id and media type. */
-function linkedBodiesOf(record: Record<string, unknown>): TLinkedBody[] {
+export function linkedBodiesOf(record: Record<string, unknown>): TLinkedBody[] {
 	const linked = record[HAS_BODY_EDGE];
 	if (linked === undefined) return [];
 	return z.array(LinkedBodySchema).parse(Array.isArray(linked) ? linked : [linked]);
@@ -136,16 +136,4 @@ export function preferredReading<T extends { media: string; text?: string }>(rea
 		if (hit !== undefined) return hit;
 	}
 	return usable[0];
-}
-
-/** Returns a record with each body it links that `read` holds, by its id, as the body was read whole, with the text of
- *  each of its forms. */
-export function withBodiesRead(record: Record<string, unknown>, read: Readonly<Record<string, TLinkedBody>>): Record<string, unknown> {
-	const linked = record[HAS_BODY_EDGE];
-	if (!Array.isArray(linked)) return record;
-	const asRead = (body: unknown): unknown => {
-		const whole = read[LinkedBodySchema.parse(body).id];
-		return whole === undefined ? body : whole;
-	};
-	return { ...record, [HAS_BODY_EDGE]: linked.map(asRead) };
 }

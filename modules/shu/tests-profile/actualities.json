@@ -195,7 +195,7 @@
 			"actuality": {
 				"text": "modules/shu/tests-profile, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 17900,
+				"tookMs": 18700,
 				"digest": {
 					"modules/core/src": "740f5953aaa9d7a43e11d3b3b7e6680d4d4fb976241a9c023599e92c076bf7b5",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
@@ -214,25 +214,25 @@
 				"/features/b-reading-a-cached-actuality.feature.ts": {
 					"text": "Reading an actuality this device holds",
 					"status": "passed",
-					"tookMs": 3400,
+					"tookMs": 3800,
 					"steps": 221
 				},
 				"/features/c-reading-a-report.feature.ts": {
 					"text": "Reading a report of this actuality",
 					"status": "passed",
-					"tookMs": 3000,
+					"tookMs": 2800,
 					"steps": 225
 				},
 				"/features/d-two-origins.feature.ts": {
 					"text": "What a reader holds is held per address",
 					"status": "passed",
-					"tookMs": 3400,
+					"tookMs": 3300,
 					"steps": 216
 				},
 				"/features/e-deleting-an-actuality.feature.ts": {
 					"text": "Deleting an actuality this device holds",
 					"status": "passed",
-					"tookMs": 4700,
+					"tookMs": 5400,
 					"steps": 212
 				}
 			}

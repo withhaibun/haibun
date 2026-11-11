@@ -52,7 +52,7 @@ describe("an open of a record", () => {
 
 	it("is a pending stub until an individual is opened", () => {
 		handle = setupShuTest(stubDispatch());
-		expect(recordView("Email", "e1")).toEqual({ status: LOAD_STATUS.PENDING, annotations: [], bodies: {} });
+		expect(recordView("Email", "e1")).toEqual({ status: LOAD_STATUS.PENDING, annotations: [] });
 	});
 
 	it("serves a fetched individual and its anchored annotations with `live` provenance", async () => {

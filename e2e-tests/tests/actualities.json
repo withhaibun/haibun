@@ -590,7 +590,7 @@
 			"actuality": {
 				"text": "e2e-tests/tests, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
 				"status": "passed",
-				"tookMs": 24600,
+				"tookMs": 23800,
 				"digest": {
 					"e2e-tests/src": "c9168fc116f27c8f0d52a129ae946b1dfca4b6da438898284c7da988f7ffe927",
 					"e2e-tests/tests": "f4df00ba606dcafde9fd364da0aba0564c5d4c58348e6d70d2a469b74fcf1a61",
@@ -623,7 +623,7 @@
 				"/features/a11y-pass.feature": {
 					"text": "/features/a11y-pass",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 800,
 					"steps": 13
 				},
 				"/features/after-every.feature": {
@@ -665,13 +665,13 @@
 				"/features/counter.feature.ts": {
 					"text": "Counts feature",
 					"status": "passed",
-					"tookMs": 1600,
+					"tookMs": 700,
 					"steps": 21
 				},
 				"/features/counts.feature.ts": {
 					"text": "Counts feature",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 600,
 					"steps": 22
 				},
 				"/features/elements.feature": {
@@ -701,25 +701,25 @@
 				"/features/not.feature": {
 					"text": "/features/not",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 600,
 					"steps": 9
 				},
 				"/features/once.feature.ts": {
 					"text": "A group of features runs once per state of what it depends on",
 					"status": "passed",
-					"tookMs": 2100,
+					"tookMs": 2200,
 					"steps": 20
 				},
 				"/features/page-visits.feature.ts": {
 					"text": "Visit pages",
 					"status": "passed",
-					"tookMs": 2000,
+					"tookMs": 1900,
 					"steps": 65
 				},
 				"/features/popup.feature": {
 					"text": "/features/popup",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 800,
 					"steps": 14
 				},
 				"/features/qrcode.feature": {
@@ -737,7 +737,7 @@
 				"/features/run-policy-refusals.feature.ts": {
 					"text": "A run refuses a run policy its config doesn't allow",
 					"status": "passed",
-					"tookMs": 2000,
+					"tookMs": 2100,
 					"steps": 16
 				},
 				"/features/trauma_center.feature": {
@@ -761,7 +761,7 @@
 				"/features/workflow.feature.ts": {
 					"text": "workflow",
 					"status": "passed",
-					"tookMs": 300,
+					"tookMs": 500,
 					"steps": 64
 				},
 				"/features/xss.feature": {

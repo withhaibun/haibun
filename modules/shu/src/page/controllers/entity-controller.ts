@@ -82,12 +82,6 @@ export class EntityController implements ReactiveController {
 		if (this.id) void refreshAnnotations(this.label, this.id);
 	}
 
-	/** Reads one of the open record's bodies whole into `view.bodies`, by its id. The open names the bodies, and a body's text
-	 *  is read only here. */
-	requestBody(bodyId: string): void {
-		if (this.id && bodyId) void OpenRecord.requestBody(scope(), this.label, this.id, bodyId);
-	}
-
 	/** Writes a note anchored in a passage of the open record, then reads its notes again so the note shows anchored. */
 	annotate(draft: TAnnotationDraft): Promise<TWritten> {
 		if (!this.id) return Promise.resolve({ ok: false as const, refusal: { error: "a record isn't open to annotate" } });

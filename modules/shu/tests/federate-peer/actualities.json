@@ -377,7 +377,7 @@
 				"/features/serve.feature": {
 					"text": "/features/serve",
 					"status": "passed",
-					"tookMs": 0,
+					"tookMs": 100,
 					"steps": 4
 				}
 			}

@@ -5,8 +5,7 @@
  * any page reads its notes again.
  */
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
-import { BODY_LABEL, LinkRelations } from "@haibun/core/lib/domains/resources.js";
-import { LinkedBodySchema } from "@haibun/core/lib/records/domains/body.js";
+import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import type { TIndividualWithEdges, TQuad } from "@haibun/core/lib/quad-types.js";
 import { unreadView, type TAnnotationDraft, type TEntityView } from "../domains/entity.js";
 import { LOAD_STATUS } from "../domains/load.js";
@@ -100,7 +99,7 @@ function readRecordInto(scope: TOpenScope, entry: TEntry): Promise<void> {
 		if (!read.ok && entry.view.entity) return scope.report(`${entry.label}:${entry.id} wasn't read again: ${read.refusal.error}`);
 		entry.view = read.ok
 			? { ...entry.view, status: LOAD_STATUS.COMPLETED, provenance: scope.offline ? "offline" : "live", entity: read.value }
-			: { status: LOAD_STATUS.FAILED, annotations: [], refusal: read.refusal, bodies: {} };
+			: { status: LOAD_STATUS.FAILED, annotations: [], refusal: read.refusal };
 		notify(scope, entry.id);
 	});
 	entry.reading = reading;
@@ -140,18 +139,6 @@ export async function openRecord(scope: TOpenScope, label: string, id: string, a
 	await readRecordInto(scope, entry);
 	if (entry.view.entity === undefined) return;
 	await readAnnotationsInto(scope, entry);
-	notify(scope, id);
-}
-
-/** Reads one body whole, with the text of each of its forms, into a held record's view, when a reader opens it. A body
- *  already read, or a record the page doesn't hold, returns at once, so a render doesn't read again. A body that isn't read
- *  is reported and its area stays loading. */
-export async function requestBody(scope: TOpenScope, label: string, id: string, bodyId: string): Promise<void> {
-	const entry = scope.store.entries.get(keyOf(label, id));
-	if (entry?.view.entity === undefined || entry.view.bodies[bodyId] !== undefined) return;
-	const read = await scope.read(BODY_LABEL, bodyId);
-	if (!read.ok) return scope.report(`the body ${bodyId} of ${label}:${id} wasn't read: ${read.refusal.error}`);
-	entry.view = { ...entry.view, bodies: { ...entry.view.bodies, [bodyId]: LinkedBodySchema.parse({ ...read.value.vertex, id: bodyId }) } };
 	notify(scope, id);
 }
 

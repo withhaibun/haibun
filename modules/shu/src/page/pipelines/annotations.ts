@@ -31,22 +31,35 @@ export async function annotationsOnSite(scope: TAnnotationScope, label: string, 
 	return read.ok ? { ok: true, value: AnnotationListSchema.parse(read.value).annotations } : read;
 }
 
-/** Returns the notes anchored in the record `id` names, from the quads the page holds: each SpecificResource whose source
- *  is the record, its selector, and each Comment that targets it, with its body. */
+/** The quads of each subject of one type the page holds, by the subject. */
+type TBySubject = Map<string, TQuad[]>;
+
+/** Returns the notes anchored in the record `id` names, from the quads the page holds, with one read of each type a note
+ *  holds: each SpecificResource whose source is the record, its selector, and each Comment that targets it, with its body. */
 export async function annotationsHeld(scope: TAnnotationScope, id: string): Promise<TAnnotationView[]> {
-	const resources = bySubject(await scope.quads({ namedGraph: SPECIFIC_RESOURCE_LABEL }));
-	const comments = bySubject(await scope.quads({ namedGraph: COMMENT_LABEL }));
+	const held = async (namedGraph: string): Promise<TBySubject> => bySubject(await scope.quads({ namedGraph }));
+	const [resources, selectors, comments, bodies] = await Promise.all([held(SPECIFIC_RESOURCE_LABEL), held(TEXT_QUOTE_SELECTOR_LABEL), held(COMMENT_LABEL), held(BODY_LABEL)]);
+	const quoteOf = (resourceId: string): TQuoteAnchor | undefined => {
+		const resource = resources.get(resourceId);
+		const selector = resource === undefined ? undefined : selectors.get(String(edgeOf(resource, LinkRelations.HAS_SELECTOR.rel)));
+		const exact = selector === undefined ? undefined : literalOf(selector, LinkRelations.EXACT.rel);
+		if (selector === undefined || exact === undefined) return undefined;
+		const prefix = literalOf(selector, LinkRelations.PREFIX.rel);
+		const suffix = literalOf(selector, LinkRelations.SUFFIX.rel);
+		return { exact, ...(prefix !== undefined ? { prefix } : {}), ...(suffix !== undefined ? { suffix } : {}) };
+	};
 	const out: TAnnotationView[] = [];
 	for (const [resourceId, quads] of resources) {
-		if (edgeOf(quads, LinkRelations.HAS_SOURCE.rel) !== id) continue;
-		const quote = await quoteOf(scope, quads);
+		const quote = edgeOf(quads, LinkRelations.HAS_SOURCE.rel) === id ? quoteOf(resourceId) : undefined;
 		if (quote === undefined) continue;
 		for (const [commentId, commentQuads] of comments) {
 			if (edgeOf(commentQuads, LinkRelations.TARGET.rel) !== resourceId) continue;
-			const links = await linkedQuotesOf(scope, commentQuads);
+			const links = commentQuads
+				.filter((q) => q.predicate === LinkRelations.LINKS_TO.rel && q.objectType !== undefined)
+				.flatMap((q) => [quoteOf(String(q.object))].filter((linked) => linked !== undefined));
 			const author = literalOf(commentQuads, LinkRelations.ATTRIBUTED_TO.rel);
 			const generatedAtTime = literalOf(commentQuads, LinkRelations.GENERATED_AT_TIME.rel);
-			const body = await bodyOf(scope, commentQuads);
+			const body = bodyOf(bodies, commentQuads);
 			out.push({
 				commentId,
 				specificResourceId: resourceId,
@@ -61,30 +74,8 @@ export async function annotationsHeld(scope: TAnnotationScope, id: string): Prom
 	return out;
 }
 
-/** Returns the quote of a SpecificResource's TextQuoteSelector, or undefined where it doesn't hold a selector with a quote. */
-async function quoteOf(scope: TAnnotationScope, resourceQuads: TQuad[]): Promise<TQuoteAnchor | undefined> {
-	const selectorId = edgeOf(resourceQuads, LinkRelations.HAS_SELECTOR.rel);
-	if (selectorId === undefined) return undefined;
-	const selector = await scope.quads({ subject: selectorId, namedGraph: TEXT_QUOTE_SELECTOR_LABEL });
-	const exact = literalOf(selector, LinkRelations.EXACT.rel);
-	if (exact === undefined) return undefined;
-	const prefix = literalOf(selector, LinkRelations.PREFIX.rel);
-	const suffix = literalOf(selector, LinkRelations.SUFFIX.rel);
-	return { exact, ...(prefix !== undefined ? { prefix } : {}), ...(suffix !== undefined ? { suffix } : {}) };
-}
-
 /** Returns the markdown body of a Comment: the content of the Body its `hasBody` edge reaches. */
-async function bodyOf(scope: TAnnotationScope, commentQuads: TQuad[]): Promise<string | undefined> {
-	const bodyId = edgeOf(commentQuads, LinkRelations.HAS_BODY.rel);
-	return bodyId === undefined ? undefined : literalOf(await scope.quads({ subject: bodyId, namedGraph: BODY_LABEL }), LinkRelations.CONTENT.rel);
-}
-
-/** Returns the quotes of the sections a linking Comment points at: each `linksTo` edge's SpecificResource, and its selector. */
-async function linkedQuotesOf(scope: TAnnotationScope, commentQuads: TQuad[]): Promise<TQuoteAnchor[]> {
-	const out: TQuoteAnchor[] = [];
-	for (const q of commentQuads.filter((x) => x.predicate === LinkRelations.LINKS_TO.rel && x.objectType !== undefined)) {
-		const quote = await quoteOf(scope, await scope.quads({ subject: String(q.object), namedGraph: SPECIFIC_RESOURCE_LABEL }));
-		if (quote !== undefined) out.push(quote);
-	}
-	return out;
+function bodyOf(bodies: TBySubject, commentQuads: TQuad[]): string | undefined {
+	const body = bodies.get(String(edgeOf(commentQuads, LinkRelations.HAS_BODY.rel)));
+	return body === undefined ? undefined : literalOf(body, LinkRelations.CONTENT.rel);
 }

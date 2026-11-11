@@ -18,7 +18,6 @@ import { anIndividual, type TContextPattern } from "@haibun/core/lib/conversatio
 import { EntityController } from "../controllers/entity-controller.js";
 import { unread, type TEntityResult, type TEntityView, type TAnnotationDraft } from "../domains/entity.js";
 import { LOAD_STATUS } from "../domains/load.js";
-import type { TLinkedBody } from "@haibun/core/lib/records/domains/body.js";
 import type { TRecordFrame } from "@haibun/core/lib/records/domains/axioms.js";
 import { fragmentReads, isFragment, pageOfPassage, pdfPage, type TFragment } from "@haibun/core/lib/domains/media-fragments.js";
 import {
@@ -52,7 +51,7 @@ import { esc, escAttr, utf8ToBase64, renderRef, refsInContent } from "../derivat
 import { buildBodyIframeDoc } from "../derivations/body-frame.js";
 import { idOf, instanceLabel, isVisibleKey, extractFieldEntries, extractBodyLiterals, governanceFields } from "../controllers/record-controller.js";
 import { isReferenceEdge } from "../derivations/record-fields.js";
-import { formIn, preferredReading, readingsOf, withBodiesRead, type TReading } from "@haibun/core/lib/records/derivations/bodies.js";
+import { preferredReading, readingsOf, type TReading } from "@haibun/core/lib/records/derivations/bodies.js";
 import type { TWritten } from "../pipelines/call-step.js";
 import type { TPageRefusal } from "../domains/refusal.js";
 import { refusalTpl } from "./load-renders.js";
@@ -192,19 +191,15 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	private revealTarget: TQuoteAnchor | null = null;
 	/** A part of the individual's media a reference names, as a PDF's page, at which a file the individual offers opens. */
 	private fragment: TFragment | null = null;
-	/** Each body that has been read whole, by its id, projected from the entity view. A body the reader has not opened is
-	 *  absent, so the body area reads as loading rather than empty. */
-	private bodiesRead: Record<string, TLinkedBody> = {};
 	/** The reading a reader switched to, by its key. A record that does not list it shows its preferred reading. */
 	private chosenReading: string | null = null;
 	/** Full augmented products from getIndividualWithEdges (individual + edges + incomingCount + `_type/_summary/_description/_links/_seqPath`). Retained for the `<script type="application/ld+json">` block in render so an agent reading the page sees the same hypermedia, and returned on demand by `summarizeForContext`. */
 	private products: Record<string, unknown> | null = null;
 
-	/** The open record's products, the linked data the page embeds, with the text of each body the reader opened set on
-	 *  that body. Null while the products are read. */
+	/** The open record's products, the linked data the page embeds, with the text of each body its unit embeds. Null while
+	 *  the products are read. */
 	summarizeForContext(): TLinkedData | null {
-		const augmented = this.#augmentedProducts();
-		return augmented === null ? null : withBodiesRead(augmented, this.bodiesRead);
+		return this.#augmentedProducts();
 	}
 
 	#augmentedProducts(): Record<string, unknown> | null {
@@ -266,17 +261,12 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	#refusal: TPageRefusal | undefined = undefined;
 
 	/** Project the entity handle's view onto the render fields: the entity (applied for the field table/roles/body), the
-	 *  annotations anchored in it, the text of any body already read, and the read's status and provenance the render
-	 *  branches read. */
+	 *  annotations anchored in it, and the read's status and provenance the render branches read. */
 	private applyView(view: TEntityView): void {
 		if (view.entity) this.applyEntity(view.entity);
 		this.annotationsList = view.annotations;
 		this.#refusal = view.status === LOAD_STATUS.FAILED ? view.refusal : undefined;
-		this.bodiesRead = view.bodies;
 		this.setState({ loading: unread(view), fromStore: view.provenance === "cache" || view.provenance === "offline" ? view.provenance : undefined });
-		// Read the body of the reading the reader is shown, only that one, only once (the handle no-ops for a body already read).
-		const shown = this.shownReading();
-		if (shown !== undefined && view.bodies[shown.body] === undefined) this.entity.requestBody(shown.body);
 	}
 
 	/** Apply one entity result (from the shared store or a fresh fetch) to the render fields. */
@@ -616,7 +606,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 				: "";
 		// Text this view was HANDED (a step's products carry their own body) doesn't need a request; otherwise it is the text
 		// read on request, and until that lands the body area shows it is reading rather than showing an empty frame.
-		const raw = this.textOf(active);
+		const raw = active.text;
 		const reading = `<div class="body-container"><div class="content-toolbar">${switcherHtml}</div><div class="body-reading" data-testid="body-reading">Reading ${esc(active.media)}…</div></div>`;
 		if (raw === undefined) return reading;
 		if (raw === "") return ""; // an empty body renders an empty string, not an empty frame
@@ -648,20 +638,13 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		return chosen === undefined ? preferredReading(available) : chosen;
 	}
 
-	/** The text of a reading: the text the record carries, or the text of its form of the body read on request. Undefined
-	 *  until its body is read. */
-	private textOf(reading: TReading): string | undefined {
-		const read = this.bodiesRead[reading.body];
-		return reading.text === undefined && read !== undefined ? formIn(read, [reading.media]) : reading.text;
-	}
-
 	/** The reading shown, where it is text (markdown or plain), with its text once read: what an annotation's quote is
 	 *  anchored against, rendered inline so the annotator can highlight it. Null where the reading shown is not text,
 	 *  such as an original HTML email, which stays in the sandboxed iframe, or where its text has not been read. */
 	private annotatableBody(): { text: string; media: string } | null {
 		const b = this.shownReading();
 		if (b === undefined || (b.media !== MEDIA_TYPE.markdown && b.media !== MEDIA_TYPE.plain)) return null;
-		const text = this.textOf(b);
+		const text = b.text;
 		return text === undefined ? null : { text, media: b.media };
 	}
 
@@ -851,7 +834,6 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const chosen = this.vertex === null ? undefined : readingsOf(this.vertex).find((reading) => reading.key === btn.dataset.reading);
 		if (chosen === undefined) return;
 		this.chosenReading = chosen.key;
-		if (this.textOf(chosen) === undefined) this.entity.requestBody(chosen.body);
 		this.requestUpdate();
 	}
 

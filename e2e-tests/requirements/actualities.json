@@ -544,7 +544,7 @@
 			"actuality": {
 				"text": "e2e-tests/requirements, node_modules/@haibun/cli/waypoints, node_modules/@haibun/logic/waypoints, node_modules/@haibun/core/waypoints",
 				"status": "passed",
-				"tookMs": 55800,
+				"tookMs": 55300,
 				"digest": {
 					"e2e-tests/requirements": "6ae656c0ff9fc5fd05522df94ca1444b34828b4cda6f2f508bb4ca9411cf1bc0",
 					"e2e-tests/src": "c9168fc116f27c8f0d52a129ae946b1dfca4b6da438898284c7da988f7ffe927",
@@ -596,7 +596,7 @@
 				"/features/05-goals.feature.ts": {
 					"text": "Goals over producer rules",
 					"status": "passed",
-					"tookMs": 1900,
+					"tookMs": 2100,
 					"steps": 41
 				},
 				"/features/06-world-and-products.feature.ts": {
@@ -608,7 +608,7 @@
 				"/features/07-records.feature.ts": {
 					"text": "Records, events and actualities",
 					"status": "passed",
-					"tookMs": 2600,
+					"tookMs": 2400,
 					"steps": 33
 				},
 				"/features/08-timing.feature.ts": {
@@ -626,7 +626,7 @@
 				"/features/10-cli.feature.ts": {
 					"text": "The command line",
 					"status": "passed",
-					"tookMs": 1200,
+					"tookMs": 1100,
 					"steps": 11
 				},
 				"/features/11-performance.feature.ts": {
@@ -662,7 +662,7 @@
 				"/features/16-class-expressions.feature.ts": {
 					"text": "Class expressions",
 					"status": "passed",
-					"tookMs": 44600,
+					"tookMs": 44500,
 					"steps": 93
 				}
 			}

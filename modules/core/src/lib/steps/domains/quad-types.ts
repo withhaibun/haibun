@@ -89,6 +89,9 @@ export const GraphQuerySchema = z
 		referencedBy: ReachedRecordSchema.optional(),
 		/** The ids of the records to read, in the order of the page. A named read states the type of its records in `label`. */
 		named: z.array(z.string().min(1)).min(1).optional(),
+		/** When true, each named record embeds each record it owns, transitively, under the edge its type declares `owns`, as a
+		 *  read of that record by its id returns it. A reader reads a record and its parts in one read. */
+		owned: z.literal(true).optional(),
 	})
 	.strict();
 export type TGraphQuery = z.infer<typeof GraphQuerySchema>;

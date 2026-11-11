@@ -24,8 +24,8 @@ import {
 	type TSearchCondition,
 } from "../../steps/domains/quad-types.js";
 import { type IQuadStore } from "../../steps/ports.js";
-import { HAS_BODY_EDGE, isPersisted, LinkRelations, type AccessQueryLevel, type TDomainDefinition, type TDomainMembers } from "../../domains/resources.js";
-import { readFromRecords, recordsOfQuads, type TReadDeclarations } from "../derivations/read-records.js";
+import { isPersisted, type AccessQueryLevel, type TDomainDefinition, type TDomainMembers } from "../../domains/resources.js";
+import { ownedEdges, readFromRecords, recordsOfQuads, type TReadDeclarations } from "../derivations/read-records.js";
 
 /** The store port's read function. */
 export type TRecordReader = Pick<IQuadStore, "readRecords">;
@@ -53,14 +53,27 @@ async function quadsOfSubjects(of: ReadonlyArray<{ graph: string; subject: strin
 	return held.flat();
 }
 
+/** Reads the quads of each record that the records of `quads` own through the edges `owns` names, transitively. */
+async function quadsOfParts(quads: readonly TQuad[], read: TPatternRead, owns: (label: string) => readonly string[]): Promise<TQuad[]> {
+	const parts = quads.flatMap((quad) =>
+		quad.objectType !== undefined && owns(quad.namedGraph).includes(quad.predicate) ? [{ graph: quad.objectType, subject: String(quad.object) }] : [],
+	);
+	if (parts.length === 0) return [];
+	const owned = await quadsOfSubjects(parts, read);
+	return [...owned, ...(await quadsOfParts(owned, read, owns))];
+}
+
 /**
  * Reads the quads a read of a store of quads needs: the named records' quads, the quads of the records that reference a
  * record or that a record references, or the quads of a type. A read that doesn't name one of them doesn't read a quad,
  * and `readFromRecords` refuses it.
  */
-export async function quadsOfRead(query: TGraphQuery, read: TPatternRead): Promise<TQuad[]> {
+export async function quadsOfRead(query: TGraphQuery, read: TPatternRead, owns: (label: string) => readonly string[]): Promise<TQuad[]> {
 	const { label, named, references, referencedBy } = query;
-	if (named && label !== undefined) return (await Promise.all(named.map((subject) => read({ subject, namedGraph: label })))).flat();
+	if (named && label !== undefined) {
+		const quads = (await Promise.all(named.map((subject) => read({ subject, namedGraph: label })))).flat();
+		return query.owned ? [...quads, ...(await quadsOfParts(quads, read, owns))] : quads;
+	}
 	if (references) {
 		const pointing = (await read({ object: references.id })).filter((quad) => quad.objectType === references.label);
 		return quadsOfSubjects(
@@ -78,7 +91,7 @@ export async function quadsOfRead(query: TGraphQuery, read: TPatternRead): Promi
 
 /** Reads a page of the records a store of quads holds, through its pattern read and its declarations. */
 export async function readQuadRecords(query: TGraphQuery, read: TPatternRead, declarations: TReadDeclarations): Promise<TRecordsPage> {
-	return readFromRecords(recordsOfQuads(await quadsOfRead(query, read)), query, declarations);
+	return readFromRecords(recordsOfQuads(await quadsOfRead(query, read, (label) => ownedEdges(declarations, label))), query, declarations);
 }
 
 /** Returns a condition for each field that compares the field's value for equality. */
@@ -92,30 +105,37 @@ function edgesOf<D extends TQuadEdge["direction"]>(vertices: ReadonlyArray<Recor
 	return vertices.flatMap(({ [VIA_FIELD]: via, ...target }) => ViaSchema.parse(via).map((type) => ({ type, direction, target })));
 }
 
+/** Returns the read of one record by its type and id, with the records it owns embedded where `owned` holds. */
+const namedRead = (label: string, id: string, accessLevel: AccessQueryLevel | undefined, owned: boolean): TGraphQuery =>
+	GraphQuerySchema.parse({ label, named: [id], limit: 1, skipCount: true, ...(owned ? { owned } : {}), ...levelOf(accessLevel) });
+
 /** Reads one record by its type and id. Returns undefined where the store doesn't hold the record at the level. */
 export async function recordOf(store: TRecordReader, label: string, id: string, accessLevel?: AccessQueryLevel): Promise<Record<string, unknown> | undefined> {
-	const page = await store.readRecords(GraphQuerySchema.parse({ label, named: [id], limit: 1, skipCount: true, ...levelOf(accessLevel) }));
-	return page.vertices[0];
+	return (await store.readRecords(namedRead(label, id, accessLevel, false))).vertices[0];
+}
+
+/** Reads one unit in one read: the record its type and id name, with each record it owns embedded under the edge that owns it,
+ *  transitively, a Body with its text. Returns undefined where the store doesn't hold the record at the level. */
+export async function unitOf(store: TRecordReader, label: string, id: string, accessLevel?: AccessQueryLevel): Promise<Record<string, unknown> | undefined> {
+	return (await store.readRecords(namedRead(label, id, accessLevel, true))).vertices[0];
 }
 
 /**
- * Reads one record with its edges in three reads: the named record, the records it references with the relations that reach
+ * Reads one record with its edges in three reads: the record's unit, the records it references with the relations that reach
  * each, and the count of the records that reference it. Returns undefined where the store doesn't hold the record at the
  * level. The outgoing edges state their count, so a record with more than `OUTGOING_EDGE_LIMIT` edges states `saturated`.
- * The record lists the bodies its edges reach in `hasBody`. A view renders a record's text from that list.
+ * A view renders a record's text from the bodies its unit embeds.
  */
 export async function recordWithEdges(store: TRecordReader, label: string, id: string, accessLevel?: AccessQueryLevel): Promise<TRecordWithEdges | undefined> {
 	const level = levelOf(accessLevel);
 	const [named, outgoing, incoming] = await Promise.all([
-		store.readRecords(GraphQuerySchema.parse({ label, named: [id], limit: 1, skipCount: true, ...level })),
+		store.readRecords(namedRead(label, id, accessLevel, true)),
 		store.readRecords(GraphQuerySchema.parse({ referencedBy: { label, id }, limit: OUTGOING_EDGE_LIMIT, ...level })),
 		store.readRecords(GraphQuerySchema.parse({ references: { label, id }, limit: 1, ...level })),
 	]);
-	const [held] = named.vertices;
-	if (!held) return undefined;
+	const [vertex] = named.vertices;
+	if (!vertex) return undefined;
 	const edges = edgesOf(outgoing.vertices, "out");
-	const bodies = edges.filter(({ type }) => type === LinkRelations.HAS_BODY.rel).map(({ target }) => target);
-	const vertex = bodies.length > 0 ? { ...held, [HAS_BODY_EDGE]: bodies } : held;
 	return { vertex, edges, incomingCount: { total: incoming.total, saturated: incoming.saturated }, outgoingCount: { total: outgoing.total, saturated: outgoing.saturated } };
 }
 

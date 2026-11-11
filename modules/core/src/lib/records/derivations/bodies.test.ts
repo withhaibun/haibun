@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { LinkRelations } from "../../domains/resources.js";
 import { MEDIA_TYPE } from "../../domains/media-types.js";
-import { bodyIdOf, bodyKindsOf, bodyOfForms, DEFAULT_BODY_KIND, formIn, preferredMediaType, preferredReading, readingKey, readingsOf, withBodiesRead } from "./bodies.js";
+import { bodyIdOf, bodyKindsOf, bodyOfForms, DEFAULT_BODY_KIND, formIn, preferredMediaType, preferredReading, readingKey, readingsOf } from "./bodies.js";
 
 const CONTENT = LinkRelations.CONTENT.rel;
 const plain = { mediaType: MEDIA_TYPE.plain, content: "plain text" };
@@ -84,14 +84,6 @@ describe("the readings of the bodies a record links", () => {
 		expect(read({ media: "text/calendar", text: "BEGIN:VCALENDAR" })).toBe("text/calendar");
 		expect(read({ media: MEDIA_TYPE.markdown, text: "" }, { media: MEDIA_TYPE.plain, text: "p" })).toBe(MEDIA_TYPE.plain);
 		expect(preferredReading([])).toBeUndefined();
-	});
-
-	it("take each body a reader read whole in place of its listing, with the text of each form", () => {
-		const read = { id: "e", ...markdown, representations: [plain, html] };
-		expect(withBodiesRead({ id: "r", hasBody: [listed, { id: "c", mediaType: MEDIA_TYPE.plain }] }, { e: read })).toEqual({
-			id: "r",
-			hasBody: [read, { id: "c", mediaType: MEDIA_TYPE.plain }],
-		});
 	});
 
 	it("select a form of a Body by media type, its text or a representation", () => {

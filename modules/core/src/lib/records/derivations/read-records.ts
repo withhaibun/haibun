@@ -33,7 +33,17 @@ import {
 	type TSearchCondition,
 	type TStatedQuery,
 } from "../../steps/domains/quad-types.js";
-import { AccessQuery, LinkRelations, isPersisted, sortFieldOf, statedLevel, type THeldBy, type TRecordNamespace, type TRegisteredDomain } from "../../domains/resources.js";
+import {
+	AccessQuery,
+	LinkRelations,
+	isPersisted,
+	sortFieldOf,
+	statedLevel,
+	topologyEdges,
+	type THeldBy,
+	type TRecordNamespace,
+	type TRegisteredDomain,
+} from "../../domains/resources.js";
 import { persistedDomainOf } from "../../domains/domains.js";
 import { recordIri } from "./record-iri.js";
 import { edgeDeclarationsOf, type TEdgeDeclaration } from "./edge-declarations.js";
@@ -95,7 +105,7 @@ export function readDeclarationsOf(domains: Record<string, TRegisteredDomain>, r
 			surface: querySurface(domain),
 			defaultSort: sortFieldOf(domain.topology),
 			schema: domain.schema,
-			edges: edgeDeclarationsOf(domain.topology.edges),
+			edges: edgeDeclarationsOf(topologyEdges(domain.topology)),
 			...(heldBy ? { heldBy } : {}),
 			...(title ? { title } : {}),
 			...(unique.length > 0 ? { unique } : {}),
@@ -227,9 +237,10 @@ const NOTHING_NAMED = `${READ_RECORDS} reads one type, a term across the types a
  * reach the records.
  */
 export function readRefusal(query: TGraphQuery, declarations: Pick<TReadDeclarations, "of">, reach: TReadReach): string | undefined {
-	const { label, textQuery, references, referencedBy, named, filters, sortBy } = statedQuery(query);
+	const { label, textQuery, references, referencedBy, named, owned, filters, sortBy } = statedQuery(query);
 	if (label === undefined && textQuery === undefined && !references && !referencedBy && !named) return NOTHING_NAMED;
 	if (named && label === undefined) return `${READ_RECORDS} reads the named records of one type: name their type in label`;
+	if (owned && !named) return `${READ_RECORDS} embeds the records that named records own: name the records in named`;
 	const unheld = [...(references?.via ?? []), ...(referencedBy?.via ?? [])].filter((relation) => !reach.relations.includes(relation));
 	if (unheld.length > 0) return unheldRelationRefusal(unheld, reach.relations);
 	if (label === undefined) {
@@ -315,6 +326,26 @@ const keyOf = (label: string, id: string): string => `${label}\u0000${id}`;
 const relationsTo = (edges: readonly THeldEdge[], label: string, id: string, via: readonly string[] | undefined): string[] =>
 	unique(edges.filter((edge) => edge.label === label && edge.id === id && (!via || via.includes(edge.rel))).map(({ rel }) => rel));
 
+/** Returns the edges of `label` whose targets its records own. A type the declarations don't hold doesn't own a record. */
+export function ownedEdges(declarations: Pick<TReadDeclarations, "of">, label: string): string[] {
+	const declared = declarations.of(label);
+	return declared === undefined ? [] : Object.entries(declared.edges).flatMap(([key, { owns }]) => (owns ? [key] : []));
+}
+
+/** Returns each record `record` owns that `held` returns, as `nodeOf` renders it, in a list under the key of the edge that owns it. */
+function partsOf(
+	record: THeldRecord,
+	declarations: Pick<TReadDeclarations, "of">,
+	held: (label: string, id: string) => THeldRecord | undefined,
+	nodeOf: (part: THeldRecord) => Record<string, unknown>,
+): Record<string, unknown[]> {
+	const parts = ownedEdges(declarations, record.label).map((key) => {
+		const owned = record.edges.filter(({ rel }) => rel === key).flatMap(({ label, id }) => [held(label, id)].flatMap((part) => (part ? [nodeOf(part)] : [])));
+		return [key, owned] as const;
+	});
+	return Object.fromEntries(parts.filter(([, owned]) => owned.length > 0));
+}
+
 /** Returns the records a read names before its narrowing: its named records in order, the records that reference a record or
  *  that a record references, or the records of its type. */
 function reached(records: readonly THeldRecord[], query: TGraphQuery): TReached[] {
@@ -373,12 +404,14 @@ export function readFromRecords(records: readonly THeldRecord[], read: TGraphQue
 			readsAtLevel(record.level, query.accessLevel),
 	);
 	const matched = query.named ? narrowed : narrowed.sort(byOrder(order));
-	const vertexOf = ({ record, via }: TReached): Record<string, unknown> => ({
+	const byKey = new Map(records.map((record) => [keyOf(record.label, record.id), record]));
+	const nodeOf = (record: THeldRecord): Record<string, unknown> => ({
 		...record.fields,
+		...(query.owned ? partsOf(record, declarations, (label, id) => byKey.get(keyOf(label, id)), nodeOf) : {}),
 		"@id": declarations.idOf(record),
 		"@type": record.label,
-		...(via ? { [VIA_FIELD]: via } : {}),
 	});
+	const vertexOf = ({ record, via }: TReached): Record<string, unknown> => ({ ...nodeOf(record), ...(via ? { [VIA_FIELD]: via } : {}) });
 	if ("perType" in page) {
 		const byType = Map.groupBy(matched, (one) => one.record.label);
 		const kept = [...byType.values()].flatMap((ofType) => ofType.slice(0, page.perType));

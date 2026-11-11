@@ -3,7 +3,6 @@
  * how the page read it.
  */
 import type { TAnnotationView } from "@haibun/core/lib/domains/resources.js";
-import type { TLinkedBody } from "@haibun/core/lib/records/domains/body.js";
 import type { TIndividualWithEdges } from "@haibun/core/lib/quad-types.js";
 import type { TPageRefusal } from "./refusal.js";
 import { LOAD_STATUS, type TLoadStatus } from "./load.js";
@@ -25,10 +24,6 @@ export type TEntityView = {
 	annotations: TAnnotationView[];
 	/** Why the record wasn't read, where the read was refused. */
 	refusal?: TPageRefusal;
-	/** Each body read whole, with the text of each of its forms, by the body's id. A record names its bodies and the media
-	 *  type of each of their forms, and a body's text is read when a reader opens it. A body absent here is unread, so its
-	 *  area renders as loading. */
-	bodies: Record<string, TLinkedBody>;
 };
 
 /** A note draft: the passage the reader selected, and the note's text. */
@@ -36,7 +31,7 @@ export type TAnnotationDraft = { exact: string; prefix?: string; suffix?: string
 
 /** Returns a new view of a record the page hasn't read: pending before its read starts, or running while it reads. Each call
  *  returns a new view, so one view can't change another view's copy. */
-export const unreadView = (status: typeof LOAD_STATUS.PENDING | typeof LOAD_STATUS.RUNNING): TEntityView => ({ status, annotations: [], bodies: {} });
+export const unreadView = (status: typeof LOAD_STATUS.PENDING | typeof LOAD_STATUS.RUNNING): TEntityView => ({ status, annotations: [] });
 
 /** Returns whether a view's record is still to read: its read is pending or running. */
 export const unread = (view: TEntityView): boolean => view.status === LOAD_STATUS.PENDING || view.status === LOAD_STATUS.RUNNING;
