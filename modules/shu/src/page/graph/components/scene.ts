@@ -2055,7 +2055,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.cameraCtl.rotateTo(aim);
 	}
 
-	/** The visible graph as one JSON-LD node: the single representation the copy-graph button and `summarizeForContext` both use, so what a person copies and what the model reads are the same data. The members are the system's own statement projection (the shape getClusteredQuads serves and chat batching consumes), not an invented nodes/edges dialect. */
+	/** The visible graph as one JSON-LD node: the single representation a copy and `summarizeForContext` both use, so what a person copies and what the model reads are the same data. The members are the system's own statement projection (the shape getClusteredQuads serves and chat batching consumes), not an invented nodes/edges dialect. */
 	graphJsonLd(): Record<string, unknown> {
 		const { nodes, edges } = this.visibleModel();
 		const hidden = new Set(this.model.hiddenGraphs);
@@ -2076,7 +2076,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		};
 	}
 
-	/** The host's copy-graph button copies the same JSON-LD a model reads, pretty-printed. */
+	/** The JSON-LD a model reads, pretty-printed, which a copy of the graph takes. */
 	graphCopyText(): string {
 		return JSON.stringify(this.graphJsonLd(), null, 2);
 	}

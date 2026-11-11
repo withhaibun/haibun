@@ -36,10 +36,6 @@ export type TPanesScope = {
 	active: TSharedCell<string | null>;
 	/** Whether the reader minimized the pane `id` when it was last shown. */
 	minimizedBefore(id: string): boolean;
-	/** Whether a view of `tag` shows its controls, as the reader last chose. */
-	showsControls(tag: string): boolean;
-	/** The attribute a view that shows its controls carries. */
-	showControlsAttribute: string;
 	kinds: Kinds.TPaneContext;
 };
 
@@ -202,7 +198,7 @@ async function openPane(scope: TPanesScope, strip: TPaneStrip, d: DesiredPane, i
 	const viewTag = Kinds.tagOf(d, scope.kinds);
 	await hooks.load(viewTag);
 	const page = scope.machine.state.get().pagePanes.get(id);
-	const viewAttributes = { ...(page === undefined ? {} : page.attributes), ...(scope.showsControls(viewTag) ? { [scope.showControlsAttribute]: "" } : {}) };
+	const viewAttributes = page === undefined ? {} : page.attributes;
 	const view = await strip.open({
 		id,
 		label: Kinds.labelOf(d),

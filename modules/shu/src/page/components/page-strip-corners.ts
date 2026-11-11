@@ -17,21 +17,24 @@ import { reportToRun } from "../controllers/client-log-controller.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { refOf, type TRef } from "../derivations/markdown.js";
 import { requestPane, showsPane } from "../controllers/pane-controller.js";
-import { type TTapAction } from "../../domains/elements.js";
+import { SHU_TAP_ACTION_ICONS, type TTapAction } from "../../domains/elements.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { getPageTapAction, TAP_ACTION_EVENT } from "../controllers/tap-action-controller.js";
+import { getPageTapAction, TAP_ACTION_EVENT, type TCopyResult } from "../controllers/tap-action-controller.js";
 import "./shu-theme-switch.js";
 import "./shu-playback.js";
 
-const TAP_ACTION_BUTTONS: ReadonlyArray<{ action: TTapAction; icon: string; label: string; testId: string }> = [
-	{ action: "close", icon: "×", label: "Close", testId: SHU_TEST_IDS.TAP_ACTIONS.CLOSE },
-	{ action: "minimize", icon: "―", label: "Minimize", testId: SHU_TEST_IDS.TAP_ACTIONS.MINIMIZE },
-	{ action: "maximize", icon: "⤢", label: "Maximize", testId: SHU_TEST_IDS.TAP_ACTIONS.MAXIMIZE },
-	{ action: "settings", icon: "⚙", label: "Settings", testId: SHU_TEST_IDS.TAP_ACTIONS.SETTINGS },
-	{ action: "pin", icon: "📌", label: "Pin", testId: SHU_TEST_IDS.TAP_ACTIONS.PIN },
-	{ action: "position", icon: "⤓", label: "Position", testId: SHU_TEST_IDS.TAP_ACTIONS.POSITION },
-	{ action: "copy", icon: "⧉", label: "Copy", testId: SHU_TEST_IDS.TAP_ACTIONS.COPY },
+/** Each tap action's name on its toolbar button, and its test id. */
+const TAP_ACTION_BUTTONS: ReadonlyArray<{ action: TTapAction; label: string; testId: string }> = [
+	{ action: "close", label: "Close", testId: SHU_TEST_IDS.TAP_ACTIONS.CLOSE },
+	{ action: "minimize", label: "Minimize", testId: SHU_TEST_IDS.TAP_ACTIONS.MINIMIZE },
+	{ action: "maximize", label: "Maximize", testId: SHU_TEST_IDS.TAP_ACTIONS.MAXIMIZE },
+	{ action: "settings", label: "Settings", testId: SHU_TEST_IDS.TAP_ACTIONS.SETTINGS },
+	{ action: "pin", label: "Pin", testId: SHU_TEST_IDS.TAP_ACTIONS.PIN },
+	{ action: "position", label: "Position", testId: SHU_TEST_IDS.TAP_ACTIONS.POSITION },
+	{ action: "copy", label: "Copy", testId: SHU_TEST_IDS.TAP_ACTIONS.COPY },
 ];
+/** What the toolbar's notice states after a copy. */
+const COPY_NOTICE: Readonly<Record<TCopyResult, string>> = { copied: "Copied", empty: "The view didn't hold text to copy", refused: "The clipboard didn't take the text" };
 
 export const CORNERS = ["settings", "playback", "access", "status"] as const;
 type TCorner = (typeof CORNERS)[number];
@@ -89,6 +92,8 @@ type TPageStripCornersDeps = {
 	anchorTop: () => number;
 	readLevel: () => string;
 	setReadLevel: (level: AccessQueryLevel) => void;
+	/** The active pane, whose state names each tap action. */
+	activePane: () => { isTapActionApplied(action: TTapAction): boolean } | null;
 };
 
 export class PageStripCorners implements ReactiveController {
@@ -224,7 +229,8 @@ export class PageStripCorners implements ReactiveController {
 		const level = this.#deps.readLevel();
 		const { holds, principals } = this.#summary;
 		const awaiting = this.#awaiting.count;
-		const primed = getPageTapAction().state.get();
+		const { primed, copied } = getPageTapAction().state.get();
+		const active = this.#deps.activePane();
 		return html`<span class="corner-controls">
 			<button class="pane-icon corner-toggle access-indicator ${awaiting > 0 ? "awaiting" : ""}" aria-label="Access level" aria-expanded=${this.#open === "access"}
 				title=${`read access ${level}; ${holds} actions held, ${principals} principals${awaiting > 0 ? `; ${awaiting} awaiting your decision` : ""}`}
@@ -235,20 +241,16 @@ export class PageStripCorners implements ReactiveController {
 				title="where actuality is; opens the log, whose rail is where you move it from"
 				data-testid=${`${prefix}time-offset`} @click=${this.onTimeOffsetClick}>${this.#timeOffset}</button>
 
-			<span class="tap-actions-toolbar" data-testid=${SHU_TEST_IDS.TAP_ACTIONS.TOOLBAR}>
-				${TAP_ACTION_BUTTONS.map(
-					({ action, icon, label, testId }) => html`<button
-						class="pane-icon tap-action-btn"
-						aria-label=${label}
-						title=${label}
-						aria-pressed=${primed === action ? "true" : "false"}
-						data-testid=${testId}
+			<span class="tap-actions-toolbar" role="toolbar" aria-label="Tap actions" data-tap-toolbar>
+				${TAP_ACTION_BUTTONS.map(({ action, label, testId }) => {
+					const named = active?.isTapActionApplied(action) ? `Undo ${label}` : label;
+					return html`<button class="pane-icon tap-action-btn" aria-label=${named} title=${named} aria-pressed=${primed === action} data-testid=${testId}
 						@click=${(e: Event) => {
 							e.stopPropagation();
 							getPageTapAction().dispatch({ type: TAP_ACTION_EVENT.TOGGLE, action });
-						}}
-					>${icon}</button>`,
-				)}
+						}}>${SHU_TAP_ACTION_ICONS[action]}</button>`;
+				})}
+				<span class="tap-notice" role="status" aria-live="polite" data-testid=${SHU_TEST_IDS.TAP_ACTIONS.NOTICE}>${primed === null ? (copied === null ? "" : COPY_NOTICE[copied]) : `${TAP_ACTION_BUTTONS.find((b) => b.action === primed)?.label}: press what it acts on`}</span>
 			</span>
 		</span>`;
 	}

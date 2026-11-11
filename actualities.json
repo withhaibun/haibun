@@ -33,7 +33,7 @@
 			"actuality": {
 				"text": "AGENTS.md",
 				"status": "passed",
-				"tookMs": 2000,
+				"tookMs": 1900,
 				"digest": {
 					"AGENTS.md": "c7ba0b7fe4d7c92e8ec0a14a2bf13095e08f2699d671d90f13ed0cecb99af318",
 					"modules/core/src": "77a7efbe1c307a9a0b81a2f63d081cd15d3d14a461be3f17f472bc630fb41910",
@@ -49,7 +49,7 @@
 				"/AGENTS.md": {
 					"text": "/AGENTS",
 					"status": "passed",
-					"tookMs": 2000,
+					"tookMs": 1900,
 					"steps": 383
 				}
 			}

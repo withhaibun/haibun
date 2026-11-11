@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-/** The body container carries data-copy with the body the column shows, and drawing the column again leaves the body's frame in place. */
+/** A copy of the body container takes the body the column shows, and drawing the column again leaves the body's frame in place. */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";
 import { bodyRendered, setupShuTest, makeEntityDispatch, type TShuTestHandle } from "../../test/setup.js";
@@ -33,6 +33,6 @@ describe("shu-entity-column copying its body", () => {
 		expect(el.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_IFRAME}"]`), "the same frame after drawing again").toBe(frame);
 		const copyContainer = el.shadowRoot?.querySelector<HTMLElement>(".body-container");
 		if (!copyContainer) throw new Error("the body container doesn't show");
-		expect(copyContainer.getAttribute("data-copy")).toBe(BODY);
+		expect(el.copyOf(copyContainer.getAttribute("data-copy") ?? "")).toBe(BODY);
 	});
 });

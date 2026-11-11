@@ -8,7 +8,7 @@ import { html, type CSSResultGroup, type TemplateResult } from "lit";
 import { z } from "zod";
 import type { AccessQueryLevel } from "@haibun/core/lib/domains/resources.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { SHOW_CONTROLS_FIELD, ShuElement, type TLinkedData } from "./shu-element.js";
 import { PageStripCorners } from "./page-strip-corners.js";
 import { FootprintController } from "./footprint.js";
 import { loadSlotExtensions } from "./slot-extensions.js";
@@ -28,6 +28,7 @@ import "./shu-combobox.js";
 export const PageStripSchema = z.object({ showControls: z.boolean() });
 
 export class ShuPageStrip extends ShuElement<typeof PageStripSchema> {
+	static attributeFields = SHOW_CONTROLS_FIELD;
 	/** The page's time cursor, which the strip's corners show. */
 	readonly #timeline = new TimelineViewController(this, { onMove: (cursor) => this.#corners.showTime(cursor) });
 	/** A control doesn't contribute to a conversation's context, since it isn't a view of data. */
@@ -52,6 +53,7 @@ export class ShuPageStrip extends ShuElement<typeof PageStripSchema> {
 		anchorTop: () => this.#anchorTop(),
 		readLevel: () => this.#readLevel,
 		setReadLevel: (level) => this.#setReadLevel(level),
+		activePane: () => this.#paneElement(activePane.get() ?? undefined),
 	});
 	#context = new SignalController(this, pageContext, (context) => {
 		if (context) this.#readLevel = context.readLevel;
@@ -68,15 +70,6 @@ export class ShuPageStrip extends ShuElement<typeof PageStripSchema> {
 
 	constructor() {
 		super(PageStripSchema, { showControls: false });
-	}
-
-	protected override onTapSettings(): void {
-		super.onTapSettings();
-		if (this.showControls) {
-			this.#corners.openSettings();
-		} else {
-			this.#corners.close();
-		}
 	}
 
 	protected override onAttributeChanged(name: string, oldValue: string | null, newValue: string | null): void {
@@ -128,7 +121,11 @@ export class ShuPageStrip extends ShuElement<typeof PageStripSchema> {
 
 	/** The docked pane's element, where a pane is docked. */
 	#dockedPaneElement(): ShuColumnPane | null {
-		const key = this.#docked.state?.key;
+		return this.#paneElement(this.#docked.state?.key);
+	}
+
+	/** The element of the pane `key`, where it is shown. */
+	#paneElement(key: string | undefined): ShuColumnPane | null {
 		if (key === undefined) return null;
 		return (Array.from(document.querySelectorAll(SHU_TAG.COLUMN_PANE)).find((pane) => (pane as HTMLElement).dataset.columnKey === key) as ShuColumnPane | undefined) ?? null;
 	}

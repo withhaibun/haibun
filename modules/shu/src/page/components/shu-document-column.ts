@@ -13,7 +13,7 @@ import { ARTIFACT_SANDBOX } from "@haibun/core/lib/domains/run-artifact.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import DOMPurify from "dompurify";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { SHOW_CONTROLS_FIELD, ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_ATTR, SHU_EVENT, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
@@ -99,6 +99,7 @@ function markersOf(rows: ReadonlyArray<{ index: number; event: TEventRecord }>):
 type TDocWindow = { rows: Array<{ index: number; event: TEventRecord }>; marks: TScrollMarker[]; timed: TTimedRows };
 
 export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
+	static attributeFields = SHOW_CONTROLS_FIELD;
 	/** The instant this view shows, which is the page's time cursor or the moment `data-snapshot-time` states. */
 	readonly #timeline = new TimelineViewController(this);
 	// This view reads actuality at its level, spanning all of it by index (event-source): the rail is actuality's

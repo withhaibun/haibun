@@ -10,7 +10,7 @@ import { html, css, nothing, type TemplateResult } from "lit";
 import { createRef, ref } from "lit/directives/ref.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { SHOW_CONTROLS_FIELD, ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { queryGraph, queryRead } from "../controllers/read-controller.js";
 import { LoadController } from "../controllers/load-controller.js";
@@ -25,7 +25,7 @@ const INSTANCES_PAGE = 100;
 
 /** A `#Type` link resolves against the site's own declared types: the same test every ref surface uses. */
 import type { ShuResultTable } from "./shu-result-table.js";
-import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
+import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { findDomain, stepsJoining } from "../controllers/registry-controller.js";
@@ -41,11 +41,12 @@ import { appAccessLevel } from "../controllers/view-query-controller.js";
 import { renderRefProse } from "../derivations/markdown-render.js";
 import "./shu-result-table.js";
 
-const TypeColumnSchema = z.object({ persistedAs: z.string() });
+const TypeColumnSchema = z.object({ persistedAs: z.string(), showControls: z.boolean() });
 
 type VertexData = Record<string, unknown>;
 
 export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
+	static attributeFields = SHOW_CONTROLS_FIELD;
 	/** The type and its individuals: an rdfs:Class with its description and the instances currently listed. */
 	summarizeForContext(): TLinkedData | null {
 		const type = this.state.persistedAs;
@@ -91,7 +92,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 	}
 
 	constructor() {
-		super(TypeColumnSchema, { persistedAs: "" });
+		super(TypeColumnSchema, { persistedAs: "", showControls: false });
 	}
 
 	/** Called by the pane afterAttach hook with the referenced type. */
@@ -137,8 +138,8 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 	/** Mount the embedded schema presenter once per type, as a LIGHT-DOM child projected through the shadow slot: the
 	 *  presenter (an A-Frame scene) resolves its camera via document.querySelector, which a shadow root would hide:
 	 *  mounted in shadow its scene boots but its graph never attaches. updated(): the slot exists only after render.
-	 *  The pane's controls toggle (data-show-controls) propagates through the product view to the presenter, so the
-	 *  presenter's own view settings gate on the same pane gear as every view's. */
+	 *  The column's `showControls` reaches the presenter through the product view, so the settings action shows the
+	 *  presenter's own view settings as it shows every view's. */
 	private embeddedGraphFor = "";
 	protected updated(): void {
 		const table = this.tableRef.value;
@@ -150,8 +151,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		}
 		const view = this.querySelector(":scope > shu-product-view") as ShuProductView | null;
 		if (view) {
-			if (this.showControls) view.setAttribute("data-show-controls", "");
-			else view.removeAttribute("data-show-controls");
+			view.toggleAttribute(SHU_ATTR.SHOW_CONTROLS, this.showControls);
 			view.refresh();
 		}
 		const type = this.state.persistedAs;
@@ -162,7 +162,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		if (!mounted) {
 			mounted = new ShuProductView();
 			mounted.setAttribute("data-testid", IDS.SCHEMA_GRAPH);
-			if (this.showControls) mounted.setAttribute("data-show-controls", "");
+			mounted.toggleAttribute(SHU_ATTR.SHOW_CONTROLS, this.showControls);
 			this.appendChild(mounted);
 		}
 		mounted.openProducts({ _type: presenter.type, focusType: type });

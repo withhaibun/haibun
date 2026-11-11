@@ -38,6 +38,7 @@ function aCornersPage(): TCornersPage {
 		testIdPrefix: () => PREFIX,
 		anchorTop: () => host.getBoundingClientRect().top,
 		readLevel: () => "all",
+		activePane: () => null,
 		setReadLevel: () => undefined,
 	});
 	corners.hostConnected();

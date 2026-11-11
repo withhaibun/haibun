@@ -54,8 +54,6 @@ const scope = (): Panes.TPanesScope => ({
 	address: { get: () => PageHash.getHash(pageHashScope()), push: (hash) => PageHash.pushHash(pageHashScope(), hash) },
 	active: activePane,
 	minimizedBefore: (id) => pagePreferences().read(SHU_TAG.COLUMN_PANE, id)?.minimized === true,
-	showsControls: () => false,
-	showControlsAttribute: SHU_ATTR.SHOW_CONTROLS,
 	kinds: PANE_CONTEXT,
 });
 

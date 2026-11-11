@@ -12,8 +12,8 @@ import { html, type TemplateResult } from "lit";
 import { ifDefined } from "lit/directives/if-defined.js";
 import { DOCK_FOOTPRINT, INDEX_PANE_KEY, SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { ShuElement, EmptyStateSchema, findTapTarget, type TLinkedData } from "./shu-element.js";
-import { getPageClipboard, getPageTapAction, TAP_ACTION_EVENT, type TTapActionState } from "../controllers/tap-action-controller.js";
+import { ShuElement, EmptyStateSchema, applyTapTarget, findTapTarget, withinTapToolbar, type TLinkedData } from "./shu-element.js";
+import { getPageTapAction, TAP_ACTION_EVENT, type TTapActionState } from "../controllers/tap-action-controller.js";
 import { defineElement, loadComponent } from "../controllers/element-controller.js";
 import { activePane, pageContext, stripPanes, timeCursor } from "../controllers/page-cell-controller.js";
 import { paneOpsFor } from "../derivations/affordances.js";
@@ -140,53 +140,35 @@ export class ShuPage extends ShuElement<typeof EmptyStateSchema> {
 			style.textContent = LAYOUT_STYLE;
 			document.head.appendChild(style);
 		}
-		this.watchSignal(getPageTapAction().state, (action: TTapActionState) => {
-			if (!action) {
-				this.#clearActiveTapElement();
-				this.removeAttribute(SHU_ATTR.TAP_ACTION);
-			} else {
-				this.setAttribute(SHU_ATTR.TAP_ACTION, action);
-			}
+		this.watchSignal(getPageTapAction().state, ({ primed }: TTapActionState) => {
+			if (primed !== null) return this.setAttribute(SHU_ATTR.TAP_ACTION, primed);
+			this.#clearActiveTapElement();
+			this.removeAttribute(SHU_ATTR.TAP_ACTION);
 		});
+		// The pointer or the keyboard focus highlights the target the primed action would take.
 		const onPointer = (e: Event): void => {
-			const action = getPageTapAction().state.get();
-			if (!action) return;
-			const target = findTapTarget(e.composedPath(), action);
-			this.#setActiveTapElement(target);
+			const { primed } = getPageTapAction().state.get();
+			if (primed !== null) this.#setActiveTapElement(findTapTarget(e.composedPath(), primed));
 		};
-		this.autoListen(window, "pointermove", onPointer, { capture: true, passive: true });
-		this.autoListen(window, "pointerover", onPointer, { capture: true, passive: true });
+		for (const type of ["pointermove", "pointerover", "focusin"]) this.autoListen(window, type, onPointer, { capture: true, passive: true });
 		this.autoListen(
 			window,
 			"click",
-			((e: MouseEvent) => {
-				const action = getPageTapAction().state.get();
-				if (!action) return;
+			(e: Event) => {
+				const { primed } = getPageTapAction().state.get();
 				const path = e.composedPath();
-				for (const node of path) {
-					if (node instanceof HTMLElement && (node.dataset.testid === SHU_TEST_IDS.TAP_ACTIONS.TOOLBAR || node.dataset.testid?.startsWith("tap-action-"))) {
-						return;
-					}
-				}
+				if (primed === null || withinTapToolbar(path)) return;
 				e.preventDefault();
-				e.stopPropagation();
 				e.stopImmediatePropagation();
-				const target = findTapTarget(path, action);
+				const target = findTapTarget(path, primed);
 				this.#clearActiveTapElement();
 				getPageTapAction().dispatch({ type: TAP_ACTION_EVENT.CLEAR });
-				if (target) {
-					if (action === "copy" && target.hasAttribute(SHU_ATTR.DATA_COPY)) {
-						const text = target.getAttribute(SHU_ATTR.DATA_COPY);
-						if (text !== null && text !== "") void getPageClipboard().copy(text);
-					} else if (target instanceof ShuElement) {
-						target.applyTapAction(action);
-					}
-				}
-			}) as EventListener,
+				if (target) applyTapTarget(path, target, primed);
+			},
 			{ capture: true },
 		);
 		this.autoListen(window, "keydown", ((e: KeyboardEvent) => {
-			if (e.key === "Escape" && getPageTapAction().state.get() !== null) {
+			if (e.key === "Escape" && getPageTapAction().state.get().primed !== null) {
 				this.#clearActiveTapElement();
 				getPageTapAction().dispatch({ type: TAP_ACTION_EVENT.CLEAR });
 			}

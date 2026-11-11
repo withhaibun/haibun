@@ -1,4 +1,5 @@
 import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
+import { SHOW_CONTROLS_FIELD } from "../../components/shu-element.js";
 import { html, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
@@ -142,6 +143,7 @@ const POLYMORPHIC_INITIAL_STATE: z.input<typeof PolymorphicStateSchema> = {
  * the child scene chrome is positioned against this host; a shadow root would hide both.
  */
 export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof PolymorphicStateSchema> {
+	static attributeFields = SHOW_CONTROLS_FIELD;
 	/** Layout choices persist across reloads (ShuElement.persistFields; singleton key). */
 	static persistFields = ["viewType", "flatten", "grouped", "groupBy", "zBasis", "labelAsZ", "pins", "follow", "prune", "readAsDocument", "dl", "showControls"] as const;
 
@@ -212,7 +214,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		this.scene?.setPreview(ids === null ? null : { subjects: new Set(ids) });
 	}
 
-	/** What a reader is looking at, as the scene states it. The copy-graph button keeps the whole graph in draw order,
+	/** What a reader is looking at, as the scene states it. A copy keeps the whole graph in draw order,
 	 *  which is what a person saves to a file. */
 	summarizeForContext(): TLinkedData | null {
 		return this.scene?.summarizeForContext() ?? null;

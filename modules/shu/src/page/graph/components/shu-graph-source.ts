@@ -96,8 +96,11 @@ class ShuGraphSource extends ShuElement<typeof GraphSourceStateSchema> {
 	}
 
 	override copyText(): string | null {
-		const axioms = this.#axioms.page;
-		return axioms ? axioms.text : null;
+		return this.#axioms.page?.text ?? null;
+	}
+
+	protected override get copyable(): boolean {
+		return this.#axioms.page !== undefined;
 	}
 
 	/** The axioms a pane request carries, and the frame it opens at first. */

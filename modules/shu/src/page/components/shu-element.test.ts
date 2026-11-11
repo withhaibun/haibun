@@ -11,10 +11,11 @@
  * tests stayed green while the live UI was unstyled. This test pins the mechanism that
  * jsdom *can* see: declaring `observedHtmlAttributes` must still finalize styles.
  */
-import { describe, it, expect, beforeAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import { css, html, type TemplateResult } from "lit";
 import { z } from "zod";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { applyTapTarget, findTapTarget, SHOW_CONTROLS_FIELD, ShowControlsSchema, ShuElement, type TLinkedData } from "./shu-element.js";
+import { SHU_ATTR } from "../../domains/elements.js";
 import { ShuColumnPane } from "./shu-column-pane.js";
 import { clearStoredFields, installTestMediaQueries, reportedErrors, storeFields } from "../../test/setup.js";
 import { pagePreferences } from "../root.js";
@@ -426,5 +427,62 @@ describe("reading whether the hosting column is collapsed", () => {
 		document.body.appendChild(loose);
 		await loose.updateComplete;
 		expect(loose.collapsed).toBe(false);
+	});
+});
+
+describe("findTapTarget", () => {
+	class SettingsProbe extends ShuElement<typeof ShowControlsSchema> {
+		static attributeFields = SHOW_CONTROLS_FIELD;
+		summarizeForContext() {
+			return null;
+		}
+		constructor() {
+			super(ShowControlsSchema, { showControls: false });
+		}
+		override copyOf(key: string): string {
+			return `value of ${key}`;
+		}
+		render(): TemplateResult {
+			return html``;
+		}
+	}
+	customElements.define("shu-settings-probe", SettingsProbe);
+	const copyMark = (key: string): HTMLElement => {
+		const span = document.createElement("span");
+		span.setAttribute(SHU_ATTR.DATA_COPY, key);
+		return span;
+	};
+	const toolbar = (): HTMLElement => {
+		const bar = document.createElement("span");
+		bar.setAttribute(SHU_ATTR.TAP_TOOLBAR, "");
+		return bar;
+	};
+
+	it("returns the finest view that accepts the action, past one that doesn't", () => {
+		const [view, plain] = [new SettingsProbe(), new FinalizeProbe()];
+		expect(findTapTarget([plain, view, document.body], "settings")).toBe(view);
+	});
+
+	it("returns a marked value for a copy, before the view that holds it", () => {
+		const [value, view] = [copyMark("title"), new SettingsProbe()];
+		expect(findTapTarget([value, view], "copy")).toBe(value);
+	});
+
+	it("doesn't return a target for a press on the toolbar", () => {
+		expect(findTapTarget([toolbar(), new SettingsProbe()], "settings")).toBeNull();
+	});
+
+	it("returns null where each element on the path refuses the action", () => {
+		expect(findTapTarget([new FinalizeProbe(), document.body], "pin")).toBeNull();
+	});
+
+	it("applies settings to the view, and copies a marked value as its view computes it", async () => {
+		const writeText = vi.fn(async () => undefined);
+		Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+		const [value, view] = [copyMark("title"), new SettingsProbe()];
+		applyTapTarget([value, view], value, "copy");
+		applyTapTarget([view], view, "settings");
+		expect(view.isTapActionApplied("settings")).toBe(true);
+		await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith("value of title"));
 	});
 });

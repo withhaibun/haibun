@@ -173,7 +173,7 @@ export type TBundle = z.infer<typeof BundleSchema>;
 /** The actions bar's modes. search browses and filters the graph, and is the default. step runs a haibun step. The ask mode
  *  converses with a model, and the mode control offers it only where actuality registers an ask-capable step. */
 export const BAR_MODES = ["search", "ask", "step"] as const;
-export const ActionsBarSchema = z.object({ mode: z.enum(BAR_MODES), showControls: z.boolean().optional() });
+export const ActionsBarSchema = z.object({ mode: z.enum(BAR_MODES), showControls: z.boolean() });
 
 // --- Record steps ---
 

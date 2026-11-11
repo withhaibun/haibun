@@ -4,14 +4,11 @@
  */
 import { html, css, unsafeCSS, nothing, type TemplateResult } from "lit";
 import { property, state } from "lit/decorators.js";
-import { z } from "zod";
-import { SHU_ATTR, SHU_EVENT, SHU_TAG, type TTapAction } from "../../domains/elements.js";
+import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { shownOrReported } from "../controllers/artifact-controller.js";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { EmptyStateSchema, ShuElement, type TLinkedData, type TTapActions } from "./shu-element.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
-
-export const ArtifactFrameSchema = z.object({ maximized: z.boolean(), closable: z.boolean() });
 
 /**
  * The frame's styles. An expanded frame's content is pinned to the document column's box on screen, which pinToColumn reads,
@@ -56,7 +53,7 @@ const STYLES = `
 /** A class that marks an expanded frame, which the styles read. */
 const FULLSCREEN = "fullscreen";
 
-export class ShuArtifactFrame extends ShuElement<typeof ArtifactFrameSchema> {
+export class ShuArtifactFrame extends ShuElement<typeof EmptyStateSchema> {
 	/** An artifact is part of the document that shows it, so the frame doesn't contribute to a conversation's context on its own. */
 	summarizeForContext(): TLinkedData | null {
 		return null;
@@ -72,28 +69,13 @@ export class ShuArtifactFrame extends ShuElement<typeof ArtifactFrameSchema> {
 	private columnResize?: ResizeObserver;
 
 	constructor() {
-		super(ArtifactFrameSchema, { maximized: false, closable: false });
+		super(EmptyStateSchema);
 	}
 
-	override isTapActionApplied(action: TTapAction): boolean {
-		if (action === "maximize") return this.expanded;
-		return super.isTapActionApplied(action);
-	}
-
-	override undoTapAction(action: TTapAction): void {
-		if (action === "maximize") {
-			this.setFullscreen(false);
-			return;
-		}
-		super.undoTapAction(action);
-	}
-
-	protected override onTapMaximize(): void {
-		this.setFullscreen(!this.expanded);
-	}
-
-	protected override onTapClose(): void {
-		if (this.expanded) this.setFullscreen(false);
+	/** The frame maximizes to the top layer and back, and a maximized frame closes back into the column. */
+	protected override tapActions(): TTapActions {
+		const close = { applied: () => false, apply: () => this.setFullscreen(false) };
+		return { maximize: { applied: () => this.expanded, apply: () => this.setFullscreen(!this.expanded) }, ...(this.expanded && { close }) };
 	}
 
 	private onKeydown = (e: KeyboardEvent): void => {
@@ -170,7 +152,6 @@ export class ShuArtifactFrame extends ShuElement<typeof ArtifactFrameSchema> {
 		if (on && !this.expanded) this.style.height = `${this.getBoundingClientRect().height}px`;
 		if (!on) this.style.removeProperty("height");
 		this.expanded = on;
-		this.setState({ maximized: on, closable: on });
 		this.classList.toggle(FULLSCREEN, on);
 		if (on) this.showInTopLayer();
 		else this.leaveTopLayer();

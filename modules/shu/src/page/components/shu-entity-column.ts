@@ -8,7 +8,7 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { disclosure, jsonDisclosure, literalWithJson, recordJson } from "./json-disclosure.js";
 import { jsonCarried, RecordsSchema, isRecord } from "@haibun/core/lib/domains/json-text.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { SHOW_CONTROLS_FIELD, ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT, ANNOTATION_GLYPH, PRODUCTS_LABEL, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/elements.js";
 import { defineElement, loadedOnFirstUse } from "../controllers/element-controller.js";
 import { MarkdownRendererController } from "../controllers/markdown-renderer-controller.js";
@@ -77,6 +77,8 @@ const frameHtml = (frame: TRecordFrame | undefined): string =>
 	frame === undefined ? "" : `<pre data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_FRAME}">${esc([...frame.lines, "", frame.manchester].join("\n"))}</pre>`;
 
 /** Returns the text a field's value copies as: a list's items joined, else the value as text. */
+/** The `data-copy` key of the record's body. A field's key is its name. */
+const BODY_COPY_KEY = "@body";
 const copyTextOf = (v: unknown): string => (Array.isArray(v) ? v.join(", ") : v === null || v === undefined ? "" : String(v));
 
 /** How many fields the field table shows open. A record with many fields dumps them all at once, so a table holding more
@@ -97,6 +99,7 @@ export function foldedTargets(targets: readonly string[]): string {
 }
 
 export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
+	static attributeFields = SHOW_CONTROLS_FIELD;
 	/** The instant the column shows. A record after it dims. */
 	// A move of the cursor renders the column again, since whether the record is after the cursor is part of its render.
 	readonly #timeline = new TimelineViewController(this, { onMove: () => this.requestUpdate() });
@@ -105,8 +108,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		shuIconButtonStyles,
 		// A statement about where the view came from, not a control: it doesn't have a border, background or radius, which read as
 		// a button.
-		// The view-settings surface shows only when the pane's ⚙ controls toggle is on (sets data-show-controls), like the
-		// document column.
+		// The view-settings surface shows only while the view's `showControls` holds, as the document column's does.
 		// The annotate toggle is a pane-icon (min/max/pin/settings look; aria-pressed = the accent-fill highlight the pane toggles
 		// use). The pencil glyph reads greyscale until the record carries annotations, then colour, so annotation presence is
 		// visible independently of whether the gutter is currently open.
@@ -170,6 +172,13 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	static persistFields = ["showAnnotations", "showControls"] as const;
 
 	private vertex: VertexData | null = null;
+	/** The body text the column shows, which a copy of the body takes. */
+	#copiedBody = "";
+
+	/** A copy of a field takes its value as text, and a copy of the body takes the body's text. */
+	override copyOf(key: string): string {
+		return key === BODY_COPY_KEY ? this.#copiedBody : copyTextOf(this.vertex?.[key]);
+	}
 	private edges: EdgeData[] = [];
 	private incomingCount: TCounted = counted(0);
 	private predicateLinkCount = 0;
@@ -395,7 +404,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 				.map(([k, v]) => {
 					if (this.isTypeField(k)) return this.typeRow(k, v);
 					const valueHtml = Array.isArray(v) ? v.map((item) => this.formatFieldValue(item, k)).join(", ") : this.formatFieldValue(v, k);
-					return `<tr><td class="field-name">${this.predicateLink(k)}${this.vocabBadge(k)}</td><td data-testid="entity-field-${escAttr(k)}" data-copy="${escAttr(copyTextOf(v))}">${valueHtml}</td></tr>`;
+					return `<tr><td class="field-name">${this.predicateLink(k)}${this.vocabBadge(k)}</td><td data-testid="entity-field-${escAttr(k)}" data-copy="${escAttr(k)}">${valueHtml}</td></tr>`;
 				})
 				.join("");
 			const detailTable = detailRows ? `<table class="detail-table fields-table" data-testid="entity-fields">${detailRows}</table>` : "";
@@ -412,7 +421,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 								if (!v || (Array.isArray(v) && v.length === 0)) return [];
 								const valueHtml = Array.isArray(v) ? v.map((item) => this.fieldValueHtml(item, k)).join(", ") : this.fieldValueHtml(v, k);
 								return [
-									`<span class="summary-field" data-testid="entity-field-${escAttr(k)}" data-copy="${escAttr(copyTextOf(v))}">${this.predicateLink(k)}${this.vocabBadge(k)} ${valueHtml}</span>`,
+									`<span class="summary-field" data-testid="entity-field-${escAttr(k)}" data-copy="${escAttr(k)}">${this.predicateLink(k)}${this.vocabBadge(k)} ${valueHtml}</span>`,
 								];
 							})
 							.join(" ")}</div>`
@@ -625,7 +634,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const refsHtml = refs.length
 			? `<div class="body-refs" data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_REFS}">${refs.map(({ ref, text }) => renderRef(ref, text)).join(", ")}</div>`
 			: "";
-		const body = `<div class="body-container" data-copy="${escAttr(raw)}">${toolbar}${iframeHtml}${refsHtml}</div>`;
+		this.#copiedBody = raw;
+		const body = `<div class="body-container" data-copy="${BODY_COPY_KEY}">${toolbar}${iframeHtml}${refsHtml}</div>`;
 		// A JSON body is a document's data, as a signed capability is, so it starts closed as the record's Data does.
 		return isJsonMedia(active.media) ? disclosure(SHU_TEST_IDS.COLUMN_BROWSER.BODY_DOCUMENT, "Document", body, false) : body;
 	}

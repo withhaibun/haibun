@@ -13,11 +13,12 @@ import { SHU_TAG, SHU_ATTR } from "../../domains/elements.js";
 import { defineElement, isDefined, loadComponent } from "../controllers/element-controller.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { html, css, type TemplateResult } from "lit";
-import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
+import { SHOW_CONTROLS_FIELD, ShuElement, ShowControlsSchema, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { resolveUi } from "../controllers/catalog-controller.js";
 
-export class ShuProductView extends ShuElement<typeof EmptyStateSchema> {
+export class ShuProductView extends ShuElement<typeof ShowControlsSchema> {
+	static attributeFields = SHOW_CONTROLS_FIELD;
 	/** Delegates to the mounted child view: the wrapper summarizes for its whole subtree. */
 	summarizeForContext(): TLinkedData | null {
 		const child = this.firstElementChild as (Element & Partial<{ summarizeForContext(): TLinkedData | null }>) | null;
@@ -33,7 +34,7 @@ export class ShuProductView extends ShuElement<typeof EmptyStateSchema> {
 	];
 
 	constructor() {
-		super(EmptyStateSchema);
+		super(ShowControlsSchema, { showControls: false });
 	}
 
 	/** Mount the component resolveUi picks for this product and hand it the product. A _component view ignores the
@@ -57,7 +58,7 @@ export class ShuProductView extends ShuElement<typeof EmptyStateSchema> {
 	private mountProduct(tag: string, products: Record<string, unknown>, snapshotTime?: number): void {
 		const el = document.createElement(tag);
 		if (snapshotTime !== undefined) el.setAttribute(SHU_ATTR.SNAPSHOT_TIME, String(snapshotTime));
-		if (this.showControls) el.setAttribute("data-show-controls", "");
+		el.toggleAttribute(SHU_ATTR.SHOW_CONTROLS, this.showControls);
 		el.style.minHeight = "300px";
 		el.style.height = "100%";
 		el.style.display = "block";
@@ -68,8 +69,7 @@ export class ShuProductView extends ShuElement<typeof EmptyStateSchema> {
 	override refresh(): void {
 		const child = this.firstElementChild as (HTMLElement & { refresh?: () => void }) | null;
 		if (!child) return;
-		if (this.showControls) child.setAttribute("data-show-controls", "");
-		else child.removeAttribute("data-show-controls");
+		child.toggleAttribute(SHU_ATTR.SHOW_CONTROLS, this.showControls);
 		child.refresh?.();
 	}
 

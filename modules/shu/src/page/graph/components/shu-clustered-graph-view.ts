@@ -146,6 +146,15 @@ export abstract class ShuClusteredGraphView<T extends z.ZodObject<typeof cluster
 		return this.querySelector<ShuGraphScene>("shu-graph-scene");
 	}
 
+	/** A copy takes the graph's JSON-LD as the scene states it. */
+	override copyText(): string {
+		return this.mountedScene.graphCopyText();
+	}
+
+	protected override get copyable(): boolean {
+		return super.copyable && this.scene !== null;
+	}
+
 	/** The mounted scene, which an action on the scene reads: a host renders its scene before it offers such an action. */
 	protected get mountedScene(): ShuGraphScene {
 		const scene = this.scene;

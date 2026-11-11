@@ -21,7 +21,7 @@ import { defineElement } from "../../controllers/element-controller.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { html, type TemplateResult } from "lit";
-import type { TLinkedData } from "../../components/shu-element.js";
+import { SHOW_CONTROLS_FIELD, type TLinkedData } from "../../components/shu-element.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import { ShuClusteredGraphView, clusteredGraphInitialState, clusteredGraphStateShape } from "./shu-clustered-graph-view.js";
@@ -78,10 +78,11 @@ const BROWSER_CSS = `
 `;
 
 class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
+	static attributeFields = SHOW_CONTROLS_FIELD;
 	/** The chosen view mode persists across reloads, like every persisted view option. */
 	static persistFields = ["viewMode", "showControls"] as const;
 
-	/** The schema as the scene states it, in the order a reader is reading it. The copy button keeps every statement. */
+	/** The schema as the scene states it, in the order a reader is reading it. A copy keeps every statement. */
 	summarizeForContext(): TLinkedData | null {
 		return this.scene?.summarizeForContext() ?? null;
 	}

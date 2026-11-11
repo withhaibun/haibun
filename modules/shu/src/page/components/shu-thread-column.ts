@@ -6,7 +6,7 @@ import { RecordsSchema } from "@haibun/core/lib/domains/json-text.js";
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { SHOW_CONTROLS_FIELD, ShuElement, type TLinkedData } from "./shu-element.js";
 import { PRODUCTS_LABEL, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { openRef } from "./ref-navigation.js";
@@ -58,6 +58,7 @@ function normalizeItem(item: Record<string, unknown>): ThreadVertex {
 }
 
 export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
+	static attributeFields = SHOW_CONTROLS_FIELD;
 	/** A conversation thread as an ordered collection: each item's public fields plus the message to which it replies. */
 	summarizeForContext(): TLinkedData | null {
 		if (this.thread.length === 0) return null;

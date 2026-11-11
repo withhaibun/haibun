@@ -18,7 +18,7 @@
 import { html, css, unsafeCSS, type TemplateResult } from "lit";
 import { z } from "zod";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
-import { ShuElement, type TLinkedData } from "../../components/shu-element.js";
+import { SHOW_CONTROLS_FIELD, ShuElement, type TLinkedData } from "../../components/shu-element.js";
 import { shuBaseStyles, shuRowSeparated } from "../../components/styles.js";
 import { SHU_EVENT, SHU_TAG } from "../../../domains/elements.js";
 import { defineElement } from "../../controllers/element-controller.js";
@@ -66,6 +66,7 @@ export const persistScopeOf = (element: HTMLElement): string => {
 };
 
 export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
+	static attributeFields = SHOW_CONTROLS_FIELD;
 	/** The instant this view shows, which is the page's time cursor or the moment `data-snapshot-time` states. */
 	readonly #timeline = new TimelineViewController(this);
 	/** A control doesn't contribute to a conversation's context, since it isn't a view of data. */

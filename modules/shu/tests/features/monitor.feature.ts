@@ -5,8 +5,8 @@ import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import BlipsStepper from "@haibun/core/steps/blips-stepper.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
-import { createStepUI, registerTestIds } from "@haibun/shu/test/step-ui.js";
-import { SHU_TAG } from "@haibun/shu/domains/elements.js";
+import { createStepUI, paneOfComponent, registerTestIds, tapPane } from "@haibun/shu/test/step-ui.js";
+import { SHU_ATTR, SHU_TAG } from "@haibun/shu/domains/elements.js";
 import { PRINCIPAL_LABEL, SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { views } from "@haibun/shu/waypoints/backgrounds/views.feature.ts";
 import { ontology } from "@haibun/shu/waypoints/backgrounds/ontology.feature.ts";
@@ -30,6 +30,19 @@ const INSTANCE_CHECK = stepMethodName(LogicStepper, "individualIsA");
 const CLAIMED_LINE = "set claimed line to 5";
 
 const testIdSetup = registerTestIds(IDS);
+const MONITOR_PANE = paneOfComponent(SHU_TAG.MONITOR_COLUMN);
+const DOCUMENT_PANE = paneOfComponent(SHU_TAG.DOCUMENT_COLUMN);
+/** States that the toolbar's notice reads `text`. */
+const notice = (text: string): string[] => [`set tap-notice as page-locator to "[data-testid='${IDS.TAP_ACTIONS.NOTICE}']:has-text('${text}')"`, "wait for tap-notice"];
+/** Waits for the monitor's pane to carry `attribute`, and presses the undo control the pane's header shows for the action
+ *  `undo`, which removes the attribute again. */
+const undone = (attribute: string, undo: string): string[] => [
+	`set applied-${undo} as page-locator to "${MONITOR_PANE}[${attribute}]"`,
+	`wait for applied-${undo}`,
+	`set undo-${undo} as page-locator to "${MONITOR_PANE} [${SHU_ATTR.TAP_UNDO}='${undo}']"`,
+	`click undo-${undo}`,
+	`wait until applied-${undo} is gone`,
+];
 // Buffer far more events than any viewport can hold, so a virtualized monitor renders only a small window of them.
 const BULK_EVENTS = 200;
 const bulkEvents = Array.from({ length: BULK_EVENTS }, (_, i) => setAs({ what: `windowEvent${i}`, domain: "page-test-id", value: `"v${i}"` }));
@@ -176,5 +189,43 @@ export const features: TKirejiExport = {
 		views.moveCursorToFirstMoment(MONITOR),
 		views.dimsRowsPastCursor(MONITOR),
 		views.dimsRowsPastCursor(DOCUMENT),
+
+		scenario({ scenario: "A tap action primed on the toolbar applies to the pane pressed next" }),
+		"Each tap action is primed on the strip's toolbar and applies to the pane a reader presses next. The toolbar's notice states the primed action. Settings show the monitor's own settings, and its undo control in the pane's header hides them again.",
+		`set tapped-pane as page-locator to "${MONITOR_PANE}"`,
+		click({ target: IDS.TAP_ACTIONS.SETTINGS }),
+		...notice("Settings"),
+		"click tapped-pane",
+		...undone(SHU_ATTR.DATA_CONTROLS_ON, "settings"),
+
+		scenario({ scenario: "Minimize, maximize, pin and position each apply and undo" }),
+		"Minimize collapses the pane, maximize fills the strip with it, pin keeps it through a prune, and position docks it along the bottom of the page. The undo control each one shows in the pane's header reverses it.",
+		...tapPane(IDS.TAP_ACTIONS.MINIMIZE, MONITOR_PANE),
+		...undone(SHU_ATTR.COLLAPSED, "minimize"),
+		...tapPane(IDS.TAP_ACTIONS.MAXIMIZE, MONITOR_PANE),
+		...undone(SHU_ATTR.DATA_MAXIMIZED, "maximize"),
+		...tapPane(IDS.TAP_ACTIONS.PIN, MONITOR_PANE),
+		...undone(SHU_ATTR.PINNED, "pin"),
+		...tapPane(IDS.TAP_ACTIONS.POSITION, MONITOR_PANE),
+		...undone(SHU_ATTR.DOCKED, "position"),
+
+		scenario({ scenario: "Copy takes the pressed view's text, and the notice states it" }),
+		"Prime copy and press the monitor: the page's clipboard takes the monitor's text, and the toolbar's notice states the copy.",
+		...tapPane(IDS.TAP_ACTIONS.COPY, MONITOR_PANE),
+		...notice("Copied"),
+
+		scenario({ scenario: "Escape lets a primed action go" }),
+		"Prime close and press Escape: the toolbar doesn't hold close primed any more.",
+		click({ target: IDS.TAP_ACTIONS.CLOSE }),
+		...notice("Close"),
+		'press "Escape"',
+		`set primed-close as page-locator to "[data-testid='${IDS.TAP_ACTIONS.CLOSE}'][aria-pressed='true']"`,
+		"wait until primed-close is gone",
+
+		scenario({ scenario: "Close removes the pressed pane" }),
+		"Prime close and press the document: its pane leaves the strip.",
+		...tapPane(IDS.TAP_ACTIONS.CLOSE, DOCUMENT_PANE),
+		`set closed-document as page-locator to "${DOCUMENT_PANE}"`,
+		"wait until closed-document is gone",
 	],
 };

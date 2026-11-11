@@ -475,9 +475,12 @@ describe("a column whose spine is a narrow form of itself", () => {
 
 	it("is opened again by the control that minimized it, which is the only way back when the strip keeps its clicks", async () => {
 		const pane = await spined();
+		const minimized: unknown[] = [];
+		pane.addEventListener(SHU_EVENT.COLUMN_MINIMIZE, (e) => minimized.push((e as CustomEvent).detail));
 		pane.applyTapAction("minimize");
 		await nextFrame(pane);
 		expect(pane.isCollapsed, "the column is back").toBe(false);
+		expect(minimized, "the strip and the address read that the reader ended the minimize").toEqual([{ minimized: false }]);
 	});
 });
 
@@ -570,6 +573,15 @@ describe("a docked pane", () => {
 		pane.applyTapAction("settings");
 		await nextFrame(pane);
 		expect(asked).toHaveLength(1);
+	});
+
+	it("states its view's settings, and the control that hides them, once the view's settings change", async () => {
+		view.applyTapAction("settings");
+		await nextFrame(pane);
+		expect(pane.hasAttribute(SHU_ATTR.DATA_CONTROLS_ON), "the pane states the view's settings").toBe(true);
+		inShadow(`[${SHU_ATTR.TAP_UNDO}="settings"]`)?.dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+		await nextFrame(pane);
+		expect(view.hasAttribute(SHU_ATTR.SHOW_CONTROLS), "the header's control hides them").toBe(false);
 	});
 
 	it("closes from its minimize tap action to its strip without minimizing the column", async () => {

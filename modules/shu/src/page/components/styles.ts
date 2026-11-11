@@ -108,6 +108,12 @@ const DARK_PALETTE = `
  *  doesn't set it, and it is only for text whose own background is a swatch. The palettes state the colour scheme the browser
  *  paints its own parts in, a scrollbar, a spinner, a date picker and a control's focus ring, so those follow the theme.
  */
+const TAP_ACTIVE_CSS = "outline: 2px solid var(--shu-accent); outline-offset: -2px; background-color: color-mix(in oklch, var(--shu-accent) 10%, transparent); cursor: crosshair;";
+/** The outline of each element the primed tap action takes, and of the one under the pointer. A shadow root adds the selectors of
+ *  its host, `target` and `copy`. */
+const tapCss = (target: string, copy: string): string =>
+	`${target} [data-tap-target], ${copy} [data-tap-action="copy"] [data-copy]:not([data-copy=""]) { outline: 1px dashed var(--shu-accent); outline-offset: -2px; cursor: crosshair; } [data-tap-active] { ${TAP_ACTIVE_CSS} }`;
+
 export const SHU_TOKENS = `
 	:host, :root {
 		--shu-scale: 1;
@@ -161,18 +167,7 @@ ${LIGHT_PALETTE}
 		}
 	}
 
-	[data-tap-target],
-	[data-tap-action="copy"] [data-copy]:not([data-copy=""]) {
-		outline: 1px dashed var(--shu-accent);
-		outline-offset: -2px;
-		cursor: crosshair;
-	}
-	[data-tap-active] {
-		outline: 2px solid var(--shu-accent);
-		outline-offset: -2px;
-		background-color: color-mix(in oklch, var(--shu-accent) 10%, transparent);
-		cursor: crosshair;
-	}
+	${tapCss("", "")}
 `;
 
 /** Base reset + element defaults reused by every shu component. Tokens must be in scope (i.e. `${SHU_TOKENS}` precedes this in the template). */
@@ -217,20 +212,8 @@ export const SHU_BASE = `
 	.col-link:hover { text-decoration: underline; }
 	.pred-link { color: var(--shu-pred); cursor: pointer; font-style: italic; }
 	.pred-link:hover { text-decoration: underline; }
-	:host([data-tap-target]),
-	[data-tap-target],
-	:host([data-tap-action="copy"]) [data-copy]:not([data-copy=""]) {
-		outline: 1px dashed var(--shu-accent);
-		outline-offset: -2px;
-		cursor: crosshair;
-	}
-	:host([data-tap-active]),
-	[data-tap-active] {
-		outline: 2px solid var(--shu-accent);
-		outline-offset: -2px;
-		background-color: color-mix(in oklch, var(--shu-accent) 10%, transparent);
-		cursor: crosshair;
-	}
+	${tapCss(":host([data-tap-target]),", ':host([data-tap-action="copy"]) [data-copy]:not([data-copy=""]),')}
+	:host([data-tap-active]) { ${TAP_ACTIVE_CSS} }
 	code { font-family: var(--shu-font-family); background: var(--shu-bg-elevated); padding: 0 var(--shu-space-2); border-radius: var(--shu-radius); font-size: var(--shu-font-sm); color: var(--shu-fg); }
 	.muted { color: var(--shu-fg-muted); font-size: var(--shu-font-sm); }
 	.faded { color: var(--shu-fg-faded); }
@@ -261,7 +244,7 @@ export const SHU_BASE = `
 	.future-event { opacity: 0.4; }
 	${JSON_DISCLOSURE_CSS}
 	.time-current { background: var(--shu-accent-soft); border-left: calc(var(--shu-border-w) * 3) solid var(--shu-accent); }
-	.pane-controls-group, .tap-undo-group {
+	.tap-undo-group {
 		display: inline-flex;
 		align-items: center;
 		gap: var(--shu-space-1);

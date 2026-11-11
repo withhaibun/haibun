@@ -1,4 +1,5 @@
 /** Shared constants for custom events and data attributes across shu components. */
+import { z } from "zod";
 import { ChatRoleSchema } from "./schemas.js";
 import { ChatStatusSchema } from "@haibun/core/lib/conversation/domains/conversation.js";
 
@@ -36,7 +37,8 @@ export const CONTEXT_DOCUMENT = { wellKnown: "/.well-known/haibun-context.jsonld
 
 /** The seven actions offered by the lower-right toolbar of the page strip. */
 export const SHU_TAP_ACTIONS = ["close", "minimize", "maximize", "settings", "pin", "position", "copy"] as const;
-export type TTapAction = (typeof SHU_TAP_ACTIONS)[number];
+export const TapActionSchema = z.enum(SHU_TAP_ACTIONS);
+export type TTapAction = z.infer<typeof TapActionSchema>;
 
 export const SHU_TAP_ACTION_ICONS: Readonly<Record<TTapAction, string>> = { close: "×", minimize: "―", maximize: "⤢", settings: "⚙", pin: "📌", position: "⤓", copy: "⧉" };
 
@@ -200,6 +202,8 @@ export const SHU_ATTR = {
 	TAP_TARGET: "data-tap-target",
 	TAP_ACTIVE: "data-tap-active",
 	TAP_UNDO: "data-tap-undo",
+	/** On the tap actions' toolbar, whose presses prime an action rather than apply one. */
+	TAP_TOOLBAR: "data-tap-toolbar",
 	DATA_COPY: "data-copy",
 	DATA_MINIMIZED: "data-minimized",
 	/** On a view opened at a moment of actuality's history: that moment, which the view shows (`TimelineViewController`). */

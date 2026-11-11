@@ -116,6 +116,10 @@ export class ShuChatMessage extends ShuElement<typeof EmptyStateSchema> {
 		return this.message?.text ?? null;
 	}
 
+	protected override get copyable(): boolean {
+		return this.message !== undefined;
+	}
+
 	/** The message this element shows. The history sets it before the element renders. */
 	@property({ attribute: false }) accessor message: TChatMessage | undefined;
 

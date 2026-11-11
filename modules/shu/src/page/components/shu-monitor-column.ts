@@ -7,7 +7,7 @@ import { html, css, nothing, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { SHOW_CONTROLS_FIELD, ShuElement, type TLinkedData } from "./shu-element.js";
 import { eventMarkerStyle, markFor } from "../derivations/event-marker.js";
 import type { TEventMarkerStyle } from "../derivations/status-mark.js";
 import { HAIBUN_LOG_LEVELS, LOG_LEVEL_INFO, ICON_DEFAULT, ICON_LOG_ERROR, ICON_LOG_INFO, ICON_LOG_WARN, RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
@@ -131,6 +131,7 @@ export function railMarkers(rows: readonly TLogRow[], indices?: readonly number[
 }
 
 export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
+	static attributeFields = SHOW_CONTROLS_FIELD;
 	/** The instant this view shows, which is the page's time cursor or the moment `data-snapshot-time` states. */
 	readonly #timeline = new TimelineViewController(this);
 	/** Collapsed, the strip doesn't have room for the log's rows, but it has room for the scroll rail: the rail is already a narrow vertical

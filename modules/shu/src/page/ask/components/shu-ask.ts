@@ -9,7 +9,7 @@ import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { z } from "zod";
 import { nothing, html, css, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
-import { ShuElement, type TLinkedData } from "../../components/shu-element.js";
+import { SHOW_CONTROLS_FIELD, ShuElement, type TLinkedData } from "../../components/shu-element.js";
 import { shuBaseStyles } from "../../components/styles.js";
 import { acts, reads } from "../../domains/links.js";
 import { conduit } from "../../controllers/conduit-controller.js";
@@ -150,6 +150,7 @@ function restoreQuestion(input: HTMLTextAreaElement, prompt: string): void {
 }
 
 export class ShuAsk extends ShuElement<typeof ChatSchema> {
+	static attributeFields = SHOW_CONTROLS_FIELD;
 	/** A control doesn't contribute to a conversation's context, since it isn't a view of data. */
 	summarizeForContext(): TLinkedData | null {
 		return null;

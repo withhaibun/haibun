@@ -11,7 +11,7 @@ import { classMap } from "lit-html/directives/class-map.js";
 import { unsafeHTML } from "lit-html/directives/unsafe-html.js";
 import type { CSSResultGroup } from "lit";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { SHOW_CONTROLS_FIELD, ShuElement, type TLinkedData } from "./shu-element.js";
 import { ActionsBarSteps } from "./actions-bar-steps.js";
 import { ActionsBarQuery } from "./actions-bar-query.js";
 import { ACTIONS_BAR_STYLES } from "./actions-bar-styles.js";
@@ -44,6 +44,7 @@ import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 const askPane = loadedOnFirstUse(() => import("../ask/components/shu-ask.js").then(() => undefined));
 
 export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
+	static attributeFields = SHOW_CONTROLS_FIELD;
 	/** A control doesn't contribute to a conversation's context, since it isn't a view of data. */
 	summarizeForContext(): TLinkedData | null {
 		return null;

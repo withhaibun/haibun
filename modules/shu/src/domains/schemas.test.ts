@@ -7,10 +7,10 @@ describe("ActionsBarSchema mode", () => {
 	});
 
 	it("accepts the three modes `search`, `step` and `ask`", () => {
-		for (const mode of ["search", "step", "ask"] as const) expect(ActionsBarSchema.parse({ mode }).mode).toBe(mode);
+		for (const mode of ["search", "step", "ask"] as const) expect(ActionsBarSchema.parse({ mode, showControls: false }).mode).toBe(mode);
 	});
 
 	it("rejects an unknown mode", () => {
-		expect(() => ActionsBarSchema.parse({ mode: "browse" })).toThrow();
+		expect(() => ActionsBarSchema.parse({ mode: "browse", showControls: false })).toThrow();
 	});
 });
