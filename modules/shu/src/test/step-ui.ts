@@ -66,6 +66,8 @@ type TByParam = Record<string, string>;
 const ASK_LOCATOR = { ANSWERED: "ask-answered", TURNS_SHOWN: "ask-turns-shown", STATED: "ask-stated" } as const;
 /** The page-locator variable the actions bar helpers set: the minimize control of the bar's pane. */
 const ACTIONS_PANE_CONTROL = "actions-pane-control";
+/** The actions bar's view, which a settings tap reaches: a tap on the pane's header doesn't reach the view the pane holds. */
+const ACTIONS_BAR_VIEW = "actions-bar-view";
 
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { normalizeStepKey } from "../page/derivations/steps.js";
@@ -137,9 +139,9 @@ export function createStepUI(wp: WebPlaywright) {
 	/** Show the settings of the view in the actions pane, which the settings tap action holds. `marker` is a control
 	 *  those settings hold, which states whether they are shown: the press is skipped where it is already on the page. */
 	const showPaneSettings = (marker: string): TKirejiStep[] => [
-		...actionsPaneAttached,
+		setAs({ what: ACTIONS_BAR_VIEW, domain: "page-locator", value: `"${ACTIONS_PANE} ${SHU_TAG.ACTIONS_BAR}"` }),
 		`where didn't has test id ${marker}, click "${IDS.TAP_ACTIONS.SETTINGS}" by test id`,
-		`where didn't has test id ${marker}, click ${ACTIONS_PANE_CONTROL}`,
+		`where didn't has test id ${marker}, click ${ACTIONS_BAR_VIEW}`,
 		waitFor({ target: marker }),
 	];
 
