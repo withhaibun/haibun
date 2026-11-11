@@ -509,7 +509,7 @@ whose components the views picker lists.
 
 | Stepper | Example Steps |
 |---------|---------------|
-| WebPlaywright | `go to the {uri} webpage`, `click "{target}"`, `click "{target}" by "placeholder"`, `input {what} for {field}`, `wait for "{target}"`, `wait until {target} is gone`, `hover over {target}`, `scroll {target} up a screen`, `in {container}, {statement}`, `see "{text}"`, `cookie {name} is {value}`, `take a screenshot` |
+| WebPlaywright | `go to the {uri} webpage`, `click "{target}"`, `click "{target}" by "placeholder"`, `input {what} for {field}`, `wait for "{target}"`, `wait until {target} is gone`, `hover over {target}`, `click invisible {target}` and `hover invisible over {target}` (a press or hover on an element the page clips, such as a graph's hidden reading), `scroll {target} up a screen`, `in {container}, {statement}`, `see "{text}"`, `cookie {name} is {value}`, `take a screenshot` |
 | WebServerStepper | `serve files at /path from "dir"`: a served file requires `Read:public`, which a deployment serving a site allows without a delegation; the `RPC` option serves `/rpc` on each feature's server |
 | A11yStepper | `page is accessible accepting serious {N} and moderate {N}` |
 | WebHttp | `fetch from {url} is "{expected}"` |

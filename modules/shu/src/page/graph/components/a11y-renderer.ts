@@ -309,7 +309,9 @@ export class A11yRenderer implements TGraphRenderer {
 		refocus?.focus();
 	}
 
-	/** State on each entry what the picture shows of its node now, in place, so the entry a reader is on keeps their focus. */
+	/** State on each entry what the picture shows of its node now, in place, so the entry a reader is on keeps their focus. An
+	 *  entry holds one line within the reading's width, so a change of its marks doesn't move the entries after it from under a
+	 *  pointer that presses one, and the centre of a long entry stays within the reading. */
 	mark(): void {
 		const drawn = this.lastDrawn;
 		const content = this.contentEl;

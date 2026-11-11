@@ -68,3 +68,14 @@ test("marks the node its host selects, lights the nodes its host previews, and r
 	);
 	expect(reported).toEqual({ clicked: ["e-3"], opened: 0 });
 });
+
+test("keeps each entry of the reading on one line within its width, so a change of its marks doesn't move the entries after it", { timeout: 60_000 }, async () => {
+	const style = await mounted.page.evaluate((selector) => {
+		// A focused entry shows the reading, as a reader's press or keyboard does.
+		const entry = document.querySelector(selector) as HTMLElement;
+		entry.focus();
+		const { whiteSpace, maxWidth, textOverflow } = getComputedStyle(entry);
+		return { whiteSpace, maxWidth, textOverflow };
+	}, `${VIEW} [data-testid="${SHU_TEST_IDS.POLYMORPHIC_VIEW.A11Y}"] ol > li > [data-node-id="e-1"]`);
+	expect(style).toEqual({ whiteSpace: "nowrap", maxWidth: "100%", textOverflow: "ellipsis" });
+});

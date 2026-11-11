@@ -117,13 +117,12 @@ export const views = {
 	askWhy: (view: string) => `ask why in ${view}, which opens the frames of its proof`,
 };
 
-/** The steps an activity runs on the locator it composes, each written before the locator but the scroll and the wait until gone. */
-type TOnTarget = "wait for" | "click" | "hover over" | "scroll up a screen" | "wait until gone";
+/** The steps an activity runs on the locator it composes, each written before the locator but the scroll and the wait until
+ *  gone. A press or a hover on the graph's reading, which the page clips while it is hidden, is `invisible`. */
+type TOnTarget = "wait for" | "click" | "click invisible" | "hover over" | "hover invisible over" | "scroll up a screen" | "wait until gone";
 const onTarget = (step: TOnTarget): string => {
 	if (step === "scroll up a screen") return `scroll ${TARGET} up a screen`;
 	if (step === "wait until gone") return `wait until ${TARGET} is gone`;
-	if (step === "hover over") return `hover invisible over ${TARGET}`;
-	if (step === "click") return `click invisible ${TARGET}`;
 	return `${step} ${TARGET}`;
 };
 
@@ -252,11 +251,17 @@ export const backgrounds: TKirejiExport = {
 		`compose ${TARGET} as page-locator with ${READING}[data-shown]`,
 		`in {view}, wait until ${TARGET} is gone`,
 		`waypoint ${views.putAwayGraphReading(VIEW)}`,
-		...within("Open a node from a graph's reading", "{view}", ENTRY, "click", views.openGraphNode(VIEW, "{id}")),
-		...within("Point at a node from a graph's reading", "{view}", ENTRY, "hover over", views.hoverGraphNode(VIEW, "{id}")),
-		...within("Open a node by its name", "{view}", `${READING} ol > li > [data-node-id]:has-text("{name}") >> nth=0`, "click", views.openGraphNodeNamed(VIEW, "{name}")),
-		...within("Point at a node by its name", "{view}", `${READING} ol > li > [data-node-id]:has-text("{name}") >> nth=0`, "hover over", views.hoverGraphNodeNamed(VIEW, "{name}")),
-		...within("Open a graph's active node", "{view}", `${READING} ol > li > [aria-current="true"]`, "click", views.openActiveGraphNode(VIEW)),
+		...within("Open a node from a graph's reading", "{view}", ENTRY, "click invisible", views.openGraphNode(VIEW, "{id}")),
+		...within("Point at a node from a graph's reading", "{view}", ENTRY, "hover invisible over", views.hoverGraphNode(VIEW, "{id}")),
+		...within("Open a node by its name", "{view}", `${READING} ol > li > [data-node-id]:has-text("{name}") >> nth=0`, "click invisible", views.openGraphNodeNamed(VIEW, "{name}")),
+		...within(
+			"Point at a node by its name",
+			"{view}",
+			`${READING} ol > li > [data-node-id]:has-text("{name}") >> nth=0`,
+			"hover invisible over",
+			views.hoverGraphNodeNamed(VIEW, "{name}"),
+		),
+		...within("Open a graph's active node", "{view}", `${READING} ol > li > [aria-current="true"]`, "click invisible", views.openActiveGraphNode(VIEW)),
 		...within("Read a graph's active node", "{view}", `${ENTRY}[aria-current="true"]`, "wait for", views.graphNodeIsActive(VIEW, "{id}")),
 		...within("Read that a graph doesn't show an active node", "{view}", `${READING} ol > li > [aria-current="true"]`, "wait until gone", views.graphHasNoActiveNode(VIEW)),
 		...within("Read a dimmed node", "{view}", `${ENTRY}${DIMMED}`, "wait for", views.graphNodeIsDimmed(VIEW, "{id}")),

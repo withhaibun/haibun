@@ -840,6 +840,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				shu-graph-scene #polymorphic-a11y button { user-select: text; background: none; border: 0; padding: 0; margin: 0; font: inherit; text-align: left; color: var(--shu-accent); text-decoration: underline; cursor: pointer; }
 				shu-graph-scene #polymorphic-a11y button:hover, shu-graph-scene #polymorphic-a11y button:focus-visible { text-decoration-thickness: 2px; }
 				shu-graph-scene #polymorphic-a11y button[aria-current="true"] { font-weight: 600; }
+				shu-graph-scene #polymorphic-a11y:focus-within ol > li > button, shu-graph-scene #polymorphic-a11y[data-shown] ol > li > button { display: inline-block; max-width: 100%; vertical-align: bottom; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 				shu-graph-scene #polymorphic-a11y ol { margin: 0; padding-left: 3em; }
 				shu-graph-scene #polymorphic-a11y ul { margin: 0 0 var(--shu-space-1); padding-left: var(--shu-space-4); list-style: none; opacity: 0.85; }
 				shu-graph-scene #polymorphic-a11y > div > ul { padding-left: 0; opacity: 1; }
