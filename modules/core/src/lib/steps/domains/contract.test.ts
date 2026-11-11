@@ -24,8 +24,8 @@ import {
 
 /** A record type as a stepper declares one, and two relations its statements share. */
 const CAPABILITY = { schema: z.object({ id: z.string(), revoked: z.string() }), topology: { persistedAs: "Capability" } };
-const REVOKED: TRelation = { name: "revoked_capability", phrase: { holds: "{capability} is revoked", doesntHold: "{capability} isn't revoked" }, rules: "" };
-const CONTROLS: TRelation = { name: "controls", phrase: { holds: "{principal} controls {capability}", doesntHold: "{principal} doesn't control {capability}" }, rules: "" };
+const REVOKED: TRelation = { name: "revoked_capability", phrase: "{capability} is revoked", rules: "" };
+const CONTROLS: TRelation = { name: "controls", phrase: "{principal} controls {capability}", rules: "" };
 
 describe("contract.products", () => {
 	it("reads a domain, a map of fields and a statement parameter, and an empty form for a step without a contract", () => {

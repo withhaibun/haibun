@@ -15,11 +15,7 @@ import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import LogicStepper from "../logic-stepper.js";
 
 const BELOW = `<${RELATION_NAMESPACE}below>`;
-const BELOW_RELATION: TRelation = {
-	name: "below",
-	phrase: { holds: "{a} is below {b}", doesntHold: "{a} isn't below {b}" },
-	rules: `{ (?a ?b) ${BELOW} true . (?b ?c) ${BELOW} true } => { (?a ?c) ${BELOW} true } .`,
-};
+const BELOW_RELATION: TRelation = { name: "below", phrase: "{a} is below {b}", rules: `{ (?a ?b) ${BELOW} true . (?b ?c) ${BELOW} true } => { (?a ?c) ${BELOW} true } .` };
 const NODE_DOMAIN = "claim-node";
 const NODE_PRODUCTS = "claim-placed-node";
 

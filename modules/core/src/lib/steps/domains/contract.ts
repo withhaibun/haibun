@@ -7,7 +7,7 @@
  * fields of record types. The browser imports this module.
  */
 import { z } from "zod";
-import { DomainKeySchema } from "../../domains/domains.js";
+import { DOMAIN_STATEMENT, DomainKeySchema } from "../../domains/domains.js";
 import type { TVerdict } from "../../domains/protocol.js";
 import type { WRITE_VERB } from "../../records/domains/unit.js";
 
@@ -27,13 +27,16 @@ export function field<S extends z.ZodObject>(definition: { readonly schema: S; r
 	return { persistedAs: definition.topology.persistedAs, key };
 }
 
-/** The sentences of a relation's statements: a phrase whose placeholders name the relation's places in order, for a statement
- *  that holds and for one that doesn't, such as `{capability} is revoked` and `{capability} isn't revoked`. */
-export type TRelationPhrase = { readonly holds: string; readonly doesntHold: string };
-
 /** A relation that statements share, declared once as a named const by the stepper whose rules state it: its name, its phrase,
- *  whose places are its arity, and the N3 rules that derive it, which are empty where the relation is a recorded fact. */
-export type TRelation = { readonly name: string; readonly phrase: TRelationPhrase; readonly rules: string };
+ *  and the N3 rules that derive it, which are empty where the relation is a recorded fact. The phrase is the sentence of a
+ *  statement that holds, such as `{capability} is revoked`, and its placeholders name the relation's places in order, which are
+ *  its arity. A negated statement reads as the phrase inside the `didn't` combinator (`NEGATION_GWTA`). */
+export type TRelation = { readonly name: string; readonly phrase: string; readonly rules: string };
+
+/** The phrase of the `didn't` combinator, which states the negation of a step's line and of a statement of facts. */
+export const NEGATION_GWTA = `didn't {statements:${DOMAIN_STATEMENT}}`;
+/** The place of `NEGATION_GWTA` that holds the negated statement. */
+export const NEGATED_PLACE = "statements";
 
 /** A derivation of a record's id from the call's values of its arguments, as a named function, whose name the notation states. */
 export type TDerivation = (...values: string[]) => string;

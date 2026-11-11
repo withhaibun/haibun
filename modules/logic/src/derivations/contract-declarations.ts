@@ -22,13 +22,13 @@ export const UNNAMED_PARAMETER = "names a parameter its pattern doesn't. Name a 
 export const UNDECLARED_TYPE = "derives a record of a type that the steppers don't declare. Derive a record of a type a stepper declares in its concerns";
 export const UNDECLARED_FIELD = "names a field that the declared record types' schemas don't hold. Build the field with `field` from the type's declaration";
 export const UNPARSED_SENTENCE =
-	"renders a statement as a sentence that the relations' phrases don't parse back to its term. Give the relation's two phrases the same placeholders, each worded so that it parses only its own sentences";
+	"renders a statement as a sentence that the relations' phrases don't parse back to its term. Word the relation's phrase so that it parses only its own sentences, and another relation's phrase doesn't parse them";
 
 /** The places of a relation, by the placeholders of its phrase. */
-const placesOf = (relation: TRelation): string[] => phraseParts(relation.phrase.holds).map(({ name }) => name);
+const placesOf = (relation: TRelation): string[] => phraseParts(relation.phrase).map(({ name }) => name);
 
-/** Returns the findings of the relations' phrases: a relation whose two phrases name other places, or a statement over its places,
- *  held or not, whose sentence doesn't parse back to its term through the relations' phrases. */
+/** Returns the findings of the relations' phrases: a statement over a relation's places, held or negated, whose sentence doesn't
+ *  parse back to its term through the relations' phrases. */
 export function relationFindings(relations: readonly TRelation[]): TContractFinding[] {
 	return relations.flatMap((relation) => {
 		const places = placesOf(relation);
@@ -37,12 +37,7 @@ export function relationFindings(relations: readonly TRelation[]): TContractFind
 			const term = sentenceTerm(relations, statementSentence(statement));
 			return term !== undefined && termText(term) === termText(statementTerm(statement));
 		};
-		const same =
-			places.join() ===
-			phraseParts(relation.phrase.doesntHold)
-				.map(({ name }) => name)
-				.join();
-		return same && statements.every(parsed) ? [] : [{ method: relation.name, finding: UNPARSED_SENTENCE }];
+		return statements.every(parsed) ? [] : [{ method: relation.name, finding: UNPARSED_SENTENCE }];
 	});
 }
 

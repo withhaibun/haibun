@@ -117,7 +117,7 @@ const DOMAIN_PLACED_NODE = "test-placed-node";
 const BELOW_PREDICATE = `<${RELATION_NAMESPACE}below>`;
 const BELOW: TRelation = {
 	name: "below",
-	phrase: { holds: "{a} is below {b}", doesntHold: "{a} isn't below {b}" },
+	phrase: "{a} is below {b}",
 	rules: `{ (?a ?b) ${BELOW_PREDICATE} true . (?b ?c) ${BELOW_PREDICATE} true } => { (?a ?c) ${BELOW_PREDICATE} true } .`,
 };
 

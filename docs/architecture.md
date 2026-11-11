@@ -184,7 +184,7 @@ Haibun includes logical constructs for expressing verification rules declarative
 
 ### Negation
 
-`didn't statement` holds where its statement didn't succeed, over actuality's results, a closed world:
+`didn't statement` holds where its statement is refuted, is unknown where its statement is unknown, and is refuted where its statement is proved. It negates a step's line and a statement of facts, and a contract's negated statement reads through it, such as `didn't {capability} is revoked`. A missing fact makes a statement of facts refuted only where its relation is declared complete:
 ```
 didn't variable status is "Error"
 ```

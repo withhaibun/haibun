@@ -41,6 +41,7 @@ import {
 } from "./domains/reasoning.js";
 import { DOMAIN_DERIVATION, DOMAIN_DOMAIN_GOAL, DOMAIN_LINE_TERM, RESOLVE_STATEMENT, logicDomainDefinitions } from "./domains/logic.js";
 import { DOMAIN_ALTERNATIVES, DOMAIN_REFUSAL, DOMAIN_STATUS, readingDomainDefinitions } from "./domains/readings.js";
+import { NEGATION_GWTA } from "@haibun/core/lib/steps/domains/contract.js";
 
 /** The feature's step records, as the members of the steps domain. */
 const steps: TDomainDefinition = {
@@ -158,9 +159,9 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 		},
 		anyOf: { gwta: `any of {alternatives: ${DOMAIN_ALTERNATIVES}}`, description: "Holds where one of the comma-separated statements holds: A ∨ B ∨ C.", reading: READING.anyOf },
 		didnt: {
-			gwta: `didn't {statements:${DOMAIN_STATEMENT}}`,
+			gwta: NEGATION_GWTA,
 			description:
-				"Holds where the statement didn't succeed, as negation as failure over the results of its line in actuality, a closed world. Its products hold the failure: its failing step's error text as refusal, and that step's seqPath, so a feature that expects a failure confirms it was the expected error with set … from didn't … and then matches ….refusal with the error's pattern. Its record states whether the statement is refuted or unknown.",
+				"Holds where its statement is refuted, is unknown where its statement is unknown, and is refuted where its statement is proved. It negates a step's line and a statement of facts, such as `didn't {capability} is revoked`. A missing fact makes a statement refuted only where its relation is declared complete. Its products hold the failure: its failing step's error text as refusal, and that step's seqPath, so a feature that expects a failure confirms it was the expected error with set … from didn't … and then matches ….refusal with the error's pattern. Its record states its verdict.",
 			contract: { products: DOMAIN_REFUSAL },
 			reading: READING.didnt,
 		},

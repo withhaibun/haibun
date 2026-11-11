@@ -80,11 +80,11 @@ describe("a step as a tool", () => {
 	});
 
 	it("states its contract's sentences after its description, and its products' schema where they state an object", () => {
-		const contract = { requires: ["value isn't revoked"], states: ["products is placed under value", "products is held"] };
+		const contract = { requires: ["didn't value is revoked"], states: ["products is placed under value", "products is held"] };
 		const outputSchema = { type: "object", properties: { id: { type: "string" } } };
 		const tool = toolDefinition({ ...describedAs("gwtaStep"), contract, outputSchema });
 		expect(tool.description).toBe(
-			"set {name} to {value}\n\nSets a value.\n\nBefore the call: value isn't revoked.\n\nAfter the call: products is placed under value; products is held.\n\nRequires capability Read:private.",
+			"set {name} to {value}\n\nSets a value.\n\nBefore the call: didn't value is revoked.\n\nAfter the call: products is placed under value; products is held.\n\nRequires capability Read:private.",
 		);
 		expect(tool.outputSchema).toEqual(outputSchema);
 		expect(toolDefinition({ ...describedAs("gwtaStep"), outputSchema: { type: "array" } }).outputSchema, "a list of products isn't a tool's structured content").toBeUndefined();

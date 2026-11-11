@@ -18,7 +18,7 @@ import { PREDICATE, type AStepper, type TStepAction } from "../domains/stepper.j
 import { stepMethodName } from "../domains/step-method.js";
 import { phraseParts, stepParts, type TPart } from "../domains/phrase.js";
 import type { TPredicate } from "../domains/step-discovery.js";
-import { argumentTerm, type TRelation, type TStatement } from "../domains/contract.js";
+import { argumentTerm, NEGATED_PLACE, NEGATION_GWTA, type TRelation, type TStatement } from "../domains/contract.js";
 import { literalTerm, phraseValues, renderStepLine } from "./named-vars.js";
 
 /** A part that takes a member of a domain. */
@@ -93,28 +93,28 @@ const NEGATION = "¬";
 /** A statement's sentence states its arguments as the terms a declaration names them by, so it doesn't read a domain's form. */
 const SENTENCE_DOMAINS: TDomains = {};
 
-/** The phrase of a relation's statement that holds, or of one that doesn't. */
-const phraseOf = (relation: TRelation, negated: boolean): string => (negated ? relation.phrase.doesntHold : relation.phrase.holds);
-
 /** A statement's term: its relation's name, with `¬` before a negation, and each argument's term by the place of the relation's
  *  phrase it fills. */
 export function statementTerm({ relation, args, negated }: TStatement): TLineTerm {
-	const places = phraseParts(relation.phrase.holds);
+	const places = phraseParts(relation.phrase);
 	if (places.length !== args.length) throw new Error(`${relation.name} takes ${places.length} arguments, and the statement gives ${args.length}`);
 	return { functor: `${negated ? NEGATION : ""}${relation.name}`, args: places.map(({ name }, at) => [name, { literal: false, term: argumentTerm(itemAt(args, at)) }]) };
 }
 
-/** The sentence a statement renders as, through its relation's phrase. */
-export const statementSentence = (statement: TStatement): string => lineOfTerm(phraseOf(statement.relation, statement.negated), statementTerm(statement), SENTENCE_DOMAINS);
+/** The sentence a statement renders as: its relation's phrase, inside the `didn't` combinator where the statement is negated. */
+export function statementSentence(statement: TStatement): string {
+	const held = lineOfTerm(statement.relation.phrase, statementTerm(statement), SENTENCE_DOMAINS);
+	return statement.negated ? renderStepLine(NEGATION_GWTA, { [NEGATED_PLACE]: held }) : held;
+}
 
-/** The term of the statement a sentence states through the first of `relations`' phrases that parses it, or undefined where
- *  each phrase refuses it. */
+/** The term of the statement a sentence states through the first of `relations`' phrases that parses it, read inside the
+ *  `didn't` combinator where the sentence states a negation, or undefined where each phrase refuses it. */
 export function sentenceTerm(relations: Iterable<TRelation>, sentence: string): TLineTerm | undefined {
-	for (const relation of relations)
-		for (const negated of [false, true]) {
-			const phrase = phraseOf(relation, negated);
-			const values = phraseValues(phrase, sentence);
-			if (values !== undefined) return termOfAction(`${negated ? NEGATION : ""}${relation.name}`, values, phrase, SENTENCE_DOMAINS);
-		}
+	const negation = phraseValues(NEGATION_GWTA, sentence)?.[NEGATED_PLACE];
+	const stated = negation === undefined ? sentence : negation.term;
+	for (const { name, phrase } of relations) {
+		const values = phraseValues(phrase, stated);
+		if (values !== undefined) return termOfAction(`${negation === undefined ? "" : NEGATION}${name}`, values, phrase, SENTENCE_DOMAINS);
+	}
 	return undefined;
 }

@@ -6,7 +6,7 @@ const { feature, scenario } = withAction(new Haibun());
 export const features: TKirejiExport = {
 	"Combinators and quantifiers": [
 		feature({ feature: "Combinators and quantifiers" }),
-		`Each combinator has one formal reading in any position: not is negation as failure, where is implication, any of is disjunction, maybe is P or true, some and every quantify over a closed domain, and whenever repeats an activity while its condition holds (logic-stepper.ts).
+		`Each combinator has one formal reading in any position: didn't holds where its statement is refuted and is unknown where it is unknown, where is implication, any of is disjunction, maybe is P or true, some and every quantify over a closed domain, and whenever repeats an activity while its condition holds (logic-stepper.ts).
 		Accidental, and replaced by the readings: the comma splitting of any of (logic-stepper.ts:172), the quote stripping (logic-stepper.ts:86), the quantifier's variable that stays set after it (logic-stepper.ts:77), the metric variables named with a slash (logic-stepper.ts:82), the loop count of 1,000 (logic-stepper.ts:125), the maybe-outcome product (logic-stepper.ts:13) and the speculative mode that marks an expected failure (flow-runner.ts:31).`,
 
 		scenario({ scenario: "Negation, implication, disjunction and maybe" }),
