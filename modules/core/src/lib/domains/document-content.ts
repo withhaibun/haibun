@@ -8,6 +8,7 @@ import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TStepEvent, TLifecy
 import { HAIBUN_LOG_LEVELS, isTechnicalStep } from "./protocol.js";
 import { parseRecordName } from "../actuality/domains/seq-path.js";
 import { MEDIA_TYPE } from "./media-types.js";
+import { artifactOf } from "./run-artifact.js";
 
 /** The classes of a row of a step or a log message in the document. */
 const LOG_ROW_CLASS = "log-row font-mono text-[11px] text-slate-500 my-0 leading-tight";
@@ -23,6 +24,20 @@ const normalizeId = (id: string) => id.replace(/^\[|\]$/g, "");
  *  artifact embedded in a step's event has an id that begins with that step's id. */
 export function artifactStepId(id: string): string {
 	return itemAt(normalizeId(id).split("@"), 0);
+}
+
+/** Returns the artifacts a row shows of those it claims. Its own artifacts, which its step produced, are shown as they are. An
+ *  artifact it claims on behalf of a step it doesn't render is shown once for each path it is served at, so a hidden step that
+ *  produces an image and a hidden step that checks it show one image on the row. */
+function onBehalfOnce(held: { artifact: TArtifactEvent; own: boolean }[]): TArtifactEvent[] {
+	const served = new Set<string>();
+	return held.flatMap(({ artifact, own }) => {
+		const { path } = artifactOf(artifact);
+		if (own || path === undefined) return [artifact];
+		if (served.has(path)) return [];
+		served.add(path);
+		return [artifact];
+	});
 }
 
 /** Returns a step id followed by the id of each enclosing step, innermost first. A view attaches an artifact to the first
@@ -132,9 +147,12 @@ export function generateDocumentMarkdown(
 	const rows = new Set(events.filter((e) => e.kind === "lifecycle" && !belowLevel(e)).map((e) => normalizeId(e.id)));
 	const claims = [...artifactsByStep].flatMap(([stepId, artifacts]) => {
 		const claimer = stepAncestors(stepId).find((id) => rows.has(id));
-		return claimer ? artifacts.map((artifact) => ({ claimer, artifact })) : [];
+		return claimer ? artifacts.map((artifact) => ({ claimer, artifact, own: claimer === stepId })) : [];
 	});
-	const claimable = new Map([...Map.groupBy(claims, ({ claimer }) => claimer)].map(([claimer, held]) => [claimer, held.map(({ artifact }) => artifact)]));
+	const claimable = new Map([...Map.groupBy(claims, ({ claimer }) => claimer)].map(([claimer, held]) => [claimer, onBehalfOnce(held)]));
+	// An artifact a row doesn't show, since it repeats one the row shows on behalf of another step, isn't shown on its own either.
+	const shown = new Set([...claimable.values()].flat().map(({ id }) => id));
+	for (const { artifact } of claims) if (!shown.has(artifact.id)) claimedArtifactIds.add(artifact.id);
 
 	const claimArtifacts = (id: string, excludeTypes: string[]) => {
 		const nid = normalizeId(id);

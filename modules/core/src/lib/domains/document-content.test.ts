@@ -289,6 +289,36 @@ describe("generateDocumentMarkdown", () => {
 			expect(holderOf(md, `${RUN}.0.3.12.5.-1@0`)).toBe(`${RUN}.0.3.12.5`);
 		});
 	});
+
+	describe("a row that shows artifacts on behalf of steps it doesn't render", () => {
+		const RUN = "1700000000000-1";
+		const ENSURE = `${RUN}.0.4.1`;
+		const [DOWNLOAD, CHECK] = [`${ENSURE}.1`, `${ENSURE}.2`];
+		const step = (id: string, level: string) =>
+			({ id, timestamp: 1000, source: "h", level, kind: "lifecycle", stage: "end", type: "step", status: "passed", in: `the step ${id}` }) as unknown as THaibunEvent;
+		const image = (stepId: string, path: string) =>
+			({ id: `${stepId}@0`, timestamp: 1100, source: "h", level: "info", kind: "artifact", artifactType: "image", path, mimetype: "image/png" }) as unknown as THaibunEvent;
+		/** The number of frames the document renders for the ensure's download and its proof's check, whose rows log at `substeps`. */
+		const framesOf = (substeps: string, paths: [string, string]) => {
+			const events = [step(ENSURE, "info"), step(DOWNLOAD, substeps), image(DOWNLOAD, paths[0]), step(CHECK, substeps), image(CHECK, paths[1])];
+			const { md } = generateDocumentMarkdown(events, buildArtifactIndex(events).artifactsByStep, LOG_LEVEL_INFO, firstAt(events));
+			const listed = [...md.matchAll(/class="feature-artifacts" data-ids="([^"]*)"/g)].flatMap(([, ids]) => (ids ?? "").split(","));
+			const standalone = [...md.matchAll(/class="standalone-artifact"/g)];
+			return listed.length + standalone.length;
+		};
+
+		it("shows an image a hidden download and a hidden check both present once, collapsed on the ensure's row", () => {
+			expect(framesOf("trace", ["image/catsalot.jpg", "image/catsalot.jpg"])).toBe(1);
+		});
+
+		it("shows the image at each step where the steps are rendered", () => {
+			expect(framesOf("info", ["image/catsalot.jpg", "image/catsalot.jpg"])).toBe(2);
+		});
+
+		it("shows each image two hidden steps present at different paths", () => {
+			expect(framesOf("trace", ["image/one.jpg", "image/two.jpg"])).toBe(2);
+		});
+	});
 });
 
 describe("isWebAddress", () => {
