@@ -169,12 +169,56 @@ describe("EgoOverlay", () => {
 			expect(chipHit.neighbourId).toBe("n1");
 		}
 
-		const picked = overlay.pickNeighbour({ x: 910, y: 400 }, rect);
+		// Virtual chip right half and bottom span should also register hit
+		const chipRightHit = overlay.testPointer({ x: 950, y: 410 }, rect);
+		expect(chipRightHit.kind).toBe("chip");
+
+		const picked = overlay.pickNeighbour({ x: 950, y: 410 }, rect);
 		expect(picked?.id).toBe("n1");
 
 		overlay.hide();
 		mockTime += 200;
 		expect(overlay.isVisible).toBe(false);
+	});
+
+	it("retains visibility when hovering a virtual neighbour during hide", () => {
+		const parentGroup = makePart();
+		let mockTime = 1000;
+		let pendingFrame: (() => void) | undefined;
+		const overlay = new EgoOverlay({
+			three: () => mockThree,
+			parent: () => parentGroup,
+			camera: () => ({}),
+			colors: () => ({ text: "#000", accent: "#00f", highlight: "#fc0", border: "#fff" }),
+			markFor: (n) => ({ color: "#eee", type: n.type, kind: "chip", id: n.id, label: n.name, role: { kind: "free" } }),
+			chipLabelOf: (n) => n.name,
+			markDirty: vi.fn(),
+			clock: {
+				now: () => mockTime,
+				frame: (cb) => {
+					pendingFrame = cb;
+					return () => undefined;
+				},
+			},
+		});
+
+		overlay.show(center, nodeMap, links);
+		expect(overlay.isVisible).toBe(true);
+
+		mockTime += 400;
+		pendingFrame?.();
+
+		overlay.hide();
+		expect(overlay.isVisible).toBe(true);
+
+		// Hovering virtual neighbour chip cancels hide and keeps visible
+		const rect = { left: 0, top: 0, width: 1000, height: 800 };
+		const hit = overlay.testPointer({ x: 950, y: 410 }, rect);
+		expect(hit.kind).toBe("chip");
+
+		mockTime += 500;
+		pendingFrame?.();
+		expect(overlay.isVisible).toBe(true);
 	});
 
 	it("does not create duplicate virtual chips for neighbours already in the visible viewport", () => {

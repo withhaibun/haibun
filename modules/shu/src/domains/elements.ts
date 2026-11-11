@@ -38,6 +38,8 @@ export const CONTEXT_DOCUMENT = { wellKnown: "/.well-known/haibun-context.jsonld
 export const SHU_TAP_ACTIONS = ["close", "minimize", "maximize", "settings", "pin", "position", "copy"] as const;
 export type TTapAction = (typeof SHU_TAP_ACTIONS)[number];
 
+export const SHU_TAP_ACTION_ICONS: Readonly<Record<TTapAction, string>> = { close: "×", minimize: "―", maximize: "⤢", settings: "⚙", pin: "📌", position: "⤓", copy: "⧉" };
+
 export const SHU_EVENT = {
 	/** A view in the graph bundle opens a pane (a `TPaneOpen` detail): that bundle's panes aren't the page's. */
 	PANE_OPEN: "pane-open",
@@ -197,6 +199,7 @@ export const SHU_ATTR = {
 	TAP_ACTION: "data-tap-action",
 	TAP_TARGET: "data-tap-target",
 	TAP_ACTIVE: "data-tap-active",
+	TAP_UNDO: "data-tap-undo",
 	DATA_COPY: "data-copy",
 	DATA_MINIMIZED: "data-minimized",
 	/** On a view opened at a moment of actuality's history: that moment, which the view shows (`TimelineViewController`). */

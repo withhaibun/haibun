@@ -338,6 +338,12 @@ export class EgoOverlay {
 		if (this.#animTo !== 0) this.#startTransition(0);
 	}
 
+	/** Cancels any active hide transition and keeps the overlay at full opacity. */
+	keepVisible(): void {
+		if (!this.#active) return;
+		if (this.#animTo !== 1) this.#startTransition(1);
+	}
+
 	/** Immediately dismiss and dispose of overlay resources. */
 	hideImmediate(): void {
 		if (!this.#active) return;
@@ -409,10 +415,12 @@ export class EgoOverlay {
 	 */
 	testPointer(pointer: { x: number; y: number }, rect: TCanvasRect): TEgoCorridorHit {
 		if (!this.#active) return { kind: "miss" };
-		const camera = this.deps.camera();
+		const camera = this.deps.camera() as
+			| { fov?: number; position?: { x: number; y: number; z: number }; matrixWorld?: { elements: number[] }; updateMatrixWorld?: (force: boolean) => void }
+			| undefined;
 		const T = this.deps.three() as unknown as EgoThree;
 		if (!camera || !T) return { kind: "miss" };
-		(camera as unknown as { updateMatrixWorld?: (force: boolean) => void })?.updateMatrixWorld?.(true);
+		camera.updateMatrixWorld?.(true);
 
 		const { center, neighbours } = this.#active.targetPositions;
 		const centerNode = this.#active.egoGraph.center;
@@ -421,8 +429,14 @@ export class EgoOverlay {
 		v.set(center.x, center.y, center.z);
 		const cNdc = v.project(camera);
 		const cPixel = ndcToClient({ x: cNdc.x, y: cNdc.y }, rect);
-		const centerW = Math.max(100, approximateChipWidth(centerNode.name) * 4);
-		const centerH = 32;
+
+		// Estimate pixels per 3D unit at center distance if camera geometry is available
+		const cDist = camera.position ? Math.hypot(camera.position.x - center.x, camera.position.y - center.y, camera.position.z - center.z) : undefined;
+		const cFov = camera.fov !== undefined ? (camera.fov * Math.PI) / 180 : undefined;
+		const cPxPerUnit = cDist && cFov && rect.height > 0 ? rect.height / (2 * cDist * Math.tan(cFov / 2)) : 4;
+
+		const centerW = Math.max(100, approximateChipWidth(centerNode.name) * cPxPerUnit);
+		const centerH = Math.max(32, 16 * cPxPerUnit);
 
 		const targets: TEgoNeighbourTarget[] = [];
 		for (let i = 0; i < neighbours.length; i++) {
@@ -431,17 +445,40 @@ export class EgoOverlay {
 			v.set(n.pos.x, n.pos.y, n.pos.z);
 			const pNdc = v.project(camera);
 			const pPixel = ndcToClient({ x: pNdc.x, y: pNdc.y }, rect);
-			const w = Math.max(80, approximateChipWidth(n.node.name) * 4);
-			const h = 28;
+
+			const nDist = camera.position ? Math.hypot(camera.position.x - n.pos.x, camera.position.y - n.pos.y, camera.position.z - n.pos.z) : undefined;
+			const nPxPerUnit = nDist && cFov && rect.height > 0 ? rect.height / (2 * nDist * Math.tan(cFov / 2)) : 4;
+
+			const mark = this.deps.markFor(n.node);
+			const label = this.deps.chipLabelOf(n.node, mark);
+			const rawAvatar = typeAvatar(mark.type);
+			const virtualAvatar = rawAvatar ? `~${rawAvatar}` : "~";
+			const chip3dW = approximateChipWidth(label) + (virtualAvatar ? 6 : 0);
+			const chip3dH = EGO_CHIP_HEIGHT;
+
+			const w = Math.max(80, chip3dW * nPxPerUnit);
+			const h = Math.max(28, chip3dH * nPxPerUnit);
 			const spokePoints = n.spokePoints?.map((pt) => {
 				v.set(pt.x, pt.y, pt.z);
 				const ptNdc = v.project(camera);
 				return ndcToClient({ x: ptNdc.x, y: ptNdc.y }, rect);
 			});
-			targets.push({ id: n.node.id, pos: pPixel, width: w, height: h, spokePoints });
+
+			// Troika chip quad anchor is top-left (content flows right + down).
+			// evaluateEgoCorridorHit tests pointInBox with pos as the chip's center:
+			targets.push({ id: n.node.id, pos: { x: pPixel.x + w / 2, y: pPixel.y + h / 2 }, width: w, height: h, spokePoints });
 		}
 
-		const hit = evaluateEgoCorridorHit(pointer, { x: cPixel.x, y: cPixel.y, width: centerW, height: centerH }, targets, { centerPadding: 32, corridorRadius: 55, chipPadding: 16 });
+		const hit = evaluateEgoCorridorHit(pointer, { x: cPixel.x + centerW / 2, y: cPixel.y + centerH / 2, width: centerW, height: centerH }, targets, {
+			centerPadding: 32,
+			corridorRadius: 55,
+			chipPadding: 24,
+		});
+
+		if (hit.kind !== "miss") {
+			this.keepVisible();
+		}
+
 		const highlightId = hit.kind === "chip" || hit.kind === "spoke" ? hit.neighbourId : undefined;
 		this.applyHighlight(highlightId);
 

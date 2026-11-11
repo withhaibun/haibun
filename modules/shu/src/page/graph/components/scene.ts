@@ -600,21 +600,21 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		tweening: () => this.#parts.tween.running,
 		clicked: (node, e) => {
 			this.clearEgoGrace();
-			if (node) {
-				this.onNodeClick(node, e);
-			} else if (this.egoOverlay.isVisible && this.fgCanvas) {
+			if (this.egoOverlay.isVisible && this.fgCanvas) {
 				const rect = this.fgCanvas.getBoundingClientRect();
 				const egoNode = this.egoOverlay.pickNeighbour({ x: e.clientX, y: e.clientY }, rect);
 				if (egoNode) {
 					this.onNodeClick(egoNode, e);
-				} else if (this.selectedSubject) {
-					this.egoOverlay.hide();
-					dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: entryOf([], appAccessLevel()) });
-				} else {
-					this.egoOverlay.hide();
+					return;
 				}
+			}
+			if (node) {
+				this.onNodeClick(node, e);
 			} else if (this.selectedSubject) {
+				this.egoOverlay.hide();
 				dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: entryOf([], appAccessLevel()) });
+			} else {
+				this.egoOverlay.hide();
 			}
 		},
 		hovered: (node, e) => {
@@ -627,6 +627,10 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				const hit = this.egoOverlay.testPointer({ x: e.clientX, y: e.clientY }, rect);
 				if (hit.kind !== "miss") {
 					this.clearEgoGrace();
+					if (hit.kind === "chip") {
+						const n = this.nodeMap.get(hit.neighbourId);
+						if (n) this.updateHoverInfo(n);
+					}
 					return;
 				}
 			}

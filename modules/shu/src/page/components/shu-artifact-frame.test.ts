@@ -41,6 +41,21 @@ describe("shu-artifact-frame fullscreen step caption", () => {
 		await toggleFullscreen(frame);
 		expect(stepCaption(frame)).toBe("");
 	});
+
+	it("renders highlighted maximize undo button when fullscreen and clicking it exits fullscreen", async () => {
+		const frame = await frameIn(stamped);
+		expect(frame.renderRoot.querySelector('button[data-tap-undo="maximize"]')).toBeNull();
+		await toggleFullscreen(frame);
+		expect(frame.classList.contains("fullscreen")).toBe(true);
+		const undoBtn = frame.renderRoot.querySelector('button[data-tap-undo="maximize"]') as HTMLButtonElement;
+		expect(undoBtn).not.toBeNull();
+		expect(undoBtn.getAttribute("aria-pressed")).toBe("true");
+
+		undoBtn.click();
+		await frame.updateComplete;
+		expect(frame.classList.contains("fullscreen")).toBe(false);
+		expect(frame.renderRoot.querySelector('button[data-tap-undo="maximize"]')).toBeNull();
+	});
 });
 
 describe("shu-artifact-frame cursor and navigation events", () => {

@@ -112,6 +112,30 @@ describe("shu-column-pane tap actions", () => {
 		expect(pane.hasAttribute("pinned")).toBe(false); // unpin removes it
 	});
 
+	it("renders highlighted undo icon when an action is applied and clicking it undoes the action", async () => {
+		expect(pane.renderRoot.querySelector("button[data-tap-undo]")).toBeNull();
+
+		await tap("pin");
+		const pinUndo = pane.renderRoot.querySelector('button[data-tap-undo="pin"]') as HTMLButtonElement;
+		expect(pinUndo).not.toBeNull();
+		expect(pinUndo.getAttribute("aria-pressed")).toBe("true");
+
+		pinUndo.click();
+		await nextFrame(pane);
+		expect(pane.state.pinned).toBe(false);
+		expect(pane.renderRoot.querySelector('button[data-tap-undo="pin"]')).toBeNull();
+
+		await tap("minimize");
+		const minUndo = pane.renderRoot.querySelector('button[data-tap-undo="minimize"]') as HTMLButtonElement;
+		expect(minUndo).not.toBeNull();
+		expect(minUndo.getAttribute("aria-pressed")).toBe("true");
+
+		minUndo.click();
+		await nextFrame(pane);
+		expect(pane.hasAttribute("collapsed")).toBe(false);
+		expect(pane.renderRoot.querySelector('button[data-tap-undo="minimize"]')).toBeNull();
+	});
+
 	it("close dispatches column-close (it doesn't remove the DOM node on its own, the pane machine owns that)", async () => {
 		let closed = false;
 		pane.addEventListener(SHU_EVENT.COLUMN_CLOSE, () => {
