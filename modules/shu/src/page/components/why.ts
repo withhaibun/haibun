@@ -15,7 +15,7 @@ import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 export function whyTpl(step: string): TemplateResult {
 	const detail: TPaneOpen = { pane: { paneType: "component", tag: SHU_TAG.GRAPH_SOURCE, label: `why ${step}`, data: { step } }, addToSelection: false };
 	const open = (e: Event) => e.target?.dispatchEvent(new CustomEvent(SHU_EVENT.PANE_OPEN, { detail, bubbles: true, composed: true }));
-	return html`<button type="button" data-testid=${SHU_TEST_IDS.WHY} title=${`open the proof actuality recorded for ${step}`} @click=${open}>why</button>`;
+	return html`<button type="button" data-testid=${SHU_TEST_IDS.WHY} title=${`open the proof actuality recorded for ${step}`} @click=${open}>Show why</button>`;
 }
 
 /** The control that opens why the step at `path` within the actuality feature the page reads holds or was refused. Before the page
