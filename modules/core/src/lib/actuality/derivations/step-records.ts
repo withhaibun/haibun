@@ -99,7 +99,7 @@ export function startRecord(actualityFeature: string, featureStep: TFeatureStep,
 }
 
 /** How a step ended, as its record states it: its status, its goal's verdict, why where it failed, a claim's result, each write a
- *  store refused during it, the view it showed where it showed one, and the whole text a call carried by a transport read back
+ *  store refused during it, the checks of its contract, the view it showed where it showed one, and the whole text a call carried by a transport read back
  *  where the step produced products, which the record's result Body holds. */
 export type TStepEnded = {
 	status: TRecordedStatus;
@@ -107,7 +107,7 @@ export type TStepEnded = {
 	error?: string;
 	entailment?: string;
 	refusedWrites?: readonly string[];
-	proof?: string;
+	contract?: string;
 	showed?: string;
 	result?: string;
 };
@@ -123,7 +123,7 @@ export const endRecord = (start: TStepRecord, ended: TStepEnded, at: string): TS
 	...(ended.error ? { [SEQ_PATH_FIELD.error]: ended.error } : {}),
 	...(ended.entailment === undefined ? {} : { [SEQ_PATH_FIELD.entailment]: ended.entailment }),
 	...(ended.refusedWrites === undefined || ended.refusedWrites.length === 0 ? {} : { [SEQ_PATH_FIELD.refusedWrites]: [...ended.refusedWrites] }),
-	...(ended.proof === undefined ? {} : { [SEQ_PATH_FIELD.proof]: ended.proof }),
+	...(ended.contract === undefined ? {} : { [SEQ_PATH_FIELD.contract]: ended.contract }),
 	...(ended.showed ? { [SEQ_PATH_FIELD.showed]: ended.showed } : {}),
 	...(ended.result === undefined ? {} : { [SEQ_PATH_FIELD.result]: ended.result }),
 });

@@ -226,9 +226,9 @@ export const SEQ_PATH_FIELD = {
 	/** Each write a store refused during the step because the step's contract doesn't list it, as `Type.field`. It is written
 	 *  only on a step whose write a store refused. */
 	refusedWrites: "refusedWrites",
-	/** EYE's proof of the check of the step's contract that refused the call, as N3. It is written only on a step a statement
-	 *  of its contract refused, and the call's refusal names the step's record. */
-	proof: "proof",
+	/** The facts each check of the step's contract read, as N3: each check's IRI related to the formula of its facts. It is
+	 *  written on a step whose contract held or refused the call, and a why view requests EYE's proof of each check from it. */
+	contract: "contract",
 	/** The name of the view this step showed, as the site declares it. The site's declaration holds how the view
 	 *  looks, so the record holds the view's name and not a copy of the declaration. */
 	showed: "showed",
@@ -311,7 +311,7 @@ export const SeqPathSchema = PersistedVertexSchema.extend({
 	[SEQ_PATH_FIELD.error]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.entailment]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.refusedWrites]: z.array(z.string()).optional(),
-	[SEQ_PATH_FIELD.proof]: OPTIONAL_TEXT,
+	[SEQ_PATH_FIELD.contract]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.showed]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.capabilityAction]: OPTIONAL_ACTION,
 	[SEQ_PATH_FIELD.allowedAction]: OPTIONAL_ACTION,
@@ -338,9 +338,12 @@ export const SeqPathSchema = PersistedVertexSchema.extend({
 });
 export type TSeqPath = z.infer<typeof SeqPathSchema>;
 
+/** Whether a step's contract held its call or refused it, which a step's record states where its contract was checked. */
+export const CONTRACT_STATE = { holds: "holds", refused: "refused" } as const;
+
 /** A step as a line reads it: its words, the action that ran it, how it ended and why where it failed, when it began and
- *   ended and how long it took, how it reached what ran it, and the action the call presented, the held action that allowed it
- *   and who held it. */
+ *   ended and how long it took, how it reached what ran it, the action the call presented, the held action that allowed it
+ *   and who held it, and whether its contract held. */
 export const StepLineSchema = z.object({
 	text: z.string(),
 	called: OPTIONAL_TEXT,
@@ -351,6 +354,7 @@ export const StepLineSchema = z.object({
 	tookMs: z.number().optional(),
 	dispatch: z.object({ via: z.enum(RAN_VIA), on: OPTIONAL_TEXT }).optional(),
 	action: z.object({ presented: OPTIONAL_ACTION, allowed: OPTIONAL_ACTION, holder: OPTIONAL_TEXT }).optional(),
+	contract: z.enum(CONTRACT_STATE).optional(),
 });
 export type TStepLine = z.infer<typeof StepLineSchema>;
 
@@ -373,6 +377,7 @@ export function stepLine(record: Record<string, unknown>): TStepLine {
 		began,
 		...(called === undefined ? {} : { called }),
 		...(error === undefined ? {} : { error }),
+		...(step[SEQ_PATH_FIELD.contract] === undefined ? {} : { contract: error === undefined ? CONTRACT_STATE.holds : CONTRACT_STATE.refused }),
 		...(ended === undefined ? {} : { ended, tookMs: Date.parse(ended) - Date.parse(began) }),
 		...(via === undefined ? {} : { dispatch: on === undefined ? { via } : { via, on } }),
 		...(capabilityAction === undefined && allowedAction === undefined
@@ -414,7 +419,7 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 			[SEQ_PATH_FIELD.error]: LinkRelations.CONTENT.rel,
 			[SEQ_PATH_FIELD.entailment]: LinkRelations.CONTENT.rel,
 			[SEQ_PATH_FIELD.refusedWrites]: LinkRelations.TAG.rel,
-			[SEQ_PATH_FIELD.proof]: LinkRelations.CONTENT.rel,
+			[SEQ_PATH_FIELD.contract]: LinkRelations.CONTENT.rel,
 			// Grouped-as, so the type offers a filter such as "the steps that showed the graph".
 			[SEQ_PATH_FIELD.showed]: LinkRelations.CONTEXT.rel,
 			[SEQ_PATH_FIELD.capabilityAction]: LinkRelations.CAPABILITY_ACTION.rel,

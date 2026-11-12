@@ -31,8 +31,8 @@ export const features: TKirejiExport = {
 		'set visits to "1"',
 		'waypoint Visits are counted with variable visits is "1"',
 		'set nodes from show derivation of "ensure Visits are counted"',
-		'variable nodes.frames.1.edges.0.label is "isPartOf"',
-		"A step's derivation reads again from the records its proof wrote, without proving it again. Source: registry-reads.ts, derivationOfRecord.",
+		'variable nodes.frames.0.edges.0.label is "isPartOf"',
+		"A derivation lists the records under the line first and the line's own record last, as a proof lists its conclusion. A step's derivation reads again from the records its proof wrote, without proving it again. Source: derivation.ts and registry-reads.ts, derivationOfRecord.",
 		"set recorded from derivation of step nodes.frames.0.assertedBy",
 		'variable recorded.verdict is "proved"',
 

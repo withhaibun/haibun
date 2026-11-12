@@ -20,7 +20,9 @@ import { shuBaseStyles } from "./styles.js";
 import { subscribeBatchedEvents } from "../controllers/event-stream-controller.js";
 import { variablesSetBy, type TVariableSet } from "../derivations/step-variables.js";
 import { anIndividual, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
-import { formatSeqPath, parseRecordName, stepLine, type TStepLine } from "@haibun/core/lib/seq-path.js";
+import { CONTRACT_STATE, formatSeqPath, parseRecordName, stepLine, type TStepLine } from "@haibun/core/lib/seq-path.js";
+import { VERDICT_MARK } from "@haibun/core/lib/domains/protocol.js";
+import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { actionRef, calledRef, originLink, recordRef } from "./shu-ref.js";
 import { whyTpl } from "./why.js";
 import { ClockController } from "../controllers/clock-controller.js";
@@ -31,6 +33,9 @@ import { LoadController } from "../controllers/load-controller.js";
 import { loadRenders, refusalTpl } from "./load-renders.js";
 import { emptyState, waitingTpl } from "./empty-state.js";
 import { actualityStepsNext } from "./actuality-states.js";
+
+/** The mark beside whether a step's contract held, the mark of the verdict it states, so colour isn't the only signal. */
+const CONTRACT_MARK = { [CONTRACT_STATE.holds]: VERDICT_MARK.proved, [CONTRACT_STATE.refused]: VERDICT_MARK.refuted } as const;
 
 /** The name of the delay before the pane reads a running step again. */
 const STEP_RE_READ = "step-re-read";
@@ -152,14 +157,16 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		});
 	}
 
-	/** A step's words, its action and how it ended, where and how long it ran, and the action its call presented or that it was
-	 *  allowed within its call, with the held action that allowed it. The glyph of how it ended is the one the log and the rail use. */
+	/** A step's words, its action and how it ended, whether its contract held, where and how long it ran, and the action its call
+	 *  presented or that it was allowed within its call, with the held action that allowed it. The why beside the step opens the
+	 *  proof of its contract. The glyph of how it ended is the one the log and the rail use. */
 	private renderLine(line: TStepLine): TemplateResult {
 		const { dispatch, action } = line;
 		return html`
 			<div class="field"><span class="label">Step:</span> <span class="value">${line.text}</span></div>
 			<div class="field"><span class="label">Action:</span> <span class="value">${STATUS_MARKS.get(line.status)?.icon} ${line.called === undefined ? "" : calledRef(line.called)}</span></div>
 			${line.error === undefined ? "" : html`<div class="field"><span class="label">Error:</span> <span class="value" style="color:var(--shu-error)">${line.error}</span></div>`}
+			${line.contract === undefined ? "" : html`<div class="field" data-testid=${SHU_TEST_IDS.STEP_CONTRACT}><span class="label">Contract:</span> <span class="value">${CONTRACT_MARK[line.contract]} contract ${line.contract}</span></div>`}
 			<div class="section"><span class="label">Ran:</span> <span class="value">${dispatch === undefined ? "" : dispatch.via}${dispatch?.on === undefined ? "" : html` ${originLink(dispatch.on)}`}${line.tookMs === undefined ? "" : ` ${line.tookMs}ms`}</span></div>
 			${action === undefined ? "" : html`<div class="field"><span class="label">Capability:</span> <span class="value">${action.presented === undefined ? "allowed within its call" : html`presented ${actionRef(action.presented)}`}${action.allowed === undefined ? "" : html` allowed by ${actionRef(action.allowed)}`}</span></div>`}`;
 	}

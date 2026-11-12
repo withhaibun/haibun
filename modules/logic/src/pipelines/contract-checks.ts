@@ -5,15 +5,18 @@
  * read, and selects the relation triples the clauses derive over the call's facts and those records. A statement holds where its
  * triple is derived. A negated statement holds where its triple isn't derived and the contract states complete each field its
  * relation's rules read: the records read hold those fields in full, so the scope of the negation is complete. A statement that
- * doesn't hold is refuted where its negation's triple is derived, and unknown otherwise; EYE then proves what the query selects
- * over the same facts, so the step's record holds a proof that cites the records the check read.
+ * doesn't hold is refuted where its negation's triple is derived, and unknown otherwise. A check returns the facts it read, which the
+ * step's record holds, and EYE proves what the query selects over them when a why view requests the check's proof.
  */
 import type { TProver } from "@haibun/core/lib/actuality/ports.js";
 import { VERDICT } from "@haibun/core/lib/domains/protocol.js";
-import type { TRelation, TStatement, TStatementVerdict } from "@haibun/core/lib/steps/domains/contract.js";
+import { DataFactory } from "n3";
+import { CHECK_READ, type TRelation, type TStatement, type TStatementVerdict } from "@haibun/core/lib/steps/domains/contract.js";
 import { statementSentence } from "@haibun/core/lib/steps/derivations/predicate-registry.js";
 import { callFacts, callTriple, fieldPredicate, referencedRecords, relationPredicate, relationReads, relationsQuery, tripleKey } from "../derivations/contract-terms.js";
-import { patternText } from "../derivations/n3.js";
+import { patternText, quadsOf, quadsText } from "../derivations/n3.js";
+import { proofOf } from "../derivations/proof.js";
+import type { TProof } from "../domains/reasoning.js";
 import type { TLogicEngine, TReasoner } from "../ports.js";
 import { derive } from "./reason.js";
 import { translatedChecks } from "./translated.js";
@@ -23,9 +26,12 @@ import { namedRecords } from "./reads.js";
 const DERIVE = "the call's facts derive";
 const DONT_DERIVE = "the call's facts don't derive";
 
+/** The rules of every relation of `relations`, as one N3 rule set. */
+const rulesOf = (relations: readonly TRelation[]): string => relations.map((relation) => relation.rules).join("\n");
+
 /** Returns the check of a call's statements over the rules of `relations`, which every contract's statements name. */
 export function contractChecks(relations: readonly TRelation[], reasoner: TReasoner, engine: TLogicEngine): TProver["checkContract"] {
-	const rules = relations.map((relation) => relation.rules).join("\n");
+	const rules = rulesOf(relations);
 	const query = relationsQuery(relations);
 	const check = translatedChecks(reasoner, engine);
 	const predicates = new Set(relations.map((relation) => relationPredicate(relation).value));
@@ -55,7 +61,19 @@ export function contractChecks(relations: readonly TRelation[], reasoner: TReaso
 				...judged(statement, selected.has(tripleKey(triple.subject, triple.predicate, derived)), patternText(triple)),
 			}),
 		);
-		if (verdicts.every(({ verdict }) => verdict === VERDICT.proved)) return { verdicts };
-		return { verdicts, proof: await derive(reasoner, `${rules}\n${facts}`, query, true, {}, "a contract's check reads the call's facts and the records it read") };
+		return { verdicts, facts };
 	};
+}
+
+/** Returns EYE's proof of each check whose facts `checks` states as N3, in the order it states them, over the rules of `relations`. */
+export function contractProofs(relations: readonly TRelation[], reasoner: TReasoner, checks: string): Promise<TProof[]> {
+	const rules = rulesOf(relations);
+	const quads = quadsOf(checks);
+	const read = quads.filter(({ graph, predicate }) => graph.termType === "DefaultGraph" && predicate.value === CHECK_READ);
+	return Promise.all(
+		read.map(async ({ object }) => {
+			const facts = quadsText(quads.filter(({ graph }) => graph.equals(object)).map(({ subject, predicate, object: value }) => DataFactory.quad(subject, predicate, value)));
+			return proofOf(await derive(reasoner, `${rules}\n${facts}`, relationsQuery(relations), true, {}, "a why view reads the facts a contract's check read"));
+		}),
+	);
 }

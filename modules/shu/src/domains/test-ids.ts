@@ -164,6 +164,8 @@ export const SHU_TEST_IDS = {
 	REFUSAL: { ROOT: "refusal", CAUSE: "refusal-cause", STATUS: "refusal-status", REMEDY: "refusal-remedy" },
 	/** The control that opens the proof actuality recorded for a step. */
 	WHY: "why",
+	/** Whether a step's contract held, on the step's detail. */
+	STEP_CONTRACT: "step-contract",
 	PLAYBACK: { PLAY: "playback-play", SPEED: "playback-speed", RESTART: "playback-restart", LIVE: "playback-live" },
 	COLUMN_PANE: {
 		SPINE: "pane-spine",

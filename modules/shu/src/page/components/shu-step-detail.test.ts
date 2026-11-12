@@ -11,6 +11,8 @@ import { ACTUALITY_RELS, actualityStore } from "../client-cache/actuality-store.
 import { describe, it, expect, beforeEach } from "vitest";
 import "./shu-step-detail.js"; // the module defines the element
 import { SHU_TAG } from "../../domains/elements.js";
+import { SHU_TEST_IDS } from "../../domains/test-ids.js";
+import { checkN3, CONTRACT_CHECK } from "@haibun/core/lib/steps/domains/contract.js";
 import type { ShuStepDetail } from "./shu-step-detail.js";
 import { EDGE, SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { SHARED_GRAPH } from "@haibun/core/lib/quad-types.js";
@@ -29,6 +31,8 @@ const SET_BY_STEP = [
 ];
 
 describe("shu-step-detail", () => {
+	/** The store that holds the actuality the page reads. */
+	let store = actualityStore();
 	beforeEach(async () => {
 		newPage();
 		document.body.innerHTML = "";
@@ -37,7 +41,7 @@ describe("shu-step-detail", () => {
 		installCarriedEventStream();
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
 		// One step of the actuality feature being read: what it requested, what ran, how it went and where.
-		const store = actualityStore();
+		store = actualityStore();
 		await store.merge({
 			"@type": SEQ_PATH_LABEL,
 			id: STEP,
@@ -77,6 +81,30 @@ describe("shu-step-detail", () => {
 		expect(t, "where it ran and how long it took, which its record states").toContain("remote 5ms");
 		expect(t).toContain("Data set (1)");
 		expect(t).toContain("myVar");
+	});
+
+	it("states whether the step's contract held, as a mark and a word", async () => {
+		const contracted = {
+			"@type": SEQ_PATH_LABEL,
+			stepText: "a step",
+			called: "S.does",
+			accessLevel: "private",
+			level: "info",
+			generatedAtTime: new Date(1000).toISOString(),
+			contract: checkN3(CONTRACT_CHECK.requires, ""),
+		};
+		await store.merge({ ...contracted, id: `${ACTUALITY_FEATURE}.0.3`, actionStatus: "passed" });
+		await store.merge({ ...contracted, id: `${ACTUALITY_FEATURE}.0.4`, actionStatus: "failed", error: "The call is refused before its action runs" });
+		const el = document.createElement("shu-step-detail") as ShuStepDetail;
+		document.body.appendChild(el);
+		const contractOf = async (path: string) => {
+			await el.open(`${ACTUALITY_FEATURE}.${path}`, SEQ_PATH_LABEL);
+			await el.updateComplete;
+			return el.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.STEP_CONTRACT}"]`)?.textContent?.replace(/\s+/g, " ").trim();
+		};
+		expect(await contractOf("0.3")).toBe("Contract: ✓ contract holds");
+		expect(await contractOf("0.4")).toBe("Contract: ✗ contract refused");
+		expect(await contractOf("0.1"), "a step without a contract doesn't state one").toBeUndefined();
 	});
 
 	it("re-keys the read when the step changes, dropping the previous step's data", async () => {

@@ -16,7 +16,7 @@ import { stepDeclaration } from "../derivations/step-tools.js";
 import { StatementStepsSchema, validateProducts } from "../derivations/tool-validation.js";
 import { argumentsOf } from "./populate-action-args.js";
 import { CONTRACT_CHECK, contractProducts } from "../domains/contract.js";
-import { callPrincipal, contractRefusal } from "./contract-check.js";
+import { callPrincipal, contractChecked, contractRefusal } from "./contract-check.js";
 import { writeProducts } from "./product-writes.js";
 
 /** A registered step tool. Every transport (RPC, MCP, a model's turn) dispatches a step through one. */
@@ -246,8 +246,8 @@ export function createStepHandler(stepperName: string, stepName: string, stepDef
 			if ("refused" in call) return actionNotOK(call.refused);
 			const principal = callPrincipal();
 			const checked = { parameters: read.args, ...(principal === undefined ? {} : { principal }) };
-			const required = await contractRefusal(world, stepDef, CONTRACT_CHECK.requires, checked);
-			if (required !== undefined) return required;
+			const required = await contractChecked(world, stepDef, CONTRACT_CHECK.requires, checked);
+			if (required?.refused !== undefined) return contractRefusal(required.refused, [required.checked]);
 			const acted = await stepDef.action(call.args, featureStep);
 			const result = acted.ok && call.declared !== undefined ? listedResult(acted, call.declared, call.stages) : acted;
 			// A failed result states its reason in errorMessage. Code that the types don't check can omit it, and that failure
@@ -257,11 +257,12 @@ export function createStepHandler(stepperName: string, stepName: string, stepDef
 			// of the products the step returns as its own.
 			const productsError = result.ok ? validateProducts(stepperName, stepName, stepDef, world, result.products, read.args) : undefined;
 			if (productsError) return actionNotOK(productsError);
-			if (!result.ok || result.products === undefined) return result;
-			const stated = await contractRefusal(world, stepDef, CONTRACT_CHECK.states, { ...checked, products: result.products });
-			if (stated !== undefined) return stated;
-			await writeProducts(world, stepDef, `${stepperName}.${stepName}`, result.products);
-			return result;
+			if (!result.ok) return result;
+			const stated = result.products === undefined ? undefined : await contractChecked(world, stepDef, CONTRACT_CHECK.states, { ...checked, products: result.products });
+			const checks = [required, stated].flatMap((outcome) => (outcome === undefined ? [] : [outcome.checked]));
+			if (stated?.refused !== undefined) return contractRefusal(stated.refused, checks);
+			if (result.products !== undefined) await writeProducts(world, stepDef, `${stepperName}.${stepName}`, result.products);
+			return checks.length === 0 ? result : { ...result, contract: { checks: checks.join("\n") } };
 		} catch (caught) {
 			// A thrown error becomes a failed result that states the step threw and carries the error's message, and the remedy
 			// where a refused call carries one. The code that presents the failure names the step, as an RPC response names

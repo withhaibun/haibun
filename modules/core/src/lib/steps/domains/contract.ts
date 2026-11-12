@@ -73,8 +73,8 @@ export const ACTUALITY_PRINCIPAL = "urn:haibun:actuality";
 export type TProductsVerb = typeof WRITE_VERB.create | typeof WRITE_VERB.merge;
 
 /** A step's contract. A descriptor's contract names its domains by their keys. `states` holds over the parameters and the
- *  products, `requires` over recorded facts before the call, `changes` lists the fields of the writes beyond the products, and
- *  `assumed` marks products that rest on input from outside actuality. `complete` lists the fields whose records this instance
+ *  products, `requires` over recorded facts before the call, and `changes` lists the fields of the writes beyond the products.
+ *  `complete` lists the fields whose records this instance
  *  holds in full: a check reads the records an argument names, and the records each listed edge reaches, and a negated statement
  *  over fields the list holds is proved where those records don't derive it. A step that writes declares `changes`, empty where its only
  *  writes are its products. `written` names the verb dispatch writes the products with, as one record of the stored type of
@@ -86,7 +86,6 @@ export type TStepContract<D extends string = string> = {
 	readonly requires?: readonly TStatement[];
 	readonly changes?: readonly TField[];
 	readonly complete?: readonly TField[];
-	readonly assumed?: boolean;
 };
 
 /** A contract as a descriptor carries it: its products, and its `requires` and `states` statements as their sentences. The
@@ -178,8 +177,14 @@ export type TStatementVerdict = { readonly statement: TStatement; readonly sente
 /** The statements a check reads and the fields its contract states complete. */
 export type TContractChecking = { readonly statements: readonly TStatement[]; readonly complete: readonly TField[] };
 
-/** A call's check: each statement's verdict, and EYE's proof of the check where a statement isn't proved. */
-export type TContractChecked = { readonly verdicts: readonly TStatementVerdict[]; readonly proof?: string };
+/** A call's check: each statement's verdict, and the N3 facts the check read, the call's and those of the records it read. */
+export type TContractChecked = { readonly verdicts: readonly TStatementVerdict[]; readonly facts: string };
+
+/** The namespace of the IRI of each check of a contract, and the predicate that relates a check to the formula of the facts it read. */
+export const CHECK_NAMESPACE = "urn:haibun:check:";
+export const CHECK_READ = `${CHECK_NAMESPACE}read`;
+/** Returns a check's facts as N3: the check's IRI related by `CHECK_READ` to the formula of the facts it read. */
+export const checkN3 = (check: TContractCheck, facts: string): string => `<${CHECK_NAMESPACE}${check}> <${CHECK_READ}> { ${facts} } .`;
 
 /** Returns the statements of a step's contract that a check of `check` reads, empty where the contract doesn't state them, and
  *  the fields the contract states complete. */

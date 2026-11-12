@@ -58,7 +58,7 @@ describe("proofOf", () => {
 	});
 
 	it("reads empty text as a proof that gives an empty list, since EYE writes an empty text where the query selects an empty set", () => {
-		expect(proofOf("")).toEqual({ gives: [], steps: [], text: "" });
+		expect(proofOf("")).toEqual({ gives: [], steps: [], lists: {}, text: "" });
 	});
 
 	it("refuses text that doesn't state its proof, and a statement cut short", () => {

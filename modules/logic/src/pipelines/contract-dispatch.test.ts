@@ -2,26 +2,29 @@
  * Dispatch checks a call against its step's contract: its `requires` before the action runs, over the records its arguments name
  * and the records a derivation of its arguments names, which the check reads from the store, and its `states` over the products.
  * A statement that isn't proved refuses the call: the action doesn't run where `requires` refuses it, the products aren't kept
- * where `states` refuses them, since the step fails, the step's record holds the check's proof, and the refusal names the statement, its verdict and
+ * where `states` refuses them, since the step fails, the step's record holds the facts each check read, from which a why requests
+ * EYE's proof, and the refusal names the statement, its verdict and
  * the triple that determined it. Dispatch writes the products of a call whose contract holds, and doesn't write the products of a refused call. A products write
  * that `create` names is refused where the store holds the record, whatever fields it states.
  */
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
-import { derived, doesntHold, field, holds, parameter, PRODUCTS, type TRelation } from "@haibun/core/lib/steps/domains/contract.js";
+import { CHECK_NAMESPACE, CONTRACT_CHECK, derived, doesntHold, field, holds, parameter, PRODUCTS, type TRelation } from "@haibun/core/lib/steps/domains/contract.js";
 import { refDomainKey } from "@haibun/core/lib/domains/domains.js";
 import { DEF_PROTO_OPTIONS, failWithDefaults } from "@haibun/core/lib/test/lib.js";
 import { actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
 import { CONTINUE_AFTER_ERROR, RECORDED_STATUS, VERDICT } from "@haibun/core/lib/domains/protocol.js";
 import { Access, LinkRelations, SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { WRITE_VERB } from "@haibun/core/lib/records/domains/unit.js";
-import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
+import { CONTRACT_STATE, SEQ_PATH_FIELD, stepLine } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { readUpTo } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { MAX_PAGE_ROWS } from "@haibun/core/lib/domains/hypermedia.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import LogicStepper from "../logic-stepper.js";
+import { reasoner } from "../root.js";
+import { derivationOfRecord } from "./registry-reads.js";
 
 const RULES = "@prefix h: <https://withhaibun.github.io/ns/> .";
 const REVOKED: TRelation = { name: "revoked_grant", phrase: "{grant} is revoked", rules: `${RULES}\n{ ?g h:revoked ?at } => { (?g) <urn:haibun:relation:revoked_grant> true } .` };
@@ -150,19 +153,28 @@ describe("dispatch's check of a call against its step's contract", () => {
 		const record = (line: string) => records(line)[0];
 		expect(record(fromHeld)?.[SEQ_PATH_FIELD.error]).toBeUndefined();
 		expect(record(fromHeld)?.[SEQ_PATH_FIELD.actionStatus]).toBe(RECORDED_STATUS.completed);
+		const held = record(fromHeld);
+		expect(held === undefined ? undefined : stepLine(held).contract, "the record of a call whose contract holds states it").toBe(CONTRACT_STATE.holds);
+		const why = async (step: Record<string, unknown> | undefined) =>
+			(await derivationOfRecord(world, world.runtime.steppers ?? [], reasoner(), { persistedAs: SEQ_PATH_LABEL, id: String(step?.[SEQ_PATH_FIELD.id]) })).frames.map(
+				({ dl }) => dl,
+			);
+		expect(await why(held), "the why requests the proof of each check, and concludes the statement its contract states").toContain("allows_action(urn:delegation:read, read)");
 		const required = record(fromRevoked);
 		expect(required?.[SEQ_PATH_FIELD.error], "the check reads the held grant the line names").toContain(
 			"The call is refused before its action runs: its contract requires that didn't grant is revoked, which is refuted",
 		);
 		expect(required?.[SEQ_PATH_FIELD.verdict]).toBe(VERDICT.refuted);
-		expect(String(required?.[SEQ_PATH_FIELD.proof]), "EYE's proof cites the held grant's revocation").toContain("2026-11-01T00:00:00Z");
+		const refutedBy = await why(required);
+		expect(refutedBy, "EYE's proof of the refused check concludes the revocation").toContain("revoked_grant(urn:grant:revoked)");
+		expect(refutedBy.join("\n"), "and lists the held grant's revocation among its assumptions").toContain("2026-11-01T00:00:00Z");
 		expect(record(fromNamedRevoked)?.[SEQ_PATH_FIELD.error], "the check reads the held grant a derivation of the line's name names").toContain(
 			"its contract requires that didn't ContractGrant:grantNamed(name) is revoked, which is refuted",
 		);
 		const stated = record(writeFromHeld);
 		expect(stated?.[SEQ_PATH_FIELD.error]).toContain("The call's products are refused and aren't kept: its contract states that products allows action, which is unknown");
 		expect(stated?.[SEQ_PATH_FIELD.actionStatus], "the step whose products are refused fails").toBe(RECORDED_STATUS.failed);
-		expect(stated?.[SEQ_PATH_FIELD.proof]).toBeDefined();
+		expect(stated?.[SEQ_PATH_FIELD.contract], "the refused record holds the facts of both checks").toContain(`<${CHECK_NAMESPACE}${CONTRACT_CHECK.states}>`);
 		const delegating = world.runtime.steppers?.find((stepper) => stepper instanceof Delegating);
 		expect((delegating as Delegating).ran, "the refused call's action doesn't run").toEqual(["read", "write"]);
 		expect(

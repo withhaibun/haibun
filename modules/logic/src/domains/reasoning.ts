@@ -68,7 +68,7 @@ export type TProofStep = { step: Term; kind: TProofKind; gives: Quad[]; evidence
 export const PROOF_KIND = { proof: "proof", inference: "inference", extraction: "extraction" } as const;
 export type TProofKind = (typeof PROOF_KIND)[keyof typeof PROOF_KIND];
 /** A proof: what it concludes, each of its steps, and the N3 EYE wrote of it in the N3 proof vocabulary, which a record keeps. */
-export type TProof = { gives: Quad[]; steps: TProofStep[]; text: string };
+export type TProof = { gives: Quad[]; steps: TProofStep[]; lists: Readonly<Record<string, Term[]>>; text: string };
 /** An explained reasoning: the proof of what its query selects, and the graphs its rules close over that are open to the reader,
  *  so a claim the proof doesn't give is unknown because of them. */
 export type TExplained = { proof: TProof; open: TOpenGraph[] };

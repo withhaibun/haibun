@@ -392,12 +392,16 @@ export const LOGIC_STEPPER = "@haibun/logic/logic-stepper";
  * it. A proof's result states the verdict of its goal.
  */
 type TActionResultCarries = { products?: THypermediaProducts; controlSignal?: TDebugSignal; artifact?: TArtifactEvent; verdict?: TVerdict };
-/** The statement of a step's contract that refused a call, and EYE's proof of the check, which the step's record holds. */
-export type TContractRefusal = { statement: TStatementRefusal; proof: string };
+/** The checks of a step's contract a call ran, as the N3 facts each check read, which the step's record holds and from which a
+ *  why view requests the check's proof. */
+export type TContractChecks = { checks: string };
+/** The statement of a step's contract that refused a call, and the checks the call ran. */
+export type TContractRefusal = TContractChecks & { statement: TStatementRefusal };
 /** A step passed or failed. A failure carries an `errorMessage` that states the reason, the remedy a caller can act on where one
- *  exists, as data a page renders as a control, and the contract's statement that refused the call where one did. */
+ *  exists, as data a page renders as a control, and the contract's statement that refused the call where one did. A call whose
+ *  contract holds carries the checks it ran. */
 export type TActionResult =
-	| (TActionResultCarries & { ok: true; errorMessage?: undefined })
+	| (TActionResultCarries & { ok: true; errorMessage?: undefined; contract?: TContractChecks })
 	| (TActionResultCarries & { ok: false; errorMessage: string; remedy?: TRemedy; contract?: TContractRefusal });
 
 export const OK: TActionResult = { ok: true };

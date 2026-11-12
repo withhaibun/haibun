@@ -24,7 +24,8 @@ function listAt(lists: Record<string, Term[]>, list: Term): Term[] {
 	return items;
 }
 
-/** Reads EYE's proof: its conclusion, and each step with what it gives, its evidence, its rule and its source. Where the query
+/** Reads EYE's proof: its conclusion, each step with what it gives, its evidence, its rule and its source, and the items of
+ *  each list it states, by the list's head. Where the query
  *  selects an empty set, EYE writes an empty text, which reads as a proof that gives an empty list. */
 export function proofOf(text: string): TProof {
 	const store = new Store(quadsOf(text));
@@ -55,10 +56,10 @@ export function proofOf(text: string): TProof {
 			},
 		];
 	});
-	if (steps.length === 0) return { gives: [], steps, text };
+	if (steps.length === 0) return { gives: [], steps, lists, text };
 	const proof = steps.find(({ kind }) => kind === PROOF_KIND.proof);
 	if (proof === undefined) throw new Error("EYE's explanation doesn't state its proof. Run EYE with its proof explanation.");
-	return { gives: proof.gives, steps, text };
+	return { gives: proof.gives, steps, lists, text };
 }
 
 /** Returns the facts and axioms a proof read from its sources, each once: what its extractions give. */

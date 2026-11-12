@@ -119,7 +119,7 @@ describe("reason", () => {
 		const explained = await runReadingAt(Access.public, () =>
 			explain(reasoner(), store, domains, HAIBUN_RECORD_NAMESPACE, { ruleSets: [], rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] }),
 		);
-		expect(explained).toEqual({ proof: { gives: [], steps: [], text: "" }, open: [{ graph: STEP, accessLevel: Access.private }] });
+		expect(explained).toEqual({ proof: { gives: [], steps: [], lists: {}, text: "" }, open: [{ graph: STEP, accessLevel: Access.private }] });
 	});
 
 	it("leaves open a complete graph whose read stopped at the ceiling, and names the ceiling", { timeout: 30_000 }, async () => {
@@ -138,7 +138,7 @@ describe("reason", () => {
 					: Reflect.get(target, property, receiver),
 		});
 		const explained = await explain(reasoner(), many, domains, HAIBUN_RECORD_NAMESPACE, { ruleSets: [], rules: WITHOUT_OUTCOME, query: QUERY, closedOver: [STEP] });
-		expect(explained).toEqual({ proof: { gives: [], steps: [], text: "" }, open: [{ graph: STEP, readCeiling: REASONING_READ_CEILING }] });
+		expect(explained).toEqual({ proof: { gives: [], steps: [], lists: {}, text: "" }, open: [{ graph: STEP, readCeiling: REASONING_READ_CEILING }] });
 	});
 
 	it("refuses to close over an open graph", async () => {

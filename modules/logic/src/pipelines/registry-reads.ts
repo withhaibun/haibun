@@ -20,6 +20,10 @@ import type { TDerivation } from "../domains/logic.js";
 import type { TIndividualAddress } from "@haibun/core/lib/domains/typed-links.js";
 import { declarationFindings } from "../derivations/declarations.js";
 import { recordsWhere } from "./reads.js";
+import { contractProofs } from "./contract-checks.js";
+import { declaredRelations } from "../derivations/contract-declarations.js";
+import { proofFrames } from "../derivations/proof-frames.js";
+import type { TReasoner } from "../ports.js";
 
 /** Whether a record's call is of a step the engine proves by its reading, and so a node of a proof. */
 const isNodeOf =
@@ -30,26 +34,30 @@ const isNodeOf =
 		return steppers.find((one) => constructorName(one) === stepperName)?.steps[actionName]?.reading !== undefined;
 	};
 
-/** Returns the derivation of the step whose record `name` names, from the records its proof wrote in its actuality feature. */
-async function derivationRecorded(world: TWorld, steppers: AStepper[], name: TRecordName): Promise<TDerivation> {
+/** Returns the derivation of the step whose record `name` names, from the records its proof wrote in its actuality feature, with
+ *  EYE's proof of each check of its contract, which EYE proves from the facts the record states each check read. */
+async function derivationRecorded(world: TWorld, steppers: AStepper[], reasoner: TReasoner, name: TRecordName): Promise<TDerivation> {
 	const records = await recordsWhere(world.shared.getStore(), SEQ_PATH_LABEL, SEQ_PATH_FIELD.actuality, name.actuality);
-	return derivationOf(records, formatRecordName(name), isNodeOf(steppers));
+	const id = formatRecordName(name);
+	const checks = records.find((record) => record[SEQ_PATH_FIELD.id] === id)?.[SEQ_PATH_FIELD.contract];
+	const proofs = typeof checks === "string" ? await contractProofs([...declaredRelations(steppers)], reasoner, checks) : [];
+	return derivationOf(records, id, isNodeOf(steppers), proofFrames(proofs, { persistedAs: SEQ_PATH_LABEL, id }));
 }
 
 /** Proves a statement under a step, and returns its derivation from the records its proof wrote. */
-export async function derivationUnder(ctx: DispatchContext, parent: TFeatureStep, statement: TFeatureStep): Promise<TDerivation> {
+export async function derivationUnder(ctx: DispatchContext, reasoner: TReasoner, parent: TFeatureStep, statement: TFeatureStep): Promise<TDerivation> {
 	const { world, steppers } = ctx;
 	const seqPath = nextSeqPath(world, parent.seqPath);
 	await proveStep(ctx, { ...statement, seqPath, isSubStep: true, ...(parent.runtimeArgs === undefined ? {} : { runtimeArgs: parent.runtimeArgs }) });
-	return derivationRecorded(world, steppers, { actuality: actualityFeatureOf(world.tag), path: seqPath });
+	return derivationRecorded(world, steppers, reasoner, { actuality: actualityFeatureOf(world.tag), path: seqPath });
 }
 
 /** Returns the derivation of the step whose record `step` addresses, read from the records its proof wrote, without proving it again. */
-export function derivationOfRecord(world: TWorld, steppers: AStepper[], step: TIndividualAddress): Promise<TDerivation> {
+export function derivationOfRecord(world: TWorld, steppers: AStepper[], reasoner: TReasoner, step: TIndividualAddress): Promise<TDerivation> {
 	const name = step.persistedAs === SEQ_PATH_LABEL ? parseRecordName(step.id) : undefined;
 	if (name === undefined)
 		throw new Error(`${step.persistedAs} ${step.id} isn't a step's record. Address a ${SEQ_PATH_LABEL} record by its id, its actuality feature and its path.`);
-	return derivationRecorded(world, steppers, name);
+	return derivationRecorded(world, steppers, reasoner, name);
 }
 
 /** The term of the step a line resolves to, through the pattern that parses the line: the head of the waypoint the line

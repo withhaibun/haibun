@@ -234,7 +234,7 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 			contract: { products: DOMAIN_DERIVATION },
 			action: async ({ statement }: { statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				if (statement.length !== 1) return actionNotOK(`\`${featureStep.in}\` states ${statement.length} steps. State one step to show its derivation.`);
-				return actionOKWithProducts(await derivationUnder(stepperContext(this.getWorld(), this.steppers), featureStep, itemAt(statement, 0)));
+				return actionOKWithProducts(await derivationUnder(stepperContext(this.getWorld(), this.steppers), reasoner(), featureStep, itemAt(statement, 0)));
 			},
 		},
 		recordedDerivation: {
@@ -244,7 +244,7 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 			description:
 				"Reads the derivation of a step actuality recorded, from the records its proof wrote, without proving it again: its verdict, the frames of its records, the calls among them with the actions that allowed each, and the line of the first goal it couldn't prove.",
 			contract: { products: DOMAIN_DERIVATION },
-			action: async ({ step }: { step: TIndividualAddress }) => actionOKWithProducts(await derivationOfRecord(this.getWorld(), this.steppers, step)),
+			action: async ({ step }: { step: TIndividualAddress }) => actionOKWithProducts(await derivationOfRecord(this.getWorld(), this.steppers, reasoner(), step)),
 		},
 		individualsOf: {
 			read: true,

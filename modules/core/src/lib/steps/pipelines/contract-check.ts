@@ -4,8 +4,8 @@
  * domain refers to a stored type is the check's reference to its record by the record's typed CURIE, and the check reads the
  * record from the store. A statement that
  * is refuted or unknown refuses the call. The refusal states two sentences: what was refused and the statement's sentence with its
- * verdict and the triple that determined it, then the remedy the verdict determines. The step's record holds the proof of the
- * check, which EYE states.
+ * verdict and the triple that determined it, then the remedy the verdict determines. The step's record holds the facts each check
+ * read, as N3, from which a why view requests EYE's proof of the check.
  */
 import { proverOf, type TWorld } from "../../actuality/domains/world.js";
 import { VERDICT, type TActionResult } from "../../domains/protocol.js";
@@ -14,8 +14,9 @@ import { isPersisted } from "../../domains/resources.js";
 import { normalizeDomainKey, refTargetOf } from "../../domains/domains.js";
 import { referenceTo } from "../../records/domains/unit.js";
 import { actingFor, inCall } from "../../domains/capability-context.js";
-import { ACTUALITY_PRINCIPAL, CONTRACT_CHECK, contractChecking, contractProducts, type TContractCall, type TContractCheck } from "../domains/contract.js";
+import { ACTUALITY_PRINCIPAL, CONTRACT_CHECK, checkN3, contractChecking, contractProducts, type TContractCall, type TContractCheck } from "../domains/contract.js";
 import { stepParts } from "../domains/phrase.js";
+import type { TStatementRefusal } from "../../transport/domains/rpc-wire.js";
 import type { TStepperStep } from "../domains/stepper.js";
 
 /** What a refusal states was refused at each check. */
@@ -30,24 +31,30 @@ const REMEDY_OF = {
 	[VERDICT.unknown]: "Record the facts the statement reads, since the records the check read don't derive it or its negation.",
 } as const;
 
-/** Returns the refusal of a call whose contract's `check` statements don't all hold, or undefined where every one holds or the
- *  contract doesn't state one. */
-export async function contractRefusal(world: TWorld, step: TStepperStep, check: TContractCheck, call: TContractCall): Promise<TActionResult | undefined> {
+/** A check of a call: the check's facts as N3, and the refusal of the call where a statement doesn't hold. */
+export type TContractOutcome = { readonly checked: string; readonly refused?: { readonly reason: string; readonly statement: TStatementRefusal } };
+
+/** Returns the check of a call against its contract's `check` statements, or undefined where the contract doesn't state one. */
+export async function contractChecked(world: TWorld, step: TStepperStep, check: TContractCheck, call: TContractCall): Promise<TContractOutcome | undefined> {
 	const checking = contractChecking(step, check);
 	if (checking.statements.length === 0) return undefined;
 	const domainOf = new Map(stepParts(step).map(({ name, domain }) => [name, domain]));
 	const parameters = Object.fromEntries(Object.entries(call.parameters).map(([name, value]) => [name, checkedValue(world, domainOf.get(name), value)]));
 	const products = call.products === undefined ? {} : { products: checkedValue(world, contractProducts(step).domain, call.products) };
-	const { verdicts, proof } = await proverOf(world).checkContract(world, checking, { ...call, parameters, ...products });
+	const { verdicts, facts } = await proverOf(world).checkContract(world, checking, { ...call, parameters, ...products });
+	const checked = checkN3(check, facts);
 	const refusing = verdicts.find(({ verdict }) => verdict !== VERDICT.proved);
-	if (refusing === undefined) return undefined;
+	if (refusing === undefined) return { checked };
 	const { verdict, decidedBy, sentence } = refusing;
 	if (verdict !== VERDICT.refuted && verdict !== VERDICT.unknown)
 		throw new Error(`a contract's check states ${verdict} for a statement, and a check states proved, refuted or unknown`);
-	if (proof === undefined) throw new Error(`a contract's check refused "${sentence}" without its proof, and a refusal names its proof`);
 	const statement = { statement: sentence, verdict, decidedBy, remedy: REMEDY_OF[verdict] };
-	return actionNotOK(`${REFUSED_AT[check]} that ${sentence}, which is ${verdict}: ${decidedBy}. ${statement.remedy}`, { contract: { statement, proof } });
+	return { checked, refused: { reason: `${REFUSED_AT[check]} that ${sentence}, which is ${verdict}: ${decidedBy}. ${statement.remedy}`, statement } };
 }
+
+/** Returns the result of a call its contract's check refused, with the checks the call ran. */
+export const contractRefusal = ({ reason, statement }: NonNullable<TContractOutcome["refused"]>, checks: readonly string[]): TActionResult =>
+	actionNotOK(reason, { contract: { statement, checks: checks.join("\n") } });
 
 /** Returns a call's value as its check reads it: the reference to the record a value names by its id, where the value's domain
  *  refers to a stored type, else the value. */

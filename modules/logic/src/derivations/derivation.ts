@@ -1,6 +1,6 @@
 /**
  * A statement's derivation from the records its proof wrote: the frame of each record under the statement's record in the order
- * of their paths, the calls among them, and the line of the first goal its proof couldn't prove with the reason its record states.
+ * of their paths, with the frames of its contract's proof, the calls among them, and the line of the first goal its proof couldn't prove with the reason its record states.
  */
 import { compareSeqPath, parseRecordName, SEQ_PATH_EDGE, SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { VERDICT, type TVerdict } from "@haibun/core/lib/domains/protocol.js";
@@ -8,6 +8,7 @@ import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { FRAME_KIND, type TFrame } from "@haibun/core/lib/records/domains/axioms.js";
 import { BETWEEN_FRAMES, individualAxioms } from "@haibun/core/lib/records/derivations/axioms.js";
 import { DerivationSchema, type TDerivation } from "../domains/logic.js";
+import type { TProofFrames } from "./proof-frames.js";
 
 type TRecord = Record<string, unknown>;
 
@@ -69,9 +70,11 @@ function firstUnmetOf(record: TRecord, under: TRecord[]): TRecord {
 	return unmet === undefined ? record : firstUnmetOf(unmet, under);
 }
 
-/** The derivation of the statement whose record is `rootId`, from the records of its actuality feature. `isNode` states whether a record
- *  is of a node of a proof, such as a negation or a waypoint, and not of a call. */
-export function derivationOf(records: TRecord[], rootId: string, isNode: (called: string | undefined) => boolean): TDerivation {
+/** The derivation of the statement whose record is `rootId`, from the records of its actuality feature, as a proof a reader
+ *  traverses in order: the assumptions of its contract's proof, the frames of the records under it, the statements its contract's
+ *  proof derived, and its own record as the conclusion. `isNode` states whether a record is of a node of a proof, such as a
+ *  negation or a waypoint, and not of a call. */
+export function derivationOf(records: TRecord[], rootId: string, isNode: (called: string | undefined) => boolean, proved: TProofFrames): TDerivation {
 	const under = records
 		.filter((record) => {
 			const id = String(record[SEQ_PATH_FIELD.id]);
@@ -96,7 +99,7 @@ export function derivationOf(records: TRecord[], rootId: string, isNode: (called
 		}));
 	const unmet = verdict === VERDICT.proved ? undefined : firstUnmetOf(root, under);
 	const reason = unmet === undefined ? undefined : text(unmet, SEQ_PATH_FIELD.error);
-	const frames = under.map((record) => frameOf(record, rootId));
+	const frames = [...proved.assumptions, ...under.filter((record) => record !== root).map((record) => frameOf(record, rootId)), ...proved.derived, frameOf(root, rootId)];
 	return DerivationSchema.parse({
 		text: frames.map(({ manchester }) => manchester).join(BETWEEN_FRAMES),
 		summary: { classes: 0, properties: 0, individuals: frames.length },
