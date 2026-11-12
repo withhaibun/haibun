@@ -5,6 +5,8 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
+	ASSUMED_SAID,
+	contractLines,
 	contractProducts,
 	contractWrites,
 	doesntHold,
@@ -44,6 +46,13 @@ describe("contract.products", () => {
 	it("carries each form in a descriptor, reading a lone `of` as the statement form", () => {
 		for (const products of ["cart", { of: "statement" }, { order: "order", receipt: "receipt" }]) expect(StepContractSchema.parse({ products })).toEqual({ products });
 		expect(contractProducts({ contract: StepContractSchema.parse({ products: { of: "statement" } }) })).toEqual({ of: "statement" });
+	});
+
+	it("carries products that rest on outside input as assumed, and states the assumption to a reader", () => {
+		const contract = StepContractSchema.parse({ assumed: true, products: "entities", states: ["the entities are named"] });
+		expect(contract.assumed).toBe(true);
+		expect(contractLines(contract)).toEqual(["After the call: the entities are named.", ASSUMED_SAID]);
+		expect(contractLines(StepContractSchema.parse({ products: "entities" }))).toEqual([]);
 	});
 });
 

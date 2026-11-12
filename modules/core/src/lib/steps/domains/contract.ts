@@ -76,9 +76,12 @@ export type TProductsVerb = typeof WRITE_VERB.create | typeof WRITE_VERB.merge;
 /** The parts of a step's contract that a read and a write both state. A descriptor's contract names its domains by their keys.
  *  `states` holds over the parameters and the products, and `requires` over recorded facts before the call. `complete` lists
  *  the fields whose records this instance holds in full: a check reads the records an argument names, and the records each
- *  listed edge reaches, and a negated statement over fields the list holds is proved where those records don't derive it. */
+ *  listed edge reaches, and a negated statement over fields the list holds is proved where those records don't derive it.
+ *  `assumed` states that the products rest on a model's output or a parser's reading of outside input, so every fact they hold
+ *  carries the assumption. */
 type TContractParts<D extends string> = {
 	readonly products?: TContractProducts<D>;
+	readonly assumed?: true;
 	readonly states?: readonly TStatement[];
 	readonly requires?: readonly TStatement[];
 	readonly complete?: readonly TField[];
@@ -97,12 +100,13 @@ type TWriteContract<D extends string> = TContractParts<D> & { readonly read?: ne
  *  contract, or with a contract that doesn't state `read`, is a write. */
 export type TStepContract<D extends string = string> = TReadContract<D> | TWriteContract<D>;
 
-/** A contract as a descriptor carries it: its products, its `requires` and `states` statements as their sentences, and `read`
- *  where the step is a read. A call that requests a read names such a step, and actuality returns the result of a read over a
- *  transport without recording a step. The statement form of the products has the shape of a map of one field, `of`, which
- *  `contractProducts` reads as the statement form. */
+/** A contract as a descriptor carries it: its products, its `requires` and `states` statements as their sentences, `read`
+ *  where the step is a read, and `assumed` where its products rest on outside input. A call that requests a read names such a
+ *  step, and actuality returns the result of a read over a transport without recording a step. The statement form of the
+ *  products has the shape of a map of one field, `of`, which `contractProducts` reads as the statement form. */
 export const StepContractSchema = z.object({
 	read: z.literal(true).optional(),
+	assumed: z.literal(true).optional(),
 	products: z.union([DomainKeySchema, z.record(z.string(), DomainKeySchema)]).optional(),
 	requires: z.array(z.string().min(1)).optional(),
 	states: z.array(z.string().min(1)).optional(),
@@ -114,12 +118,17 @@ export type TStatedContract = { readonly read?: true; readonly products?: TContr
 /** The heading of each kind of a contract's statements, as a reader reads it: what holds before a call, and what holds after it. */
 const CONTRACT_SAID = { requires: "Before the call", states: "After the call" } as const;
 
-/** The lines that state a descriptor's contract: the sentences of what it requires, and of what it states. */
-export const contractLines = (contract: TContractSentences | undefined): string[] =>
-	(["requires", "states"] as const).flatMap((check) => {
+/** What a contract states of products that rest on outside input. */
+export const ASSUMED_SAID = "Its products rest on outside input, and each fact they hold is assumed.";
+
+/** The lines that state a descriptor's contract: the sentences of what it requires, of what it states, and its assumption. */
+export const contractLines = (contract: TContractSentences | undefined): string[] => [
+	...(["requires", "states"] as const).flatMap((check) => {
 		const sentences = contract?.[check];
 		return sentences === undefined ? [] : [`${CONTRACT_SAID[check]}: ${sentences.join("; ")}.`];
-	});
+	}),
+	...(contract?.assumed ? [ASSUMED_SAID] : []),
+];
 
 /** A step's description with its contract's sentences, as a control's tooltip and accessible description state it. */
 export const describedWithContract = ({ description, contract }: { readonly description: string; readonly contract?: TContractSentences }): string =>

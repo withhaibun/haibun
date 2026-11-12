@@ -17,14 +17,14 @@ import { resolveOutputSchema } from "./tool-validation.js";
 import { CONTRACT_CHECK, contractProducts, StepContractSchema, type TContractSentences, type TStepContract } from "../domains/contract.js";
 import { statementSentence } from "./predicate-registry.js";
 
-/** A contract as a descriptor carries it: whether it is a read, its products, and the sentence of each statement it requires
- *  and states. */
+/** A contract as a descriptor carries it: whether it is a read, whether its products are assumed, its products, and the sentence
+ *  of each statement it requires and states. */
 function contractSentences({ products, ...contract }: TStepContract): TContractSentences {
 	const sentences = Object.values(CONTRACT_CHECK).flatMap((check) => {
 		const statements = contract[check];
 		return statements === undefined || statements.length === 0 ? [] : [[check, statements.map(statementSentence)]];
 	});
-	return StepContractSchema.parse({ ...(contract.read ? { read: true } : {}), products, ...Object.fromEntries(sentences) });
+	return StepContractSchema.parse({ ...(contract.read ? { read: true } : {}), ...(contract.assumed ? { assumed: true } : {}), products, ...Object.fromEntries(sentences) });
 }
 
 /** A step's descriptor and the domain key of each of its parameters, by parameter name. */
