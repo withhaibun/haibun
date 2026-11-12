@@ -9,9 +9,29 @@ import { storeDeclaring } from "../../test/declared-types.js";
 import { handleStoreCall, isStoreMethod } from "../../domains/store-protocol.js";
 import { RemoteQuadStore } from "./remote-quad-store.js";
 import { FakeInvoker } from "../../test/fake-authority.js";
+import { z } from "zod";
+import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "../../steps/domains/stepper.js";
+import { Access, LinkRelations, openWorld } from "../../domains/resources.js";
+import { ASSUMED_CHECK, CHECK_NAMESPACE, field } from "../../steps/domains/contract.js";
+import { actionOK } from "../../domains/util.js";
+import { passWithDefaults } from "../../test/lib.js";
+import { TEST_LEVELS } from "../../test/declared-types.js";
+import { TEST_STEP } from "../../test/test-step.js";
+import { getSteppers } from "../../adapters/workspace-lib.js";
+import { LOGIC_STEPPER } from "../../domains/protocol.js";
 
 const sign = new FakeInvoker("satellite").sign;
 const WIDGETS = { Widget: { filters: ["id"] } };
+/** A Widget's stored type, whose every record has a name, which the store doesn't require. */
+const WIDGET = {
+	...openWorld(z.object({ id: z.string(), name: z.string(), colour: z.string().optional() }), ["name"]),
+	topology: {
+		persistedAs: "Widget",
+		accessLevel: Access.private,
+		id: "id",
+		properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, colour: LinkRelations.TAG.rel },
+	},
+};
 const WIDGET_ONE = { "@id": heldRecordIri("Widget", "w-1"), "@type": "Widget", id: "w-1", name: "One" };
 
 /** A canned serving instance: a real in-memory QuadStore behind the real protocol handler, plus the handshake. */
@@ -86,5 +106,39 @@ describe("RemoteQuadStore", () => {
 		const denied = new RemoteQuadStore({ url: "http://main:1", sign, graphs: ["Widget"], fetchImpl: denyingFetch });
 		await denied.connect();
 		await expect(denied.merge({ "@type": "Widget", id: "w-1" })).rejects.toThrow(/capability store.write required/);
+	});
+
+	it("lists each record an assumed step writes through it, and the step's record holds the check of each one", async () => {
+		const backing = storeDeclaring(WIDGETS, TEST_LEVELS);
+		const remote = new RemoteQuadStore({ url: "http://main:1", sign, graphs: ["Widget"], fetchImpl: servingPeer(backing).fetchImpl });
+		/** Reads a widget from outside input and writes it to the store that a serving instance holds. */
+		class ReadsWidgets extends AStepper implements IHasCycles {
+			description = "Reads a widget from outside input into a Widget record that a serving instance's store holds.";
+			cycles: IStepperCycles = {
+				getConcerns: () => ({ domains: [{ selectors: ["remote-widget"], ...WIDGET, topology: { ...WIDGET.topology, required: WIDGET.required }, description: "A widget" }] }),
+				startActuality: async () => {
+					const store = this.getWorld().shared.getStore();
+					if (!(store instanceof QuadStore)) throw new Error("the world's store isn't a QuadStore, which routes a graph to a backing store");
+					await remote.connect();
+					await store.registerStore(remote, ["Widget"]);
+				},
+			};
+			steps = {
+				read: {
+					description: TEST_STEP,
+					gwta: "read a widget",
+					contract: { assumed: true, changes: [field(WIDGET, "colour")] },
+					action: async () => {
+						await this.getWorld().shared.getStore().merge({ "@type": "Widget", id: "w-7", colour: "red" });
+						return actionOK();
+					},
+				},
+			} as const satisfies TStepperSteps;
+		}
+		const result = await passWithDefaults("read a widget\n", [ReadsWidgets, ...(await getSteppers([LOGIC_STEPPER]))]);
+		expect(await backing.get("w-7", "colour", "Widget"), "the serving store holds the record").toBe("red");
+		const checks = result.featureResults?.[0]?.stepResults.at(-1)?.contract?.checks;
+		expect(checks, "the step's record holds the check of the record the serving store wrote").toContain(`<${CHECK_NAMESPACE}${ASSUMED_CHECK}>`);
+		expect(checks, "which read the record's colour through the serving instance").toContain('"red"');
 	});
 });

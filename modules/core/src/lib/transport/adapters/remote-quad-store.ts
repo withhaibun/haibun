@@ -7,7 +7,7 @@
  * Mount-scoped: clustered reads and all() cover only the mounted graphs, never the peer's whole store.
  */
 import { RemoteInstance } from "./rpc-client.js";
-import { STORE_METHOD_PREFIX, requiredStoreCapability, sentWrites, UnitsRemovedSchema, UnitsWrittenSchema, writtenId } from "../../domains/store-protocol.js";
+import { STORE_METHOD_PREFIX, requiredStoreCapability, sentWrites, UnitsRemovedSchema, unitsWritten, writtenId } from "../../domains/store-protocol.js";
 import { writesInFlight } from "../../domains/capability-context.js";
 import type { TRequestSigner } from "../../domains/authority-types.js";
 import type { z } from "zod";
@@ -80,7 +80,8 @@ export class RemoteQuadStore implements IQuadStore {
 
 	/** Writes the units at the serving instance in one call, within the writes of the step in progress, and returns how each ended. */
 	async writeMany(units: readonly TUnitWrite[]): Promise<TUnitWritten[]> {
-		return UnitsWrittenSchema.parse(await this.call("writeMany", { units, ...sentWrites(writesInFlight()) }));
+		const writes = writesInFlight();
+		return unitsWritten(await this.call("writeMany", { units, ...sentWrites(writes) }), writes);
 	}
 
 	/** Makes the removals at the serving instance in one call, and returns how each ended. */

@@ -412,10 +412,10 @@
 			"actuality": {
 				"text": "modules/shu/tests, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 46500,
+				"tookMs": 50700,
 				"digest": {
 					"modules/cli/src": "3b6f87a0ece4cf835e7194fc4a0d18ef27fb7c1105a77de56666b3aaf3486724",
-					"modules/core/src": "7614b3ab1001af665e2811d0a9c06cd61de72784fb7dab1654e2b435b0fa2c2f",
+					"modules/core/src": "d782da4d8e404fb8508630b92da2261ef4df19c7ad4fcdfd7be557e6a3f010e6",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
 					"modules/logic/src": "6827f6333d2d7ad4f1b3b37d614cbd448a5ff7d51a9dd16f757462e138c207b2",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
@@ -432,7 +432,7 @@
 				"/features/address.feature.ts": {
 					"text": "An address names a type",
 					"status": "passed",
-					"tookMs": 1300,
+					"tookMs": 1400,
 					"steps": 209
 				},
 				"/features/federate.feature.ts": {
@@ -444,13 +444,13 @@
 				"/features/monitor-serves.feature.ts": {
 					"text": "The monitor serves shu on a port of its own",
 					"status": "passed",
-					"tookMs": 1500,
+					"tookMs": 1600,
 					"steps": 200
 				},
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
-					"tookMs": 32600,
+					"tookMs": 36000,
 					"steps": 769
 				},
 				"/features/remote-store.feature.ts": {
@@ -462,7 +462,7 @@
 				"/features/voice-ui.feature.ts": {
 					"text": "UI extension propagation: domain ui → concern catalog → SPA actions bar",
 					"status": "passed",
-					"tookMs": 2400,
+					"tookMs": 2900,
 					"steps": 213
 				}
 			}

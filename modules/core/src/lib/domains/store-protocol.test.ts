@@ -25,7 +25,7 @@ describe("handleStoreCall", () => {
 	it("round-trips an individual and envelopes results so undefined survives JSON", async () => {
 		const store = storeDeclaring({ Widget: {} });
 		const written = await handleStoreCall(store, "store.create", { node: { "@type": "Widget", id: "w-1", name: "One" } });
-		expect(written.result).toBe("w-1");
+		expect(written.result, "a write outside a step doesn't list the records it wrote").toEqual({ id: "w-1", written: [] });
 		const got = await handleStoreCall(store, "store.readRecords", { query: { label: "Widget", named: ["w-1"], limit: 1 } });
 		expect(GraphQueryResultSchema.parse(got.result).vertices).toEqual([{ "@id": heldRecordIri("Widget", "w-1"), "@type": "Widget", id: "w-1", name: "One" }]);
 		const missing = await handleStoreCall(store, "store.get", { subject: "w-2", predicate: "name", namedGraph: "Widget" });
@@ -46,10 +46,13 @@ describe("handleStoreCall", () => {
 		expect(itemAt(quads, 0).objectType).toBe("Widget");
 	});
 
-	it("checks a write against the writes of the caller's step, and returns the refusal of a write outside them", async () => {
+	it("checks a write against the writes of the caller's step, returns each record it wrote, and returns the refusal of a write outside them", async () => {
 		const store = storeDeclaring({ Widget: {} }, TEST_LEVELS);
 		const writes = { step: "Widgets-make", products: [], changes: [{ persistedAs: "Widget", key: "name" }] };
-		expect((await handleStoreCall(store, "store.merge", { node: { "@type": "Widget", id: "w-1", name: "One" }, writes })).result).toBe("w-1");
+		expect((await handleStoreCall(store, "store.merge", { node: { "@type": "Widget", id: "w-1", name: "One" }, writes })).result).toEqual({
+			id: "w-1",
+			written: [{ label: "Widget", id: "w-1" }],
+		});
 		const refused = await handleStoreCall(store, "store.merge", { node: { "@type": "Widget", id: "w-1", colour: "red" }, writes });
 		expect(refused.result).toEqual({ outsideContract: { step: "Widgets-make", outside: ["Widget.colour"] } });
 		expect(await store.get("w-1", "colour", "Widget")).toBeUndefined();
