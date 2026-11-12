@@ -66,11 +66,14 @@ async function outcomeOf(reasoner: Pick<TReasoner, "session">, { sources, query,
 	}
 }
 
-/** How long a test's pool holds an idle worker. */
+/** How long a test's pool holds an idle worker, and how long a pool whose runtime a test times holds it, which outlasts the
+ *  sessions of another pool timed between its own. */
 const TEST_IDLE_MS = 100;
-/** A reasoner over a worker pool of its own, whose worker starts a runtime of its own, and the pool, which the test closes. */
-async function withFreshRuntime<T>(use: (reasoner: Pick<TReasoner, "session">, pool: IWorkerPool) => Promise<T>): Promise<T> {
-	const pool = piscinaPool(TEST_IDLE_MS, POOL_MODE.queued);
+const TIMED_IDLE_MS = 60_000;
+/** A reasoner over a worker pool of its own that holds an idle worker for `idleMs`, whose worker starts a runtime of its own,
+ *  and the pool, which the test closes. */
+async function withFreshRuntime<T>(use: (reasoner: Pick<TReasoner, "session">, pool: IWorkerPool) => Promise<T>, idleMs = TEST_IDLE_MS): Promise<T> {
+	const pool = piscinaPool(idleMs, POOL_MODE.queued);
 	try {
 		return await use(eyeReasoner(pool), pool);
 	} finally {
@@ -109,13 +112,16 @@ describe("a reused EYE runtime", () => {
 			await outcomeOf(reused, FORWARD);
 			const timed = async (outcome: () => Promise<unknown>): Promise<number> => {
 				const start = performance.now();
-				for (let at = 0; at < 5; at++) await outcome();
+				await outcome();
 				return performance.now() - start;
 			};
-			const fresh = await timed(() => freshOutcomeOf(FORWARD));
-			const onReused = await timed(() => outcomeOf(reused, FORWARD));
-			expect(onReused * 3, `5 sessions took ${onReused.toFixed(0)} ms on the reused runtime and ${fresh.toFixed(0)} ms on fresh runtimes`).toBeLessThan(fresh);
-		});
+			// Each pair runs a fresh session and a reused one in turn, so both read the same load of the machine, and the fastest of
+			// each kind excludes a pause of the machine during one session.
+			const pairs: { fresh: number; onReused: number }[] = [];
+			for (let at = 0; at < 5; at++) pairs.push({ fresh: await timed(() => freshOutcomeOf(FORWARD)), onReused: await timed(() => outcomeOf(reused, FORWARD)) });
+			const [fresh, onReused] = [Math.min(...pairs.map((pair) => pair.fresh)), Math.min(...pairs.map((pair) => pair.onReused))];
+			expect(onReused * 3, `a session took ${onReused.toFixed(0)} ms at fastest on the reused runtime and ${fresh.toFixed(0)} ms on a fresh runtime`).toBeLessThan(fresh);
+		}, TIMED_IDLE_MS);
 	});
 
 	it("runs a session started within a session at once in another worker, and releases that worker once it is idle", { timeout: 60_000 }, async () => {
