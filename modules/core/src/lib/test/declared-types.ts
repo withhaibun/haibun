@@ -47,6 +47,7 @@ export function declaredTypes(types: Record<string, TDeclaredType>): TReadDeclar
 				surface: { label, properties, references },
 				defaultSort: type.time === undefined ? LinkRelations.GENERATED_AT_TIME.rel : type.time,
 				edges,
+				properties: new Set<string>(),
 			};
 			return { ...declared, ...(type.schema === undefined ? {} : { schema: type.schema }), ...(type.unique === undefined ? {} : { unique: type.unique }) };
 		},

@@ -48,6 +48,20 @@ export type TReference = { readonly [NODE_KEY.id]: string };
 /** Returns the reference to the `label` record `id`. */
 export const referenceTo = (label: string, id: string): TReference => ({ [NODE_KEY.id]: curieOf({ label, id }) });
 
+/** Returns the records the references of a record's key name, as a read states its edge: a reference or a list of values, of which
+ *  the literals aren't references. */
+export const referencedNames = (value: unknown): TRecordName[] => [value].flat().flatMap((one) => [referencedName(one)].flatMap((name) => (name === undefined ? [] : [name])));
+
+/** Returns the ids of the records the references of a record's key name. */
+export const referencedIds = (value: unknown): string[] => referencedNames(value).map(({ id }) => id);
+
+/** Returns the record a reference names by its typed CURIE, or undefined where the value isn't a reference. */
+export function referencedName(value: unknown): TRecordName | undefined {
+	if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+	const keys = Object.keys(value);
+	return keys.length === 1 && keys[0] === NODE_KEY.id ? recordOfCurie((value as TReference)[NODE_KEY.id]) : undefined;
+}
+
 /** What `remove` removes: the record a name names with what it owns, or its edge of a relation to the record `to` names, which
  *  keeps both records. */
 export type TRemoval = TRecordName & { readonly edge?: { readonly rel: string; readonly to: TRecordName } };

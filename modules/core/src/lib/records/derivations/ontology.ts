@@ -75,7 +75,7 @@ export function typesDeclaringRel(domains: Record<string, TRegisteredDomain>, re
 	for (const d of Object.values(domains)) {
 		if (!isPersisted(d.topology)) continue;
 		const t = d.topology;
-		const inEdges = (t.edges === undefined ? [] : Object.values(t.edges)).some((e) => (e.rel ?? "") === rel);
+		const inEdges = (t.edges === undefined ? [] : Object.entries(t.edges)).some(([edge, def]) => (def.rel ?? edgeRel(edge)) === rel);
 		const inProps = Object.values(t.properties).some((p) => (typeof p === "string" ? p : p.rel) === rel);
 		if (inEdges || inProps) labels.push(t.persistedAs);
 	}

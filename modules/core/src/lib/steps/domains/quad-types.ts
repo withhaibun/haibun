@@ -13,6 +13,8 @@ import type { TJsonArtifact } from "../../domains/protocol.js";
 import { ellipsize } from "../../domains/util.js";
 import { conditionExpression, KEYWORD, manchesterOf } from "../../records/domains/class-expression.js";
 import type { TRecordFrame } from "../../records/domains/axioms.js";
+import { referencedName } from "../../records/domains/unit.js";
+import { unwrap, unwrapToShape, zodTypeLabel } from "../../domains/zod-unwrap.js";
 
 /**
  * The named graph of the variables actuality holds. The quad store reads it here, so it doesn't import feature-variables.
@@ -202,6 +204,22 @@ export const isProjectionKey = (key: string): boolean => key.startsWith("_") || 
  *  and `@type`, and a read projects them on every record. */
 export const recordFieldsOf = (record: Readonly<Record<string, unknown>>): Record<string, unknown> =>
 	Object.fromEntries(Object.entries(record).filter(([key]) => !isProjectionKey(key)));
+
+/** Returns the fields of a record a read states, as its type's schema parses them: each key without the references to its edge's
+ *  targets, its one literal where the schema's field doesn't hold a list, and without a key that holds only references. */
+export function fieldsOfNode(record: Readonly<Record<string, unknown>>, schema: z.ZodType): Record<string, unknown> {
+	const shape = unwrapToShape(schema);
+	return Object.fromEntries(
+		Object.entries(recordFieldsOf(record)).flatMap(([key, value]) => {
+			const values = [value].flat();
+			if (!values.some((one) => referencedName(one) !== undefined)) return [[key, value]];
+			const literals = values.filter((one) => referencedName(one) === undefined);
+			const field = shape?.[key];
+			if (literals.length === 0 || field === undefined) return [];
+			return [[key, zodTypeLabel(unwrap(field).inner) === "array" ? literals : literals[0]]];
+		}),
+	);
+}
 
 /** The page a graph query returns: its records, their count, and what a store with a query engine adds about the read. The
  *  site's step and a page that reads its own copy return this one shape. */
@@ -460,5 +478,5 @@ export async function typedRecord<S extends z.ZodType>(
 	read: (query: TGraphQuery) => Promise<TRecordsPage>,
 ): Promise<z.output<S> | undefined> {
 	const [record] = (await read(GraphQuerySchema.parse({ label: type.label, named: [id], limit: 1, skipCount: true, ...levelOf(accessLevel) }))).vertices;
-	return record === undefined ? undefined : parsedRecord(type.schema, type.label, recordFieldsOf(record), false);
+	return record === undefined ? undefined : parsedRecord(type.schema, type.label, fieldsOfNode(record, type.schema), false);
 }

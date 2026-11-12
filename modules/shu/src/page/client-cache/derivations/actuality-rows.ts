@@ -2,6 +2,7 @@
  * Actuality's records as the rows a reader reads: a step, what was logged while it ran, and what it produced, each in the
  * order actuality put them, with what a step produced named on the row of the step a reader sees.
  */
+import { referencedName } from "@haibun/core/lib/records/domains/unit.js";
 import { HAIBUN_LOG_LEVELS, SUBSTEP_LEVEL, type THaibunLogLevel } from "@haibun/core/lib/domains/protocol.js";
 import { LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL, LogMessageSchema } from "@haibun/core/lib/domains/log-message.js";
 import { RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL, RunArtifactSchema } from "@haibun/core/lib/domains/run-artifact.js";
@@ -91,9 +92,10 @@ const recorded = (at: string | undefined): { recordedAt?: number } => {
 /** The step a logged or produced record names as its own, else the record itself: what is logged outside every step,
  *  which is where an actuality reports what went wrong after a step ended, is a record of its actuality feature by its own name. */
 const stepOf = (record: Record<string, unknown>, id: string): string => {
-	const partOf = record.isPartOf;
-	if (partOf === undefined) return id;
-	if (typeof partOf !== "string") throw new Error(`the record ${id} names the step it is part of as ${typeof partOf}, not an id`);
+	if (record.isPartOf === undefined) return id;
+	// A record names the step by its id, or by the reference a read states for the edge to it.
+	const [partOf, ...more] = [record.isPartOf].flat().map((value) => (typeof value === "string" ? value : referencedName(value)?.id));
+	if (partOf === undefined || more.length > 0) throw new Error(`the record ${id} names the step it is part of as ${JSON.stringify(record.isPartOf)}, not one id`);
 	return partOf;
 };
 

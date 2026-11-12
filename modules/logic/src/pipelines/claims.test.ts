@@ -6,6 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { VERDICT, type TActionResult } from "@haibun/core/lib/domains/protocol.js";
+import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { ClaimProductsSchema } from "@haibun/core/lib/records/domains/claim.js";
 import { ClaimWitnessSchema, DisjointnessWitnessSchema } from "@haibun/core/lib/records/domains/axioms.js";
 import { reasoner } from "../root.js";
@@ -25,6 +26,13 @@ describe("claims K entails", () => {
 		expect(proof).toContain(`InverseFunctionalObjectProperty(foaf:mbox)`);
 		expect(proof).toContain(`DataPropertyAssertion(foaf:mbox Person:p1 "${SHARED_MAILBOX}")`);
 		expect(proof).toContain(`DataPropertyAssertion(foaf:mbox Person:p2 "${SHARED_MAILBOX}")`);
+	});
+
+	it("proves a membership through a record's edge, which a read of its type's records states beside its fields", { timeout: 60_000 }, async () => {
+		const result = await instanceChecked(await scopeWith(reasoner()), { persistedAs: NOTE, id: "n1" }, `${LinkRelations.WAS_GENERATED_BY.rel} some ${STEP}`);
+		const { verdict, proof } = outcomeOf(result);
+		expect(verdict).toBe(VERDICT.proved);
+		expect(proof).toContain("ObjectPropertyAssertion(prov:wasGeneratedBy Note:n1 Step:s1)");
 	});
 
 	it("leaves unknown a nominal's membership where the two individuals don't share a value of an inverse functional property", { timeout: 60_000 }, async () => {

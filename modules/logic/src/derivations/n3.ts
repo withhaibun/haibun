@@ -12,13 +12,14 @@
  */
 import { DataFactory, Parser, Store, Writer } from "n3";
 import type { Literal, NamedNode, Quad, Quad_Object, Quad_Predicate, Quad_Subject, Term, Variable } from "@rdfjs/types";
-import type { TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
-import type { TRecordNamespace } from "@haibun/core/lib/domains/resources.js";
+import { REL_CONTEXT, type TRecordNamespace, type TRel } from "@haibun/core/lib/domains/resources.js";
+import { isVocabularyEdge, type TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import { LOG, RDF, XSD } from "@haibun/core/lib/domains/vocabularies.js";
 import { iriIn } from "@haibun/core/lib/records/derivations/owl.js";
 import { recordIri, recordOfIri } from "@haibun/core/lib/records/derivations/record-iri.js";
+import { referencedName } from "@haibun/core/lib/records/domains/unit.js";
 import type { TFact } from "../domains/logic.js";
 
 const { namedNode, literal, blankNode } = DataFactory;
@@ -33,7 +34,9 @@ export function termOf(value: unknown): NamedNode | Literal {
 	if (typeof value === "string") return ABSOLUTE_IRI.test(value) ? namedNode(value) : literal(value);
 	if (typeof value === "number" && Number.isFinite(value)) return literal(String(value), namedNode(Number.isInteger(value) ? XSD.integer : XSD.decimal));
 	if (typeof value === "boolean") return literal(String(value), namedNode(XSD.boolean));
-	throw new Error(`a store's value ${JSON.stringify(value)} doesn't have an N3 term. Store a string, a finite number, a boolean or a time.`);
+	// A structured value, such as a Body's representations, is a JSON literal, as JSON-LD states a value of type @json.
+	if (typeof value === "object" && value !== null) return literal(JSON.stringify(value), namedNode(RDF.JSON));
+	throw new Error(`a store's value ${JSON.stringify(value)} doesn't have an N3 term. Store a string, a finite number, a boolean, a time or a JSON value.`);
 }
 
 /** A formula: the patterns between its braces. */
@@ -128,8 +131,9 @@ export const quadsOf = (text: string): Quad[] => new Parser({ format: MEDIA_TYPE
 
 /** A field's or an edge's IRI, with the types an edge reaches. A field doesn't reach a type. */
 type TFieldTerm = { iri: NamedNode; targets: readonly string[] };
-/** A type's terms as N3 states them: its label, its class, and each field and edge by its IRI. */
-type TTypeTerms = { label: string; classIri: NamedNode; fields: Map<string, TFieldTerm> };
+/** A type's terms as N3 states them: its label, its class, each field by its IRI, and each edge by its IRI. A key the type declares
+ *  as both holds the field's literals beside the edge's references. */
+type TTypeTerms = { label: string; classIri: NamedNode; fields: Map<string, TFieldTerm>; edges: Map<string, TFieldTerm> };
 
 /** The N3 terms of the records of the persisted types: each record as an individual of its type's class, and each of its
  *  facts as a triple whose predicate is the IRI its field or edge declares. An edge's value is the record it reaches. */
@@ -158,10 +162,8 @@ export function recordTerms(catalog: TConcernCatalog, context: Record<string, un
 			{
 				label,
 				classIri: namedNode(iriIn(context, label)),
-				fields: new Map([
-					...Object.entries(properties).map(([field, { term }]): [string, TFieldTerm] => [field, { iri: namedNode(iriIn(context, term)), targets: [] }]),
-					...Object.entries(edges).map(([edge, { term, targets }]): [string, TFieldTerm] => [edge, { iri: namedNode(iriIn(context, term)), targets }]),
-				]),
+				fields: new Map(Object.entries(properties).map(([field, { term }]): [string, TFieldTerm] => [field, { iri: namedNode(iriIn(context, term)), targets: [] }])),
+				edges: new Map(Object.entries(edges).map(([edge, { term, targets }]): [string, TFieldTerm] => [edge, { iri: namedNode(iriIn(context, term)), targets }])),
 			},
 		]),
 	);
@@ -177,17 +179,27 @@ export function recordTerms(catalog: TConcernCatalog, context: Record<string, un
 	};
 	/** The IRI of a record of a persisted type: its record IRI, expanded through the context. */
 	const individualOf = (label: string, id: string): NamedNode => namedNode(iriIn(context, recordIri(records.prefix, typeOf(label).label, id)));
-	const fieldOf = (label: string, field: string): TFieldTerm => {
-		const held = typeOf(label).fields.get(field);
-		if (held === undefined) throw new Error(`${label} doesn't declare the field ${field}, so its facts don't have an N3 predicate. Declare the field in the type's topology.`);
-		return held;
+	/** Returns the term of a fact's key: its edge where the fact's object is a reference or the type doesn't declare the key a field,
+	 *  and its field otherwise. */
+	const fieldOf = ({ namedGraph: label, predicate: key, object }: Pick<TFact, "namedGraph" | "predicate" | "object">): TFieldTerm => {
+		const { fields, edges } = typeOf(label);
+		const referenced = referencedName(object) !== undefined;
+		const held = referenced || !fields.has(key) ? edges.get(key) : fields.get(key);
+		if (held !== undefined) return held;
+		// A store states a vocabulary edge, such as a record's provenance, on a type that doesn't declare it.
+		if (referenced && isVocabularyEdge(key)) return { iri: namedNode(iriIn(context, REL_CONTEXT[key as TRel])), targets: [] };
+		throw new Error(`${label} doesn't declare the field ${key}, so its facts don't have an N3 predicate. Declare the field in the type's topology.`);
 	};
-	const objectOf = ({ namedGraph, predicate, object }: TFact): Quad_Object => {
-		const { targets } = fieldOf(namedGraph, predicate);
+	const objectOf = (fact: TFact): Quad_Object => {
+		const { namedGraph, predicate, object } = fact;
+		// A reference names its record by its typed CURIE, of a type the loaded steppers may not declare.
+		const referenced = referencedName(object);
+		if (referenced !== undefined) return namedNode(iriIn(context, recordIri(records.prefix, referenced.label, referenced.id)));
+		const { targets } = fieldOf(fact);
 		if (targets.length === 0) return termOf(object);
 		if (targets.length > 1)
 			throw new Error(
-				`the edge ${predicate} of ${namedGraph} reaches ${targets.join(", ")}, so its value ${String(object)} doesn't name one record. Declare one range for the edge.`,
+				`the edge ${predicate} of ${namedGraph} reaches ${targets.join(", ")}, so its value ${String(object)} doesn't name one record. Reference the record by its typed CURIE.`,
 			);
 		return individualOf(itemAt(targets, 0), String(object));
 	};
@@ -207,11 +219,12 @@ export function recordTerms(catalog: TConcernCatalog, context: Record<string, un
 		statements: (label, facts) => {
 			const { classIri } = typeOf(label);
 			const typed = [...new Set(facts.map(({ subject }) => subject))].map((id) => DataFactory.quad(individualOf(label, id), namedNode(RDF.type), classIri));
-			return [...typed, ...facts.map((fact) => DataFactory.quad(individualOf(label, fact.subject), fieldOf(label, fact.predicate).iri, objectOf(fact)))];
+			return [...typed, ...facts.map((fact) => DataFactory.quad(individualOf(label, fact.subject), fieldOf({ ...fact, namedGraph: label }).iri, objectOf(fact)))];
 		},
 		patternOf: (subject, predicate) => {
 			const { persistedAs: label, id } = addressOf(subject);
-			const field = [...typeOf(label).fields].find(([, held]) => held.iri.equals(predicate));
+			const { fields, edges } = typeOf(label);
+			const field = [...fields, ...edges].find(([, held]) => held.iri.equals(predicate));
 			if (field === undefined) throw new Error(`${label} doesn't declare a field whose IRI is ${predicate.value}. Read a field the type declares.`);
 			return { subject: id, predicate: field[0], namedGraph: label };
 		},

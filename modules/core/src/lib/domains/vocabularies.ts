@@ -37,7 +37,7 @@ export const NAMESPACE = {
 const termsIn = <T extends string>(prefix: keyof typeof NAMESPACE, names: readonly T[]): Readonly<Record<T, string>> =>
 	Object.fromEntries(names.map((name) => [name, `${NAMESPACE[prefix]}${name}`])) as Record<T, string>;
 
-export const RDF = /* @__PURE__ */ termsIn("rdf", ["type", "Property", "first", "rest", "nil"]);
+export const RDF = /* @__PURE__ */ termsIn("rdf", ["type", "Property", "first", "rest", "nil", "JSON"]);
 export const RDFS = /* @__PURE__ */ termsIn("rdfs", ["Class", "subClassOf", "subPropertyOf", "domain", "range", "comment"]);
 export const OWL = /* @__PURE__ */ termsIn("owl", [
 	"Class",

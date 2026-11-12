@@ -3,6 +3,7 @@
  * Body's text is the form `BODY_PREFERENCE` orders first among those a write holds, and its other forms are its
  * representations.
  */
+import { referencedName } from "../domains/unit.js";
 import { z } from "zod";
 import { MEDIA_TYPE } from "../../domains/media-types.js";
 import { HAS_BODY_EDGE, isContentPropertyDef, type TPropertyDef, type TRepresentation } from "../../domains/resources.js";
@@ -112,11 +113,12 @@ export type TReading = { key: string; body: string; media: string; text?: string
 /** Returns the key of the form of the Body `body` in `media`. A record holds one form of a Body in each media type. */
 export const readingKey = (body: string, media: string): string => `${body} ${media}`;
 
-/** Returns the bodies a record links through `hasBody`. Throws for a body that doesn't state its id and media type. */
+/** Returns the bodies a record read embeds through `hasBody`. A reference names a body the read didn't embed, so it isn't one of
+ *  them. Throws for a body that doesn't state its id and media type. */
 export function linkedBodiesOf(record: Record<string, unknown>): TLinkedBody[] {
 	const linked = record[HAS_BODY_EDGE];
 	if (linked === undefined) return [];
-	return z.array(LinkedBodySchema).parse(Array.isArray(linked) ? linked : [linked]);
+	return z.array(LinkedBodySchema).parse([linked].flat().filter((body) => referencedName(body) === undefined));
 }
 
 /** Returns each form of each body a record links, as a reader opens it. Throws for a body that doesn't state its id and
