@@ -434,8 +434,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		// The supervisor refuses a test run of features that already ran against their present state. The supervisor
 		// holds the outcome record, so a change since that test run is read from the features' dependencies, not held here.
 		const run = await this.startRun(where, filter);
-		// The failure is this step's failure, whose record states why. The steps that follow return it through
-		// nothingToRead, so a caller doesn't search for a failure it already received.
+		// Records step failure details directly so subsequent steps return this cached failure rather than re-querying.
 		if (run.ok === false) {
 			this.notStarted = run.why;
 			return actionNotOK(run.why);

@@ -31,7 +31,7 @@ const DOC_CONTAINER = SHU_TAG.DOCUMENT_COLUMN;
 const MONITOR_CONTAINER = SHU_TAG.MONITOR_COLUMN;
 /** The test id of this feature's heading block in the document. The document builds the same id from the feature name with headingAnchor. */
 const FEATURE_HEADING = `${SHU_TEST_IDS.DOCUMENT.HEADING}${headingAnchor("Shu SPA Self-Test")}`;
-// The client cache view's cells for the log-level run source: its cached spans, its event count and its loaded state. The document reads at log level.
+/** Client cache view test IDs for the log-level run source. */
 const CACHE_LOG_CACHED = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-cached`;
 const CACHE_LOG_EVENTS = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-events`;
 const CACHE_LOG_LOADED = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-loaded`;
@@ -53,8 +53,7 @@ const CHAIN_GRAPH_CANVAS_SELECTOR = `${SHU_TAG.DOMAIN_CHAIN_VIEW} > [slot='${IDS
 const VIEWS_PICKER = SHU_TEST_IDS.VIEWS_PICKER.ROOT;
 const VIEWS_PICKER_MONITOR = `${SHU_TEST_IDS.VIEWS_PICKER.ROW}${SHU_TAG.MONITOR_COLUMN}`;
 const testIdSetup = registerTestIds(IDS);
-// createStepUI's helpers emit a setAs step for each step-caller test id they use. Each id holds the method and the call index. An input's id also holds its parameter.
-// This list holds the registrations made at file scope. This file doesn't register one, so the list is empty.
+/** File-scope step-caller registrations emitted by createStepUI helpers. */
 const stepIdSetup: ReturnType<typeof setAs>[] = [];
 
 const FRAGMENT = "ISECRET";

@@ -12,4 +12,3 @@ Scenario: Check against URI xss exploit
     compose exploit with {xss}?;alert('hi')
     go to the exploit webpage
     The exploit webpage opens a dialog. The `accept next dialog` step accepts each dialog the page opens. This feature doesn't check the message of that dialog.
-    ;; variable clicked.message is "hi"
