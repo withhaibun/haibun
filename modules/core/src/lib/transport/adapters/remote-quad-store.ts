@@ -7,7 +7,7 @@
  * Mount-scoped: clustered reads and all() cover only the mounted graphs, never the peer's whole store.
  */
 import { RemoteInstance } from "./rpc-client.js";
-import { STORE_METHOD_PREFIX, requiredStoreCapability, sentWrites, UnitsRemovedSchema, unitsWritten, writtenId } from "../../domains/store-protocol.js";
+import { STORE_METHOD_PREFIX, appliedWrite, requiredStoreCapability, sentWrites, UnitsRemovedSchema, UnitsWrittenSchema, WrittenIdSchema } from "../../domains/store-protocol.js";
 import { writesInFlight } from "../../domains/capability-context.js";
 import type { TRequestSigner } from "../../domains/authority-types.js";
 import type { z } from "zod";
@@ -67,21 +67,20 @@ export class RemoteQuadStore implements IQuadStore {
 	}
 
 	create(node: TNode): Promise<string> {
-		return this.write(WRITE_VERB.create, { node });
+		return this.write(WRITE_VERB.create, WrittenIdSchema, { node });
 	}
 
 	update(node: TNode, version: TReadVersion): Promise<string> {
-		return this.write(WRITE_VERB.update, { node, version });
+		return this.write(WRITE_VERB.update, WrittenIdSchema, { node, version });
 	}
 
 	merge(node: TNode): Promise<string> {
-		return this.write(WRITE_VERB.merge, { node });
+		return this.write(WRITE_VERB.merge, WrittenIdSchema, { node });
 	}
 
-	/** Writes the units at the serving instance in one call, within the writes of the step in progress, and returns how each ended. */
-	async writeMany(units: readonly TUnitWrite[]): Promise<TUnitWritten[]> {
-		const writes = writesInFlight();
-		return unitsWritten(await this.call("writeMany", { units, ...sentWrites(writes) }), writes);
+	/** Writes the units at the serving instance in one call, and returns how each ended. */
+	writeMany(units: readonly TUnitWrite[]): Promise<TUnitWritten[]> {
+		return this.write("writeMany", UnitsWrittenSchema, { units });
 	}
 
 	/** Makes the removals at the serving instance in one call, and returns how each ended. */
@@ -89,11 +88,11 @@ export class RemoteQuadStore implements IQuadStore {
 		return UnitsRemovedSchema.parse(await this.call("removeMany", { removals }));
 	}
 
-	/** Writes a node at the serving instance within the writes of the step in progress, and throws a refusal of its unit as that
-	 *  instance's store threw it. */
-	private async write(verb: TWriteVerb, params: Record<string, unknown>): Promise<string> {
+	/** Writes at the serving instance within the writes of the step in progress, and returns the write's value. The step's writes
+	 *  list each record the serving store wrote and each change it refused, and a refusal of a unit is thrown as that store threw it. */
+	private async write<V extends z.ZodType>(method: TWriteVerb | "writeMany", value: V, params: Record<string, unknown>): Promise<z.output<V>> {
 		const writes = writesInFlight();
-		return writtenId(await this.call(verb, { ...params, ...sentWrites(writes) }), writes);
+		return appliedWrite(value, await this.call(method, { ...params, ...sentWrites(writes) }), writes);
 	}
 
 	get(subject: string, predicate: string, namedGraph?: string): Promise<unknown | undefined> {

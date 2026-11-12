@@ -19,6 +19,9 @@ import { TEST_LEVELS } from "../../test/declared-types.js";
 import { TEST_STEP } from "../../test/test-step.js";
 import { getSteppers } from "../../adapters/workspace-lib.js";
 import { LOGIC_STEPPER } from "../../domains/protocol.js";
+import { inCall, runInCall } from "../../domains/capability-context.js";
+import { ChangedSinceRead, WRITE_VERB, WriteOutsideContract, type TUnitWrite } from "../../records/domains/unit.js";
+import type { TStepWrites } from "../../steps/domains/contract.js";
 
 const sign = new FakeInvoker("satellite").sign;
 const WIDGETS = { Widget: { filters: ["id"] } };
@@ -106,6 +109,33 @@ describe("RemoteQuadStore", () => {
 		const denied = new RemoteQuadStore({ url: "http://main:1", sign, graphs: ["Widget"], fetchImpl: denyingFetch });
 		await denied.connect();
 		await expect(denied.merge({ "@type": "Widget", id: "w-1" })).rejects.toThrow(/capability store.write required/);
+	});
+
+	it("lists each record a batch writes and each change it refuses within the writes of the step in progress, as a local batch does", async () => {
+		const backing = storeDeclaring(WIDGETS, TEST_LEVELS);
+		const remote = new RemoteQuadStore({ url: "http://main:1", sign, graphs: ["Widget"], fetchImpl: servingPeer(backing).fetchImpl });
+		await remote.connect();
+		const writes: TStepWrites = { step: "WidgetStepper-colour", products: [], changes: [{ persistedAs: "Widget", key: "colour" }], refused: [], written: [] };
+		const units: TUnitWrite[] = [
+			{ verb: WRITE_VERB.merge, node: { "@type": "Widget", id: "w-2", colour: "red" } },
+			{ verb: WRITE_VERB.merge, node: { "@type": "Widget", id: "w-3", name: "Three" } },
+		];
+		const ended = await runInCall({ ...inCall(), delegatedWrites: writes }, () => remote.writeMany(units));
+		expect(ended[0], "the unit within the contract").toEqual({ id: "w-2" });
+		expect(ended[1], "the unit outside the contract").toHaveProperty("refused");
+		expect(writes.written, "the step's written records").toEqual([{ label: "Widget", id: "w-2" }]);
+		expect(writes.refused, "the step's refused writes").toEqual(["Widget.name"]);
+	});
+
+	it("throws a refusal of a unit as the serving store threw it, and adds its change to the step's refused writes", async () => {
+		const backing = storeDeclaring(WIDGETS, TEST_LEVELS);
+		const remote = new RemoteQuadStore({ url: "http://main:1", sign, graphs: ["Widget"], fetchImpl: servingPeer(backing).fetchImpl });
+		await remote.connect();
+		const writes: TStepWrites = { step: "WidgetStepper-colour", products: [], changes: [], refused: [], written: [] };
+		await expect(runInCall({ ...inCall(), delegatedWrites: writes }, () => remote.merge({ "@type": "Widget", id: "w-4", name: "Four" }))).rejects.toThrow(WriteOutsideContract);
+		expect(writes.refused).toEqual(["Widget.name"]);
+		await remote.merge({ "@type": "Widget", id: "w-5", name: "Five" });
+		await expect(remote.update({ "@type": "Widget", id: "w-5", name: "Six" }, null)).rejects.toThrow(ChangedSinceRead);
 	});
 
 	it("lists each record an assumed step writes through it, and the step's record holds the check of each one", async () => {

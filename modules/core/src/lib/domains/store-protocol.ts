@@ -18,7 +18,6 @@ import {
 	WRITE_VERB,
 	WriteOutsideContract,
 	type TNode,
-	type TRecordName,
 	type TRemoval,
 	type TUnitRemoved,
 	type TUnitWrite,
@@ -52,15 +51,27 @@ const WriteParamsSchema = z.object({ node: NodeSchema, writes: StepWritesSchema.
 /** Each record a store call wrote within the writes of the caller's step, as a transport returns them to the step's written records. */
 const WrittenSchema = z.array(RecordNameSchema);
 
-/** What a write returns over a transport: the id of the unit's record with each record the write wrote, the refusal of a unit whose
- *  record changed since its caller read it, or the refusal of a unit outside the contract of the caller's step, which the calling
- *  side throws as the store threw it. */
-const StoreWriteResultSchema = z.union([
-	z.object({ id: z.string(), written: WrittenSchema }),
+/** A refusal a serving store throws for a unit, as a transport carries it: the unit's record changed since its caller read it, or
+ *  the unit is outside the contract of the caller's step. */
+const WriteRefusalSchema = z.union([
 	z.object({ changedSinceRead: z.object({ record: RecordNameSchema, read: z.string().nullable(), held: z.string().nullable() }) }),
 	z.object({ outsideContract: z.object({ step: z.string(), outside: z.array(z.string()) }) }),
 ]);
-type TStoreWriteResult = z.infer<typeof StoreWriteResultSchema>;
+
+/** How a unit of a batch ended, as a transport carries it. */
+const UnitWrittenSchema: z.ZodType<TUnitWritten> = z.union([z.object({ id: z.string() }), z.object({ refused: z.string() })]);
+
+/** The value a write of one unit returns: the id of the unit's record. */
+export const WrittenIdSchema = z.string();
+
+/** The value a batch returns: how each unit ended. */
+export const UnitsWrittenSchema = z.array(UnitWrittenSchema);
+
+/** What every write method returns over a transport: each record the call wrote and each change the contract of the caller's step
+ *  refused, with the call's value or the refusal the serving store threw. */
+const WriteResultSchema = z
+	.object({ written: WrittenSchema, refused: z.array(z.string()) })
+	.and(z.union([z.object({ refusal: WriteRefusalSchema }), z.object({ value: z.unknown() })]));
 
 /** Returns the writes of a step as a transport carries them, without the refusals the calling side records. */
 export const sentWrites = (writes: TStepWrites | undefined) =>
@@ -72,9 +83,6 @@ const UnitWriteSchema: z.ZodType<TUnitWrite> = z.discriminatedUnion("verb", [
 	z.object({ verb: z.literal(WRITE_VERB.merge), node: NodeSchema }),
 	z.object({ verb: z.literal(WRITE_VERB.update), node: NodeSchema, version: z.string().nullable() }),
 ]);
-
-/** How each unit of a batch ended, with each record the batch wrote, as a transport carries them. */
-const UnitsWrittenSchema = z.object({ units: z.array(z.union([z.object({ id: z.string() }), z.object({ refused: z.string() })])), written: WrittenSchema });
 
 /** A removal as a transport carries it. */
 const RemovalSchema: z.ZodType<TRemoval> = RecordNameSchema.extend({ edge: z.object({ rel: z.string(), to: RecordNameSchema }).optional() });
@@ -140,16 +148,15 @@ export async function handleStoreCall(store: IQuadStore, method: string, rawPara
 		case WRITE_VERB.create:
 		case WRITE_VERB.merge: {
 			const { node, writes } = STORE_METHODS[name].params.parse(rawParams);
-			return { result: await writtenOver(writes, () => (name === WRITE_VERB.create ? store.create(node) : store.merge(node))) };
+			return { result: await inCallerWrites(writes, () => store[name](node)) };
 		}
 		case WRITE_VERB.update: {
 			const { node, writes, version } = STORE_METHODS.update.params.parse(rawParams);
-			return { result: await writtenOver(writes, () => store.update(node, version)) };
+			return { result: await inCallerWrites(writes, () => store.update(node, version)) };
 		}
 		case "writeMany": {
 			const { units, writes } = STORE_METHODS.writeMany.params.parse(rawParams);
-			const { value, written } = await inCallerWrites(writes, () => store.writeMany(units));
-			return { result: { units: value, written } };
+			return { result: await inCallerWrites(writes, () => store.writeMany(units)) };
 		}
 		case "remove": {
 			const { removal } = STORE_METHODS.remove.params.parse(rawParams);
@@ -196,45 +203,34 @@ export async function handleStoreCall(store: IQuadStore, method: string, rawPara
 	}
 }
 
-/** Runs a store call within the writes of the caller's step, and returns its value with each record it wrote, which the calling
- *  side adds to the step's written records. */
-async function inCallerWrites<T>(writes: z.infer<typeof StepWritesSchema> | undefined, call: () => Promise<T>): Promise<{ value: T; written: TRecordName[] }> {
-	const delegatedWrites = writes === undefined ? undefined : { ...writes, refused: [], written: [] };
-	const value = await runInCall({ ...inCall(), delegatedWrites }, call);
-	return { value, written: delegatedWrites === undefined ? [] : delegatedWrites.written };
-}
-
-/** Runs a write within the writes of the caller's step, and returns its result as a transport carries it: the record's id with each
- *  record the write wrote, or the refusal of a record that changed since its read or of a write outside the step's contract. */
-async function writtenOver(writes: z.infer<typeof StepWritesSchema> | undefined, write: () => Promise<string>): Promise<TStoreWriteResult> {
+/** Runs a write within the writes of the caller's step, and returns its result as a transport carries it: each record it wrote and
+ *  each change the step's contract refused, with the write's value or the refusal the store threw. */
+async function inCallerWrites<T>(writes: z.infer<typeof StepWritesSchema> | undefined, write: () => Promise<T>) {
+	const delegatedWrites: TStepWrites | undefined = writes === undefined ? undefined : { ...writes, refused: [], written: [] };
+	// A write outside a step doesn't add to a step's writes.
+	const recorded = () => (delegatedWrites === undefined ? { written: [], refused: [] } : { written: delegatedWrites.written, refused: delegatedWrites.refused });
 	try {
-		const { value, written } = await inCallerWrites(writes, write);
-		return { id: value, written };
+		return { ...recorded(), value: await runInCall({ ...inCall(), delegatedWrites }, write) };
 	} catch (error) {
-		if (error instanceof ChangedSinceRead) return { changedSinceRead: { record: error.record, read: error.read, held: error.held } };
-		if (error instanceof WriteOutsideContract) return { outsideContract: { step: error.step, outside: [...error.outside] } };
-		throw error;
+		return { ...recorded(), refusal: refusalOf(error) };
 	}
 }
 
-/** Returns the id a write's result over a transport holds, and adds each record the serving store wrote to the written records of
- *  the caller's step. Throws the refusal it holds as the serving store threw it, adding a write outside the contract to the refused
- *  writes of the caller's step. */
-export function writtenId(result: unknown, writes: TStepWrites | undefined): string {
-	const written = StoreWriteResultSchema.parse(result);
-	if ("id" in written) {
-		writes?.written.push(...written.written);
-		return written.id;
-	}
-	if ("changedSinceRead" in written) throw new ChangedSinceRead(written.changedSinceRead.record, written.changedSinceRead.read, written.changedSinceRead.held);
-	writes?.refused.push(...written.outsideContract.outside);
-	throw new WriteOutsideContract(written.outsideContract.step, written.outsideContract.outside);
+/** Returns a refusal of a unit as a transport carries it, and rethrows any other error. */
+function refusalOf(error: unknown): z.infer<typeof WriteRefusalSchema> {
+	if (error instanceof ChangedSinceRead) return { changedSinceRead: { record: error.record, read: error.read, held: error.held } };
+	if (error instanceof WriteOutsideContract) return { outsideContract: { step: error.step, outside: [...error.outside] } };
+	throw error;
 }
 
-/** Returns how each unit of a batch's result over a transport ended, and adds each record the serving store wrote to the written
- *  records of the caller's step. */
-export function unitsWritten(result: unknown, writes: TStepWrites | undefined): TUnitWritten[] {
-	const { units, written } = UnitsWrittenSchema.parse(result);
-	writes?.written.push(...written);
-	return units;
+/** Returns the value of a write method's result over a transport, and adds each record the serving store wrote and each change it
+ *  refused to the writes of the caller's step. Throws the refusal the result holds as the serving store threw it. */
+export function appliedWrite<V extends z.ZodType>(value: V, result: unknown, writes: TStepWrites | undefined): z.output<V> {
+	const ended = WriteResultSchema.parse(result);
+	writes?.written.push(...ended.written);
+	writes?.refused.push(...ended.refused);
+	if (!("refusal" in ended)) return value.parse(ended.value);
+	const { refusal } = ended;
+	if ("changedSinceRead" in refusal) throw new ChangedSinceRead(refusal.changedSinceRead.record, refusal.changedSinceRead.read, refusal.changedSinceRead.held);
+	throw new WriteOutsideContract(refusal.outsideContract.step, refusal.outsideContract.outside);
 }

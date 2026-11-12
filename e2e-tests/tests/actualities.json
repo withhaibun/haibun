@@ -590,13 +590,13 @@
 			"actuality": {
 				"text": "e2e-tests/tests, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
 				"status": "passed",
-				"tookMs": 24700,
+				"tookMs": 23400,
 				"digest": {
 					"e2e-tests/src": "6b6b58f64026ff1c6202081ed15de0151412fbf6e53077e108c5c044692afeba",
 					"e2e-tests/tests": "6fa3a1394beaa6c286a82c0cd0a242a3e08d3cc9153e78460878e32c8419da8d",
 					"modules/cli/src": "f65945f33a5fa11946d34d74c4d9c9c58a1971f8518a4f018bae8cf4ceaa6102",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "53e04089b47aee0f5f492f378999ba7299ea54ff8a55828310e864145ecaad74",
+					"modules/core/src": "976f4e6df55e21107fefc72388786d0132ba35a8fbfb7fb2204210c1f30a5630",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
 					"modules/logic/src": "cd9e0b3c82855c60903d2abbd8168bef39e444663eee0d87419a994e7d00e2e9",
 					"modules/monitor-otel/src": "4fbef0f2c78fed7b3e2d03ec4ab094bef11766724e5f5f6efb73491ea1d4dea6",
@@ -617,7 +617,7 @@
 				"/features/a11y-fail.feature": {
 					"text": "/features/a11y-fail",
 					"status": "passed",
-					"tookMs": 900,
+					"tookMs": 800,
 					"steps": 13
 				},
 				"/features/a11y-pass.feature": {
@@ -659,13 +659,13 @@
 				"/features/counter.feature": {
 					"text": "/features/counter",
 					"status": "passed",
-					"tookMs": 1400,
+					"tookMs": 1900,
 					"steps": 21
 				},
 				"/features/counter.feature.ts": {
 					"text": "Counts feature",
 					"status": "passed",
-					"tookMs": 2000,
+					"tookMs": 1100,
 					"steps": 21
 				},
 				"/features/counts.feature.ts": {
@@ -707,13 +707,13 @@
 				"/features/once.feature.ts": {
 					"text": "A group of features runs once per state of what it depends on",
 					"status": "passed",
-					"tookMs": 2200,
+					"tookMs": 2000,
 					"steps": 20
 				},
 				"/features/page-visits.feature.ts": {
 					"text": "Visit pages",
 					"status": "passed",
-					"tookMs": 1800,
+					"tookMs": 1700,
 					"steps": 65
 				},
 				"/features/popup.feature": {
@@ -731,7 +731,7 @@
 				"/features/recurse.feature": {
 					"text": "/features/recurse",
 					"status": "passed",
-					"tookMs": 100,
+					"tookMs": 0,
 					"steps": 6
 				},
 				"/features/run-policy-refusals.feature.ts": {
@@ -743,7 +743,7 @@
 				"/features/trauma_center.feature": {
 					"text": "/features/trauma_center",
 					"status": "passed",
-					"tookMs": 1000,
+					"tookMs": 900,
 					"steps": 93
 				},
 				"/features/upload-verify.feature": {
@@ -761,7 +761,7 @@
 				"/features/workflow.feature.ts": {
 					"text": "workflow",
 					"status": "passed",
-					"tookMs": 400,
+					"tookMs": 300,
 					"steps": 64
 				},
 				"/features/xss.feature": {
