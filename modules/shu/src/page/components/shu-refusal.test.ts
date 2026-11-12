@@ -7,6 +7,7 @@ import { newPage } from "../../test/setup.js";
 import { SHU_TAG } from "../../domains/elements.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import type { TPageRefusal } from "../domains/refusal.js";
+import { VERDICT, VERDICT_MARK } from "@haibun/core/lib/domains/protocol.js";
 
 /** A refusal view showing `refusal`, given `readAgain`. */
 async function shown(refusal: TPageRefusal, readAgain?: () => void): Promise<ShuRefusal> {
@@ -34,6 +35,12 @@ describe("<shu-refusal>", () => {
 		const view = await shown({ error: "the record isn't held here" });
 		expect(view.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.REFUSAL.CAUSE}"]`)?.textContent).toBe("the record isn't held here");
 		expect(remedyOf(view)).toBeNull();
+	});
+
+	it("shows the status of the statement that refused the call as its word and its mark, described by its sentence", async () => {
+		const statement = { statement: "didn't capability is revoked", verdict: VERDICT.refuted, decidedBy: "t", remedy: "r" };
+		const status = (await shown({ error: "refused", statement })).shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.REFUSAL.STATUS}"]`);
+		expect([status?.textContent?.trim(), status?.getAttribute("aria-description")]).toEqual([`${VERDICT_MARK.refuted} refuted`, "didn't capability is revoked"]);
 	});
 
 	it("offers a sign-in as a link to where the reader signs in", async () => {

@@ -17,9 +17,18 @@ export const CLAIM_VERDICT = { [VERDICT.proved]: "holds", [VERDICT.refuted]: "re
 export type TClaimVerdict = keyof typeof CLAIM_VERDICT;
 
 /** What a claim checks: its reasoning task, its axiom in OWL 2 functional syntax and in Manchester syntax where a frame states
- *  it, the entailment K ⊨ axiom, and the entailment in DL notation. A retrieval doesn't check an axiom. */
+ *  it, the entailment K ⊨ axiom, and the entailment in DL notation. A retrieval doesn't check an axiom. A feature claim states
+ *  its claim as a sentence, and the domains whose every value it ranges over. */
 export const EntailmentSchema = z
-	.object({ task: z.enum(REASONING_TASK), functional: z.string().optional(), manchester: z.string().optional(), entails: z.string(), dl: z.string() })
+	.object({
+		task: z.enum(REASONING_TASK),
+		sentence: z.string().optional(),
+		functional: z.string().optional(),
+		manchester: z.string().optional(),
+		entails: z.string(),
+		dl: z.string(),
+		domains: z.array(z.string()).optional(),
+	})
 	.strict();
 export type TEntailment = z.infer<typeof EntailmentSchema>;
 

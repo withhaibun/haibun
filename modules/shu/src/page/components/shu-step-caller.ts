@@ -470,12 +470,15 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 		return parts;
 	}
 
-	/** The lines of what a typed claim checks, each as the instance states it, under the claim's inputs. */
+	/** The lines of what a typed claim checks, each as the instance states it, its sentence first where it states one, under the
+	 *  claim's inputs. */
 	#entailmentTpl(): TemplateResult | typeof nothing {
 		const shown = this.entailment;
 		if (shown === undefined) return nothing;
-		const lines = [shown.task, shown.entails, shown.manchester, shown.dl].filter((line) => line !== undefined);
-		return html`<div class="entailment" data-testid=${this.#testId("step-entailment")}>${lines.map((line) => html`<div>${line}</div>`)}</div>`;
+		// Each symbolic form carries the claim's sentence as its accessible description, where the claim states one.
+		const symbolic = [shown.entails, shown.manchester, shown.dl].filter((line) => line !== undefined);
+		const said = (line: string) => html`<div aria-description=${shown.sentence ?? nothing}>${line}</div>`;
+		return html`<div class="entailment" data-testid=${this.#testId("step-entailment")}><div>${shown.task}</div>${shown.sentence === undefined ? nothing : html`<div>${shown.sentence}</div>`}${symbolic.map(said)}</div>`;
 	}
 
 	/** The form: the step's pattern as a sentence, with an input in place of each parameter, described by the step's description and

@@ -15,6 +15,7 @@ import { stepParts } from "@haibun/core/lib/steps/domains/phrase.js";
 import { statementNotation, type TRelation, type TStatement } from "@haibun/core/lib/steps/domains/contract.js";
 import { findFeatureStepsFromStatement } from "@haibun/core/lib/actuality/pipelines/resolver.js";
 import { claimResult, entailmentOf } from "@haibun/core/lib/records/derivations/claim.js";
+import { statementSentence } from "@haibun/core/lib/steps/derivations/predicate-registry.js";
 import { relationPredicate, relationsQuery, statementTriple, tripleKey, type TDerive } from "../derivations/contract-terms.js";
 import { patternText, quadsOf, type TN3Pattern } from "../derivations/n3.js";
 import type { TReasoner } from "../ports.js";
@@ -129,16 +130,9 @@ export async function featureClaim(world: TWorld, steppers: AStepper[], reasoner
 	const selected = new Set(derived.filter(({ predicate }) => predicates.has(predicate.value)).map(({ subject, predicate }) => tripleKey(subject, predicate, derived)));
 	const holds = (fact: TN3Pattern): boolean => selected.has(tripleKey(fact.subject, fact.predicate, derived));
 	const denied = chain.negations.some((negation) => patternText(negation) === patternText(triple));
-	const over = chain.fresh.map(({ name, domain }) => `${name}: ${domain}`);
-	const entailment = entailmentOf({ feature, claim: statementNotation(statement), over });
+	const entailment = entailmentOf({ feature, claim: statementNotation(statement), sentence: statementSentence(statement), over: chain.fresh });
 	const [proves, refutes] = negated ? [denied, holds(triple)] : [holds(triple), denied];
-	const forEvery = over.length === 0 ? "" : `, for every value of ${over.join(", ")}`;
-	if (proves)
-		return claimResult(
-			entailment,
-			VERDICT.proved,
-			`${negated ? "a contract of its steps states it" : "the relations' rules derive it from the contracts of its steps"}${forEvery}`,
-		);
+	if (proves) return claimResult(entailment, VERDICT.proved, negated ? "a contract of its steps states it" : "the relations' rules derive it from the contracts of its steps");
 	if (refutes) return claimResult(entailment, VERDICT.refuted, `${negated ? "the relations' rules derive" : "a contract of its steps states"} ${patternText(triple)}`);
 	return claimResult(entailment, VERDICT.unknown, `the chain doesn't derive ${missingFact(chain, holds, relation, args)}`);
 }

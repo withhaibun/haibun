@@ -381,6 +381,8 @@ export const isTechnicalStep = (event: { actionName?: string; in?: string }): bo
  */
 export const VERDICT = { proved: "proved", refuted: "refuted", unknown: "unknown", contradiction: "contradiction" } as const;
 export type TVerdict = (typeof VERDICT)[keyof typeof VERDICT];
+/** The mark a verdict shows beside its word, so colour isn't the only signal of a statement's status. */
+export const VERDICT_MARK = { proved: "✓", refuted: "✗", unknown: "?", contradiction: "⊥" } as const satisfies Record<TVerdict, string>;
 
 /** The stepper a configuration lists to supply the logic engine that proves every step. */
 export const LOGIC_STEPPER = "@haibun/logic/logic-stepper";

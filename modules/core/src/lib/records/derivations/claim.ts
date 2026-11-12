@@ -18,7 +18,7 @@ export type TClaim =
 	| { individual: string; type: TClassExpression }
 	| { sub: TClassExpression; sup: TClassExpression }
 	| { some: TClassExpression }
-	| { feature: string; claim: string; over: readonly string[] };
+	| { feature: string; claim: string; sentence: string; over: readonly { name: string; domain: string }[] };
 
 /** The knowledge a claim is checked against: the ontology and the records the reasoner read. */
 const KNOWLEDGE = "K";
@@ -47,7 +47,9 @@ export function entailmentOf(claim: TClaim): TEntailment {
 	}
 	if ("feature" in claim) {
 		const entails = `${claim.feature} ${DL_SYMBOL.entails} ${claim.claim}`;
-		return { task: REASONING_TASK.feature, entails, dl: claim.over.length === 0 ? entails : `${DL_SYMBOL.all}${claim.over.join(", ")}. ${entails}` };
+		const over = claim.over.map(({ name, domain }) => `${name}: ${domain}`);
+		const domains = [...new Set(claim.over.map(({ domain }) => domain))];
+		return { task: REASONING_TASK.feature, sentence: claim.sentence, entails, dl: over.length === 0 ? entails : `${DL_SYMBOL.all}${over.join(", ")}. ${entails}`, domains };
 	}
 	if ("sub" in claim) {
 		const functional = `SubClassOf(${functionalOf(claim.sub)} ${functionalOf(claim.sup)})`;
@@ -61,8 +63,15 @@ export function entailmentOf(claim: TClaim): TEntailment {
 	};
 }
 
-/** A claim's result as text: its task, the entailment, its verdict, and its proof or why it doesn't hold. */
-export const claimText = ({ task, entails, verdict, proof }: TClaimOutcome): string => [task, entails, CLAIM_VERDICT[verdict], proof].join(BETWEEN_AXIOMS);
+/** A claim's verdict as a reader reads it. A feature claim that holds, holds for every value of the domains it ranges over, not
+ *  only in the call that checked it. */
+export const verdictText = ({ verdict, domains }: Pick<TClaimOutcome, "verdict" | "domains">): string =>
+	verdict === VERDICT.proved && domains !== undefined && domains.length > 0 ? `${CLAIM_VERDICT[verdict]} for every ${domains.join(" and ")}` : CLAIM_VERDICT[verdict];
+
+/** A claim's result as text: its task, its sentence where it states one, the entailment, its verdict, and its proof or why it
+ *  doesn't hold. */
+export const claimText = (claim: TClaimOutcome): string =>
+	[claim.task, claim.sentence, claim.entails, verdictText(claim), claim.proof].filter((part) => part !== undefined).join(BETWEEN_AXIOMS);
 
 /** Returns what a claim's step returns from how its check ended: it passes where the claim holds, and otherwise fails with its text as
  *  the reason, unknown or refuted. Its products hold how it ended beside `products`. */

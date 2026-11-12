@@ -161,7 +161,7 @@ export const SHU_TEST_IDS = {
 	},
 	/** The list of views a deployment declares: its root, and a row named by the component it opens. */
 	VIEWS_PICKER: { ROOT: "views-picker", ROW: "views-picker-row-" },
-	REFUSAL: { ROOT: "refusal", CAUSE: "refusal-cause", REMEDY: "refusal-remedy" },
+	REFUSAL: { ROOT: "refusal", CAUSE: "refusal-cause", STATUS: "refusal-status", REMEDY: "refusal-remedy" },
 	/** The control that opens the proof actuality recorded for a step. */
 	WHY: "why",
 	PLAYBACK: { PLAY: "playback-play", SPEED: "playback-speed", RESTART: "playback-restart", LIVE: "playback-live" },

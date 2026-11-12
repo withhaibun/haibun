@@ -77,6 +77,24 @@ describe("a claim's result", () => {
 		expect(result.errorMessage).toContain("· refuted · K entails its complement");
 	});
 
+	it("reads a feature claim that holds as holding for every value of its domains, with the claim's sentence", () => {
+		const over = [
+			{ name: "c", domain: "Capability" },
+			{ name: "r", domain: "Capability" },
+		];
+		const featured = entailmentOf({ feature: "chain", claim: "allowsWithin(c, r)", sentence: "c allows within r", over });
+		expect(featured).toMatchObject({
+			task: REASONING_TASK.feature,
+			sentence: "c allows within r",
+			dl: "∀c: Capability, r: Capability. chain ⊨ allowsWithin(c, r)",
+			domains: ["Capability"],
+		});
+		expect(claimText({ ...featured, verdict: VERDICT.proved, proof: "p" })).toBe(
+			"feature entailment · c allows within r · chain ⊨ allowsWithin(c, r) · holds for every Capability · p",
+		);
+		expect(claimText({ ...featured, verdict: VERDICT.unknown, proof: "p" })).toContain(" · unknown · p");
+	});
+
 	it("is stated on the step's record, and a step without a claim doesn't state one", () => {
 		const claim = { ...entailment, verdict: VERDICT.proved, proof: "p" } as const;
 		const start = { [SEQ_PATH_FIELD.id]: "s" };

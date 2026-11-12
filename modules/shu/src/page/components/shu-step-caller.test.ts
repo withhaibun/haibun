@@ -4,6 +4,7 @@
  * type is chosen, test ids that carry the caller's number, and a call's outcome. A value that doesn't parse refuses the
  * form's values without a call, a step the site refuses shows the site's refusal, and a result's rows read as one table.
  */
+import { REASONING_TASK } from "@haibun/core/lib/records/domains/claim.js";
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
 import { buildConcernCatalog, type TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import { deriveNamingDomains, mapDefinitionsToDomains, refDomainKey } from "@haibun/core/lib/domains/domains.js";
@@ -341,6 +342,19 @@ describe("shu-step-caller", () => {
 		await called(caller, { query: JSON.stringify({ all: true }) });
 		expect(errorText(caller)).toContain("response too large");
 		expect(shown(caller)).not.toMatch(/class="loading"/);
+	});
+
+	it("shows a claim's sentence, and each symbolic form of what it checks carries the sentence as its accessible description", async () => {
+		const caller = await aCaller(ISSUER);
+		caller.entailment = { task: REASONING_TASK.feature, sentence: "c allows within r", entails: "chain ⊨ allowsWithin(c, r)", dl: "∀c: Capability. chain ⊨ allowsWithin(c, r)" };
+		await caller.updateComplete;
+		const lines = [...(caller.shadowRoot?.querySelectorAll('[data-testid$="-step-entailment"] > div') ?? [])];
+		expect(lines.map((line) => [line.textContent, line.getAttribute("aria-description")])).toEqual([
+			[REASONING_TASK.feature, null],
+			["c allows within r", null],
+			["chain ⊨ allowsWithin(c, r)", "c allows within r"],
+			["∀c: Capability. chain ⊨ allowsWithin(c, r)", "c allows within r"],
+		]);
 	});
 
 	it("refuses to draw a step that actuality doesn't declare", async () => {

@@ -9,6 +9,8 @@ import { property } from "lit/decorators.js";
 import { SHU_TAG } from "../../domains/elements.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import type { TPageRefusal, TPageRemedy } from "../domains/refusal.js";
+import type { TStatementRefusal } from "@haibun/core/lib/rpc-wire.js";
+import { VERDICT_MARK } from "@haibun/core/lib/domains/protocol.js";
 import { refLabel, refOf } from "../derivations/markdown.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { reloadFor } from "../controllers/remedy-controller.js";
@@ -60,10 +62,16 @@ export class ShuRefusal extends ShuElement<typeof EmptyStateSchema> {
 		return html`<a href=${refHref(ref) ?? nothing} data-testid=${id}>Open ${refLabel(ref)}</a>`;
 	}
 
+	/** The status of the statement that refused the call, as its word and its mark, described by the statement's sentence. */
+	private statusTpl({ statement, verdict }: TStatementRefusal): TemplateResult {
+		return html`<span data-testid=${SHU_TEST_IDS.REFUSAL.STATUS} aria-description=${statement}><span aria-hidden="true">${VERDICT_MARK[verdict]}</span> ${verdict}</span>`;
+	}
+
 	render(): TemplateResult {
 		const { refusal } = this;
 		if (refusal === undefined) throw new Error("<shu-refusal> renders before it is given a refusal");
 		return html`<div class="refusal" role="alert" data-testid=${SHU_TEST_IDS.REFUSAL.ROOT}>
+			${refusal.statement === undefined ? nothing : this.statusTpl(refusal.statement)}
 			<span data-testid=${SHU_TEST_IDS.REFUSAL.CAUSE} data-copy=${refusal.error}>${refusal.error}</span>
 			${refusal.remedy === undefined ? nothing : this.remedyControl(refusal.remedy)}
 			${refusal.step === undefined ? nothing : whyTpl(refusal.step)}
