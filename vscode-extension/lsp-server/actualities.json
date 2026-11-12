@@ -55,8 +55,8 @@
 				"status": "passed",
 				"tookMs": 100,
 				"digest": {
-					"modules/core/src": "1e8bd7d4911d188b38241cdf4e934f5cb7bd9b0f69948e33abe66ac4f9f85fc4",
-					"modules/logic/src": "6006b0c95a01dfbac5c76a11ff721dbfa0ef7850949dc203ba884dbed71b9459",
+					"modules/core/src": "49371afa9acdf711fff6cfd2cc94ccd31f74029b571060e5029e26aecac9dc90",
+					"modules/logic/src": "ab973217f86444cafc73f78503a3950f15e9813e2f16993b24a2c4dd6a7153f2",
 					"modules/lsp/src": "34c561bc372e56bb9e5073f10eea2a5ef089540a42e3775332dd4051933f8200",
 					"vscode-extension/lsp-server": "d551206d22fffaf8f4bff8d8a234b6c2d1d0fb2d3e359df0f107bd9dfe68c45c"
 				}

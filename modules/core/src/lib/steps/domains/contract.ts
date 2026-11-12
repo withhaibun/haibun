@@ -23,6 +23,13 @@ export type TContractProducts<D extends string = string> = D | { readonly [OF]: 
 /** A field of a record type: the type's stored label and a key of its schema, so a renamed field fails to compile. */
 export type TField = { readonly persistedAs: string; readonly key: string };
 
+/** An edge of a relation that statements name, which a record of any type holds, such as `mentions`. */
+export type TRelationChange = { readonly relation: string };
+/** A write beyond a step's products: a field of a record type, or an edge of a relation that a record of any type holds. */
+export type TChange = TField | TRelationChange;
+/** Returns the change of the edges of `relation` from a record of any type. */
+export const relationChange = (relation: string): TRelationChange => ({ relation });
+
 /** Returns the field `key` of the record type that `definition` declares. */
 export function field<S extends z.ZodObject>(definition: { readonly schema: S; readonly topology: { readonly persistedAs: string } }, key: keyof z.infer<S> & string): TField {
 	return { persistedAs: definition.topology.persistedAs, key };
@@ -94,7 +101,7 @@ type TReadContract<D extends string> = TContractParts<D> & { readonly read: true
 /** The contract of a write. `changes` lists the fields of the writes beyond the products, empty where its only writes are its
  *  products. `written` names the verb dispatch writes the products with, as one record of the stored type of their domain,
  *  once `states` holds over them; a step that declares it doesn't write its products itself. */
-type TWriteContract<D extends string> = TContractParts<D> & { readonly read?: never; readonly written?: TProductsVerb; readonly changes?: readonly TField[] };
+type TWriteContract<D extends string> = TContractParts<D> & { readonly read?: never; readonly written?: TProductsVerb; readonly changes?: readonly TChange[] };
 
 /** A step's contract: a read's or a write's. A step is a read only where its contract states `read`, so a step without a
  *  contract, or with a contract that doesn't state `read`, is a write. */
@@ -218,7 +225,7 @@ export function contractChecking(step: { readonly contract?: TStepContract }, ch
 /** The writes the contract of a step in progress allows: the stored label of each type its products are written as, whose
  *  records the step writes whole or in part, and each field `changes` lists. `step` names the step, and `refused` holds each
  *  write a store refused during the step, as `Type.field`, which the step's record lists. */
-export type TStepWrites = { readonly step: string; readonly products: readonly string[]; readonly changes: readonly TField[]; readonly refused: string[] };
+export type TStepWrites = { readonly step: string; readonly products: readonly string[]; readonly changes: readonly TChange[]; readonly refused: string[] };
 
 /** Returns the writes a step's contract allows, or undefined for a step on `contracts.baseline.json`: a write that doesn't
  *  declare `changes`, whose writes aren't checked. A read changes only its products, so it is checked as `changes: []`. */
@@ -237,6 +244,6 @@ export function contractWrites(step: { readonly contract?: TStepContract }, pers
 		return persistedAs === undefined ? [] : [persistedAs];
 	});
 	const changes = step.contract?.changes;
-	const listed = changes === undefined ? [] : changes.map(({ persistedAs }) => persistedAs);
+	const listed = changes === undefined ? [] : changes.flatMap((change) => ("persistedAs" in change ? [change.persistedAs] : []));
 	return [...new Set([...derived, ...listed])];
 }

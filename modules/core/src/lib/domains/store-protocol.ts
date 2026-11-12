@@ -39,7 +39,11 @@ const RecordNameSchema = z.object({ label: z.string(), id: z.string() });
 const NodeSchema: z.ZodType<TNode> = z.object({ [NODE_KEY.type]: z.string() }).catchall(z.unknown());
 
 /** The writes the contract of the caller's step in progress allows, which the serving store checks a write against. */
-const StepWritesSchema = z.object({ step: z.string(), products: z.array(z.string()), changes: z.array(z.object({ persistedAs: z.string(), key: z.string() })) });
+const StepWritesSchema = z.object({
+	step: z.string(),
+	products: z.array(z.string()),
+	changes: z.array(z.union([z.object({ persistedAs: z.string(), key: z.string() }), z.object({ relation: z.string() })])),
+});
 
 /** What a write sends over a transport: the node, and the writes of the caller's step in progress where it is in one. */
 const WriteParamsSchema = z.object({ node: NodeSchema, writes: StepWritesSchema.optional() });
@@ -55,7 +59,7 @@ export type TStoreWriteResult = z.infer<typeof StoreWriteResultSchema>;
 
 /** Returns the writes of a step as a transport carries them, without the refusals the calling side records. */
 export const sentWrites = (writes: TStepWrites | undefined) =>
-	writes === undefined ? {} : { writes: { step: writes.step, products: [...writes.products], changes: writes.changes.map(({ persistedAs, key }) => ({ persistedAs, key })) } };
+	writes === undefined ? {} : { writes: { step: writes.step, products: [...writes.products], changes: [...writes.changes] } };
 
 /** A unit of a batch as a transport carries it. */
 const UnitWriteSchema: z.ZodType<TUnitWrite> = z.discriminatedUnion("verb", [

@@ -1,15 +1,16 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { Access } from "../../domains/resources.js";
+import { Access, LinkRelations } from "../../domains/resources.js";
 import { accessBound, inCall, inStep, runInCall, writeBound, writesInFlight } from "../../domains/capability-context.js";
 import { storeDeclaring } from "../../test/declared-types.js";
 import type { QuadStore } from "./quad-store.js";
-import type { TStepWrites } from "../domains/contract.js";
+import { relationChange, type TStepWrites } from "../domains/contract.js";
 import { referenceTo, WriteOutsideContract } from "../../records/domains/unit.js";
 
 const [CAPABILITY, NOTE, BODY, STEP_RECORD, TIME] = ["Capability", "Note", "Body", "SeqPath", "2026-11-08T00:00:00.000Z"];
 /** A Capability owns its Body, and a Note reaches a Capability it mentions. */
 const OWNS_BODY = { hasBody: { ranges: [BODY], owns: true, reference: false, functional: false } };
-const MENTIONS = { mentions: { ranges: [CAPABILITY], owns: false, reference: true, functional: false } };
+const MENTIONS_REL = LinkRelations.MENTIONS.rel;
+const MENTIONS = { [MENTIONS_REL]: { ranges: [CAPABILITY], owns: false, reference: true, functional: false } };
 const DELEGATE = "CredentialsStepper-delegate";
 /** The writes of a step whose products are Capabilities and whose contract lists a Note's `revoked`, with the writes refused during the step. */
 const delegates = (): TStepWrites => ({ step: DELEGATE, products: [CAPABILITY], changes: [{ persistedAs: NOTE, key: "revoked" }], refused: [] });
@@ -67,6 +68,14 @@ describe("a unit written in a step with a contract", () => {
 		await expect(inStepAt("0.1", DELEGATES, () => store.merge({ "@type": NOTE, "@id": "n-2", mentions: referenceTo(CAPABILITY, "cap-1") }))).rejects.toThrow(`${NOTE}.mentions`);
 		expect(DELEGATES.refused, "each refused write, and not the write the contract allows").toEqual([`${NOTE}.says`, `${NOTE}.mentions`]);
 		expect(await store.get("n-2", "says", NOTE)).toBe("kept");
+	});
+
+	it("writes an edge of a relation the contract's changes list for a record of any type, and refuses another field of that record", async () => {
+		const mentioning: TStepWrites = { ...DELEGATES, changes: [relationChange(MENTIONS_REL)] };
+		await store.merge({ "@type": NOTE, id: "n-9", says: "kept" });
+		await inStepAt("0.1", mentioning, () => store.merge({ "@type": NOTE, "@id": "n-9", [MENTIONS_REL]: referenceTo(CAPABILITY, "cap-1") }));
+		expect(await store.query({ subject: "n-9", predicate: MENTIONS_REL })).toHaveLength(1);
+		await expect(inStepAt("0.1", mentioning, () => store.merge({ "@type": NOTE, "@id": "n-9", says: "changed" }))).rejects.toThrow(`${NOTE}.says`);
 	});
 
 	it("keeps the units already written when a later unit is refused, each one whole", async () => {

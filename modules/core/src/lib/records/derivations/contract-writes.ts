@@ -1,8 +1,9 @@
 /**
  * The check of a unit's parts against the writes the contract of the step in progress allows. A record of a type the step's
  * products are written as is the step's product, and a record of another type changes only the fields the contract's `changes`
- * lists, an edge being a change of its relation. Every part of a unit is checked, the records the unit owns included. A record of
- * a type in `ACTUALITY_RECORDS` is actuality's record of itself, and isn't checked.
+ * lists, an edge being a change of its relation. A relation that `changes` lists without a type is a change of any record. Every
+ * part of a unit is checked, the records the unit owns included. A record of a type in `ACTUALITY_RECORDS` is actuality's record
+ * of itself, and isn't checked.
  */
 import type { TStepWrites } from "../../steps/domains/contract.js";
 import { FACT_LABEL, SEQ_PATH_LABEL } from "../../domains/resources.js";
@@ -19,6 +20,6 @@ export type TPartChanges = { readonly label: string; readonly changed: readonly 
 /** Returns each change of a part that `writes` doesn't allow, as `Type.field`. */
 export function writesOutside({ label, changed }: TPartChanges, writes: TStepWrites): string[] {
 	if (ACTUALITY_RECORDS.has(label) || writes.products.includes(label)) return [];
-	const listed = new Set(writes.changes.flatMap(({ persistedAs, key }) => (persistedAs === label ? [key] : [])));
+	const listed = new Set(writes.changes.flatMap((change) => ("relation" in change ? [change.relation] : change.persistedAs === label ? [change.key] : [])));
 	return [...new Set(changed)].filter((field) => !listed.has(field)).map((field) => `${label}.${field}`);
 }

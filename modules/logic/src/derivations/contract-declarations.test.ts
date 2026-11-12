@@ -1,17 +1,26 @@
 /**
  * The declarations check refuses a contract whose terms the registry doesn't list: a relation the steppers don't declare, a statement
- * whose arguments don't match its relation's arity, a parameter the pattern doesn't name, a field that the declared types don't hold, and a
- * relation whose sentences don't parse back to their statements' terms.
+ * whose arguments don't match its relation's arity, a parameter the pattern doesn't name, a field that the declared types don't hold, a
+ * change of a relation that statements don't name, and a relation whose sentences don't parse back to their statements' terms.
  */
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
-import { doesntHold, field, holds, parameter, PRINCIPAL, type TRelation, type TStepContract } from "@haibun/core/lib/steps/domains/contract.js";
-import { Access, LinkRelations } from "@haibun/core/lib/domains/resources.js";
+import { doesntHold, field, holds, parameter, PRINCIPAL, relationChange, type TRelation, type TStepContract } from "@haibun/core/lib/steps/domains/contract.js";
+import { Access, EDGE, LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { actionOK } from "@haibun/core/lib/domains/util.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
 import { fromJsonText } from "@haibun/core/lib/domains/json-text.js";
-import { ARITY, contractFindings, relationFindings, UNDECLARED_FIELD, UNDECLARED_RELATION, UNNAMED_PARAMETER, UNPARSED_SENTENCE } from "./contract-declarations.js";
+import {
+	ARITY,
+	contractFindings,
+	relationFindings,
+	UNDECLARED_FIELD,
+	UNDECLARED_RELATION,
+	UNNAMED_PARAMETER,
+	UNPARSED_SENTENCE,
+	UNSTATED_RELATION,
+} from "./contract-declarations.js";
 import { sentenceTerm, statementSentence, statementTerm, type TLineTerm } from "@haibun/core/lib/steps/derivations/predicate-registry.js";
 import { termText } from "./registry.js";
 
@@ -35,7 +44,7 @@ const declaring = (contract: TStepContract): AStepper =>
 
 describe("the declarations check of contracts", () => {
 	it("holds a contract whose relations, parameters and fields the registry lists, a field of a schema that reads JSON text among them", () => {
-		const changes = [field({ schema: GrantSchema, topology: GRANT.topology }, "revoked")];
+		const changes = [field({ schema: GrantSchema, topology: GRANT.topology }, "revoked"), relationChange(EDGE.mentions)];
 		expect(contractFindings([declaring({ requires: [doesntHold(REVOKED, parameter("grant"))], changes })])).toEqual([]);
 	});
 
@@ -46,6 +55,7 @@ describe("the declarations check of contracts", () => {
 			[{ requires: [holds(REVOKED, parameter("door"))] }, UNNAMED_PARAMETER],
 			[{ changes: [{ persistedAs: "Grant", key: "expired" }] }, UNDECLARED_FIELD],
 			[{ complete: [{ persistedAs: "Grant", key: "expired" }] }, UNDECLARED_FIELD],
+			[{ changes: [relationChange("expired")] }, UNSTATED_RELATION],
 		];
 		for (const [contract, finding] of refused)
 			expect(

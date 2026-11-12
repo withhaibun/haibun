@@ -2,12 +2,14 @@
  * The predicate registry's check of the steps' contracts. A contract's statements name relations, which the steppers declare
  * once in their concerns; parameters, which the step's pattern names; and fields, which a declared record type's schema holds.
  * A finding is a statement whose relation the steppers don't declare or whose arguments don't match its arity, a parameter the pattern
- * doesn't name, a derived record of a type the steppers don't declare, and a field of a statement, `changes` or `complete` that the declared types' schemas don't hold.
+ * doesn't name, a derived record of a type the steppers don't declare, a field of a statement, `changes` or `complete` that the declared types' schemas don't hold,
+ * and a relation `changes` lists that statements don't name.
  * A relation's phrases render each statement as a sentence, and a finding is a relation whose sentence doesn't parse back to its statement's term.
  */
 import { unwrapToShape } from "@haibun/core/lib/domains/zod-unwrap.js";
 import { hasCycles, type AStepper } from "@haibun/core/lib/steps/domains/stepper.js";
-import { doesntHold, holds, parameter, type TContractArgument, type TField, type TRelation, type TStatement } from "@haibun/core/lib/steps/domains/contract.js";
+import { doesntHold, holds, parameter, type TChange, type TContractArgument, type TField, type TRelation, type TStatement } from "@haibun/core/lib/steps/domains/contract.js";
+import { statementPredicates } from "@haibun/core/lib/steps/derivations/statement-predicates.js";
 import { phraseParts, stepParts } from "@haibun/core/lib/steps/domains/phrase.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { declaredSteps, sentenceTerm, statementSentence, statementTerm } from "@haibun/core/lib/steps/derivations/predicate-registry.js";
@@ -21,6 +23,7 @@ export const ARITY = "applies a relation to a number of arguments other than its
 export const UNNAMED_PARAMETER = "names a parameter its pattern doesn't. Name a placeholder of the step's pattern";
 export const UNDECLARED_TYPE = "derives a record of a type that the steppers don't declare. Derive a record of a type a stepper declares in its concerns";
 export const UNDECLARED_FIELD = "names a field that the declared record types' schemas don't hold. Build the field with `field` from the type's declaration";
+export const UNSTATED_RELATION = "lists a change of a relation that statements don't name. List a field of a type, or a relation of `statementPredicates`";
 export const UNPARSED_SENTENCE =
 	"renders a statement as a sentence that the relations' phrases don't parse back to its term. Word the relation's phrase so that it parses only its own sentences, and another relation's phrase doesn't parse them";
 
@@ -69,6 +72,7 @@ export function declaredRelations(steppers: readonly AStepper[]): ReadonlySet<TR
 export function contractFindings(steppers: readonly AStepper[]): TContractFinding[] {
 	const fields = declaredFields(steppers);
 	const relations = declaredRelations(steppers);
+	const predicates = new Set(statementPredicates());
 	const fieldFindings = (fieldOf: TField): string[] =>
 		fields.get(fieldOf.persistedAs)?.has(fieldOf.key) === true ? [] : [`${UNDECLARED_FIELD} (${fieldOf.persistedAs}.${fieldOf.key})`];
 	const stepFindings = declaredSteps(steppers).flatMap(({ stepperName, actionName, step }) => {
@@ -88,9 +92,11 @@ export function contractFindings(steppers: readonly AStepper[]): TContractFindin
 			...args.flatMap(argumentFindings),
 		];
 		const statements = [...(contract.states === undefined ? [] : contract.states), ...(contract.requires === undefined ? [] : contract.requires)];
-		const fieldsNamed = [...(contract.changes === undefined ? [] : contract.changes), ...(contract.complete === undefined ? [] : contract.complete)];
+		const changeFindings = (change: TChange): string[] =>
+			"persistedAs" in change ? fieldFindings(change) : predicates.has(change.relation) ? [] : [`${UNSTATED_RELATION} (${change.relation})`];
+		const changes = [...(contract.changes === undefined ? [] : contract.changes), ...(contract.complete === undefined ? [] : contract.complete)];
 		const method = stepMethodName(stepperName, actionName);
-		return [...statements.flatMap(statementFindings), ...fieldsNamed.flatMap(fieldFindings)].map((finding) => ({ method, finding }));
+		return [...statements.flatMap(statementFindings), ...changes.flatMap(changeFindings)].map((finding) => ({ method, finding }));
 	});
 	return [...stepFindings, ...relationFindings([...relations])];
 }
