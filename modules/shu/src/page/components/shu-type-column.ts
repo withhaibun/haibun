@@ -199,7 +199,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 			}`;
 	}
 
-	/** The steps that return this domain and the steps that take it, each a link to the step. */
+	/** Renders interactive links for steps returning or consuming this domain type. */
 	private renderJoins(type: string): TemplateResult {
 		const { returning, taking } = stepsJoining(type);
 		const steps = (label: string, joined: TStepDefinition[], testId: string) =>

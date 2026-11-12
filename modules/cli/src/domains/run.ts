@@ -70,7 +70,7 @@ export const runReadSchema = z.object({
 	/** The status of a run's actuality, as the actuality machine that read its events holds it. A standing run's
 	 *  actuality ends and its process keeps serving without exiting, so a caller waits on this status rather than on an exit. */
 	actuality: z.enum(LEVEL_STATUS),
-	/** The steps that failed as the actuality's own failures, each as its id, its text and its failure message. */
+	/** Records step failures encountered in actuality, with step identifier, text, and error message. */
 	failures: z.array(StepFailureSchema),
 	/** Where a run wrote its report, where it wrote one. */
 	report: z.string().optional(),

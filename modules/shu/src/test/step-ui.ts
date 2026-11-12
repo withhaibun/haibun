@@ -37,9 +37,12 @@ function flattenTestIds(ids: Record<string, unknown>): string[] {
 	);
 }
 
-/** The steps that declare each test id of `idSets` (id-set objects and bare id arrays), once each, under the `page-test-id`
- *  domain, so a feature's lines name a test id by its bare name. */
-/** The page locator of the pane a tap action taps. */
+/**
+ * Generates feature steps declaring unique element test IDs under the `page-test-id` domain.
+ *
+ * Allows subsequent feature lines to refer to UI elements using bare identifier variables.
+ */
+/** Locator variable storing the targeted pane selector for tap operations. */
 const TAPPED_PANE = "tapped-pane";
 
 /** Taps the pane that the selector `pane` matches with the tap action whose test id is `action`: the action's control, then
@@ -49,7 +52,7 @@ export const tapPane = (action: string, pane: string): TKirejiStep[] => [`set ${
 export const registerTestIds = (...idSets: Array<Record<string, unknown> | ReadonlyArray<string>>): TKirejiStep[] =>
 	[...new Set(idSets.flatMap((set) => (Array.isArray(set) ? [...set] : flattenTestIds(set as Record<string, unknown>))))].map(registerTestIdStep);
 
-/** The step that declares one test id under the `page-test-id` domain, so a feature's lines name it by its bare name. */
+/** Generates a feature step assigning an individual test ID into the `page-test-id` domain. */
 function registerTestIdStep(id: string): TKirejiStep {
 	return setAs({ what: id, domain: DOMAIN_PAGE_TEST_ID, value: `"${id}"` });
 }

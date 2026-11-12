@@ -121,15 +121,15 @@ const WEB_PLAYWRIGHT_ATTACH: TAction = ActionSchema.parse(WEB_PLAYWRIGHT_ACTIONS
 
 export const WEB_PAGE = "webpage";
 const HTTP = "HTTP";
-/** The steps that act on what an accessibility snapshot reads, which the snapshot links. */
+/** Step names linked by accessibility snapshots to interact with inspected elements. */
 const SNAPSHOT_ACTIONS = ["click", "clickBy", "setValue", "press", "selectionOption", "gotoPage", "goBack", "takeScreenshot"] as const;
-/** What an action names as the read of the page it changed. */
+/** Action result marker designating a page state change returned from browser evaluation. */
 const ANSWERED_BY_THE_PAGE = { answeredBy: READS_THE_PAGE };
-/** The arguments that open the browser's devtools on its network panel, where the DEVTOOLS option is set. */
+/** Browser command-line arguments to launch developer tools focused on the network panel when requested. */
 const DEVTOOLS_ARGS = ["--auto-open-devtools-for-tabs", "--devtools-flags=panel-network", "--remote-debugging-port=9223"];
 const ARGS_SEPARATOR = ";";
 
-/** The option that serves the relay through which a person's browser attaches. */
+/** Configuration option key to start the WebSocket relay for external browser attachment. */
 const BROWSER_RELAY = "BROWSER_RELAY";
 
 export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {

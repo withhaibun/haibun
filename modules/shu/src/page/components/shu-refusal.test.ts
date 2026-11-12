@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import "./shu-refusal.js"; // the module defines the element
-import type { ShuRefusal } from "./shu-refusal.js";
+import { requestSaid, type ShuRefusal } from "./shu-refusal.js";
 import { installRemedies } from "../root.js";
 import { newPage } from "../../test/setup.js";
 import { SHU_TAG } from "../../domains/elements.js";
@@ -76,7 +76,7 @@ describe("<shu-refusal>", () => {
 
 	it("offers the action a refused call lacks, with a control that copies it", async () => {
 		const view = await shown({ error: "Pool-drain: capability Pool:drain required", remedy: { do: "request", action: "Pool:drain" } });
-		expect(remedyOf(view)?.textContent).toBe("Request Pool:drain from a key that delegates it");
+		expect(remedyOf(view)?.textContent).toBe(requestSaid("Pool:drain"));
 		const copyTargets = [...(view.shadowRoot?.querySelectorAll("[data-copy]") ?? [])].map((el) => el.getAttribute("data-copy"));
 		expect(copyTargets, "the cause, then the action").toEqual(["Pool-drain: capability Pool:drain required", "Pool:drain"]);
 	});

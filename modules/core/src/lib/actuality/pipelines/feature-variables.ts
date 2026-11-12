@@ -65,11 +65,10 @@ function variableOf(record: TVariable): TStepValue {
 	};
 }
 
-/** The secrets the events hub of `world` obscures: each secret value the world's variables hold once the world holds its
- *  variables. */
+/** Obscures secret variable values in the world event hub during actuality. */
 export const secretsOf = (world: Partial<Pick<TWorld, "shared">>): TSecrets => ({ values: () => (world.shared === undefined ? [] : world.shared.secretTexts()) });
 
-/** The steps that set a variable, from the steps `stepsThatSet` read for the names it was given. */
+/** Retrieves the recorded step statements that assign a value to the specified variable name. */
 function stepsOf(stepsThatSet: ReadonlyMap<string, string[]>, name: string): string[] {
 	const steps = stepsThatSet.get(name);
 	if (steps === undefined) throw new Error(`the steps that set "${name}" weren't read; read them for every variable a caller names`);

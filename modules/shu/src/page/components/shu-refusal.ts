@@ -19,6 +19,9 @@ import { refHref } from "./ref-navigation.js";
 import { whyTpl } from "./why.js";
 import { shuBaseStyles } from "./styles.js";
 
+/** The text for a request remedy: names the action the call needs and how to obtain authorization. */
+export const requestSaid = (action: string): string => `This call needs ${action}. Click to copy it, then request authorization from a key that delegates it.`;
+
 /** What a reload reads again, as its control states it. */
 const RELOAD_SAID = { client: "Reload the page", actuality: "Read actuality again", authority: "Read the authority again" } as const;
 
@@ -56,7 +59,7 @@ export class ShuRefusal extends ShuElement<typeof EmptyStateSchema> {
 			if (readAgain === undefined) throw new Error("<shu-refusal> offers a read again, and isn't given the read");
 			return html`<button type="button" data-testid=${id} @click=${() => readAgain()}>Read again</button>`;
 		}
-		if (remedy.do === "request") return html`<span data-testid=${id} data-copy=${remedy.action}>Request ${remedy.action} from a key that delegates it</span>`;
+		if (remedy.do === "request") return html`<span data-testid=${id} data-copy=${remedy.action}>${requestSaid(remedy.action)}</span>`;
 		const ref = refOf(remedy.ref.kind, remedy.ref.target);
 		if (ref === undefined) throw new Error(`<shu-refusal> opens a reference of the kind ${remedy.ref.kind}, which doesn't name its target`);
 		return html`<a href=${refHref(ref) ?? nothing} data-testid=${id}>Open ${refLabel(ref)}</a>`;
