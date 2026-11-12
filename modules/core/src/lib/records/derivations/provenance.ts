@@ -18,7 +18,7 @@ const GENERATED_BY = LinkRelations.WAS_GENERATED_BY.rel;
 /** Returns the edge from a record's first write to the step that generated it. A write outside a step, and a step's own record,
  *  doesn't link one. */
 export const generatedByEdges = (label: string, { step }: TProvenance): TUnitEdge[] =>
-	step === undefined || label === SEQ_PATH_LABEL ? [] : [{ rel: GENERATED_BY, label: SEQ_PATH_LABEL, id: step, target: EDGE_TARGET.reference }];
+	step === undefined || label === SEQ_PATH_LABEL ? [] : [{ rel: GENERATED_BY, label: SEQ_PATH_LABEL, id: step, target: EDGE_TARGET.reference, replaces: false }];
 
 /** Returns a part with its provenance where `held` is false, its first write: the time of the write as its `generatedAtTime`,
  *  where its type's time field is `generatedAtTime` and the part doesn't state one, and the edge to the step that generated it,

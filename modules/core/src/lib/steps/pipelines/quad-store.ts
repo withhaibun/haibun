@@ -445,10 +445,10 @@ export class QuadStore implements IQuadStore {
 		// An edge of a record the unit writes is held at the record's level, which the store doesn't hold before the unit is applied.
 		const written = records.find(({ holds }) => holds?.accessLevel !== undefined)?.holds?.accessLevel;
 		const level = written === undefined ? {} : { accessLevel: written };
-		const edges = part.edges.map(({ rel, label: toLabel, id: toId, target }): TChange => {
+		const edges = part.edges.map(({ rel, label: toLabel, id: toId, replaces }): TChange => {
 			// objectType states the target's type, so the quad reads back as an edge rather than a literal property.
 			const quad = this.classified({ subject: id, predicate: rel, object: toId, namedGraph: label, objectType: toLabel, ...level });
-			return holding(quad, target === EDGE_TARGET.only ? (q) => q.predicate === rel : (q) => q.predicate === rel && q.object === toId);
+			return holding(quad, replaces ? (q) => q.predicate === rel : (q) => q.predicate === rel && q.object === toId);
 		});
 		return [...records, ...edges];
 	}

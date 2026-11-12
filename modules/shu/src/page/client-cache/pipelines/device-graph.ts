@@ -25,7 +25,6 @@ import {
 	type TWriteVerb,
 } from "@haibun/core/lib/records/domains/unit.js";
 import { removeEach, writeEach } from "@haibun/core/lib/records/pipelines/write-many.js";
-import { EDGE_TARGET } from "@haibun/core/lib/records/derivations/edge-declarations.js";
 import type { TPart } from "@haibun/core/lib/records/derivations/unit-parts.js";
 import { RecordVersions } from "@haibun/core/lib/records/pipelines/record-versions.js";
 import type { TDeviceChange } from "../ports.js";
@@ -38,7 +37,7 @@ function changeOf({ label, id, fields, edges, iri }: TPart): TDeviceChange {
 	return {
 		removes: [
 			...stated.map(([predicate]) => ({ subject: id, namedGraph: label, predicate })),
-			...edges.map(({ rel, id: to, target }) => ({ subject: id, namedGraph: label, predicate: rel, ...(target === EDGE_TARGET.only ? {} : { object: to }) })),
+			...edges.map(({ rel, id: to, replaces }) => ({ subject: id, namedGraph: label, predicate: rel, ...(replaces ? {} : { object: to }) })),
 		],
 		adds: [
 			...stated.flatMap(([predicate, object]) => (object === null ? [] : [{ subject: id, predicate, object, namedGraph: label }])),

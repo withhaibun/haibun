@@ -2,9 +2,9 @@
  * Derives a unit's parts from the node a caller states and the declarations of its types. Each record the node embeds under an
  * edge its type declares `owns` is a part, transitively, and the node's record is the last part, so a store writes what a record
  * owns before the record and its edges to them. A reference names its target by its typed CURIE, and a reference whose type isn't
- * one the edge reaches is refused. Each part's edges take their targets from the declaration: an edge the type declares
- * `reference` reaches a record the store may not hold yet, an edge it declares `functional` replaces the record's edge to any
- * other, and an edge to an owned part reaches the part the unit writes. A node that embeds a record under an edge its type
+ * one the edge reaches is refused. Each part's edges take their targets from the declaration (`edgeWriteOf`): an edge the type
+ * declares `reference` reaches a record the store may not hold yet, another a record the store holds or the unit writes, an edge it
+ * declares `functional` replaces the record's edge to any other, and an edge to an owned part reaches the part the unit writes. A node that embeds a record under an edge its type
  * doesn't declare `owns` is refused.
  */
 import { isVocabularyEdge, textDigest } from "../../domains/hypermedia.js";
@@ -12,11 +12,12 @@ import { recordOfIri } from "./record-iri.js";
 import type { z } from "zod";
 import { unwrap, unwrapToShape, zodTypeLabel } from "../../domains/zod-unwrap.js";
 import type { TReadDeclaration } from "./read-records.js";
-import { EDGE_TARGET, type TEdgeDeclaration, type TEdgeTarget, type TPartDeclaration } from "./edge-declarations.js";
+import { edgeWriteOf, type TEdgeDeclaration, type TEdgeWrite, type TPartDeclaration } from "./edge-declarations.js";
 import { NODE_KEY, recordOfCurie, referenceTo, statedVersion, type TNode, type TReadVersion, type TRecordName, type TReference, type TWriteVerb } from "../domains/unit.js";
 
-/** An edge a part writes from its record: the relation, the type and the id of the record it reaches, and how it reaches it. */
-export type TUnitEdge = { readonly rel: string; readonly label: string; readonly id: string; readonly target: TEdgeTarget };
+/** An edge a part writes from its record: the relation, the type and the id of the record it reaches, whether that record is held
+ *  or a reference, and whether the edge replaces the record's earlier edges of the relation. */
+export type TUnitEdge = TEdgeWrite & { readonly rel: string; readonly label: string; readonly id: string };
 
 /** One record a unit writes: its type, its id, the fields the node states, a null removing a field, and its edges. A part whose
  *  node names its record by `@id` alone writes its edges, and a store that doesn't hold the record holds a reference in its place
@@ -94,7 +95,7 @@ function partsOf(node: Readonly<Record<string, unknown>>, label: string, declara
 		for (const target of records) {
 			if (isReference(target)) {
 				const to = referencedBy(label, key, declared, target);
-				part.edges.push({ rel: key, ...to, target: declared.reference ? EDGE_TARGET.reference : declared.functional ? EDGE_TARGET.only : EDGE_TARGET.held });
+				part.edges.push({ rel: key, ...to, ...edgeWriteOf(declared) });
 				continue;
 			}
 			const [{ ranges }, stated] = [declared, target[NODE_KEY.type]];
@@ -106,7 +107,7 @@ function partsOf(node: Readonly<Record<string, unknown>>, label: string, declara
 				);
 			const embedded = partsOf(target, toLabel, declarationOf);
 			owned.push(...embedded.owned, embedded.part);
-			part.edges.push({ rel: key, label: toLabel, id: embedded.part.id, target: EDGE_TARGET.held });
+			part.edges.push({ rel: key, label: toLabel, id: embedded.part.id, ...edgeWriteOf({ reference: false, functional: declared.functional }) });
 		}
 	}
 	// A text the type indexes by its digest is written with its digest.

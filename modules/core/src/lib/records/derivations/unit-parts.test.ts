@@ -20,6 +20,7 @@ const declarations: Record<string, TPartDeclaration> = {
 			hasBody: { range: BODY, owns: true },
 			folder: { range: FOLDER, functional: true },
 			repliesTo: { range: MESSAGE, reference: true },
+			thread: { range: MESSAGE, reference: true, functional: true },
 		}),
 	}),
 	[BODY]: partDeclarationOf({ id: "id", schema: z.object({ id: z.string(), content: z.string() }), edges: {} }),
@@ -37,6 +38,7 @@ describe("the parts of a unit", () => {
 				hasBody: { id: "b1", content: "the text" },
 				folder: referenceTo(FOLDER, "inbox"),
 				repliesTo: referenceTo(MESSAGE, "m0"),
+				thread: referenceTo(MESSAGE, "t0"),
 				from: referenceTo(PERSON, "alice"),
 			},
 			undefined,
@@ -44,11 +46,15 @@ describe("the parts of a unit", () => {
 		);
 		expect(unit.version, "a create states that the store doesn't hold the record").toBeNull();
 		expect(unit.parts.map(({ label, id }) => `${label} ${id}`)).toEqual([`${BODY} b1`, `${MESSAGE} m1`]);
-		expect(unit.parts.at(-1)?.edges.map(({ rel, id, target }) => [rel, id, target])).toEqual([
-			["hasBody", "b1", EDGE_TARGET.held],
-			["folder", "inbox", EDGE_TARGET.only],
-			["repliesTo", "m0", EDGE_TARGET.reference],
-			["from", "alice", EDGE_TARGET.held],
+		expect(
+			unit.parts.at(-1)?.edges.map(({ rel, id, target, replaces }) => [rel, id, target, replaces]),
+			"whether a target is held and whether an edge replaces the relation's other edges are declared apart",
+		).toEqual([
+			["hasBody", "b1", EDGE_TARGET.held, false],
+			["folder", "inbox", EDGE_TARGET.held, true],
+			["repliesTo", "m0", EDGE_TARGET.reference, false],
+			["thread", "t0", EDGE_TARGET.reference, true],
+			["from", "alice", EDGE_TARGET.held, false],
 		]);
 	});
 

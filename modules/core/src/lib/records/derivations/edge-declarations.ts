@@ -1,10 +1,21 @@
 /** Declares what a write reads of a type's declaration. A store derives a unit's parts from it. */
 import { RESOURCE_LABEL } from "../../domains/resources.js";
 
-/** How an edge of a part reaches its target: a record the store holds, a record the store may not hold yet, or the record's one
- *  target of the relation, which replaces its edge to any other. */
-export const EDGE_TARGET = { held: "held", reference: "reference", only: "only" } as const;
+/** Whether an edge's target is a record the store holds or the unit writes, or a record the store may not hold yet. A store
+ *  refuses a unit whose edge to a held target reaches a record the store doesn't hold and the unit doesn't write. */
+export const EDGE_TARGET = { held: "held", reference: "reference" } as const;
 export type TEdgeTarget = (typeof EDGE_TARGET)[keyof typeof EDGE_TARGET];
+
+/** How a write states an edge it reaches through a declaration: whether its target is held or a reference, and whether the edge
+ *  replaces the record's earlier edges of its relation. Every store reads it from the edge's declaration. */
+export type TEdgeWrite = { readonly target: TEdgeTarget; readonly replaces: boolean };
+
+/** Returns how a write states an edge its type declares: an edge declared `reference` reaches a record the store may not hold,
+ *  another reaches a held record, and an edge declared `functional` replaces the record's edge to any other. */
+export const edgeWriteOf = ({ reference, functional }: Pick<TEdgeDeclaration, "reference" | "functional">): TEdgeWrite => ({
+	target: reference ? EDGE_TARGET.reference : EDGE_TARGET.held,
+	replaces: functional,
+});
 
 /** What a write reads of an edge's declaration: the types it reaches, and whether it owns its target, reaches a record the store
  *  may not hold, or reaches at most one record. */

@@ -14,9 +14,19 @@ import { declaredTypes, storeDeclaring, storeOfDomains, TEST_LEVELS } from "../.
 import type { IQuadStore } from "../ports.js";
 
 const NOTE = "Note";
-const edge = (ranges: string[], kind: { owns?: true; functional?: true } = {}) => ({ ranges, owns: kind.owns === true, reference: false, functional: kind.functional === true });
-/** Notes, each of which may reach other notes through `about`, one note through `in`, and owns the notes it holds through `holds`. */
-const NOTES = { [NOTE]: { edges: { about: edge([NOTE]), in: edge([NOTE], { functional: true }), holds: edge([NOTE], { owns: true }) } } };
+const edge = (ranges: string[], kind: { owns?: true; functional?: true; reference?: true } = {}) => ({
+	ranges,
+	owns: kind.owns === true,
+	reference: kind.reference === true,
+	functional: kind.functional === true,
+});
+/** Notes, each of which may reach other notes through `about`, one note through `in`, one note the store may not hold through
+ *  `after`, and owns the notes it holds through `holds`. */
+const NOTES = {
+	[NOTE]: {
+		edges: { about: edge([NOTE]), in: edge([NOTE], { functional: true }), after: edge([NOTE], { functional: true, reference: true }), holds: edge([NOTE], { owns: true }) },
+	},
+};
 const noteStore = (): QuadStore => storeDeclaring(NOTES);
 /** Writes the notes `ids` names, which a test's edges reach. */
 const notesHeld = async (store: QuadStore, ...ids: string[]) => {
@@ -79,6 +89,16 @@ describe("a unit the in-memory store writes", () => {
 		await notesHeld(store, "held");
 		await store.merge({ "@type": NOTE, id: "n1", about: referenceTo(NOTE, "held") });
 		expect(await edgesOf(store, NOTE, "n1", "about")).toEqual([["held", NOTE]]);
+	});
+
+	it("refuses a functional edge to a record the store doesn't hold, and replaces a functional reference's target it doesn't hold", async () => {
+		const store = noteStore();
+		await expect(store.merge({ "@type": NOTE, id: "n1", in: referenceTo(NOTE, "absent") }), "a held target, which the relation's one edge reaches").rejects.toThrow(
+			`${NOTE} "n1" holds an edge in to ${NOTE}:absent, which the store doesn't hold`,
+		);
+		await store.merge({ "@type": NOTE, id: "n1", after: referenceTo(NOTE, "first") });
+		await store.merge({ "@type": NOTE, "@id": "n1", after: referenceTo(NOTE, "second") });
+		expect(await edgesOf(store, NOTE, "n1", "after"), "a reference, which replaces the relation's other edge").toEqual([["second", NOTE]]);
 	});
 
 	it("adds an edge beside the record's edges of a relation, and replaces its edge of a relation its type declares functional", async () => {
