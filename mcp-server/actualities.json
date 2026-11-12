@@ -116,12 +116,12 @@
 				"tookMs": 600,
 				"digest": {
 					"mcp-server": "6c710ec3b9f627f32df0a59fb03960978e4eae1e54af532c3183aad1cbe2d155",
-					"modules/core/src": "3859be3530ecc5b0f0b1a631348b4e07b292f643c05f1312dc0fb92210af827a",
+					"modules/core/src": "53e04089b47aee0f5f492f378999ba7299ea54ff8a55828310e864145ecaad74",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
 					"modules/logic/src": "cd9e0b3c82855c60903d2abbd8168bef39e444663eee0d87419a994e7d00e2e9",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
-					"modules/web-playwright/src": "d2d3cb00828363b79531d2f547e46f287a1c3f6e2a0b437e9bb3cbbcd68b3a6b",
+					"modules/web-playwright/src": "d138902e6101553e7e35b67283debec45d8ed95f4643adea63907bbd8933b7a6",
 					"modules/web-server-hono/src": "541cc0825b194c7d3125fb35132fa8035c40f9afcbbeaa3052f608260f076da0"
 				}
 			},

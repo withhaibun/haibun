@@ -214,18 +214,18 @@
 			"actuality": {
 				"text": "e2e-tests/shu-self-test, node_modules/@haibun/web-playwright/waypoints, node_modules/@haibun/shu/waypoints",
 				"status": "passed",
-				"tookMs": 86500,
+				"tookMs": 84000,
 				"digest": {
-					"e2e-tests/shu-self-test": "91887286174bd3f2504ad37602f73aba86f154051241dd64ed3414259b1fc8cd",
-					"modules/core/src": "3859be3530ecc5b0f0b1a631348b4e07b292f643c05f1312dc0fb92210af827a",
+					"e2e-tests/shu-self-test": "51023da34b0cd35354839ac39facf3cceb7db986fc9084739d9883341e3adc4d",
+					"modules/core/src": "53e04089b47aee0f5f492f378999ba7299ea54ff8a55828310e864145ecaad74",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
 					"modules/logic/src": "cd9e0b3c82855c60903d2abbd8168bef39e444663eee0d87419a994e7d00e2e9",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/shu/src": "dabddacf32f7b049bb625c19710a855a5bcfd29f2fff988d4dd1fff51e8888e7",
+					"modules/shu/src": "4dd52fbe16ef9a47719fa68df5a49b6b1ccbad69d19cb24fe4061bfec8ace41f",
 					"modules/shu/waypoints": "7dc9c4a47d546a40d28e609997d2236967c01ebb925e55511322e4abc6772a86",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
-					"modules/web-playwright/src": "d2d3cb00828363b79531d2f547e46f287a1c3f6e2a0b437e9bb3cbbcd68b3a6b",
+					"modules/web-playwright/src": "d138902e6101553e7e35b67283debec45d8ed95f4643adea63907bbd8933b7a6",
 					"modules/web-playwright/waypoints": "383e3b858b728ae0354b196cb44f66a61e33747a5d3fe420fae9c78ee6dfaf10",
 					"modules/web-server-hono/src": "541cc0825b194c7d3125fb35132fa8035c40f9afcbbeaa3052f608260f076da0"
 				}
@@ -234,7 +234,7 @@
 				"/features/shu-self-test.feature.ts": {
 					"text": "Shu SPA Self-Test",
 					"status": "passed",
-					"tookMs": 82600,
+					"tookMs": 80500,
 					"steps": 700
 				},
 				"/features/z-post.feature.ts": {
