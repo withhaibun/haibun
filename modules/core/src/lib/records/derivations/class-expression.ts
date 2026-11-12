@@ -2,7 +2,8 @@
  * Reads a class expression in Manchester syntax (W3C Note), in the fragment OWL 2 RL evaluates completely for a query: a named
  * class, `and`, `or`, `{property} some {expression}`, `{property} value {individual}` and `{property} value {literal}`, each
  * property also as `inverse {property}`, and a datatype restriction `{property} some xsd:{type}[{facet} {literal}, …]` with
- * OWL 2's facets (`>=`, `>`, `<=`, `<` and `pattern`), with parentheses. An individual is written as its address, `Type:id`,
+ * OWL 2's facets (`>=`, `>`, `<=`, `<` and `pattern`), and a nominal `{individual, …}` (OWL 2's ObjectOneOf), whose members are
+ * the individuals it lists and each individual entailed the same as one, with parentheses. An individual is written as its address, `Type:id`,
  * a literal in double quotes, with `^^xsd:{type}` where it isn't a string, and a number bare. A property names a field of the expression's
  * class, or a relation of the ontology. A mix of `and` and `or` takes parentheses, so each reads one way. The constructs RL
  * doesn't evaluate for a query are refused, each with its reason and the form to write instead. Writes an expression in DL
@@ -17,6 +18,8 @@ import {
 	FACET,
 	KEYWORD,
 	literalText,
+	NOMINAL,
+	nominalText,
 	XSD_PREFIX,
 	type TClassExpression,
 	type TDataRange,
@@ -37,7 +40,7 @@ const TOKEN = /"(?:[^"\\]|\\.)*"(?:\^\^[^\s(){}[\],]+)?|\(|\)|\{|\}|\[|\]|,|>=|<
 const KEYWORDS: ReadonlySet<string> = new Set(Object.values(KEYWORD));
 const FACETS: ReadonlySet<string> = new Set(Object.values(FACET));
 const [OPEN, CLOSE, OPEN_RANGE, CLOSE_RANGE, COMMA] = ["(", ")", "[", "]", ","];
-const PUNCTUATION: ReadonlySet<string> = new Set([OPEN, CLOSE, OPEN_RANGE, CLOSE_RANGE, COMMA]);
+const PUNCTUATION: ReadonlySet<string> = new Set([OPEN, CLOSE, OPEN_RANGE, CLOSE_RANGE, COMMA, NOMINAL.open, NOMINAL.close]);
 const QUOTED = /^"((?:[^"\\]|\\.)*)"(?:\^\^(\S+))?$/;
 /** A number written bare, which reads as an integer or a decimal. */
 const NUMBER = /^-?\d+(?:\.\d+)?$/;
@@ -48,8 +51,6 @@ const REFUSED: Readonly<Record<string, string>> = {
 	min: "OWL 2 RL doesn't count a property's values in a class expression. Count a read with the `counting` combinator",
 	max: "OWL 2 RL doesn't count a property's values in a class expression. Count a read with the `counting` combinator",
 	exactly: "OWL 2 RL doesn't count a property's values in a class expression. Count a read with the `counting` combinator",
-	"{": "braces read as haibun's interpolation. Write `individual {Type:id} is a {class}`, `{property} value Type:id`, or an `or` of `value` restrictions",
-	"}": "braces read as haibun's interpolation. Write `individual {Type:id} is a {class}`, `{property} value Type:id`, or an `or` of `value` restrictions",
 };
 
 /** Returns a literal's lexical form and datatype, or undefined where the token isn't one. Production `literal`: a `typedLiteral`
@@ -70,7 +71,7 @@ export function parseClassExpression(text: string): TClassExpression {
 	let at = 0;
 	const fail = (what: string): never => {
 		throw new Error(
-			`the class expression \`${text}\` ${what} at word ${at + 1}. Write a named class, \`and\`, \`or\`, \`{property} some {class}\`, \`{property} value {Type:id}\`, \`{property} value "{literal}"\` or \`{property} some xsd:{type}[{facet} "{literal}"]\`, with parentheses around a mix of \`and\` and \`or\`.`,
+			`the class expression \`${text}\` ${what} at word ${at + 1}. Write a named class, \`and\`, \`or\`, \`{property} some {class}\`, \`{property} value {Type:id}\`, \`{property} value "{literal}"\` or \`{property} some xsd:{type}[{facet} "{literal}"]\` or a nominal \`{Type:id, …}\`, with parentheses around a mix of \`and\` and \`or\`.`,
 		);
 	};
 	if (tokens === null) return fail("doesn't hold a word");
@@ -139,9 +140,22 @@ export function parseClassExpression(text: string): TClassExpression {
 		}
 		return fail("expects `some` or `value` after a property");
 	};
-	// primary: a restriction or an atomic, which is a classIRI or '(' description ')'; an objectPropertyExpression is an
-	// objectPropertyIRI or inverseObjectProperty, 'inverse' objectPropertyIRI. `not` and individual lists are refused above.
+	// individualList: '{' individual { ',' individual } '}', an atomic of its own.
+	const nominal = (): TClassExpression => {
+		at += 1;
+		const oneOf = [name()];
+		while (peek() === COMMA) {
+			at += 1;
+			oneOf.push(name());
+		}
+		if (peek() !== NOMINAL.close) return fail("doesn't close a nominal's braces");
+		at += 1;
+		return { oneOf };
+	};
+	// primary: a restriction or an atomic, which is a classIRI, '{' individualList '}' or '(' description ')'; an
+	// objectPropertyExpression is an objectPropertyIRI or inverseObjectProperty, 'inverse' objectPropertyIRI. `not` is refused above.
 	const primary = (): TClassExpression => {
+		if (peek() === NOMINAL.open) return nominal();
 		if (peek() === OPEN) {
 			at += 1;
 			const inner = expression();
@@ -178,12 +192,14 @@ export function parseClassExpression(text: string): TClassExpression {
 export const partsOf = (expression: TClassExpression): TClassExpression[] =>
 	"and" in expression ? expression.and : "or" in expression ? expression.or : "some" in expression ? [expression.some] : [];
 
-/** Returns the names of the classes and the properties an expression names. A query reads the facts of the types they reach. */
-export function namesOf(expression: TClassExpression): { classes: string[]; properties: string[] } {
+/** Returns the names of the classes and the properties an expression names, and the addresses of the individuals its nominals
+ *  list. A query reads the facts of the types they reach. */
+export function namesOf(expression: TClassExpression): { classes: string[]; properties: string[]; individuals: string[] } {
 	const held = partsOf(expression).map(namesOf);
 	return {
 		classes: [...("named" in expression ? [expression.named] : []), ...held.flatMap(({ classes }) => classes)],
 		properties: [...("property" in expression ? [expression.property] : []), ...held.flatMap(({ properties }) => properties)],
+		individuals: [...("oneOf" in expression ? expression.oneOf : []), ...held.flatMap(({ individuals }) => individuals)],
 	};
 }
 
@@ -227,6 +243,7 @@ export function resolvedExpression(expression: TClassExpression, vocabulary: TVo
 		}
 		if ("and" in part) return { and: part.and.map((each) => resolve(each, scopeOf(part.and, scope))) };
 		if ("or" in part) return { or: part.or.map((each) => resolve(each, scope)) };
+		if ("oneOf" in part) return part;
 		const found = propertyFor(part.property, part.inverse ? [] : scope, vocabulary);
 		if ("refused" in found) throw new Error(found.refused);
 		return "some" in part ? { ...part, property: found.property, some: resolve(part.some, []) } : { ...part, property: found.property };
@@ -271,6 +288,7 @@ export function functionalOf(expression: TClassExpression): string {
 	if ("named" in expression) return manchesterName(expression.named);
 	if ("and" in expression) return `ObjectIntersectionOf(${expression.and.map(functionalOf).join(" ")})`;
 	if ("or" in expression) return `ObjectUnionOf(${expression.or.map(functionalOf).join(" ")})`;
+	if ("oneOf" in expression) return `ObjectOneOf(${expression.oneOf.map(manchesterName).join(" ")})`;
 	const role = expression.inverse ? `ObjectInverseOf(${manchesterName(expression.property)})` : manchesterName(expression.property);
 	if ("some" in expression) return `ObjectSomeValuesFrom(${role} ${functionalOf(expression.some)})`;
 	if ("value" in expression) return `ObjectHasValue(${role} ${manchesterName(expression.value)})`;
@@ -291,22 +309,24 @@ export function dlOf(expression: TClassExpression): string {
 	if ("named" in expression) return expression.named;
 	if ("and" in expression) return expression.and.map(nested).join(` ${DL_SYMBOL.intersection} `);
 	if ("or" in expression) return expression.or.map(nested).join(` ${DL_SYMBOL.union} `);
+	if ("oneOf" in expression) return nominalText(expression.oneOf);
 	const role = `${expression.property}${expression.inverse ? INVERSE_MARK : ""}`;
 	if ("some" in expression) return `${DL_SYMBOL.some}${role}.${nested(expression.some)}`;
 	if ("range" in expression) {
 		const { datatype, facets } = expression.range;
 		return `${DL_SYMBOL.some}${role}.${datatype}${facets.length === 0 ? "" : `[${facets.map(({ facet, literal }) => `${FACET_DL[facet]} ${literalText(literal)}`).join(", ")}]`}`;
 	}
-	return `${DL_SYMBOL.some}${role}.{${"literal" in expression ? literalText(expression.literal) : expression.value}}`;
+	return `${DL_SYMBOL.some}${role}.${nominalText(["literal" in expression ? literalText(expression.literal) : expression.value])}`;
 }
 
 /** Returns an expression as a plain-English reading, by fixed rules: a class is "a C", an existential is "something that P
- *  a C", a value is "something whose P is x", a datatype restriction is "something whose P is a T at least x", an inverse reads
- *  its property from the other side, `and` joins with "and", and `or` reads as "either … or …". */
+ *  a C", a value is "something whose P is x", a datatype restriction is "something whose P is a T at least x", a nominal is
+ *  "one of x, y", an inverse reads its property from the other side, `and` joins with "and", and `or` reads as "either … or …". */
 export function readingOf(expression: TClassExpression): string {
 	if ("named" in expression) return `a ${expression.named}`;
 	if ("and" in expression) return expression.and.map(readingOf).join(" and ");
 	if ("or" in expression) return `either ${expression.or.map(readingOf).join(" or ")}`;
+	if ("oneOf" in expression) return `one of ${expression.oneOf.join(NOMINAL.separator)}`;
 	if ("some" in expression)
 		return expression.inverse ? `something that ${readingOf(expression.some)} ${expression.property}` : `something that ${expression.property} ${readingOf(expression.some)}`;
 	if ("range" in expression) {

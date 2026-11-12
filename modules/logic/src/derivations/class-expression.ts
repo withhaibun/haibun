@@ -1,11 +1,12 @@
 /**
  * Writes a class expression as the N3 rules that derive its members, and as the facts of a member that stands for any member of
- * it, which a subsumption reads. Core reads the expression and resolves its names; a literal is an N3 literal, and a datatype
- * restriction's facets are the N3 built-ins that compare a value.
+ * it, which a subsumption reads. Core reads the expression and resolves its names; a literal is an N3 literal, a datatype
+ * restriction's facets are the N3 built-ins that compare a value, and a nominal's members are the individuals it lists and each
+ * individual entailed owl:sameAs one of them.
  */
 import { DataFactory } from "n3";
 import type { Literal, NamedNode, Quad_Object, Quad_Subject } from "@rdfjs/types";
-import { MATH, NAMESPACE, RDF, STRING } from "@haibun/core/lib/domains/vocabularies.js";
+import { MATH, NAMESPACE, OWL, RDF, STRING } from "@haibun/core/lib/domains/vocabularies.js";
 import {
 	DATATYPE,
 	FACET,
@@ -16,10 +17,10 @@ import {
 	type TLiteral,
 	type TRestricted,
 } from "@haibun/core/lib/records/domains/class-expression.js";
-import { pattern, ruleText, type TN3Pattern } from "./n3.js";
+import { pattern, patternText, ruleText, type TN3Pattern } from "./n3.js";
 
-/** The rules that derive an expression's members, and the class whose members they are. */
-export type TExpressionRules = { rules: string; query: string };
+/** The rules that derive an expression's members, the query of its members, and the query of one individual's membership. */
+export type TExpressionRules = { rules: string; query: string; membership: (individual: NamedNode) => string };
 /** The IRIs of an expression's names: a class's, a property's and an individual's by its address. */
 export type TExpressionIris = { classIri: (name: string) => NamedNode; propertyIri: (name: string) => NamedNode; individualIri: (address: string) => NamedNode };
 
@@ -45,6 +46,7 @@ function facetCondition(value: Quad_Subject, datatype: string, { facet, literal 
 }
 
 const member = (subject: Quad_Subject, cls: NamedNode): TN3Pattern => pattern(subject, RDF.type, cls);
+const sameAs = (subject: Quad_Subject, individual: NamedNode): TN3Pattern => pattern(subject, OWL.sameAs, individual);
 /** A restriction's fact between a member and the value it reaches, in the property's direction. */
 const restricted = ({ property, inverse }: TRestricted, iris: TExpressionIris, subject: Quad_Subject, object: Quad_Object): TN3Pattern =>
 	inverse ? pattern(object as Quad_Subject, iris.propertyIri(property), subject) : pattern(subject, iris.propertyIri(property), object);
@@ -60,6 +62,11 @@ export function expressionRules(expression: TClassExpression, namespace: string,
 		const cls = DataFactory.namedNode(`${namespace}e${count}`);
 		const derive = (body: TN3Pattern[]) => rules.push(ruleText(body, [member(X, cls)]));
 		if ("or" in part) for (const alternative of part.or) derive([member(X, classOf(alternative))]);
+		else if ("oneOf" in part)
+			for (const individual of part.oneOf.map(iris.individualIri)) {
+				rules.push(patternText(member(individual, cls)));
+				derive([sameAs(X, individual)]);
+			}
 		else if ("and" in part) derive(part.and.map((each) => member(X, classOf(each))));
 		else if ("some" in part) derive([restricted(part, iris, X, Y), member(Y, classOf(part.some))]);
 		else if ("range" in part) derive([restricted(part, iris, X, V), ...part.range.facets.map((facet) => facetCondition(V, part.range.datatype, facet))]);
@@ -67,7 +74,8 @@ export function expressionRules(expression: TClassExpression, namespace: string,
 		return cls;
 	};
 	const queried = classOf(expression);
-	return { rules: rules.join("\n"), query: ruleText([member(X, queried)], [member(X, queried)]) };
+	const queryOf = (subject: Quad_Subject) => ruleText([member(subject, queried)], [member(subject, queried)]);
+	return { rules: rules.join("\n"), query: queryOf(X), membership: queryOf };
 }
 
 /** Returns, for each alternative of an expression, the facts of a member that stands for any member of that alternative: the
@@ -78,6 +86,7 @@ export function frozenMembers(expression: TClassExpression, subject: NamedNode, 
 	const factsOf = (part: TClassExpression, of: NamedNode): TN3Pattern[][] => {
 		if ("named" in part) return [[member(of, iris.classIri(part.named))]];
 		if ("or" in part) return part.or.flatMap((alternative) => factsOf(alternative, of));
+		if ("oneOf" in part) return part.oneOf.map((individual) => [sameAs(of, iris.individualIri(individual))]);
 		if ("and" in part) return part.and.reduce<TN3Pattern[][]>((joined, each) => joined.flatMap((facts) => factsOf(each, of).map((more) => [...facts, ...more])), [[]]);
 		if ("value" in part) return [[restricted(part, iris, of, iris.individualIri(part.value))]];
 		if ("literal" in part) return [[restricted(part, iris, of, n3Literal(part.literal))]];

@@ -1,10 +1,10 @@
 /**
  * A class expression's parts: named classes, `and`, `or`, `some` and `value` with parentheses, literals, datatype restrictions
- * with OWL 2's facets, a property resolved to a field of the expression's class or to a relation, the refusal of a mix of `and`
+ * with OWL 2's facets, a nominal of individuals, a property resolved to a field of the expression's class or to a relation, the refusal of a mix of `and`
  * and `or` without parentheses, and its DL notation and plain-English reading.
  */
 import { describe, expect, it } from "vitest";
-import { dlOf, nameRefusal, namesOf, parseClassExpression, readingOf, resolvedExpression, type TVocabulary } from "./class-expression.js";
+import { dlOf, functionalOf, nameRefusal, namesOf, parseClassExpression, readingOf, resolvedExpression, type TVocabulary } from "./class-expression.js";
 
 describe("parseClassExpression", () => {
 	it("reads a named class, a conjunction, a disjunction, an existential and a value", () => {
@@ -59,11 +59,17 @@ describe("parseClassExpression", () => {
 		expect(() => parseClassExpression("isPartOf only Step")).toThrow(/uses `only` at word 2: OWL 2 RL doesn't evaluate `only`.*`every \{class\} is a \{class\}`/);
 		expect(() => parseClassExpression("not Step")).toThrow(/uses `not` at word 1: the open world doesn't prove a complement/);
 		expect(() => parseClassExpression("isPartOf exactly 0 Step")).toThrow(/uses `exactly` at word 2: .*`counting` combinator/);
-		expect(() => parseClassExpression("{s2}")).toThrow(/uses `\{` at word 1: braces read as haibun's interpolation/);
 	});
 
-	it("lists the classes and the properties an expression names", () => {
-		expect(namesOf(parseClassExpression("Note and isPartOf some Step"))).toEqual({ classes: ["Note", "Step"], properties: ["isPartOf"] });
+	it("reads a nominal of the individuals it lists, and refuses one whose braces don't close", () => {
+		expect(parseClassExpression("{Person:p1}")).toEqual({ oneOf: ["Person:p1"] });
+		expect(parseClassExpression("Note or {Step:s1, Step:s2}")).toEqual({ or: [{ named: "Note" }, { oneOf: ["Step:s1", "Step:s2"] }] });
+		expect(() => parseClassExpression("{Step:s1, Step:s2")).toThrow(/doesn't close a nominal's braces at word 5/);
+	});
+
+	it("lists the classes and the properties an expression names, and the individuals its nominals list", () => {
+		expect(namesOf(parseClassExpression("Note and isPartOf some Step"))).toEqual({ classes: ["Note", "Step"], properties: ["isPartOf"], individuals: [] });
+		expect(namesOf(parseClassExpression("Note or {Step:s1}")).individuals).toEqual(["Step:s1"]);
 	});
 });
 
@@ -111,5 +117,12 @@ describe("an expression's notations", () => {
 		const dated = parseClassExpression('Email and dateSent some xsd:dateTime[>= "2026-01-01"]');
 		expect(dlOf(dated)).toBe('Email ⊓ ∃dateSent.xsd:dateTime[≥ "2026-01-01"]');
 		expect(readingOf(dated)).toBe('a Email and something whose dateSent is a xsd:dateTime at least "2026-01-01"');
+	});
+
+	it("writes a nominal as DL notation, OWL 2's ObjectOneOf and a reading", () => {
+		const nominal = parseClassExpression("{Step:s1, Step:s2}");
+		expect(dlOf(nominal)).toBe("{Step:s1, Step:s2}");
+		expect(functionalOf(nominal)).toBe("ObjectOneOf(Step:s1 Step:s2)");
+		expect(readingOf(nominal)).toBe("one of Step:s1, Step:s2");
 	});
 });

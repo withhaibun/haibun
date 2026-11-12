@@ -19,6 +19,7 @@ import {
 	countedMembers,
 	disjointExpressions,
 	entailedMembers,
+	membershipProof,
 	membershipRefuted,
 	queryBasis,
 	subsumes,
@@ -49,11 +50,13 @@ export function claimEntailment(terms: TClaimTerms, domains: Record<string, TReg
 	return entailmentOf({ some: checked(terms.some) });
 }
 
-/** Checks ClassAssertion(E X): holds where the reasoner entails the record at `address` as a member of `expression`. */
+/** Checks ClassAssertion(E X): holds where the reasoner entails the record at `address` as a member of `expression`, its proof
+ *  naming the premises the reasoner read, such as the shared value of an inverse functional property that makes two individuals
+ *  the same. */
 export async function instanceChecked(scope: TClaimScope, address: TIndividualAddress, expression: string): Promise<TActionResult> {
 	const entailment = claimEntailment({ individual: addressText(address), expression }, scope.domains);
-	const entailed = await entailedMembers(scope.reasoner, scope.store, scope.domains, scope.records, expression);
-	if (entailed.members.some(({ persistedAs, id }) => persistedAs === address.persistedAs && id === address.id)) return claimResult(entailment, VERDICT.proved, ENTAILED_BY);
+	const entailed = await membershipProof(scope.reasoner, scope.store, scope.domains, scope.records, address, expression);
+	if (entailed.premises !== undefined) return claimResult(entailment, VERDICT.proved, `${ENTAILED_BY}: its proof reads ${entailed.premises.join(", ")}`);
 	const refuting = await membershipRefuted(scope.reasoner, scope.store, scope.domains, scope.records, address, expression);
 	if (refuting !== undefined) {
 		const witness: TDisjointnessWitness = { individual: address, disjoint: refuting.disjoint.classes, statedBy: refuting.disjoint.statedBy };

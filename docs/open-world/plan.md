@@ -35,7 +35,8 @@ haibun is a readable, declarative language over hypermedia and RDF, open world, 
 
 ## Expression vocabulary (inside claims only)
 - The `class expression` parameter domain takes Manchester syntax in the fragment that OWL 2 RL evaluates completely for queries: named classes, `and`, `or` (parentheses required when mixed with `and`), `some`, `value`, `inverse`, datatype facets.
-- Refused, each naming the construct, the reason and the alternative: `only`, `not` (complement), `min`, `max`, `exactly`, and braces (`{c2}` clashes with haibun interpolation; use `individual c2 is a …` or `value c2`).
+- Refused, each naming the construct, the reason and the alternative: `only`, `not` (complement), `min`, `max` and `exactly`.
+- A nominal `{Type:id, …}` is OWL 2's ObjectOneOf: its members are the individuals it lists and each individual entailed owl:sameAs one, such as through an inverse functional property (prp-ifp). Its DL form is `{a, b}`, and its N3 rules state each listed individual a member and derive each `owl:sameAs` of one a member.
 - Names come from the ontology and are checked (nearest suggested); each property is checked against its domain and range (`inverse` suggested). Ontology names are short and verb-like (`recognizedFor`, `grantedTo`, `lacksAction`).
 - Records are filtered by class expressions; `whose` and `matching` remain for lists that aren't records. Graph reads' own filters go.
 
@@ -124,7 +125,7 @@ Estimated total: about −1,300 / +880 source lines.
   - Not done here: a failed claim highlighting the subsumption that doesn't hold and its witness in place, which needs the refusal to carry the witness as data. Stage 6 does it.
 - [x] 3 Claim forms and expressions
   - First part, net source lines: +215. Tests: +69. Feature lines: +34. Steps removed: 0. Steps added: 0.
-  - The class expression domain refuses `only`, `not`, `min`, `max`, `exactly` and braces, each naming the construct, its reason and the form to write; it reads `inverse {property}`; it checks each class and property against the ontology and suggests the nearest name, and suggests `inverse` where a restriction reads against its property's direction. A domain may state a reading of a term, and validating a line returns each reading: a class expression reads in DL notation and in plain English.
+  - The class expression domain refuses `only`, `not`, `min`, `max` and `exactly`, each naming the construct, its reason and the form to write; it reads `inverse {property}`; it checks each class and property against the ontology and suggests the nearest name, and suggests `inverse` where a restriction reads against its property's direction. A domain may state a reading of a term, and validating a line returns each reading: a class expression reads in DL notation and in plain English.
   - The resolver lets a domain's refusal settle a line that matches several steps: a step whose domain refuses a term the line writes doesn't take the line.
   - A rule test holds safety checks over class expressions positive: it finds a count of an expression's members held to zero and a negated membership, with an empty baseline.
   - Feature lines whose meaning changed: none. New: requirements 16, Class expressions.

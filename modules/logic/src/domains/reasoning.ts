@@ -89,7 +89,8 @@ export const classExpressionDomainDefinition: TDomainDefinition = {
 	selectors: [DOMAIN_CLASS_EXPRESSION],
 	schema: z.string().min(1),
 	written: true,
-	description: "A class expression in Manchester syntax: a named class, and, or, {property} some {class}, {property} value {Type:id}, and inverse {property}",
+	description:
+		"A class expression in Manchester syntax: a named class, and, or, {property} some {class}, {property} value {Type:id}, inverse {property}, and a nominal {Type:id, …}",
 };
 /** A background by its name, whose steps' contracts a feature's claim chains, and the claim: a statement of a declared relation
  *  over the variables the background's steps set. */

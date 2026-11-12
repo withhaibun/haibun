@@ -65,7 +65,7 @@ describe("entailedMembers", () => {
 		const stopped = { members: [], truncated: [STEP] };
 		expect(countedMembers(stopped)).toEqual({ members: [], total: 0, saturated: true });
 		expect(truncationOf(stopped)).toBe(` The reads of ${STEP} stopped at ${REASONING_READ_CEILING} records, and the records after them weren't read.`);
-		expect(truncationOf({ members: [], truncated: [] })).toBe("");
+		expect(truncationOf({ truncated: [] })).toBe("");
 	});
 
 	it("returns the records of each type a named class subsumes, through the IRI the type declares", { timeout: 30_000 }, async () => {

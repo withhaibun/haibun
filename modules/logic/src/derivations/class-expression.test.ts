@@ -1,10 +1,10 @@
 /**
  * A class expression's rules: one class per part in the rules that derive its members, a literal as an N3 literal, a datatype
- * restriction's facets as the built-ins that compare a value, and a member that stands for any member of each alternative.
+ * restriction's facets as the built-ins that compare a value, a nominal's individuals and each individual the same as one, and a member that stands for any member of each alternative.
  */
 import { describe, expect, it } from "vitest";
 import { DataFactory } from "n3";
-import { LOG, MATH, RDF, STRING } from "@haibun/core/lib/domains/vocabularies.js";
+import { LOG, MATH, OWL, RDF, STRING } from "@haibun/core/lib/domains/vocabularies.js";
 import { parseClassExpression } from "@haibun/core/lib/records/derivations/class-expression.js";
 import { patternText } from "./n3.js";
 import { expressionRules, frozenMembers } from "./class-expression.js";
@@ -37,6 +37,12 @@ describe("expressionRules", () => {
 		expect(rulesOf("count some xsd:integer[> 3]")).toContain(`?v <${MATH.greaterThan}> 3 .`);
 		expect(rulesOf('subject some xsd:string[pattern "invoice"]')).toContain(`?v <${STRING.matches}> "invoice" .`);
 	});
+
+	it("states a nominal's individual its member, and each individual owl:sameAs it a member, and queries one individual's membership", () => {
+		const { rules, membership } = expressionRules(parseClassExpression("{Person:p1}"), "urn:q#", IRIS);
+		expect(rules.split("\n")).toEqual([`<urn:i:Person:p1> ${TYPE} <urn:q#e1> .`, `{ ?x <${OWL.sameAs}> <urn:i:Person:p1> . } ${IMPLIES} { ?x ${TYPE} <urn:q#e1> . } .`]);
+		expect(membership(DataFactory.namedNode("urn:i:Person:p2"))).toBe(`{ <urn:i:Person:p2> ${TYPE} <urn:q#e1> . } ${IMPLIES} { <urn:i:Person:p2> ${TYPE} <urn:q#e1> . } .`);
+	});
 });
 
 describe("an expression's member", () => {
@@ -46,6 +52,10 @@ describe("an expression's member", () => {
 			[`<urn:m> ${TYPE} <urn:c:Note> .`, "<urn:m> <urn:p:isPartOf> <urn:q#v1> .", `<urn:q#v1> ${TYPE} <urn:c:Step> .`],
 			[`<urn:m> ${TYPE} <urn:c:Note> .`, "<urn:m> <urn:p:isPartOf> <urn:i:Step:s2> ."],
 			[`<urn:m> ${TYPE} <urn:c:Note> .`, '<urn:m> <urn:p:title> "x" .'],
+		]);
+		expect(frozenMembers(parseClassExpression("{Step:s1, Step:s2}"), DataFactory.namedNode("urn:m"), "urn:q#", IRIS).map((facts) => facts.map(patternText))).toEqual([
+			[`<urn:m> <${OWL.sameAs}> <urn:i:Step:s1> .`],
+			[`<urn:m> <${OWL.sameAs}> <urn:i:Step:s2> .`],
 		]);
 		expect(() => frozenMembers(parseClassExpression("count some xsd:integer[> 3]"), DataFactory.namedNode("urn:m"), "urn:q#", IRIS)).toThrow(/doesn't read a datatype restriction/);
 	});

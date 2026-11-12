@@ -1228,8 +1228,8 @@ export const ANNOTATION_NOTE_DOMAIN = "annotation-note";
  *  member is an `IQuadStore` member, so every consumer store implements it. */
 export type TDiscourseStore = Pick<IQuadStore, "create" | "merge" | "remove" | "query">;
 
-/** The store a passage is anchored through, which creates its records. */
-type TAnchorStore = Pick<TDiscourseStore, "create">;
+/** The store a passage is anchored through, which merges its records. */
+type TAnchorStore = Pick<TDiscourseStore, "merge">;
 
 /** The maximum length of a Comment's display name. The name is the note text on one line, truncated, so a graph view titles the Comment by its text and not its id. */
 const COMMENT_NAME_MAX = 60;
@@ -1249,13 +1249,20 @@ const selectorOf = (part: TPart): { label: string; fields: Record<string, string
 				reads: part.exact,
 			};
 
+/** Returns the hex SHA-256 digest of a text, through the Web Crypto API that both Node and a page hold. */
+async function digestOf(text: string): Promise<string> {
+	const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+	return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 /** Anchors a part inside `source`, the record that holds the quoted text, in one unit: a SpecificResource that names the source, and owns the selector
  *  that locates the part. The source may be a record the store doesn't hold yet, since a text can quote a document that hasn't
  *  been read. A quote's optional prefix and suffix let a short or repeated quote resolve to one occurrence. Returns the ids it
  *  wrote and the selector's type. A Comment's oa:hasTarget (anchor) or oa:hasBody linksTo (cross-reference) points at the
  *  SpecificResource. The selector id lets a caller that owns the anchor retract the pair. `label` is the name a reader gave
  *  this part where it was referenced, so it reads as more than its selector, and `generatedBy` names the record that generated
- *  the anchor, such as the reading of a text. */
+ *  the anchor, such as the reading of a text. Both ids are the digest of what the anchor states, so anchoring the same part
+ *  again writes the same records and doesn't add an anchor. */
 export async function anchorPart(
 	store: TAnchorStore,
 	source: TRecordName,
@@ -1263,16 +1270,19 @@ export async function anchorPart(
 	stated?: { label?: string; generatedBy?: TRecordName },
 ): Promise<{ specificResourceId: string; selectorId: string; selectorLabel: string }> {
 	const selector = selectorOf(part);
-	const selectorId = crypto.randomUUID();
-	const specificResourceId = crypto.randomUUID();
-	// An anchor reads as the part it represents. Its id is a generated string. Resolving the title through its selector
-	// is a hop through a second proxy, and that hop ends at the id. A node without a label reads as that string.
-	await store.create({
-		"@type": SPECIFIC_RESOURCE_LABEL,
-		id: specificResourceId,
+	// An anchor reads as the part it represents. Its id is a digest. Resolving the title through its selector is a hop through
+	// a second proxy, and that hop ends at the id. A node without a label reads as that string.
+	const anchor = {
 		label: stated?.label ?? selector.reads,
 		[LinkRelations.HAS_SOURCE.rel]: referenceTo(source.label, source.id),
 		...(stated?.generatedBy === undefined ? {} : { [LinkRelations.WAS_GENERATED_BY.rel]: referenceTo(stated.generatedBy.label, stated.generatedBy.id) }),
+	};
+	const specificResourceId = await digestOf(JSON.stringify([anchor, selector.label, selector.fields]));
+	const selectorId = `${specificResourceId}-selector`;
+	await store.merge({
+		"@type": SPECIFIC_RESOURCE_LABEL,
+		id: specificResourceId,
+		...anchor,
 		[LinkRelations.HAS_SELECTOR.rel]: { "@type": selector.label, id: selectorId, ...selector.fields },
 	});
 	return { specificResourceId, selectorId, selectorLabel: selector.label };

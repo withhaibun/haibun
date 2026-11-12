@@ -724,23 +724,24 @@ describe("assertCommentGrounded: every comment is grounded", () => {
 });
 
 describe("writeAnnotation, self-contained on a store of the discourse types", () => {
+	const discourseStore = () =>
+		storeOfDomains([commentDomainDefinition, bodyDomainDefinition, specificResourceDomainDefinition, textQuoteSelectorDomainDefinition, readingDomainDefinition], TEST_LEVELS);
+	const note = { label: "File", id: "doc-1", exact: "a passage", suffix: " of the document", text: "A note." };
 	it("writes a grounded Comment, hasTarget→ SpecificResource, hasSource→ doc and hasSelector→ TextQuoteSelector without editing the doc", async () => {
-		const store = storeOfDomains(
-			[commentDomainDefinition, bodyDomainDefinition, specificResourceDomainDefinition, textQuoteSelectorDomainDefinition, readingDomainDefinition],
-			TEST_LEVELS,
-		);
-		const { commentId, specificResourceId } = await writeAnnotation(store, noLinkVocabulary, "did:site:0", {
-			label: "File",
-			id: "doc-1",
-			exact: "a passage",
-			suffix: " of the document",
-			text: "A note.",
-		});
+		const store = discourseStore();
+		const { commentId, specificResourceId } = await writeAnnotation(store, noLinkVocabulary, "did:site:0", note);
 		const edgeOf = async (label: string, subject: string, predicate: string) => (await store.query({ subject, predicate, namedGraph: label })).at(0)?.object;
 		expect(await edgeOf(COMMENT_LABEL, commentId, LinkRelations.TARGET.rel)).toBe(specificResourceId);
 		expect(await edgeOf(SPECIFIC_RESOURCE_LABEL, specificResourceId, LinkRelations.HAS_SOURCE.rel), "the SpecificResource points at the document").toBe("doc-1");
 		expect(await store.query({ subject: "doc-1" }), "the document itself doesn't get a quad").toEqual([]);
 		const selector = await recordOf(store, TEXT_QUOTE_SELECTOR_LABEL, String(await edgeOf(SPECIFIC_RESOURCE_LABEL, specificResourceId, LinkRelations.HAS_SELECTOR.rel)));
 		expect(selector).toMatchObject({ exact: "a passage", suffix: " of the document" });
+	});
+	it("anchors a part again as the same SpecificResource, since its id is the digest of what it states", async () => {
+		const store = discourseStore();
+		const first = await writeAnnotation(store, noLinkVocabulary, "did:site:0", note);
+		const again = await writeAnnotation(store, noLinkVocabulary, "did:site:0", note);
+		expect(again.specificResourceId).toBe(first.specificResourceId);
+		expect((await store.query({ predicate: LinkRelations.HAS_SOURCE.rel, namedGraph: SPECIFIC_RESOURCE_LABEL })).length, "one anchor of the passage").toBe(1);
 	});
 });

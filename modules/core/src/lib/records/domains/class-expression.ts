@@ -1,7 +1,7 @@
 /**
  * A class expression's parts, the one filter language of records: a named class, `and`, `or`, `{property} some {expression}`,
- * `{property} value {individual}` and `{property} value {literal}`, each property also as `inverse {property}`, and a datatype
- * restriction with OWL 2's facets. Writes an expression in Manchester syntax (W3C OWL 2 Manchester Syntax), which the
+ * `{property} value {individual}` and `{property} value {literal}`, each property also as `inverse {property}`, a datatype
+ * restriction with OWL 2's facets, and a nominal, the individuals OWL 2's ObjectOneOf lists. Writes an expression in Manchester syntax (W3C OWL 2 Manchester Syntax), which the
  * instance reads, so a page states an expression without reading one.
  */
 import { itemAt } from "../../domains/item-at.js";
@@ -22,6 +22,7 @@ export type TClassExpression =
 	| { named: string }
 	| { and: TClassExpression[] }
 	| { or: TClassExpression[] }
+	| { oneOf: string[] }
 	| (TRestricted & { some: TClassExpression })
 	| (TRestricted & { value: string })
 	| (TRestricted & { literal: TLiteral })
@@ -33,6 +34,10 @@ export const XSD_PREFIX = "xsd:";
 export const DATATYPE = { string: XSD_STRING, dateTime: XSD_DATE_TIME, date: XSD_DATE, integer: XSD_INTEGER, decimal: XSD_DECIMAL, boolean: XSD_BOOLEAN } as const;
 /** The keywords of Manchester syntax an expression writes. */
 export const KEYWORD = { and: "and", or: "or", some: "some", value: "value", inverse: "inverse" } as const;
+/** The braces around a nominal's individuals, and the separator between them, which Manchester syntax and DL notation write. */
+export const NOMINAL = { open: "{", close: "}", separator: ", " } as const;
+/** A nominal's individuals as Manchester syntax and DL notation write them. */
+export const nominalText = (individuals: readonly string[]): string => `${NOMINAL.open}${individuals.join(NOMINAL.separator)}${NOMINAL.close}`;
 
 /** A literal as Manchester syntax, DL notation and a reading write it: quoted, with its datatype where it isn't a string. */
 export const literalText = ({ lexical, datatype }: TLiteral): string => `${JSON.stringify(lexical)}${datatype === undefined ? "" : `^^${datatype}`}`;
@@ -56,6 +61,7 @@ export function manchesterOf(expression: TClassExpression): string {
 	if ("named" in expression) return expression.named;
 	if ("and" in expression) return expression.and.map(nested).join(` ${KEYWORD.and} `);
 	if ("or" in expression) return expression.or.map(nested).join(` ${KEYWORD.or} `);
+	if ("oneOf" in expression) return nominalText(expression.oneOf);
 	const role = expression.inverse ? `${KEYWORD.inverse} ${expression.property}` : expression.property;
 	if ("some" in expression) return `${role} ${KEYWORD.some} ${nested(expression.some)}`;
 	if ("range" in expression) {

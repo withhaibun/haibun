@@ -10,11 +10,28 @@ import { ClaimProductsSchema } from "@haibun/core/lib/records/domains/claim.js";
 import { ClaimWitnessSchema, DisjointnessWitnessSchema } from "@haibun/core/lib/records/domains/axioms.js";
 import { reasoner } from "../root.js";
 import { instanceChecked, subsumptionChecked } from "./claims.js";
-import { NOTE, PERSON, STEP, scopeWith } from "../test/claim-scope.js";
+import { NOTE, PERSON, SHARED_MAILBOX, STEP, scopeWith } from "../test/claim-scope.js";
 
 const outcomeOf = (result: TActionResult) => ClaimProductsSchema.parse(result.products).claim;
 /** The axioms that refute a Note's membership of Step: PROV-O's disjointness, and the superclass each type declares. */
 const DISJOINT = "DisjointClasses(prov:Activity prov:Entity) (PROV-O W3C Recommendation 2013-04-30), SubClassOf(Note prov:Entity), SubClassOf(Step prov:Activity)";
+
+describe("claims K entails", () => {
+	it("proves an individual a member of a nominal of another that shares its mailbox, naming the mailbox the proof read", { timeout: 60_000 }, async () => {
+		const result = await instanceChecked(await scopeWith(reasoner()), { persistedAs: PERSON, id: "p2" }, "{Person:p1}");
+		const { verdict, proof, functional } = outcomeOf(result);
+		expect(verdict).toBe(VERDICT.proved);
+		expect(functional).toBe("ClassAssertion(ObjectOneOf(Person:p1) Person:p2)");
+		expect(proof).toContain(`InverseFunctionalObjectProperty(foaf:mbox)`);
+		expect(proof).toContain(`DataPropertyAssertion(foaf:mbox Person:p1 "${SHARED_MAILBOX}")`);
+		expect(proof).toContain(`DataPropertyAssertion(foaf:mbox Person:p2 "${SHARED_MAILBOX}")`);
+	});
+
+	it("leaves unknown a nominal's membership where the two individuals don't share a value of an inverse functional property", { timeout: 60_000 }, async () => {
+		const result = await instanceChecked(await scopeWith(reasoner()), { persistedAs: NOTE, id: "n1" }, "{Person:p1}");
+		expect(outcomeOf(result).verdict).toBe(VERDICT.unknown);
+	});
+});
 
 describe("claims K contradicts", () => {
 	it("refutes an instance check that contradicts a disjointness, naming the standard's axiom, the superclasses and the record's type", { timeout: 60_000 }, async () => {

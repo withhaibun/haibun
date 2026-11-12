@@ -69,11 +69,12 @@ export function extractedBy({ steps }: TProof): Quad[] {
 }
 
 /** Returns the axiom a triple states in OWL 2 functional syntax, each term by the name `nameOf` gives it: a subsumption, a
- *  disjointness, a membership, or a property's assertion of a value. */
+ *  disjointness, a property's inverse functionality, a membership, or a property's assertion of a value. */
 export function functionalAxiom({ subject, predicate, object }: Quad, nameOf: (term: Term) => string): string {
 	const [s, o] = [nameOf(subject), nameOf(object)];
 	if (predicate.value === RDFS.subClassOf) return `SubClassOf(${s} ${o})`;
 	if (predicate.value === OWL.disjointWith) return `DisjointClasses(${s} ${o})`;
+	if (predicate.value === RDF.type && object.value === OWL.InverseFunctionalProperty) return `InverseFunctionalObjectProperty(${s})`;
 	if (predicate.value === RDF.type) return `ClassAssertion(${o} ${s})`;
 	return `${object.termType === "Literal" ? "DataPropertyAssertion" : "ObjectPropertyAssertion"}(${nameOf(predicate)} ${s} ${o})`;
 }

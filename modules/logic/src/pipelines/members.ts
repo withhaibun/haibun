@@ -19,6 +19,7 @@ import { QUERY_NAMESPACE, REASONING_READ_CEILING, RULE_SET } from "../domains/re
 import { DataFactory } from "n3";
 import type { NamedNode, Quad, Term } from "@rdfjs/types";
 import { OWL } from "@haibun/core/lib/domains/vocabularies.js";
+import { recordOfCurie } from "@haibun/core/lib/records/domains/unit.js";
 import { registeredVocabularies, vocabularyName, vocabularyOf } from "@haibun/core/lib/domains/vocabulary-registry.js";
 import { dlOf, nameRefusal, namesOf, parseClassExpression, readingOf, resolvedExpression, type TVocabulary } from "@haibun/core/lib/records/derivations/class-expression.js";
 import type { TClassExpression } from "@haibun/core/lib/records/domains/class-expression.js";
@@ -98,9 +99,16 @@ function derivedBasis(domains: Record<string, TRegisteredDomain>): TQueryBasis {
 	const declaredDisjointness = new Map(stated(CLASS_LABEL, ONTOLOGY_FIELD.disjointnessDeclaredIn).map((q) => [q.subject, String(q.object)]));
 	const labels = Object.values(domains).flatMap(({ topology }) => (isPersisted(topology) ? [topology.persistedAs] : []));
 	const typesReached = (expression: TClassExpression): string[] => {
-		const { classes: named, properties } = namesOf(expression);
+		const { classes: named, properties, individuals } = namesOf(expression);
 		const iris = new Set(named.map((name) => iriIn(context, name)));
-		const connected = new Set(properties.flatMap((name) => [...declared(ONTOLOGY_FIELD.domain, name), ...declared(ONTOLOGY_FIELD.range, name)]));
+		const connected = new Set([
+			...properties.flatMap((name) => [...declared(ONTOLOGY_FIELD.domain, name), ...declared(ONTOLOGY_FIELD.range, name)]),
+			...individuals.map((address) => {
+				const record = recordOfCurie(address);
+				if (record === undefined) throw new Error(`the nominal lists ${address}, which isn't an individual's address. Write it as Type:id.`);
+				return record.label;
+			}),
+		]);
 		return labels.filter((label) => connected.has(label) || [...ancestorsWith(label, supers)].some((cls) => iris.has(iriIn(context, cls))));
 	};
 	return {
@@ -155,7 +163,7 @@ export function expressionReading(text: string, domains: Record<string, TRegiste
 export const countedMembers = ({ members, truncated }: TEntailed) => ({ members, total: members.length, saturated: truncated.length > 0 });
 
 /** Why an unproved membership stays unknown beyond the open world: the types whose reads stopped at the reasoning's ceiling. */
-export const truncationOf = ({ truncated }: TEntailed): string =>
+export const truncationOf = ({ truncated }: Pick<TEntailed, "truncated">): string =>
 	truncated.length === 0 ? "" : ` The reads of ${truncated.join(", ")} stopped at ${REASONING_READ_CEILING} records, and the records after them weren't read.`;
 
 /** Returns the addresses of the records a class expression entails as its members, and the types whose reads stopped at the
@@ -170,18 +178,54 @@ export async function entailedMembers(
 	const basis = queryBasis(domains);
 	const terms = basis.termsOf(records);
 	const expression = checkedExpression(text, basis);
+	const { sources, truncated } = await sourcesOf(store, basis, terms, expression);
+	const { rules, query } = expressionRules(expression, QUERY_NAMESPACE, irisOf(basis, terms));
+	const derived = await reason(reasoner, store, domains, records, { ruleSets: CLASS_RULE_SETS, rules: [sources, rules].join("\n"), query, closedOver: [] });
+	const members = [...new Map(derived.map(({ subject }) => [subject, terms.addressOf(subject)])).values()];
+	return { members, truncated };
+}
+
+/** What a query of an expression's members reasons over: the ontology as OWL 2, its closure under the registered vocabularies and
+ *  the facts of each type the expression reaches, read under the caller's authority; and the types whose reads stopped at the
+ *  reasoning's ceiling. */
+async function sourcesOf(store: IQuadStore, basis: TQueryBasis, terms: TRecordTerms, expression: TClassExpression): Promise<{ sources: string; truncated: string[] }> {
 	const reader = readerOf(store);
 	const reads = await Promise.all(basis.typesReached(expression).map(async (label) => ({ label, ...(await reader.records(label)) })));
-	const { rules, query } = expressionRules(expression, QUERY_NAMESPACE, irisOf(basis, terms));
 	const facts = reads.map(({ label, facts: read }) => quadsText(terms.statements(label, read)));
-	const derived = await reason(reasoner, store, domains, records, {
-		ruleSets: CLASS_RULE_SETS,
-		rules: [basis.axioms, basis.closure, rules, ...facts].join("\n"),
-		query,
-		closedOver: [],
-	});
-	const members = [...new Map(derived.map(({ subject }) => [subject, terms.addressOf(subject)])).values()];
-	return { members, truncated: reads.flatMap(({ label, truncated }) => (truncated ? [label] : [])) };
+	return { sources: [basis.axioms, basis.closure, ...facts].join("\n"), truncated: reads.flatMap(({ label, truncated }) => (truncated ? [label] : [])) };
+}
+
+/** Returns the premises by which K entails the record at `address` as a member of `text`: the axioms, the records' facts and the
+ *  standard axioms the reasoner's proof read, each in OWL 2 functional syntax, apart from the facts of the query's own classes; or
+ *  undefined premises where K doesn't entail the membership. Also returns the types whose reads stopped at the reasoning's ceiling. */
+export async function membershipProof(
+	reasoner: TReasoner,
+	store: IQuadStore,
+	domains: Record<string, TRegisteredDomain>,
+	records: TRecordNamespace,
+	address: TIndividualAddress,
+	text: string,
+): Promise<{ premises?: string[]; truncated: string[] }> {
+	const basis = queryBasis(domains);
+	const terms = basis.termsOf(records);
+	const expression = checkedExpression(text, basis);
+	const { sources, truncated } = await sourcesOf(store, basis, terms, expression);
+	const { rules, membership } = expressionRules(expression, QUERY_NAMESPACE, irisOf(basis, terms));
+	const query = membership(terms.individualAt(addressText(address)));
+	const { proof } = await explain(reasoner, store, domains, records, { ruleSets: CLASS_RULE_SETS, rules: [sources, rules].join("\n"), query, closedOver: [] });
+	if (proof.gives.length === 0) return { truncated };
+	const { axiomOf } = premisesIn(basis, terms);
+	const queried = (read: Quad) => [read.subject, read.object].some((term) => term.value.startsWith(QUERY_NAMESPACE));
+	return {
+		premises: [
+			...new Set(
+				extractedBy(proof)
+					.filter((read) => !queried(read))
+					.map(axiomOf),
+			),
+		].sort(),
+		truncated,
+	};
 }
 
 /** The individual that stands for any member of an expression in a subsumption. */
@@ -250,22 +294,7 @@ async function disjointnessMet(
 	const terms = basis.termsOf(records);
 	const reader = readerOf(store);
 	const facts = await Promise.all(labels.map(async (label) => quadsText(terms.statements(label, (await reader.records(label)).facts))));
-	const nameOf = (term: Term): string => {
-		if (term.termType === "Literal") return JSON.stringify(term.value);
-		const address = terms.recordAt(term);
-		return manchesterName(address === undefined ? basis.nameOf(term.value) : addressText(address));
-	};
-	// A disjointness names the vocabulary that states it, by its title and version.
-	// A disjointness names what states it: the vocabulary, by its title and version, or the declaration of either class.
-	const statedBy = (a: string, b: string): string => {
-		const vocabulary = vocabularyOf(a);
-		if (vocabulary !== undefined) return vocabularyName(vocabulary.entry);
-		const declared = basis.declaredIn(a) ?? basis.declaredIn(b);
-		if (declared === undefined) throw new Error(`the disjointness of ${a} and ${b} doesn't name a vocabulary or a declaration. Declare it in a type, or register its vocabulary.`);
-		return `declared in ${declared}`;
-	};
-	const axiomOf = (read: Quad): string =>
-		read.predicate.value === OWL.disjointWith ? `${functionalAxiom(read, nameOf)} (${statedBy(read.subject.value, read.object.value)})` : functionalAxiom(read, nameOf);
+	const { axiomOf, statedBy } = premisesIn(basis, terms);
 	const query = reasoner.rules(RULE_SET.disjointnessQuery);
 	const met = new Set<string>();
 	let disjoint: TDisjointnessMet["disjoint"] | undefined;
@@ -282,6 +311,26 @@ async function disjointnessMet(
 	}
 	if (disjoint === undefined) throw new Error("the reasoner's proof of a disjointness doesn't state the disjointness it read. Check the disjointness query.");
 	return { axioms: [...met].sort(), disjoint };
+}
+
+/** Returns how a proof's premises are named: each read in OWL 2 functional syntax, a record by its address and a disjointness
+ *  with what states it, the vocabulary by its title and version, or the declaration of either class. */
+function premisesIn(basis: TQueryBasis, terms: TRecordTerms): { axiomOf: (read: Quad) => string; statedBy: (a: string, b: string) => string } {
+	const nameOf = (term: Term): string => {
+		if (term.termType === "Literal") return JSON.stringify(term.value);
+		const address = terms.recordAt(term);
+		return manchesterName(address === undefined ? basis.nameOf(term.value) : addressText(address));
+	};
+	const statedBy = (a: string, b: string): string => {
+		const vocabulary = vocabularyOf(a);
+		if (vocabulary !== undefined) return vocabularyName(vocabulary.entry);
+		const declared = basis.declaredIn(a) ?? basis.declaredIn(b);
+		if (declared === undefined) throw new Error(`the disjointness of ${a} and ${b} doesn't name a vocabulary or a declaration. Declare it in a type, or register its vocabulary.`);
+		return `declared in ${declared}`;
+	};
+	const axiomOf = (read: Quad): string =>
+		read.predicate.value === OWL.disjointWith ? `${functionalAxiom(read, nameOf)} (${statedBy(read.subject.value, read.object.value)})` : functionalAxiom(read, nameOf);
+	return { axiomOf, statedBy };
 }
 
 /** What a membership of two disjoint classes states: the axioms the reasoner's proof read, and the two disjoint classes with the
