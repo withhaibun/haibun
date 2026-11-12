@@ -12,9 +12,21 @@ import { VERDICT, type TActionResult } from "../../domains/protocol.js";
 import { actionNotOK } from "../../domains/util.js";
 import { isPersisted } from "../../domains/resources.js";
 import { normalizeDomainKey, refTargetOf } from "../../domains/domains.js";
-import { referenceTo } from "../../records/domains/unit.js";
+import { curieOf, referenceTo } from "../../records/domains/unit.js";
 import { actingFor, inCall } from "../../domains/capability-context.js";
-import { ACTUALITY_PRINCIPAL, CONTRACT_CHECK, checkN3, contractChecking, contractProducts, type TContractCall, type TContractCheck } from "../domains/contract.js";
+import {
+	ACTUALITY_PRINCIPAL,
+	ASSUMED_CHECK,
+	CONTRACT_CHECK,
+	checkN3,
+	contractChecking,
+	contractProducts,
+	holds,
+	parameter,
+	requiredRelation,
+	type TContractCall,
+	type TContractCheck,
+} from "../domains/contract.js";
 import { stepParts } from "../domains/phrase.js";
 import type { TStatementRefusal } from "../../transport/domains/rpc-wire.js";
 import type { TStepperStep } from "../domains/stepper.js";
@@ -50,6 +62,26 @@ export async function contractChecked(world: TWorld, step: TStepperStep, check: 
 		throw new Error(`a contract's check states ${verdict} for a statement, and a check states proved, refuted or unknown`);
 	const statement = { statement: sentence, verdict, decidedBy, remedy: REMEDY_OF[verdict] };
 	return { checked, refused: { reason: `${REFUSED_AT[check]} that ${sentence}, which is ${verdict}: ${decidedBy}. ${statement.remedy}`, statement } };
+}
+
+/** Returns the check of the records an assumed step's call wrote against the fields each one's type states every member has
+ *  (`required`): a field the record holds is proved, and a field the extraction didn't produce is unknown. The check doesn't
+ *  refuse the call, since the open world doesn't read an absent field as false. Undefined where the call didn't write a record of a
+ *  type that states one. */
+export async function assumedChecked(world: TWorld): Promise<string | undefined> {
+	const written = inCall()?.step?.writes?.written;
+	const requiredOf = new Map(
+		Object.values(world.domains).flatMap(({ topology }) => (isPersisted(topology) && topology.required ? [[topology.persistedAs, topology.required]] : [])),
+	);
+	const records = new Map((written === undefined ? [] : written).map((name) => [curieOf(name), name]));
+	const parameters = Object.fromEntries([...records].map(([curie, { label, id }]) => [curie, referenceTo(label, id)]));
+	const statements = [...records].flatMap(([curie, { label }]) => {
+		const keys = requiredOf.get(label);
+		return keys === undefined ? [] : keys.map((key) => holds(requiredRelation(key), parameter(curie)));
+	});
+	if (statements.length === 0) return undefined;
+	const { facts } = await proverOf(world).checkContract(world, { statements, complete: [] }, { parameters });
+	return checkN3(ASSUMED_CHECK, facts);
 }
 
 /** Returns the result of a call its contract's check refused, with the checks the call ran. */

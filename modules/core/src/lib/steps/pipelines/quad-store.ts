@@ -383,7 +383,7 @@ export class QuadStore implements IQuadStore {
 		const held = [...this.quads.ofSubject(part.label, part.id)];
 		const fields = Object.fromEntries(held.filter((q) => !q.objectType).map((q) => [q.predicate, q.object]));
 		const edges = part.edges.filter(({ rel, id }) => !held.some((q) => q.objectType !== undefined && q.predicate === rel && q.object === id)).map(({ rel }) => rel);
-		return { label: part.label, changed: [...changedFields(part, held.length === 0 ? undefined : fields, this.idFieldOf(part.label)), ...edges] };
+		return { label: part.label, id: part.id, changed: [...changedFields(part, held.length === 0 ? undefined : fields, this.idFieldOf(part.label)), ...edges] };
 	}
 
 	/** Returns the version of a record's fields: in the backing store of its type, or in this store's own layer. */

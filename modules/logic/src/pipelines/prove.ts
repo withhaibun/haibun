@@ -21,7 +21,7 @@ import { argumentsOf } from "@haibun/core/lib/steps/pipelines/populate-action-ar
 import { VERDICT, verdictOf, type TActionResult, type TContractRefusal, type TStepArgs, type TStepResult, type TVerdict } from "@haibun/core/lib/domains/protocol.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { refusalCarried, type TRemedy } from "@haibun/core/lib/rpc-wire.js";
-import { declaredRelations } from "../derivations/contract-declarations.js";
+import { checkedRelations } from "../derivations/contract-declarations.js";
 import { contractChecks } from "./contract-checks.js";
 import { READING, UNTIL_DURATION, untilWithoutDuration, type AStepper, type TStepContext, type TFeatureStep, type TWaypointRule } from "@haibun/core/lib/steps/domains/stepper.js";
 import { formatSeqPath } from "@haibun/core/lib/actuality/domains/seq-path.js";
@@ -652,10 +652,10 @@ function refusalOf(failed: TStepResult & { ok: false }): TRefusal {
 const WitnessProductsSchema = z.object({ witness: z.union([ClaimWitnessSchema, DisjointnessWitnessSchema]) });
 
 /** The prover of an engine, which proves a permission's containment through the reasoner and checks a call against its step's
- *  contract over the rules of the relations `steppers` declare. */
+ *  contract over the rules of the relations `steppers` declare and of each field their types state every member has. */
 export function proverOf(engine: TLogicEngine, reasoner: TReasoner, steppers: readonly AStepper[]): TProver {
 	return {
-		checkContract: contractChecks([...declaredRelations(steppers)], reasoner, engine),
+		checkContract: contractChecks(checkedRelations(steppers), reasoner, engine),
 		exceeding: async (candidate, bound) => (await containment(reasoner, candidate, bound)).exceeds,
 		entailed: (world, expression) => entailedMembers(reasoner, world.shared.getStore(), world.domains, world.runtime.records, expression),
 		prove: async (ctx, line) => {

@@ -99,6 +99,12 @@ export const AccessQuery = AccessQueryLevelSchema.enum;
 export const PersistedVertexSchema = z.object({
 	accessLevel: AccessLevelSchema.optional().describe("How widely the record is shared. A record that doesn't state a level is classified by its type at write time."),
 });
+/** Returns a type's stored schema and the fields every record of the type has, from the schema its declaration states and those
+ *  fields' keys: the stored schema doesn't require them, so the topology's `required` and the schema's optionality are one list. */
+export function openWorld<Shape extends z.ZodRawShape, K extends keyof Shape & string>(schema: z.ZodObject<Shape>, required: readonly K[]) {
+	const optional = Object.fromEntries(required.map((key) => [key, z.optional(schema.shape[key] as Shape[K])])) as { [P in K]: z.ZodOptional<Shape[P]> };
+	return { schema: schema.extend(optional), required };
+}
 /** The time a record was generated, which a record written without one takes as the time it is written: as a date, and as
  *  the ISO text a type declared by its context holds. */
 export const GeneratedAtTimeSchema = z.coerce.date().default(() => new Date());
@@ -782,6 +788,12 @@ export type THypermediaTopology = {
 	 * Absent means the store counts the records of each day by their type alone.
 	 */
 	countedBy?: readonly string[];
+	/**
+	 * The fields every record of the type has, by the type's declaration. The stored schema doesn't require them (`openWorld`),
+	 * since the open world doesn't read an absent field as false: a record without one is stored, and the check of an assumed
+	 * step's writes states each field the record holds proved, and each it doesn't hold unknown.
+	 */
+	required?: readonly string[];
 	/**
 	 * The level a record of this type is stored at when the record doesn't state one. A type declares the least sharing
 	 * under which its records remain useful, so a writer that omits the level doesn't publish a record. A record shared

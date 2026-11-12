@@ -13,7 +13,7 @@ const MENTIONS_REL = LinkRelations.MENTIONS.rel;
 const MENTIONS = { [MENTIONS_REL]: { ranges: [CAPABILITY], owns: false, reference: true, functional: false } };
 const DELEGATE = "CredentialsStepper-delegate";
 /** The writes of a step whose products are Capabilities and whose contract lists a Note's `revoked`, with the writes refused during the step. */
-const delegates = (): TStepWrites => ({ step: DELEGATE, products: [CAPABILITY], changes: [{ persistedAs: NOTE, key: "revoked" }], refused: [] });
+const delegates = (): TStepWrites => ({ step: DELEGATE, products: [CAPABILITY], changes: [{ persistedAs: NOTE, key: "revoked" }], refused: [], written: [] });
 let DELEGATES = delegates();
 const inStepAt = <T>(seqPath: string, writes: TStepWrites | undefined, within: () => Promise<T>): Promise<T> =>
 	runInCall(inStep(inCall(), { seqPath, reportsAt: undefined, writes }), within);
@@ -29,11 +29,15 @@ describe("a unit written in a step with a contract", () => {
 	});
 	const held = (label: string, id: string) => store.query({ subject: id, namedGraph: label });
 
-	it("is written in one operation where the contract allows each part, and another caller reads it at once", async () => {
+	it("is written in one operation where the contract allows each part, another caller reads it at once, and the step lists its parts", async () => {
 		const owning: TStepWrites = { ...DELEGATES, changes: [...DELEGATES.changes, { persistedAs: BODY, key: "text" }] };
 		await inStepAt("0.1", owning, () => store.create({ "@type": CAPABILITY, id: "cap-1", controller: "did:a", hasBody: { id: "cap-1-body", text: "signed" } }));
 		expect(await store.get("cap-1", "controller", CAPABILITY)).toBe("did:a");
 		expect(await store.get("cap-1-body", "text", BODY), "the Body the Capability owns is written with it").toBe("signed");
+		expect(owning.written, "the step's written records hold each part").toEqual([
+			{ label: BODY, id: "cap-1-body" },
+			{ label: CAPABILITY, id: "cap-1" },
+		]);
 	});
 
 	it("refuses a unit whose owned part changes what the contract doesn't list, and doesn't write any of its parts", async () => {
@@ -89,7 +93,7 @@ describe("a unit written in a step with a contract", () => {
 	});
 
 	it("checks each write against the innermost step's contract where steps nest", async () => {
-		const notes: TStepWrites = { step: "NotesStepper-note", products: [NOTE], changes: [], refused: [] };
+		const notes: TStepWrites = { step: "NotesStepper-note", products: [NOTE], changes: [], refused: [], written: [] };
 		await inStepAt("0.1", DELEGATES, () => inStepAt("0.1.1", notes, () => store.merge({ "@type": NOTE, id: "n-4", says: "the inner step's product" })));
 		expect(await store.get("n-4", "says", NOTE)).toBe("the inner step's product");
 		await expect(inStepAt("0.1", notes, () => inStepAt("0.1.1", DELEGATES, () => store.merge({ "@type": NOTE, id: "n-5", says: "outside" })))).rejects.toThrow(DELEGATE);

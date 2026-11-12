@@ -16,7 +16,7 @@ import { stepDeclaration } from "../derivations/step-tools.js";
 import { StatementStepsSchema, validateProducts } from "../derivations/tool-validation.js";
 import { argumentsOf } from "./populate-action-args.js";
 import { CONTRACT_CHECK, contractProducts } from "../domains/contract.js";
-import { callPrincipal, contractChecked, contractRefusal } from "./contract-check.js";
+import { assumedChecked, callPrincipal, contractChecked, contractRefusal } from "./contract-check.js";
 import { writeProducts } from "./product-writes.js";
 
 /** A registered step tool. Every transport (RPC, MCP, a model's turn) dispatches a step through one. */
@@ -228,8 +228,8 @@ function listedResult(result: TActionResult & { ok: true }, declared: TListDecla
 
 /**
  * Returns a handler that populates a step's arguments from featureStep.action.stepValuesMap, checks them against the step's
- * contract's `requires`, calls stepDef.action, checks its products against the contract's `states`, writes them where the
- * contract declares `written`, and returns its TActionResult. The logic engine's prover calls each built-in through this handler. A step that declares a
+ * contract's `requires`, calls stepDef.action, checks its products against the contract's `states`, checks the records an assumed step wrote against the fields their types
+ * state every member has, writes them where the contract declares `written`, and returns its TActionResult. The logic engine's prover calls each built-in through this handler. A step that declares a
  * reading doesn't have an action, and its handler refuses, since the prover performs its proof.
  */
 export function createStepHandler(stepperName: string, stepName: string, stepDef: TStepperStep): (featureStep: TFeatureStep, world: TWorld) => Promise<TActionResult> {
@@ -259,7 +259,8 @@ export function createStepHandler(stepperName: string, stepName: string, stepDef
 			if (productsError) return actionNotOK(productsError);
 			if (!result.ok) return result;
 			const stated = result.products === undefined ? undefined : await contractChecked(world, stepDef, CONTRACT_CHECK.states, { ...checked, products: result.products });
-			const checks = [required, stated].flatMap((outcome) => (outcome === undefined ? [] : [outcome.checked]));
+			const assumed = stepDef.contract?.assumed === true ? await assumedChecked(world) : undefined;
+			const checks = [...[required, stated].flatMap((outcome) => (outcome === undefined ? [] : [outcome.checked])), ...(assumed === undefined ? [] : [assumed])];
 			if (stated?.refused !== undefined) return contractRefusal(stated.refused, checks);
 			if (result.products !== undefined) await writeProducts(world, stepDef, `${stepperName}.${stepName}`, result.products);
 			return checks.length === 0 ? result : { ...result, contract: { checks: checks.join("\n") } };

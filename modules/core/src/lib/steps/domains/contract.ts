@@ -9,8 +9,9 @@
 import { z } from "zod";
 import { DOMAIN_STATEMENT, DomainKeySchema } from "../../domains/domains.js";
 import type { TVerdict } from "../../domains/protocol.js";
-import type { WRITE_VERB } from "../../records/domains/unit.js";
+import type { TRecordName, WRITE_VERB } from "../../records/domains/unit.js";
 import { isRead } from "../../domains/actions.js";
+import { HAIBUN_NS } from "../../domains/resources.js";
 
 /** The key of the form that names the statement parameter whose products a step returns as its own. */
 const OF = "of";
@@ -211,8 +212,18 @@ export type TContractChecked = { readonly verdicts: readonly TStatementVerdict[]
 /** The namespace of the IRI of each check of a contract, and the predicate that relates a check to the formula of the facts it read. */
 export const CHECK_NAMESPACE = "urn:haibun:check:";
 export const CHECK_READ = `${CHECK_NAMESPACE}read`;
+/** The check of the records an assumed step's call wrote, against the fields each one's type states every member has. */
+export const ASSUMED_CHECK = "assumed";
+
+/** Returns the relation that a record holds a value of the field `key`, which a type states every member has (`required`). */
+export const requiredRelation = (key: string): TRelation => ({
+	name: `has_${key}`,
+	phrase: `{record} has its ${key}`,
+	rules: `{ ?record <${HAIBUN_NS}${key}> ?value } => { (?record) <${RELATION_NAMESPACE}has_${key}> true } .`,
+});
+
 /** Returns a check's facts as N3: the check's IRI related by `CHECK_READ` to the formula of the facts it read. */
-export const checkN3 = (check: TContractCheck, facts: string): string => `<${CHECK_NAMESPACE}${check}> <${CHECK_READ}> { ${facts} } .`;
+export const checkN3 = (check: TContractCheck | typeof ASSUMED_CHECK, facts: string): string => `<${CHECK_NAMESPACE}${check}> <${CHECK_READ}> { ${facts} } .`;
 
 /** Returns the statements of a step's contract that a check of `check` reads, empty where the contract doesn't state them, and
  *  the fields the contract states complete. */
@@ -224,8 +235,15 @@ export function contractChecking(step: { readonly contract?: TStepContract }, ch
 
 /** The writes the contract of a step in progress allows: the stored label of each type its products are written as, whose
  *  records the step writes whole or in part, and each field `changes` lists. `step` names the step, and `refused` holds each
- *  write a store refused during the step, as `Type.field`, which the step's record lists. */
-export type TStepWrites = { readonly step: string; readonly products: readonly string[]; readonly changes: readonly TChange[]; readonly refused: string[] };
+ *  write a store refused during the step, as `Type.field`, which the step's record lists, and `written` each record a store
+ *  wrote, which the check of an assumed step reads. */
+export type TStepWrites = {
+	readonly step: string;
+	readonly products: readonly string[];
+	readonly changes: readonly TChange[];
+	readonly refused: string[];
+	readonly written: TRecordName[];
+};
 
 /** Returns the writes a step's contract allows, or undefined for a step on `contracts.baseline.json`: a write that doesn't
  *  declare `changes`, whose writes aren't checked. A read changes only its products, so it is checked as `changes: []`. */
@@ -233,7 +251,7 @@ export function stepWrites(step: { readonly contract?: TStepContract }, name: st
 	const declared = step.contract?.changes;
 	if (declared === undefined && !isRead(step)) return undefined;
 	const changes = declared === undefined ? [] : declared;
-	return { step: name, products: contractWrites({ contract: { products: step.contract?.products } }, persistedAsOf), changes, refused: [] };
+	return { step: name, products: contractWrites({ contract: { products: step.contract?.products } }, persistedAsOf), changes, refused: [], written: [] };
 }
 
 /** Returns each record type a step's call writes: the stored label of each product domain that `persistedAsOf` returns one for,

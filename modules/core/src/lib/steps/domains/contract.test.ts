@@ -86,6 +86,7 @@ describe("contract terms", () => {
 			products: ["Capability"],
 			changes: [revoked],
 			refused: [],
+			written: [],
 		});
 		expect(stepWrites({ contract: { products: "capability" } }, "S-delegate", persistedAs)).toBeUndefined();
 	});

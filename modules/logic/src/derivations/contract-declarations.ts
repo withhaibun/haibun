@@ -8,7 +8,18 @@
  */
 import { unwrapToShape } from "@haibun/core/lib/domains/zod-unwrap.js";
 import { hasCycles, type AStepper } from "@haibun/core/lib/steps/domains/stepper.js";
-import { doesntHold, holds, parameter, type TChange, type TContractArgument, type TField, type TRelation, type TStatement } from "@haibun/core/lib/steps/domains/contract.js";
+import { isPersisted } from "@haibun/core/lib/domains/resources.js";
+import {
+	doesntHold,
+	holds,
+	parameter,
+	requiredRelation,
+	type TChange,
+	type TContractArgument,
+	type TField,
+	type TRelation,
+	type TStatement,
+} from "@haibun/core/lib/steps/domains/contract.js";
 import { statementPredicates } from "@haibun/core/lib/steps/derivations/statement-predicates.js";
 import { phraseParts, stepParts } from "@haibun/core/lib/steps/domains/phrase.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
@@ -57,6 +68,18 @@ function declaredFields(steppers: readonly AStepper[]): Map<string, ReadonlySet<
 		}),
 	);
 }
+
+/** The relation of each field a record type the steppers declare states every member has (`required`), once for each key. */
+function requiredRelations(steppers: readonly AStepper[]): TRelation[] {
+	const keys = steppers.flatMap((stepper) => {
+		const domains = hasCycles(stepper) ? stepper.cycles.getConcerns?.().domains : undefined;
+		return (domains === undefined ? [] : domains).flatMap(({ topology }) => (isPersisted(topology) && topology.required !== undefined ? topology.required : []));
+	});
+	return [...new Set(keys)].map(requiredRelation);
+}
+
+/** The relations a contract's check reads: those the steppers declare, and the relation of each field their types require. */
+export const checkedRelations = (steppers: readonly AStepper[]): TRelation[] => [...declaredRelations(steppers), ...requiredRelations(steppers)];
 
 /** The relations the steppers declare in their concerns. */
 export function declaredRelations(steppers: readonly AStepper[]): ReadonlySet<TRelation> {
