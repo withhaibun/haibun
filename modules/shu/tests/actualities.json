@@ -412,7 +412,7 @@
 			"actuality": {
 				"text": "modules/shu/tests, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 46900,
+				"tookMs": 47500,
 				"digest": {
 					"modules/cli/src": "f65945f33a5fa11946d34d74c4d9c9c58a1971f8518a4f018bae8cf4ceaa6102",
 					"modules/core/src": "50a66b782115ceebfab4e9d2e4ebaf9a888321c3f4f053a55afecfedc3fce0e1",
@@ -432,7 +432,7 @@
 				"/features/address.feature.ts": {
 					"text": "An address names a type",
 					"status": "passed",
-					"tookMs": 1100,
+					"tookMs": 1300,
 					"steps": 209
 				},
 				"/features/federate.feature.ts": {
@@ -444,14 +444,14 @@
 				"/features/monitor-serves.feature.ts": {
 					"text": "The monitor serves shu on a port of its own",
 					"status": "passed",
-					"tookMs": 1600,
+					"tookMs": 1500,
 					"steps": 200
 				},
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
-					"tookMs": 33700,
-					"steps": 773
+					"tookMs": 34600,
+					"steps": 769
 				},
 				"/features/remote-store.feature.ts": {
 					"text": "A satellite instance keeps its records in the main instance's store",
@@ -462,7 +462,7 @@
 				"/features/voice-ui.feature.ts": {
 					"text": "UI extension propagation: domain ui → concern catalog → SPA actions bar",
 					"status": "passed",
-					"tookMs": 2600,
+					"tookMs": 2500,
 					"steps": 213
 				}
 			}
