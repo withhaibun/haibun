@@ -78,7 +78,7 @@ export async function readTypedLinks(
 	/** Anchors a part inside a record and returns the SpecificResource an edge can target. The SpecificResource owns its selector,
 	 *  so the reading's removal of it removes the anchor pair. */
 	const anchored = async (base: { label: string; id: string }, part: TPart, linkText?: string): Promise<{ label: string; id: string }> => {
-		const { specificResourceId } = await anchorPart(store, base.label, base.id, part, { ...(linkText ? { label: linkText } : {}), generatedBy: reading });
+		const { specificResourceId } = await anchorPart(store, base, part, { ...(linkText ? { label: linkText } : {}), generatedBy: reading });
 		const written = { label: SPECIFIC_RESOURCE_LABEL, id: specificResourceId };
 		stated.push({ kind: "individual", ...written });
 		return written;
@@ -164,9 +164,9 @@ export async function writeAnnotation(
 	// holds the time the record was written. The two are different facts.
 	// The anchored passage is titled by the note's text, by the same rule that titles a Comment. Every view then shows
 	// the anchor as the note's statement and not as the bare quote.
-	const { specificResourceId } = await anchorPart(store, a.label, a.id, a, { label: commentName(a.text) });
+	const { specificResourceId } = await anchorPart(store, a, a, { label: commentName(a.text) });
 	const linkedSpecificResourceIds: string[] = [];
-	for (const link of a.links === undefined ? [] : a.links) linkedSpecificResourceIds.push((await anchorPart(store, a.label, a.id, link)).specificResourceId);
+	for (const link of a.links === undefined ? [] : a.links) linkedSpecificResourceIds.push((await anchorPart(store, a, link)).specificResourceId);
 	const reference = (id: string) => referenceTo(SPECIFIC_RESOURCE_LABEL, id);
 	const links = linkedSpecificResourceIds.length === 0 ? {} : { [LinkRelations.LINKS_TO.rel]: linkedSpecificResourceIds.map(reference) };
 	const edges = { [LinkRelations.TARGET.rel]: reference(specificResourceId), ...links };

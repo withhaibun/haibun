@@ -92,4 +92,6 @@ export const PROV_AGENT = "prov:Agent";
 export const PROV_ENTITY = "prov:Entity";
 export const PROV_PLAN = "prov:Plan";
 export const FOAF_DOCUMENT = "foaf:Document";
+/** A mailbox, which FOAF declares an inverse functional property: two agents with one mailbox are one agent. */
+export const FOAF_MBOX = "foaf:mbox";
 export const SOSA_OBSERVATION = "sosa:Observation";

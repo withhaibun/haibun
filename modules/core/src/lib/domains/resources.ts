@@ -1245,7 +1245,7 @@ const selectorOf = (part: TPart): { label: string; fields: Record<string, string
 				reads: part.exact,
 			};
 
-/** Anchors a part inside (sourceLabel, sourceId) in one unit: a SpecificResource that names the source, and owns the selector
+/** Anchors a part inside `source`, the record that holds the quoted text, in one unit: a SpecificResource that names the source, and owns the selector
  *  that locates the part. The source may be a record the store doesn't hold yet, since a text can quote a document that hasn't
  *  been read. A quote's optional prefix and suffix let a short or repeated quote resolve to one occurrence. Returns the ids it
  *  wrote and the selector's type. A Comment's oa:hasTarget (anchor) or oa:hasBody linksTo (cross-reference) points at the
@@ -1254,8 +1254,7 @@ const selectorOf = (part: TPart): { label: string; fields: Record<string, string
  *  the anchor, such as the reading of a text. */
 export async function anchorPart(
 	store: TDiscourseStore,
-	sourceLabel: string,
-	sourceId: string,
+	source: TRecordName,
 	part: TPart,
 	stated?: { label?: string; generatedBy?: TRecordName },
 ): Promise<{ specificResourceId: string; selectorId: string; selectorLabel: string }> {
@@ -1268,7 +1267,7 @@ export async function anchorPart(
 		"@type": SPECIFIC_RESOURCE_LABEL,
 		id: specificResourceId,
 		label: stated?.label ?? selector.reads,
-		[LinkRelations.HAS_SOURCE.rel]: referenceTo(sourceLabel, sourceId),
+		[LinkRelations.HAS_SOURCE.rel]: referenceTo(source.label, source.id),
 		...(stated?.generatedBy === undefined ? {} : { [LinkRelations.WAS_GENERATED_BY.rel]: referenceTo(stated.generatedBy.label, stated.generatedBy.id) }),
 		[LinkRelations.HAS_SELECTOR.rel]: { "@type": selector.label, id: selectorId, ...selector.fields },
 	});
