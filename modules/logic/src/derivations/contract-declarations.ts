@@ -12,6 +12,7 @@ import { isPersisted } from "@haibun/core/lib/domains/resources.js";
 import {
 	doesntHold,
 	holds,
+	isRecordChange,
 	parameter,
 	requiredRelation,
 	type TChange,
@@ -34,6 +35,7 @@ export const ARITY = "applies a relation to a number of arguments other than its
 export const UNNAMED_PARAMETER = "names a parameter its pattern doesn't. Name a placeholder of the step's pattern";
 export const UNDECLARED_TYPE = "derives a record of a type that the steppers don't declare. Derive a record of a type a stepper declares in its concerns";
 export const UNDECLARED_FIELD = "names a field that the declared record types' schemas don't hold. Build the field with `field` from the type's declaration";
+export const UNDECLARED_RECORD_CHANGE = "lists a change of every record of a type that the steppers don't declare. List a type a stepper declares in its concerns";
 export const UNSTATED_RELATION = "lists a change of a relation that statements don't name. List a field of a type, or a relation of `statementPredicates`";
 export const UNPARSED_SENTENCE =
 	"renders a statement as a sentence that the relations' phrases don't parse back to its term. Word the relation's phrase so that it parses only its own sentences, and another relation's phrase doesn't parse them";
@@ -115,8 +117,10 @@ export function contractFindings(steppers: readonly AStepper[]): TContractFindin
 			...args.flatMap(argumentFindings),
 		];
 		const statements = [...(contract.states === undefined ? [] : contract.states), ...(contract.requires === undefined ? [] : contract.requires)];
-		const changeFindings = (change: TChange): string[] =>
-			"persistedAs" in change ? fieldFindings(change) : predicates.has(change.relation) ? [] : [`${UNSTATED_RELATION} (${change.relation})`];
+		const changeFindings = (change: TChange): string[] => {
+			if (isRecordChange(change)) return fields.has(change.persistedAs) ? [] : [`${UNDECLARED_RECORD_CHANGE} (${change.persistedAs})`];
+			return "persistedAs" in change ? fieldFindings(change) : predicates.has(change.relation) ? [] : [`${UNSTATED_RELATION} (${change.relation})`];
+		};
 		const changes = [...(contract.changes === undefined ? [] : contract.changes), ...(contract.complete === undefined ? [] : contract.complete)];
 		const method = stepMethodName(stepperName, actionName);
 		return [...statements.flatMap(statementFindings), ...changes.flatMap(changeFindings)].map((finding) => ({ method, finding }));

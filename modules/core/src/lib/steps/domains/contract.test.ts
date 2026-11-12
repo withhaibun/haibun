@@ -20,6 +20,7 @@ import {
 	statementN3,
 	statementNotation,
 	StepContractSchema,
+	recordChange,
 	stepWrites,
 	type TRelation,
 } from "./contract.js";
@@ -88,6 +89,10 @@ describe("contract terms", () => {
 			refused: [],
 			written: [],
 		});
+		expect(
+			stepWrites({ contract: { products: "text", changes: [recordChange(CAPABILITY.topology.persistedAs), revoked] } }, "S-sync", persistedAs),
+			"a type the changes list whole",
+		).toEqual({ step: "S-sync", products: ["Capability"], changes: [revoked], refused: [], written: [] });
 		expect(stepWrites({ contract: { products: "capability" } }, "S-delegate", persistedAs)).toBeUndefined();
 	});
 });

@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
-import { doesntHold, field, holds, parameter, PRINCIPAL, relationChange, type TRelation, type TStepContract } from "@haibun/core/lib/steps/domains/contract.js";
+import { doesntHold, field, holds, parameter, PRINCIPAL, recordChange, relationChange, type TRelation, type TStepContract } from "@haibun/core/lib/steps/domains/contract.js";
 import { Access, EDGE, LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { actionOK } from "@haibun/core/lib/domains/util.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
@@ -20,6 +20,7 @@ import {
 	UNNAMED_PARAMETER,
 	UNPARSED_SENTENCE,
 	UNSTATED_RELATION,
+	UNDECLARED_RECORD_CHANGE,
 } from "./contract-declarations.js";
 import { sentenceTerm, statementSentence, statementTerm, type TLineTerm } from "@haibun/core/lib/steps/derivations/predicate-registry.js";
 import { termText } from "./registry.js";
@@ -44,7 +45,7 @@ const declaring = (contract: TStepContract): AStepper =>
 
 describe("the declarations check of contracts", () => {
 	it("holds a contract whose relations, parameters and fields the registry lists, a field of a schema that reads JSON text among them", () => {
-		const changes = [field({ schema: GrantSchema, topology: GRANT.topology }, "revoked"), relationChange(EDGE.mentions)];
+		const changes = [field({ schema: GrantSchema, topology: GRANT.topology }, "revoked"), relationChange(EDGE.mentions), recordChange(GRANT.topology.persistedAs)];
 		expect(contractFindings([declaring({ requires: [doesntHold(REVOKED, parameter("grant"))], changes })])).toEqual([]);
 	});
 
@@ -56,6 +57,7 @@ describe("the declarations check of contracts", () => {
 			[{ changes: [{ persistedAs: "Grant", key: "expired" }] }, UNDECLARED_FIELD],
 			[{ complete: [{ persistedAs: "Grant", key: "expired" }] }, UNDECLARED_FIELD],
 			[{ changes: [relationChange("expired")] }, UNSTATED_RELATION],
+			[{ changes: [recordChange("Lease")] }, UNDECLARED_RECORD_CHANGE],
 		];
 		for (const [contract, finding] of refused)
 			expect(

@@ -26,10 +26,17 @@ export type TField = { readonly persistedAs: string; readonly key: string };
 
 /** An edge of a relation that statements name, which a record of any type holds, such as `mentions`. */
 export type TRelationChange = { readonly relation: string };
-/** A write beyond a step's products: a field of a record type, or an edge of a relation that a record of any type holds. */
-export type TChange = TField | TRelationChange;
+/** Every field and edge of a record type whose records a step writes whole. */
+export type TRecordChange = { readonly persistedAs: string; readonly key?: never };
+/** A write beyond a step's products: a field of a record type, an edge of a relation that a record of any type holds, or every
+ *  field and edge of a record type. */
+export type TChange = TField | TRelationChange | TRecordChange;
 /** Returns the change of the edges of `relation` from a record of any type. */
 export const relationChange = (relation: string): TRelationChange => ({ relation });
+/** Returns the change of every field and edge of the records of the type stored as `persistedAs`. */
+export const recordChange = (persistedAs: string): TRecordChange => ({ persistedAs });
+/** Whether a change lists a record type whole. */
+export const isRecordChange = (change: TChange): change is TRecordChange => !("relation" in change) && !("key" in change);
 
 /** Returns the field `key` of the record type that `definition` declares. */
 export function field<S extends z.ZodObject>(definition: { readonly schema: S; readonly topology: { readonly persistedAs: string } }, key: keyof z.infer<S> & string): TField {
@@ -233,14 +240,14 @@ export function contractChecking(step: { readonly contract?: TStepContract }, ch
 	return { statements: statements === undefined ? [] : statements, complete: complete === undefined ? [] : complete };
 }
 
-/** The writes the contract of a step in progress allows: the stored label of each type its products are written as, whose
- *  records the step writes whole or in part, and each field `changes` lists. `step` names the step, and `refused` holds each
+/** The writes the contract of a step in progress allows: the stored label of each type its products are written as or `changes`
+ *  lists whole, whose records the step writes whole or in part, and each field and relation `changes` lists. `step` names the step, and `refused` holds each
  *  write a store refused during the step, as `Type.field`, which the step's record lists, and `written` each record a store
  *  wrote, which the check of an assumed step reads. */
 export type TStepWrites = {
 	readonly step: string;
 	readonly products: readonly string[];
-	readonly changes: readonly TChange[];
+	readonly changes: readonly (TField | TRelationChange)[];
 	readonly refused: string[];
 	readonly written: TRecordName[];
 };
@@ -251,7 +258,9 @@ export function stepWrites(step: { readonly contract?: TStepContract }, name: st
 	const declared = step.contract?.changes;
 	if (declared === undefined && !isRead(step)) return undefined;
 	const changes = declared === undefined ? [] : declared;
-	return { step: name, products: contractWrites({ contract: { products: step.contract?.products } }, persistedAsOf), changes, refused: [], written: [] };
+	const whole = changes.filter(isRecordChange).map(({ persistedAs }) => persistedAs);
+	const products = [...contractWrites({ contract: { products: step.contract?.products } }, persistedAsOf), ...whole];
+	return { step: name, products, changes: changes.flatMap((change) => (isRecordChange(change) ? [] : [change])), refused: [], written: [] };
 }
 
 /** Returns each record type a step's call writes: the stored label of each product domain that `persistedAsOf` returns one for,
