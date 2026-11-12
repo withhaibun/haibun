@@ -26,6 +26,7 @@ import type { TWorld } from "../actuality/domains/world.js";
 import type { TRecordType } from "../steps/domains/quad-types.js";
 import type { IQuadStore } from "../steps/ports.js";
 import { referenceTo, type TRecordName } from "../records/domains/unit.js";
+import { locateQuoteOffsets } from "./quote-anchor.js";
 
 // ============================================================================
 // Resource identity
@@ -1227,6 +1228,9 @@ export const ANNOTATION_NOTE_DOMAIN = "annotation-note";
  *  member is an `IQuadStore` member, so every consumer store implements it. */
 export type TDiscourseStore = Pick<IQuadStore, "create" | "merge" | "remove" | "query">;
 
+/** The store a passage is anchored through, which creates its records. */
+type TAnchorStore = Pick<TDiscourseStore, "create">;
+
 /** The maximum length of a Comment's display name. The name is the note text on one line, truncated, so a graph view titles the Comment by its text and not its id. */
 const COMMENT_NAME_MAX = 60;
 export function commentName(text: string): string {
@@ -1253,7 +1257,7 @@ const selectorOf = (part: TPart): { label: string; fields: Record<string, string
  *  this part where it was referenced, so it reads as more than its selector, and `generatedBy` names the record that generated
  *  the anchor, such as the reading of a text. */
 export async function anchorPart(
-	store: TDiscourseStore,
+	store: TAnchorStore,
 	source: TRecordName,
 	part: TPart,
 	stated?: { label?: string; generatedBy?: TRecordName },
@@ -1272,6 +1276,18 @@ export async function anchorPart(
 		[LinkRelations.HAS_SELECTOR.rel]: { "@type": selector.label, id: selectorId, ...selector.fields },
 	});
 	return { specificResourceId, selectorId, selectorLabel: selector.label };
+}
+
+/** The edge from a record to each passage of its source that quotes one of its values. */
+export const EVIDENCE_EDGE = { rel: LinkRelations.CITES_AS_EVIDENCE.rel, range: SPECIFIC_RESOURCE_LABEL };
+
+/** Anchors each value that `text` quotes in a passage of `source`, the record that holds the text, and returns the edge from a
+ *  record to those passages, which it cites as evidence. A value the text doesn't quote isn't anchored. */
+export async function quotedEvidence(store: TAnchorStore, source: TRecordName, text: string | undefined, values: readonly (string | undefined)[]) {
+	const passages: string[] = [];
+	for (const exact of values)
+		if (exact !== undefined && text !== undefined && locateQuoteOffsets(text, exact) !== null) passages.push((await anchorPart(store, source, { exact })).specificResourceId);
+	return passages.length === 0 ? {} : { [EVIDENCE_EDGE.rel]: passages.map((id) => referenceTo(SPECIFIC_RESOURCE_LABEL, id)) };
 }
 
 /** Rels that ground a Comment in its subject: an oa:hasTarget subject or an attachment. Reply-family rels also ground
