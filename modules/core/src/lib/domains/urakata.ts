@@ -5,7 +5,7 @@
 import { z } from "zod";
 import { NameSchema } from "./domains.js";
 import { RECORDED_STATUS, type TSeqPath } from "./protocol.js";
-import { GeneratedAtTimeSchema, PersistedVertexSchema, type TDomainDefinition } from "./resources.js";
+import { Access, GeneratedAtTimeSchema, LinkRelations, PersistedVertexSchema, type TDomainDefinition } from "./resources.js";
 import { ENDED_BY_FIELD, ACTUALITY_FIELD } from "../actuality/domains/seq-path.js";
 
 export const URAKATA = "urakata";
@@ -44,6 +44,44 @@ export type TUrakata = z.infer<typeof UrakataSchema>;
 
 /** The domain of a registered ticker's id. A stepper registers tickers at runtime, so the definition doesn't list the ids. */
 export const urakataIdDomainDefinition: TDomainDefinition = { selectors: [URAKATA_ID_DOMAIN], schema: NameSchema, description: "Active urakata id (registered ticker)" };
+
+/**
+ * The persisted Urakata type: a task's lifecycle facts, queryable like any other individual. `actuality` is a CONTEXT
+ * facet so "what ran in instance E" is a stored query; the numeric counts derive their own columns. The task's status and
+ * its stoppedAt state how it stands; a start-up reads the records whose process ended before they stopped by the column of
+ * stoppedAt, and ends each as interrupted.
+ */
+const DOMAIN_URAKATA_TASK = "urakata-task";
+export const urakataTaskDomainDefinition: TDomainDefinition = {
+	selectors: [DOMAIN_URAKATA_TASK],
+	schema: UrakataSchema,
+	description:
+		"A background task (ticker) started in a run: what it is, which run instance it ran in, when it started, its tick and error counts, and when it was cleanly stopped.",
+	topology: {
+		persistedAs: URAKATA_LABEL,
+		accessLevel: Access.private,
+		id: "id",
+		instrumentation: true,
+		countedBy: ["actionStatus", ACTUALITY_FIELD],
+		properties: {
+			id: LinkRelations.IDENTIFIER.rel,
+			description: LinkRelations.NAME.rel,
+			[ACTUALITY_FIELD]: LinkRelations.CONTEXT.rel,
+			seqPath: LinkRelations.SEQ_PATH.rel,
+			startedAt: LinkRelations.STARTED_AT_TIME.rel,
+			lastTickAt: LinkRelations.UPDATED.rel,
+			tickIndex: LinkRelations.TAG.rel,
+			errorCount: LinkRelations.TAG.rel,
+			actionStatus: LinkRelations.ACTION_STATUS.rel,
+			stoppedAt: LinkRelations.ENDED_AT_TIME.rel,
+			[ENDED_BY_FIELD]: LinkRelations.WAS_ENDED_BY.rel,
+			startedBy: LinkRelations.PERFORMED_BY.rel,
+			holds: LinkRelations.ALLOWED_ACTION.rel,
+			stopReason: LinkRelations.OUTCOME_REASON.rel,
+		},
+		sortColumns: { stoppedAt: "TIMESTAMPTZ" },
+	},
+};
 
 export interface IUrakataTicker {
 	readonly id: string;

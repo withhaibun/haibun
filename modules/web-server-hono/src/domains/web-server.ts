@@ -7,7 +7,17 @@
  */
 import { z } from "zod";
 import type { Context } from "hono";
-import { AccessLevelSchema, ENDPOINT_CLASS, ENDPOINT_LABEL, PersistedVertexSchema } from "@haibun/core/lib/domains/resources.js";
+import {
+	Access,
+	AccessLevelSchema,
+	ENDPOINT_CLASS,
+	ENDPOINT_LABEL,
+	HTTP_HOST_LABEL,
+	LinkRelations,
+	PersistedVertexSchema,
+	type TDomainDefinition,
+} from "@haibun/core/lib/domains/resources.js";
+import { fromJsonText } from "@haibun/core/lib/domains/json-text.js";
 import { MODULE_OPTION_PREFIX } from "@haibun/core/lib/domains/protocol.js";
 import { SIGNATURE_HEADER } from "@haibun/core/lib/domains/signature-header.js";
 import { isDev, PRODUCTION } from "@haibun/core/lib/domains/dev-mode.js";
@@ -124,3 +134,28 @@ export const PRESENTED_AUTHORITY_HEADER = "capability-invocation";
 
 /** The headers a request presenting authority carries: its signature, the capability it invokes, and its body's digest. */
 export const PRESENTED_REQUEST_HEADERS = [SIGNATURE_HEADER, PRESENTED_AUTHORITY_HEADER, "digest"] as const;
+
+/** The Endpoint type: a route the web server registers, part of the host that serves it. */
+export const endpointDomainDefinition: TDomainDefinition = {
+	selectors: [DOMAIN_ENDPOINT],
+	schema: fromJsonText(EndpointSchema),
+	description: "HTTP endpoint, route registered on the web server",
+	topology: {
+		persistedAs: ENDPOINT_LABEL,
+		accessLevel: Access.private,
+		type: "as:Service",
+		instrumentation: true,
+		id: "url",
+		properties: {
+			url: LinkRelations.IDENTIFIER.rel,
+			method: LinkRelations.TAG.rel,
+			description: LinkRelations.NAME.rel,
+			endpointClass: LinkRelations.TAG.rel,
+			reads: LinkRelations.TAG.rel,
+		},
+		// An endpoint is part of the host that serves it, which a request observed reaching it names.
+		edges: { isPartOf: { rel: LinkRelations.PART_OF.rel, range: HTTP_HOST_LABEL } },
+		// url is the endpoint's identity: the natural lookup filter (strings are queryable only by manual opt-in).
+		sortColumns: { url: "TEXT" },
+	},
+};

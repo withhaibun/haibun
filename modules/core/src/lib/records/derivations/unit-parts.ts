@@ -151,18 +151,13 @@ export const nodeOf = (label: string, fields: Readonly<Record<string, unknown>>)
 export const edgesAsNode = (edges: ReadonlyArray<Pick<TUnitEdge, "rel" | "label" | "id">>): Record<string, TReference[]> =>
 	Object.fromEntries([...Map.groupBy(edges, ({ rel }) => rel)].map(([rel, held]) => [rel, held.map(({ label, id }) => referenceTo(label, id))]));
 
-/** Returns a record as a read states it, the node its writer states: its fields, and under each relation's key its literals beside
- *  the references to the relation's targets. A target the key holds embedded, as a read of a unit holds what the record owns, isn't
- *  referenced again, and nor is a target a key that isn't one of the type's `properties` names by its id, since a field that names
- *  its edge's target writes that edge. */
-export function recordNode(
-	fields: Readonly<Record<string, unknown>>,
-	edges: ReadonlyArray<Pick<TUnitEdge, "rel" | "label" | "id">>,
-	properties: ReadonlySet<string>,
-): Record<string, unknown> {
+/** Returns a record as a read states it, the node its writer states: its fields, and under each relation's key the references to
+ *  the relation's targets. A target the key holds embedded, as a read of a unit holds what the record owns, isn't referenced again,
+ *  and nor is a target the key names by its id, since a field that names its edge's target writes that edge. */
+export function recordNode(fields: Readonly<Record<string, unknown>>, edges: ReadonlyArray<Pick<TUnitEdge, "rel" | "label" | "id">>): Record<string, unknown> {
 	const linked = Object.entries(edgesAsNode(edges)).map(([rel, targets]) => {
 		const held = fields[rel] === undefined || fields[rel] === null ? [] : [fields[rel]].flat();
-		const named = new Set(held.flatMap((value) => (isObject(value) ? [String(namedId(value[NODE_KEY.id]))] : properties.has(rel) ? [] : [String(value)])));
+		const named = new Set(held.flatMap((value) => (isObject(value) ? [String(namedId(value[NODE_KEY.id]))] : [String(value)])));
 		const unnamed = targets.filter((target) => !named.has(String(recordOfCurie(target[NODE_KEY.id])?.id)));
 		return [rel, unnamed.length === 0 ? fields[rel] : [...held, ...unnamed]];
 	});

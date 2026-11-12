@@ -11,7 +11,7 @@ import { RECORDED_STATUS } from "../domains/protocol.js";
 import { itemAt } from "../domains/item-at.js";
 import { recordOf } from "../records/pipelines/record-reads.js";
 import { mapDefinitionsToDomains } from "../domains/domains.js";
-import { urakataTaskDomainDefinition } from "../../steps/urakata-stepper.js";
+import { urakataTaskDomainDefinition } from "../domains/urakata.js";
 import { actualityClock } from "../actuality/root.js";
 import { nextSeqPath } from "../actuality/pipelines/step-dispatch.js";
 

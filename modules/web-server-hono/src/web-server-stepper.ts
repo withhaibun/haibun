@@ -15,12 +15,10 @@ import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { actionList } from "@haibun/core/lib/domains/actions.js";
 import { DOMAIN_TEXT, DOMAIN_FILE_PATH, DOMAIN_ROUTE, DOMAIN_LINK } from "@haibun/core/lib/domains/domains.js";
 import { STORE_METHOD_PREFIX, storeMethods } from "@haibun/core/lib/domains/store-protocol.js";
-import { Access, ENDPOINT_LABEL, HTTP_HOST_LABEL, LinkRelations } from "@haibun/core/lib/domains/resources.js";
-import { fromJsonText } from "@haibun/core/lib/domains/json-text.js";
 import { basicAuthUsers } from "@haibun/core/lib/domains/basic-auth.js";
 import type { IWebServer, MiddlewareHandler, TRoutePurpose } from "./ports.js";
 import { TRANSPORT, type ITransport } from "./domains/transport.js";
-import { DEFAULT_PORT, DOMAIN_ENDPOINT, EndpointSchema, originList, WEB_SERVER_CAPABILITIES } from "./domains/web-server.js";
+import { DEFAULT_PORT, endpointDomainDefinition, originList, WEB_SERVER_CAPABILITIES } from "./domains/web-server.js";
 import { FOLLOWER_WRITES_IN_FLIGHT } from "./machines/follower.js";
 import { capabilityVerifier } from "./pipelines/capability-verifier.js";
 import { SSETransport } from "./pipelines/event-stream.js";
@@ -30,33 +28,7 @@ import { serverSettings, type TServing } from "./pipelines/server-settings.js";
 import { heldServer, holdServer, listeningPorts, newServer, stopProcess, whyNotSignedIn } from "./root.js";
 
 const cycles = (wss: WebServerStepper): IStepperCycles => ({
-	getConcerns: () => ({
-		domains: [
-			{
-				selectors: [DOMAIN_ENDPOINT],
-				schema: fromJsonText(EndpointSchema),
-				description: "HTTP endpoint, route registered on the web server",
-				topology: {
-					persistedAs: ENDPOINT_LABEL,
-					accessLevel: Access.private,
-					type: "as:Service",
-					instrumentation: true,
-					id: "url",
-					properties: {
-						url: LinkRelations.IDENTIFIER.rel,
-						method: LinkRelations.TAG.rel,
-						description: LinkRelations.NAME.rel,
-						endpointClass: LinkRelations.TAG.rel,
-						reads: LinkRelations.TAG.rel,
-					},
-					// An endpoint is part of the host that serves it, which a request observed reaching it names.
-					edges: { isPartOf: { rel: LinkRelations.PART_OF.rel, range: HTTP_HOST_LABEL } },
-					// url is the endpoint's identity: the natural lookup filter (strings are queryable only by manual opt-in).
-					sortColumns: { url: "TEXT" },
-				},
-			},
-		],
-	}),
+	getConcerns: () => ({ domains: [endpointDomainDefinition] }),
 	async startFeature() {
 		const { runtime } = wss.getWorld();
 		if (wss.webserver === undefined) wss.webserver = wss.newServer();

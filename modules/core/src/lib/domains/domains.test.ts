@@ -120,6 +120,24 @@ describe("a persisted type's level property", () => {
 	});
 });
 
+describe("a persisted type's keys", () => {
+	it("refuses a key declared as a property and as an edge, naming the type and the key", () => {
+		const punned: TDomainDefinition = {
+			selectors: ["note"],
+			schema: PersistedVertexSchema.extend({ id: z.string(), author: z.string() }),
+			description: "A note.",
+			topology: {
+				persistedAs: "Note",
+				accessLevel: Access.private,
+				id: "id",
+				properties: { id: LinkRelations.IDENTIFIER.rel, author: LinkRelations.ATTRIBUTED_TO.rel },
+				edges: { author: { range: "Person" } },
+			},
+		};
+		expect(() => toRegisteredDomain(punned)).toThrow(/the type Note declares author as a property and as an edge/);
+	});
+});
+
 describe("a domain's description", () => {
 	const definition = (description: string): TDomainDefinition => ({ selectors: ["note"], schema: PersistedVertexSchema.extend({ id: z.string() }), description });
 

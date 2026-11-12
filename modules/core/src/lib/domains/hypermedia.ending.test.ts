@@ -10,7 +10,7 @@ import { Access, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDom
 import { LOG_MESSAGE_LABEL, logMessageDomainDefinition } from "./log-message.js";
 import { ENDED_BY_FIELD, ACTUALITY_FIELD, SEQ_PATH_FIELD, seqPathDomainDefinition } from "../actuality/domains/seq-path.js";
 import { URAKATA_LABEL } from "./urakata.js";
-import { urakataTaskDomainDefinition } from "../../steps/urakata-stepper.js";
+import { urakataTaskDomainDefinition } from "./urakata.js";
 
 /** A type that states an end, with the instrumentation flag `instrumentation` and the properties `extra` beside its id, its
  *  times and its end. */

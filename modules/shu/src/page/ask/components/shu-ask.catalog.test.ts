@@ -26,7 +26,7 @@ const MODELS = "AskingModel";
 const GROUPED = LinkRelations.CONTEXT.rel;
 const MODELS_BY_PROVIDER = buildConcernCatalog(
 	mapDefinitionsToDomains([
-		persistedTypeDefinition(MODELS, { properties: { provider: GROUPED }, edges: { provider: { range: PROVIDER, rel: GROUPED } }, subClassOf: CONVERSATION_MODEL_CLASS }),
+		persistedTypeDefinition(MODELS, { edges: { provider: { range: PROVIDER, rel: GROUPED } }, subClassOf: CONVERSATION_MODEL_CLASS }),
 		persistedTypeDefinition(PROVIDER),
 	]),
 );

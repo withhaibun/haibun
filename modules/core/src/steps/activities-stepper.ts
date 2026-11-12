@@ -1,3 +1,4 @@
+import { SAVED_WAYPOINT_DOMAIN, SAVED_WAYPOINT_LABEL, SavedWaypointSchema, savedWaypointDomainDefinition, type TSavedWaypoint } from "../lib/domains/saved-waypoint.js";
 import { AStepper, IHasCycles, TFeatureStep, IStepperCycles, TStepperSteps, CycleWhen, READING, ruleStatedAt, type TWaypointRule } from "../lib/steps/domains/stepper.js";
 import { runSteppers, type TWorld } from "../lib/actuality/domains/world.js";
 import { OK } from "../lib/domains/protocol.js";
@@ -8,8 +9,6 @@ import { proveStatements, stepperContext } from "../lib/actuality/pipelines/step
 import type { TWaypointEntry } from "../lib/domains/goal-resolution.js";
 import { stepMethodName } from "../lib/steps/domains/step-method.js";
 import { phraseParts } from "../lib/steps/domains/phrase.js";
-import { z } from "zod";
-import { Access, LinkRelations, PersistedVertexSchema, type TDomainDefinition } from "../lib/domains/resources.js";
 import { refDomainKey, type TIndividualRef } from "../lib/domains/domains.js";
 import { ACTIVITIES_ACTIONS, ACTIVITIES_STEPPER } from "./domains/activities-actions.js";
 import { readUpTo } from "../lib/records/pipelines/record-reads.js";
@@ -17,7 +16,6 @@ import { WRITE_VERB } from "../lib/records/domains/unit.js";
 import { MAX_PAGE_ROWS } from "../lib/domains/hypermedia.js";
 import { packageOf } from "./root.js";
 import { itemAt } from "../lib/domains/item-at.js";
-import { PROV_PLAN } from "../lib/domains/vocabularies.js";
 
 /** The source path a saved waypoint holds where the step that saves it doesn't have a source path. */
 const SAVED_WAYPOINT_SOURCE = "a saved waypoint";
@@ -35,36 +33,6 @@ const UNIVERSAL_LINE = new RegExp(`^for every ${UNIVERSAL.source.slice(1)}`);
 const HEADING_LINE = /^(Feature|Scenario|Pending scenario|Background|Activity):/i;
 /** The step that ensures a waypoint, which the affordances offer for each waypoint. */
 const ENSURE = stepMethodName(ACTIVITIES_STEPPER, "ensure");
-
-export const SAVED_WAYPOINT_LABEL = "SavedWaypoint";
-const SAVED_WAYPOINT_DOMAIN = "saved-waypoint";
-const SavedWaypointSchema = PersistedVertexSchema.extend({
-	/** The waypoint's head. */
-	id: z.string(),
-	lines: z.array(z.string()),
-	source: z.string(),
-	generatedAtTime: z.string(),
-});
-type TSavedWaypoint = z.infer<typeof SavedWaypointSchema>;
-/** A saved waypoint's record. It holds the head, the lines of the activity in order, and the source path. ActivitiesStepper
- *  reads these records as each feature starts, so a waypoint saved before a restart applies again. The type is a schema.org
- *  HowTo whose steps are the lines. */
-export const savedWaypointDomainDefinition: TDomainDefinition = {
-	selectors: [SAVED_WAYPOINT_DOMAIN],
-	schema: SavedWaypointSchema,
-	description: "A saved waypoint's head and the lines its activity runs. Its rule is stated again as each feature starts after a restart.",
-	topology: {
-		persistedAs: SAVED_WAYPOINT_LABEL,
-		accessLevel: Access.private,
-		type: "schema:HowTo",
-		// A waypoint's lines are the steps its activity takes: a PROV plan.
-		subClassOf: PROV_PLAN,
-		id: "id",
-		properties: { id: LinkRelations.IDENTIFIER.rel, lines: LinkRelations.STEP.rel, source: LinkRelations.SOURCE_PATH.rel },
-		displayLabel: "id",
-		sortColumns: { generatedAtTime: "TIMESTAMPTZ" },
-	},
-};
 
 /** An activity's lines by their index: its `Activity:` line, the waypoint lines that state its rules, and its last line. */
 type TActivityBlock = { start: number; waypoints: number[]; end: number };

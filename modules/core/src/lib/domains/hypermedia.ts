@@ -151,20 +151,21 @@ function isTextField(field: z.ZodType): boolean {
 }
 
 /**
- * The fields of a persisted type a text search reads, from its declaration alone: the text properties whose rel names
- * what a record is about, who it involves and what context it states. A field declaring one of those rels and holding a
- * bounded value is left out, since a reader names part of a value and a bounded value is compared whole.
+ * The fields of a persisted type a text search reads, from its declaration alone: the text properties, and the text fields that
+ * name their edge's targets by id, whose rel names what a record is about, who it involves and what context it states. A field
+ * declaring one of those rels and holding a bounded value is left out, since a reader names part of a value and a bounded value is
+ * compared whole.
  */
 export function searchableFields(domain: { schema: z.ZodType | undefined; topology: THypermediaTopology }): string[] {
 	const shape = schemaShape(domain.schema);
-	const out: string[] = [];
-	for (const [field, def] of Object.entries(domain.topology.properties)) {
-		if (!SEARCHED_RELS.has(relOf(def))) continue;
-		const declared = shape[field];
-		if (declared !== undefined && !isTextField(declared)) continue;
-		out.push(field);
-	}
-	return out.sort();
+	const properties = Object.entries(domain.topology.properties).map(([field, def]) => ({ field, rel: relOf(def) }));
+	const edgeFields = Object.entries(topologyEdges(domain.topology))
+		.filter(([field]) => shape[field] !== undefined)
+		.map(([field, def]) => ({ field, rel: def.rel ?? edgeRel(field) }));
+	const searched = [...properties, ...edgeFields].filter(
+		({ field, rel }) => rel !== undefined && SEARCHED_RELS.has(rel) && (shape[field] === undefined || isTextField(shape[field])),
+	);
+	return searched.map(({ field }) => field).sort();
 }
 
 /**

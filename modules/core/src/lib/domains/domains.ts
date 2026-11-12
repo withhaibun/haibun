@@ -293,6 +293,13 @@ export const toRegisteredDomain = (definition: TDomainDefinition): TRegisteredDo
 	// A declaration registers only with a description, which states what its records' values are.
 	if (definition.description.trim() === "")
 		throw new Error(`the domain ${definition.selectors.map((selector) => `"${selector}"`).join(" | ")} has an empty description. State what its values are in its description.`);
+	// A key is one kind of property: an edge, whose field names its target by id, or a property that holds literals.
+	const { topology } = definition;
+	if (isPersisted(topology)) {
+		const punned = Object.keys(topology.edges === undefined ? {} : topology.edges).filter((key) => key in topology.properties);
+		if (punned.length > 0)
+			throw new Error(`the type ${topology.persistedAs} declares ${punned.join(", ")} as a property and as an edge. Declare each key once, as an edge or as a property.`);
+	}
 	return {
 		...definition,
 		selectors: [...definition.selectors],

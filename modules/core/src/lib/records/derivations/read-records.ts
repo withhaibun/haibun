@@ -50,12 +50,6 @@ import { edgeDeclarationsOf, type TEdgeDeclaration } from "./edge-declarations.j
 import { itemAt } from "../../domains/item-at.js";
 import { recordNode } from "./unit-parts.js";
 
-/** Returns the properties `label` declares. A record of a type the declarations don't name, which a store of quads may hold, doesn't
- *  hold a property. */
-const propertiesOf = (declarations: Pick<TReadDeclarations, "of">, label: string): ReadonlySet<string> => {
-	const declared = declarations.of(label);
-	return declared === undefined ? new Set() : declared.properties;
-};
 import type { TFilterable } from "./compiled-expression.js";
 
 /** The name a refusal and a rejected bound state for the read function. */
@@ -74,8 +68,6 @@ export type TReadDeclaration = {
 	unique?: readonly (readonly string[])[];
 	/** Each edge the type declares, as a write reads it. */
 	edges: Readonly<Record<string, TEdgeDeclaration>>;
-	/** The fields the type's topology declares as properties, which hold their literals beside an edge of the same key. */
-	properties: ReadonlySet<string>;
 	/** Each text field the type indexes by its digest, with the field that holds the digest. */
 	digests?: Readonly<Record<string, string>>;
 };
@@ -116,7 +108,6 @@ export function readDeclarationsOf(domains: Record<string, TRegisteredDomain>, r
 			defaultSort: sortFieldOf(domain.topology),
 			schema: domain.schema,
 			edges: edgeDeclarationsOf(topologyEdges(domain.topology)),
-			properties: new Set(Object.keys(domain.topology.properties)),
 			...(heldBy ? { heldBy } : {}),
 			...(title ? { title } : {}),
 			...(unique.length > 0 ? { unique } : {}),
@@ -154,13 +145,12 @@ export function readDeclarationsOfCatalog(catalog: TConcernCatalog): TReadDeclar
 			if (!concern) return undefined;
 			const properties = Object.fromEntries(concern.queryable.map((field) => [field, [REACHED_BY.filter]]));
 			const references = Object.fromEntries(Object.entries(concern.edges).map(([relation, edge]) => [relation, edge.targets]));
-			const stated = new Set(Object.keys(concern.properties));
 			const edges = edgeDeclarationsOf(
 				Object.fromEntries(
 					Object.entries(concern.edges).map(([relation, { targets, owns, reference, functional }]) => [relation, { range: targets, owns, reference, functional }]),
 				),
 			);
-			return { id: concern.idField, surface: { label, properties, references }, defaultSort: concern.validTimeField, edges, properties: stated };
+			return { id: concern.idField, surface: { label, properties, references }, defaultSort: concern.validTimeField, edges };
 		},
 	};
 }
@@ -418,7 +408,7 @@ export function readFromRecords(records: readonly THeldRecord[], read: TGraphQue
 	const matched = query.named ? narrowed : narrowed.sort(byOrder(order));
 	const byKey = new Map(records.map((record) => [keyOf(record.label, record.id), record]));
 	const nodeOf = (record: THeldRecord): Record<string, unknown> => ({
-		...recordNode(record.fields, record.edges, propertiesOf(declarations, record.label)),
+		...recordNode(record.fields, record.edges),
 		...(query.owned ? partsOf(record, declarations, (label, id) => byKey.get(keyOf(label, id)), nodeOf) : {}),
 		"@id": declarations.idOf(record),
 		"@type": record.label,
