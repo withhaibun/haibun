@@ -9,7 +9,7 @@
 import { z } from "zod";
 import { ConcernCatalogSchema, CountedFields } from "../../domains/hypermedia.js";
 import { HYPERMEDIA, productData } from "../../domains/protocol.js";
-import { ActionSchema, readAction } from "../../domains/actions.js";
+import { ActionSchema, isRead, readAction } from "../../domains/actions.js";
 import { StepMethodSchema, type TStepMethod } from "./step-method.js";
 import { DomainKeySchema } from "../../domains/domains.js";
 import { Access, AccessLevelSchema } from "../../domains/resources.js";
@@ -66,7 +66,7 @@ export const StepDescriptorSchema = z
 		description: z.string().min(1),
 		/** The domain of each parameter. */
 		paramDomains: z.record(z.string(), DomainKeySchema),
-		/** What a call of the step produces, where the step declares it (`contract.ts`). */
+		/** What a call of the step produces, and whether it is a read, where the step declares a contract (`contract.ts`). */
 		contract: StepContractSchema.optional(),
 		/** Each parameter naming a record by its id, with the parameter naming the record's type. */
 		recordIds: z.record(z.string(), z.string()).optional(),
@@ -78,9 +78,6 @@ export const StepDescriptorSchema = z
 		readsAt: AccessLevelSchema.optional(),
 		/** The access levels of the records the step writes, where it states them for a route that calls it. */
 		writesAt: z.array(AccessLevelSchema).optional(),
-		/** Whether the step is a read. A call that requests a read must name such a step, and actuality returns the result of
-		 *  a read over a transport without recording a step. */
-		read: z.boolean(),
 		/** Whether the step is a kaname step of the types it takes, shown and listed first. */
 		kaname: z.boolean(),
 		/** Whether the resolver drops the step from a line's candidates where a step that isn't a fallback also matches the line. */
@@ -241,7 +238,7 @@ export function toolDefinition(step: TStepDescriptor): TToolDefinition {
 		step.remoteOrigin === undefined ? undefined : `Runs at ${step.remoteOrigin}.`,
 	];
 	// A read leaves the records as they are, and MCP takes a tool that doesn't state it reads as one that may destroy, so an act states it may.
-	const annotations = { title: prettifyGwta(step.pattern), readOnlyHint: step.read, destructiveHint: !step.read };
+	const annotations = { title: prettifyGwta(step.pattern), readOnlyHint: isRead(step), destructiveHint: !isRead(step) };
 	const output = statesObject(step.outputSchema) ? { outputSchema: step.outputSchema } : {};
 	return { name: step.method, description: parts.filter((part) => part !== undefined).join("\n\n"), inputSchema: step.inputSchema, ...output, annotations };
 }

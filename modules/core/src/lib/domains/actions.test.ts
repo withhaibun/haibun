@@ -29,12 +29,17 @@ describe("what a step requires", () => {
 	});
 
 	it("is a read at the level a read states", () => {
-		expect(requiredAction("Pool", "hours", { read: true, readsAt: Access.public })).toBe("Read:public");
-		expect(requiredAction("Pool", "hours", { read: true, readsAt: Access.private })).toBe("Read:private");
+		expect(requiredAction("Pool", "hours", { contract: { read: true }, readsAt: Access.public })).toBe("Read:public");
+		expect(requiredAction("Pool", "hours", { contract: { read: true }, readsAt: Access.private })).toBe("Read:private");
 	});
 
 	it("is the step's own name for a step that doesn't declare a requirement, so a gate refuses that step to a caller that doesn't hold its name", () => {
 		expect(requiredAction("Pool", "drain", {})).toBe("Pool:drain");
+	});
+
+	it("is the step's own name for a step whose contract doesn't state read, since a step is a read only where its contract states it", () => {
+		expect(requiredAction("Pool", "hours", { readsAt: Access.public }), "a step without a contract writes").toBe("Pool:hours");
+		expect(requiredAction("Pool", "hours", { readsAt: Access.public, contract: { products: "hours" } }), "a contract that doesn't state read is a write's").toBe("Pool:hours");
 	});
 });
 

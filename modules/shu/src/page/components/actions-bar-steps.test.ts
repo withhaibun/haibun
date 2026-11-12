@@ -171,7 +171,7 @@ describe("the actions bar's step mode", () => {
 });
 
 describe("a statement typed in step mode", () => {
-	const VALIDATE = step(VALIDATE_STEP_METHOD, "validate step {text}", { paramDomains: { text: "text" }, read: true, readsAt: "public" });
+	const VALIDATE = step(VALIDATE_STEP_METHOD, "validate step {text}", { paramDomains: { text: "text" }, contract: { read: true }, readsAt: "public" });
 	const STATED = "show graph all";
 	const CLAIMED = "show graph claim";
 	/** What a claim checks, as the instance states it, which the page shows as it is. */

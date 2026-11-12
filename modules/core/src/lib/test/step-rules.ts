@@ -23,6 +23,7 @@ import { constructorName, dePolite } from "../domains/util.js";
 import type { TFound } from "./baseline.js";
 import { sourceFiles, TEST_MODULE, unwrapped } from "./repository-files.js";
 import { productDomains } from "../steps/domains/contract.js";
+import { isRead } from "../domains/actions.js";
 
 export const STARTS_WITHOUT_PARAMETERS = "starts or keeps something without a parameter";
 export const ONE_CALL_SITE = "has at most one call site";
@@ -98,7 +99,7 @@ export function declaredSteps(steppers: readonly { file: string; stepper: AStepp
 			const kind: TPatternKind = step.gwta === undefined ? "exact" : "gwta";
 			const declaredDomains = productDomains(step);
 			const combinator = step.transformsList !== undefined;
-			const declared = { file, stepper: declaredBy, key, kind, pattern, parameters: pattern.includes("{"), read: step.read === true, products: declaredDomains.length > 0 };
+			const declared = { file, stepper: declaredBy, key, kind, pattern, parameters: pattern.includes("{"), read: isRead(step), products: declaredDomains.length > 0 };
 			return [
 				{
 					...declared,

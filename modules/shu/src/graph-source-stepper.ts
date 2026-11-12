@@ -123,14 +123,13 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 
 	steps = {
 		getIndividualWithEdges: {
-			read: true,
 			readsAt: Access.public,
 			gwta: `get individual {label: ${DOMAIN_PERSISTED_TYPE}} {id: ${DOMAIN_RECORD_ID}} with edges`,
 			description:
 				"Returns the record of the given type and id, the edges either way, how many edges point at it, and the frame of a Class or Property record, from the store this instance holds. Fails where the record isn't held, stating the collection that lists the records the instance holds.",
 			recordIds: { id: "label" },
 			fallback: true,
-			contract: { products: DOMAIN_INDIVIDUAL_WITH_EDGES },
+			contract: { read: true, products: DOMAIN_INDIVIDUAL_WITH_EDGES },
 			// A page reads an individual with its edges the same way whatever serves the read. This step reads the store
 			// this instance holds, which is what a site without a graph engine of its own has; a deployment that gates a
 			// read by what a reader may see declares its own step, and the page reads through that one instead.
@@ -142,23 +141,21 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			},
 		},
 		getSelectValues: {
-			read: true,
 			readsAt: Access.public,
 			gwta: `get select values for {label: ${DOMAIN_PERSISTED_TYPE}}`,
 			description: "Returns, for each field of the type, the values a filter selects. Fails where a filter topology isn't registered for the type.",
-			contract: { products: DOMAIN_SELECT_VALUES },
+			contract: { read: true, products: DOMAIN_SELECT_VALUES },
 			action: async ({ label }: { label: string }) => {
 				const values = await selectValues(this.getWorld(), label);
 				return values === undefined ? actionNotOK(`a filter topology isn't registered for ${label}`) : actionOKWithProducts({ values });
 			},
 		},
 		getClusteredQuads: {
-			read: true,
 			readsAt: Access.public,
 			gwta: "get clustered quads",
 			description:
 				"Returns the clustered sample a graph view draws: the quads, and per type what was sampled and what was left out, with the site that serves each sampled subject. Fails, stating the fields the ask must hold, where the ask is malformed, or stating why the read failed, where the read throws.",
-			contract: { products: DOMAIN_CLUSTERED_QUADS },
+			contract: { read: true, products: DOMAIN_CLUSTERED_QUADS },
 			// The sampled graph is the RPC response; keeping it on the event too holds a second copy of it per call.
 			retainProducts: false,
 			action: async (asked: Record<string, unknown>) => {
@@ -172,12 +169,11 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			},
 		},
 		showAxioms: {
-			read: true,
 			readsAt: Access.public,
 			gwta: `show axioms of {view: ${DOMAIN_GRAPH_VIEW}}`,
 			description:
 				"Returns the axioms of what a graph view shows: an individual frame for each record with its class and facts, a class frame for each type with its superclasses, and a property frame for each link relation with the unions of its domain and range, each in Manchester syntax and DL notation, beside the view they state.",
-			contract: { products: DOMAIN_GRAPH_AXIOMS },
+			contract: { read: true, products: DOMAIN_GRAPH_AXIOMS },
 			// The description is the RPC response; keeping it on the event too holds a second copy of it per call.
 			retainProducts: false,
 			action: async ({ view }: { view: TGraphView }) => actionOKWithProducts(await graphAxiomsOf(this.getWorld(), view)),
@@ -214,13 +210,12 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			},
 		},
 		density: {
-			read: true,
 			readsAt: Access.public,
 			gwta: `run shape {query: ${DOMAIN_DENSITY_QUERY}}`,
 			description:
 				"Returns how many records fall in each division of the span the query states. The step computes the same counts a page computes over its own copy of the graph, so the two never drift.",
 			fallback: true,
-			contract: { products: DOMAIN_DENSITY },
+			contract: { read: true, products: DOMAIN_DENSITY },
 			// The counts are the products; keeping them on the event too is the per-read bloat.
 			retainProducts: false,
 			// The same counts a page computes over its own copy of the graph, so the two never drift.
@@ -231,13 +226,12 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 		},
 
 		graphQuery: {
-			read: true,
 			readsAt: Access.public,
 			gwta: `graph query {query: ${DOMAIN_GRAPH_QUERY}}`,
 			description:
 				"Returns the rows the graph query matched, with the count of them. The step reads the same records a page reads from its own copy of the graph, so the two never drift.",
 			fallback: true,
-			contract: { products: DOMAIN_GRAPH_ROWS },
+			contract: { read: true, products: DOMAIN_GRAPH_ROWS },
 			takesListQuery: ({ query }: { query: TRecordQuery }, listQuery: TListQuery) => queriedList(query, listQuery),
 			// The same records a page reads from its own copy of the graph, so the two never drift.
 			action: async ({ query }: { query: TRecordQuery }) => {

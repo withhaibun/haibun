@@ -10,6 +10,7 @@ import { z } from "zod";
 import { DOMAIN_STATEMENT, DomainKeySchema } from "../../domains/domains.js";
 import type { TVerdict } from "../../domains/protocol.js";
 import type { WRITE_VERB } from "../../records/domains/unit.js";
+import { isRead } from "../../domains/actions.js";
 
 /** The key of the form that names the statement parameter whose products a step returns as its own. */
 const OF = "of";
@@ -72,32 +73,43 @@ export const ACTUALITY_PRINCIPAL = "urn:haibun:actuality";
 /** The verbs dispatch writes a step's products with: a record the store doesn't hold, or fields merged into what it holds. */
 export type TProductsVerb = typeof WRITE_VERB.create | typeof WRITE_VERB.merge;
 
-/** A step's contract. A descriptor's contract names its domains by their keys. `states` holds over the parameters and the
- *  products, `requires` over recorded facts before the call, and `changes` lists the fields of the writes beyond the products.
- *  `complete` lists the fields whose records this instance
- *  holds in full: a check reads the records an argument names, and the records each listed edge reaches, and a negated statement
- *  over fields the list holds is proved where those records don't derive it. A step that writes declares `changes`, empty where its only
- *  writes are its products. `written` names the verb dispatch writes the products with, as one record of the stored type of
- *  their domain, once `states` holds over them; a step that declares it doesn't write its products itself. */
-export type TStepContract<D extends string = string> = {
+/** The parts of a step's contract that a read and a write both state. A descriptor's contract names its domains by their keys.
+ *  `states` holds over the parameters and the products, and `requires` over recorded facts before the call. `complete` lists
+ *  the fields whose records this instance holds in full: a check reads the records an argument names, and the records each
+ *  listed edge reaches, and a negated statement over fields the list holds is proved where those records don't derive it. */
+type TContractParts<D extends string> = {
 	readonly products?: TContractProducts<D>;
-	readonly written?: TProductsVerb;
 	readonly states?: readonly TStatement[];
 	readonly requires?: readonly TStatement[];
-	readonly changes?: readonly TField[];
 	readonly complete?: readonly TField[];
 };
 
-/** A contract as a descriptor carries it: its products, and its `requires` and `states` statements as their sentences. The
- *  statement form of the products has the shape of a map of one field, `of`, which `contractProducts` reads as the statement form. */
+/** The contract of a read: the step reads and doesn't change a record, so it doesn't state `written` or `changes`. A gate
+ *  requires a read at the step's `readsAt` level of a read that doesn't state a capability. */
+type TReadContract<D extends string> = TContractParts<D> & { readonly read: true; readonly written?: never; readonly changes?: never };
+
+/** The contract of a write. `changes` lists the fields of the writes beyond the products, empty where its only writes are its
+ *  products. `written` names the verb dispatch writes the products with, as one record of the stored type of their domain,
+ *  once `states` holds over them; a step that declares it doesn't write its products itself. */
+type TWriteContract<D extends string> = TContractParts<D> & { readonly read?: never; readonly written?: TProductsVerb; readonly changes?: readonly TField[] };
+
+/** A step's contract: a read's or a write's. A step is a read only where its contract states `read`, so a step without a
+ *  contract, or with a contract that doesn't state `read`, is a write. */
+export type TStepContract<D extends string = string> = TReadContract<D> | TWriteContract<D>;
+
+/** A contract as a descriptor carries it: its products, its `requires` and `states` statements as their sentences, and `read`
+ *  where the step is a read. A call that requests a read names such a step, and actuality returns the result of a read over a
+ *  transport without recording a step. The statement form of the products has the shape of a map of one field, `of`, which
+ *  `contractProducts` reads as the statement form. */
 export const StepContractSchema = z.object({
+	read: z.literal(true).optional(),
 	products: z.union([DomainKeySchema, z.record(z.string(), DomainKeySchema)]).optional(),
 	requires: z.array(z.string().min(1)).optional(),
 	states: z.array(z.string().min(1)).optional(),
 });
 export type TContractSentences = z.infer<typeof StepContractSchema>;
 /** A contract as a page's fixture states it: its products, and its statements' sentences, without the domain keys' brand. */
-export type TStatedContract = { readonly products?: TContractProducts; readonly requires?: readonly string[]; readonly states?: readonly string[] };
+export type TStatedContract = { readonly read?: true; readonly products?: TContractProducts; readonly requires?: readonly string[]; readonly states?: readonly string[] };
 
 /** The heading of each kind of a contract's statements, as a reader reads it: what holds before a call, and what holds after it. */
 const CONTRACT_SAID = { requires: "Before the call", states: "After the call" } as const;
@@ -199,16 +211,11 @@ export function contractChecking(step: { readonly contract?: TStepContract }, ch
  *  write a store refused during the step, as `Type.field`, which the step's record lists. */
 export type TStepWrites = { readonly step: string; readonly products: readonly string[]; readonly changes: readonly TField[]; readonly refused: string[] };
 
-/** Returns the writes a step's contract allows, or undefined for a step on `contracts.baseline.json`: one that isn't a read and
- *  doesn't declare `changes`, whose writes aren't checked. A read that doesn't declare `changes` changes only its products, so it
- *  is checked as `changes: []`. */
-export function stepWrites(
-	step: { readonly read?: boolean; readonly contract?: TStepContract },
-	name: string,
-	persistedAsOf: (domain: string) => string | undefined,
-): TStepWrites | undefined {
+/** Returns the writes a step's contract allows, or undefined for a step on `contracts.baseline.json`: a write that doesn't
+ *  declare `changes`, whose writes aren't checked. A read changes only its products, so it is checked as `changes: []`. */
+export function stepWrites(step: { readonly contract?: TStepContract }, name: string, persistedAsOf: (domain: string) => string | undefined): TStepWrites | undefined {
 	const declared = step.contract?.changes;
-	if (declared === undefined && step.read !== true) return undefined;
+	if (declared === undefined && !isRead(step)) return undefined;
 	const changes = declared === undefined ? [] : declared;
 	return { step: name, products: contractWrites({ contract: { products: step.contract?.products } }, persistedAsOf), changes, refused: [] };
 }

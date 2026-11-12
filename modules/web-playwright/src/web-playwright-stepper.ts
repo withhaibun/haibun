@@ -515,30 +515,27 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			},
 		},
 		showBrowserExtension: {
-			read: true,
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
 			gwta: "show the browser extension",
 			description:
 				"Returns the extension the browser runs: its worker, once it has started, and the side panel its toolbar button opens, as the worker reads it. A worker that doesn't start fails the step.",
-			contract: { products: DOMAIN_RUNNING_BROWSER_EXTENSION },
+			contract: { read: true, products: DOMAIN_RUNNING_BROWSER_EXTENSION },
 			action: () => runningExtension(this.session, this.#extension),
 		},
 		showBrowserRelay: {
 			// The person who attached a browser, and their tabs, are theirs alone, so the read is private.
-			read: true,
 			capability: readAction(Access.private),
 			gwta: "show the browser relay",
 			description: "Whether a person's browser is attached through the relay, the key that attached it, and its tabs, each with whether actuality drives it.",
-			contract: { products: DOMAIN_RELAY_ATTACHMENT },
+			contract: { read: true, products: DOMAIN_RELAY_ATTACHMENT },
 			action: () => this.#withRelay((relay) => Promise.resolve(actionOKWithProducts(relay.attachment()))),
 		},
 		listBrowserTabs: {
-			read: true,
 			capability: WEB_PLAYWRIGHT_ACTIONS.listTabs,
 			readsAt: Access.private,
 			gwta: "list the attached browser's tabs",
 			description: "Every tab open in the browser a person attached through the relay, attached or not: its id, title and address.",
-			contract: { products: DOMAIN_BROWSER_TABS },
+			contract: { read: true, products: DOMAIN_BROWSER_TABS },
 			action: () =>
 				this.#withRelay(async (relay) => {
 					const { tabs } = await listTabs(relay);
@@ -546,13 +543,12 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 				}),
 		},
 		readBrowserTab: {
-			read: true,
 			capability: WEB_PLAYWRIGHT_ACTIONS.readTab,
 			readsAt: Access.private,
 			gwta: `read the attached browser's tab {tabId: ${DOMAIN_NUMBER}}`,
 			description:
 				"The title, address and text of the page a tab of the attached browser shows, read by the extension without the debugger, so Chrome doesn't show its debugging infobar.",
-			contract: { products: DOMAIN_BROWSER_TAB_TEXT },
+			contract: { read: true, products: DOMAIN_BROWSER_TAB_TEXT },
 			action: ({ tabId }: { tabId: number }) => this.#withRelay(async (relay) => actionOKWithProducts(await readTab(relay, tabId))),
 		},
 		openBrowserTab: {
@@ -636,8 +632,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			gwta: "take an accessibility snapshot",
 			description:
 				'Reads the page as Playwright\'s aria snapshot in its AI mode: YAML naming each element\'s role and accessible name, and its reference, such as [ref=e2], which `click "e2" by "reference"` clicks. Its links name the steps that act on what it read, and a caller of each of those receives this read.',
-			read: true,
-			contract: { products: DOMAIN_ACCESSIBILITY_SNAPSHOT },
+			contract: { read: true, products: DOMAIN_ACCESSIBILITY_SNAPSHOT },
 			action: async () => actionOKWithProducts(await readThePage(this.session, Object.fromEntries(SNAPSHOT_ACTIONS.map((step) => [step, { method: stepMethodName(this, step) }])))),
 		},
 		saveTextFrom: {

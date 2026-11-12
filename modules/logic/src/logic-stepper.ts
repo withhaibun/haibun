@@ -221,10 +221,9 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 		},
 		applicableSteps: {
 			gwta: "applicable steps",
-			read: true,
 			readsAt: Access.public,
 			description: "Reads the applicable steps, as a page does after a step, now, or, under `as of`, at a step; a read from outside isn't recorded as actuality's step.",
-			contract: { products: DOMAIN_APPLICABLE_STEPS },
+			contract: { read: true, products: DOMAIN_APPLICABLE_STEPS },
 			action: (_args, featureStep: TFeatureStep) => applicableStepsAt(this.goalScope(), featureStep, inCall()?.asOf),
 		},
 		showDerivation: {
@@ -238,70 +237,63 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 			},
 		},
 		recordedDerivation: {
-			read: true,
 			readsAt: SEQ_PATH_ACCESS,
 			gwta: `derivation of step {step: ${DOMAIN_INDIVIDUAL_ADDRESS}}`,
 			description:
 				"Reads the derivation of a step actuality recorded, from the records its proof wrote, without proving it again: its verdict, the frames of its records, the calls among them with the actions that allowed each, and the line of the first goal it couldn't prove.",
-			contract: { products: DOMAIN_DERIVATION },
+			contract: { read: true, products: DOMAIN_DERIVATION },
 			action: async ({ step }: { step: TIndividualAddress }) => actionOKWithProducts(await derivationOfRecord(this.getWorld(), this.steppers, reasoner(), step)),
 		},
 		individualsOf: {
-			read: true,
 			readsAt: Access.public,
 			gwta: `individuals of {expression: ${DOMAIN_CLASS_EXPRESSION}}`,
 			description:
 				"Returns the records a class expression entails as its members, through the reasoner over the ontology and the records an expression's names reach, under the caller's authority. A member the records don't entail may exist.",
-			contract: { products: DOMAIN_ENTAILED_MEMBERS },
+			contract: { read: true, products: DOMAIN_ENTAILED_MEMBERS },
 			action: async ({ expression }: { expression: string }) => {
 				return actionOKWithProducts(countedMembers(await this.members(expression)));
 			},
 		},
 		individualIsA: {
-			read: true,
 			readsAt: Access.public,
 			gwta: `individual {address: ${DOMAIN_INDIVIDUAL_ADDRESS}} is a {expression: ${DOMAIN_CLASS_EXPRESSION}}`,
 			description:
 				"An instance check: holds where the reasoner entails ClassAssertion(E X), the record at an address as a member of a class expression, and is refuted where the membership implies two classes an axiom states disjoint, naming the axioms. A membership the records don't entail and don't contradict is unknown, which isn't false in the open world, so the claim fails closed.",
-			contract: { products: DOMAIN_CLAIM },
+			contract: { read: true, products: DOMAIN_CLAIM },
 			entails: (terms) => claimEntailment({ individual: valueAt(terms, "address", CLAIM_TERMS), expression: valueAt(terms, "expression", CLAIM_TERMS) }, this.getWorld().domains),
 			action: ({ address, expression }: { address: TIndividualAddress; expression: string }) => instanceChecked(this.claimScope(), address, expression),
 		},
 		everyIsA: {
-			read: true,
 			readsAt: Access.public,
 			gwta: `every {sub: ${DOMAIN_CLASS_EXPRESSION}} is a {sup: ${DOMAIN_CLASS_EXPRESSION}}`,
 			description:
 				"A subsumption check: holds where the ontology entails SubClassOf(E1 E2), that every member of the first class expression is a member of the second, and is refuted where the records entail a member of the first and the two expressions are entailed disjoint. Fails closed otherwise, and its products hold the witness as data: the subsumption that isn't entailed and the entailed members of the first that the second doesn't hold.",
-			contract: { products: DOMAIN_CLAIM },
+			contract: { read: true, products: DOMAIN_CLAIM },
 			entails: (terms) => claimEntailment({ sub: valueAt(terms, "sub", CLAIM_TERMS), sup: valueAt(terms, "sup", CLAIM_TERMS) }, this.getWorld().domains),
 			action: ({ sub, sup }: { sub: string; sup: string }) => subsumptionChecked(this.claimScope(), sub, sup),
 		},
 		someOf: {
-			read: true,
 			readsAt: Access.public,
 			gwta: `some {expression: ${DOMAIN_CLASS_EXPRESSION}}`,
 			description:
 				"An instance retrieval: holds where the reasoner entails a named individual as a member of a class expression, which its products name as the witness. Without one the claim is unknown, which isn't false in the open world, so it fails closed.",
-			contract: { products: DOMAIN_ENTAILED_MEMBERS },
+			contract: { read: true, products: DOMAIN_ENTAILED_MEMBERS },
 			entails: (terms) => claimEntailment({ some: valueAt(terms, "expression", CLAIM_TERMS) }, this.getWorld().domains),
 			action: ({ expression }: { expression: string }) => retrievalChecked(this.claimScope(), expression),
 		},
 		featureEntails: {
-			read: true,
 			readsAt: Access.public,
 			gwta: `feature {feature: ${DOMAIN_CLAIMED_FEATURE}} entails {claim: ${DOMAIN_CONTRACT_CLAIM}}`,
 			description:
 				"A claim over a background's contracts: binds each parameter of its steps that an earlier step's products don't supply to a fresh individual of its declared domain, chains the steps' `requires` and `states` in order, and holds where the relations' rules derive the claim, a statement as `relation(variable, …)`, for every value of those domains. It is refuted where a contract states the claim's negation, and unknown otherwise, naming the first fact between the claim's individuals that the chain doesn't derive.",
-			contract: { products: DOMAIN_CLAIM },
+			contract: { read: true, products: DOMAIN_CLAIM },
 			action: ({ feature, claim }: { feature: string; claim: string }) => featureClaim(this.getWorld(), this.steppers, reasoner(), feature, claim),
 		},
 		lineRendersAsWritten: {
-			read: true,
 			readsAt: Access.public,
 			gwta: `line {line: ${DOMAIN_TEXT}} renders from its term as written`,
 			description: "Parses a line to its term through the step it resolves to, renders the term through the same step's pattern, and holds where the line renders as written.",
-			contract: { products: DOMAIN_LINE_TERM },
+			contract: { read: true, products: DOMAIN_LINE_TERM },
 			action: ({ line }: { line: string }) => {
 				const { term, rendered } = lineTerm(this.getWorld(), this.steppers, line);
 				if (rendered === line) return actionOKWithProducts({ line, term, rendered });
@@ -309,7 +301,7 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 			},
 		},
 		callIsLine: {
-			read: true,
+			contract: { read: true },
 			readsAt: Access.public,
 			gwta: `call {method: ${DOMAIN_STEP_METHOD}} with {input: ${DOMAIN_JSON}} is the line {line: ${DOMAIN_TEXT}}`,
 			description: "Holds where a call a transport carries, a method with its named parameters, and a line parse to the same term, as a model's tool call and a line do.",

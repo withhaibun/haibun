@@ -88,7 +88,7 @@ export const GRAPH_READ_STEPS = (["graphQuery", "density", "getClusteredQuads", 
 	stepperName: "GraphSourceStepper",
 	stepName,
 	pattern: stepName,
-	read: true,
+	contract: { read: true as const },
 	readsAt: Access.public,
 }));
 

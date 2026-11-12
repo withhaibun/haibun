@@ -22,7 +22,7 @@ import {
 import { runWithRequestContext, requestBaseIri } from "@haibun/core/lib/request-context.js";
 import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import { runRegistry, type StepRegistry } from "@haibun/core/lib/step-registry.js";
-import { mayCall } from "@haibun/core/lib/domains/actions.js";
+import { isRead, mayCall } from "@haibun/core/lib/domains/actions.js";
 import { activeSitePrincipal, allocateSyntheticSeqPath } from "@haibun/core/lib/domains/host-id.js";
 import { SERVING } from "@haibun/core/lib/domains/serving.js";
 import { streamContext } from "@haibun/core/lib/step-stream-context.js";
@@ -94,10 +94,10 @@ export function serveRpc({ world, steppers, webserver, transport, verifier }: TS
 			const baseIri = requestBaseIri(request?.headers, webserver.origins);
 			const hr = await runWithRequestContext({ baseIri }, () => dispatchCall(within, caller, featureStep, msg.readingAt));
 			// A step that isn't a read leaves its record, from which a reader reads why it was refused.
-			if (!hr.ok) return callFailed(method, hr.errorMessage, hr.remedy, tool.descriptor.read ? undefined : stepRecordOf(world.tag, featureStep.seqPath), hr.contract?.statement);
+			if (!hr.ok) return callFailed(method, hr.errorMessage, hr.remedy, isRead(tool.descriptor) ? undefined : stepRecordOf(world.tag, featureStep.seqPath), hr.contract?.statement);
 			// A step without products that isn't a read states the path of its record, from which a reader reads why it holds.
 			if (hr.products !== undefined) return hr.products;
-			return tool.descriptor.read ? ANSWERED_WITHOUT_PRODUCTS : { ...ANSWERED_WITHOUT_PRODUCTS, [TRACE_SEQ_PATH]: featureStep.seqPath };
+			return isRead(tool.descriptor) ? ANSWERED_WITHOUT_PRODUCTS : { ...ANSWERED_WITHOUT_PRODUCTS, [TRACE_SEQ_PATH]: featureStep.seqPath };
 		} catch (err) {
 			const detail = errorDetail(err);
 			world.eventLogger.error(`[RPC] ${method}: ${detail}`);

@@ -204,7 +204,7 @@ describe("shu-step-caller", () => {
 			stepperName: "GraphStepper",
 			stepName: "graphQuery",
 			pattern: "graph query {query}",
-			read: true,
+			contract: { read: true },
 			capability: readAction(Access.public),
 		};
 		const sent: unknown[] = [];

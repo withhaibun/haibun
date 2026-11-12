@@ -455,7 +455,7 @@ describe("examining a finished test run", () => {
 						description: TEST_STEP,
 						paramDomains: { result: DomainKeySchema.parse("ending") },
 						capability: readAction(Access.private),
-						read: true,
+						contract: { read: true },
 						kaname: false,
 						fallback: false,
 						answersTheTurn: false,

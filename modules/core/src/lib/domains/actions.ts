@@ -6,6 +6,7 @@
  */
 import { z } from "zod";
 import { ACCESS_BROADEST_FIRST, Access, AccessLevelSchema, narrowerAccess, type AccessLevel } from "./resources.js";
+import type { TContractSentences, TStatedContract, TStepContract } from "../steps/domains/contract.js";
 
 const READ_PREFIX = "Read:";
 const WRITE_PREFIX = "Write:";
@@ -42,28 +43,32 @@ function readLevelOf(action: string): AccessLevel | undefined {
 	return parsed.success ? parsed.data : undefined;
 }
 
-/** What a step reads and the action it requires.
- *  - `read`: the step reads actuality's records and doesn't change one. A call into a running instance from outside
- *    actuality runs it and doesn't record it: it doesn't leave a step record, an announcement, a usage count or a kept
- *    result. Reading actuality isn't a step of actuality, so an instance read for a year doesn't write a year of records of
- *    those reads. A feature runs it as it runs any other step.
+/** A contract as a step declares it, as its descriptor carries it or as a page's fixture states it, which states whether the step is a read. */
+type TReadStated = { contract?: TStepContract | TContractSentences | TStatedContract };
+
+/** The action a step requires, and what it reads.
  *  - `capability`: the action a caller must hold to run the step, where it differs from the step's own name. A group of
  *    steps declares one action, so a delegation can name them together.
  *  - `readsAt`: the level of the content the step reads. A gate refuses the step to a caller that doesn't hold a read at
- *    this level. A read step states it, or states the capability that gates it. */
-export type TStepReads =
-	| { read?: boolean; capability: string; readsAt?: AccessLevel }
-	| { read?: boolean; capability?: string; readsAt: AccessLevel }
-	| { read?: false; capability?: string; readsAt?: undefined };
+ *    this level. A read step states it, or states the capability that gates it.
+ *  - `contract`: whether the step is a read, which `isRead` returns. */
+export type TStepReads = TReadStated & { capability?: string; readsAt?: AccessLevel };
+
+/** Returns whether a step is a read: its contract states `read`, that the step reads and doesn't change a record. A step
+ *  without a contract, or with a contract that doesn't state `read`, is a write. A read's call into a running instance from
+ *  outside actuality runs it and doesn't record it: it doesn't leave a step record, an announcement, a usage count or a kept
+ *  result. Reading actuality isn't a step of actuality, so an instance read for a year doesn't write a year of records of
+ *  those reads. A feature runs it as it runs any other step. */
+export const isRead = (step: TReadStated): boolean => step.contract?.read === true;
 
 /**
- * Returns the action a step requires. A step that declares a capability requires that action. A read step without one
- * requires a read at its `readsAt` level. Any other step requires its own name, so a gate refuses a step that doesn't
- * declare a requirement to every caller that doesn't hold that name.
+ * Returns the action a step requires. A step that declares a capability requires that action. A read without one requires a
+ * read at its `readsAt` level. Any other step requires its own name, so a gate refuses a step that doesn't declare a
+ * requirement to every caller that doesn't hold that name.
  */
 export function requiredAction(stepperName: string, stepName: string, step: TStepReads): TAction {
 	if (step.capability !== undefined) return ActionSchema.parse(step.capability);
-	if (!step.read) return `${stepperName}:${stepName}` as TAction;
+	if (!isRead(step)) return `${stepperName}:${stepName}` as TAction;
 	if (step.readsAt === undefined) throw new Error(`${stepperName}.${stepName} reads and doesn't state readsAt or a capability. State readsAt as the level of its read.`);
 	return readAction(step.readsAt);
 }

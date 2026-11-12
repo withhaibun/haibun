@@ -91,7 +91,7 @@ export const WEB_SERVER_CAPABILITIES = { stop: "WebServer:stop" } as const;
  * a call its caller may make is refused this way, on every transport.
  */
 export const notARead = (method: string): string =>
-	`${method} was called as a read, and does not declare itself one: a read doesn't leave a record, so declare read: true on a step a page reads`;
+	`${method} was called as a read, and its contract doesn't state read: a read doesn't leave a record, so state contract.read on a step a page reads`;
 
 /** The runtime key that holds the web server of the feature in progress. */
 export const WEBSERVER = "webserver";

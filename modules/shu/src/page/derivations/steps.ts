@@ -4,7 +4,7 @@
  */
 import { domainParts } from "@haibun/core/lib/domains/domains.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
-import { capabilityAllows } from "@haibun/core/lib/domains/actions.js";
+import { capabilityAllows, isRead } from "@haibun/core/lib/domains/actions.js";
 import type { TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import type { TDomainDiscoveryInfo, TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { contractProducts } from "@haibun/core/lib/contract.js";
@@ -42,8 +42,10 @@ export function methodOf(list: TStepList, name: string): string {
 
 /** Returns a link to the step `method` names: a read where the step declares itself a read, and an act otherwise, as for a
  *  method the steps don't hold. */
-export const linkOf = (list: TStepList, method: string, params: Record<string, unknown> | undefined, summary: string | undefined): TLink =>
-	stepNamed(list, method)?.read === true ? reads(method, params, summary) : acts(method, params, summary);
+export function linkOf(list: TStepList, method: string, params: Record<string, unknown> | undefined, summary: string | undefined): TLink {
+	const step = stepNamed(list, method);
+	return step !== undefined && isRead(step) ? reads(method, params, summary) : acts(method, params, summary);
+}
 
 /** Returns the steps that take a domain and the steps that return it, the domain named by its key or by the type it persists
  *  as. A step that takes a union takes each of its parts. */

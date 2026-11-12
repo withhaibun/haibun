@@ -10,6 +10,7 @@ import type { TActionResult, TStepResult, TSeqPath } from "../../domains/protoco
 import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, SUBSTEP_LEVEL, STATUS, RECORDED_STATUS, verdictOf, VERDICT, type TStepEnd } from "../../domains/protocol.js";
 import { streamContext } from "../../transport/domains/step-stream-context.js";
 import { actionNotOK } from "../../domains/util.js";
+import { isRead } from "../../domains/actions.js";
 import { normalizeDomainKey } from "../../domains/domains.js";
 import { assertFact } from "../../records/pipelines/facts.js";
 import { entailmentRecorded } from "../../records/derivations/claim.js";
@@ -139,7 +140,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	// feature reads, and the read's result is the step's result. The rule tests `programmatic` and not `isSubStep`, because
 	// a read beneath a combinator is also a substep, and actuality records it. A read a transport carries within a step, such
 	// as a model's tool call during a turn, is that step's act, so actuality records it too.
-	const recorded = !(action.step.read === true && featureStep.programmatic === true && call?.step === undefined);
+	const recorded = !(isRead(action.step) && featureStep.programmatic === true && call?.step === undefined);
 	// Actuality holds two records of the steps a feature has finished. `world.runtime.steps` holds how many ran, when they
 	// began and ended, and which one failed. foldStep updates it as each step settles. `world.runtime.stepResults` holds
 	// the most recent RESULTS_READ_IN_FULL results in full, since a reader of the result reads what those steps produced.

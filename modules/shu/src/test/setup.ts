@@ -239,7 +239,6 @@ export function stepsShown(
 			capability: requiredAction(step.stepperName, step.stepName, step),
 			stepperDescription: `the steps of ${step.stepperName}`,
 			paramDomains: step.paramDomains ?? {},
-			read: step.read === true,
 			kaname: step.kaname === true,
 			fallback: step.fallback === true,
 			answersTheTurn: step.answersTheTurn === true,

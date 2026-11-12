@@ -142,11 +142,10 @@ class Haibun extends AStepper implements IHasCycles {
 	/** A read of actuality's declarations, which every caller may make before it reads any step's declaration. */
 	private declarationRead(gwta: string, description: string, domain: string, read: () => Record<string, unknown>) {
 		return {
-			read: true,
 			capability: SHOW_STEPS_ACTION,
 			gwta,
 			description,
-			contract: { products: domain },
+			contract: { read: true, products: domain },
 			action: () => actionOKWithProducts(read()),
 		} as const satisfies TStepperStep;
 	}
@@ -155,11 +154,10 @@ class Haibun extends AStepper implements IHasCycles {
 	 *  of the list they hold. Each step the statement holds is gated as it runs. */
 	private listCombinator(gwta: string, description: string, stage: Pick<TStepperStep, "transformsList" | "listQuery" | "precludes">) {
 		return {
-			read: true,
 			readsAt: Access.public,
 			gwta,
 			description,
-			contract: { products: { of: "statement" } },
+			contract: { read: true, products: { of: "statement" } },
 			...stage,
 			action: ({ statement }: { statement: TFeatureStep[] }, featureStep: TFeatureStep) => proveStatements(stepperContext(this.getWorld(), this.steppers), featureStep, statement),
 		} as const satisfies TStepperStep;
@@ -266,11 +264,10 @@ class Haibun extends AStepper implements IHasCycles {
 		),
 
 		asOf: {
-			read: true,
 			readsAt: Access.public,
 			gwta: `as of {asOf: ${DOMAIN_STEP_PATH}}, {statement: ${DOMAIN_STATEMENT}}`,
 			description: "Proves the statement as of a step of actuality, so a read the statement makes that reads actuality at a step, such as the affordances, reads it at that step.",
-			contract: { products: { of: "statement" } },
+			contract: { read: true, products: { of: "statement" } },
 			reading: READING.within,
 			context: ({ asOf }) => Promise.resolve(<T>(run: () => Promise<T>) => runInCall({ ...inCall(), asOf: StepPathValueSchema.parse(asOf) }, run)),
 		},
@@ -291,12 +288,11 @@ class Haibun extends AStepper implements IHasCycles {
 		},
 
 		validateStep: {
-			read: true,
 			readsAt: Access.public,
 			gwta: `validate step {text: ${DOMAIN_TEXT}}`,
 			description:
 				"Whether a line resolves to exactly one of the steps the caller may call, and which method that step is, with the reading of each value whose domain states one and, for a claim, the reasoning task, the axiom in OWL 2 functional and Manchester syntax and the entailment in DL notation; otherwise why the line doesn't resolve to one of them or resolves to more than one.",
-			contract: { products: DOMAIN_STEP_VALIDATION },
+			contract: { read: true, products: DOMAIN_STEP_VALIDATION },
 			action: ({ text }: { text: string }) => {
 				const validation = validateStep(text, this.steppers, shownTo());
 				const domains = this.getWorld().domains;

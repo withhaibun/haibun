@@ -198,11 +198,10 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			},
 		},
 		showShuApps: {
-			read: true,
 			readsAt: Access.public,
 			gwta: "show shu apps",
 			description: "Where this instance serves shu: the path of each app it mounted, which a reader opens under the instance's address.",
-			contract: { products: DOMAIN_SHU_APPS },
+			contract: { read: true, products: DOMAIN_SHU_APPS },
 			action: () => actionOKWithProducts({ apps: [...this.appPaths].map((path) => ({ path })), ...counted(this.appPaths.size) }),
 		},
 		showPolymorphicGraphView: {

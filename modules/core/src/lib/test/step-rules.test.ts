@@ -45,7 +45,7 @@ class DemoStepper extends AStepper {
 	steps = {
 		openStore: { gwta: "open the store", ...ACTS },
 		openKey: { gwta: "open a key", contract: { products: "key" }, ...ACTS },
-		readStore: { description: TEST_STEP, gwta: "show the store", read: true, readsAt: Access.public, action: () => OK },
+		readStore: { description: TEST_STEP, gwta: "show the store", contract: { read: true }, readsAt: Access.public, action: () => OK },
 		watchEvery: { gwta: "watch every {seconds: number} seconds", ...ACTS },
 		fetchPage: { gwta: "fetch page {page: string}", ...ACTS },
 		fetchPageAgain: { gwta: "fetch page {page: string} again", ...ACTS },
@@ -189,15 +189,14 @@ class ListingStepper extends AStepper {
 		}),
 	};
 	steps = {
-		firstRows: { description: TEST_STEP, gwta: "show the first {n: number} rows", read: true, readsAt: Access.public, contract: { products: "rows" }, action: () => OK },
-		rowsMatching: { description: TEST_STEP, gwta: "show rows matching {text: string}", read: true, readsAt: Access.public, contract: { products: "counted" }, action: () => OK },
-		rowsSince: { description: TEST_STEP, gwta: "show rows since {at: date}", read: true, readsAt: Access.public, contract: { products: "listed" }, action: () => OK },
+		firstRows: { description: TEST_STEP, gwta: "show the first {n: number} rows", readsAt: Access.public, contract: { read: true, products: "rows" }, action: () => OK },
+		rowsMatching: { description: TEST_STEP, gwta: "show rows matching {text: string}", readsAt: Access.public, contract: { read: true, products: "counted" }, action: () => OK },
+		rowsSince: { description: TEST_STEP, gwta: "show rows since {at: date}", readsAt: Access.public, contract: { read: true, products: "listed" }, action: () => OK },
 		linesFromTo: {
 			description: TEST_STEP,
 			gwta: "show lines from {from: number} to {to: number}",
-			read: true,
 			readsAt: Access.public,
-			contract: { products: "names" },
+			contract: { read: true, products: "names" },
 			action: () => OK,
 		},
 		resize: { gwta: "resize to {width: number}", ...ACTS },
@@ -251,7 +250,7 @@ class StoringStepper extends AStepper {
 	steps = {
 		writtenByDispatch: { gwta: "note {id: string} through dispatch", contract: { products: "note", written: WRITE_VERB.create }, ...ACTS },
 		writtenItself: { gwta: "note {id: string} itself", contract: { products: "note" }, ...ACTS },
-		readNote: { gwta: "read note {id: string}", read: true, readsAt: Access.public, contract: { products: "note" }, ...ACTS },
+		readNote: { gwta: "read note {id: string}", readsAt: Access.public, contract: { read: true, products: "note" }, ...ACTS },
 		draft: { gwta: "draft {id: string}", contract: { products: "draft" }, ...ACTS },
 	} as const satisfies TStepperSteps;
 }

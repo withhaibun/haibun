@@ -252,12 +252,11 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			},
 		},
 		showInstances: {
-			read: true,
 			capability: SUPERVISOR_CAPABILITIES.read,
 			gwta: "show the haibun instances",
 			description:
 				"List the instances this process launched and the runs it started. Each instance entry holds its host id, its origin and its label. Each run entry holds its status: running or ended.",
-			contract: { products: DOMAIN_INSTANCES },
+			contract: { read: true, products: DOMAIN_INSTANCES },
 			action: () =>
 				Promise.resolve(
 					actionOKWithProducts({

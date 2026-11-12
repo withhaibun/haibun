@@ -5,7 +5,7 @@ import type { TWorld } from "../../actuality/domains/world.js";
 import type { TActionResult } from "../../domains/protocol.js";
 import { HYPERMEDIA } from "../../domains/protocol.js";
 import { stepLinkOf, type TStepLink } from "../../domains/hypermedia.js";
-import { requiredAction } from "../../domains/actions.js";
+import { isRead, requiredAction } from "../../domains/actions.js";
 import { stepParts } from "../domains/phrase.js";
 import { stepMethodName } from "../domains/step-method.js";
 import { declaredSteps } from "./predicate-registry.js";
@@ -102,7 +102,7 @@ function deriveActionLinks(productDomain: string, products: Record<string, unkno
 	for (const { stepperName, actionName, step } of declaredSteps(steppers)) {
 		const matching = stepParts(step).flatMap(({ name, domain }) => (matchesProduct(domain) ? [name] : []));
 		const method = stepMethodName(stepperName, actionName);
-		const link = { method, description: step.description, read: step.read === true, capability: requiredAction(stepperName, actionName, step), kaname: step.kaname === true };
+		const link = { method, description: step.description, read: isRead(step), capability: requiredAction(stepperName, actionName, step), kaname: step.kaname === true };
 		if (matching.length > 0) out[actionName] = stepLinkOf(link, productId === undefined ? undefined : Object.fromEntries(matching.map((name) => [name, { id: productId }])));
 	}
 	return out;

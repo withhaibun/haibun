@@ -24,7 +24,7 @@ import {
 import type { TRuntime } from "@haibun/core/lib/world.js";
 import type { THaibunEvent, TLogEvent } from "@haibun/core/lib/domains/protocol.js";
 import { serializedEvent } from "@haibun/core/lib/steps/derivations/serialized-event.js";
-import { capabilityAllows, FOLLOWS_THE_RUN, readAction } from "@haibun/core/lib/domains/actions.js";
+import { capabilityAllows, FOLLOWS_THE_RUN, isRead, readAction } from "@haibun/core/lib/domains/actions.js";
 import type { AccessLevel } from "@haibun/core/lib/domains/resources.js";
 import { pathParam } from "../domains/web-server.js";
 import type { IWebServer, TAuthorizedRequest, TCapabilityVerifier } from "../ports.js";
@@ -205,7 +205,8 @@ export class SSETransport implements ITransport, IStepTransport {
 	 * for its own reading, and each such read would be served, narrated and read again without end.
 	 */
 	private servesARead(method: string): boolean {
-		return this.registry?.get(method)?.descriptor.read === true;
+		const tool = this.registry?.get(method);
+		return tool !== undefined && isRead(tool.descriptor);
 	}
 
 	/** Clears the handlers as the server closes. */

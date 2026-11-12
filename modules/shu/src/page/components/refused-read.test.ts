@@ -21,7 +21,14 @@ import type { ShuAffordancesPanel } from "./shu-affordances-panel.js";
 import "./shu-affordances-panel.js";
 
 /** A read's step, as the show steps step describes it. */
-const read = (stepperName: string, stepName: string) => ({ method: `${stepperName}-${stepName}`, stepperName, stepName, pattern: stepName, read: true, readsAt: Access.public });
+const read = (stepperName: string, stepName: string) => ({
+	method: `${stepperName}-${stepName}`,
+	stepperName,
+	stepName,
+	pattern: stepName,
+	contract: { read: true as const },
+	readsAt: Access.public,
+});
 
 /** The steps the views read through, and a catalog that declares the type they read. */
 const SHOWN = stepsShown(

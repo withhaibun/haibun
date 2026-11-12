@@ -18,7 +18,7 @@ import { defineElement } from "../controllers/element-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { declaredStepRead } from "../controllers/registry-controller.js";
 import { holderOf, pageHolds, type THolder } from "../controllers/authority-controller.js";
-import { lackedAction, type TAction } from "@haibun/core/lib/domains/actions.js";
+import { isRead, lackedAction, type TAction } from "@haibun/core/lib/domains/actions.js";
 import { LoadController } from "../controllers/load-controller.js";
 import type { TCallOutcome } from "../pipelines/call-step.js";
 import { actionRef, domainRef, originLink } from "./shu-ref.js";
@@ -115,7 +115,7 @@ export class ShuStepDefinition extends ShuElement<typeof StateSchema> {
 		)}
 			${products.domain ? html`<dt>Returns</dt><dd data-testid=${IDS.PRODUCTS}>${domainRef(products.domain)}</dd>` : ""}
 			${products.of ? html`<dt>Returns</dt><dd data-testid=${IDS.PRODUCTS}>what its <code>{${products.of}}</code> returns</dd>` : ""}
-			<dt>Does</dt><dd>${step.read ? "reads, and actuality doesn't record the reading" : "acts, and actuality records it"}</dd>
+			<dt>Does</dt><dd>${isRead(step) ? "reads, and actuality doesn't record the reading" : "acts, and actuality records it"}</dd>
 			${step.remoteOrigin ? html`<dt>Runs at</dt><dd>${originLink(step.remoteOrigin)}</dd>` : ""}`;
 	}
 

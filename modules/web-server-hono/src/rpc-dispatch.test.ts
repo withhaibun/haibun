@@ -27,7 +27,7 @@ import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOptionName
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import FakeAuthorityStepper, { DOMAIN_FAKE_HOLDER, FakeInvoker, fakeGrant } from "@haibun/core/lib/test/fake-authority.js";
 import WebServerStepper from "./web-server-stepper.js";
-import { WEBSERVER } from "./domains/web-server.js";
+import { notARead, WEBSERVER } from "./domains/web-server.js";
 import type { IWebServer } from "./ports.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import { SHOW_STEP_DEFINITIONS_METHOD, SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, readStepDefinitions, type TStepDefinition } from "@haibun/core/lib/step-discovery.js";
@@ -62,9 +62,8 @@ class PingStepper extends AStepper {
 		readsAt: {
 			description: TEST_STEP,
 			gwta: "level this reads at",
-			read: true,
 			readsAt: Access.public,
-			contract: { products: TEST_DOMAIN.readAt },
+			contract: { read: true as const, products: TEST_DOMAIN.readAt },
 			action: async () => actionOKWithProducts({ at: readingAt() ?? "unbounded" }),
 		},
 		serveProbe: {
@@ -249,7 +248,7 @@ class RpcVerifyStepper extends AStepper {
 				});
 				const data = (await res.json()) as { error?: string };
 				if (res.status !== REFUSED_CALL_STATUS) return actionNotOK(`served a read of a step that doesn't declare itself a read: HTTP ${res.status}`);
-				return typeof data.error === "string" && data.error.includes("does not declare itself one") ? OK : actionNotOK(`refused without stating why: ${JSON.stringify(data)}`);
+				return data.error === notARead(String(method)) ? OK : actionNotOK(`refused without stating why: ${JSON.stringify(data)}`);
 			},
 		},
 		rpcReadOfUncallableRefusedAlike: {
@@ -494,7 +493,7 @@ class ReadStepper extends AStepper {
 	}
 
 	steps = {
-		asked: { description: TEST_STEP, gwta: "run is asked what it holds", read: true, readsAt: Access.public, action: () => Promise.resolve(OK) },
+		asked: { description: TEST_STEP, gwta: "run is asked what it holds", contract: { read: true as const }, readsAt: Access.public, action: () => Promise.resolve(OK) },
 		narratedCalls: {
 			description: TEST_STEP,
 			gwta: "run narrated the call that acted on it and not the call that read it",

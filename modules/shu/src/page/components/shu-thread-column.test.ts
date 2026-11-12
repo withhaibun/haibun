@@ -13,7 +13,14 @@ import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { ShuThreadColumn } from "./shu-thread-column.js";
 import "./shu-ref-element.js";
 
-const RELATED = { method: "GraphStepper-getRelated", stepperName: "GraphStepper", stepName: "getRelated", pattern: "getRelated", read: true, readsAt: Access.public };
+const RELATED = {
+	method: "GraphStepper-getRelated",
+	stepperName: "GraphStepper",
+	stepName: "getRelated",
+	pattern: "getRelated",
+	contract: { read: true as const },
+	readsAt: Access.public,
+};
 const SHOWN = stepsShown([RELATED]);
 const [EMAIL, MESSAGE] = ["Email", "m-1"];
 

@@ -164,7 +164,6 @@ describe("RemoteStepperProxy", () => {
 			pattern: `echo {message: ${DOMAIN_TEXT}}`,
 			remoteOrigin: `http://localhost:${port}`,
 			paramDomains: { message: DOMAIN_TEXT },
-			read: false,
 			fallback: false,
 		});
 		expect(tool.descriptor.inputSchema.required).toEqual(["message"]);

@@ -30,7 +30,7 @@ const AFFORDANCES_STEP = {
 	stepperName: "LogicStepper",
 	stepName: "applicableSteps",
 	pattern: "applicable steps",
-	read: true,
+	contract: { read: true as const },
 	readsAt: Access.public,
 };
 

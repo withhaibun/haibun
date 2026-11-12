@@ -306,7 +306,7 @@ describe("an individual the page holds a copy of", () => {
 		stepperName: "GraphSourceStepper",
 		stepName: "getIndividualWithEdges",
 		pattern: "getIndividualWithEdges",
-		read: true,
+		contract: { read: true as const },
 		readsAt: Access.public,
 	};
 	const NOT_HELD = "Email a isn't held here";

@@ -259,13 +259,12 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			action: async ({ data }: { data: TAnnotationNote }) => this.runAnnotate(data),
 		},
 		annotations: {
-			read: true,
 			readsAt: Access.public,
 			gwta: `get annotations for {label: ${DOMAIN_PERSISTED_TYPE}} {id: ${DOMAIN_RECORD_ID}}`,
 			kaname: true,
 			description: "Returns the annotations anchored in the record, each with the comment's body, its author and times, and the passages it cross-references.",
 			recordIds: { id: "label" },
-			contract: { products: DOMAIN_ANNOTATIONS },
+			contract: { read: true, products: DOMAIN_ANNOTATIONS },
 			action: async ({ id }: { label: string; id: string }) => {
 				const store = this.getWorld().shared.getStore();
 				// Walks the W3C Web Annotation chain backward from the annotated individual, each read keyed by the record it

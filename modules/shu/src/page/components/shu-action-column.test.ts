@@ -20,8 +20,22 @@ import { endPage } from "../adapters/page-held.js";
 const IDS = SHU_TEST_IDS.ACTION_COLUMN;
 const DELEGATE = "Authority:delegate";
 const [PUBLIC_READ, PRIVATE_READ, DELEGATES, REVOKES] = [
-	{ method: "GraphStepper-graphQuery", stepperName: "GraphStepper", stepName: "graphQuery", pattern: "query {label}", read: true, capability: readAction(Access.public) },
-	{ method: "GraphStepper-getPrivate", stepperName: "GraphStepper", stepName: "getPrivate", pattern: "get private {id}", read: true, capability: readAction(Access.private) },
+	{
+		method: "GraphStepper-graphQuery",
+		stepperName: "GraphStepper",
+		stepName: "graphQuery",
+		pattern: "query {label}",
+		contract: { read: true },
+		capability: readAction(Access.public),
+	},
+	{
+		method: "GraphStepper-getPrivate",
+		stepperName: "GraphStepper",
+		stepName: "getPrivate",
+		pattern: "get private {id}",
+		contract: { read: true },
+		capability: readAction(Access.private),
+	},
 	{ method: "DelegationStepper-delegate", stepperName: "DelegationStepper", stepName: "delegate", pattern: "delegate {actions}", capability: DELEGATE },
 	{ method: "DelegationStepper-revoke", stepperName: "DelegationStepper", stepName: "revoke", pattern: "revoke {capability}", capability: "Authority:revoke" },
 ];

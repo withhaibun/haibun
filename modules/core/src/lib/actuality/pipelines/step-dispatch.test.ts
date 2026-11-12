@@ -87,7 +87,6 @@ const carrierTool = (stepperName: string, stepName: string, pattern: string, par
 		description: TEST_STEP,
 		paramDomains: Object.fromEntries(Object.entries(paramDomains).map(([name, key]) => [name, DomainKeySchema.parse(key)])),
 		capability: ActionSchema.parse(`${stepperName}:${stepName}`),
-		read: false,
 		kaname: false,
 		fallback: false,
 		answersTheTurn: false,
@@ -719,7 +718,7 @@ describe("step-dispatch", () => {
 						contract: { products: TEST_DOMAIN.count },
 						action: async () => actionOKWithProducts({ count: (await world.shared.getStore().all()).length }),
 					},
-					describesItself: { description: TEST_STEP, gwta: "describe this", read: true, readsAt: Access.private, action: async () => OK },
+					describesItself: { description: TEST_STEP, gwta: "describe this", contract: { read: true as const }, readsAt: Access.private, action: async () => OK },
 				};
 			}
 			const held = () => {
@@ -793,9 +792,8 @@ describe("step-dispatch", () => {
 					howMany: {
 						description: TEST_STEP,
 						gwta: "how many",
-						read: true,
 						readsAt: Access.private,
-						contract: { products: TEST_DOMAIN.count },
+						contract: { read: true as const, products: TEST_DOMAIN.count },
 						action: async () => actionOKWithProducts({ count: 3 }),
 					},
 				};

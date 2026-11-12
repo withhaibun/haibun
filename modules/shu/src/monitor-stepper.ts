@@ -314,7 +314,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			gwta: `log client {event: ${DOMAIN_LOG_EVENT}}`,
 			description:
 				"Receive a diagnostic the page states and write it to actuality's event log at the level the page states, its source before its message. A read: a page's diagnostic reaches actuality's event log, and observing the running system isn't actuality's own activity, so the call isn't recorded as a step. A recorded diagnostic would be a step whose events reach the page and prompt the page to log the step it is logging.",
-			read: true,
+			contract: { read: true },
 			// A page is delegated the report's own action, which a read of what actuality records would widen.
 			capability: CLIENT_LOG_ACTION,
 			action: ({ event }: { event: TLogEvent }) => {
@@ -332,7 +332,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			gwta: `record client blips {batch: ${DOMAIN_CLIENT_BLIPS}}`,
 			description:
 				"Receive a batch of fine-grained occurrences the SPA recorded and put each into actuality's blip channel, in the order the browser recorded them. A read: actuality doesn't retain a blip, so it doesn't record a batch's arrival either. A recorded batch would be a step whose events reach the page and repaint a scene that then records what it drew.",
-			read: true,
+			contract: { read: true },
 			// A blip reaches actuality's telemetry, so a caller holds the read of what actuality records, as its own page does.
 			readsAt: Access.private,
 			action: ({ batch }: { batch: TClientBlips }) => {

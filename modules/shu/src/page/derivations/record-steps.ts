@@ -5,6 +5,7 @@
 import type { TCallLink, TRecordStep } from "@haibun/core/lib/domains/hypermedia.js";
 import type { TStepList } from "../machines/registry.js";
 import { stepNamed } from "./steps.js";
+import { isRead } from "@haibun/core/lib/domains/actions.js";
 
 /** Returns the verb phrase of a step: its pattern with the parameter that takes the record removed, and any remaining
  *  placeholders replaced with an ellipsis. Redundant leading type nouns matching `typeLabel` are removed. */
@@ -64,7 +65,7 @@ export function recordSteps(list: TStepList, label: string, id: string, recordLi
 				params: bound,
 				verb: stepVerb(step, boundKeys, label),
 				summary: link.summary ?? step.description,
-				asks: step.read ? "read" : "act",
+				asks: isRead(step) ? "read" : "act",
 				capability: step.capability,
 				...(step.kaname ? { kaname: true } : {}),
 				unboundCount,
@@ -116,7 +117,7 @@ export function recordSteps(list: TStepList, label: string, id: string, recordLi
 			params: bound,
 			verb: stepVerb(step, boundKeys, label),
 			summary: step.description,
-			asks: step.read ? "read" : "act",
+			asks: isRead(step) ? "read" : "act",
 			capability: step.capability,
 			...(step.kaname && !anyRecord ? { kaname: true } : {}),
 			unboundCount,

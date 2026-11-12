@@ -13,6 +13,8 @@ import { expectWithinBaseline, REPOSITORY_SCAN_MS } from "./baseline.js";
 import { adapterAssertionFindings, codeKindFindings, privateImportFindings, UNPOSITIONED, type TPrivateModules } from "./code-kinds.js";
 import { composeFiles, defaultFindings } from "./default-rules.js";
 import { brokenPaths, linksAndParentPaths, optionAssignments, trackedFiles, untrackedRecords } from "./group-rules.js";
+import { requiredAction } from "../domains/actions.js";
+import { constructorName } from "../domains/util.js";
 import { proseFindings } from "./prose-baseline.js";
 import { refusalFindings } from "./refusal-rules.js";
 import { parsedSources, sourceFiles, type TPackages } from "./repository-files.js";
@@ -178,6 +180,14 @@ export function describeRepositoryRules(rules: TRepositoryRules): void {
 				const fix =
 					"start it as a feature starts where an option states it, make it a waypoint of a module's library, give a primitive the difference as a parameter, or exercise it in a feature or a unit test";
 				await expectWithinBaseline({ baselineFile: baseline("steps"), found, testFile, fix });
+			});
+
+			it("requires of each step the action required-actions.json records for it", async () => {
+				const steps = (await steppersUnder(repository, rules.stepperRoots)).flatMap(({ stepper }) =>
+					Object.entries(stepper.steps).map(([key, step]) => [`${constructorName(stepper)}.${key}`, requiredAction(constructorName(stepper), key, step)] as const),
+				);
+				const required = Object.fromEntries(steps.sort(([a], [b]) => a.localeCompare(b)));
+				await expect(`${JSON.stringify(required, null, "\t")}\n`).toMatchFileSnapshot(join(rules.baselines, "required-actions.json"));
 			});
 
 			it("list each write beyond a step's products in its contract's changes, and have dispatch write each step's stored products, apart from the steps contracts.baseline.json records", async () => {

@@ -32,9 +32,8 @@ class ProtectedStepper extends AStepper {
 		readsAt: {
 			description: TEST_STEP,
 			exact: "mcp read level",
-			read: true,
 			readsAt: Access.public,
-			contract: { products: TEST_DOMAIN.readAt },
+			contract: { read: true as const, products: TEST_DOMAIN.readAt },
 			action: async () => actionOKWithProducts({ at: readingAt() ?? "unbounded" }),
 		},
 		echoesItsCaller: {

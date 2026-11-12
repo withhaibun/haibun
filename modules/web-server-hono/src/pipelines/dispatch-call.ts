@@ -17,6 +17,7 @@ import { allocateCallPath } from "@haibun/core/lib/domains/host-id.js";
 import { callerAt, mayRun, runInCall, runReadingAt } from "@haibun/core/lib/domains/capability-context.js";
 import type { AccessLevel } from "@haibun/core/lib/domains/resources.js";
 import { notARead } from "../domains/web-server.js";
+import { isRead } from "@haibun/core/lib/domains/actions.js";
 
 /** Who makes a call and under what: the action the request invoked (`capabilityAction`) and those its caller holds, who proved themselves,
  *  what their proof rests on, and the delegate a refusal names as able to grant the lacked action. */
@@ -41,8 +42,8 @@ export function calledStep({ registry, world, steppers }: DispatchContext, call:
 	const tool = registry.get(method);
 	const lacked = tool && mayRun(callerAt(caller), tool.descriptor);
 	const built = (step: StepTool) => validatedFeatureStep(step, params, allocateCallPath(world, under), world, steppers);
-	if (!tool || lacked) return { refused: refusal(method, lacked, caller.delegate), ...(tool && lacked && !tool.descriptor.read ? gatedOf(() => built(tool)) : {}) };
-	if (asks === "read" && !tool.descriptor.read) return { refused: { error: notARead(method) } };
+	if (!tool || lacked) return { refused: refusal(method, lacked, caller.delegate), ...(tool && lacked && !isRead(tool.descriptor) ? gatedOf(() => built(tool)) : {}) };
+	if (asks === "read" && !isRead(tool.descriptor)) return { refused: { error: notARead(method) } };
 	return { tool, featureStep: built(tool) };
 }
 

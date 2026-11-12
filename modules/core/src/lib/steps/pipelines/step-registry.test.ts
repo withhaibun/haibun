@@ -67,7 +67,6 @@ const remoteTool = (stepName: string, pattern: string, capability = `RemoteSteps
 		description: TEST_STEP,
 		paramDomains: {},
 		capability: ActionSchema.parse(capability),
-		read: false,
 		kaname: false,
 		fallback: false,
 		answersTheTurn: false,

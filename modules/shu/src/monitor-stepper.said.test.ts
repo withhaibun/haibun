@@ -4,6 +4,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { z } from "zod";
 import { actualityFeatureOf, formatRecordName } from "@haibun/core/lib/seq-path.js";
+import { isRead } from "@haibun/core/lib/domains/actions.js";
 import type { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { readUpTo } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { MAX_PAGE_ROWS } from "@haibun/core/lib/domains/hypermedia.js";
@@ -219,7 +220,7 @@ describe("what a run produced, as a record", () => {
 describe("what the bridge carries", () => {
 	it("receives a blip batch as a read, so actuality doesn't record what it never retains", () => {
 		const { steps } = new MonitorStepper();
-		expect(steps.recordClientBlips.read, "a recorded batch is a step whose events reach the page and repaint a scene that then records what it drew").toBe(true);
+		expect(isRead(steps.recordClientBlips), "a recorded batch is a step whose events reach the page and repaint a scene that then records what it drew").toBe(true);
 	});
 });
 

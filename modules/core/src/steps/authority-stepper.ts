@@ -114,10 +114,9 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			},
 		},
 		delegationsTo: {
-			read: true,
 			capability: DELEGATIONS_READ_ACTION,
 			gwta: "delegations to the caller",
-			contract: { products: DOMAIN_DELEGATIONS },
+			contract: { read: true, products: DOMAIN_DELEGATIONS },
 			description:
 				"Returns the signed delegations that this instance recorded to the key that signs the call, as the documents a holder presents. The step omits a revoked delegation. A key's holder reads the delegations to determine what the key may do here. The step returns only the calling key's delegations.",
 			action: async () => {
@@ -128,11 +127,10 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 		},
 		showHeldCalls: {
 			// The held calls show which callers are connected under which capability, so reading them requires the private read action.
-			read: true,
 			capability: readAction(Access.private),
 			gwta: "show held calls",
 			description: "Returns the calls held open at this instance, by the capability on which each rests. Revoking a capability ends the calls that rest on it.",
-			contract: { products: DOMAIN_HELD_CALLS },
+			contract: { read: true, products: DOMAIN_HELD_CALLS },
 			action: () => {
 				const { capabilities } = this.getAuthority().heldCalls();
 				return Promise.resolve(actionOKWithProducts({ capabilities, ...counted(capabilities.length) }));

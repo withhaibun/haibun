@@ -18,7 +18,7 @@ const listed = stepsShown(
 			stepName: "showPermit",
 			pattern: "show permit {permit}",
 			description: "Shows a permit.",
-			read: true,
+			contract: { read: true },
 			readsAt: Access.public,
 			paramDomains: { permit: "permit-ref" },
 		},

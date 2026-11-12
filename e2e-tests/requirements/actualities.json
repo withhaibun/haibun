@@ -544,41 +544,41 @@
 			"actuality": {
 				"text": "e2e-tests/requirements, node_modules/@haibun/cli/waypoints, node_modules/@haibun/logic/waypoints, node_modules/@haibun/core/waypoints",
 				"status": "passed",
-				"tookMs": 54100,
+				"tookMs": 53000,
 				"digest": {
 					"e2e-tests/requirements": "b6a39098586928b263392204426cf08815707a144eb6d6e92d8cc8475f3c6ee1",
 					"e2e-tests/src": "6b6b58f64026ff1c6202081ed15de0151412fbf6e53077e108c5c044692afeba",
-					"modules/cli/src": "21291a269f682b5387a23040d17fe97483461231d07423e53722d906b0ca881e",
+					"modules/cli/src": "3b6f87a0ece4cf835e7194fc4a0d18ef27fb7c1105a77de56666b3aaf3486724",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "fc665ed11ae9925a8b2bd955ff5b11f4a37a757f26c799c4c592c9b1acf38c71",
+					"modules/core/src": "bc6e7ff6975d2b4b023aa379529b2780ef3b3a160983229e80dc60a9a753e231",
 					"modules/core/waypoints": "f573c51de6e8154e49adbb5d98a25b3fd1872742dfdab0f3d6ec8f6164759860",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
-					"modules/logic/src": "75c1dead28e95af25c00d9b4a3c038a6dee0b5738fed6a3b8eb38c05216fb57b",
+					"modules/logic/src": "6006b0c95a01dfbac5c76a11ff721dbfa0ef7850949dc203ba884dbed71b9459",
 					"modules/logic/waypoints": "156399b8cca79a483d951d021c5c5ecab8aba6ae2fa90c56b054b3e31601801b",
 					"modules/monitor-otel/src": "4fbef0f2c78fed7b3e2d03ec4ab094bef11766724e5f5f6efb73491ea1d4dea6",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/out-junit/src": "22d1ca5d4f4449cae6186ff8d84c1f0b182e7591e1ffda9520a38daa3e8681d2",
 					"modules/recorder/src": "079caf826dbcad8943531b3f8f716e79a45d55f1668d29417e2a230978236208",
-					"modules/shu/src": "1bfc82f5e2ea1e9ad176487c232097a2b45c8a68fb254da12bb096ba88eee1d7",
+					"modules/shu/src": "69b614e46c1c4cc7897fd97ce9bdbedc8b3dd2dcc47bcf0da923e557afac6f81",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/utils/src": "698b48ed8fbac4dc3c0483e6bb3ccd88640ebc98696b8cc493b5740d1017db8d",
 					"modules/web-accessibility-axe/src": "ee53bd6b78b538fd9d910ca47bea66a7d15872feea8280ce26cd5ec33a620f7d",
-					"modules/web-playwright/src": "0cce4ac71cd217af08118528166c5d7d5f1eabc7ff1580f70767f0a74c6f8a42",
-					"modules/web-server-hono/src": "12533736f8ac842459a481bfed9968a17b6f5f93bb2e09498654439752e63711"
+					"modules/web-playwright/src": "d2d3cb00828363b79531d2f547e46f287a1c3f6e2a0b437e9bb3cbbcd68b3a6b",
+					"modules/web-server-hono/src": "541cc0825b194c7d3125fb35132fa8035c40f9afcbbeaa3052f608260f076da0"
 				}
 			},
 			"features": {
 				"/features/01-prose-and-steps.feature.ts": {
 					"text": "Prose and steps",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 700,
 					"steps": 26
 				},
 				"/features/02-authority.feature.ts": {
 					"text": "Capabilities authorize every call",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 500,
 					"steps": 59
 				},
 				"/features/03-activities.feature.ts": {
@@ -596,7 +596,7 @@
 				"/features/05-goals.feature.ts": {
 					"text": "Goals over producer rules",
 					"status": "passed",
-					"tookMs": 1700,
+					"tookMs": 2000,
 					"steps": 41
 				},
 				"/features/06-world-and-products.feature.ts": {
@@ -608,7 +608,7 @@
 				"/features/07-records.feature.ts": {
 					"text": "Records, events and actualities",
 					"status": "passed",
-					"tookMs": 2300,
+					"tookMs": 2200,
 					"steps": 33
 				},
 				"/features/08-timing.feature.ts": {
@@ -620,7 +620,7 @@
 				"/features/09-surfaces.feature.ts": {
 					"text": "One path for every surface",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 800,
 					"steps": 77
 				},
 				"/features/10-cli.feature.ts": {
@@ -662,7 +662,7 @@
 				"/features/16-class-expressions.feature.ts": {
 					"text": "Class expressions",
 					"status": "passed",
-					"tookMs": 43900,
+					"tookMs": 42600,
 					"steps": 93
 				}
 			}
