@@ -1,6 +1,6 @@
 /**
  * The registry's vocabularies as the reasoner reads them: each copy matches the digest its entry pins, its subsumptions and
- * disjointness of named classes are applied and its other axioms are stated, not reasoned over, and a copy whose digest
+ * disjointness of named classes and its inverse functional properties are applied and its other axioms are stated, not reasoned over, and a copy whose digest
  * differs is refused, naming where the published file is.
  */
 import { describe, expect, it } from "vitest";
@@ -20,6 +20,10 @@ describe("the vocabulary library", () => {
 		expect(prov.disjointWith).toContainEqual([`${PROV}Activity`, `${PROV}Entity`]);
 		expect(prov.subClassOf).toContainEqual([`${PROV}Plan`, `${PROV}Entity`]);
 		expect(prov.stated).toBe(1146 - prov.subClassOf.length - prov.disjointWith.length);
+	});
+
+	it("applies FOAF's inverse functional properties, such as a mailbox", () => {
+		expect(vocabularyAxioms(vocabularyEntry("foaf")).inverseFunctional).toContain(`${NAMESPACE.foaf}mbox`);
 	});
 
 	it("refuses a copy whose digest isn't the one its entry pins", () => {

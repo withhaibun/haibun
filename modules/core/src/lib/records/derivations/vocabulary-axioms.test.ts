@@ -21,7 +21,7 @@ const typeOf = (persistedAs: string, subClassOf: string) => ({
 	topology: { persistedAs, subClassOf, id: "id", accessLevel: Access.private, properties: { id: LinkRelations.IDENTIFIER.rel } },
 });
 const entry = vocabularyEntry("prov");
-registerVocabulary({ entry, subClassOf: [[`${PROV}Plan`, `${PROV}Entity`]], disjointWith: [[`${PROV}Activity`, `${PROV}Entity`]], stated: 3 });
+registerVocabulary({ entry, subClassOf: [[`${PROV}Plan`, `${PROV}Entity`]], disjointWith: [[`${PROV}Activity`, `${PROV}Entity`]], inverseFunctional: [], stated: 3 });
 const ontology = withVocabularyAxioms(ontologyToQuads(mapDefinitionsToDomains([typeOf("Step", "prov:Activity"), typeOf("Recipe", "prov:Plan")])));
 const stated = (subject: string, predicate: string) =>
 	ontology.quads.filter((q) => q.namedGraph === CLASS_LABEL && q.subject === subject && q.predicate === predicate).map((q) => q.object);

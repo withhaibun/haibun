@@ -68,12 +68,14 @@ export function vocabularyEntry(prefix: string): TVocabularyEntry {
 	return entry;
 }
 
-/** A vocabulary's axioms as the reasoner reads them, each class by its IRI: the subsumptions and the disjointness of two named
- *  classes it applies under OWL 2 RL, and the count of the other axioms the file states, which are stated, not reasoned over. */
+/** A vocabulary's axioms as the reasoner reads them, each class and property by its IRI: the subsumptions and the disjointness of
+ *  two named classes, and the inverse functional properties, it applies under OWL 2 RL, and the count of the other axioms the file
+ *  states, which are stated, not reasoned over. */
 export type TVocabularyAxioms = {
 	entry: TVocabularyEntry;
 	subClassOf: ReadonlyArray<readonly [string, string]>;
 	disjointWith: ReadonlyArray<readonly [string, string]>;
+	inverseFunctional: readonly string[];
 	stated: number;
 };
 

@@ -590,15 +590,15 @@
 			"actuality": {
 				"text": "e2e-tests/tests, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
 				"status": "passed",
-				"tookMs": 23600,
+				"tookMs": 23100,
 				"digest": {
 					"e2e-tests/src": "6b6b58f64026ff1c6202081ed15de0151412fbf6e53077e108c5c044692afeba",
 					"e2e-tests/tests": "f4df00ba606dcafde9fd364da0aba0564c5d4c58348e6d70d2a469b74fcf1a61",
 					"modules/cli/src": "3b6f87a0ece4cf835e7194fc4a0d18ef27fb7c1105a77de56666b3aaf3486724",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "1e8bd7d4911d188b38241cdf4e934f5cb7bd9b0f69948e33abe66ac4f9f85fc4",
+					"modules/core/src": "49371afa9acdf711fff6cfd2cc94ccd31f74029b571060e5029e26aecac9dc90",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
-					"modules/logic/src": "6006b0c95a01dfbac5c76a11ff721dbfa0ef7850949dc203ba884dbed71b9459",
+					"modules/logic/src": "ab973217f86444cafc73f78503a3950f15e9813e2f16993b24a2c4dd6a7153f2",
 					"modules/monitor-otel/src": "4fbef0f2c78fed7b3e2d03ec4ab094bef11766724e5f5f6efb73491ea1d4dea6",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/out-junit/src": "22d1ca5d4f4449cae6186ff8d84c1f0b182e7591e1ffda9520a38daa3e8681d2",
@@ -623,7 +623,7 @@
 				"/features/a11y-pass.feature": {
 					"text": "/features/a11y-pass",
 					"status": "passed",
-					"tookMs": 800,
+					"tookMs": 700,
 					"steps": 13
 				},
 				"/features/after-every.feature": {
@@ -635,7 +635,7 @@
 				"/features/auth-basic.feature": {
 					"text": "/features/auth-basic",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 800,
 					"steps": 55
 				},
 				"/features/auth-bearer.feature": {
@@ -653,19 +653,19 @@
 				"/features/claims.feature": {
 					"text": "/features/claims",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 600,
 					"steps": 4
 				},
 				"/features/counter.feature": {
 					"text": "/features/counter",
 					"status": "passed",
-					"tookMs": 1300,
+					"tookMs": 700,
 					"steps": 21
 				},
 				"/features/counter.feature.ts": {
 					"text": "Counts feature",
 					"status": "passed",
-					"tookMs": 1400,
+					"tookMs": 800,
 					"steps": 21
 				},
 				"/features/counts.feature.ts": {
@@ -677,7 +677,7 @@
 				"/features/elements.feature": {
 					"text": "/features/elements",
 					"status": "passed",
-					"tookMs": 900,
+					"tookMs": 800,
 					"steps": 17
 				},
 				"/features/executor-rpc.feature.ts": {
@@ -731,13 +731,13 @@
 				"/features/recurse.feature": {
 					"text": "/features/recurse",
 					"status": "passed",
-					"tookMs": 0,
+					"tookMs": 100,
 					"steps": 6
 				},
 				"/features/run-policy-refusals.feature.ts": {
 					"text": "A run refuses a run policy its config doesn't allow",
 					"status": "passed",
-					"tookMs": 2000,
+					"tookMs": 2200,
 					"steps": 16
 				},
 				"/features/trauma_center.feature": {
@@ -749,7 +749,7 @@
 				"/features/upload-verify.feature": {
 					"text": "/features/upload-verify",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 700,
 					"steps": 20
 				},
 				"/features/visited-pages.feature": {
@@ -761,7 +761,7 @@
 				"/features/workflow.feature.ts": {
 					"text": "workflow",
 					"status": "passed",
-					"tookMs": 300,
+					"tookMs": 400,
 					"steps": 64
 				},
 				"/features/xss.feature": {

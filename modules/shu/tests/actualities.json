@@ -412,12 +412,12 @@
 			"actuality": {
 				"text": "modules/shu/tests, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 43400,
+				"tookMs": 47100,
 				"digest": {
 					"modules/cli/src": "3b6f87a0ece4cf835e7194fc4a0d18ef27fb7c1105a77de56666b3aaf3486724",
-					"modules/core/src": "1e8bd7d4911d188b38241cdf4e934f5cb7bd9b0f69948e33abe66ac4f9f85fc4",
+					"modules/core/src": "49371afa9acdf711fff6cfd2cc94ccd31f74029b571060e5029e26aecac9dc90",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
-					"modules/logic/src": "6006b0c95a01dfbac5c76a11ff721dbfa0ef7850949dc203ba884dbed71b9459",
+					"modules/logic/src": "ab973217f86444cafc73f78503a3950f15e9813e2f16993b24a2c4dd6a7153f2",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/shu/src": "69b614e46c1c4cc7897fd97ce9bdbedc8b3dd2dcc47bcf0da923e557afac6f81",
 					"modules/shu/tests": "51430df310b0f937321f043028c2889ae625ff43ea21cbc78c92c9230458e403",
@@ -432,26 +432,26 @@
 				"/features/address.feature.ts": {
 					"text": "An address names a type",
 					"status": "passed",
-					"tookMs": 1200,
+					"tookMs": 1300,
 					"steps": 209
 				},
 				"/features/federate.feature.ts": {
 					"text": "Federated graph reads from a sibling instance",
 					"status": "passed",
-					"tookMs": 1300,
+					"tookMs": 1700,
 					"steps": 6
 				},
 				"/features/monitor-serves.feature.ts": {
 					"text": "The monitor serves shu on a port of its own",
 					"status": "passed",
-					"tookMs": 1500,
+					"tookMs": 1900,
 					"steps": 200
 				},
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
-					"tookMs": 30800,
-					"steps": 767
+					"tookMs": 33400,
+					"steps": 769
 				},
 				"/features/remote-store.feature.ts": {
 					"text": "A satellite instance keeps its records in the main instance's store",
@@ -462,7 +462,7 @@
 				"/features/voice-ui.feature.ts": {
 					"text": "UI extension propagation: domain ui → concern catalog → SPA actions bar",
 					"status": "passed",
-					"tookMs": 2300,
+					"tookMs": 2400,
 					"steps": 213
 				}
 			}

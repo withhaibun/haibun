@@ -7,7 +7,7 @@
  */
 import { DataFactory, Writer } from "n3";
 import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
-import { OWL, RDFS } from "@haibun/core/lib/domains/vocabularies.js";
+import { OWL, RDF, RDFS } from "@haibun/core/lib/domains/vocabularies.js";
 import { registeredVocabularies } from "@haibun/core/lib/domains/vocabulary-registry.js";
 
 /** A class's superclasses by its IRI, which `supers` adds to under one key. */
@@ -17,8 +17,8 @@ const adding = (supers: Map<string, string[]>, sub: string, sup: string): void =
 };
 
 /** Returns the closure of `classes`, each by its IRI, as N-Triples: each class's subsumption by each class `declared` and the
- *  registered vocabularies reach from it, and the disjointness of two classes the closure holds that a vocabulary or
- *  `disjoint` states. */
+ *  registered vocabularies reach from it, the disjointness of two classes the closure holds that a vocabulary or `disjoint`
+ *  states, and each property a registered vocabulary declares inverse functional. */
 export function vocabularyClosure(classes: readonly string[], declared: ReadonlyArray<readonly [string, string]>, disjoint: ReadonlyArray<readonly [string, string]>): string {
 	const vocabularies = registeredVocabularies();
 	const supers = new Map<string, string[]>();
@@ -38,7 +38,9 @@ export function vocabularyClosure(classes: readonly string[], declared: Readonly
 	for (const ancestors of [...closed.values()]) for (const ancestor of ancestors) if (!closed.has(ancestor)) closed.set(ancestor, ancestorsOf(ancestor));
 	const { namedNode, quad } = DataFactory;
 	const pairs = [...disjoint, ...vocabularies.flatMap(({ disjointWith }) => disjointWith)].filter(([a, b]) => closed.has(a) && closed.has(b));
+	const inverseFunctional = new Set(vocabularies.flatMap(({ inverseFunctional }) => inverseFunctional));
 	const quads = [
+		...[...inverseFunctional].map((property) => quad(namedNode(property), namedNode(RDF.type), namedNode(OWL.InverseFunctionalProperty))),
 		...[...closed].flatMap(([cls, ancestors]) => [...ancestors].map((ancestor) => quad(namedNode(cls), namedNode(RDFS.subClassOf), namedNode(ancestor)))),
 		...pairs.map(([a, b]) => quad(namedNode(a), namedNode(OWL.disjointWith), namedNode(b))),
 	];

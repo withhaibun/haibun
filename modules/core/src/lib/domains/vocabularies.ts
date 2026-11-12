@@ -46,6 +46,7 @@ export const OWL = /* @__PURE__ */ termsIn("owl", [
 	"sameAs",
 	"equivalentProperty",
 	"disjointWith",
+	"InverseFunctionalProperty",
 	"Axiom",
 	"annotatedSource",
 	"annotatedProperty",

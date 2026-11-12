@@ -214,12 +214,12 @@
 			"actuality": {
 				"text": "e2e-tests/shu-self-test, node_modules/@haibun/web-playwright/waypoints, node_modules/@haibun/shu/waypoints",
 				"status": "passed",
-				"tookMs": 82400,
+				"tookMs": 86800,
 				"digest": {
 					"e2e-tests/shu-self-test": "91887286174bd3f2504ad37602f73aba86f154051241dd64ed3414259b1fc8cd",
-					"modules/core/src": "1e8bd7d4911d188b38241cdf4e934f5cb7bd9b0f69948e33abe66ac4f9f85fc4",
+					"modules/core/src": "49371afa9acdf711fff6cfd2cc94ccd31f74029b571060e5029e26aecac9dc90",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
-					"modules/logic/src": "6006b0c95a01dfbac5c76a11ff721dbfa0ef7850949dc203ba884dbed71b9459",
+					"modules/logic/src": "ab973217f86444cafc73f78503a3950f15e9813e2f16993b24a2c4dd6a7153f2",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/shu/src": "69b614e46c1c4cc7897fd97ce9bdbedc8b3dd2dcc47bcf0da923e557afac6f81",
 					"modules/shu/waypoints": "7dc9c4a47d546a40d28e609997d2236967c01ebb925e55511322e4abc6772a86",
@@ -234,7 +234,7 @@
 				"/features/shu-self-test.feature.ts": {
 					"text": "Shu SPA Self-Test",
 					"status": "passed",
-					"tookMs": 78800,
+					"tookMs": 83100,
 					"steps": 700
 				},
 				"/features/z-post.feature.ts": {

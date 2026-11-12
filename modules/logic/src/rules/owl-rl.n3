@@ -1,5 +1,8 @@
-# The rules of OWL 2 RL a query of members reads: a member of a class is a member of each superclass, and a fact of a property
-# is a fact of each superproperty.
+# The rules of OWL 2 RL a query of members reads: a member of a class is a member of each superclass (cax-sco), a fact of a
+# property is a fact of each superproperty (prp-spo1), and two individuals with one value of an inverse functional property are
+# the same individual (prp-ifp).
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
 { ?x a ?c . ?c rdfs:subClassOf ?d } => { ?x a ?d } .
 { ?s ?p ?o . ?p rdfs:subPropertyOf ?q } => { ?s ?q ?o } .
+{ ?p a owl:InverseFunctionalProperty . ?x1 ?p ?y . ?x2 ?p ?y } => { ?x1 owl:sameAs ?x2 } .
