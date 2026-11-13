@@ -116,8 +116,6 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		return viewQuery.signals.offset.get();
 	}
 	private lastQueryKey = "";
-	/** The `label` of the most recently *started* query. A change means the node type switched, so the previous type's rows are dropped before the new query lands: a stale-row click would otherwise open the wrong entity. */
-	private lastQueriedLabel: string | undefined;
 	/** In-flight promise, coalesces concurrent identical `executeQuery` calls. The key is `lastQueryKey` (set immediately after the dedup check). */
 	private inflightPromise: Promise<void> | null = null;
 	private selectedIds = new Set<string>();
@@ -262,11 +260,10 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		const resultsChanged = queryKey !== this.lastQueryKey;
 		this.lastQueryKey = queryKey;
 
-		if (label !== this.lastQueriedLabel) {
-			// The node type changed: drop the previous type's rows now so they are never left
-			// clickable while the new query is in flight: a stale-row click would open the wrong
-			// entity (its id is a different type). The new rows render when `work` resolves.
-			this.lastQueriedLabel = label;
+		if (resultsChanged) {
+			// The query changed: its type, its text, its order or its page. The previous query's rows are dropped now, so a row
+			// of another query isn't clickable while this one is in flight. A click on such a row opens a record this query
+			// doesn't list. The new rows render when `work` resolves.
 			this.results = [];
 			this.#counted = counted(0);
 			this.#source = arrayWindowedSource<VertexRow>([], []);

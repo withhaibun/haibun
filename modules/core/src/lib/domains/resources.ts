@@ -316,6 +316,8 @@ export const LinkRelations = {
 	// (see roleRels).
 	WAS_ATTRIBUTED_TO: { rel: "wasAttributedTo", uri: "prov:wasAttributedTo", range: "iri", subPropertyOf: "fromActor", rolePriority: 20 },
 	WAS_GENERATED_BY: { rel: "wasGeneratedBy", uri: "prov:wasGeneratedBy", range: "iri" },
+	// The record from whose content a record was derived: the document or the message that names a person.
+	WAS_DERIVED_FROM: { rel: "wasDerivedFrom", uri: "prov:wasDerivedFrom", range: "iri" },
 	// What an activity read to do its work. A Reading names the text whose links it turned into statements.
 	USED: { rel: "used", uri: "prov:used", range: "iri" },
 	// The statements a reading asserted. A later reading of the same source retracts these statements.
@@ -504,6 +506,7 @@ export const EdgePredicates = {
 	linksTo: { rel: LinkRelations.LINKS_TO.rel },
 	used: { rel: LinkRelations.USED.rel },
 	wasGeneratedBy: { rel: LinkRelations.WAS_GENERATED_BY.rel },
+	wasDerivedFrom: { rel: LinkRelations.WAS_DERIVED_FROM.rel },
 } as const;
 
 type TEdgePredicate = keyof typeof EdgePredicates;

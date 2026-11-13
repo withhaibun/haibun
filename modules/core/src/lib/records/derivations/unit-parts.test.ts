@@ -141,6 +141,20 @@ describe("a record of a type that declares a key", () => {
 		expect(unitParts(WRITE_VERB.create, { "@type": PERSON, name: "A" }, undefined, () => byMailboxOrName).record.id).toBe(contentAddress(PERSON, ["A"]));
 	});
 
+	it("is identified within the record its key's edge names, by that record's type and id", () => {
+		const bySource = partDeclarationOf({
+			id: "id",
+			keys: [{ address: ["wasDerivedFrom", "name"] }],
+			schema: z.object({ id: z.string(), name: z.string() }),
+			edges: edgeDeclarationsOf({ wasDerivedFrom: { range: [MESSAGE, BODY], reference: true } }),
+		});
+		const named = (source: ReturnType<typeof referenceTo>) =>
+			unitParts(WRITE_VERB.create, { "@type": PERSON, name: "A", wasDerivedFrom: source }, undefined, () => bySource).record.id;
+		expect(named(referenceTo(MESSAGE, "m1"))).toBe(contentAddress(PERSON, [`${MESSAGE}:m1`, "A"]));
+		expect(named(referenceTo(MESSAGE, "m2")), "a name in another record names another Person").not.toBe(named(referenceTo(MESSAGE, "m1")));
+		expect(named(referenceTo(BODY, "m1")), "a record of another type with the same id is another record").not.toBe(named(referenceTo(MESSAGE, "m1")));
+	});
+
 	it("refuses an id its writer states that the key doesn't derive, and a create or a merge of fields without the key", () => {
 		expect(() => unitParts(WRITE_VERB.create, { "@type": PERSON, id: "peer", email: "a@example.com", name: "A" }, undefined, () => byMailbox)).toThrow(
 			"a Person record's id is derived from its key email, which names a@example.com, and this record states the id peer. Leave the id out",

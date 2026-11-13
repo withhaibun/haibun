@@ -69,9 +69,9 @@ const keyFieldsOf = (key: TRecordKey): readonly string[] => ("inverseFunctional"
 /** Returns the keys a refusal names: each key's fields, the keys apart. */
 const keysNamed = (keys: readonly TRecordKey[]): string => keys.map((key) => keyFieldsOf(key).join(" and ")).join(", or ");
 
-/** Returns a value of a key's field as its content address reads it: a reference as the id it names, and a list of values each so. */
-const keyValueOf = (value: unknown): unknown =>
-	Array.isArray(value) ? value.map(keyValueOf) : isReference(value) ? (recordOfCurie(value[NODE_KEY.id])?.id ?? value[NODE_KEY.id]) : value;
+/** Returns a value of a key's field as its content address reads it: a reference as the typed CURIE it states, which names the
+ *  record's type and its id, and a list of values each so. */
+const keyValueOf = (value: unknown): unknown => (Array.isArray(value) ? value.map(keyValueOf) : isReference(value) ? value[NODE_KEY.id] : value);
 
 /** Returns the id a `label` record's keys derive from a node, through the first key whose fields the node states: the value of its
  *  inverse functional field, or the content address of the values of its fields. Returns undefined where the node doesn't state
@@ -79,9 +79,13 @@ const keyValueOf = (value: unknown): unknown =>
 export function keyedId(label: string, keys: readonly TRecordKey[], node: Readonly<Record<string, unknown>>): string | undefined {
 	const key = keys.find((declared) => keyFieldsOf(declared).every((field) => node[field] !== undefined && node[field] !== null));
 	if (key === undefined) return undefined;
-	const values = keyFieldsOf(key).map((field) => keyValueOf(node[field]));
-	if ("address" in key) return contentAddress(label, values);
-	const [value] = values;
+	if ("address" in key)
+		return contentAddress(
+			label,
+			key.address.map((field) => keyValueOf(node[field])),
+		);
+	const stated = node[key.inverseFunctional];
+	const value = isReference(stated) ? recordOfCurie(stated[NODE_KEY.id])?.id : stated;
 	if (typeof value !== "string" || value.trim() === "")
 		throw new Error(`a ${label} record is identified by its ${key.inverseFunctional}, and this record states ${JSON.stringify(value)}`);
 	return value;
