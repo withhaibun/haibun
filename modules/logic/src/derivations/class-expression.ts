@@ -79,8 +79,10 @@ export function expressionRules(expression: TClassExpression, namespace: string,
 }
 
 /** Returns, for each alternative of an expression, the facts of a member that stands for any member of that alternative: the
- *  individual `subject`, with a fresh individual in `namespace` for each value an existential reaches. An expression subsumes
- *  another where each alternative's member is a member of the other. */
+ *  individual `subject`, with a fresh individual in `namespace` for each value an existential reaches. A datatype restriction
+ *  states the value's fact and not its facets. A facet doesn't entail a class under the rules of OWL 2 RL, so a supposed member
+ *  without it entails a membership or a contradiction only where every member of the restriction entails it. An expression
+ *  subsumes another where each alternative's member is a member of the other. */
 export function frozenMembers(expression: TClassExpression, subject: NamedNode, namespace: string, iris: TExpressionIris): TN3Pattern[][] {
 	let count = 0;
 	const factsOf = (part: TClassExpression, of: NamedNode): TN3Pattern[][] => {
@@ -90,10 +92,9 @@ export function frozenMembers(expression: TClassExpression, subject: NamedNode, 
 		if ("and" in part) return part.and.reduce<TN3Pattern[][]>((joined, each) => joined.flatMap((facts) => factsOf(each, of).map((more) => [...facts, ...more])), [[]]);
 		if ("value" in part) return [[restricted(part, iris, of, iris.individualIri(part.value))]];
 		if ("literal" in part) return [[restricted(part, iris, of, n3Literal(part.literal))]];
-		if ("range" in part)
-			throw new Error("a subsumption doesn't read a datatype restriction, since a fresh individual doesn't represent its members. Read the members with `individuals of`.");
 		count += 1;
 		const reached = DataFactory.namedNode(`${namespace}v${count}`);
+		if ("range" in part) return [[restricted(part, iris, of, reached)]];
 		return factsOf(part.some, reached).map((facts) => [restricted(part, iris, of, reached), ...facts]);
 	};
 	return factsOf(expression, subject);

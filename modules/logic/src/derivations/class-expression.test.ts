@@ -46,7 +46,7 @@ describe("expressionRules", () => {
 });
 
 describe("an expression's member", () => {
-	it("states a member that stands for any member of each alternative, with a fresh individual for each value an existential reaches", () => {
+	it("states a member that stands for any member of each alternative, with a fresh individual for each value an existential or a datatype restriction reaches", () => {
 		const expression = parseClassExpression('Note and (isPartOf some Step or isPartOf value Step:s2 or title value "x")');
 		expect(frozenMembers(expression, DataFactory.namedNode("urn:m"), "urn:q#", IRIS).map((facts) => facts.map(patternText))).toEqual([
 			[`<urn:m> ${TYPE} <urn:c:Note> .`, "<urn:m> <urn:p:isPartOf> <urn:q#v1> .", `<urn:q#v1> ${TYPE} <urn:c:Step> .`],
@@ -57,6 +57,8 @@ describe("an expression's member", () => {
 			[`<urn:m> <${OWL.sameAs}> <urn:i:Step:s1> .`],
 			[`<urn:m> <${OWL.sameAs}> <urn:i:Step:s2> .`],
 		]);
-		expect(() => frozenMembers(parseClassExpression("count some xsd:integer[> 3]"), DataFactory.namedNode("urn:m"), "urn:q#", IRIS)).toThrow(/doesn't read a datatype restriction/);
+		expect(frozenMembers(parseClassExpression("count some xsd:integer[> 3]"), DataFactory.namedNode("urn:m"), "urn:q#", IRIS).map((facts) => facts.map(patternText))).toEqual([
+			["<urn:m> <urn:p:count> <urn:q#v1> ."],
+		]);
 	});
 });

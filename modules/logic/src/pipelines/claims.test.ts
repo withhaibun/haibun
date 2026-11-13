@@ -1,7 +1,9 @@
 /**
  * A claim K contradicts is refuted: a membership or a subsumption that implies two classes a standard vocabulary states disjoint,
  * through the superclasses the types declare, names the axioms the reasoner's proof of the contradiction read. A claim that
- * doesn't contradict a disjointness stays unknown, since a standard that doesn't state a disjointness leaves its classes open.
+ * doesn't contradict a disjointness stays unknown, since a standard that doesn't state a disjointness leaves its classes open. A
+ * datatype restriction is evaluated by the same rules: a member proves it by a value of its property, and a supposed member states
+ * the value without its facets.
  */
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
@@ -69,5 +71,31 @@ describe("claims K contradicts", () => {
 	it("leaves unknown a claim whose classes a standard doesn't state disjoint, as PROV-O doesn't state an entity and an agent", { timeout: 60_000 }, async () => {
 		const result = await instanceChecked(await scopeWith(reasoner()), { persistedAs: NOTE, id: "n1" }, PERSON);
 		expect(outcomeOf(result).verdict).toBe(VERDICT.unknown);
+	});
+});
+
+describe("claims over a datatype restriction", () => {
+	it("proves a member that holds a value of the restricted property", { timeout: 60_000 }, async () => {
+		const result = await instanceChecked(await scopeWith(reasoner()), { persistedAs: PERSON, id: "p1" }, `${PERSON} and email some xsd:string`);
+		expect(outcomeOf(result).verdict).toBe(VERDICT.proved);
+	});
+
+	it("refutes a membership whose other part contradicts a disjointness, as for an expression without a datatype restriction", { timeout: 60_000 }, async () => {
+		const result = await instanceChecked(await scopeWith(reasoner()), { persistedAs: NOTE, id: "n1" }, `${STEP} and email some xsd:string`);
+		const { verdict, proof } = outcomeOf(result);
+		expect(verdict).toBe(VERDICT.refuted);
+		expect(proof).toContain(DISJOINT);
+	});
+
+	it("leaves unknown a membership the records don't entail and K doesn't contradict", { timeout: 60_000 }, async () => {
+		const result = await instanceChecked(await scopeWith(reasoner()), { persistedAs: NOTE, id: "n1" }, `${NOTE} and email some xsd:string`);
+		expect(outcomeOf(result).verdict).toBe(VERDICT.unknown);
+	});
+
+	it("proves a restriction with a facet subsumed by the restriction without it, and doesn't prove the converse", { timeout: 60_000 }, async () => {
+		const scope = await scopeWith(reasoner());
+		const [narrower, wider] = [`${PERSON} and email some xsd:string[pattern "example"]`, `${PERSON} and email some xsd:string`];
+		expect(outcomeOf(await subsumptionChecked(scope, narrower, wider)).verdict).toBe(VERDICT.proved);
+		expect(outcomeOf(await subsumptionChecked(scope, wider, narrower)).verdict).toBe(VERDICT.unknown);
 	});
 });
