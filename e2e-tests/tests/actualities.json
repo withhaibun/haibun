@@ -590,7 +590,7 @@
 			"actuality": {
 				"text": "e2e-tests/tests, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
 				"status": "passed",
-				"tookMs": 24700,
+				"tookMs": 22500,
 				"digest": {
 					"e2e-tests/src": "6b6b58f64026ff1c6202081ed15de0151412fbf6e53077e108c5c044692afeba",
 					"e2e-tests/tests": "6fa3a1394beaa6c286a82c0cd0a242a3e08d3cc9153e78460878e32c8419da8d",
@@ -598,7 +598,7 @@
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
 					"modules/core/src": "492a32f7be55d208242c2c1cd5319d5506647632ead392e27a5b034e17707efe",
 					"modules/domain-storage/src": "97565d096e8c098014480f2d8e9e18937734561e98133eb46e3d2426affff022",
-					"modules/logic/src": "cd9e0b3c82855c60903d2abbd8168bef39e444663eee0d87419a994e7d00e2e9",
+					"modules/logic/src": "4703b8ad667acaac60ea22b366dc147ef11d2e19c7dbbba780c36f9c8d3d96c3",
 					"modules/monitor-otel/src": "4fbef0f2c78fed7b3e2d03ec4ab094bef11766724e5f5f6efb73491ea1d4dea6",
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/out-junit/src": "22d1ca5d4f4449cae6186ff8d84c1f0b182e7591e1ffda9520a38daa3e8681d2",
@@ -659,13 +659,13 @@
 				"/features/counter.feature": {
 					"text": "/features/counter",
 					"status": "passed",
-					"tookMs": 1700,
+					"tookMs": 2100,
 					"steps": 21
 				},
 				"/features/counter.feature.ts": {
 					"text": "Counts feature",
 					"status": "passed",
-					"tookMs": 2500,
+					"tookMs": 800,
 					"steps": 21
 				},
 				"/features/counts.feature.ts": {
@@ -707,7 +707,7 @@
 				"/features/once.feature.ts": {
 					"text": "A group of features runs once per state of what it depends on",
 					"status": "passed",
-					"tookMs": 2100,
+					"tookMs": 1900,
 					"steps": 20
 				},
 				"/features/page-visits.feature.ts": {
