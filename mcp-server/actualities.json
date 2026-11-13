@@ -116,7 +116,7 @@
 				"tookMs": 600,
 				"digest": {
 					"mcp-server": "6c710ec3b9f627f32df0a59fb03960978e4eae1e54af532c3183aad1cbe2d155",
-					"modules/core/src": "975d50dc46c625f257fdeb9787c18f4fdc3d9456bfb6602cd5b62bd6a93c091f",
+					"modules/core/src": "19c6c4a23c88d8b9d1340a309d9655660e73ecdde7065f1eac98a1304dd1e3a5",
 					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
 					"modules/logic/src": "cd9e0b3c82855c60903d2abbd8168bef39e444663eee0d87419a994e7d00e2e9",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
