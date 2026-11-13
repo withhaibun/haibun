@@ -11,7 +11,7 @@ const DELEGATIONS_KEY = "__SHU_DELEGATION_SIGNER__";
 /** A signer that loads the signature suite at its first signature, and signs each delegation with it. */
 function signerLoadedOnFirstUse(): TDelegationSigner {
 	const signer = loadedOnFirstUse(() => import("./adapters/zcap-signer.js").then(({ zcapDelegationSigner }) => zcapDelegationSigner()));
-	return { sign: async (document, parent, key, signedAt) => (await signer()).sign(document, parent, key, signedAt) };
+	return { sign: async (document, parent, key, nonce) => (await signer()).sign(document, parent, key, nonce) };
 }
 
 /** Returns the page's delegation signer. */

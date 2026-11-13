@@ -4,8 +4,8 @@
  * delegation that allows it, and a delegation it gives expires at or before its parent's expiry. Its id is the one its record's
  * keys derive.
  */
-import { narrowing } from "@haibun/core/lib/domains/actions.js";
-import { delegationIdOf, signingTime } from "@haibun/core/lib/records/derivations/delegation-id.js";
+import { narrowing, newProofNonce } from "@haibun/core/lib/domains/actions.js";
+import { delegationIdOf } from "@haibun/core/lib/records/derivations/delegation-id.js";
 import { pageAuthority, pageSigner, type TAuthorityScope } from "../../pipelines/page-authority.js";
 import type { TDelegationSigner } from "../ports.js";
 
@@ -28,6 +28,6 @@ export async function delegateFromPage(scope: TAuthorityScope, signer: TDelegati
 		...(allowedAction ? { allowedAction } : {}),
 		expires,
 	};
-	const signedAt = signingTime(new Date());
-	return await signer.sign({ id: delegationIdOf(delegation, key.controller, signedAt), ...delegation }, parent, key, signedAt);
+	const nonce = newProofNonce();
+	return await signer.sign({ id: delegationIdOf(delegation, key.controller, nonce), ...delegation }, parent, key, nonce);
 }

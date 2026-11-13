@@ -5,6 +5,7 @@
  * module doesn't import a node module, because a page imports it too.
  */
 import { z } from "zod";
+import { base64url } from "./content-address.js";
 import { ACCESS_BROADEST_FIRST, Access, AccessLevelSchema, narrowerAccess, type AccessLevel } from "./resources.js";
 import type { TContractSentences, TStatedContract, TStepContract } from "../steps/domains/contract.js";
 
@@ -222,14 +223,20 @@ export function delegatedActions(delegation: { allowedAction?: unknown }): TActi
 export const CAPABILITY_LABEL = "Capability";
 
 /** What identifies a capability's record. A delegation is the content address of its parent, the key that signs it, its
- *  controller, its target, the actions it allows, its expiry and the time its proof states it was signed, which its signer
- *  states as its id before signing, since ZCAP-LD lets a delegation's signer state any absolute URI. Two signings of the same
- *  terms are two delegations, each revoked apart. A root is identified by the id it states, which ZCAP-LD derives from its
- *  target (`urn:zcap:root:`). */
+ *  controller, its target, the actions it allows, its expiry and the nonce its proof states, which its signer states as its id
+ *  before signing, since ZCAP-LD lets a delegation's signer state any absolute URI. The signature covers the nonce, and each
+ *  signing states another, so two signings of the same terms are two delegations, each revoked apart. A root is identified by
+ *  the id it states, which ZCAP-LD derives from its target (`urn:zcap:root:`). */
 export const CAPABILITY_KEYS = [
-	{ address: ["parentCapability", "delegator", "controller", "invocationTarget", "allowedAction", "expires", "generatedAtTime"] },
+	{ address: ["parentCapability", "delegator", "controller", "invocationTarget", "allowedAction", "expires", "nonce"] },
 	{ inverseFunctional: "id" },
 ] as const;
+
+/** The octets of a delegation proof's nonce. */
+const PROOF_NONCE_OCTETS = 16;
+
+/** Returns a nonce for a delegation's proof options (Data Integrity 1.0 §2.1), random for each signing. */
+export const newProofNonce = (): string => base64url(crypto.getRandomValues(new Uint8Array(PROOF_NONCE_OCTETS)));
 
 /** Returns the `allowedAction` that a delegation of `actions` lists. It is undefined where `actions` includes
  *  `EVERY_ACTION`, since zcap-LD narrows a delegation by the exact actions its parent lists and reads a listed `*` as an

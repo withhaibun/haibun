@@ -1,5 +1,5 @@
 /**
- * A content hash and a record's content address. The hash is the SHA-256 of a text's UTF-8 octets in base64url (RFC 4648 §5)
+ * A content hash and a record's content address. The hash is the SHA-256 of octets, or of a text's UTF-8 octets, in base64url (RFC 4648 §5)
  * without padding. A record's content address is the RFC 6920 named-information URI of the hash of the canonical JSON (RFC 8785)
  * of its type and the values its key's fields state, so two writes of one content name one record. Both compute synchronously,
  * so a write in a page derives the same id as a write in a store.
@@ -9,14 +9,18 @@ import { sha256 } from "@noble/hashes/sha2.js";
 /** The scheme and the hash algorithm of a content address (RFC 6920 §3). */
 const NAMED_INFORMATION_SHA256 = "ni:///sha-256;";
 
-/** Returns the SHA-256 of a text's UTF-8 octets in unpadded base64url. */
-export function contentHash(text: string): string {
-	const octets = sha256(new TextEncoder().encode(text));
-	return btoa(String.fromCharCode(...octets))
+/** Returns octets in unpadded base64url (RFC 4648 §5). */
+export const base64url = (octets: Uint8Array): string =>
+	btoa(String.fromCharCode(...octets))
 		.replace(/\+/g, "-")
 		.replace(/\//g, "_")
 		.replace(/=+$/, "");
-}
+
+/** Returns the SHA-256 of octets in unpadded base64url. */
+export const octetsHash = (octets: Uint8Array): string => base64url(sha256(octets));
+
+/** Returns the SHA-256 of a text's UTF-8 octets in unpadded base64url. */
+export const contentHash = (text: string): string => octetsHash(new TextEncoder().encode(text));
 
 /** Returns whether a value states its JSON form through `toJSON`, as a Date does. */
 const statesJson = (value: object): value is { toJSON: () => unknown } => typeof (value as { toJSON?: unknown }).toJSON === "function";

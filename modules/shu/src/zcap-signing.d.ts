@@ -25,7 +25,9 @@ declare module "jsonld-signatures" {
 declare module "@digitalbazaar/data-integrity" {
 	/** A proof made by a signer, over a document canonicalised by the cryptosuite. */
 	export class DataIntegrityProof {
-		constructor(options: { signer: { id: string; algorithm: string; sign(options: { data: Uint8Array<ArrayBuffer> }): Promise<Uint8Array> }; date?: Date; cryptosuite: unknown });
+		constructor(options: { signer: { id: string; algorithm: string; sign(options: { data: Uint8Array<ArrayBuffer> }): Promise<Uint8Array> }; cryptosuite: unknown });
+		/** The proof options a proof starts from, such as the nonce it states (Data Integrity 1.0 §2.1). */
+		proof?: Record<string, unknown>;
 	}
 }
 
