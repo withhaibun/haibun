@@ -544,15 +544,15 @@
 			"actuality": {
 				"text": "e2e-tests/requirements, node_modules/@haibun/cli/waypoints, node_modules/@haibun/logic/waypoints, node_modules/@haibun/core/waypoints",
 				"status": "passed",
-				"tookMs": 59800,
+				"tookMs": 52400,
 				"digest": {
 					"e2e-tests/requirements": "b6a39098586928b263392204426cf08815707a144eb6d6e92d8cc8475f3c6ee1",
 					"e2e-tests/src": "6b6b58f64026ff1c6202081ed15de0151412fbf6e53077e108c5c044692afeba",
 					"modules/cli/src": "fdbbad5564c4db466f131cb025e386ae3a6ec829fef7bc4368f108168106d5e2",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "ca1e1aa82462c519daeff62c0b8f9a521ae95348d58bf345e9a3a98d4548b9ad",
+					"modules/core/src": "7ec1b152a1c36d9821b3cb6608ff7e295dc04dd50606069a8234f90c3b0c9969",
 					"modules/core/waypoints": "f573c51de6e8154e49adbb5d98a25b3fd1872742dfdab0f3d6ec8f6164759860",
-					"modules/domain-storage/src": "4440a54042f269bf9454f39f5566d87f670fd1cba28061f663fc814a850c9d9a",
+					"modules/domain-storage/src": "97565d096e8c098014480f2d8e9e18937734561e98133eb46e3d2426affff022",
 					"modules/logic/src": "cd9e0b3c82855c60903d2abbd8168bef39e444663eee0d87419a994e7d00e2e9",
 					"modules/logic/waypoints": "156399b8cca79a483d951d021c5c5ecab8aba6ae2fa90c56b054b3e31601801b",
 					"modules/monitor-otel/src": "4fbef0f2c78fed7b3e2d03ec4ab094bef11766724e5f5f6efb73491ea1d4dea6",
@@ -564,7 +564,7 @@
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/utils/src": "698b48ed8fbac4dc3c0483e6bb3ccd88640ebc98696b8cc493b5740d1017db8d",
 					"modules/web-accessibility-axe/src": "ee53bd6b78b538fd9d910ca47bea66a7d15872feea8280ce26cd5ec33a620f7d",
-					"modules/web-playwright/src": "93af1c87eaceef10c569a9fbe27af1d1813c27d619c54d6b69ef4872e6b2022b",
+					"modules/web-playwright/src": "f6455940bf8b0c2ef5f1a5570db084b632a0ad03ccdde8e4ff9441ebbdb5491c",
 					"modules/web-server-hono/src": "fd72ebf6fd5c831cd64b9b0d110163c0dc36acc08c837ffbfd7484094a5c4f53"
 				}
 			},
@@ -572,19 +572,19 @@
 				"/features/01-prose-and-steps.feature.ts": {
 					"text": "Prose and steps",
 					"status": "passed",
-					"tookMs": 800,
+					"tookMs": 600,
 					"steps": 26
 				},
 				"/features/02-authority.feature.ts": {
 					"text": "Capabilities authorize every call",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 500,
 					"steps": 59
 				},
 				"/features/03-activities.feature.ts": {
 					"text": "Waypoints and ensure",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 400,
 					"steps": 69
 				},
 				"/features/04-combinators.feature.ts": {
@@ -596,19 +596,19 @@
 				"/features/05-goals.feature.ts": {
 					"text": "Goals over producer rules",
 					"status": "passed",
-					"tookMs": 2000,
+					"tookMs": 1700,
 					"steps": 41
 				},
 				"/features/06-world-and-products.feature.ts": {
 					"text": "The world's data and a step's products",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 500,
 					"steps": 21
 				},
 				"/features/07-records.feature.ts": {
 					"text": "Records, events and actualities",
 					"status": "passed",
-					"tookMs": 3000,
+					"tookMs": 2100,
 					"steps": 33
 				},
 				"/features/08-timing.feature.ts": {
@@ -620,13 +620,13 @@
 				"/features/09-surfaces.feature.ts": {
 					"text": "One path for every surface",
 					"status": "passed",
-					"tookMs": 900,
+					"tookMs": 700,
 					"steps": 77
 				},
 				"/features/10-cli.feature.ts": {
 					"text": "The command line",
 					"status": "passed",
-					"tookMs": 1300,
+					"tookMs": 1000,
 					"steps": 11
 				},
 				"/features/11-performance.feature.ts": {
@@ -656,13 +656,13 @@
 				"/features/15-combined-statements.feature.ts": {
 					"text": "Combined statements",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 400,
 					"steps": 44
 				},
 				"/features/16-class-expressions.feature.ts": {
 					"text": "Class expressions",
 					"status": "passed",
-					"tookMs": 47800,
+					"tookMs": 42800,
 					"steps": 93
 				}
 			}
