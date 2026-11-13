@@ -544,13 +544,13 @@
 			"actuality": {
 				"text": "e2e-tests/requirements, node_modules/@haibun/cli/waypoints, node_modules/@haibun/logic/waypoints, node_modules/@haibun/core/waypoints",
 				"status": "passed",
-				"tookMs": 52200,
+				"tookMs": 52400,
 				"digest": {
 					"e2e-tests/requirements": "b6a39098586928b263392204426cf08815707a144eb6d6e92d8cc8475f3c6ee1",
 					"e2e-tests/src": "6b6b58f64026ff1c6202081ed15de0151412fbf6e53077e108c5c044692afeba",
 					"modules/cli/src": "fdbbad5564c4db466f131cb025e386ae3a6ec829fef7bc4368f108168106d5e2",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "492a32f7be55d208242c2c1cd5319d5506647632ead392e27a5b034e17707efe",
+					"modules/core/src": "564db882130fc304efc9c58d46c36086cde11c6898766bbc7916056af05ba7a4",
 					"modules/core/waypoints": "f573c51de6e8154e49adbb5d98a25b3fd1872742dfdab0f3d6ec8f6164759860",
 					"modules/domain-storage/src": "97565d096e8c098014480f2d8e9e18937734561e98133eb46e3d2426affff022",
 					"modules/logic/src": "4703b8ad667acaac60ea22b366dc147ef11d2e19c7dbbba780c36f9c8d3d96c3",
@@ -559,7 +559,7 @@
 					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
 					"modules/out-junit/src": "22d1ca5d4f4449cae6186ff8d84c1f0b182e7591e1ffda9520a38daa3e8681d2",
 					"modules/recorder/src": "079caf826dbcad8943531b3f8f716e79a45d55f1668d29417e2a230978236208",
-					"modules/shu/src": "2afd1e3ee68fc9f85b45d32f01b1a3814dedfd9a1c1ad652d6d90fa481ed9203",
+					"modules/shu/src": "d3558873d8cdb85dd872de5f395a0d6a153e812174f3bb06bbf1ccd5db554e5c",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/utils/src": "698b48ed8fbac4dc3c0483e6bb3ccd88640ebc98696b8cc493b5740d1017db8d",
@@ -572,7 +572,7 @@
 				"/features/01-prose-and-steps.feature.ts": {
 					"text": "Prose and steps",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 600,
 					"steps": 26
 				},
 				"/features/02-authority.feature.ts": {
@@ -596,13 +596,13 @@
 				"/features/05-goals.feature.ts": {
 					"text": "Goals over producer rules",
 					"status": "passed",
-					"tookMs": 1900,
+					"tookMs": 2000,
 					"steps": 41
 				},
 				"/features/06-world-and-products.feature.ts": {
 					"text": "The world's data and a step's products",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 400,
 					"steps": 21
 				},
 				"/features/07-records.feature.ts": {
@@ -620,13 +620,13 @@
 				"/features/09-surfaces.feature.ts": {
 					"text": "One path for every surface",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 800,
 					"steps": 77
 				},
 				"/features/10-cli.feature.ts": {
 					"text": "The command line",
 					"status": "passed",
-					"tookMs": 1000,
+					"tookMs": 1100,
 					"steps": 11
 				},
 				"/features/11-performance.feature.ts": {
@@ -656,7 +656,7 @@
 				"/features/15-combined-statements.feature.ts": {
 					"text": "Combined statements",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 400,
 					"steps": 44
 				},
 				"/features/16-class-expressions.feature.ts": {
