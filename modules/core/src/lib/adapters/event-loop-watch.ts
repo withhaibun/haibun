@@ -5,7 +5,7 @@
  * found as it lands. The watch doesn't hold the process open.
  */
 import { monitorEventLoopDelay } from "node:perf_hooks";
-import { LOOP_BLOCK_WARN_MS, type TLoopWatch } from "../domains/event-loop.js";
+import { LOOP_BLOCK_WARN_MS, readWorkSince, type TLoopWatch } from "../domains/event-loop.js";
 /** The histograms' resolution: a stretch shorter than it isn't sampled. */
 const RESOLUTION_MS = 10;
 /** How often the watch reads its window, so stretches within one window state once, as the longest of them. */
@@ -13,18 +13,20 @@ const WINDOW_MS = 1_000;
 
 const milliseconds = (ns: number): number => Math.round(ns / 1e4) / 100;
 
-/** Watches the event loop, calling `onBlock` with how long the longest stretch of each window held it past `LOOP_BLOCK_WARN_MS`. */
-export function watchEventLoop(onBlock: (heldMs: number) => void): TLoopWatch {
+/** Watches the event loop, calling `onBlock` with how long the longest stretch of each window held it past `LOOP_BLOCK_WARN_MS`, and
+ *  the work in flight during that window. */
+export function watchEventLoop(onBlock: (heldMs: number, work: string[]) => void): TLoopWatch {
 	const [run, window] = [monitorEventLoopDelay({ resolution: RESOLUTION_MS }), monitorEventLoopDelay({ resolution: RESOLUTION_MS })];
 	run.enable();
 	window.enable();
 	let blocked = 0;
 	const read = () => {
 		const held = milliseconds(window.max);
+		const work = readWorkSince();
 		window.reset();
 		if (held <= LOOP_BLOCK_WARN_MS) return;
 		blocked += 1;
-		onBlock(held);
+		onBlock(held, work);
 	};
 	const timer = setInterval(read, WINDOW_MS);
 	timer.unref();

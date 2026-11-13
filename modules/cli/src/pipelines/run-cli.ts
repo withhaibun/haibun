@@ -25,7 +25,6 @@ import { EventLogger } from "@haibun/core/lib/EventLogger.js";
 import { OPTION_RUN_POLICY, OPTION_DRY_RUN, parseRunPolicyArgs, parseRunPolicyOption, type TRunPolicyConfig } from "@haibun/core/run-policy/domains/run-policy.js";
 import { loadAndValidateRunPolicy } from "@haibun/core/run-policy/pipelines/policy-file.js";
 import { PhaseRunner, PhaseBailError } from "@haibun/core/lib/PhaseRunner.js";
-import { phaseInProgress } from "@haibun/core/lib/stepper-cycles.js";
 import { withName } from "@haibun/core/lib/domains/features.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { configFileFrom, DOTENV, getConfigFromBase, readsDotenv } from "./specl.js";
@@ -71,9 +70,9 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv, ports: TCli
 		world = getCliWorld(protoOptions, bases, ports);
 		pr.world = world;
 		const warnedWorld = world;
-		loop = ports.eventLoop((heldMs) =>
+		loop = ports.eventLoop((heldMs, work) =>
 			warnedWorld.eventLogger.warn(
-				`the event loop was held for ${heldMs} ms, past ${LOOP_BLOCK_WARN_MS} ms, during ${phaseInProgress()}, so the process didn't respond meanwhile: a synchronous path ran on it`,
+				`the event loop was held for ${heldMs} ms, past ${LOOP_BLOCK_WARN_MS} ms, ${work.length === 0 ? "outside every phase, cycle, step and statement" : `while ${work.join("; ")} ran`}, so the process didn't respond meanwhile: a synchronous path ran on it`,
 			),
 		);
 		const policyConfig = resolveRunPolicy(parsed.policyConfig, protoOptions, specl, ports.fs);

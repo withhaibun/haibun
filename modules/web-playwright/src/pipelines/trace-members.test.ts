@@ -25,8 +25,8 @@ async function worldHoldingTrace(): Promise<TWorld> {
 		generatedAtTime: at(0),
 	});
 	await store.merge({ "@type": HTTP_HOST_LABEL, id: "localhost", name: "localhost", requestCount: 3, accessLevel: Access.private, generatedAtTime: at(0) });
-	await store.merge({ "@type": VISITED_PAGE_LABEL, id: "visit-b", name: "http://localhost/second", accessLevel: Access.private, generatedAtTime: at(2) });
-	await store.merge({ "@type": VISITED_PAGE_LABEL, id: "visit-a", name: "http://localhost/first", accessLevel: Access.private, generatedAtTime: at(1) });
+	await store.merge({ "@type": VISITED_PAGE_LABEL, page: "page", navigation: 1, name: "http://localhost/second", accessLevel: Access.private, generatedAtTime: at(2) });
+	await store.merge({ "@type": VISITED_PAGE_LABEL, page: "page", navigation: 0, name: "http://localhost/first", accessLevel: Access.private, generatedAtTime: at(1) });
 	store.query = () => Promise.reject(new Error("the store reads quads by a key"));
 	return { shared: { getStore: () => store } } as unknown as TWorld;
 }

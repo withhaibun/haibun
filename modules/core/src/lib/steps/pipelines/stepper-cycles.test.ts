@@ -1,25 +1,32 @@
 import { describe, expect, it } from "vitest";
 import { AStepper, type IStepperCycles } from "../domains/stepper.js";
-import { doStepperCycle, phaseInProgress } from "./stepper-cycles.js";
+import { readWorkSince } from "../../domains/event-loop.js";
+import { doStepperCycle } from "./stepper-cycles.js";
 import { PhaseRunner } from "./phase-runner.js";
 
 class Starting extends AStepper {
-	description = "Notes the phase in progress as a cycle method runs.";
+	description = "Reads the work in flight as a cycle method runs.";
 	steps = {};
-	seen: string[] = [];
+	seen: string[][] = [];
 	cycles: IStepperCycles = {
 		endScenario: () => {
-			this.seen.push(phaseInProgress());
+			this.seen.push(readWorkSince());
 			return Promise.resolve();
 		},
 	};
 }
 
-describe("the phase in progress", () => {
-	it("names the start's phase, then the cycle method of the stepper that runs", async () => {
+describe("the work in flight", () => {
+	it("names a phase, and the cycle method of the stepper that runs within it", async () => {
 		const starting = new Starting();
-		await new PhaseRunner().tryPhase("Collector", () => starting.seen.push(phaseInProgress()));
-		await doStepperCycle([starting], "endScenario", undefined);
-		expect(starting.seen).toEqual(["the phase Collector", "Starting.endScenario"]);
+		readWorkSince();
+		await new PhaseRunner().tryPhase("Collector", () => doStepperCycle([starting], "endScenario", undefined));
+		expect(starting.seen).toEqual([["the phase Collector", "Starting.endScenario"]]);
+	});
+
+	it("names work in flight at a read again at the next, and doesn't name work that ended before a read after it", async () => {
+		await doStepperCycle([new Starting()], "endScenario", undefined);
+		expect(readWorkSince(), "in flight at the cycle's own read").toEqual(["Starting.endScenario"]);
+		expect(readWorkSince()).toEqual([]);
 	});
 });

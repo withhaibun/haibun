@@ -6,6 +6,7 @@
 import { DOMAIN_LINK, DOMAIN_NUMBER } from "@haibun/core/lib/domains/domains.js";
 import { registeredPaths, type IRouteRegistry } from "@haibun/core/lib/actuality.js";
 import { trackHttpRequest } from "@haibun/core/lib/pipelines/http-observations.js";
+import { recordTime } from "@haibun/core/lib/actuality/domains/record-time.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { HttpTraceArtifact, Origin } from "@haibun/core/lib/domains/protocol.js";
@@ -24,7 +25,7 @@ function traceOf({ frameUrl, pageUrl }: TPageRequest, fields: Record<string, unk
 	return { frameURL, requestingPage: pageUrl, requestingURL: frameURL === undefined ? pageUrl : `frame ${frameURL} on ${pageUrl}`, ...fields };
 }
 
-/** The observer of the page `pageKey` names among actuality's pages, whose visits carry ids that other pages' visits don't. */
+/** The observer of the page `pageKey` names among actuality's pages. Each visit it writes states that page. */
 export function pageObserver(world: TWorld, pageKey: string): TPageObserver {
 	const registry = world.runtime[WEBSERVER] as IRouteRegistry | undefined;
 	const routes = registry === undefined ? new Set<string>() : registeredPaths(registry);
@@ -59,12 +60,13 @@ export function pageObserver(world: TWorld, pageKey: string): TPageObserver {
 			void world.shared
 				.setForStepper(WEB_PLAYWRIGHT, { term: "navigateCount", value: navigateCount, domain: DOMAIN_NUMBER, origin: Origin.var }, PROVENANCE)
 				.catch(failed("the navigation count"));
-			// One VisitedPage per navigation, by an id of its own rather than its address, so the record never shares an id with
-			// shu's address-keyed columns; its name is the address without the view's hash, which names the page itself.
+			// One VisitedPage per navigation, identified by its page, its ordinal and its time rather than its address, so the record
+			// never shares an id with shu's address-keyed columns; its name is the address without the view's hash, which names the
+			// page itself.
 			const [name] = url.split("#");
 			void world.shared
 				.getStore()
-				.create({ "@type": VISITED_PAGE_LABEL, id: `visit-${pageKey}-${navigateCount}`, name })
+				.create({ "@type": VISITED_PAGE_LABEL, page: pageKey, navigation: navigateCount, name, generatedAtTime: recordTime(world) })
 				.catch(failed(`the visit to ${url}`));
 			navigateCount++;
 		},

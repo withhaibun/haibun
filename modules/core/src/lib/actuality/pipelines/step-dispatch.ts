@@ -14,7 +14,8 @@ import { isRead } from "../../domains/actions.js";
 import { normalizeDomainKey } from "../../domains/domains.js";
 import { assertFact } from "../../records/pipelines/facts.js";
 import { entailmentRecorded } from "../../records/derivations/claim.js";
-import { doStepperCycle, enterPhase } from "../../steps/pipelines/stepper-cycles.js";
+import { doStepperCycle } from "../../steps/pipelines/stepper-cycles.js";
+import { runAsWork } from "../../domains/event-loop.js";
 import { inCall, isNested, nestedOf, runInCall, writtenLevel, type TCallContext } from "../../domains/capability-context.js";
 import { heldAuthority } from "../../domains/session-authority.js";
 import { authorityRefusal, RefusedCall } from "../../transport/domains/rpc-wire.js";
@@ -49,8 +50,6 @@ export type DispatchContext = { registry: StepRegistry; world: TWorld; steppers:
 
 /** The view a step's end states it showed, where it showed one. */
 const shown = (showed: string | undefined): { showed?: string } => (showed === undefined ? {} : { showed });
-
-/** The time of a record, as an ISO time from actuality's clock. */
 
 /**
  * Returns the next path under a parent step.
@@ -220,34 +219,35 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	const step = { seqPath: featureStep.seqPath.join("."), reportsAt: featureStep.isSubStep ? SUBSTEP_LEVEL : undefined, writes: stepWrites(action.step, method, persistedAsOf) };
 	let actionResult: TActionResult | undefined;
 	let lastStepResult: TStepResult | undefined;
-	await runInCall(nestedOf(call, step), async () => {
-		let doAction = true;
-		while (doAction) {
-			await doStepperCycle(steppers, "beforeStep", <TBeforeStep>{ featureStep });
-			enterPhase(`the step ${step.seqPath}, ${featureStep.in}`);
-			// The handler validates the step's products against the step's domain. A tool of another host or process
-			// validates them where it runs.
-			actionResult = await (perform === undefined ? tool.handler(featureStep, world) : perform());
-			if (actionResult.ok) {
-				if (actionResult.products && recorded) actionResult = { ...actionResult, products: { ...actionResult.products, [TRACE_SEQ_PATH]: featureStep.seqPath } };
-				actionResult = augmentViewHypermedia(world, action.step, actionResult, steppers);
-				// A fact is a record of actuality. Actuality doesn't record a read over a transport as a step or assert its products.
-				if (recorded) await autoAssertProducts(world, { actuality: actualityFeatureOf(world.tag), path: featureStep.seqPath }, action.step, actionResult);
+	await runInCall(nestedOf(call, step), () =>
+		runAsWork(`the step ${step.seqPath}, ${featureStep.in}`, async () => {
+			let doAction = true;
+			while (doAction) {
+				await doStepperCycle(steppers, "beforeStep", <TBeforeStep>{ featureStep });
+				// The handler validates the step's products against the step's domain. A tool of another host or process
+				// validates them where it runs.
+				actionResult = await (perform === undefined ? tool.handler(featureStep, world) : perform());
+				if (actionResult.ok) {
+					if (actionResult.products && recorded) actionResult = { ...actionResult, products: { ...actionResult.products, [TRACE_SEQ_PATH]: featureStep.seqPath } };
+					actionResult = augmentViewHypermedia(world, action.step, actionResult, steppers);
+					// A fact is a record of actuality. Actuality doesn't record a read over a transport as a step or assert its products.
+					if (recorded) await autoAssertProducts(world, { actuality: actualityFeatureOf(world.tag), path: featureStep.seqPath }, action.step, actionResult);
+				}
+				// A nested call's failure is part of its line's proof, so only a line's failure is logged as an error.
+				if (!actionResult.ok && featureStep.isSubStep !== true) {
+					world.eventLogger.log(featureStep, "error", actionResult.errorMessage);
+				}
+				const placed = stepResultOf(actionResult, action, start, Timer.since(), stated);
+				place(placed);
+				const instructions: Array<TAfterStepResult | undefined> = await doStepperCycle(steppers, "afterStep", <TAfterStep>{ featureStep, actionResult });
+				doAction = instructions.some((i) => i?.rerunStep);
+				// An afterStep cycle can fail a step that passed, so actuality counts the outcome afterStepOutcome computes.
+				actionResult = afterStepOutcome(actionResult, instructions);
+				lastStepResult = stepResultOf(actionResult, action, start, placed.end ?? Timer.since(), stated);
+				settle(placed, lastStepResult);
 			}
-			// A nested call's failure is part of its line's proof, so only a line's failure is logged as an error.
-			if (!actionResult.ok && featureStep.isSubStep !== true) {
-				world.eventLogger.log(featureStep, "error", actionResult.errorMessage);
-			}
-			const placed = stepResultOf(actionResult, action, start, Timer.since(), stated);
-			place(placed);
-			const instructions: Array<TAfterStepResult | undefined> = await doStepperCycle(steppers, "afterStep", <TAfterStep>{ featureStep, actionResult });
-			doAction = instructions.some((i) => i?.rerunStep);
-			// An afterStep cycle can fail a step that passed, so actuality counts the outcome afterStepOutcome computes.
-			actionResult = afterStepOutcome(actionResult, instructions);
-			lastStepResult = stepResultOf(actionResult, action, start, placed.end ?? Timer.since(), stated);
-			settle(placed, lastStepResult);
-		}
-	});
+		}),
+	);
 	if (!actionResult || !lastStepResult) {
 		throw new Error(`${action.stepperName}.${action.actionName} didn't record an action result`);
 	}

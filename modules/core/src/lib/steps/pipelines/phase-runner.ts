@@ -7,7 +7,7 @@ import type { TWorld } from "../../actuality/domains/world.js";
 import type { TExecutorResult } from "../../domains/protocol.js";
 import type { AStepper } from "../domains/stepper.js";
 import { INITIAL_ACTUALITY } from "../../actuality/machines/actuality.js";
-import { enterPhase } from "./stepper-cycles.js";
+import { runAsWork } from "../../domains/event-loop.js";
 
 /** The error a phase throws once it fails. It carries the executor result that reports the failure. */
 export class PhaseBailError extends Error {
@@ -23,9 +23,8 @@ export class PhaseRunner {
 	constructor(public world?: TWorld) {}
 
 	public async tryPhase<T>(stage: string, fn: () => Promise<T> | T): Promise<T> {
-		enterPhase(`the phase ${stage}`);
 		try {
-			return await fn();
+			return await runAsWork(`the phase ${stage}`, fn);
 		} catch (error) {
 			throw new PhaseBailError(this.createFailureResult(stage, error));
 		}

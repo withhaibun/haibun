@@ -116,7 +116,9 @@ const httpRequestSchema = PersistedVertexSchema.extend({
 });
 const httpClientSchema = PersistedVertexSchema.extend({ id: z.string(), name: z.string().optional(), generatedAtTime: z.string() });
 const httpHostSchema = PersistedVertexSchema.extend({ id: z.string(), name: z.string().optional(), requestCount: z.number().optional(), generatedAtTime: z.string() });
-const visitedPageSchema = PersistedVertexSchema.extend({ id: z.string(), name: z.string().optional(), generatedAtTime: z.string() });
+/** A navigation of a page of actuality: the page by its key among actuality's pages, the navigation's ordinal on that page, and the
+ *  address it reached as its name. The store derives its id from its keys. */
+const visitedPageSchema = PersistedVertexSchema.extend({ id: z.string(), page: z.string(), navigation: z.number(), name: z.string().optional(), generatedAtTime: z.string() });
 
 /** The HTTP methods a request is made with: those that send a body, and those that don't. */
 export const HTTP_METHODS_WITH_BODY = ["POST", "PUT", "PATCH"] as const;
@@ -262,7 +264,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 	{
 		selectors: [VISITED_PAGE_LABEL],
 		schema: visitedPageSchema,
-		description: "A page the browser navigated to during actuality, keyed by a per-navigation synthetic id; its name is the page URL.",
+		description: "A page the browser navigated to during actuality, identified by its page, its navigation on that page and its time; its name is the page URL.",
 		topology: {
 			persistedAs: VISITED_PAGE_LABEL,
 			accessLevel: Access.private,
@@ -270,7 +272,8 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 			type: "schema:WebPage",
 			subClassOf: [FOAF_DOCUMENT, PROV_ENTITY],
 			id: "id",
-			properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel },
+			keys: [{ address: ["page", "navigation", "generatedAtTime"] }],
+			properties: { id: LinkRelations.IDENTIFIER.rel, page: LinkRelations.TAG.rel, navigation: LinkRelations.TAG.rel, name: LinkRelations.NAME.rel },
 			displayLabel: "name",
 		},
 	},
