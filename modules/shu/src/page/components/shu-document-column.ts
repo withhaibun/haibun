@@ -18,7 +18,7 @@ import { SHU_ATTR, SHU_EVENT, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/ele
 import { defineElement } from "../controllers/element-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { shuBaseStyles } from "./styles.js";
-import { artifactStepId, buildArtifactIndex, generateDocumentMarkdown, stepAncestors } from "@haibun/core/lib/domains/document-content.js";
+import { carriedArtifacts, generateDocumentMarkdown, stepAncestors, stepShowing } from "@haibun/core/lib/domains/document-content.js";
 import "./shu-artifact-frame.js";
 import { ShuArtifactFrame } from "./shu-artifact-frame.js";
 import { type ShuVirtualColumn, virtualColumnCss } from "./shu-virtual-column.js";
@@ -172,7 +172,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	summarizeForContext(): TLinkedData | null {
 		const events = this.#windowRows.map((r) => r.event) as unknown as THaibunEvent[];
 		if (events.length === 0) return null;
-		const { md } = generateDocumentMarkdown(events, buildArtifactIndex(events).artifactsByStep, this.state.level as THaibunLogLevel, this.#first);
+		const { md } = generateDocumentMarkdown(events, this.state.level as THaibunLogLevel, this.#first);
 		return { "@id": "view:document-log", "@type": "as:Document", name: "actuality document shown in this column, as markdown", content: md };
 	}
 
@@ -262,14 +262,10 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	 *  every page share one epoch. */
 	#buildRows(p: number, start: number, events: TEventRecord[]): TDocRow[] {
 		const typed = events as unknown as THaibunEvent[];
-		const { artifactsByStep } = buildArtifactIndex(typed);
-		const html = DOMPurify.sanitize(
-			renderRefBody(generateDocumentMarkdown(typed, artifactsByStep, this.state.level as THaibunLogLevel, this.#first).md, refContext),
-			SANITIZE_OPTS,
-		);
-		// Every artifact the index holds, by id: the ones recorded as events and the ones embedded in a step's products.
-		const artifactsById = new Map<string, TArtifactEvent>();
-		for (const list of artifactsByStep.values()) for (const a of list) artifactsById.set(a.id, a);
+		const html = DOMPurify.sanitize(renderRefBody(generateDocumentMarkdown(typed, this.state.level as THaibunLogLevel, this.#first).md, refContext), SANITIZE_OPTS);
+		// The artifacts this page's step rows carry, and this page's artifacts that a row doesn't carry, by id.
+		const artifactsById = carriedArtifacts(typed);
+		for (const e of typed) if (e.kind === "artifact") artifactsById.set(e.id, e);
 		const blocks = finalizeBlocks(
 			splitDocumentBlocks(html),
 			(id) => {
@@ -444,8 +440,9 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 
 	private renderArtifact(artifact: TArtifactEvent): string {
 		const artifactPath = artifactUrl(artifact);
-		// A frame's data-step-id holds the id of the step that produced its artifact. The fullscreen caption and the time cursor read it.
-		const step = `data-step-id="${esc(artifactStepId(artifact.id))}"`;
+		// A frame's data-step-id holds the id of the step whose row carries its artifact, or the id of the step that produced it where
+		// a row doesn't carry it. The fullscreen caption and the time cursor read it.
+		const step = `data-step-id="${esc(stepShowing(artifact))}"`;
 		if (isArtifactOf(artifact, "image")) {
 			// Decoded off the thread that draws the page: a strip holds many tiles, and each is a screenshot of a whole page.
 			return `<shu-artifact-frame class="thumb" ${step}><img ${SHU_ATTR.DATA_ARTIFACT}="${esc(String(artifactPath))}" loading="lazy" decoding="async" /></shu-artifact-frame>`;

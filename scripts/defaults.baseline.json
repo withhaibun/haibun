@@ -36,7 +36,7 @@
 		"fills an absent value with a constant through ??": 4
 	},
 	"modules/core/src/lib/domains/document-content.ts": {
-		"fills a falsy value with a constant through ||": 3,
+		"fills a falsy value with a constant through ||": 1,
 		"fills an absent value with a constant through ??": 1
 	},
 	"modules/core/src/lib/domains/domains.ts": {

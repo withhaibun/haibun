@@ -290,6 +290,61 @@ describe("following an actuality that is still happening", () => {
 		).toEqual(["./image/shot.png"]);
 	});
 
+	describe("a row that carries products of steps it doesn't render", () => {
+		const ENSURE = 1;
+		/** A hidden substep of the ensure at `index`, logging at `level`, which saved an image at `path`. */
+		const substepWithImage = async (store: QuadStore, index: number, level: string, path: string) => {
+			const id = `${RUN}.0.${ENSURE}.${index}`;
+			await store.merge({
+				"@type": SEQ_PATH_LABEL,
+				id,
+				isPartOf: `${RUN}.0.${ENSURE}`,
+				stepText: `substep ${index}`,
+				actionStatus: "passed",
+				accessLevel: "private",
+				level,
+				generatedAtTime: iso(1001),
+				recordedAtTime: iso(1001),
+			});
+			await store.merge({
+				"@type": RUN_ARTIFACT_LABEL,
+				id: `${id}@0`,
+				isPartOf: id,
+				artifactType: "image",
+				path,
+				level: "info",
+				generatedAtTime: iso(1001),
+				recordedAtTime: iso(1001),
+			});
+		};
+		/** The paths each step row of the window shows, after the substeps at `level` saved `paths`. */
+		const shownOf = async (level: string, paths: [string, string]) => {
+			const store = actualityStore();
+			await step(store, ENSURE, 1000, 1002, { stepText: "ensure the download" });
+			await substepWithImage(store, 1, level, paths[0]);
+			await substepWithImage(store, 2, level, paths[1]);
+			const { rows } = await windowOn(actualityGraphOver(store), { size: 10 });
+			producedUnderSteps(rows);
+			return rows.filter((r) => r.kind === "step").map((r) => [r.text, r.produced?.map((one) => one.path)]);
+		};
+
+		it("shows an image that a hidden download and a hidden check both present once, on the row of the step that ran them", async () => {
+			expect(await shownOf("trace", ["image/cats.jpg", "image/cats.jpg"])).toEqual([["ensure the download", ["image/cats.jpg"]]]);
+		});
+
+		it("shows the image on each step's own row where the steps are rendered", async () => {
+			expect(await shownOf("info", ["image/cats.jpg", "image/cats.jpg"])).toEqual([
+				["ensure the download", undefined],
+				["substep 1", ["image/cats.jpg"]],
+				["substep 2", ["image/cats.jpg"]],
+			]);
+		});
+
+		it("shows each image that two hidden steps present at different paths", async () => {
+			expect(await shownOf("trace", ["image/one.jpg", "image/two.jpg"])).toEqual([["ensure the download", ["image/one.jpg", "image/two.jpg"]]]);
+		});
+	});
+
 	it("leaves out the steps run to carry other steps out, and reads them when a reader asks for them", async () => {
 		const store = actualityStore();
 		await step(store, 1, 1000, 1002, { stepText: "a step of the feature" });

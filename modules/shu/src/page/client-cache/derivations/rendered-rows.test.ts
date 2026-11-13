@@ -36,7 +36,7 @@ describe("a step's row in actuality's document", () => {
 		const rows = [stepRow(1, "A person reads this *prose*.", calledOf("Haibun", "prose")), stepRow(2, "set x to 1", calledOf("VariablesStepper", "set"))];
 		const events = rows.map(asRendered) as unknown as THaibunEvent[];
 		const template = document.createElement("template");
-		template.innerHTML = renderRefBody(generateDocumentMarkdown(events, new Map(), "info", 0).md, refs);
+		template.innerHTML = renderRefBody(generateDocumentMarkdown(events, "info", 0).md, refs);
 		const prose = template.content.querySelector(".prose-block");
 		expect(prose?.querySelector("p")?.innerHTML, "prose renders as a paragraph of markdown").toBe("A person reads this <em>prose</em>.");
 		expect(template.content.querySelector("pre"), "prose doesn't render as preformatted text").toBeNull();

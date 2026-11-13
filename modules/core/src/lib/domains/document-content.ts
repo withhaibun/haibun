@@ -2,90 +2,41 @@
  * Generates document content for rendering in the style of an academic paper. The web components of @haibun/shu call
  * these functions to render actuality's document. The functions are pure and don't import the DOM.
  */
-import { RecordsSchema } from "./json-text.js";
-import { itemAt } from "./item-at.js";
-import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TStepEvent, TLifecycleEvent, TLogEvent, TJsonArtifact } from "./protocol.js";
+import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TStepEvent, TLifecycleEvent, TLogEvent } from "./protocol.js";
 import { HAIBUN_LOG_LEVELS, isTechnicalStep } from "./protocol.js";
 import { parseRecordName } from "../actuality/domains/seq-path.js";
-import { MEDIA_TYPE } from "./media-types.js";
-import { artifactOf } from "./run-artifact.js";
+import { z } from "zod";
 
 /** The classes of a row of a step or a log message in the document. */
 const LOG_ROW_CLASS = "log-row font-mono text-[11px] text-slate-500 my-0 leading-tight";
 
-type TArtifactIndex = { artifactsByStep: Map<string, TArtifactEvent[]>; allArtifactIds: Set<string> };
+/** The artifacts a step's rendered record carries: what it produced, and what it carries for steps the document doesn't
+ *  render. The window of records assigns each artifact to one step's row. */
+const carriedOf = (e: THaibunEvent): TArtifactEvent[] => ("produced" in e && Array.isArray(e.produced) ? (e.produced as TArtifactEvent[]) : []);
 
-/** The artifacts a log event's attributes or a lifecycle event's products embed. */
-const EmbeddedArtifactsSchema = RecordsSchema.optional();
+/** Returns whether an artifact's record is carried by a step's row, which renders it in place of a row of its own. */
+const isCarried = (e: THaibunEvent): boolean => "carriedBy" in e && e.carriedBy !== undefined;
+
+/** Returns the artifacts the steps among `events` carry, by id. A row's holder names each of them, and a view fills it. */
+export const carriedArtifacts = (events: THaibunEvent[]): Map<string, TArtifactEvent> => new Map(events.flatMap(carriedOf).map((artifact) => [artifact.id, artifact]));
+
+/** The steps a rendered artifact record names: the step it is part of, and the step whose row carries it where one does. */
+const ArtifactStepsSchema = z.object({ isPartOf: z.string(), carriedBy: z.string().optional() });
+
+/** Returns the id of the step whose row shows an artifact: the row that carries it, else the step that produced it. */
+export const stepShowing = (artifact: TArtifactEvent): string => {
+	const { isPartOf, carriedBy } = ArtifactStepsSchema.parse(artifact);
+	return carriedBy ?? isPartOf;
+};
 
 const normalizeId = (id: string) => id.replace(/^\[|\]$/g, "");
 
-/** Returns the id of the step that produced an artifact. A run-artifact record's id is that step's id followed by `@n`. An
- *  artifact embedded in a step's event has an id that begins with that step's id. */
-export function artifactStepId(id: string): string {
-	return itemAt(normalizeId(id).split("@"), 0);
-}
-
-/** Returns the artifacts a row shows of those it claims. Its own artifacts, which its step produced, are shown as they are. An
- *  artifact it claims on behalf of a step it doesn't render is shown once for each path it is served at, so a hidden step that
- *  produces an image and a hidden step that checks it show one image on the row. */
-function onBehalfOnce(held: { artifact: TArtifactEvent; own: boolean }[]): TArtifactEvent[] {
-	const served = new Set<string>();
-	return held.flatMap(({ artifact, own }) => {
-		const { path } = artifactOf(artifact);
-		if (own || path === undefined) return [artifact];
-		if (served.has(path)) return [];
-		served.add(path);
-		return [artifact];
-	});
-}
-
-/** Returns a step id followed by the id of each enclosing step, innermost first. A view attaches an artifact to the first
- *  of these ids that it renders as a row, because the step that produced the artifact can be a substep it doesn't render. */
+/** Returns a step id followed by the id of each enclosing step, innermost first. A view that reveals the row of a step
+ *  another view names reveals the first of these ids that it renders as a row, because the named step can be a substep it
+ *  doesn't render. */
 export function stepAncestors(id: string): string[] {
 	const parts = normalizeId(id).split(".");
 	return parts.map((_, i) => parts.slice(0, parts.length - i).join("."));
-}
-
-/** Groups artifact events by the id of the step that produced each, including artifacts embedded in log and lifecycle
- *  events. */
-export function buildArtifactIndex(events: THaibunEvent[]): TArtifactIndex {
-	const map = new Map<string, TArtifactEvent[]>();
-	const allIds = new Set<string>();
-
-	for (const e of events) {
-		if (e.kind === "artifact") {
-			allIds.add(e.id);
-			const parentId = artifactStepId(e.id);
-			if (!map.has(parentId)) map.set(parentId, []);
-			map.get(parentId)?.push(e as TArtifactEvent);
-		}
-
-		let embeddedArtifacts: Record<string, unknown>[] | undefined;
-		if (e.kind === "log") embeddedArtifacts = EmbeddedArtifactsSchema.parse(e.attributes?.artifacts);
-		else if (e.kind === "lifecycle" && "products" in e) embeddedArtifacts = EmbeddedArtifactsSchema.parse(e.products?.artifacts);
-
-		if (embeddedArtifacts) {
-			const parentId = normalizeId(e.id);
-			if (!map.has(parentId)) map.set(parentId, []);
-			embeddedArtifacts.forEach((artifact: Record<string, unknown>, idx: number) => {
-				const id = `${parentId}.artifact.${idx}`;
-				allIds.add(id);
-				map
-					.get(parentId)
-					?.push({
-						id,
-						timestamp: e.timestamp,
-						source: "haibun",
-						kind: "artifact",
-						artifactType: artifact.artifactType,
-						mimetype: artifact.mimetype || MEDIA_TYPE.bytes,
-						...artifact,
-					} as TArtifactEvent);
-			});
-		}
-	}
-	return { artifactsByStep: map, allArtifactIds: allIds };
 }
 
 /**
@@ -119,59 +70,33 @@ export function headingAnchor(title: string): string {
 
 /**
  * Generates the markdown and data-attribute HTML of the document view. Returns the markdown string and the set of
- * visible event ids.
+ * visible event ids. A step's row holds the artifacts its rendered record carries. An artifact renders at its own
+ * place where a row doesn't carry it.
  *
  * Each row's `data-raw-time` is an offset from `baseTime`, which defaults to the first event's timestamp. A windowed
  * caller renders only a tail slice of a longer log, and it must pass the log's stable start time. The document's time
  * cursor adds `data-raw-time` to that start time, so a per-slice base moves the cursor for a clicked row to an earlier,
  * wrong time.
  */
-export function generateDocumentMarkdown(
-	events: THaibunEvent[],
-	artifactsByStep: Map<string, TArtifactEvent[]>,
-	minLogLevel: THaibunLogLevel,
-	baseTime: number,
-): { md: string; visibleIds: Set<string> } {
+export function generateDocumentMarkdown(events: THaibunEvent[], minLogLevel: THaibunLogLevel, baseTime: number): { md: string; visibleIds: Set<string> } {
 	let md = "";
 	let lastType: "none" | "prose" | "technical" = "none";
 	let previousRenderedDepth = 0;
 	let previousRenderedId = "";
-	const claimedArtifactIds = new Set<string>();
 	const visibleIds = new Set<string>();
 	const minLevelIndex = HAIBUN_LOG_LEVELS.indexOf(minLogLevel);
 	const belowLevel = (e: THaibunEvent) => {
 		const levelIndex = HAIBUN_LOG_LEVELS.indexOf(e.level);
 		return levelIndex !== -1 && minLevelIndex !== -1 && levelIndex < minLevelIndex;
 	};
-	// Each artifact attaches to the first id in its step's ancestor list that this page renders as a row.
-	const rows = new Set(events.filter((e) => e.kind === "lifecycle" && !belowLevel(e)).map((e) => normalizeId(e.id)));
-	const claims = [...artifactsByStep].flatMap(([stepId, artifacts]) => {
-		const claimer = stepAncestors(stepId).find((id) => rows.has(id));
-		return claimer ? artifacts.map((artifact) => ({ claimer, artifact, own: claimer === stepId })) : [];
-	});
-	const claimable = new Map([...Map.groupBy(claims, ({ claimer }) => claimer)].map(([claimer, held]) => [claimer, onBehalfOnce(held)]));
-	// An artifact a row doesn't show, since it repeats one the row shows on behalf of another step, isn't shown on its own either.
-	const shown = new Set([...claimable.values()].flat().map(({ id }) => id));
-	for (const { artifact } of claims) if (!shown.has(artifact.id)) claimedArtifactIds.add(artifact.id);
 
-	const claimArtifacts = (id: string, excludeTypes: string[]) => {
-		const nid = normalizeId(id);
-		const artifacts = claimable.get(nid) || [];
-		const unclaimed = artifacts.filter((a) => !claimedArtifactIds.has(a.id) && !excludeTypes.includes(a.artifactType));
-		if (unclaimed.length > 0) {
-			unclaimed.forEach((a) => claimedArtifactIds.add(a.id));
-			return unclaimed.map((a) => a.id).join(",");
-		}
-		return "";
-	};
-
-	// Claims a row's artifacts other than video and returns their holder in one call. The renderer fills each holder with
-	// its artifacts. The standalone branch skips claimed ids, so an artifact claimed without a holder isn't rendered. An
-	// artifact whose event follows its claimer's event is claimed before the loop reaches its event, so a view renders it
-	// only in the claimer's holder. Every claiming branch calls this function and doesn't call claimArtifacts alone.
-	// Returns { ids, holder }, so a branch can also stamp the ids on its own row, as the technical log row does.
-	const claimWithHolder = (id: string, nid: string) => {
-		const ids = claimArtifacts(id, ["video"]);
+	// Returns the holder of the artifacts a row's step record carries, other than video, and their ids. The renderer fills
+	// each holder with its artifacts. A branch can also stamp the ids on its own row, as the technical log row does.
+	const claimWithHolder = (e: THaibunEvent, nid: string) => {
+		const ids = carriedOf(e)
+			.filter((a) => a.artifactType !== "video")
+			.map((a) => a.id)
+			.join(",");
 		return { ids, holder: ids ? `<div class="feature-artifacts" data-ids="${ids}" data-id="${nid}"></div>\n` : "" };
 	};
 
@@ -180,14 +105,9 @@ export function generateDocumentMarkdown(
 	for (const [i, e] of events.entries()) {
 		if (belowLevel(e)) continue;
 
-		if (e.kind === "artifact" && e.artifactType === "json") {
-			const ja = e as TJsonArtifact;
-			if (ja.json?.quadObservation) continue;
-		}
-
+		// An artifact a step's row carries renders in that row's holder. Any other renders where its record is.
 		if (e.kind === "artifact") {
-			if (!claimedArtifactIds.has(e.id)) {
-				claimedArtifactIds.add(e.id);
+			if (!isCarried(e)) {
 				visibleIds.add(e.id);
 				md += `<div class="standalone-artifact" data-id="${e.id}"></div>\n`;
 			}
@@ -213,7 +133,7 @@ export function generateDocumentMarkdown(
 				// The block carries its heading's anchor twice. A link in the document resolves to `data-heading`. A feature waits
 				// on the test id to detect the heading on the page. An author can write both before actuality exists.
 				md += `\n<div class="header-block" data-raw-time="${rawTime}" data-id="${nid}" data-heading="${headingAnchor(named)}" data-testid="${DOC_HEADING_TEST_ID}${headingAnchor(named)}">\n\n${"#".repeat(headingLevel)} ${title}\n\n</div>\n`;
-				const header = claimWithHolder(le.id, nid);
+				const header = claimWithHolder(le, nid);
 				if (header.holder) md += `\n${header.holder}`;
 				lastType = "prose";
 				continue;
@@ -246,7 +166,7 @@ export function generateDocumentMarkdown(
 					const showSymbol = previousRenderedId && previousRenderedDepth < depth;
 					const nid = normalizeId(le.id);
 					visibleIds.add(nid);
-					const claimed = claimWithHolder(nid, nid);
+					const claimed = claimWithHolder(le, nid);
 
 					md += `<div class="${LOG_ROW_CLASS}" data-depth="${depth}" data-nested="${isNested}" data-instigator="${isInstigator}" data-show-symbol="${showSymbol}" data-id="${nid}" data-ids="${claimed.ids}" data-time="${time}" data-raw-time="${rawTime}" data-action="${esc(actionName)}" data-has-artifacts="${!!claimed.ids}">${esc(step.in)}</div>\n`;
 					md += claimed.holder;
@@ -259,7 +179,7 @@ export function generateDocumentMarkdown(
 					const nid = normalizeId(step.id);
 					visibleIds.add(nid);
 					md += `\n<div class="prose-block" data-raw-time="${rawTime}" data-id="${nid}">\n\n${step.in}\n\n</div>\n`;
-					const prose = claimWithHolder(le.id, nid);
+					const prose = claimWithHolder(le, nid);
 					if (prose.holder) md += `\n${prose.holder}`;
 					lastType = "prose";
 				}

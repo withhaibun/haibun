@@ -211,8 +211,13 @@ export function oneEach(rows: TActualityRow[]): TActualityRow[] {
  * screenshot taken after every step is recorded under a step of its own. A reader reads the step they wrote, so the
  * shot is claimed by the nearest step among the rows of the window, and that step's row states it carries it. The row
  * itself stays in the window, because a window is one reading that every view reads: a view of actuality's steps draws
- * the shot on the step's row, and actuality's document places it where its own reading puts it. A produced thing whose
- * step is not among the rows is unclaimed and is read as the row it is.
+ * the shot on the step's row, and actuality's document draws it on the same row. A produced thing whose step is not among
+ * the rows is unclaimed and is read as the row it is.
+ *
+ * A row shows its own step's products as they are. It shows a product it carries for a step it doesn't render once for
+ * each path at which the product is served. A hidden step that saves an image and a hidden step that checks the same file then
+ * show one image on the row of the step that ran them. A repeated product is still carried, so a view doesn't draw a row
+ * of its own for it.
  */
 export function producedUnderSteps(rows: TActualityRow[]): TActualityRow[] {
 	const byPath = new Map<string, TActualityRow>();
@@ -231,10 +236,14 @@ export function producedUnderSteps(rows: TActualityRow[]): TActualityRow[] {
 		let host: TActualityRow | undefined;
 		for (let i = row.under.length; i > 0 && host === undefined; i--) host = byPath.get(row.under.slice(0, i).join("."));
 		if (host === undefined) continue;
-		const held = carried.get(host);
-		if (held === undefined) carried.set(host, [row]);
-		else held.push(row);
 		row.carriedBy = host.step;
+		const held = carried.get(host);
+		if (held === undefined) {
+			carried.set(host, [row]);
+			continue;
+		}
+		const repeats = row.step !== host.step && row.path !== undefined && held.some((one) => one.step !== host.step && one.path === row.path);
+		if (!repeats) held.push(row);
 	}
 	for (const [host, produced] of carried) host.produced = produced;
 	return rows;

@@ -3,7 +3,6 @@
  * registry the page holds. Each reader throws before the page reads actuality's steps, and names what it read. The dropdown
  * values each type offers are held in the root, across the page's bundles.
  */
-import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import type { TConcernCatalog, TTitledBy } from "@haibun/core/lib/domains/hypermedia.js";
 import { pageRegistry, selectValues } from "../root.js";
 import * as Catalog from "../derivations/catalog.js";
@@ -169,24 +168,6 @@ export function getSelectValues(label: string): Record<string, string[]> {
 
 /** Whether a type's dropdown values hold an option, where an empty list was read before the data existed. */
 export const hasUsableSelectValues = (label: string): boolean => hasSelectValues(label) && Object.values(getSelectValues(label)).some((v) => v.length > 0);
-
-/** Adds to a type's dropdowns the values its live quads carry, for each field the type offers. Returns whether it added one,
- *  so a caller draws again only where the dropdowns changed. A value that appears is in the quad that carries it, so a view
- *  reads it from the batch, without a read that records itself in the graph and changes it again. */
-export function addObservedSelectValues(label: string, quads: readonly TQuad[]): boolean {
-	const held = selectValues.get()[label];
-	if (held === undefined) return false;
-	const next: Record<string, string[]> = { ...held };
-	let added = false;
-	for (const quad of quads) {
-		const values = next[quad.predicate];
-		if (quad.namedGraph !== label || values === undefined || typeof quad.object !== "string" || quad.object === "" || values.includes(quad.object)) continue;
-		next[quad.predicate] = [...values, quad.object].sort();
-		added = true;
-	}
-	if (added) setSelectValues(label, next);
-	return added;
-}
 
 /** The page's reference context: a text's references read the catalog the page holds. */
 export const refContext: TRefContext = { isType: isKnownType, propertyDefinition: getPropertyDefinition };

@@ -10,6 +10,7 @@ import { z } from "zod";
 import { CountedFields } from "../../domains/hypermedia.js";
 import { DENOTES, IndividualAddressSchema } from "../../domains/typed-links.js";
 import { STATUS } from "../../domains/protocol.js";
+import { CalledSchema } from "../../domains/called.js";
 
 /** The domains of a conversation's steps. */
 export const CONVERSATION_DOMAIN = {
@@ -107,6 +108,7 @@ const SessionTurnSchema = z
 		),
 		unverified: z.array(z.string()).optional().describe("The handles an unverified turn's response states that its records don't hold."),
 		error: z.string().optional().describe("What the step failed with, where it failed."),
+		calls: z.array(CalledSchema).describe("The calls the turn's model made that ended, oldest first, each with whether it completed and its step record."),
 	})
 	.strict();
 export type TSessionTurn = z.infer<typeof SessionTurnSchema>;

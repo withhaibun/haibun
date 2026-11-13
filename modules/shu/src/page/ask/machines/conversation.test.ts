@@ -155,10 +155,19 @@ describe("each move of the conversation", () => {
 		expect(AT.open.turns).toEqual([{ ...readBack(FIRST), progress: "", context: [], calls: [] }]);
 	});
 
-	it("`read` writes the context and calls of the page's ended turn onto the store's copy of that turn", () => {
+	it("`read` keeps the context lines of the page's ended turn, and takes every turn's calls from the store's copy", () => {
+		const stored = { ...CALL, ok: false };
 		const ended = run(EVENT.open, EVENT.read, EVENT.ask, EVENT.started, EVENT.recorded, EVENT.status, EVENT.context, EVENT.called, EVENT.ended);
-		const read = transition(ended, { type: "read", session: SESSION, turns: [readBack(FIRST), { ...readBack("0.1.2", FIRST), response: "the store's answer" }] });
-		expect(read.turns.at(-1)).toMatchObject({ askId: question("0.1.2"), response: "the store's answer", progress: "", context: ["context sent"], calls: [CALL] });
+		const read = transition(ended, {
+			type: "read",
+			session: SESSION,
+			turns: [
+				{ ...readBack(FIRST), calls: [stored] },
+				{ ...readBack("0.1.2", FIRST), response: "the store's answer", calls: [stored] },
+			],
+		});
+		expect(read.turns.at(-1)).toMatchObject({ askId: question("0.1.2"), response: "the store's answer", progress: "", context: ["context sent"], calls: [stored] });
+		expect(read.turns.at(0), "a turn another page sent shows the calls its records state").toMatchObject({ askId: question(FIRST), context: [], calls: [stored] });
 	});
 
 	it("`failed` closes the conversation only while its session is opening, `close` closes an opening or open conversation, and both keep the page's turn", () => {

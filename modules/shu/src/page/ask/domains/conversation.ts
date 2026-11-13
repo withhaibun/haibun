@@ -16,13 +16,15 @@ import { TURN_STATUS, type TChatStatus, type TContextPattern, type TSessionTurn 
 import { STATUS } from "@haibun/core/lib/domains/protocol.js";
 import type { TRecord } from "../../domains/current-subject.js";
 
-/** What a turn emitted while it ran. `progress` holds its latest status line, and its spinner shows that line.
- *  `context` holds the lines it sent, and `calls` holds the calls it made. */
-export type TTurnStated = { progress: string; context: string[]; calls: TCalled[] };
-export const NOTHING_STATED: TTurnStated = { progress: "", context: [], calls: [] };
+/** What a turn emitted while it ran that its records don't hold. `progress` holds its latest status line, and its spinner
+ *  shows that line. `context` holds the lines it sent. */
+export type TTurnStated = { progress: string; context: string[] };
+export const NOTHING_STATED: TTurnStated = { progress: "", context: [] };
 
 /** A turn as the store reads it back or as this page sends it, with what it emitted while it ran. Its question's record
- *  names it. A turn this page sends has a null `askId` until actuality records its question. */
+ *  names it. A turn this page sends has a null `askId` until actuality records its question. The store's read states the
+ *  calls of every turn. The page's own turn adds each call its stream reports while it runs, until a read of the ended
+ *  turn replaces them. */
 export type TTurn = Omit<TSessionTurn, "askId"> & { askId: string | null } & TTurnStated;
 
 /** The turn this page sends. It adds the turn's session, the reason a reader gave to stop it, the actions the page

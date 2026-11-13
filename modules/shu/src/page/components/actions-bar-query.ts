@@ -7,12 +7,10 @@
 import type { AccessQueryLevel } from "@haibun/core/lib/domains/resources.js";
 import { html, type ReactiveController, type TemplateResult } from "lit";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
-import { extractQuadsFromEvents } from "@haibun/core/lib/steps/derivations/quad-events.js";
 import { allOf, manchesterOf, hasValue } from "@haibun/core/lib/records/domains/class-expression.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
-import type { TEvent } from "../ports.js";
 import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
-import { addObservedSelectValues, getSelectValues, hasSelectValues, hasUsableSelectValues, setSelectValues } from "../controllers/catalog-controller.js";
+import { getSelectValues, hasSelectValues, hasUsableSelectValues, setSelectValues } from "../controllers/catalog-controller.js";
 import { domainOptions, StepsChangedController } from "../controllers/registry-controller.js";
 import type { TDomainOption } from "../derivations/steps.js";
 import { pageTypes } from "../controllers/page-cell-controller.js";
@@ -168,12 +166,6 @@ export class ActionsBarQuery implements ReactiveController {
 		if (!label || !this.#selectedDomainKey || (!force && hasUsableSelectValues(label))) return;
 		setSelectValues(label, await selectValuesFor(label));
 		this.#host.requestUpdate();
-	}
-
-	/** Take the distinct values a batch of events adds for the selected type, rather than requesting them from the server
-	 *  again: the request would itself be recorded, and that record would be another change to read. */
-	observe(events: TEvent[]): void {
-		if (this.#selectedLabel && addObservedSelectValues(this.#selectedLabel, extractQuadsFromEvents(events))) this.#host.requestUpdate();
 	}
 
 	/** The search mode's input line: the mode and the text the search reads. The page strip shows the type the search reads,

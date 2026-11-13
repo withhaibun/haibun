@@ -187,14 +187,16 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			this.failFast(`ShuActionsBar initialization failed: ${errorDetail(err)}`);
 		});
 
-		// A batch carrying a change in the selected type's named graph may add a distinct value (a new folder, a status), read
-		// out of the batch so the menus stay current, and means the results shown are behind, which the page marks.
+		// A batch that announces a write to the selected type means the results shown are behind, which the page marks. The
+		// write can add a distinct value (a new folder, a status), so the bar reads the type's values again. That read is a
+		// read step, which doesn't write a record, so it doesn't announce a change of its own.
 		if (!isOffline()) {
 			this.autoTeardown(
 				this.subscribeBatched({
 					onBatch: (events) => {
-						this.#query.observe(events);
-						if (eventsAffectLabel(events, this.#query.selectedLabel)) this.dispatchEvent(new CustomEvent(SHU_EVENT.SYNC_AVAILABLE, { bubbles: true, composed: true }));
+						if (!eventsAffectLabel(events, this.#query.selectedLabel)) return;
+						this.dispatchEvent(new CustomEvent(SHU_EVENT.SYNC_AVAILABLE, { bubbles: true, composed: true }));
+						this.#query.loadSelectValues(true).catch((err) => reportToRun("warn", SHU_TAG.ACTIONS_BAR, "the menus' values were not read again", { error: errorDetail(err) }));
 					},
 				}),
 			);

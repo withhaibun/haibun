@@ -100,10 +100,10 @@ export function transition(conversation: TConversationState, event: TConversatio
 			if (conversation.status === "closed" || conversation.session !== event.session) return conversation;
 			const held = new Map(conversation.turns.map((turn) => [turn.askId, turn]));
 			const turns = event.turns.map((turn) => {
-				// A turn the page doesn't hold was sent from another page, so the page holds what it stated only for its own turns.
+				// The context lines a turn sent aren't records, so the page holds them only for the turns it sent.
 				const stated = held.get(turn.askId);
-				const { context, calls } = stated === undefined ? NOTHING_STATED : stated;
-				return { ...turn, progress: "", context, calls };
+				const { context } = stated === undefined ? NOTHING_STATED : stated;
+				return { ...turn, progress: "", context };
 			});
 			const read = { ...conversation, status: "open" as const, turns };
 			// The store's copy of the page's turn is newer once the turn has ended. Until then the page's copy is newer.
@@ -126,6 +126,7 @@ export function transition(conversation: TConversationState, event: TConversatio
 				...(inReplyTo ? { inReplyTo } : {}),
 				status: TURN_STATUS.asking,
 				...NOTHING_STATED,
+				calls: [],
 				session: event.session ?? null,
 				stoppedBy: "",
 				delegated: event.delegated,

@@ -14,11 +14,9 @@ import { pageTypes } from "../controllers/page-cell-controller.js";
 import { ActionsBarQuery, SEARCH_DEBOUNCE_MS, searchExpression } from "./actions-bar-query.js";
 import { aControllerHost } from "./controller-host.test-fake.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
-import { getSelectValues } from "../controllers/catalog-controller.js";
 import { installGraph } from "../client-cache/controllers/device-controller.js";
 import { typeNotHeld, viewQuery } from "../controllers/view-query-controller.js";
 import { declaringSteps, persistedTypeDefinition, setupShuTest, stepsChanged, stepsReadAgain, stepsShown, type TShuTestHandle } from "../../test/setup.js";
-import { quadObservation } from "@haibun/core/lib/steps/domains/quad-types.js";
 
 /** The fields each type takes as filters: the folder a record is filed in, whose values the search offers, and its subject. */
 const FILED = { folder: LinkRelations.CONTEXT.rel, subject: LinkRelations.NAME.rel };
@@ -145,16 +143,5 @@ describe("the actions bar's search mode", () => {
 		input.value = "dough";
 		input.dispatchEvent(new Event("blur"));
 		expect(recorded(searches)).toBe(2);
-	});
-
-	it("adds the distinct values a batch of events brings for the selected type, and doesn't add values for another type", async () => {
-		const { host, query } = await aQueryPage();
-		const before = host.updatesAsked;
-		const quad = (namedGraph: string, object: string) => quadObservation("m1.q", 1, [{ subject: "m1", predicate: "folder", object, namedGraph, timestamp: 1 }]);
-		query.observe([quad("File", "Archive")] as never);
-		expect(host.updatesAsked, "a value for another type").toBe(before);
-		query.observe([quad("Email", "Drafts")] as never);
-		expect(getSelectValues("Email").folder).toEqual(["Drafts", "INBOX"]);
-		expect(host.updatesAsked).toBe(before + 1);
 	});
 });

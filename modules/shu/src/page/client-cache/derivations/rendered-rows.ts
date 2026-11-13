@@ -26,7 +26,6 @@ export function asRendered(row: TActualityRow): TEventRecord {
 	// of different actualities, and a reader of one actuality isn't shown it on every row.
 	const seqPath = row.under.length ? row.under : undefined;
 	if (row.kind === "said") return { id: row.step, kind: "log", level: row.level, message: row.text, timestamp: row.at, seqPath, record: recordOf(row) };
-	// A produced thing is claimed by the step it came from, which a document reads from the identity it carries.
 	if (row.kind === "produced") return producedRecord(row);
 	return stepRecord(row, seqPath);
 }
@@ -43,6 +42,8 @@ function producedRecord(row: TActualityRow): TEventRecord {
 		...(row.path === undefined ? {} : { path: row.path }),
 		...(row.featureRelativePath === undefined ? {} : { featureRelativePath: row.featureRelativePath }),
 		...(row.mediaType === undefined ? {} : { mimetype: row.mediaType }),
+		// The step record this artifact is part of, and the step whose row carries it.
+		isPartOf: row.step,
 		...(row.carriedBy === undefined ? {} : { carriedBy: row.carriedBy }),
 		seqPath,
 		record: recordOf(row),
