@@ -98,11 +98,11 @@ describe("the page follows actuality's turns in the open conversation", () => {
 	});
 
 	it("`gainedSince` returns the number of turns a session gained since this page last read it, and returns 0 once the reader opens it", async () => {
-		expect(gainedSince("cmt-ask-0.9.9", 4), "a page that hasn't opened a session hasn't read its turns").toBe(4);
-		read.turns = [aReadBack("0.9.9"), aReadBack("0.9.10", "cmt-ask-0.9.9")];
-		await openConversation("cmt-ask-0.9.9", "activate");
-		expect(gainedSince("cmt-ask-0.9.9", 2), "a session the reader read doesn't hold a new turn").toBe(0);
-		expect(gainedSince("cmt-ask-0.9.9", 5), "and each turn recorded since that read counts as gained").toBe(3);
+		expect(gainedSince("question-0.9.9", 4), "a page that hasn't opened a session hasn't read its turns").toBe(4);
+		read.turns = [aReadBack("0.9.9"), aReadBack("0.9.10", "question-0.9.9")];
+		await openConversation("question-0.9.9", "activate");
+		expect(gainedSince("question-0.9.9", 2), "a session the reader read doesn't hold a new turn").toBe(0);
+		expect(gainedSince("question-0.9.9", 5), "and each turn recorded since that read counts as gained").toBe(3);
 	});
 
 	it("doesn't read a session while the conversation is closed, so a report doesn't open a conversation", async () => {

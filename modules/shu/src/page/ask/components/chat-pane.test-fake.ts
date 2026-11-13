@@ -70,8 +70,8 @@ export function chatDispatch(
 /** A catalog read that returns one model, which takes tool calls. */
 export const A_CATALOG = { vertices: [{ id: "openai:a-model", displayName: "a model", capabilities: { tools: true } }], ...counted(1) };
 
-export const question = (turn: string): string => `cmt-ask-${turn}`;
-export const answer = (turn: string): string => `cmt-say-${turn}`;
+export const question = (turn: string): string => `question-${turn}`;
+export const answer = (turn: string): string => `response-${turn}`;
 
 /** A turn of a session as the store reads it back, completed, its question and response named by the turn a case names. */
 export const readBack = (turn: string, inReplyTo?: string, bundle: TSessionTurn["bundle"] = []): TSessionTurn => ({

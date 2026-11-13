@@ -11,3 +11,11 @@ export function stepRecordInFlight(actuality: string): string | undefined {
 	const path = step === undefined ? null : parseSeqPath(step.seqPath);
 	return path === null ? undefined : formatRecordName({ actuality, path });
 }
+
+/** Returns the record name of the step in progress in the actuality feature `actuality` names. Throws outside a dispatch, naming
+ *  what `writes` writes, since that record is identified by the step that writes it. */
+export function stepRecordWriting(actuality: string, writes: string): string {
+	const step = stepRecordInFlight(actuality);
+	if (step === undefined) throw new Error(`${writes} is written within the step that writes it, and a step isn't in progress`);
+	return step;
+}

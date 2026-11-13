@@ -17,12 +17,12 @@ import {
 	specificResourceDomainDefinition,
 	textQuoteSelectorDomainDefinition,
 } from "./domains/resource-domains.js";
-import { commentBodyIdOf, createComment, readTypedLinks, readingIdFor } from "./records/pipelines/discourse-writes.js";
+import { createComment, readTypedLinks, readingIdFor } from "./records/pipelines/discourse-writes.js";
 import { DEFAULT_BODY_KIND } from "./records/derivations/bodies.js";
 import { MEDIA_TYPE } from "./domains/media-types.js";
 import { readUpTo, recordOf } from "./records/pipelines/record-reads.js";
 import { MAX_PAGE_ROWS } from "./domains/hypermedia.js";
-import { declaredTypeOf, storeDeclaring, TEST_LEVELS } from "./test/declared-types.js";
+import { declaredTypeOf, testStepRecord, storeDeclaring, TEST_LEVELS } from "./test/declared-types.js";
 import { z } from "zod";
 import { FRAGMENT_SPEC } from "./domains/media-fragments.js";
 import type { TLinkVocabulary } from "./domains/typed-links.js";
@@ -145,7 +145,8 @@ describe("a note's own links", () => {
 	it("states a cross-record link from the note that made it", async () => {
 		const store = storeDeclaring(DECLARED, TEST_LEVELS);
 		await store.merge({ "@type": REPORT, id: "spec-1", generatedAtTime: "2026-07-01T00:00:00.000Z" });
-		const commentId = await createComment(store, vocab, "did:example:reviewer", "Contradicts [a later clause:linksTo](#FieldReport:spec-1:~:text=a%20later%20clause).");
+		const link = "Contradicts [a later clause:linksTo](#FieldReport:spec-1:~:text=a%20later%20clause).";
+		const commentId = await createComment(store, vocab, { author: "did:example:reviewer", step: testStepRecord("0.1") }, link);
 		const anchorId = itemAt(await edgesOf(store, commentId, LinkRelations.LINKS_TO.rel), 0);
 		expect(await edgesOf(store, anchorId, LinkRelations.HAS_SOURCE.rel)).toEqual(["spec-1"]);
 	});
@@ -154,9 +155,8 @@ describe("a note's own links", () => {
 describe("a Comment's Body", () => {
 	it("is named by the rule that names a record's Body from its declaration", async () => {
 		const store = storeDeclaring(DECLARED, TEST_LEVELS);
-		const commentId = await createComment(store, vocab, "did:example:reviewer", "A *note*.");
+		const commentId = await createComment(store, vocab, { author: "did:example:reviewer", step: testStepRecord("0.1") }, "A *note*.");
 		const bodyId = `body-${commentId}-${DEFAULT_BODY_KIND}-text-markdown`;
-		expect(bodyId).toBe(commentBodyIdOf(commentId));
 		expect(await edgesOf(store, commentId, LinkRelations.HAS_BODY.rel)).toEqual([bodyId]);
 		expect(await recordOf(store, BODY_LABEL, bodyId)).toMatchObject({ content: "A *note*.", mediaType: MEDIA_TYPE.markdown });
 	});

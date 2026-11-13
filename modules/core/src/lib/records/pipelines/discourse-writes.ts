@@ -10,6 +10,7 @@ import {
 	LinkRelations,
 	READING_LABEL,
 	ReadingSchema,
+	SEQ_PATH_LABEL,
 	SPECIFIC_RESOURCE_LABEL,
 	StatedRecordSchema,
 	anchorPart,
@@ -20,13 +21,14 @@ import {
 	type TQuoteAnchor,
 	type TStatedRecord,
 } from "../../domains/resources.js";
-import { MEDIA_TYPE } from "../../domains/media-types.js";
-import { DEFAULT_BODY_KIND, bodyIdOf, bodyKindsOf } from "../derivations/bodies.js";
 import { typedLinkFacts } from "../derivations/typed-link-facts.js";
 import type { TLinkVocabulary, TTypedLinkFact } from "../../domains/typed-links.js";
 import { recordOf, type TRecordReader } from "./record-reads.js";
 import type { IQuadStore } from "../../steps/ports.js";
 import { referenceTo } from "../domains/unit.js";
+import { MEDIA_TYPE } from "../../domains/media-types.js";
+import { DEFAULT_BODY_KIND, bodyIdOf, bodyKindsOf } from "../derivations/bodies.js";
+import { keyedId } from "../derivations/unit-parts.js";
 
 /** The store a reading writes and reads: the discourse writes and the read of records. */
 type TReadingStore = TDiscourseStore & TRecordReader & Pick<IQuadStore, "readRecord">;
@@ -124,22 +126,25 @@ export function commentBodyIdOf(commentId: string): string {
 	return bodyIdOf(commentId, DEFAULT_BODY_KIND, COMMENT_BODY);
 }
 
-/** Creates a Comment individual that owns its markdown body as a Body, with the period it describes and the edges `stated` adds.
- *  The `comment` and `annotate` acts both call it. `name` titles the node by the truncated note text and not by its id. The note
- *  is markdown, so readTypedLinks derives the facts its links state with the Comment as their subject. */
+/** Creates a Comment individual that owns its markdown body as a Body, with the period it describes and the edges `stated` adds,
+ *  and returns its id. `step` is the record name of the step that writes it, which with its author is the Comment's key, so the
+ *  Comment names its Body by the id its key derives. The `comment` and `annotate` acts both call it. `name` titles the node by the
+ *  truncated note text and not by its id. The note is markdown, so readTypedLinks derives the facts its links state with the
+ *  Comment as their subject. */
 export async function createComment(
 	store: TReadingStore,
 	vocab: TLinkVocabulary,
-	author: string,
+	written: { author: string; step: string },
 	text: string,
 	stated?: { start?: string; end?: string; edges?: Readonly<Record<string, unknown>> },
 	provenance?: { seqPath?: string },
 ): Promise<string> {
-	const commentId = crypto.randomUUID();
+	const keyed = { author: written.author, [LinkRelations.WAS_GENERATED_BY.rel]: referenceTo(SEQ_PATH_LABEL, written.step) };
+	const commentId = COMMENT_TOPOLOGY.keys && keyedId(COMMENT_LABEL, COMMENT_TOPOLOGY.keys, keyed);
+	if (commentId === undefined) throw new Error(`${COMMENT_LABEL}'s keys don't read its author and the step that writes it. Declare that key`);
 	await store.create({
 		"@type": COMMENT_LABEL,
-		id: commentId,
-		author,
+		...keyed,
 		...(stated?.start ? { startedAtTime: stated.start } : {}),
 		...(stated?.end ? { endedAtTime: stated.end } : {}),
 		name: commentName(text),
@@ -156,7 +161,7 @@ export async function createComment(
 export async function writeAnnotation(
 	store: TReadingStore,
 	vocab: TLinkVocabulary,
-	author: string,
+	written: { author: string; step: string },
 	a: { label: string; id: string; exact: string; prefix?: string; suffix?: string; text: string; at?: string; until?: string; links?: TQuoteAnchor[] },
 ): Promise<{ commentId: string; specificResourceId: string; linkedSpecificResourceIds?: string[] }> {
 	// `at` and `until` bound the period the note describes, such as a milestone's week. They are stored as
@@ -170,7 +175,7 @@ export async function writeAnnotation(
 	const reference = (id: string) => referenceTo(SPECIFIC_RESOURCE_LABEL, id);
 	const links = linkedSpecificResourceIds.length === 0 ? {} : { [LinkRelations.LINKS_TO.rel]: linkedSpecificResourceIds.map(reference) };
 	const edges = { [LinkRelations.TARGET.rel]: reference(specificResourceId), ...links };
-	const commentId = await createComment(store, vocab, author, a.text, { start: a.at, end: a.until, edges });
+	const commentId = await createComment(store, vocab, written, a.text, { start: a.at, end: a.until, edges });
 	await assertCommentGrounded(store, commentId);
 	return { commentId, specificResourceId, ...(linkedSpecificResourceIds.length > 0 ? { linkedSpecificResourceIds } : {}) };
 }

@@ -84,26 +84,26 @@ describe("what a question carries", () => {
 	});
 
 	it("opens the linked record without selecting the question", async () => {
-		const el = await rendered({ id: "q1", role: "user", text: "what is this", turn: "cmt-ask-0.1.2", recordId: "cmt-ask-0.1.2", bundle: BUNDLE });
+		const el = await rendered({ id: "q1", role: "user", text: "what is this", turn: "question-0.1.2", recordId: "question-0.1.2", bundle: BUNDLE });
 		const opened = followPaneRequests();
 		el.querySelector(`[data-testid="${SHU_TEST_IDS.APP.CHAT_CARRIES}"] shu-ref`)?.shadowRoot?.querySelector("a")?.click();
 		expect(opened.requested).toEqual([{ paneType: "entity", persistedAs: "Email", id: "a@test.com" }]);
 		opened.stop();
 		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar), "the question is not selected").toBeNull();
 		(el.querySelector(".chat-prompt") as HTMLElement).click();
-		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar)?.record, "a click on the question itself selects it").toEqual({ id: "cmt-ask-0.1.2", label: "Comment" });
+		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar)?.record, "a click on the question itself selects it").toEqual({ id: "question-0.1.2", label: "Comment" });
 	});
 });
 
 describe("a question's controls", () => {
 	it("sends it again, or puts it in the input, replying where it replied, without selecting it", async () => {
-		const el = await rendered({ id: "q2", role: "user", text: "what is this", turn: "cmt-ask-0.1.2", recordId: "cmt-ask-0.1.2", inReplyTo: "cmt-ask-0.1.1", bundle: BUNDLE });
+		const el = await rendered({ id: "q2", role: "user", text: "what is this", turn: "question-0.1.2", recordId: "question-0.1.2", inReplyTo: "question-0.1.1", bundle: BUNDLE });
 		const raised: unknown[] = [];
 		const hear = (e: Event) => raised.push((e as CustomEvent).detail);
 		document.addEventListener(SHU_EVENT.QUESTION_FORK, hear);
 		for (const control of [SHU_TEST_IDS.APP.CHAT_FORK, SHU_TEST_IDS.APP.CHAT_EDIT]) (el.querySelector(`[data-testid="${control}"]`) as HTMLButtonElement).click();
 		document.removeEventListener(SHU_EVENT.QUESTION_FORK, hear);
-		const asked = { prompt: "what is this", patterns: BUNDLE.patterns, inReplyTo: "cmt-ask-0.1.1" };
+		const asked = { prompt: "what is this", patterns: BUNDLE.patterns, inReplyTo: "question-0.1.1" };
 		expect(raised).toEqual([
 			{ ...asked, send: true },
 			{ ...asked, send: false },
@@ -112,13 +112,13 @@ describe("a question's controls", () => {
 	});
 
 	it("are icons under the asker's icon, each named for the fork it makes", async () => {
-		const el = await rendered({ id: "q4", role: "user", text: "what is this", turn: "cmt-ask-0.1.4", recordId: "cmt-ask-0.1.4", bundle: BUNDLE });
+		const el = await rendered({ id: "q4", role: "user", text: "what is this", turn: "question-0.1.4", recordId: "question-0.1.4", bundle: BUNDLE });
 		const named = [SHU_TEST_IDS.APP.CHAT_FORK, SHU_TEST_IDS.APP.CHAT_EDIT].map((control) => el.querySelector(`.msg-label [data-testid="${control}"]`)?.getAttribute("aria-label"));
 		expect(named).toEqual([FORK_CONTROLS.fork.label, FORK_CONTROLS.editAndFork.label]);
 	});
 
 	it("are on a recorded question only", async () => {
-		const answer = await rendered({ id: "a3", role: "llm", text: "an answer", recordId: "cmt-say-0.1.2" });
+		const answer = await rendered({ id: "a3", role: "llm", text: "an answer", recordId: "response-0.1.2" });
 		const unrecorded = await rendered({ id: "q3", role: "user", text: "not yet recorded" });
 		for (const el of [answer, unrecorded]) expect(el.querySelector(`[data-testid="${SHU_TEST_IDS.APP.CHAT_FORK}"]`)).toBeNull();
 	});

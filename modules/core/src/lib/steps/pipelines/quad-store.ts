@@ -334,7 +334,7 @@ export class QuadStore implements IQuadStore {
 	 * never reads a unit that is half written.
 	 */
 	private async writeUnit(verb: TWriteVerb, node: TNode, version: TReadVersion | undefined, through: (store: IQuadStore) => Promise<string>): Promise<string> {
-		const unit = unitParts(verb, node, version, this.partDeclaration);
+		const unit = unitParts(verb, node, version, this.partDeclaration, this.levels?.currentStep());
 		for (const part of unit.parts) this.refuseDerived(part.label);
 		const backing = this.backingOf(unit);
 		if (backing) return await through(backing);

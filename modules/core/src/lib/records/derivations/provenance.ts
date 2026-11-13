@@ -7,7 +7,7 @@
  */
 import { LinkRelations, SEQ_PATH_LABEL } from "../../domains/resources.js";
 import { EDGE_TARGET } from "./edge-declarations.js";
-import { statesOnlyId, type TPart, type TUnitEdge } from "./unit-parts.js";
+import { generatingStep, statesOnlyId, type TPart, type TUnitEdge } from "./unit-parts.js";
 
 /** The provenance of one unit's write: the time of the write, and the record name of the step in progress, undefined outside a step. */
 export type TProvenance = { readonly generatedAtTime: string; readonly step: string | undefined };
@@ -17,8 +17,10 @@ const GENERATED_BY = LinkRelations.WAS_GENERATED_BY.rel;
 
 /** Returns the edge from a record's first write to the step that generated it. A write outside a step, and a step's own record,
  *  doesn't link one. */
-export const generatedByEdges = (label: string, { step }: TProvenance): TUnitEdge[] =>
-	step === undefined || label === SEQ_PATH_LABEL ? [] : [{ rel: GENERATED_BY, label: SEQ_PATH_LABEL, id: step, target: EDGE_TARGET.reference, replaces: false }];
+export function generatedByEdges(label: string, { step }: TProvenance): TUnitEdge[] {
+	const generating = generatingStep(label, step);
+	return generating === undefined ? [] : [{ rel: GENERATED_BY, label: SEQ_PATH_LABEL, id: generating, target: EDGE_TARGET.reference, replaces: false }];
+}
 
 /** Returns a part with its provenance where `held` is false, its first write: the time of the write as its `generatedAtTime`,
  *  where its type's time field is `generatedAtTime` and the part doesn't state one, and the edge to the step that generated it,

@@ -34,7 +34,7 @@ import {
 	specificResourceDomainDefinition,
 	textQuoteSelectorDomainDefinition,
 } from "./resource-domains.js";
-import { storeOfDomains, TEST_LEVELS } from "../test/declared-types.js";
+import { testStepRecord, storeOfDomains, TEST_LEVELS } from "../test/declared-types.js";
 import { recordOf } from "../records/pipelines/record-reads.js";
 import { RelSchema, getJsonLdContext, buildConcernCatalog } from "./hypermedia.js";
 import { mapDefinitionsToDomains } from "./domains.js";
@@ -729,7 +729,7 @@ describe("writeAnnotation, self-contained on a store of the discourse types", ()
 	const note = { label: "File", id: "doc-1", exact: "a passage", suffix: " of the document", text: "A note." };
 	it("writes a grounded Comment, hasTarget→ SpecificResource, hasSource→ doc and hasSelector→ TextQuoteSelector without editing the doc", async () => {
 		const store = discourseStore();
-		const { commentId, specificResourceId } = await writeAnnotation(store, noLinkVocabulary, "did:site:0", note);
+		const { commentId, specificResourceId } = await writeAnnotation(store, noLinkVocabulary, { author: "did:site:0", step: testStepRecord("0.1") }, note);
 		const edgeOf = async (label: string, subject: string, predicate: string) => (await store.query({ subject, predicate, namedGraph: label })).at(0)?.object;
 		expect(await edgeOf(COMMENT_LABEL, commentId, LinkRelations.TARGET.rel)).toBe(specificResourceId);
 		expect(await edgeOf(SPECIFIC_RESOURCE_LABEL, specificResourceId, LinkRelations.HAS_SOURCE.rel), "the SpecificResource points at the document").toBe("doc-1");
@@ -739,8 +739,8 @@ describe("writeAnnotation, self-contained on a store of the discourse types", ()
 	});
 	it("anchors a part again as the same SpecificResource, since its id is the digest of what it states", async () => {
 		const store = discourseStore();
-		const first = await writeAnnotation(store, noLinkVocabulary, "did:site:0", note);
-		const again = await writeAnnotation(store, noLinkVocabulary, "did:site:0", note);
+		const first = await writeAnnotation(store, noLinkVocabulary, { author: "did:site:0", step: testStepRecord("0.1") }, note);
+		const again = await writeAnnotation(store, noLinkVocabulary, { author: "did:site:0", step: testStepRecord("0.2") }, note);
 		expect(again.specificResourceId).toBe(first.specificResourceId);
 		expect((await store.query({ predicate: LinkRelations.HAS_SOURCE.rel, namedGraph: SPECIFIC_RESOURCE_LABEL })).length, "one anchor of the passage").toBe(1);
 	});

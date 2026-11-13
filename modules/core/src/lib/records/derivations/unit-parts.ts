@@ -26,7 +26,7 @@ import {
 	type TWriteVerb,
 } from "../domains/unit.js";
 import { contentAddress, contentHash } from "../../domains/content-address.js";
-import type { TRecordKey } from "../../domains/resources.js";
+import { LinkRelations, SEQ_PATH_LABEL, type TRecordKey } from "../../domains/resources.js";
 
 /** An edge a part writes from its record: the relation, the type and the id of the record it reaches, whether that record is held
  *  or a reference, and whether the edge replaces the record's earlier edges of the relation. */
@@ -63,15 +63,29 @@ function statedIdOf(node: Readonly<Record<string, unknown>>, label: string, idFi
 	return String(id);
 }
 
+/** Returns the step that generated a `label` record, as a store's provenance states it on the record's first write: the step in
+ *  progress, apart from a step's own record. */
+export const generatingStep = (label: string, step: string | undefined): string | undefined => (label === SEQ_PATH_LABEL ? undefined : step);
+
+/** Returns a node as its keys read it: with the step `step` names as its `prov:wasGeneratedBy` where the node doesn't state its own,
+ *  since a store states that edge on the record's first write. */
+function asGenerated(node: Readonly<Record<string, unknown>>, label: string, step: string | undefined): Readonly<Record<string, unknown>> {
+	const generating = generatingStep(label, step);
+	const rel = LinkRelations.WAS_GENERATED_BY.rel;
+	return generating === undefined || node[rel] !== undefined ? node : { ...node, [rel]: referenceTo(SEQ_PATH_LABEL, generating) };
+}
+
 /** Returns the fields a key reads. */
-const keyFieldsOf = (key: TRecordKey): readonly string[] => ("inverseFunctional" in key ? [key.inverseFunctional] : key.address);
+export const keyFieldsOf = (key: TRecordKey): readonly string[] => ("inverseFunctional" in key ? [key.inverseFunctional] : key.address);
 
 /** Returns the keys a refusal names: each key's fields, the keys apart. */
 const keysNamed = (keys: readonly TRecordKey[]): string => keys.map((key) => keyFieldsOf(key).join(" and ")).join(", or ");
 
 /** Returns a value of a key's field as its content address reads it: a reference as the typed CURIE it states, which names the
- *  record's type and its id, and a list of values each so. */
-const keyValueOf = (value: unknown): unknown => (Array.isArray(value) ? value.map(keyValueOf) : isReference(value) ? value[NODE_KEY.id] : value);
+ *  record's type and its id, a list of one value as that value, as a read states an edge's one target in a list, and a list of
+ *  values each so. */
+const keyValueOf = (value: unknown): unknown =>
+	Array.isArray(value) ? (value.length === 1 ? keyValueOf(value[0]) : value.map(keyValueOf)) : isReference(value) ? value[NODE_KEY.id] : value;
 
 /** Returns the id a `label` record's keys derive from a node, through the first key whose fields the node states: the value of its
  *  inverse functional field, or the content address of the values of its fields. Returns undefined where the node doesn't state
@@ -94,26 +108,36 @@ export function keyedId(label: string, keys: readonly TRecordKey[], node: Readon
 /**
  * Returns the id of a node's record. A type that declares keys identifies a record by the id its keys derive: a node that states
  * a key's fields is written under that id, and a node that states another id is refused. A node that doesn't state a key's fields
- * names a record the store holds by its id, as an update and a write of edges alone do. A type without keys identifies a record
+ * names a record the store holds by its id, as an update and a write of edges alone do; a write of an edge the type doesn't declare
+ * is refused for that edge. A type without keys identifies a record
  * by the id the node states. Throws where the node doesn't state the id its type reads.
  */
-function idOf(node: Readonly<Record<string, unknown>>, label: string, declaration: TPartDeclaration | undefined, verb: TWriteVerb): string {
+function idOf(node: Readonly<Record<string, unknown>>, label: string, declaration: TPartDeclaration | undefined, verb: TWriteVerb, step: string | undefined): string {
 	const idField = declaration === undefined ? UNDECLARED_ID_FIELD : declaration.id;
 	const stated = statedIdOf(node, label, idField);
 	const keys = declaration?.keys;
-	const derived = keys === undefined ? stated : keyedId(label, keys, node);
+	const derived = keys === undefined ? stated : keyedId(label, keys, asGenerated(node, label, step));
 	if (keys !== undefined && derived !== undefined && stated !== undefined && stated !== derived)
 		throw new Error(`a ${label} record's id is derived from its key ${keysNamed(keys)}, which names ${derived}, and this record states the id ${stated}. Leave the id out`);
 	if (derived !== undefined) return derived;
 	const namesHeld =
 		verb === WRITE_VERB.update ||
-		Object.keys(node).every((field) => field === NODE_KEY.type || field === NODE_KEY.id || field === idField || declaration?.edges[field] !== undefined);
+		Object.entries(node).every(
+			([field, value]) =>
+				field === NODE_KEY.type || field === NODE_KEY.id || field === idField || edgeOf(declaration, field, value) !== undefined || [value].flat().every(isReference),
+		);
 	if (keys !== undefined && stated !== undefined && namesHeld) return stated;
 	throw new Error(
 		keys === undefined
 			? `a ${label} record is identified by its "${idField}" field or its "${NODE_KEY.id}", and this record doesn't state one id`
 			: `a ${label} record is identified by its key ${keysNamed(keys)}, and this ${verb} doesn't state it. State the key; the store derives the id`,
 	);
+}
+
+/** Returns the edge a node's key states: the edge the type declares under it, or a vocabulary edge where the vocabulary holds the key
+ *  and each of its values is a reference, else undefined for a field. */
+function edgeOf(declaration: TPartDeclaration | undefined, key: string, value: unknown): TEdgeDeclaration | undefined {
+	return declaration?.edges[key] ?? (isVocabularyEdge(key) && [value].flat().every(isReference) ? VOCABULARY_EDGE : undefined);
 }
 
 /** Returns whether a value is a JSON object. */
@@ -145,16 +169,17 @@ function partsOf(
 	label: string,
 	declarationOf: (label: string) => TPartDeclaration | undefined,
 	verb: TWriteVerb,
+	step: string | undefined,
 ): { part: TPart; owned: TPart[] } {
 	const declaration = declarationOf(label);
-	const id = idOf(node, label, declaration, verb);
+	const id = idOf(node, label, declaration, verb, step);
 	const iri = node[NODE_KEY.id];
 	const part = { label, id, fields: {} as Record<string, unknown>, edges: [] as TUnitEdge[], ...(typeof iri === "string" ? { iri } : {}) };
 	const owned: TPart[] = [];
 	for (const [key, value] of Object.entries(node)) {
 		if (key === NODE_KEY.type || key === NODE_KEY.id || value === undefined) continue;
 		const targets = [value].flat();
-		const declared = declaration?.edges[key] ?? (isVocabularyEdge(key) && targets.every(isReference) ? VOCABULARY_EDGE : undefined);
+		const declared = edgeOf(declaration, key, value);
 		const records = targets.filter(isObject);
 		if (declared !== undefined && targets.length === 0 && declaration?.lists.has(key) !== true) continue;
 		if (declared === undefined || records.length === 0) {
@@ -177,7 +202,7 @@ function partsOf(
 				throw new Error(
 					`${label} embeds a ${toLabel} record under its edge ${key}, which its type doesn't declare owns. Write the ${toLabel} on its own, and reference it with referenceTo`,
 				);
-			const embedded = partsOf(target, toLabel, declarationOf, verb);
+			const embedded = partsOf(target, toLabel, declarationOf, verb, step);
 			owned.push(...embedded.owned, embedded.part);
 			part.edges.push({ rel: key, label: toLabel, id: embedded.part.id, ...edgeWriteOf({ reference: false, functional: declared.functional }) });
 		}
@@ -199,11 +224,18 @@ function literalsOf(label: string, key: string, literals: readonly unknown[], de
 	return literals[0];
 }
 
-/** Returns the parts of the unit a verb writes from a node, and the version of its record the verb states. */
-export function unitParts(verb: TWriteVerb, node: TNode, version: TReadVersion | undefined, declarationOf: (label: string) => TPartDeclaration | undefined): TUnitParts {
+/** Returns the parts of the unit a verb writes from a node, and the version of its record the verb states. `step` is the record
+ *  name of the step in progress, which a key reads as a record's `prov:wasGeneratedBy`, or undefined outside a step. */
+export function unitParts(
+	verb: TWriteVerb,
+	node: TNode,
+	version: TReadVersion | undefined,
+	declarationOf: (label: string) => TPartDeclaration | undefined,
+	step: string | undefined,
+): TUnitParts {
 	const label = node[NODE_KEY.type];
 	if (typeof label !== "string" || label.length === 0) throw new Error(`a node states its record's type in "${NODE_KEY.type}", and this node doesn't: ${JSON.stringify(node)}`);
-	const { part, owned } = partsOf(node, label, declarationOf, verb);
+	const { part, owned } = partsOf(node, label, declarationOf, verb, step);
 	return { verb, version: statedVersion(verb, version), record: { label, id: part.id }, parts: [...owned, part] };
 }
 

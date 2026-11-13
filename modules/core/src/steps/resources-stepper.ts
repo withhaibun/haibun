@@ -49,6 +49,7 @@ import { bodiesByMediaType, markdownOf } from "../lib/records/pipelines/body-rea
 import { createComment, readProseLinks, writeAnnotation } from "../lib/records/pipelines/discourse-writes.js";
 import { DOMAIN_LINK_REL, DOMAIN_RECORD_ID, DOMAIN_TEXT, linkVocabularyFor } from "../lib/domains/domains.js";
 import { actualityFeatureOf, formatRecordName } from "../lib/actuality/domains/seq-path.js";
+import { stepRecordWriting } from "../lib/actuality/domains/step-in-flight.js";
 import { logMessageDomainDefinition } from "../lib/domains/log-message.js";
 import { runArtifactDomainDefinition } from "../lib/domains/run-artifact.js";
 import { statementsWith, type TStatementRow } from "../lib/steps/pipelines/statements.js";
@@ -154,11 +155,17 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 		await readProseLinks(this.getWorld().shared.getStore(), this.linkVocabulary, { label: SEQ_PATH_LABEL, id: named }, text, named);
 	}
 
+	/** Returns who writes a comment of a step in progress: the instance's principal, and the record name of the step. */
+	private commentWriter(): { author: string; step: string } {
+		const world = this.getWorld();
+		return { author: requirePrincipal(world), step: stepRecordWriting(actualityFeatureOf(world.tag), "A comment") };
+	}
+
 	/** Writes the annotation of every `annotate` step, resolves its conversation root, and returns both. Each step only
 	 *  shapes the passage and link argument. The principal, store and threading are the same for each step. */
 	private async runAnnotate(a: Parameters<typeof writeAnnotation>[3]) {
 		const store = this.getWorld().shared.getStore();
-		const written = await writeAnnotation(store, this.linkVocabulary, requirePrincipal(this.getWorld()), a);
+		const written = await writeAnnotation(store, this.linkVocabulary, this.commentWriter(), a);
 		const contextRoot = await conversationRoot(store, a.id);
 		return actionOKWithProducts({ ...written, contextRoot });
 	}
@@ -216,10 +223,9 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			recordIds: { id: "label" },
 			contract: { products: DOMAIN_COMMENT_CREATED },
 			action: async ({ label, id, text }: { label: string; id: string; text: string }) => {
-				const author = requirePrincipal(this.getWorld());
 				const store = this.getWorld().shared.getStore();
 				// The comment's narrate edge reaches its subject. narrate is a sub-property of inReplyTo, so the edge grounds the comment and threads it.
-				const commentId = await createComment(store, this.linkVocabulary, author, text, { edges: { [LinkRelations.NARRATE.rel]: referenceTo(label, id) } });
+				const commentId = await createComment(store, this.linkVocabulary, this.commentWriter(), text, { edges: { [LinkRelations.NARRATE.rel]: referenceTo(label, id) } });
 				await assertCommentGrounded(store, commentId);
 				const contextRoot = await conversationRoot(store, id);
 				return actionOKWithProducts({ commentId, contextRoot });

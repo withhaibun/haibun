@@ -5,12 +5,12 @@
  * fields. It removes a record with what it owns, or one of its edges.
  */
 import { describe, expect, it } from "vitest";
-import { Access, BODY_LABEL, COMMENT_LABEL, LinkRelations, PRINCIPAL_LABEL, commentDomainDefinition } from "../../domains/resources.js";
+import { Access, BODY_LABEL, COMMENT_LABEL, LinkRelations, commentDomainDefinition } from "../../domains/resources.js";
 import { bodyDomainDefinition } from "../../domains/resource-domains.js";
 import { recordOf } from "../../records/pipelines/record-reads.js";
 import { ChangedSinceRead, referenceTo } from "../../records/domains/unit.js";
 import { newStoreChain, QuadStore } from "./quad-store.js";
-import { declaredTypes, storeDeclaring, storeOfDomains, TEST_LEVELS } from "../../test/declared-types.js";
+import { declaredTypes, inTestStep, storeDeclaring, storeOfDomains, TEST_LEVELS } from "../../test/declared-types.js";
 import type { IQuadStore } from "../ports.js";
 
 const NOTE = "Note";
@@ -39,26 +39,28 @@ describe("a unit the in-memory store writes", () => {
 	it("holds the records its node embeds under an owns edge, its record and its edges, and returns the id of its record", async () => {
 		const store = storeOfDomains([commentDomainDefinition, bodyDomainDefinition], TEST_LEVELS);
 		const body = { id: "body-c1", content: "the note", mediaType: "text/markdown", accessLevel: Access.private };
-		expect(await store.create({ "@type": COMMENT_LABEL, id: "c1", author: "did:example:a", accessLevel: Access.private, [LinkRelations.HAS_BODY.rel]: body })).toBe("c1");
+		const id = await inTestStep("0.1", () => store.create({ "@type": COMMENT_LABEL, author: "did:example:a", accessLevel: Access.private, [LinkRelations.HAS_BODY.rel]: body }));
 		expect(await recordOf(store, BODY_LABEL, "body-c1"), "the Body it owns").toMatchObject({ content: "the note" });
-		expect(await edgesOf(store, COMMENT_LABEL, "c1", LinkRelations.HAS_BODY.rel)).toEqual([["body-c1", BODY_LABEL]]);
+		expect(await edgesOf(store, COMMENT_LABEL, id, LinkRelations.HAS_BODY.rel)).toEqual([["body-c1", BODY_LABEL]]);
 	});
 
 	it("writes the edges of a node that names a record the store doesn't hold by its id alone, without the provenance of a record", async () => {
-		const store = storeOfDomains([commentDomainDefinition, bodyDomainDefinition], TEST_LEVELS);
-		const author = { [LinkRelations.ATTRIBUTED_TO.rel]: referenceTo(PRINCIPAL_LABEL, "did:example:a") };
-		expect(await store.merge({ "@type": COMMENT_LABEL, "@id": "c0", ...author })).toBe("c0");
-		expect(await edgesOf(store, COMMENT_LABEL, "c0", LinkRelations.ATTRIBUTED_TO.rel)).toEqual([["did:example:a", PRINCIPAL_LABEL]]);
-		expect(await edgesOf(store, COMMENT_LABEL, "c0", LinkRelations.GENERATED_AT_TIME.rel), "a reference doesn't state a time of writing").toEqual([]);
-		await store.merge({ "@type": COMMENT_LABEL, id: "c0", author: "did:example:a", accessLevel: Access.private });
-		expect(await recordOf(store, COMMENT_LABEL, "c0"), "a later write of the record holds its fields beside the edge").toMatchObject({ author: "did:example:a" });
-		expect(await edgesOf(store, COMMENT_LABEL, "c0", LinkRelations.ATTRIBUTED_TO.rel)).toEqual([["did:example:a", PRINCIPAL_LABEL]]);
+		const store = storeDeclaring(NOTES, TEST_LEVELS);
+		const after = { after: referenceTo(NOTE, "n9") };
+		expect(await store.merge({ "@type": NOTE, "@id": "n0", ...after })).toBe("n0");
+		expect(await edgesOf(store, NOTE, "n0", "after")).toEqual([["n9", NOTE]]);
+		expect(await edgesOf(store, NOTE, "n0", LinkRelations.GENERATED_AT_TIME.rel), "a reference doesn't state a time of writing").toEqual([]);
+		await store.merge({ "@type": NOTE, id: "n0", title: "later" });
+		expect(await recordOf(store, NOTE, "n0"), "a later write of the record holds its fields beside the edge").toMatchObject({ title: "later" });
+		expect(await edgesOf(store, NOTE, "n0", "after")).toEqual([["n9", NOTE]]);
 	});
 
 	it("refuses a unit whose owned record its type's schema refuses, and doesn't hold the record that owns it", async () => {
-		const store = storeOfDomains([commentDomainDefinition, bodyDomainDefinition]);
-		await expect(store.create({ "@type": COMMENT_LABEL, id: "c1", author: "did:example:a", [LinkRelations.HAS_BODY.rel]: { id: "body-c1", content: 7 } })).rejects.toThrow();
-		expect(await store.query({ subject: "c1" }), "the Comment").toEqual([]);
+		const store = storeOfDomains([commentDomainDefinition, bodyDomainDefinition], TEST_LEVELS);
+		await expect(
+			inTestStep("0.1", () => store.create({ "@type": COMMENT_LABEL, author: "did:example:a", [LinkRelations.HAS_BODY.rel]: { id: "body-c1", content: 7 } })),
+		).rejects.toThrow();
+		expect(await store.query({ namedGraph: COMMENT_LABEL }), "the Comment").toEqual([]);
 	});
 
 	it("refuses a record embedded under an edge its owner's type doesn't declare owns, and doesn't hold either record", async () => {

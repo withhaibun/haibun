@@ -25,7 +25,7 @@ const aTurn = () =>
 	new DrivenStream((send) => {
 		send({ text: "an answer" });
 		// The turn is written server-side either way, so the session now exists.
-		listed.push({ session: "cmt-ask-0.1.2", label: "a session", generatedAtTime: new Date().toISOString(), turns: 1 });
+		listed.push({ session: "question-0.1.2", label: "a session", generatedAtTime: new Date().toISOString(), turns: 1 });
 		return Promise.resolve();
 	});
 

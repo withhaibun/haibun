@@ -34,7 +34,7 @@ describe("composeDisplayLabel priority: headline → body → weak → id", () =
 
 	it("uses the linked-body preview over a seqPath, as a Comment carries both", () => {
 		const rels = { seqPath: LinkRelations.SEQ_PATH.rel, author: LinkRelations.ATTRIBUTED_TO.rel };
-		const label = composeDisplayLabel({ rels, getProperty: props({ seqPath: "0.-1.26", author: "did:x" }), bodyContents: ["Lawrence vouches for this"], id: "cmt-say-0.-1.26" });
+		const label = composeDisplayLabel({ rels, getProperty: props({ seqPath: "0.-1.26", author: "did:x" }), bodyContents: ["Lawrence vouches for this"], id: "response-0.-1.26" });
 		expect(label).toBe("Lawrence vouches for this");
 		expect(label).not.toContain("seqPath");
 	});

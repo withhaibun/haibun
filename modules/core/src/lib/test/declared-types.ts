@@ -6,8 +6,10 @@ import type { z } from "zod";
 import { querySurface, REACHED_BY } from "../domains/hypermedia.js";
 import { QuadStore, newStoreChain } from "../steps/pipelines/quad-store.js";
 import type { TStoreLevels } from "../steps/ports.js";
-import { Access, HAIBUN_RECORD_NAMESPACE, isPersisted, LinkRelations, type TDomainDefinition } from "../domains/resources.js";
-import { accessBound, writeBound, writesInFlight } from "../domains/capability-context.js";
+import { Access, HAIBUN_RECORD_NAMESPACE, isPersisted, LinkRelations, type TDomainDefinition, type TRecordKey } from "../domains/resources.js";
+import { accessBound, inCall, inStep, runInCall, writeBound, writesInFlight } from "../domains/capability-context.js";
+import { stepRecordInFlight } from "../actuality/domains/step-in-flight.js";
+import { formatRecordName } from "../actuality/domains/seq-path.js";
 import { mapDefinitionsToDomains } from "../domains/domains.js";
 import { readDeclarationsOf, servedIdOf, type TReadDeclarations } from "../records/derivations/read-records.js";
 import { recordIri } from "../records/derivations/record-iri.js";
@@ -25,6 +27,8 @@ export type TDeclaredType = {
 	unique?: readonly (readonly string[])[];
 	/** The edges a write reads, where they own, reference or reach one record; else each relation is an edge to a held record. */
 	edges?: Readonly<Record<string, TEdgeDeclaration>>;
+	/** The keys a record's id is derived from, where the type declares them. */
+	keys?: readonly TRecordKey[];
 };
 
 /** Returns read declarations of the types `types` names. Each type's id field is the one it names or `id`, its filters
@@ -49,7 +53,12 @@ export function declaredTypes(types: Record<string, TDeclaredType>): TReadDeclar
 				edges,
 				properties: new Set<string>(),
 			};
-			return { ...declared, ...(type.schema === undefined ? {} : { schema: type.schema }), ...(type.unique === undefined ? {} : { unique: type.unique }) };
+			return {
+				...declared,
+				...(type.schema === undefined ? {} : { schema: type.schema }),
+				...(type.unique === undefined ? {} : { unique: type.unique }),
+				...(type.keys === undefined ? {} : { keys: type.keys }),
+			};
 		},
 	};
 }
@@ -57,7 +66,16 @@ export function declaredTypes(types: Record<string, TDeclaredType>): TReadDeclar
 /** Returns the test declaration of a persisted type its definition declares: its id field, the edges its topology declares and its schema. */
 export function declaredTypeOf({ schema, topology }: TDomainDefinition): [string, TDeclaredType] {
 	if (!isPersisted(topology)) throw new Error("a test declares a persisted type, and this definition doesn't persist one. Pass a persisted type's definition.");
-	return [topology.persistedAs, { id: topology.id, relations: querySurface({ schema, topology }).references, schema, edges: edgeDeclarationsOf(topology.edges) }];
+	return [
+		topology.persistedAs,
+		{
+			id: topology.id,
+			relations: querySurface({ schema, topology }).references,
+			schema,
+			edges: edgeDeclarationsOf(topology.edges),
+			...(topology.keys === undefined ? {} : { keys: topology.keys }),
+		},
+	];
 }
 
 /** Returns read declarations of the types `types` names as a page reads them: a read states the `@id` the instance served,
@@ -66,6 +84,19 @@ export const servedTypes = (types: Record<string, TDeclaredType>): TReadDeclarat
 
 /** Returns the record IRI of the record of `label` with `id`, under haibun's namespace. */
 export const heldRecordIri = (label: string, id: string): string => recordIri(HAIBUN_RECORD_NAMESPACE.prefix, label, id);
+
+/** The actuality feature of a test's steps. */
+const TEST_ACTUALITY = "test";
+
+/** Runs `call` within the step at `seqPath`, as a step's dispatch runs its action, so a store states the step as the provenance of
+ *  each record `call` writes. */
+export const inTestStep = <T>(seqPath: string, call: () => T): T => runInCall(inStep(inCall(), { seqPath, reportsAt: undefined }), call);
+
+/** Returns the record name of the step `inTestStep` runs the call in progress in, as a store's provenance reads it. */
+export const testCurrentStep = (): string | undefined => stepRecordInFlight(TEST_ACTUALITY);
+
+/** Returns the record name of the step that `inTestStep` runs at `seqPath`. */
+export const testStepRecord = (seqPath: string): string => formatRecordName({ actuality: TEST_ACTUALITY, path: seqPath.split(".").map(Number) });
 
 /** The levels of a test's store that holds what a writer writes, as actuality's store does: it reads and writes within the call in
  *  progress, holds a record that doesn't state its level at private, checks each write against the step in progress, and states
@@ -76,7 +107,7 @@ export const TEST_LEVELS: TStoreLevels = {
 	writeBound,
 	declared: () => Access.private,
 	stepWrites: writesInFlight,
-	currentStep: () => undefined,
+	currentStep: testCurrentStep,
 	recordTime: () => new Date().toISOString(),
 };
 

@@ -62,8 +62,8 @@ describe("SubjectController", () => {
 		const activeOnly: Array<TRecord | null> = [];
 		new SubjectController(aHost(), (record) => activeOnly.push(record)).hostConnected();
 		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: PANE });
-		dispatchSubjectEvent({ type: "update", scope: SCOPE.actionsBar, entry: { record: { id: "cmt-say-0.1.2", label: "Comment" }, turn: "cmt-ask-0.1.2", bundle: PANE.bundle } });
-		expect(told, "a restored conversation changes the turn a question replies to while the page's record leads").toEqual(["none", "none", "cmt-ask-0.1.2"]);
+		dispatchSubjectEvent({ type: "update", scope: SCOPE.actionsBar, entry: { record: { id: "response-0.1.2", label: "Comment" }, turn: "question-0.1.2", bundle: PANE.bundle } });
+		expect(told, "a restored conversation changes the turn a question replies to while the page's record leads").toEqual(["none", "none", "question-0.1.2"]);
 		expect(activeOnly, "a view of the active record alone isn't notified").toEqual([null, { id: "a@test.com", label: "Email" }]);
 	});
 

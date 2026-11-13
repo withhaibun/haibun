@@ -1010,7 +1010,7 @@ export const PRINCIPAL_LABEL = "Principal";
 export const PRINCIPAL_DOMAIN = "principal-individual";
 
 /** The Comment's topology. It uses existing LinkRelations for every property and doesn't introduce rels. A Comment's write
- *  names its Body by the Body its `body` field declares. */
+ *  names its Body by the Body its `body` field declares, and its keys derive its id. */
 export const COMMENT_TOPOLOGY: THypermediaTopology = {
 	persistedAs: COMMENT_LABEL,
 	accessLevel: Access.private,
@@ -1019,6 +1019,9 @@ export const COMMENT_TOPOLOGY: THypermediaTopology = {
 	// activities applies to it.
 	subClassOf: ["oa:Annotation", PROV_ENTITY],
 	id: "id",
+	// A comment that carries a record, as a measure carries its observation, is the one comment that carries it. Another comment is
+	// the one its author wrote in the step that wrote it.
+	keys: [{ address: [LinkRelations.ATTACHMENT.rel] }, { address: [LinkRelations.WAS_GENERATED_BY.rel, "author"] }],
 	properties: {
 		id: LinkRelations.IDENTIFIER.rel,
 		name: LinkRelations.NAME.rel,
@@ -1048,8 +1051,9 @@ export const COMMENT_TOPOLOGY: THypermediaTopology = {
 		// The store may not hold the addressee's record, as an external principal's isn't written.
 		[LinkRelations.AUDIENCE.rel]: { rel: LinkRelations.AUDIENCE.rel, range: RESOURCE_LABEL, reference: true },
 		// The record the comment carries: a change request carries the proposal it requests, and a measure carries its
-		// observation. The edge is declared so a view can follow it to the carried record.
-		[LinkRelations.ATTACHMENT.rel]: { rel: LinkRelations.ATTACHMENT.rel, range: RESOURCE_LABEL },
+		// observation. The edge is declared so a view can follow it to the carried record. It is a reference, since a key reads
+		// it, and an import writes a comment with its key before the record it carries.
+		[LinkRelations.ATTACHMENT.rel]: { rel: LinkRelations.ATTACHMENT.rel, range: RESOURCE_LABEL, reference: true },
 		// A linking annotation's cross-reference: the note points at another SpecificResource (a section) in the source.
 		[LinkRelations.LINKS_TO.rel]: { rel: LinkRelations.LINKS_TO.rel, range: SPECIFIC_RESOURCE_LABEL },
 		// A reply reaches the record it replies to: a Comment of its thread, or the record that starts the thread. The store may

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import ResourcesStepper from "./resources-stepper.js";
 import Haibun from "./haibun-stepper.js";
 import { getDefaultWorld, getTestWorldWithOptions, testWithWorld } from "../lib/test/lib.js";
+import { inTestStep } from "../lib/test/declared-types.js";
 import { LogicStepper } from "../lib/test/logic-stepper.js";
 import { Access, BODY_LABEL, LinkRelations, READING_LABEL, SEQ_PATH_LABEL, SPECIFIC_RESOURCE_LABEL } from "../lib/domains/resources.js";
 import { MEDIA_TYPE } from "../lib/domains/media-types.js";
@@ -27,7 +28,7 @@ describe("ResourcesStepper comment (reply-threaded)", () => {
 		const store = world.shared.getStore();
 		await store.merge({ "@type": "Letter", id: "letter-1", subject: "Test", accessLevel: Access.private });
 
-		const result = await stepper.steps.comment.action({ label: "Letter", id: "letter-1", text: "A note" });
+		const result = await inTestStep("0.1", () => stepper.steps.comment.action({ label: "Letter", id: "letter-1", text: "A note" }));
 		expect(result.ok).toBe(true);
 		const commentId = result.products?.commentId as string;
 		expect(commentId).toBeTruthy();
@@ -42,7 +43,7 @@ describe("ResourcesStepper comment (reply-threaded)", () => {
 		const store = world.shared.getStore();
 		await store.merge({ "@type": "Letter", id: "letter-1", subject: "Test", accessLevel: Access.private });
 
-		const result = await stepper.steps.comment.action({ label: "Letter", id: "letter-1", text: "A note" });
+		const result = await inTestStep("0.1", () => stepper.steps.comment.action({ label: "Letter", id: "letter-1", text: "A note" }));
 		expect(result.products?.contextRoot).toBe("letter-1");
 	});
 
@@ -50,8 +51,8 @@ describe("ResourcesStepper comment (reply-threaded)", () => {
 		const store = world.shared.getStore();
 		await store.merge({ "@type": "Letter", id: "root-letter", subject: "Root", accessLevel: Access.private });
 
-		const first = await stepper.steps.comment.action({ label: "Letter", id: "root-letter", text: "First" });
-		const reply = await stepper.steps.comment.action({ label: "Comment", id: first.products?.commentId as string, text: "A reply to the first" });
+		const first = await inTestStep("0.1", () => stepper.steps.comment.action({ label: "Letter", id: "root-letter", text: "First" }));
+		const reply = await inTestStep("0.2", () => stepper.steps.comment.action({ label: "Comment", id: first.products?.commentId as string, text: "A reply to the first" }));
 		expect(reply.products?.contextRoot).toBe("root-letter");
 	});
 });

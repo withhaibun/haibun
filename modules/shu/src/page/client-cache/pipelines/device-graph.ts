@@ -148,10 +148,17 @@ export class DeviceGraph implements TDeviceGraph {
 		// A page holds what a site served, which it writes through setMany, so it loads the derivation of a unit's parts where it
 		// writes a node.
 		const { partDeclarationOf, unitParts } = await import("@haibun/core/lib/records/derivations/unit-parts.js");
-		const unit = unitParts(verb, node, version, (label) => {
-			const declaration = this.declarations().of(label);
-			return declaration === undefined ? undefined : partDeclarationOf(declaration);
-		});
+		// A page's write isn't part of a step of actuality.
+		const unit = unitParts(
+			verb,
+			node,
+			version,
+			(label) => {
+				const declaration = this.declarations().of(label);
+				return declaration === undefined ? undefined : partDeclarationOf(declaration);
+			},
+			undefined,
+		);
 		this.versions.check([{ name: unit.record, version: unit.version, held: await this.holds(unit.record) }]);
 		const changes = unit.parts.map(changeOf);
 		await this.quads.change({ removes: changes.flatMap(({ removes }) => removes), adds: changes.flatMap(({ adds }) => adds) });

@@ -555,8 +555,8 @@ describe("the ask and the active record", () => {
 		mergeHashParams({ access: EMAIL.bundle.accessLevel });
 		const { pane } = await aPage();
 		await submit(pane, "what does this say");
-		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar)).toEqual({ record: { id: "cmt-ask-0.1.2", label: "Comment" }, turn: "cmt-ask-0.1.2", bundle: EMAIL.bundle });
-		expect(currentSubject(currentSubjectState.get())).toEqual({ id: "cmt-ask-0.1.2", label: "Comment" });
+		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar)).toEqual({ record: { id: "question-0.1.2", label: "Comment" }, turn: "question-0.1.2", bundle: EMAIL.bundle });
+		expect(currentSubject(currentSubjectState.get())).toEqual({ id: "question-0.1.2", label: "Comment" });
 		dispatchSubjectEvent({ type: "close", scope: SCOPE.actionsBar });
 		expect(currentSubject(currentSubjectState.get()), "the bar closed: the page's record again").toEqual(EMAIL.record);
 	});
@@ -568,7 +568,7 @@ describe("the ask and the active record", () => {
 		const { pane } = await aPage();
 		await submit(pane, "what does this say");
 		await new Promise((resolve) => requestAnimationFrame(resolve));
-		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar)).toMatchObject({ record: { id: "tcall-1", label: "ToolCall" }, turn: "cmt-ask-0.1.2" });
+		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar)).toMatchObject({ record: { id: "tcall-1", label: "ToolCall" }, turn: "question-0.1.2" });
 	});
 
 	it("is sent at the level at which the address reads, narrowed since the record was activated, and its comments activate at that level", async () => {
@@ -584,11 +584,15 @@ describe("the ask and the active record", () => {
 	it("replies to the bar's turn and carries its bundle, with the active pane's view data, so a selected earlier message branches there", async () => {
 		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: EMAIL });
 		dispatchSubjectEvent({ type: "open", scope: SCOPE.actionsBar });
-		dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: { record: { id: "cmt-say-0.1.1", label: "Comment" }, turn: "cmt-ask-0.1.1", bundle: OTHER.bundle } });
-		conversationState.set({ status: "open", session: "cmt-ask-0.1.1", turns: [], asked: null });
+		dispatchSubjectEvent({
+			type: "activate",
+			scope: SCOPE.actionsBar,
+			entry: { record: { id: "response-0.1.1", label: "Comment" }, turn: "question-0.1.1", bundle: OTHER.bundle },
+		});
+		conversationState.set({ status: "open", session: "question-0.1.1", turns: [], asked: null });
 		const { pane } = await aPage();
 		await submit(pane, "and what came of it");
-		expect(sent.at(-1)).toMatchObject({ session: "cmt-ask-0.1.1", inReplyTo: "cmt-ask-0.1.1", patterns: OTHER.bundle.patterns, viewLd: VIEW_DATA });
+		expect(sent.at(-1)).toMatchObject({ session: "question-0.1.1", inReplyTo: "question-0.1.1", patterns: OTHER.bundle.patterns, viewLd: VIEW_DATA });
 	});
 
 	it("selecting a message makes its comment the active record, and marks that message alone current", async () => {
@@ -597,10 +601,10 @@ describe("the ask and the active record", () => {
 		await submit(pane, "what does this say");
 		stream.finish?.();
 		await settle();
-		const question = history.querySelector(":scope > shu-chat-message[data-record='cmt-ask-0.1.2']") as HTMLElement;
+		const question = history.querySelector(":scope > shu-chat-message[data-record='question-0.1.2']") as HTMLElement;
 		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: EMAIL });
 		inside<HTMLElement>(question, ".msg").click();
-		expect(currentSubject(currentSubjectState.get())).toEqual({ id: "cmt-ask-0.1.2", label: "Comment" });
+		expect(currentSubject(currentSubjectState.get())).toEqual({ id: "question-0.1.2", label: "Comment" });
 		expect(question.getAttribute("aria-current")).toBe("true");
 		expect(history.querySelectorAll("[aria-current]")).toHaveLength(1);
 	});
@@ -774,7 +778,7 @@ describe("the transcript of a conversation that branches", () => {
 		const { history } = await onTheBranchedSession();
 		otherBranchOn(history, "0.1.1")?.click();
 		expect(turnsShown(history)).toEqual([question("0.1.1"), question("0.1.3"), question("0.1.4")]);
-		expect(currentSubject(currentSubjectState.get())).toEqual({ id: "cmt-say-0.1.4", label: "Comment" });
+		expect(currentSubject(currentSubjectState.get())).toEqual({ id: "response-0.1.4", label: "Comment" });
 		await settle();
 		expect(otherBranchOn(history, "0.1.1")).not.toBeNull();
 	});

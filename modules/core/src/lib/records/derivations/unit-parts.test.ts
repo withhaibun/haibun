@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { referenceTo, WRITE_VERB } from "../domains/unit.js";
 import { EDGE_TARGET, edgeDeclarationsOf, type TPartDeclaration } from "./edge-declarations.js";
-import type { TRecordKey } from "../../domains/resources.js";
+import { SEQ_PATH_LABEL, type TRecordKey } from "../../domains/resources.js";
 import { changedFields, edgesAsNode, partDeclarationOf, unitParts } from "./unit-parts.js";
 import { contentAddress, contentHash } from "../../domains/content-address.js";
 
@@ -44,6 +44,7 @@ describe("the parts of a unit", () => {
 			},
 			undefined,
 			declarationOf,
+			undefined,
 		);
 		expect(unit.version, "a create states that the store doesn't hold the record").toBeNull();
 		expect(unit.parts.map(({ label, id }) => `${label} ${id}`)).toEqual([`${BODY} b1`, `${MESSAGE} m1`]);
@@ -65,6 +66,7 @@ describe("the parts of a unit", () => {
 			{ "@type": MESSAGE, id: "m2", subject: "two", from: ["Alice <alice>", referenceTo(PERSON, "alice")], to: ["Bob <bob>", referenceTo(PERSON, "bob")] },
 			undefined,
 			declarationOf,
+			undefined,
 		);
 		const [part] = unit.parts;
 		expect(part?.fields).toEqual({ id: "m2", subject: "two", from: "Alice <alice>", to: ["Bob <bob>"] });
@@ -73,52 +75,52 @@ describe("the parts of a unit", () => {
 	});
 
 	it("doesn't write a field or an edge for an empty list under an edge, and writes an empty field where the schema's field is a list", () => {
-		const [part] = unitParts(WRITE_VERB.merge, { "@type": MESSAGE, id: "m3", subject: "three", repliesTo: [], to: [] }, undefined, declarationOf).parts;
+		const [part] = unitParts(WRITE_VERB.merge, { "@type": MESSAGE, id: "m3", subject: "three", repliesTo: [], to: [] }, undefined, declarationOf, undefined).parts;
 		expect(part?.fields).toEqual({ id: "m3", subject: "three", to: [] });
 		expect(part?.edges).toEqual([]);
 	});
 
 	it("refuses several literals for a field of one value, and literals beside records where the schema doesn't hold the field", () => {
-		expect(() => unitParts(WRITE_VERB.merge, { "@type": MESSAGE, id: "m3", from: ["a", "b", referenceTo(PERSON, "alice")] }, undefined, declarationOf)).toThrow(
+		expect(() => unitParts(WRITE_VERB.merge, { "@type": MESSAGE, id: "m3", from: ["a", "b", referenceTo(PERSON, "alice")] }, undefined, declarationOf, undefined)).toThrow(
 			"Message's edge from holds 2 literals beside its records",
 		);
-		expect(() => unitParts(WRITE_VERB.merge, { "@type": MESSAGE, id: "m3", folder: ["inbox", referenceTo(FOLDER, "inbox")] }, undefined, declarationOf)).toThrow(
+		expect(() => unitParts(WRITE_VERB.merge, { "@type": MESSAGE, id: "m3", folder: ["inbox", referenceTo(FOLDER, "inbox")] }, undefined, declarationOf, undefined)).toThrow(
 			"its schema doesn't hold them as its field folder",
 		);
 	});
 
 	it("refuses a record embedded under an edge its type doesn't declare owns, and an edge the type doesn't declare", () => {
-		expect(() => unitParts(WRITE_VERB.merge, { "@type": MESSAGE, id: "m4", from: { "@type": PERSON, id: "alice", name: "Alice" } }, undefined, declarationOf)).toThrow(
+		expect(() => unitParts(WRITE_VERB.merge, { "@type": MESSAGE, id: "m4", from: { "@type": PERSON, id: "alice", name: "Alice" } }, undefined, declarationOf, undefined)).toThrow(
 			"which its type doesn't declare owns",
 		);
-		expect(() => unitParts(WRITE_VERB.merge, { "@type": MESSAGE, id: "m4", wroteBy: referenceTo(PERSON, "alice") }, undefined, declarationOf)).toThrow(
+		expect(() => unitParts(WRITE_VERB.merge, { "@type": MESSAGE, id: "m4", wroteBy: referenceTo(PERSON, "alice") }, undefined, declarationOf, undefined)).toThrow(
 			"Message doesn't declare the edge wroteBy",
 		);
 	});
 
 	it("refuses a reference that isn't a typed CURIE, that states its type beside its id, or that names a type its edge doesn't reach", () => {
-		const writing = (from: unknown) => () => unitParts(WRITE_VERB.merge, { "@type": MESSAGE, id: "m6", from }, undefined, declarationOf);
+		const writing = (from: unknown) => () => unitParts(WRITE_VERB.merge, { "@type": MESSAGE, id: "m6", from }, undefined, declarationOf, undefined);
 		expect(writing({ "@id": "alice" })).toThrow(`Message's edge from reaches ${PERSON} as Type:id, and its reference is "alice"`);
 		expect(writing({ "@type": PERSON, "@id": "alice" })).toThrow("Write the Person on its own, and reference it with referenceTo");
 		expect(writing(referenceTo(FOLDER, "alice"))).toThrow(`Message's edge from reaches ${PERSON} as Type:id, and its reference is "${FOLDER}:alice"`);
 	});
 
 	it("reads an id that holds colons after the type's prefix", () => {
-		const [part] = unitParts(WRITE_VERB.merge, { "@type": MESSAGE, id: "m7", from: referenceTo(PERSON, "did:example:a") }, undefined, declarationOf).parts;
+		const [part] = unitParts(WRITE_VERB.merge, { "@type": MESSAGE, id: "m7", from: referenceTo(PERSON, "did:example:a") }, undefined, declarationOf, undefined).parts;
 		expect(part?.edges.map(({ label, id }) => `${label} ${id}`)).toEqual([`${PERSON} did:example:a`]);
 	});
 
 	it("states the version an update read", () => {
-		expect(unitParts(WRITE_VERB.update, { "@type": MESSAGE, "@id": "m5", subject: "again" }, "7", declarationOf).version).toBe("7");
+		expect(unitParts(WRITE_VERB.update, { "@type": MESSAGE, "@id": "m5", subject: "again" }, "7", declarationOf, undefined).version).toBe("7");
 	});
 });
 
 describe("a text a type indexes by its digest", () => {
 	it("is written with its digest, and a part that doesn't state the text doesn't state a digest", () => {
 		const declared = partDeclarationOf({ id: "id", schema: z.object({ id: z.string(), line: z.string() }), edges: {}, digests: { line: "lineDigest" } });
-		const written = unitParts(WRITE_VERB.merge, { "@type": "Step", id: "s1", line: "passes" }, undefined, () => declared);
+		const written = unitParts(WRITE_VERB.merge, { "@type": "Step", id: "s1", line: "passes" }, undefined, () => declared, undefined);
 		expect(written.parts[0]?.fields).toEqual({ id: "s1", line: "passes", lineDigest: contentHash("passes") });
-		expect(unitParts(WRITE_VERB.merge, { "@type": "Step", id: "s1", other: 1 }, undefined, () => declared).parts[0]?.fields).toEqual({ id: "s1", other: 1 });
+		expect(unitParts(WRITE_VERB.merge, { "@type": "Step", id: "s1", other: 1 }, undefined, () => declared, undefined).parts[0]?.fields).toEqual({ id: "s1", other: 1 });
 	});
 });
 
@@ -129,16 +131,18 @@ describe("a record of a type that declares a key", () => {
 	const byMailboxOrName = keyed({ inverseFunctional: "email" }, { address: ["name"] });
 
 	it("is identified by the value of its inverse functional field, or the content address of its key's values", () => {
-		expect(unitParts(WRITE_VERB.create, { "@type": PERSON, email: "a@example.com", name: "A" }, undefined, () => byMailbox).record.id).toBe("a@example.com");
-		const addressed = unitParts(WRITE_VERB.create, { "@type": PERSON, email: "a@example.com", name: "A" }, undefined, () => byContent).record.id;
+		expect(unitParts(WRITE_VERB.create, { "@type": PERSON, email: "a@example.com", name: "A" }, undefined, () => byMailbox, undefined).record.id).toBe("a@example.com");
+		const addressed = unitParts(WRITE_VERB.create, { "@type": PERSON, email: "a@example.com", name: "A" }, undefined, () => byContent, undefined).record.id;
 		expect(addressed).toBe(contentAddress(PERSON, ["A", "a@example.com"]));
 		expect(addressed).toMatch(/^ni:\/\/\/sha-256;[\w-]{43}$/);
-		expect(unitParts(WRITE_VERB.merge, { "@type": PERSON, id: "a@example.com", email: "a@example.com", name: "A" }, undefined, () => byMailbox).record.id).toBe("a@example.com");
+		expect(unitParts(WRITE_VERB.merge, { "@type": PERSON, id: "a@example.com", email: "a@example.com", name: "A" }, undefined, () => byMailbox, undefined).record.id).toBe(
+			"a@example.com",
+		);
 	});
 
 	it("is identified by the first key whose fields it states", () => {
-		expect(unitParts(WRITE_VERB.create, { "@type": PERSON, email: "a@example.com", name: "A" }, undefined, () => byMailboxOrName).record.id).toBe("a@example.com");
-		expect(unitParts(WRITE_VERB.create, { "@type": PERSON, name: "A" }, undefined, () => byMailboxOrName).record.id).toBe(contentAddress(PERSON, ["A"]));
+		expect(unitParts(WRITE_VERB.create, { "@type": PERSON, email: "a@example.com", name: "A" }, undefined, () => byMailboxOrName, undefined).record.id).toBe("a@example.com");
+		expect(unitParts(WRITE_VERB.create, { "@type": PERSON, name: "A" }, undefined, () => byMailboxOrName, undefined).record.id).toBe(contentAddress(PERSON, ["A"]));
 	});
 
 	it("is identified within the record its key's edge names, by that record's type and id", () => {
@@ -149,31 +153,46 @@ describe("a record of a type that declares a key", () => {
 			edges: edgeDeclarationsOf({ wasDerivedFrom: { range: [MESSAGE, BODY], reference: true } }),
 		});
 		const named = (source: ReturnType<typeof referenceTo>) =>
-			unitParts(WRITE_VERB.create, { "@type": PERSON, name: "A", wasDerivedFrom: source }, undefined, () => bySource).record.id;
+			unitParts(WRITE_VERB.create, { "@type": PERSON, name: "A", wasDerivedFrom: source }, undefined, () => bySource, undefined).record.id;
 		expect(named(referenceTo(MESSAGE, "m1"))).toBe(contentAddress(PERSON, [`${MESSAGE}:m1`, "A"]));
+		expect(named([referenceTo(MESSAGE, "m1")] as unknown as ReturnType<typeof referenceTo>), "a list of the one target, as a read states it").toBe(
+			named(referenceTo(MESSAGE, "m1")),
+		);
 		expect(named(referenceTo(MESSAGE, "m2")), "a name in another record names another Person").not.toBe(named(referenceTo(MESSAGE, "m1")));
 		expect(named(referenceTo(BODY, "m1")), "a record of another type with the same id is another record").not.toBe(named(referenceTo(MESSAGE, "m1")));
 	});
 
+	it("is identified by the step in progress where its key reads the step that generated it, as the store's provenance states it", () => {
+		const byStep = partDeclarationOf({ id: "id", keys: [{ address: ["wasGeneratedBy", "name"] }], schema: z.object({ id: z.string(), name: z.string() }), edges: {} });
+		const written = (step: string | undefined) => unitParts(WRITE_VERB.create, { "@type": PERSON, name: "A" }, undefined, () => byStep, step).record.id;
+		expect(written("feature.0.1")).toBe(contentAddress(PERSON, [`${SEQ_PATH_LABEL}:feature.0.1`, "A"]));
+		expect(written("feature.0.2"), "a record another step writes is another record").not.toBe(written("feature.0.1"));
+		const stated = unitParts(WRITE_VERB.create, { "@type": PERSON, name: "A", wasGeneratedBy: referenceTo(SEQ_PATH_LABEL, "feature.0.1") }, undefined, () => byStep, "feature.0.2");
+		expect(stated.record.id, "a record that states its step is identified by that step").toBe(written("feature.0.1"));
+		expect(() => written(undefined), "outside a step").toThrow("this create doesn't state it");
+	});
+
 	it("refuses an id its writer states that the key doesn't derive, and a create or a merge of fields without the key", () => {
-		expect(() => unitParts(WRITE_VERB.create, { "@type": PERSON, id: "peer", email: "a@example.com", name: "A" }, undefined, () => byMailbox)).toThrow(
+		expect(() => unitParts(WRITE_VERB.create, { "@type": PERSON, id: "peer", email: "a@example.com", name: "A" }, undefined, () => byMailbox, undefined)).toThrow(
 			"a Person record's id is derived from its key email, which names a@example.com, and this record states the id peer. Leave the id out",
 		);
-		expect(() => unitParts(WRITE_VERB.create, { "@type": PERSON, id: "peer", name: "A" }, undefined, () => byMailbox)).toThrow(
+		expect(() => unitParts(WRITE_VERB.create, { "@type": PERSON, id: "peer", name: "A" }, undefined, () => byMailbox, undefined)).toThrow(
 			"a Person record is identified by its key email, and this create doesn't state it. State the key; the store derives the id",
 		);
-		expect(() => unitParts(WRITE_VERB.merge, { "@type": PERSON, "@id": "peer", name: "A" }, undefined, () => byMailbox)).toThrow("this merge doesn't state it");
+		expect(() => unitParts(WRITE_VERB.merge, { "@type": PERSON, "@id": "peer", name: "A" }, undefined, () => byMailbox, undefined)).toThrow("this merge doesn't state it");
 	});
 
 	it("names a held record by its id in an update, or in a write of its edges alone", () => {
-		expect(unitParts(WRITE_VERB.update, { "@type": PERSON, "@id": "a@example.com", name: "B" }, "1", () => byMailbox).record.id).toBe("a@example.com");
-		expect(unitParts(WRITE_VERB.merge, { "@type": PERSON, "@id": "a@example.com" }, undefined, () => byMailbox).record.id).toBe("a@example.com");
+		expect(unitParts(WRITE_VERB.update, { "@type": PERSON, "@id": "a@example.com", name: "B" }, "1", () => byMailbox, undefined).record.id).toBe("a@example.com");
+		expect(unitParts(WRITE_VERB.merge, { "@type": PERSON, "@id": "a@example.com" }, undefined, () => byMailbox, undefined).record.id).toBe("a@example.com");
+		const mentioning = { "@type": PERSON, "@id": "a@example.com", mentions: referenceTo(MESSAGE, "m1") };
+		expect(unitParts(WRITE_VERB.merge, mentioning, undefined, () => byMailbox, undefined).record.id, "and in a write of a vocabulary edge alone").toBe("a@example.com");
 	});
 });
 
 describe("a part's changed fields", () => {
 	it("are the fields whose values differ from what the store holds, and a null where the store holds a value", () => {
-		const [part] = unitParts(WRITE_VERB.merge, { "@type": BODY, id: "b2", content: "new", stale: null, kept: 1 }, undefined, declarationOf).parts;
+		const [part] = unitParts(WRITE_VERB.merge, { "@type": BODY, id: "b2", content: "new", stale: null, kept: 1 }, undefined, declarationOf, undefined).parts;
 		if (part === undefined) throw new Error("the unit holds its record's part");
 		expect(changedFields(part, { id: "b2", content: "old", stale: "x", kept: 1 }, "id")).toEqual(["content", "stale"]);
 		expect(changedFields(part, undefined, "id"), "every stated field of a record the store doesn't hold").toEqual(["content", "kept"]);

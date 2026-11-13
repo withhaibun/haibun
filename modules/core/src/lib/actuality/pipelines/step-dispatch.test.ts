@@ -643,9 +643,9 @@ describe("step-dispatch", () => {
 			const caller = { registry, world, steppers };
 			const delegated = { capabilityAction: RUN_AUTHORITY, held: RUN_AUTHORITY, delegation: { label: "Capability", id: "urn:uuid:a-delegation" }, attributedTo: "a-model" };
 			const greeting = buildFeatureStepForTransport(toolOf("PlainStepper-greet"), { name: "Ada" }, [0, 30, 1]);
-			await runReadingAt(Access.public, () => runInCall({ ...inCall(), ...delegated, ask: "cmt-ask-1" }, () => dispatchStep(caller, greeting)));
+			await runReadingAt(Access.public, () => runInCall({ ...inCall(), ...delegated, ask: "question-1" }, () => dispatchStep(caller, greeting)));
 			expect(await fieldOf([0, 30, 1], SEQ_PATH_FIELD.params), "the call's parameters").toBe('{"name":"Ada"}');
-			expect(await fieldOf([0, 30, 1], SEQ_PATH_EDGE.askedIn), "the ask it ran under").toBe("cmt-ask-1");
+			expect(await fieldOf([0, 30, 1], SEQ_PATH_EDGE.askedIn), "the ask it ran under").toBe("question-1");
 			expect(await fieldOf([0, 30, 1], SEQ_PATH_FIELD.attributedTo), "the agent its caller names").toBe("a-model");
 			expect(await fieldOf([0, 30, 1], SEQ_PATH_EDGE.delegation), "an edge to the record of the delegation its caller names").toBe("urn:uuid:a-delegation");
 			expect(await fieldOf([0, 30, 1], LinkRelations.ACCESS_LEVEL.rel), "the read level of the call").toBe(Access.public);
