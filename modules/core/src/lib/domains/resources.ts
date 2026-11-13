@@ -629,8 +629,19 @@ export type TTermPropertyDef = { rel: TRel; iri: string };
 export type TPropertyDef = TRel | TContentPropertyDef | TTermPropertyDef;
 
 export function isContentPropertyDef(def: TPropertyDef | undefined): def is TContentPropertyDef {
-	return typeof def === "object" && def !== null && def.rel === "content";
+	return typeof def === "object" && def !== null && def.rel === "content" && "mediaType" in def;
 }
+
+/** A content field a type declares: the field, the media type of the form it holds, and the kind of the Body that holds the form,
+ *  where the type states one. */
+export type TContentField = { field: string; mediaType: string; kind?: string };
+
+/** Returns the content fields a type's properties declare. A store writes the text of each as a form of a Body the record owns.
+ *  Every store then holds a record's content in its Bodies. */
+export const contentFieldsOf = (properties: Readonly<Record<string, TPropertyDef>>): TContentField[] =>
+	Object.entries(properties).flatMap(([field, def]) =>
+		isContentPropertyDef(def) ? [{ field, mediaType: def.mediaType, ...(def.kind === undefined ? {} : { kind: def.kind }) }] : [],
+	);
 
 /** Returns the edges a topology declares. A type with a content property owns the Bodies a write partitions its content into,
  *  through `hasBody`, where its topology doesn't declare that edge. */
@@ -1009,8 +1020,8 @@ export const PRINCIPAL_LABEL = "Principal";
 /** The domain selector. It differs from the runtime "principal" key (see lib/principal.ts) to avoid a collision. */
 export const PRINCIPAL_DOMAIN = "principal-individual";
 
-/** The Comment's topology. It uses existing LinkRelations for every property and doesn't introduce rels. A Comment's write
- *  names its Body by the Body its `body` field declares, and its keys derive its id. */
+/** The Comment's topology. It uses existing LinkRelations for every property and doesn't introduce rels. A Comment's `body` field
+ *  is its Body's text, and its keys derive its id. */
 export const COMMENT_TOPOLOGY: THypermediaTopology = {
 	persistedAs: COMMENT_LABEL,
 	accessLevel: Access.private,
@@ -1020,8 +1031,8 @@ export const COMMENT_TOPOLOGY: THypermediaTopology = {
 	subClassOf: ["oa:Annotation", PROV_ENTITY],
 	id: "id",
 	// A comment that carries a record, as a measure carries its observation, is the one comment that carries it. Another comment is
-	// the one its author wrote in the step that wrote it.
-	keys: [{ address: [LinkRelations.ATTACHMENT.rel] }, { address: [LinkRelations.WAS_GENERATED_BY.rel, "author"] }],
+	// the one its author wrote with its text in the step that wrote it.
+	keys: [{ address: [LinkRelations.ATTACHMENT.rel] }, { address: [LinkRelations.WAS_GENERATED_BY.rel, "author", "body"] }],
 	properties: {
 		id: LinkRelations.IDENTIFIER.rel,
 		name: LinkRelations.NAME.rel,

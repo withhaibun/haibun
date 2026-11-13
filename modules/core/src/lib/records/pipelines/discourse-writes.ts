@@ -6,7 +6,6 @@
 import { fromJsonText } from "../../domains/json-text.js";
 import {
 	COMMENT_LABEL,
-	COMMENT_TOPOLOGY,
 	LinkRelations,
 	READING_LABEL,
 	ReadingSchema,
@@ -26,9 +25,6 @@ import type { TLinkVocabulary, TTypedLinkFact } from "../../domains/typed-links.
 import { recordOf, type TRecordReader } from "./record-reads.js";
 import type { IQuadStore } from "../../steps/ports.js";
 import { referenceTo } from "../domains/unit.js";
-import { MEDIA_TYPE } from "../../domains/media-types.js";
-import { DEFAULT_BODY_KIND, bodyIdOf, bodyKindsOf } from "../derivations/bodies.js";
-import { derivedId } from "../derivations/unit-parts.js";
 
 /** The store a reading writes and reads: the discourse writes and the read of records. */
 type TReadingStore = TDiscourseStore & TRecordReader & Pick<IQuadStore, "readRecord">;
@@ -117,20 +113,10 @@ export async function readProseLinks(store: TReadingStore, vocab: TLinkVocabular
 	await readTypedLinks(store, vocab, source, prose, { seqPath: step, facts });
 }
 
-/** The forms of the one Body a Comment's topology declares. */
-const COMMENT_BODY = bodyKindsOf(COMMENT_LABEL, COMMENT_TOPOLOGY.properties).get(DEFAULT_BODY_KIND);
-
-/** Returns the id of the Comment `commentId`'s Body. Throws where the Comment's topology doesn't declare its Body. */
-export function commentBodyIdOf(commentId: string): string {
-	if (COMMENT_BODY === undefined) throw new Error(`${COMMENT_LABEL}'s topology doesn't declare a ${DEFAULT_BODY_KIND} content field for its text. Declare its body field`);
-	return bodyIdOf(commentId, DEFAULT_BODY_KIND, COMMENT_BODY);
-}
-
 /** Creates a Comment individual that owns its markdown body as a Body, with the period it describes and the edges `stated` adds,
- *  and returns its id. `step` is the record name of the step that writes it, which with its author is the Comment's key, so the
- *  Comment names its Body by the id its key derives. The `comment` and `annotate` acts both call it. `name` titles the node by the
- *  truncated note text and not by its id. The note is markdown, so readTypedLinks derives the facts its links state with the
- *  Comment as their subject. */
+ *  and returns its id. `step` is the record name of the step that writes it, which with its author and its text is the Comment's
+ *  key. The `comment` and `annotate` acts both call it. `name` titles the node by the truncated note text and not by its id. The
+ *  note is markdown, so readTypedLinks derives the facts its links state with the Comment as their subject. */
 export async function createComment(
 	store: TReadingStore,
 	vocab: TLinkVocabulary,
@@ -139,15 +125,14 @@ export async function createComment(
 	stated?: { start?: string; end?: string; edges?: Readonly<Record<string, unknown>> },
 	provenance?: { seqPath?: string },
 ): Promise<string> {
-	const keyed = { author: written.author, [LinkRelations.WAS_GENERATED_BY.rel]: referenceTo(SEQ_PATH_LABEL, written.step) };
-	const commentId = derivedId(COMMENT_LABEL, COMMENT_TOPOLOGY.keys, keyed);
-	await store.create({
+	const commentId = await store.create({
 		"@type": COMMENT_LABEL,
-		...keyed,
+		author: written.author,
+		[LinkRelations.WAS_GENERATED_BY.rel]: referenceTo(SEQ_PATH_LABEL, written.step),
+		body: text,
 		...(stated?.start ? { startedAtTime: stated.start } : {}),
 		...(stated?.end ? { endedAtTime: stated.end } : {}),
 		name: commentName(text),
-		[LinkRelations.HAS_BODY.rel]: { id: commentBodyIdOf(commentId), content: text, mediaType: MEDIA_TYPE.markdown },
 		...stated?.edges,
 	});
 	await readTypedLinks(store, vocab, { label: COMMENT_LABEL, id: commentId }, text, provenance);

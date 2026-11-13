@@ -31,7 +31,9 @@ import {
 	type TRecordType,
 } from "../domains/quad-types.js";
 import type { IQuadStore, TFederatedGraphSource, TStoreLevels } from "../ports.js";
-import { AccessLevelSchema, HELD_BY, LinkRelations, withinAccess, type AccessLevel, type AccessQueryLevel } from "../../domains/resources.js";
+import { AccessLevelSchema, BODY_LABEL, HELD_BY, LinkRelations, withinAccess, type AccessLevel, type AccessQueryLevel } from "../../domains/resources.js";
+import { formsOfBody, keptBodyFields } from "../../records/derivations/bodies.js";
+import { withBodies, withOwnerLevels } from "../../records/derivations/unit-bodies.js";
 import { seenAt, writesAtEveryLevel, writtenAt } from "../../domains/actions.js";
 import {
 	distinctOf,
@@ -76,7 +78,7 @@ import {
 } from "../../records/derivations/unit-parts.js";
 import { RecordVersions } from "../../records/pipelines/record-versions.js";
 import { assertWritesWithin } from "../../records/pipelines/step-writes.js";
-import type { TPartChanges } from "../../records/derivations/contract-writes.js";
+import { contractChangesOf, type TPartChanges } from "../../records/derivations/contract-writes.js";
 import { withProvenance, type TProvenance } from "../../records/derivations/provenance.js";
 
 /**
@@ -334,14 +336,17 @@ export class QuadStore implements IQuadStore {
 	 * never reads a unit that is half written.
 	 */
 	private async writeUnit(verb: TWriteVerb, node: TNode, version: TReadVersion | undefined, through: (store: IQuadStore) => Promise<string>): Promise<string> {
-		const unit = unitParts(verb, node, version, this.partDeclaration, this.levels?.currentStep());
+		const unit = withBodies(unitParts(verb, node, version, this.partDeclaration, this.levels?.currentStep()), this.partDeclaration);
 		for (const part of unit.parts) this.refuseDerived(part.label);
 		const backing = this.backingOf(unit);
 		if (backing) return await through(backing);
 		// A target a backing store holds is read there, so a unit whose targets this layer holds is applied without an await.
 		for (const edge of this.unheldTargets(unit)) if ((await this.storeFor(edge.label)?.versionOf(edge)) === null) unheldTarget(unit.record, edge);
 		this.versions.check([{ name: unit.record, version: unit.version, held: this.holds(unit.record) }]);
-		const parts = unit.parts.map((part) => ({ part, held: this.holds(part) }));
+		const parts = withOwnerLevels(
+			unit.parts.map((part) => ({ part: this.keepingForms(part), held: this.holds(part) })),
+			({ part }) => this.writtenLevelOf(part),
+		);
 		if (this.levels)
 			assertWritesWithin(
 				parts.map(({ part }) => this.partChanges(part)),
@@ -383,7 +388,25 @@ export class QuadStore implements IQuadStore {
 		const held = [...this.quads.ofSubject(part.label, part.id)];
 		const fields = Object.fromEntries(held.filter((q) => !q.objectType).map((q) => [q.predicate, q.object]));
 		const edges = part.edges.filter(({ rel, id }) => !held.some((q) => q.objectType !== undefined && q.predicate === rel && q.object === id)).map(({ rel }) => rel);
-		return { label: part.label, id: part.id, changed: [...changedFields(part, held.length === 0 ? undefined : fields, this.idFieldOf(part.label)), ...edges] };
+		return contractChangesOf(part, [...changedFields(part, held.length === 0 ? undefined : fields, this.idFieldOf(part.label)), ...edges]);
+	}
+
+	/** Returns the level of a part's record as this store writes it: the level the part states, else the level of the record this
+	 *  store's own layer holds, else the level its type declares within the caller's write bound. A store without levels doesn't
+	 *  state one. */
+	private writtenLevelOf(part: TPart): AccessLevel | undefined {
+		const stated = part.fields.accessLevel;
+		const [held] = this.quads.ofSubject(part.label, part.id);
+		const level = stated === undefined || stated === null ? held?.accessLevel : AccessLevelSchema.parse(stated);
+		return this.levels ? writtenAt(level, this.levels.declared(part.label), this.levels.writeBound()) : level;
+	}
+
+	/** Returns a Body part as it writes over the Body this store's own layer holds: it keeps each held form the part doesn't state.
+	 *  A write of one form of a Body of several then keeps the others. Any other part is returned as it is. */
+	private keepingForms(part: TPart): TPart {
+		if (part.label !== BODY_LABEL || !this.holds(part)) return part;
+		const held = Object.fromEntries([...this.quads.ofSubject(part.label, part.id)].filter((q) => !q.objectType).map((q) => [q.predicate, q.object]));
+		return { ...part, fields: keptBodyFields(part.fields, formsOfBody(held), `Body "${part.id}"`) };
 	}
 
 	/** Returns the version of a record's fields: in the backing store of its type, or in this store's own layer. */

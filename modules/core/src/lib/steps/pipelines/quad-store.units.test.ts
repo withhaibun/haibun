@@ -36,12 +36,20 @@ const edgesOf = async (store: QuadStore, label: string, id: string, rel: string)
 	(await store.query({ subject: id, predicate: rel, namedGraph: label })).map(({ object, objectType }) => [object, objectType]);
 
 describe("a unit the in-memory store writes", () => {
-	it("holds the records its node embeds under an owns edge, its record and its edges, and returns the id of its record", async () => {
+	it("holds the text of a content field as a Body its record owns, its record and its edge to the Body, and returns the id of its record", async () => {
 		const store = storeOfDomains([commentDomainDefinition, bodyDomainDefinition], TEST_LEVELS);
-		const body = { id: "body-c1", content: "the note", mediaType: "text/markdown", accessLevel: Access.private };
-		const id = await inTestStep("0.1", () => store.create({ "@type": COMMENT_LABEL, author: "did:example:a", accessLevel: Access.private, [LinkRelations.HAS_BODY.rel]: body }));
-		expect(await recordOf(store, BODY_LABEL, "body-c1"), "the Body it owns").toMatchObject({ content: "the note" });
-		expect(await edgesOf(store, COMMENT_LABEL, id, LinkRelations.HAS_BODY.rel)).toEqual([["body-c1", BODY_LABEL]]);
+		const id = await inTestStep("0.1", () => store.create({ "@type": COMMENT_LABEL, author: "did:example:a", accessLevel: Access.private, body: "the note" }));
+		const edges = await edgesOf(store, COMMENT_LABEL, id, LinkRelations.HAS_BODY.rel);
+		expect(
+			edges.map(([, label]) => label),
+			"one Body",
+		).toEqual([BODY_LABEL]);
+		expect(await recordOf(store, BODY_LABEL, String(edges[0]?.[0])), "the Body it owns").toMatchObject({
+			content: "the note",
+			mediaType: "text/markdown",
+			accessLevel: Access.private,
+		});
+		expect(await recordOf(store, COMMENT_LABEL, id), "the record doesn't hold the text as a field").not.toHaveProperty("body");
 	});
 
 	it("writes the edges of a node that names a record the store doesn't hold by its id alone, without the provenance of a record", async () => {
@@ -58,7 +66,7 @@ describe("a unit the in-memory store writes", () => {
 	it("refuses a unit whose owned record its type's schema refuses, and doesn't hold the record that owns it", async () => {
 		const store = storeOfDomains([commentDomainDefinition, bodyDomainDefinition], TEST_LEVELS);
 		await expect(
-			inTestStep("0.1", () => store.create({ "@type": COMMENT_LABEL, author: "did:example:a", [LinkRelations.HAS_BODY.rel]: { id: "body-c1", content: 7 } })),
+			inTestStep("0.1", () => store.create({ "@type": COMMENT_LABEL, author: "did:example:a", body: "the note", [LinkRelations.HAS_BODY.rel]: { id: "body-c1", content: 7 } })),
 		).rejects.toThrow();
 		expect(await store.query({ namedGraph: COMMENT_LABEL }), "the Comment").toEqual([]);
 	});

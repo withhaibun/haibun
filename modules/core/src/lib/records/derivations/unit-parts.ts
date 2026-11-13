@@ -13,6 +13,7 @@ import type { z } from "zod";
 import { unwrap, unwrapToShape, zodTypeLabel } from "../../domains/zod-unwrap.js";
 import type { TReadDeclaration } from "./read-records.js";
 import { edgeWriteOf, type TEdgeDeclaration, type TEdgeWrite, type TPartDeclaration } from "./edge-declarations.js";
+import type { TPartChanges } from "./contract-writes.js";
 import {
 	NODE_KEY,
 	recordOfCurie,
@@ -35,7 +36,13 @@ export type TUnitEdge = TEdgeWrite & { readonly rel: string; readonly label: str
 /** One record a unit writes: its type, its id, the fields the node states, a null removing a field, and its edges. A part whose
  *  node names its record by `@id` alone writes its edges, and a store that doesn't hold the record holds a reference in its place
  *  until a write of the record replaces it. `iri` is the `@id` the node states, which a page holds with the record it served. */
-export type TPart = TRecordName & { readonly fields: Readonly<Record<string, unknown>>; readonly edges: readonly TUnitEdge[]; readonly iri?: string };
+export type TPart = TRecordName & {
+	readonly fields: Readonly<Record<string, unknown>>;
+	readonly edges: readonly TUnitEdge[];
+	readonly iri?: string;
+	/** The record and the content fields a Body holds, for a Body the unit writes from a record's content fields. */
+	readonly contentOf?: TPartChanges;
+};
 
 /** A unit as a store writes it: the verb, the version of its record the verb states (null for a record the store doesn't hold,
  *  undefined where the verb doesn't depend on a read), its record, and its parts in the order a store writes them, the record's
@@ -289,8 +296,15 @@ const schemaFields = new WeakMap<z.ZodType, Pick<TPartDeclaration, "fields" | "l
 
 /** Returns what a write reads of a type's read declaration: its id field, its schema's fields, those that hold a list, and its
  *  edges. */
-export function partDeclarationOf({ id, keys, schema, edges, digests }: Pick<TReadDeclaration, "id" | "keys" | "schema" | "edges" | "digests">): TPartDeclaration {
-	const digested = { ...(digests === undefined ? {} : { digests }), ...(keys === undefined ? {} : { keys }) };
+export function partDeclarationOf({
+	id,
+	keys,
+	schema,
+	edges,
+	digests,
+	contents,
+}: Pick<TReadDeclaration, "id" | "keys" | "schema" | "edges" | "digests" | "contents">): TPartDeclaration {
+	const digested = { ...(digests === undefined ? {} : { digests }), ...(keys === undefined ? {} : { keys }), ...(contents === undefined ? {} : { contents }) };
 	if (schema === undefined) return { id, fields: undefined, lists: new Set(), edges, ...digested };
 	let held = schemaFields.get(schema);
 	if (held === undefined) {

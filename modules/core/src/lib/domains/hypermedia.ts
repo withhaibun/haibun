@@ -225,10 +225,15 @@ export const JSON_LD_KEYWORD = "@";
  *  link in a text states it. */
 export const isVocabularyEdge = (edge: string): boolean => getRelRange(edge) === "iri";
 
+/** Returns whether a record of the type `surface` describes can hold the edge: its type declares the edge, or the shared vocabulary
+ *  holds it. A read of a record's edges reads only these relations. */
+export const holdsEdge = ({ references }: TQuerySurface, edge: string): boolean => edge in references || isVocabularyEdge(edge);
+
 /** Throws where a type's surface doesn't declare the edge a write states and the shared vocabulary doesn't hold it, so a record
  *  holds only the edges its type or the vocabulary declares. */
-export function assertDeclaredEdge({ label, references }: TQuerySurface, edge: string): void {
-	if (edge in references || isVocabularyEdge(edge)) return;
+export function assertDeclaredEdge(surface: TQuerySurface, edge: string): void {
+	if (holdsEdge(surface, edge)) return;
+	const { label, references } = surface;
 	const declared = Object.keys(references);
 	throw new Error(
 		`${label} doesn't declare the edge ${edge}, so a ${label} record doesn't hold it. Declare the edge in the type's topology, or write an edge it declares (${declared.length === 0 ? "it doesn't declare an edge" : declared.join(", ")}).`,

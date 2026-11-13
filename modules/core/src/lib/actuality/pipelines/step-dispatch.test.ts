@@ -31,6 +31,8 @@ import { DomainKeySchema } from "../../domains/domains.js";
 import { StepMethodSchema } from "../../steps/domains/step-method.js";
 import { TEST_STEP } from "../../test/test-step.js";
 import { WRITE_VERB } from "../../records/domains/unit.js";
+import { bodyByMediaType } from "../../records/pipelines/body-reads.js";
+import { MEDIA_TYPE } from "../../domains/media-types.js";
 
 // --- Test Steppers ---
 
@@ -640,17 +642,19 @@ describe("step-dispatch", () => {
 				return tool;
 			};
 			const fieldOf = (path: number[], field: string) => world.shared.getStore().get(formatRecordName({ actuality: actualityFeatureOf(world.tag), path }), field, SEQ_PATH_LABEL);
+			const bodyOf = (path: number[], mediaType: string) =>
+				bodyByMediaType(world.shared.getStore(), { label: SEQ_PATH_LABEL, id: formatRecordName({ actuality: actualityFeatureOf(world.tag), path }) }, mediaType);
 			const caller = { registry, world, steppers };
 			const delegated = { capabilityAction: RUN_AUTHORITY, held: RUN_AUTHORITY, delegation: { label: "Capability", id: "urn:uuid:a-delegation" }, attributedTo: "a-model" };
 			const greeting = buildFeatureStepForTransport(toolOf("PlainStepper-greet"), { name: "Ada" }, [0, 30, 1]);
 			await runReadingAt(Access.public, () => runInCall({ ...inCall(), ...delegated, ask: "question-1" }, () => dispatchStep(caller, greeting)));
-			expect(await fieldOf([0, 30, 1], SEQ_PATH_FIELD.params), "the call's parameters").toBe('{"name":"Ada"}');
+			expect(await bodyOf([0, 30, 1], MEDIA_TYPE.json), "the call's parameters").toBe('{"name":"Ada"}');
 			expect(await fieldOf([0, 30, 1], SEQ_PATH_EDGE.askedIn), "the ask it ran under").toBe("question-1");
 			expect(await fieldOf([0, 30, 1], SEQ_PATH_FIELD.attributedTo), "the agent its caller names").toBe("a-model");
 			expect(await fieldOf([0, 30, 1], SEQ_PATH_EDGE.delegation), "an edge to the record of the delegation its caller names").toBe("urn:uuid:a-delegation");
 			expect(await fieldOf([0, 30, 1], LinkRelations.ACCESS_LEVEL.rel), "the read level of the call").toBe(Access.public);
 			await runAuthorizedWith(RUN_AUTHORITY, () => dispatchStep(caller, buildFeatureStepForTransport(toolOf("ProductStepper-getCount"), {}, [0, 30, 2])));
-			expect(JSON.parse(String(await fieldOf([0, 30, 2], SEQ_PATH_FIELD.result))), "the result it read back").toMatchObject({ count: 42 });
+			expect(JSON.parse(String(await bodyOf([0, 30, 2], MEDIA_TYPE.plain))), "the result it read back").toMatchObject({ count: 42 });
 			expect(await fieldOf([0, 30, 2], LinkRelations.ACCESS_LEVEL.rel), "actuality's own call reads at private").toBe(Access.private);
 			const refused = buildFeatureStepForTransport(toolOf("CapabilityStepper-protectedPing"), {}, [0, 30, 3]);
 			await expect(dispatchStep({ registry, world, steppers }, refused)).rejects.toThrow(/capability CapabilityStepper:protected required/);

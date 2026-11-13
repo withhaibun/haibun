@@ -35,12 +35,14 @@ import {
 } from "../../steps/domains/quad-types.js";
 import {
 	AccessQuery,
+	contentFieldsOf,
 	LinkRelations,
 	isPersisted,
 	sortFieldOf,
 	statedLevel,
 	topologyEdges,
 	type THeldBy,
+	type TContentField,
 	type TRecordKey,
 	type TRecordNamespace,
 	type TRegisteredDomain,
@@ -73,6 +75,8 @@ export type TReadDeclaration = {
 	digests?: Readonly<Record<string, string>>;
 	/** The keys a record's id is derived from, where the type declares them. */
 	keys?: readonly TRecordKey[];
+	/** The content fields the type declares, where it declares one. */
+	contents?: readonly TContentField[];
 };
 
 /** What a store reads by: the types and relations it holds, each type's declaration, and the `@id` a read states for each record
@@ -105,6 +109,7 @@ export function readDeclarationsOf(domains: Record<string, TRegisteredDomain>, r
 		const { id, heldBy, digests, keys } = domain.topology;
 		const title = titledByOf(domain.topology);
 		const unique = uniqueFieldsOf(label, domain.topology);
+		const contents = contentFieldsOf(domain.topology.properties);
 		return {
 			id,
 			surface: querySurface(domain),
@@ -116,6 +121,7 @@ export function readDeclarationsOf(domains: Record<string, TRegisteredDomain>, r
 			...(unique.length > 0 ? { unique } : {}),
 			...(digests === undefined ? {} : { digests }),
 			...(keys === undefined ? {} : { keys }),
+			...(contents.length === 0 ? {} : { contents }),
 		};
 	};
 	const declarations: TReadDeclarations = {

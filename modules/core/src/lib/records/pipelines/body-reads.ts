@@ -8,13 +8,14 @@ import { MEDIA_TYPE } from "../../domains/media-types.js";
 import { BodyTextSchema, LinkedBodySchema, type TLinkedBody } from "../domains/body.js";
 import { formIn, linkedBodiesOf } from "../derivations/bodies.js";
 import { maximalText } from "../derivations/body-text.js";
-import { readUpTo, recordOf, unitOf, type TRecordReader } from "./record-reads.js";
+import { readUpTo, unitOf, type TRecordReader } from "./record-reads.js";
 
-/** Reads the bodies one record owns, with their text, in one read of the record's unit. Returns an empty list where the store
- *  doesn't hold the record at the level. */
+/** Reads the bodies of one record, with their text, in one read of the record's unit: the bodies it owns, or a Body itself. Returns
+ *  an empty list where the store doesn't hold the record at the level. */
 export async function unitBodiesOf(store: TRecordReader, label: string, id: string, accessLevel?: AccessQueryLevel): Promise<TLinkedBody[]> {
 	const unit = await unitOf(store, label, id, accessLevel);
-	return unit === undefined ? [] : linkedBodiesOf(unit);
+	if (unit === undefined) return [];
+	return label === BODY_LABEL ? [LinkedBodySchema.parse({ ...unit, id })] : linkedBodiesOf(unit);
 }
 
 /** Returns the first of `bodies` that holds a form in the first of `mediaTypes` any of them holds. */
@@ -71,15 +72,6 @@ export async function bodyTextsOf(store: TRecordReader, recordOfBody: ReadonlyMa
 	return texts;
 }
 
-/**
- * Reads one record's markdown text. Returns the record's `body` or `content` field where the store holds the text in the
- * record, and the record's markdown body otherwise. Returns undefined where the store doesn't hold the record or its
- * markdown.
- */
-export async function markdownOf(store: TRecordReader, label: string, id: string): Promise<string | undefined> {
-	const held = await recordOf(store, label, id);
-	if (!held) return undefined;
-	const inline = held.body ?? held.content;
-	if (typeof inline === "string") return inline;
-	return bodyByMediaType(store, { label, id }, MEDIA_TYPE.markdown);
-}
+/** Reads one record's markdown text: the form in markdown of a Body it owns. Returns undefined where the store doesn't hold the
+ *  record or its markdown. */
+export const markdownOf = (store: TRecordReader, label: string, id: string): Promise<string | undefined> => bodyByMediaType(store, { label, id }, MEDIA_TYPE.markdown);

@@ -6,7 +6,7 @@ import type { z } from "zod";
 import { querySurface, REACHED_BY } from "../domains/hypermedia.js";
 import { QuadStore, newStoreChain } from "../steps/pipelines/quad-store.js";
 import type { TStoreLevels } from "../steps/ports.js";
-import { Access, HAIBUN_RECORD_NAMESPACE, isPersisted, LinkRelations, type TDomainDefinition, type TRecordKey } from "../domains/resources.js";
+import { Access, contentFieldsOf, HAIBUN_RECORD_NAMESPACE, isPersisted, LinkRelations, type TContentField, type TDomainDefinition, type TRecordKey } from "../domains/resources.js";
 import { accessBound, inCall, inStep, runInCall, writeBound, writesInFlight } from "../domains/capability-context.js";
 import { stepRecordInFlight } from "../actuality/domains/step-in-flight.js";
 import { formatRecordName } from "../actuality/domains/seq-path.js";
@@ -29,6 +29,8 @@ export type TDeclaredType = {
 	edges?: Readonly<Record<string, TEdgeDeclaration>>;
 	/** The keys a record's id is derived from, where the type declares them. */
 	keys?: readonly TRecordKey[];
+	/** The content fields the type declares, where it declares one. */
+	contents?: readonly TContentField[];
 };
 
 /** Returns read declarations of the types `types` names. Each type's id field is the one it names or `id`, its filters
@@ -58,6 +60,7 @@ export function declaredTypes(types: Record<string, TDeclaredType>): TReadDeclar
 				...(type.schema === undefined ? {} : { schema: type.schema }),
 				...(type.unique === undefined ? {} : { unique: type.unique }),
 				...(type.keys === undefined ? {} : { keys: type.keys }),
+				...(type.contents === undefined ? {} : { contents: type.contents }),
 			};
 		},
 	};
@@ -66,6 +69,7 @@ export function declaredTypes(types: Record<string, TDeclaredType>): TReadDeclar
 /** Returns the test declaration of a persisted type its definition declares: its id field, the edges its topology declares and its schema. */
 export function declaredTypeOf({ schema, topology }: TDomainDefinition): [string, TDeclaredType] {
 	if (!isPersisted(topology)) throw new Error("a test declares a persisted type, and this definition doesn't persist one. Pass a persisted type's definition.");
+	const contents = contentFieldsOf(topology.properties);
 	return [
 		topology.persistedAs,
 		{
@@ -74,6 +78,7 @@ export function declaredTypeOf({ schema, topology }: TDomainDefinition): [string
 			schema,
 			edges: edgeDeclarationsOf(topology.edges),
 			...(topology.keys === undefined ? {} : { keys: topology.keys }),
+			...(contents.length === 0 ? {} : { contents }),
 		},
 	];
 }

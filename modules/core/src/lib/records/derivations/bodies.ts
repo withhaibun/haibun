@@ -6,8 +6,8 @@
 import { referencedName } from "../domains/unit.js";
 import { z } from "zod";
 import { MEDIA_TYPE } from "../../domains/media-types.js";
-import { HAS_BODY_EDGE, isContentPropertyDef, type TPropertyDef, type TRepresentation } from "../../domains/resources.js";
-import { BODY_ID_PREFIX, LinkedBodySchema, type TBodyText, type TLinkedBody } from "../domains/body.js";
+import { HAS_BODY_EDGE, contentFieldsOf, type TContentField, type TPropertyDef, type TRepresentation } from "../../domains/resources.js";
+import { BODY_ID_PREFIX, BodyTextSchema, LinkedBodySchema, type TBodyText, type TLinkedBody } from "../domains/body.js";
 
 /**
  * The order of preference among the forms of one text. Markdown comes first because it carries the structure without the
@@ -63,21 +63,20 @@ export const bodyIdOf = (parentId: string, kind: string, declared: readonly TBod
  * is read.
  */
 export function bodyKindsOf(label: string, properties: Readonly<Record<string, TPropertyDef>>): Map<string, TBodyForm[]> {
-	const kinds = new Map<string, TBodyForm[]>();
-	for (const [field, def] of Object.entries(properties)) {
-		if (!isContentPropertyDef(def)) continue;
-		const kind = def.kind === undefined ? DEFAULT_BODY_KIND : def.kind;
-		const held = kinds.get(kind);
-		const form = { field, mediaType: def.mediaType };
-		if (held === undefined) kinds.set(kind, [form]);
-		else held.push(form);
-	}
-	for (const [kind, forms] of kinds)
+	return formsByKind(label, contentFieldsOf(properties));
+}
+
+/** Returns each Body a type's content fields hold, by its kind, with the content field of each of its forms. A field that doesn't
+ *  state its kind is a form of the default Body. Throws where a kind's forms don't let `preferredMediaType` choose its text. */
+export function formsByKind(label: string, fields: readonly TContentField[]): Map<string, TBodyForm[]> {
+	const kinds = Map.groupBy(fields, ({ kind }) => (kind === undefined ? DEFAULT_BODY_KIND : kind));
+	const forms = new Map([...kinds].map(([kind, held]) => [kind, held.map(({ field, mediaType }) => ({ field, mediaType }))]));
+	for (const [kind, held] of forms)
 		preferredMediaType(
-			forms.map(({ mediaType }) => mediaType),
+			held.map(({ mediaType }) => mediaType),
 			`${label}'s Body "${kind}"`,
 		);
-	return kinds;
+	return forms;
 }
 
 /** Returns the Body that holds `forms`: its text is the form `preferredMediaType` chooses, and each other form is a
@@ -91,6 +90,22 @@ export function bodyOfForms(forms: readonly TRepresentation[], of: string): TBod
 	if (text === undefined) throw new Error(`${of}'s preferred form ${mediaType} isn't among its forms`);
 	const representations = forms.filter((form) => form !== text);
 	return representations.length === 0 ? { mediaType, content: text.content } : { mediaType, content: text.content, representations };
+}
+
+/** Returns the forms a Body's fields hold: its text, then each representation. */
+export const formsOfBody = (fields: Readonly<Record<string, unknown>>): TRepresentation[] => {
+	const { mediaType, content, representations } = BodyTextSchema.parse(fields);
+	return [{ mediaType, content }, ...(representations === undefined ? [] : representations)];
+};
+
+/** Returns the fields that a write of a Body states over the forms `held` that the store holds: each form the write states, and each
+ *  held form in another media type. A write of one form of a Body of several then keeps the others. `of` names the Body in a
+ *  refusal. */
+export function keptBodyFields(stated: Readonly<Record<string, unknown>>, held: readonly TRepresentation[], of: string): Readonly<Record<string, unknown>> {
+	if (stated.content === undefined) return stated;
+	const forms = formsOfBody(stated);
+	const kept = held.filter((form) => !forms.some(({ mediaType }) => mediaType === form.mediaType));
+	return kept.length === 0 ? stated : { ...stated, ...bodyOfForms([...forms, ...kept], of) };
 }
 
 /** One form of a Body, with its text where the record carries it. */
