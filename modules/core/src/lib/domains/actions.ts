@@ -218,6 +218,19 @@ export function delegatedActions(delegation: { allowedAction?: unknown }): TActi
 	return z.array(ActionSchema).parse(listed === undefined ? [EVERY_ACTION] : (Array.isArray(listed) ? listed : [listed]).filter((action) => typeof action === "string"));
 }
 
+/** The type a deployment records a ZCAP-LD capability as, a root or a delegation. */
+export const CAPABILITY_LABEL = "Capability";
+
+/** What identifies a capability's record. A delegation is the content address of its parent, the key that signs it, its
+ *  controller, its target, the actions it allows, its expiry and the time its proof states it was signed, which its signer
+ *  states as its id before signing, since ZCAP-LD lets a delegation's signer state any absolute URI. Two signings of the same
+ *  terms are two delegations, each revoked apart. A root is identified by the id it states, which ZCAP-LD derives from its
+ *  target (`urn:zcap:root:`). */
+export const CAPABILITY_KEYS = [
+	{ address: ["parentCapability", "delegator", "controller", "invocationTarget", "allowedAction", "expires", "generatedAtTime"] },
+	{ inverseFunctional: "id" },
+] as const;
+
 /** Returns the `allowedAction` that a delegation of `actions` lists. It is undefined where `actions` includes
  *  `EVERY_ACTION`, since zcap-LD narrows a delegation by the exact actions its parent lists and reads a listed `*` as an
  *  action's name. */

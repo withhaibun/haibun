@@ -28,7 +28,7 @@ import type { IQuadStore } from "../../steps/ports.js";
 import { referenceTo } from "../domains/unit.js";
 import { MEDIA_TYPE } from "../../domains/media-types.js";
 import { DEFAULT_BODY_KIND, bodyIdOf, bodyKindsOf } from "../derivations/bodies.js";
-import { keyedId } from "../derivations/unit-parts.js";
+import { derivedId } from "../derivations/unit-parts.js";
 
 /** The store a reading writes and reads: the discourse writes and the read of records. */
 type TReadingStore = TDiscourseStore & TRecordReader & Pick<IQuadStore, "readRecord">;
@@ -140,8 +140,7 @@ export async function createComment(
 	provenance?: { seqPath?: string },
 ): Promise<string> {
 	const keyed = { author: written.author, [LinkRelations.WAS_GENERATED_BY.rel]: referenceTo(SEQ_PATH_LABEL, written.step) };
-	const commentId = COMMENT_TOPOLOGY.keys && keyedId(COMMENT_LABEL, COMMENT_TOPOLOGY.keys, keyed);
-	if (commentId === undefined) throw new Error(`${COMMENT_LABEL}'s keys don't read its author and the step that writes it. Declare that key`);
+	const commentId = derivedId(COMMENT_LABEL, COMMENT_TOPOLOGY.keys, keyed);
 	await store.create({
 		"@type": COMMENT_LABEL,
 		...keyed,

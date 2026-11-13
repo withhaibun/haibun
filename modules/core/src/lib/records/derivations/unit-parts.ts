@@ -105,6 +105,15 @@ export function keyedId(label: string, keys: readonly TRecordKey[], node: Readon
 	return value;
 }
 
+/** Returns the id a `label` record's keys derive from a node, as `keyedId` does, for a writer that names the record before it writes
+ *  it. Throws where the type doesn't declare keys, or the node doesn't state every field of any key. */
+export function derivedId(label: string, keys: readonly TRecordKey[] | undefined, node: Readonly<Record<string, unknown>>): string {
+	if (keys === undefined) throw new Error(`${label}'s type doesn't declare keys, so a writer doesn't derive a ${label} record's id. Declare its keys`);
+	const id = keyedId(label, keys, node);
+	if (id === undefined) throw new Error(`a ${label} record is identified by its key ${keysNamed(keys)}, and this record doesn't state it. State the key`);
+	return id;
+}
+
 /**
  * Returns the id of a node's record. A type that declares keys identifies a record by the id its keys derive: a node that states
  * a key's fields is written under that id, and a node that states another id is refused. A node that doesn't state a key's fields

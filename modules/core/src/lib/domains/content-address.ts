@@ -18,18 +18,24 @@ export function contentHash(text: string): string {
 		.replace(/=+$/, "");
 }
 
-/** Returns a JSON value with each object's members in the order of their names' UTF-16 code units. ECMAScript's JSON.stringify
- *  writes strings and numbers as RFC 8785 states them, so the JSON text of the sorted value is the canonical form. */
+/** Returns whether a value states its JSON form through `toJSON`, as a Date does. */
+const statesJson = (value: object): value is { toJSON: () => unknown } => typeof (value as { toJSON?: unknown }).toJSON === "function";
+
+/** Returns a JSON value with each object's members in the order of their names' UTF-16 code units, and a value that states its
+ *  JSON form, such as a Date, as that form. ECMAScript's JSON.stringify writes strings and numbers as RFC 8785 states them, so
+ *  the JSON text of the sorted value is the canonical form. */
 const sorted = (value: unknown): unknown =>
 	Array.isArray(value)
 		? value.map(sorted)
-		: typeof value === "object" && value !== null
-			? Object.fromEntries(
-					Object.keys(value)
-						.sort()
-						.map((name) => [name, sorted((value as Record<string, unknown>)[name])]),
-				)
-			: value;
+		: typeof value === "object" && value !== null && statesJson(value)
+			? sorted(value.toJSON())
+			: typeof value === "object" && value !== null
+				? Object.fromEntries(
+						Object.keys(value)
+							.sort()
+							.map((name) => [name, sorted((value as Record<string, unknown>)[name])]),
+					)
+				: value;
 
 /** Returns the content address of a `label` record whose key's fields state `values`, in the key's order. */
 export const contentAddress = (label: string, values: readonly unknown[]): string => `${NAMED_INFORMATION_SHA256}${contentHash(JSON.stringify(sorted([label, ...values])))}`;

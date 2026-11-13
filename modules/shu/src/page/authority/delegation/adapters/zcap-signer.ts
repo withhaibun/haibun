@@ -19,13 +19,13 @@ import type { TDelegationSigner } from "../ports.js";
 export function zcapDelegationSigner(): TDelegationSigner {
 	let registered = false;
 	return {
-		sign: async (document, parent, key) => {
+		sign: async (document, parent, key, signedAt) => {
 			if (!registered) {
 				for (const bundled of [dataIntegrityContext, securityContext, multikeyContext, zcapContext, didContext])
 					for (const [url, context] of bundled.contexts) registerContext(url, context);
 				registered = true;
 			}
-			const suite = new DataIntegrityProof({ signer: { id: key.keyId, algorithm: "P-256", sign: key.sign }, cryptosuite: ecdsaRdfc2019Cryptosuite });
+			const suite = new DataIntegrityProof({ signer: { id: key.keyId, algorithm: "P-256", sign: key.sign }, date: signedAt, cryptosuite: ecdsaRdfc2019Cryptosuite });
 			const purpose = new CapabilityDelegation({ parentCapability: parent, allowTargetAttenuation: true });
 			return await jsigs.sign({ "@context": zcapConstants.ZCAP_CONTEXT_URL, ...document }, { suite, purpose, documentLoader: extendDocumentLoader(documentLoader) });
 		},

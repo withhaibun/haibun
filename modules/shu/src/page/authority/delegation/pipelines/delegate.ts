@@ -1,9 +1,11 @@
 /**
  * Signs a delegation the page gives from one it holds, which states what a turn the page sends may do. zcap-LD narrows a
  * delegation by the exact actions its parent lists, so for each requested action the page delegates the action of its own
- * delegation that allows it, and a delegation it gives expires at or before its parent's expiry.
+ * delegation that allows it, and a delegation it gives expires at or before its parent's expiry. Its id is the one its record's
+ * keys derive.
  */
 import { narrowing } from "@haibun/core/lib/domains/actions.js";
+import { delegationIdOf, signingTime } from "@haibun/core/lib/records/derivations/delegation-id.js";
 import { pageAuthority, pageSigner, type TAuthorityScope } from "../../pipelines/page-authority.js";
 import type { TDelegationSigner } from "../ports.js";
 
@@ -19,13 +21,13 @@ export async function delegateFromPage(scope: TAuthorityScope, signer: TDelegati
 	const narrowed = narrowing(authority.delegations, to);
 	if (!narrowed) throw new Error(`this page doesn't hold a delegation that allows everything the delegation it gives needs: ${to.wanted.join(", ")}`);
 	const { parent, allowedAction, expires } = narrowed;
-	const document = {
-		id: `urn:uuid:${crypto.randomUUID()}`,
+	const delegation = {
 		controller: to.controller,
 		parentCapability: String(parent.id),
 		invocationTarget: String(parent.invocationTarget),
 		...(allowedAction ? { allowedAction } : {}),
 		expires,
 	};
-	return await signer.sign(document, parent, key);
+	const signedAt = signingTime(new Date());
+	return await signer.sign({ id: delegationIdOf(delegation, key.controller, signedAt), ...delegation }, parent, key, signedAt);
 }

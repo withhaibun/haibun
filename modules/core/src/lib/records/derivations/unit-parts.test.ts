@@ -3,7 +3,7 @@ import { z } from "zod";
 import { referenceTo, WRITE_VERB } from "../domains/unit.js";
 import { EDGE_TARGET, edgeDeclarationsOf, type TPartDeclaration } from "./edge-declarations.js";
 import { SEQ_PATH_LABEL, type TRecordKey } from "../../domains/resources.js";
-import { changedFields, edgesAsNode, partDeclarationOf, unitParts } from "./unit-parts.js";
+import { changedFields, derivedId, edgesAsNode, partDeclarationOf, unitParts } from "./unit-parts.js";
 import { contentAddress, contentHash } from "../../domains/content-address.js";
 
 const MESSAGE = "Message";
@@ -180,6 +180,20 @@ describe("a record of a type that declares a key", () => {
 			"a Person record is identified by its key email, and this create doesn't state it. State the key; the store derives the id",
 		);
 		expect(() => unitParts(WRITE_VERB.merge, { "@type": PERSON, "@id": "peer", name: "A" }, undefined, () => byMailbox, undefined)).toThrow("this merge doesn't state it");
+	});
+
+	it("is identified by the same content address where a key's field states a time as a Date or as its ISO text", () => {
+		const byTime = partDeclarationOf({ id: "id", keys: [{ address: ["name", "at"] }], schema: z.object({ id: z.string(), name: z.string(), at: z.coerce.date() }), edges: {} });
+		const at = new Date("2026-11-13T12:00:00.000Z");
+		const written = (stated: unknown) => unitParts(WRITE_VERB.create, { "@type": PERSON, name: "A", at: stated }, undefined, () => byTime, undefined).record.id;
+		expect(written(at)).toBe(written(at.toISOString()));
+		expect(written(new Date(at.getTime() + 1)), "a record of another time is another record").not.toBe(written(at));
+	});
+
+	it("is named before its write by the id its keys derive, and a writer that doesn't state a key's fields is refused", () => {
+		expect(derivedId(PERSON, [{ address: ["name"] }], { name: "A" })).toBe(contentAddress(PERSON, ["A"]));
+		expect(() => derivedId(PERSON, [{ address: ["name"] }], { email: "a@example.com" })).toThrow("a Person record is identified by its key name, and this record doesn't state it");
+		expect(() => derivedId(PERSON, undefined, { name: "A" })).toThrow("Person's type doesn't declare keys");
 	});
 
 	it("names a held record by its id in an update, or in a write of its edges alone", () => {
