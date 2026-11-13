@@ -12,6 +12,7 @@ import { describe, it, expect } from "vitest";
 import { CAPTURE, DEFAULT_DEST, OK } from "@haibun/core/lib/domains/protocol.js";
 import { getDefaultWorld, getTestWorldWithOptions } from "@haibun/core/lib/test/lib.js";
 import { relative, resolve } from "path";
+import type { TFeatureStep } from "@haibun/core/lib/astepper.js";
 import type { AStorage } from "../domains/storage.js";
 
 /**
@@ -114,6 +115,28 @@ export function describeStorage(name: string, make: () => AStorage, root: string
 			expect(storage.removeArtifactFile(storage.getWorld().tag.key, escaping), "a path that climbs out of the directory").toEqual(refusal);
 			expect(storage.removeArtifactFile(storage.getWorld().tag.key, outsideFile), "an absolute path").toEqual(refusal);
 			expect(storage.exists(outsideFile)).toBe(true);
+		});
+
+		it("verifies a storage entry exists and emits an artifact for image files", async () => {
+			const storage = withWorld(make());
+			const events: unknown[] = [];
+			storage.getWorld().eventLogger.artifact = (artifact: unknown) => events.push(artifact);
+			storage.mkdirp(at("checked"));
+			storage.writeFileBuffer(at("checked/photo.png"), Buffer.from("png data"));
+			storage.writeFileBuffer(at("checked/notes.txt"), Buffer.from("text data"));
+
+			const mockStep = { seqPath: ["test", "step"] } as unknown as TFeatureStep;
+			const missing = await storage.steps.fileExists.action({ what: at("checked/missing.png") }, mockStep);
+			expect(missing).toMatchObject({ ok: false });
+
+			const textResult = await storage.steps.fileExists.action({ what: at("checked/notes.txt") }, mockStep);
+			expect(textResult).toEqual(OK);
+			expect(events.length).toBe(0);
+
+			const imgResult = await storage.steps.fileExists.action({ what: at("checked/photo.png") }, mockStep);
+			expect(imgResult).toEqual(OK);
+			expect(events.length).toBe(1);
+			expect((events[0] as { mimetype: string }).mimetype).toBe("image/png");
 		});
 	});
 }

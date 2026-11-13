@@ -6,7 +6,8 @@ import { isAbsolute, resolve, relative, sep } from "path";
 import { z } from "zod";
 import { CAPTURE, ImageArtifact, OK } from "@haibun/core/lib/domains/protocol.js";
 import { captureLocator } from "@haibun/core/lib/domains/capture-locator.js";
-import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
+import { isImageFormat } from "@haibun/core/lib/domains/media-types.js";
+import { mediaTypeForPath } from "@haibun/core/lib/domains/media-type-extensions.js";
 import type { TModuleOptions, TBaseOptions } from "@haibun/core/lib/world.js";
 import type { TTag } from "@haibun/core/lib/domains/ttag.js";
 import type { IFile, TStorageFiles } from "../ports.js";
@@ -232,11 +233,11 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 			action: ({ what }: { what: string }, featureStep: TFeatureStep) => {
 				const found = this.entryPath(what);
 				if (found === undefined) return Promise.resolve(actionNotOK(`file ${what} does not exist`));
-				if (what.endsWith(".png") || what.endsWith(".jpg") || what.endsWith(".jpeg") || what.endsWith(".webp")) {
+				const mediaType = mediaTypeForPath(what);
+				if (mediaType !== undefined && isImageFormat(mediaType)) {
 					const world = this.getWorld();
 					const basePath = this.getArtifactBasePath();
 					const baseRelativePath = relative(resolve(basePath), resolve(found));
-					const mimetype = what.endsWith(".png") ? MEDIA_TYPE.png : what.endsWith(".webp") ? MEDIA_TYPE.webp : MEDIA_TYPE.jpeg;
 					const artifact = ImageArtifact.parse({
 						id: `${featureStep.seqPath.join(".")}.artifact.0`,
 						timestamp: Date.now(),
@@ -244,7 +245,7 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 						artifactType: "image",
 						path: baseRelativePath,
 						featureRelativePath: `./image/${what}`,
-						mimetype,
+						mimetype: mediaType,
 					});
 					world.eventLogger.artifact(artifact);
 				}

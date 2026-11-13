@@ -4,6 +4,7 @@
  * A binary response's bytes are saved to storage on disk, and HTTP_RESPONSE holds only the link to that artifact.
  */
 import { isImageFormat, MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
+import { extensionForMediaType } from "@haibun/core/lib/domains/media-type-extensions.js";
 import { artifactAddress } from "@haibun/core/lib/domains/run-artifact.js";
 import { trackOutboundRequest } from "@haibun/core/lib/pipelines/http-observations.js";
 import type { TFeatureStep } from "@haibun/core/lib/astepper.js";
@@ -28,17 +29,6 @@ const JSON_CONTENT = { "Content-Type": MEDIA_TYPE.json };
 
 /** What an HTTP request reads and writes through: the session, the world that keeps the last response, the storage for binary artifacts, and the fetch port. */
 export type TRestContext = { session: BrowserSession; world: TWorld; storage?: AStorage; fetch: TPageFetch };
-
-/** The file extension for a binary response's media type. */
-function extensionForMediaType(mediaType: string): string {
-	const rawSubtype = mediaType.split("/")[1];
-	const subtype = rawSubtype === undefined ? "" : rawSubtype;
-	const rawBase = subtype.split("+")[0]?.replace(/[^\w.-]/g, "");
-	const base = rawBase === undefined ? "" : rawBase;
-	if (base === "jpeg") return "jpg";
-	if (base === "octet-stream" || base === "") return "bin";
-	return base;
-}
 
 /** The value of an Authorization header that sends `credentials` under `scheme`. Throws where Basic credentials aren't one user:password. */
 export function authorization(scheme: TAuthorizationScheme, credentials: string): string {
