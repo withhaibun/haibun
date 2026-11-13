@@ -43,6 +43,7 @@
 		"./lib/run-artifact.js": { "haibun-source": "./src/lib/domains/run-artifact.js", "default": "./build/lib/domains/run-artifact.js" },
 		"./lib/authority-types.js": { "haibun-source": "./src/lib/domains/authority-types.js", "default": "./build/lib/domains/authority-types.js" },
 		"./lib/media-types.js": { "haibun-source": "./src/lib/domains/media-types.js", "default": "./build/lib/domains/media-types.js" },
+		"./lib/media-type-extensions.js": { "haibun-source": "./src/lib/domains/media-type-extensions.js", "default": "./build/lib/domains/media-type-extensions.js" },
 		"./lib/host-id.js": { "haibun-source": "./src/lib/domains/host-id.js", "default": "./build/lib/domains/host-id.js" },
 		"./lib/media-object.js": { "haibun-source": "./src/lib/domains/media-object.js", "default": "./build/lib/domains/media-object.js" },
 		"./lib/principal-individual.js": { "haibun-source": "./src/lib/domains/principal-individual.js", "default": "./build/lib/domains/principal-individual.js" },
