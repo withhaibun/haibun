@@ -214,7 +214,7 @@
 			"actuality": {
 				"text": "e2e-tests/shu-self-test, node_modules/@haibun/web-playwright/waypoints, node_modules/@haibun/shu/waypoints",
 				"status": "passed",
-				"tookMs": 73200,
+				"tookMs": 75900,
 				"digest": {
 					"e2e-tests/shu-self-test": "51023da34b0cd35354839ac39facf3cceb7db986fc9084739d9883341e3adc4d",
 					"modules/core/src": "492a32f7be55d208242c2c1cd5319d5506647632ead392e27a5b034e17707efe",
@@ -234,13 +234,13 @@
 				"/features/shu-self-test.feature.ts": {
 					"text": "Shu SPA Self-Test",
 					"status": "passed",
-					"tookMs": 70000,
+					"tookMs": 72600,
 					"steps": 700
 				},
 				"/features/z-post.feature.ts": {
 					"text": "Verify Shu Standalone Output Doesn't Hold Secrets",
 					"status": "passed",
-					"tookMs": 300,
+					"tookMs": 200,
 					"steps": 8
 				}
 			}

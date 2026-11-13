@@ -544,7 +544,7 @@
 			"actuality": {
 				"text": "e2e-tests/requirements, node_modules/@haibun/cli/waypoints, node_modules/@haibun/logic/waypoints, node_modules/@haibun/core/waypoints",
 				"status": "passed",
-				"tookMs": 50000,
+				"tookMs": 52200,
 				"digest": {
 					"e2e-tests/requirements": "b6a39098586928b263392204426cf08815707a144eb6d6e92d8cc8475f3c6ee1",
 					"e2e-tests/src": "6b6b58f64026ff1c6202081ed15de0151412fbf6e53077e108c5c044692afeba",
@@ -572,13 +572,13 @@
 				"/features/01-prose-and-steps.feature.ts": {
 					"text": "Prose and steps",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 700,
 					"steps": 26
 				},
 				"/features/02-authority.feature.ts": {
 					"text": "Capabilities authorize every call",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 600,
 					"steps": 59
 				},
 				"/features/03-activities.feature.ts": {
@@ -596,19 +596,19 @@
 				"/features/05-goals.feature.ts": {
 					"text": "Goals over producer rules",
 					"status": "passed",
-					"tookMs": 1700,
+					"tookMs": 1900,
 					"steps": 41
 				},
 				"/features/06-world-and-products.feature.ts": {
 					"text": "The world's data and a step's products",
 					"status": "passed",
-					"tookMs": 400,
+					"tookMs": 500,
 					"steps": 21
 				},
 				"/features/07-records.feature.ts": {
 					"text": "Records, events and actualities",
 					"status": "passed",
-					"tookMs": 2000,
+					"tookMs": 2100,
 					"steps": 33
 				},
 				"/features/08-timing.feature.ts": {
@@ -644,7 +644,7 @@
 				"/features/13-conjunctions.feature.ts": {
 					"text": "Conjunctions",
 					"status": "passed",
-					"tookMs": 100,
+					"tookMs": 200,
 					"steps": 18
 				},
 				"/features/14-model-loop.feature.ts": {
@@ -656,13 +656,13 @@
 				"/features/15-combined-statements.feature.ts": {
 					"text": "Combined statements",
 					"status": "passed",
-					"tookMs": 400,
+					"tookMs": 500,
 					"steps": 44
 				},
 				"/features/16-class-expressions.feature.ts": {
 					"text": "Class expressions",
 					"status": "passed",
-					"tookMs": 40800,
+					"tookMs": 42100,
 					"steps": 93
 				}
 			}
