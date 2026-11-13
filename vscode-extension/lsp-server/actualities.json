@@ -53,11 +53,11 @@
 			"actuality": {
 				"text": "vscode-extension/lsp-server",
 				"status": "passed",
-				"tookMs": 0,
+				"tookMs": 100,
 				"digest": {
-					"modules/core/src": "53e04089b47aee0f5f492f378999ba7299ea54ff8a55828310e864145ecaad74",
+					"modules/core/src": "ca1e1aa82462c519daeff62c0b8f9a521ae95348d58bf345e9a3a98d4548b9ad",
 					"modules/logic/src": "cd9e0b3c82855c60903d2abbd8168bef39e444663eee0d87419a994e7d00e2e9",
-					"modules/lsp/src": "34c561bc372e56bb9e5073f10eea2a5ef089540a42e3775332dd4051933f8200",
+					"modules/lsp/src": "13a4b52e40b5182c9f30053e2d296b2ceaa6b0a1b7aea20d3f18d9e8fcfafadc",
 					"vscode-extension/lsp-server": "d551206d22fffaf8f4bff8d8a234b6c2d1d0fb2d3e359df0f107bd9dfe68c45c"
 				}
 			},
