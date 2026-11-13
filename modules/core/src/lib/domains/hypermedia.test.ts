@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
-import { buildConcernCatalog, composeDisplayLabel, composeTitle, digestedFilters, indexedFields, MAX_DISPLAY_LABEL_LEN, queryableFields, textDigest } from "./hypermedia.js";
+import { buildConcernCatalog, composeDisplayLabel, composeTitle, digestedFilters, indexedFields, MAX_DISPLAY_LABEL_LEN, queryableFields } from "./hypermedia.js";
+import { contentHash } from "./content-address.js";
 import type { TDomainDefinition, THypermediaTopology } from "./resources.js";
 import { mapDefinitionsToDomains } from "./domains.js";
 import { Access, isPersisted, LinkRelations, commentDomainDefinition } from "./resources.js";
@@ -292,16 +293,16 @@ describe("a text a type indexes by its digest", () => {
 
 	it("is an indexed field, whose digest is the same for the same text and differs for another", () => {
 		expect(indexedFields(topology)).toEqual(["id", "called", "lineDigest", "line"]);
-		expect(textDigest("passes")).toBe(textDigest("passes"));
-		expect(textDigest("passes")).toMatch(/^[0-9a-f]{16}$/);
-		expect(textDigest("passes")).not.toBe(textDigest("fails"));
+		expect(contentHash("passes")).toBe(contentHash("passes"));
+		expect(contentHash("passes")).toMatch(/^[\w-]{43}$/);
+		expect(contentHash("passes")).not.toBe(contentHash("fails"));
 	});
 
 	it("is filtered for equality by its digest, and a comparison that orders it is refused", () => {
 		const called = { predicate: "called", operator: "eq" as const, value: "A.b" };
 		expect(digestedFilters(topology, [called, { predicate: "line", operator: "eq", value: "passes" }])).toEqual([
 			called,
-			{ predicate: "lineDigest", operator: "eq", value: textDigest("passes") },
+			{ predicate: "lineDigest", operator: "eq", value: contentHash("passes") },
 		]);
 		expect(() => digestedFilters(topology, [{ predicate: "line", operator: "gt", value: "a" }])).toThrow(
 			"Step indexes line by its digest, so a filter compares it with is, not gt",

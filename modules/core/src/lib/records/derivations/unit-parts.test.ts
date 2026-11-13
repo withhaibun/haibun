@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { referenceTo, WRITE_VERB } from "../domains/unit.js";
 import { EDGE_TARGET, edgeDeclarationsOf, type TPartDeclaration } from "./edge-declarations.js";
+import type { TRecordKey } from "../../domains/resources.js";
 import { changedFields, edgesAsNode, partDeclarationOf, unitParts } from "./unit-parts.js";
-import { textDigest } from "../../domains/hypermedia.js";
+import { contentAddress, contentHash } from "../../domains/content-address.js";
 
 const MESSAGE = "Message";
 const PERSON = "Person";
@@ -116,8 +117,43 @@ describe("a text a type indexes by its digest", () => {
 	it("is written with its digest, and a part that doesn't state the text doesn't state a digest", () => {
 		const declared = partDeclarationOf({ id: "id", schema: z.object({ id: z.string(), line: z.string() }), edges: {}, digests: { line: "lineDigest" } });
 		const written = unitParts(WRITE_VERB.merge, { "@type": "Step", id: "s1", line: "passes" }, undefined, () => declared);
-		expect(written.parts[0]?.fields).toEqual({ id: "s1", line: "passes", lineDigest: textDigest("passes") });
+		expect(written.parts[0]?.fields).toEqual({ id: "s1", line: "passes", lineDigest: contentHash("passes") });
 		expect(unitParts(WRITE_VERB.merge, { "@type": "Step", id: "s1", other: 1 }, undefined, () => declared).parts[0]?.fields).toEqual({ id: "s1", other: 1 });
+	});
+});
+
+describe("a record of a type that declares a key", () => {
+	const keyed = (...keys: TRecordKey[]) => partDeclarationOf({ id: "id", keys, schema: z.object({ id: z.string(), email: z.string(), name: z.string() }), edges: {} });
+	const byMailbox = keyed({ inverseFunctional: "email" });
+	const byContent = keyed({ address: ["name", "email"] });
+	const byMailboxOrName = keyed({ inverseFunctional: "email" }, { address: ["name"] });
+
+	it("is identified by the value of its inverse functional field, or the content address of its key's values", () => {
+		expect(unitParts(WRITE_VERB.create, { "@type": PERSON, email: "a@example.com", name: "A" }, undefined, () => byMailbox).record.id).toBe("a@example.com");
+		const addressed = unitParts(WRITE_VERB.create, { "@type": PERSON, email: "a@example.com", name: "A" }, undefined, () => byContent).record.id;
+		expect(addressed).toBe(contentAddress(PERSON, ["A", "a@example.com"]));
+		expect(addressed).toMatch(/^ni:\/\/\/sha-256;[\w-]{43}$/);
+		expect(unitParts(WRITE_VERB.merge, { "@type": PERSON, id: "a@example.com", email: "a@example.com", name: "A" }, undefined, () => byMailbox).record.id).toBe("a@example.com");
+	});
+
+	it("is identified by the first key whose fields it states", () => {
+		expect(unitParts(WRITE_VERB.create, { "@type": PERSON, email: "a@example.com", name: "A" }, undefined, () => byMailboxOrName).record.id).toBe("a@example.com");
+		expect(unitParts(WRITE_VERB.create, { "@type": PERSON, name: "A" }, undefined, () => byMailboxOrName).record.id).toBe(contentAddress(PERSON, ["A"]));
+	});
+
+	it("refuses an id its writer states that the key doesn't derive, and a create or a merge of fields without the key", () => {
+		expect(() => unitParts(WRITE_VERB.create, { "@type": PERSON, id: "peer", email: "a@example.com", name: "A" }, undefined, () => byMailbox)).toThrow(
+			"a Person record's id is derived from its key email, which names a@example.com, and this record states the id peer. Leave the id out",
+		);
+		expect(() => unitParts(WRITE_VERB.create, { "@type": PERSON, id: "peer", name: "A" }, undefined, () => byMailbox)).toThrow(
+			"a Person record is identified by its key email, and this create doesn't state it. State the key; the store derives the id",
+		);
+		expect(() => unitParts(WRITE_VERB.merge, { "@type": PERSON, "@id": "peer", name: "A" }, undefined, () => byMailbox)).toThrow("this merge doesn't state it");
+	});
+
+	it("names a held record by its id in an update, or in a write of its edges alone", () => {
+		expect(unitParts(WRITE_VERB.update, { "@type": PERSON, "@id": "a@example.com", name: "B" }, "1", () => byMailbox).record.id).toBe("a@example.com");
+		expect(unitParts(WRITE_VERB.merge, { "@type": PERSON, "@id": "a@example.com" }, undefined, () => byMailbox).record.id).toBe("a@example.com");
 	});
 });
 

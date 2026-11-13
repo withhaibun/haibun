@@ -1,5 +1,5 @@
 /** Declares what a write reads of a type's declaration. A store derives a unit's parts from it. */
-import { RESOURCE_LABEL } from "../../domains/resources.js";
+import { RESOURCE_LABEL, type TRecordKey } from "../../domains/resources.js";
 
 /** Whether an edge's target is a record the store holds or the unit writes, or a record the store may not hold yet. A store
  *  refuses a unit whose edge to a held target reaches a record the store doesn't hold and the unit doesn't write. */
@@ -30,6 +30,8 @@ export type TPartDeclaration = {
 	readonly edges: Readonly<Record<string, TEdgeDeclaration>>;
 	/** Each text field whose digest a write states, with the field that holds it. */
 	readonly digests?: Readonly<Record<string, string>>;
+	/** The keys a record's id is derived from, where the type declares them. */
+	readonly keys?: readonly TRecordKey[];
 };
 
 /** Returns the edge declarations of a topology's edges, as a write reads them. A range of `Resource`, the root type, reaches a

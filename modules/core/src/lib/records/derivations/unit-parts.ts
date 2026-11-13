@@ -7,13 +7,26 @@
  * declares `functional` replaces the record's edge to any other, and an edge to an owned part reaches the part the unit writes. A node that embeds a record under an edge its type
  * doesn't declare `owns` is refused.
  */
-import { isVocabularyEdge, textDigest } from "../../domains/hypermedia.js";
+import { isVocabularyEdge } from "../../domains/hypermedia.js";
 import { recordOfIri } from "./record-iri.js";
 import type { z } from "zod";
 import { unwrap, unwrapToShape, zodTypeLabel } from "../../domains/zod-unwrap.js";
 import type { TReadDeclaration } from "./read-records.js";
 import { edgeWriteOf, type TEdgeDeclaration, type TEdgeWrite, type TPartDeclaration } from "./edge-declarations.js";
-import { NODE_KEY, recordOfCurie, referenceTo, statedVersion, type TNode, type TReadVersion, type TRecordName, type TReference, type TWriteVerb } from "../domains/unit.js";
+import {
+	NODE_KEY,
+	recordOfCurie,
+	referenceTo,
+	statedVersion,
+	WRITE_VERB,
+	type TNode,
+	type TReadVersion,
+	type TRecordName,
+	type TReference,
+	type TWriteVerb,
+} from "../domains/unit.js";
+import { contentAddress, contentHash } from "../../domains/content-address.js";
+import type { TRecordKey } from "../../domains/resources.js";
 
 /** An edge a part writes from its record: the relation, the type and the id of the record it reaches, whether that record is held
  *  or a reference, and whether the edge replaces the record's earlier edges of the relation. */
@@ -39,14 +52,64 @@ const VOCABULARY_EDGE: TEdgeDeclaration = { ranges: [], owns: false, reference: 
 /** Returns the id an `@id` names: the id of the record IRI it states, or the id it states where it isn't a record IRI. */
 const namedId = (iri: unknown): unknown => recordOfIri(iri)?.id ?? iri;
 
-/** Returns the id a node states in its type's id field, or as its `@id`, which a write of its edges alone states. Throws where it
- *  doesn't state one, or states two that differ. */
-function idOf(node: Readonly<Record<string, unknown>>, label: string, idField: string): string {
+/** Returns the id a node states in its type's id field, or as its `@id`, which a write of its edges alone states, or undefined
+ *  where it doesn't state one. Throws where it states two that differ, or an id that isn't a text or a number. */
+function statedIdOf(node: Readonly<Record<string, unknown>>, label: string, idField: string): string | undefined {
 	const [field, keyword] = [node[idField], namedId(node[NODE_KEY.id])];
 	const id = field === undefined ? keyword : field;
+	if (id === undefined) return undefined;
 	if ((typeof id !== "string" && typeof id !== "number") || String(id).trim() === "" || (keyword !== undefined && String(keyword) !== String(id)))
 		throw new Error(`a ${label} record is identified by its "${idField}" field or its "${NODE_KEY.id}", and this record doesn't state one id: ${JSON.stringify([field, keyword])}`);
 	return String(id);
+}
+
+/** Returns the fields a key reads. */
+const keyFieldsOf = (key: TRecordKey): readonly string[] => ("inverseFunctional" in key ? [key.inverseFunctional] : key.address);
+
+/** Returns the keys a refusal names: each key's fields, the keys apart. */
+const keysNamed = (keys: readonly TRecordKey[]): string => keys.map((key) => keyFieldsOf(key).join(" and ")).join(", or ");
+
+/** Returns a value of a key's field as its content address reads it: a reference as the id it names, and a list of values each so. */
+const keyValueOf = (value: unknown): unknown =>
+	Array.isArray(value) ? value.map(keyValueOf) : isReference(value) ? (recordOfCurie(value[NODE_KEY.id])?.id ?? value[NODE_KEY.id]) : value;
+
+/** Returns the id a `label` record's keys derive from a node, through the first key whose fields the node states: the value of its
+ *  inverse functional field, or the content address of the values of its fields. Returns undefined where the node doesn't state
+ *  every field of any key. */
+export function keyedId(label: string, keys: readonly TRecordKey[], node: Readonly<Record<string, unknown>>): string | undefined {
+	const key = keys.find((declared) => keyFieldsOf(declared).every((field) => node[field] !== undefined && node[field] !== null));
+	if (key === undefined) return undefined;
+	const values = keyFieldsOf(key).map((field) => keyValueOf(node[field]));
+	if ("address" in key) return contentAddress(label, values);
+	const [value] = values;
+	if (typeof value !== "string" || value.trim() === "")
+		throw new Error(`a ${label} record is identified by its ${key.inverseFunctional}, and this record states ${JSON.stringify(value)}`);
+	return value;
+}
+
+/**
+ * Returns the id of a node's record. A type that declares keys identifies a record by the id its keys derive: a node that states
+ * a key's fields is written under that id, and a node that states another id is refused. A node that doesn't state a key's fields
+ * names a record the store holds by its id, as an update and a write of edges alone do. A type without keys identifies a record
+ * by the id the node states. Throws where the node doesn't state the id its type reads.
+ */
+function idOf(node: Readonly<Record<string, unknown>>, label: string, declaration: TPartDeclaration | undefined, verb: TWriteVerb): string {
+	const idField = declaration === undefined ? UNDECLARED_ID_FIELD : declaration.id;
+	const stated = statedIdOf(node, label, idField);
+	const keys = declaration?.keys;
+	const derived = keys === undefined ? stated : keyedId(label, keys, node);
+	if (keys !== undefined && derived !== undefined && stated !== undefined && stated !== derived)
+		throw new Error(`a ${label} record's id is derived from its key ${keysNamed(keys)}, which names ${derived}, and this record states the id ${stated}. Leave the id out`);
+	if (derived !== undefined) return derived;
+	const namesHeld =
+		verb === WRITE_VERB.update ||
+		Object.keys(node).every((field) => field === NODE_KEY.type || field === NODE_KEY.id || field === idField || declaration?.edges[field] !== undefined);
+	if (keys !== undefined && stated !== undefined && namesHeld) return stated;
+	throw new Error(
+		keys === undefined
+			? `a ${label} record is identified by its "${idField}" field or its "${NODE_KEY.id}", and this record doesn't state one id`
+			: `a ${label} record is identified by its key ${keysNamed(keys)}, and this ${verb} doesn't state it. State the key; the store derives the id`,
+	);
 }
 
 /** Returns whether a value is a JSON object. */
@@ -73,9 +136,14 @@ function referencedBy(label: string, rel: string, { ranges }: TEdgeDeclaration, 
  * and nodes: the field holds its literals as a list where the schema's field is a list, and its one literal otherwise. An empty
  * list under an edge that isn't a list field of the schema doesn't state a target, so it doesn't write a field or an edge.
  */
-function partsOf(node: Readonly<Record<string, unknown>>, label: string, declarationOf: (label: string) => TPartDeclaration | undefined): { part: TPart; owned: TPart[] } {
+function partsOf(
+	node: Readonly<Record<string, unknown>>,
+	label: string,
+	declarationOf: (label: string) => TPartDeclaration | undefined,
+	verb: TWriteVerb,
+): { part: TPart; owned: TPart[] } {
 	const declaration = declarationOf(label);
-	const id = idOf(node, label, declaration === undefined ? UNDECLARED_ID_FIELD : declaration.id);
+	const id = idOf(node, label, declaration, verb);
 	const iri = node[NODE_KEY.id];
 	const part = { label, id, fields: {} as Record<string, unknown>, edges: [] as TUnitEdge[], ...(typeof iri === "string" ? { iri } : {}) };
 	const owned: TPart[] = [];
@@ -105,7 +173,7 @@ function partsOf(node: Readonly<Record<string, unknown>>, label: string, declara
 				throw new Error(
 					`${label} embeds a ${toLabel} record under its edge ${key}, which its type doesn't declare owns. Write the ${toLabel} on its own, and reference it with referenceTo`,
 				);
-			const embedded = partsOf(target, toLabel, declarationOf);
+			const embedded = partsOf(target, toLabel, declarationOf, verb);
 			owned.push(...embedded.owned, embedded.part);
 			part.edges.push({ rel: key, label: toLabel, id: embedded.part.id, ...edgeWriteOf({ reference: false, functional: declared.functional }) });
 		}
@@ -113,7 +181,7 @@ function partsOf(node: Readonly<Record<string, unknown>>, label: string, declara
 	// A text the type indexes by its digest is written with its digest.
 	for (const [field, digest] of Object.entries(declaration?.digests === undefined ? {} : declaration.digests)) {
 		const text = part.fields[field];
-		if (typeof text === "string") part.fields[digest] = textDigest(text);
+		if (typeof text === "string") part.fields[digest] = contentHash(text);
 	}
 	return { part, owned };
 }
@@ -131,7 +199,7 @@ function literalsOf(label: string, key: string, literals: readonly unknown[], de
 export function unitParts(verb: TWriteVerb, node: TNode, version: TReadVersion | undefined, declarationOf: (label: string) => TPartDeclaration | undefined): TUnitParts {
 	const label = node[NODE_KEY.type];
 	if (typeof label !== "string" || label.length === 0) throw new Error(`a node states its record's type in "${NODE_KEY.type}", and this node doesn't: ${JSON.stringify(node)}`);
-	const { part, owned } = partsOf(node, label, declarationOf);
+	const { part, owned } = partsOf(node, label, declarationOf, verb);
 	return { verb, version: statedVersion(verb, version), record: { label, id: part.id }, parts: [...owned, part] };
 }
 
@@ -176,8 +244,8 @@ const schemaFields = new WeakMap<z.ZodType, Pick<TPartDeclaration, "fields" | "l
 
 /** Returns what a write reads of a type's read declaration: its id field, its schema's fields, those that hold a list, and its
  *  edges. */
-export function partDeclarationOf({ id, schema, edges, digests }: Pick<TReadDeclaration, "id" | "schema" | "edges" | "digests">): TPartDeclaration {
-	const digested = digests === undefined ? {} : { digests };
+export function partDeclarationOf({ id, keys, schema, edges, digests }: Pick<TReadDeclaration, "id" | "keys" | "schema" | "edges" | "digests">): TPartDeclaration {
+	const digested = { ...(digests === undefined ? {} : { digests }), ...(keys === undefined ? {} : { keys }) };
 	if (schema === undefined) return { id, fields: undefined, lists: new Set(), edges, ...digested };
 	let held = schemaFields.get(schema);
 	if (held === undefined) {

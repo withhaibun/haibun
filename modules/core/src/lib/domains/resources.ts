@@ -704,6 +704,11 @@ export type TEdgeDef = {
  */
 type TDomainRanges = Record<string, string>;
 
+/** The key that identifies a record: `inverseFunctional` names the field whose value is the record's id, a property two records
+ *  don't share, such as a mailbox. `address` lists the fields whose values the id is the content address of, so two records that
+ *  state the same values are one record. */
+export type TRecordKey = { readonly inverseFunctional: string } | { readonly address: readonly string[] };
+
 /**
  * The hypermedia topology that describes a persisted domain. `persistedAs`, `id` and `properties` are required
  * together. The hypermedia builder validates them, such as the presence of an identifier rel and a published rel.
@@ -747,6 +752,10 @@ export type THypermediaTopology = {
 	 */
 	disjointWith?: { types: readonly string[]; declaredIn: string };
 	id: string;
+	/** What identifies a record of the type, each key an owl:hasKey of its own. A store derives a record's id from the first key
+	 *  whose fields the record states, and refuses a write that states another id. Absent means a record's id is the value its id
+	 *  field states, as a source outside the store names it. */
+	keys?: readonly TRecordKey[];
 	properties: Record<string, TPropertyDef>;
 	edges?: Record<string, TEdgeDef>;
 	/** Per-property ranges (sh:node / rdfs:range). See TDomainRanges. */

@@ -41,6 +41,7 @@ import {
 	statedLevel,
 	topologyEdges,
 	type THeldBy,
+	type TRecordKey,
 	type TRecordNamespace,
 	type TRegisteredDomain,
 } from "../../domains/resources.js";
@@ -70,6 +71,8 @@ export type TReadDeclaration = {
 	edges: Readonly<Record<string, TEdgeDeclaration>>;
 	/** Each text field the type indexes by its digest, with the field that holds the digest. */
 	digests?: Readonly<Record<string, string>>;
+	/** The keys a record's id is derived from, where the type declares them. */
+	keys?: readonly TRecordKey[];
 };
 
 /** What a store reads by: the types and relations it holds, each type's declaration, and the `@id` a read states for each record
@@ -99,7 +102,7 @@ export function readDeclarationsOf(domains: Record<string, TRegisteredDomain>, r
 	const declarationOf = (label: string): TReadDeclaration | undefined => {
 		const domain = persistedDomainOf(domains, label);
 		if (!domain) return undefined;
-		const { id, heldBy, digests } = domain.topology;
+		const { id, heldBy, digests, keys } = domain.topology;
 		const title = titledByOf(domain.topology);
 		const unique = uniqueFieldsOf(label, domain.topology);
 		return {
@@ -112,6 +115,7 @@ export function readDeclarationsOf(domains: Record<string, TRegisteredDomain>, r
 			...(title ? { title } : {}),
 			...(unique.length > 0 ? { unique } : {}),
 			...(digests === undefined ? {} : { digests }),
+			...(keys === undefined ? {} : { keys }),
 		};
 	};
 	const declarations: TReadDeclarations = {
