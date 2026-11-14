@@ -16,6 +16,7 @@
  * The model follows JSON-LD, ActivityStreams and RDF. A node label is a local handle. `type` is the RDF class URI that
  * JSON-LD emits. `id` is the IRI.
  */
+import { itemAt } from "./item-at.js";
 import { stripTrailingSlash } from "./local-origin.js";
 import { PROV_ENTITY } from "./vocabularies.js";
 import { z } from "zod";
@@ -88,12 +89,21 @@ export const Access = AccessLevelSchema.enum;
 
 export const AccessQueryLevelSchema = z.enum(ACCESS_QUERY_LEVELS, { message: `accessLevel (query) must be one of ${ACCESS_QUERY_LEVELS.map((v) => `"${v}"`).join(", ")}` });
 export type AccessQueryLevel = z.infer<typeof AccessQueryLevelSchema>;
+
+/** The levels at which a stored type declares its records: one level, or a list of two or more distinct levels. */
+export const DeclaredLevelsSchema = z.union([
+	AccessLevelSchema,
+	z
+		.array(AccessLevelSchema)
+		.min(2)
+		.refine((levels) => new Set(levels).size === levels.length, { message: "each declared level is distinct" }),
+]);
 export const AccessQuery = AccessQueryLevelSchema.enum;
 
 /**
  * The base schema that every type persisted as a vertex in a quad store extends. Every persisted type states
  * `accessLevel` in its schema and its topology, so every row has a level at read time. A record that doesn't state a
- * level takes its type's level at write time. That level isn't wider than the level the writer sees. A type that
+ * level takes a level its type declares at write time, by the rule of `writtenAt`. A type that
  * doesn't declare the property can't classify its records. A store's registration guard enforces the declaration, and
  * this base schema supplies it.
  */
@@ -819,11 +829,12 @@ export type THypermediaTopology = {
 	 */
 	required?: readonly string[];
 	/**
-	 * The level a record of this type is stored at when the record doesn't state one. A type declares the least sharing
-	 * under which its records remain useful, so a writer that omits the level doesn't publish a record. A record shared
-	 * more widely states its level on the record itself. Registration refuses a persisted type that doesn't state it.
+	 * The level every record of this type is stored at, or the levels its records are stored at where they differ, such as a
+	 * step's record at its caller's ceiling or an email at its folder's configured level. A store refuses a write at a level
+	 * the type doesn't declare (`writtenAt`), so a level derived from the declaration is the level the records hold.
+	 * Registration refuses a persisted type that doesn't state it.
 	 */
-	accessLevel: AccessLevel;
+	accessLevel: AccessLevel | readonly AccessLevel[];
 	/**
 	 * Where core holds the records of a type that core writes or derives. A backing store registers each persisted type
 	 * that doesn't state `heldBy`. `in-memory store` states that core's in-memory store holds the records. `declarations`
@@ -886,13 +897,27 @@ export function isPersisted(topology: TDomainTopology | undefined): topology is 
 	return !!topology && "persistedAs" in topology && typeof topology.persistedAs === "string";
 }
 
-/** Returns the level a type's records are written at when a record doesn't state one. That is the level its topology
- *  declares. A name that isn't a persisted type doesn't declare one and returns undefined. */
-export function declaredAccessLevel(domain: TRegisteredDomain & { topology: THypermediaTopology }): AccessLevel;
-export function declaredAccessLevel(domain: TRegisteredDomain | undefined): AccessLevel | undefined;
-export function declaredAccessLevel(domain: TRegisteredDomain | undefined): AccessLevel | undefined {
+/** A stored type and the levels at which it declares its records. `writtenAt` reads it for each write of a record of the type. */
+export type TTypeLevels = { type: string; levels: readonly AccessLevel[] };
+
+/** Returns the levels at which a topology declares its records: its one level, or each of its levels. */
+export const levelsOf = ({ accessLevel }: Pick<THypermediaTopology, "accessLevel">): readonly AccessLevel[] => (typeof accessLevel === "string" ? [accessLevel] : accessLevel);
+
+/** Returns the broadest of a type's declared levels: the level whose readers see each of the type's records. */
+export const broadestOf = (levels: readonly AccessLevel[]): AccessLevel =>
+	itemAt(
+		ACCESS_BROADEST_FIRST.filter((level) => levels.includes(level)),
+		0,
+	);
+
+/** Returns a stored type and the levels its topology declares. */
+export const typeLevelsOf = (topology: THypermediaTopology): TTypeLevels => ({ type: topology.persistedAs, levels: levelsOf(topology) });
+
+/** Returns the stored type a domain declares and the levels of its records. A name that isn't a persisted type doesn't
+ *  declare levels and returns undefined. */
+export function declaredLevels(domain: TRegisteredDomain | undefined): TTypeLevels | undefined {
 	const topology = domain?.topology;
-	return isPersisted(topology) ? topology.accessLevel : undefined;
+	return isPersisted(topology) ? typeLevelsOf(topology) : undefined;
 }
 
 /** The domain name for type labels. Registered persisted domains populate it. */
@@ -1024,7 +1049,8 @@ export const PRINCIPAL_DOMAIN = "principal-individual";
  *  is its Body's text, and its keys derive its id. */
 export const COMMENT_TOPOLOGY: THypermediaTopology = {
 	persistedAs: COMMENT_LABEL,
-	accessLevel: Access.private,
+	// A comment is written at its author's read ceiling, or at the level it states, which can be any level.
+	accessLevel: ACCESS_BROADEST_FIRST,
 	// A Comment carries oa:hasBody and oa:hasTarget in the W3C Web Annotation shape. The class relationship is an
 	// RDFS axiom and doesn't make @type multi-valued. A comment is a PROV entity, so PROV-O's disjointness of entities and
 	// activities applies to it.

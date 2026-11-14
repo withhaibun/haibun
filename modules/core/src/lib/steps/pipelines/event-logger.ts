@@ -9,7 +9,7 @@ import { formatSeqPath } from "../../actuality/domains/seq-path.js";
 import { failFastOrLog } from "../../domains/dev-mode.js";
 import { inCall, writeBound } from "../../domains/capability-context.js";
 import { writtenAt } from "../../domains/actions.js";
-import { Access } from "../../domains/resources.js";
+import { ACCESS_BROADEST_FIRST, type TTypeLevels } from "../../domains/resources.js";
 import type { IEventLogger, TEventSink, TEventSubscriber, TSecrets, TSubscribeOptions } from "../ports.js";
 import { obscuredEvent } from "../derivations/obscured.js";
 import { serializedEvent } from "../derivations/serialized-event.js";
@@ -19,9 +19,10 @@ import { serializedEvent } from "../derivations/serialized-event.js";
  *  only where they list that kind. */
 const NARRATED_KINDS: ReadonlySet<TEventKind> = new Set<TEventKind>(["lifecycle", "log", "artifact", "control"]);
 
-/** The level an event is written at where it doesn't state one and a ceiling doesn't bound the call that emits it. An
- *  event of actuality holds its steps, logs and records, so it is private. */
-const EVENT_LEVEL = Access.private;
+/** The levels at which an event is written. An event states the level of what it reveals, which can be any level. An event that
+ *  doesn't state one takes the read ceiling of the call that emits it, and an event of actuality's own is private, since it
+ *  holds actuality's steps, logs and records. */
+const EVENT_LEVELS: TTypeLevels = { type: "event", levels: ACCESS_BROADEST_FIRST };
 
 /** The level a log statement keeps whatever the level of the step in flight: a warning or an error. */
 const UNCAPPED_LEVEL: THaibunLogLevel = "warn";
@@ -90,11 +91,11 @@ export class EventLogger implements IEventLogger {
 		if (!narrated && !this.kindCounts.has(event.kind)) return;
 		const name = event.kind === "blip" ? event.name : undefined;
 		// Every event states the access level of what it reveals, so a follower receives only the events it may read.
-		// writtenAt determines an event's level, as it does a record's. An event that doesn't state a level takes the read
-		// ceiling of the call that emits it. Outside a bounded call, such an event is actuality's own and takes the events'
-		// declared level. An event that states a level more public than the ceiling throws, unless the call holds that level's
-		// write action. The event is obscured once, so every subscriber and the sink receive the same obscured event.
-		const stated = obscuredEvent({ ...event, accessLevel: writtenAt(event.accessLevel, EVENT_LEVEL, writeBound()) }, this.secrets.values());
+		// writtenAt determines an event's level, as it does a record's, over every level. An event that doesn't state a level
+		// takes the read ceiling of the call that emits it. Outside a bounded call, such an event is actuality's own and is
+		// private. An event that states a level more public than the ceiling throws, unless the call holds that level's write
+		// action. The event is obscured once, so every subscriber and the sink receive the same obscured event.
+		const stated = obscuredEvent({ ...event, accessLevel: writtenAt(event.accessLevel, EVENT_LEVELS, writeBound()) }, this.secrets.values());
 		for (const sub of this.subscribers) {
 			if (!this.wouldReceive(sub, event.kind, name)) continue;
 			try {

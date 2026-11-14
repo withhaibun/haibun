@@ -15,7 +15,7 @@ import { z } from "zod";
 import { GraphQuerySchema, VIA_FIELD, type TQuad, type TSearchCondition } from "../steps/domains/quad-types.js";
 import { type IQuadStore } from "../steps/ports.js";
 import { COUNT_CEILING, MAX_PAGE_ROWS, readInPages } from "../domains/hypermedia.js";
-import { Access, AccessLevelSchema, EDGE, LinkRelations, type TRegisteredDomain } from "../domains/resources.js";
+import { Access, ACCESS_BROADEST_FIRST, AccessLevelSchema, EDGE, LinkRelations, type TRegisteredDomain } from "../domains/resources.js";
 import { ChangedSinceRead, NotUnique, referenceTo } from "../records/domains/unit.js";
 import { rereadAndRetry } from "../records/pipelines/record-versions.js";
 
@@ -49,7 +49,8 @@ const domainOf = (persistedAs: string, edges: Record<string, { range: string; re
 	description: `${persistedAs} of the quad store specification`,
 	topology: {
 		persistedAs,
-		accessLevel: Access.private,
+		// The suite writes each type's records at more than one level, to read a level apart from another.
+		accessLevel: ACCESS_BROADEST_FIRST,
 		id: "id",
 		properties: {
 			id: LinkRelations.IDENTIFIER.rel,

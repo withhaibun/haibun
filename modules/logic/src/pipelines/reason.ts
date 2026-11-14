@@ -11,7 +11,7 @@
  */
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { buildConcernCatalog, getJsonLdContext } from "@haibun/core/lib/domains/hypermedia.js";
-import { withinAccess, type TRecordNamespace, type TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
+import { broadestOf, levelsOf, withinAccess, type TRecordNamespace, type TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
 import { persistedDomainOf } from "@haibun/core/lib/domains/domains.js";
 import { readingAt } from "@haibun/core/lib/domains/capability-context.js";
 import type { NamedNode, Quad } from "@rdfjs/types";
@@ -83,7 +83,8 @@ async function reasoned(
 			throw new Error(
 				`the rules close over ${label}, whose type doesn't declare its graph complete. Declare \`complete: true\` on ${label}'s topology, or read its facts with h:read.`,
 			);
-		return { graph: label, accessLevel: topology.accessLevel, complete: ceiling === undefined || withinAccess(topology.accessLevel, ceiling) };
+		const accessLevel = broadestOf(levelsOf(topology));
+		return { graph: label, accessLevel, complete: ceiling === undefined || withinAccess(accessLevel, ceiling) };
 	});
 	const terms = recordTerms(buildConcernCatalog(domains), getJsonLdContext(domains, undefined, records)["@context"], records);
 	const reader = readerOf(store);

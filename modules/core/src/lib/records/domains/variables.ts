@@ -4,7 +4,7 @@
  */
 import { PROV_ENTITY } from "../../domains/vocabularies.js";
 import { z } from "zod";
-import { Access, EDGE, HELD_BY, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "../../domains/resources.js";
+import { ACCESS_BROADEST_FIRST, EDGE, HELD_BY, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "../../domains/resources.js";
 import { SHARED_GRAPH } from "../../steps/domains/quad-types.js";
 
 const VARIABLE_DOMAIN = "variable";
@@ -43,7 +43,8 @@ export const variableDomainDefinition: TDomainDefinition = {
 		id: VARIABLE_FIELD.name,
 		heldBy: HELD_BY.inMemoryStore,
 		instrumentation: true,
-		accessLevel: Access.private,
+		// A variable is written at the read ceiling of the step that set it, which can be any level.
+		accessLevel: ACCESS_BROADEST_FIRST,
 		displayLabel: VARIABLE_FIELD.name,
 		properties: {
 			[VARIABLE_FIELD.name]: LinkRelations.IDENTIFIER.rel,

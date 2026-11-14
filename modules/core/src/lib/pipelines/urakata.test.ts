@@ -90,7 +90,7 @@ describe("UrakataRegistry", () => {
 		await registry.stop(u.id);
 		expect(bounds[0], "the tick holds its ticker's needs and doesn't hold every action the starting step held").toEqual({ ceiling: Access.private, held: needs });
 		expect(actors[0]).toBe(STARTER);
-		expect(writtenAt(Access.public, Access.private, itemAt(bounds, 0)), "a tick writes a record that states public at public").toBe(Access.public);
+		expect(writtenAt(Access.public, { type: "Published", levels: [Access.public] }, itemAt(bounds, 0)), "a tick writes a public record at public").toBe(Access.public);
 		expect(u).toMatchObject({ startedBy: STARTER, holds: needs });
 	});
 

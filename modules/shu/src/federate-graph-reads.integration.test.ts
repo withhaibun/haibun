@@ -62,7 +62,7 @@ describe("federate graph reads over live RPC", () => {
 			content: `
 webserver is listening for "federate-reads"
 present authority as "reader"
-accept authority from "reader" for "Authority:name,Read:private"
+accept authority from "reader" for "Authority:name,Read:private,Write:public"
 federate graph reads from "http://localhost:${port}"
 capture the federated clustered read
 `,

@@ -6,7 +6,7 @@
  */
 import { z } from "zod";
 import { base64url } from "./content-address.js";
-import { ACCESS_BROADEST_FIRST, Access, AccessLevelSchema, narrowerAccess, type AccessLevel } from "./resources.js";
+import { ACCESS_BROADEST_FIRST, Access, AccessLevelSchema, narrowerAccess, broadestOf, type AccessLevel, type TTypeLevels } from "./resources.js";
 import type { TContractSentences, TStatedContract, TStepContract } from "../steps/domains/contract.js";
 
 const READ_PREFIX = "Read:";
@@ -144,28 +144,52 @@ export function seenAt(asked: AccessLevel, ceiling: AccessLevel | undefined): Ac
 }
 
 /**
- * Returns the level of a written record. Every store writes at this level. A write that a ceiling doesn't bound is
- * actuality's own, and takes the stated level or else the declared one. A bounded write takes the level the record
- * states, or else the narrower of the type's declared level and the writer's ceiling, so a writer reads back what it
- * wrote. A writer can copy what it read into what it writes, so a level more public than its ceiling requires
- * `writeAction` of that level. A writer that lacks that action is refused a stated level, and receives its ceiling in
- * place of a declared level. A write that doesn't state a level of a type that doesn't declare one is refused.
+ * Returns the level of a written record. Every store writes at this level. A record of a type that declares one level is
+ * written at that level, and a write that states another level is refused. A record of a type that declares several levels
+ * is written at the level it states where the type declares that level. Where it doesn't state one, it is written at the
+ * narrower of the type's broadest level and the writer's ceiling, so a writer reads back what it wrote. A write that a
+ * ceiling doesn't bound is actuality's own. A writer can copy what it read into what it writes, so a level more public than
+ * its ceiling requires `writeAction` of that level: a writer that lacks the action is refused a stated level and a type's
+ * single level, and receives its ceiling in place of a broadest level. A write that doesn't state a level of a type that
+ * doesn't declare one is refused.
  */
-export function writtenAt(stated: AccessLevel | undefined, declared: AccessLevel | undefined, bound: TAccessBound): AccessLevel {
-	const { ceiling } = bound;
+export function writtenAt(stated: AccessLevel | undefined, declared: TTypeLevels | undefined, bound: TAccessBound): AccessLevel {
 	if (stated !== undefined) {
-		if (!ceiling || mayWriteAt(stated, bound)) return stated;
-		throw new Error(
-			`writing at ${stated} requires ${writeAction(stated)}. The caller doesn't hold it and reads at ${ceiling}. Write at that level or a more private one, or hold the action.`,
-		);
+		if (declared !== undefined && !declared.levels.includes(stated))
+			throw new Error(
+				`a record of ${declared.type} is written at ${stated}, and the type declares its records at ${declared.levels.join(", ")}. Write the record at a declared level, or declare ${stated} on the type.`,
+			);
+		return withinBound(stated, bound);
 	}
 	if (declared === undefined)
 		throw new Error(
 			"a write that doesn't state a level is refused, and the record's type doesn't declare one. State accessLevel on the record, or declare its type with accessLevel.",
 		);
-	if (!ceiling) return declared;
-	const level = narrowerAccess(ceiling, declared);
+	const [only, ...others] = declared.levels;
+	if (only !== undefined && others.length === 0) return withinBound(only, bound);
+	const level = followedLevel(declared.levels, bound);
+	if (declared.levels.includes(level)) return level;
+	throw new Error(
+		`a record of ${declared.type} that doesn't state a level is written at the writer's ceiling ${level}, which the type doesn't declare: it declares ${declared.levels.join(", ")}. State a declared level on the record.`,
+	);
+}
+
+/** Returns the level a write takes where it follows its writer: the narrower of the broadest of `levels` and the writer's
+ *  ceiling, or the ceiling where the writer doesn't hold the write action of that narrower level. */
+function followedLevel(levels: readonly AccessLevel[], bound: TAccessBound): AccessLevel {
+	const broadest = broadestOf(levels);
+	const { ceiling } = bound;
+	if (!ceiling) return broadest;
+	const level = narrowerAccess(ceiling, broadest);
 	return mayWriteAt(level, bound) ? level : ceiling;
+}
+
+/** Returns `level` where the writer may write at it, and otherwise throws with the write action it requires. */
+function withinBound(level: AccessLevel, bound: TAccessBound): AccessLevel {
+	if (mayWriteAt(level, bound)) return level;
+	throw new Error(
+		`writing at ${level} requires ${writeAction(level)}. The caller doesn't hold it and reads at ${String(bound.ceiling)}. Write at that level or a more private one, or hold the action.`,
+	);
 }
 
 /** Returns whether `writtenAt` writes at every level a caller states. It does where a ceiling doesn't bound the caller, or

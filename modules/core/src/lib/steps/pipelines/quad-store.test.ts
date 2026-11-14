@@ -271,11 +271,11 @@ describe("which division of a span an instant falls in", () => {
 
 describe("the level each quad a run holds is written and read at", () => {
 	const [NOTICE, FACTS] = ["Notice", "facts"];
-	const DECLARED: Record<string, AccessLevel> = { [NOTICE]: Access.public, [FACTS]: Access.private };
+	const DECLARED: Record<string, AccessLevel[]> = { [NOTICE]: [Access.public], [FACTS]: [Access.private] };
 	const levels = {
 		bound: accessBound,
 		writeBound,
-		declared: (label: string) => DECLARED[label],
+		declared: (type: string) => (DECLARED[type] === undefined ? undefined : { type, levels: DECLARED[type] }),
 		stepWrites: () => undefined,
 		recordTime: () => new Date().toISOString(),
 		currentStep: () => undefined,
@@ -299,11 +299,18 @@ describe("the level each quad a run holds is written and read at", () => {
 		expect(await as(reader, () => store.get("fact-1", "says", FACTS)), "and to a private reader").toBe("kept");
 	});
 
-	it("writes at private a record whose level a private reader doesn't state, where its type is public, and actuality's at public", async () => {
-		await as(reader, () => store.merge({ "@type": NOTICE, id: "notice-1", text: "read privately" }));
+	it("refuses a private reader a record of a public type that doesn't state a level, and writes actuality's at public", async () => {
+		await expect(as(reader, () => store.merge({ "@type": NOTICE, id: "notice-1", text: "read privately" }))).rejects.toThrow(writeAction(Access.public));
 		await store.merge({ "@type": NOTICE, id: "notice-2", text: "actuality's" });
 		const read = await as(publicReader, () => readUpTo(store, { label: NOTICE }, MAX_PAGE_ROWS));
 		expect(read.map(({ id, accessLevel }) => [id, accessLevel])).toEqual([["notice-2", Access.public]]);
+	});
+
+	it("refuses a record, a field and an edge at a level the record's type doesn't declare", async () => {
+		await expect(store.merge({ "@type": NOTICE, id: "notice-1", text: "kept", accessLevel: Access.private })).rejects.toThrow("Notice is written at private");
+		await store.merge({ "@type": NOTICE, id: "notice-2", text: "published" });
+		await expect(store.merge({ "@type": NOTICE, "@id": "notice-2", accessLevel: Access.private })).rejects.toThrow("Notice is written at private");
+		expect(await store.query({ subject: "notice-1", namedGraph: NOTICE }), "and the refused record isn't held").toEqual([]);
 	});
 
 	it("refuses a private reader a write into a public record, and a removal from one", async () => {
@@ -320,7 +327,7 @@ describe("the provenance a store states for each record a unit writes", () => {
 	const levels = {
 		bound: accessBound,
 		writeBound,
-		declared: () => Access.public,
+		declared: (type: string) => ({ type, levels: [Access.public] }),
 		stepWrites: () => undefined,
 		recordTime: () => new Date().toISOString(),
 		currentStep: () => STEP,

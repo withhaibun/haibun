@@ -5,7 +5,7 @@
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TEventKind } from "../domains/protocol.js";
 import type { TAccessBound } from "../domains/actions.js";
 import type { z } from "zod";
-import type { AccessLevel, AccessQueryLevel } from "../domains/resources.js";
+import type { AccessQueryLevel, TTypeLevels } from "../domains/resources.js";
 import type { TFeatureStep } from "./domains/stepper.js";
 import type {
 	TClusteredQuads,
@@ -54,13 +54,13 @@ export interface IEventLogger {
 	artifact(artifact: TArtifactEvent): void;
 }
 
-/** What a store reads of each write's call: the read bound and the write bound, the level each type declares, the writes the
+/** What a store reads of each write's call: the read bound and the write bound, the levels each type declares, the writes the
  *  contract of the step in progress allows, the record name of the step in progress, which each record's first write links through
  *  `prov:wasGeneratedBy`, and the time on actuality's clock, which each record's first write states as its `generatedAtTime`. */
 export type TStoreLevels = {
 	bound: () => TAccessBound;
 	writeBound: () => TAccessBound;
-	declared: (label: string) => AccessLevel | undefined;
+	declared: (label: string) => TTypeLevels | undefined;
 	stepWrites: () => TStepWrites | undefined;
 	currentStep: () => string | undefined;
 	recordTime: () => string;

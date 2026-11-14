@@ -110,7 +110,7 @@ export const testStepRecord = (seqPath: string): string => formatRecordName({ ac
 export const TEST_LEVELS: TStoreLevels = {
 	bound: accessBound,
 	writeBound,
-	declared: () => Access.private,
+	declared: (type) => ({ type, levels: [Access.private] }),
 	stepWrites: writesInFlight,
 	currentStep: testCurrentStep,
 	recordTime: () => new Date().toISOString(),

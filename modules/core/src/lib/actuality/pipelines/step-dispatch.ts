@@ -20,7 +20,7 @@ import { inCall, isNested, nestedOf, runInCall, writtenLevel, type TCallContext 
 import { heldAuthority } from "../../domains/session-authority.js";
 import { authorityRefusal, RefusedCall } from "../../transport/domains/rpc-wire.js";
 import { SEQ_PATH_LABEL } from "../../domains/resources.js";
-import { SEQ_PATH_ACCESS, actualityFeatureOf, type TRecordName } from "../domains/seq-path.js";
+import { SEQ_PATH_LEVELS, actualityFeatureOf, type TRecordName } from "../domains/seq-path.js";
 import { listedStatement, runRegistry, type StepRegistry } from "../../steps/pipelines/step-registry.js";
 import type { TList } from "../../domains/lists.js";
 import { stepMethodName, hostScopedMethodName } from "../../steps/domains/step-method.js";
@@ -300,7 +300,7 @@ function refusalOf(authorize: () => void): Error | undefined {
  *  ask that holds the call, and the agent to which the call is attributed. */
 function callOf(): TStepCall {
 	const { ask, attributedTo } = { ...inCall() };
-	return { accessLevel: writtenLevel(SEQ_PATH_ACCESS), ...(ask === undefined ? {} : { askedIn: ask }), ...(attributedTo === undefined ? {} : { attributedTo }) };
+	return { accessLevel: writtenLevel(SEQ_PATH_LEVELS), ...(ask === undefined ? {} : { askedIn: ask }), ...(attributedTo === undefined ? {} : { attributedTo }) };
 }
 
 /**

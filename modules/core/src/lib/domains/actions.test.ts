@@ -150,25 +150,43 @@ describe("the level of a written record", () => {
 	const run = { ceiling: undefined, held: undefined };
 	const reader = { ceiling: Access.private, held: [READS_PRIVATE] };
 	const publicReader = { ceiling: Access.public, held: [readAction(Access.public)] };
+	const PUBLISHED = { type: "Published", levels: [Access.public] };
+	const KEPT = { type: "Kept", levels: [Access.private] };
+	const EVERY = { type: "Every", levels: [Access.private, Access.opened, Access.public] };
 
-	it("is the stated level or else the type's declared level for a write that a ceiling doesn't bound", () => {
-		expect(writtenAt(Access.opened, Access.public, run)).toBe(Access.opened);
-		expect(writtenAt(undefined, Access.public, run)).toBe(Access.public);
+	it("is the one level a type declares, stated or not, and refuses a write that states another level", () => {
+		expect(writtenAt(undefined, PUBLISHED, run)).toBe(Access.public);
+		expect(writtenAt(Access.public, PUBLISHED, run)).toBe(Access.public);
+		expect(() => writtenAt(Access.private, PUBLISHED, run), "a type's one level holds for an unbounded write too").toThrow(
+			/Published is written at private, and the type declares its records at public/,
+		);
+		expect(() => writtenAt(Access.public, KEPT, run)).toThrow(/declare public on the type/);
 	});
 
-	it("is the writer's ceiling where the writer reads at a broader level than the type declares and doesn't hold a write at the type's level", () => {
-		expect(writtenAt(undefined, Access.public, reader)).toBe(Access.private);
-		expect(writtenAt(undefined, Access.public, { ...reader, held: [READS_PRIVATE, PUBLISHES] }), "and is the type's level where the writer holds that write").toBe(Access.public);
-		expect(writtenAt(undefined, Access.public, { ...reader, held: [EVERY_ACTION] }), "as it is for a writer holding every action").toBe(Access.public);
+	it("writes a type's one level for a writer whose ceiling is narrower, and refuses it to a writer that reads more and doesn't hold its write", () => {
+		expect(writtenAt(undefined, KEPT, publicReader), "a public reader's record of a private type is private").toBe(Access.private);
+		expect(() => writtenAt(undefined, PUBLISHED, reader)).toThrow(PUBLISHES);
+		expect(writtenAt(undefined, PUBLISHED, { ...reader, held: [READS_PRIVATE, PUBLISHES] })).toBe(Access.public);
+		expect(writtenAt(undefined, PUBLISHED, { ...reader, held: [EVERY_ACTION] }), "as it is for a writer holding every action").toBe(Access.public);
+	});
+
+	it("is a stated level a type of several levels declares, and refuses a level it doesn't declare", () => {
+		expect(writtenAt(Access.opened, EVERY, run)).toBe(Access.opened);
+		expect(() => writtenAt(Access.opened, { type: "Shared", levels: [Access.private, Access.public] }, run)).toThrow(/Shared is written at opened/);
+	});
+
+	it("is the narrower of a type's broadest level and the writer's ceiling where a write to a type of several levels doesn't state one, so the writer reads back what it wrote", () => {
+		expect(writtenAt(undefined, EVERY, run)).toBe(Access.private);
+		expect(writtenAt(undefined, EVERY, publicReader)).toBe(Access.public);
+		expect(writtenAt(undefined, EVERY, reader)).toBe(Access.private);
+		expect(() => writtenAt(undefined, { type: "Shared", levels: [Access.private, Access.public] }, { ceiling: Access.opened, held: [readAction(Access.opened)] })).toThrow(
+			/ceiling opened, which the type doesn't declare/,
+		);
 	});
 
 	it("refuses a stated level more public than the writer's ceiling and names the action it requires", () => {
-		expect(() => writtenAt(Access.public, Access.private, reader)).toThrow(PUBLISHES);
-	});
-
-	it("is the more private level a write states, or else the writer's ceiling where the type's level is more private, so the writer reads back what it wrote", () => {
-		expect(writtenAt(undefined, Access.private, publicReader)).toBe(Access.public);
-		expect(writtenAt(Access.private, Access.private, publicReader)).toBe(Access.private);
+		expect(() => writtenAt(Access.public, EVERY, reader)).toThrow(PUBLISHES);
+		expect(() => writtenAt(Access.public, undefined, reader), "as it does for a quad of a type that doesn't declare levels").toThrow(PUBLISHES);
 	});
 
 	it("doesn't refuse a level to a writer that a ceiling doesn't bound or that holds every action, so a store doesn't read a record's level for either writer", () => {

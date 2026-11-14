@@ -16,7 +16,7 @@
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import { z } from "zod";
-import { Access, narrowerCeiling, type AccessLevel } from "./resources.js";
+import { Access, narrowerCeiling, type AccessLevel, type TTypeLevels } from "./resources.js";
 import { capabilityAllows, EVERY_ACTION, lackedAction, readAction, readCeilingOf, writtenAt, type TAccessBound, type TCalled } from "./actions.js";
 import { RestsOnSchema, type TActingFor, type TRestsOn } from "./authority-types.js";
 import type { THaibunLogLevel } from "./protocol.js";
@@ -270,8 +270,8 @@ export function writeBound(): TAccessBound {
 }
 
 /** Returns the level the call in progress writes a record of a type declared at `declared`, where the record doesn't state a
- *  level: the narrower of the call's ceiling and `declared`. A call that a ceiling doesn't bound writes at `declared`. */
-export function writtenLevel(declared: AccessLevel): AccessLevel {
+ *  level, by the rule of every store (`writtenAt`). */
+export function writtenLevel(declared: TTypeLevels): AccessLevel {
 	return writtenAt(undefined, declared, writeBound());
 }
 

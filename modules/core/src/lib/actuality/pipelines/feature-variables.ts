@@ -27,7 +27,7 @@ import { OBSCURED_VALUE, isSecretName } from "../../steps/domains/secrets.js";
 import type { TSecrets } from "../../steps/ports.js";
 import { accessBound, readingAsStated, writeBound, writesInFlight } from "../../domains/capability-context.js";
 import { stepRecordInFlight } from "../domains/step-in-flight.js";
-import { EDGE, SEQ_PATH_LABEL, declaredAccessLevel } from "../../domains/resources.js";
+import { EDGE, SEQ_PATH_LABEL, declaredLevels } from "../../domains/resources.js";
 import { recordTime } from "../domains/record-time.js";
 import { actualityFeatureOf, formatRecordName } from "../domains/seq-path.js";
 import { IQuadStore } from "../../steps/ports.js";
@@ -97,7 +97,7 @@ export class FeatureVariables {
 			{
 				bound: accessBound,
 				writeBound,
-				declared: (label: string) => declaredAccessLevel(persistedDomainOf(world.domains, label)),
+				declared: (label: string) => declaredLevels(persistedDomainOf(world.domains, label)),
 				stepWrites: writesInFlight,
 				currentStep: () => stepRecordInFlight(actualityFeatureOf(world.tag)),
 				recordTime: () => recordTime(world),

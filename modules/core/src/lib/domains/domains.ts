@@ -2,6 +2,7 @@ import { itemAt } from "./item-at.js";
 import { z } from "zod";
 import {
 	AccessLevelSchema,
+	DeclaredLevelsSchema,
 	DOMAIN_PERSISTED_TYPE,
 	PRINCIPAL_DOMAIN,
 	isPersisted,
@@ -199,9 +200,9 @@ export const registerDomains = (world: TWorld, results: TDomainDefinition[][]) =
 
 			if (world.domains[domainKey]) continue;
 			const { topology } = definition;
-			if (isPersisted(topology) && !AccessLevelSchema.safeParse(topology.accessLevel).success)
+			if (isPersisted(topology) && !DeclaredLevelsSchema.safeParse(topology.accessLevel).success)
 				throw new Error(
-					`The type ${topology.persistedAs} persists records, and its topology doesn't state accessLevel. State accessLevel as one of ${AccessLevelSchema.options.join(", ")}.`,
+					`The type ${topology.persistedAs} persists records, and its topology doesn't state accessLevel as one level or a list of distinct levels. State accessLevel as one of ${AccessLevelSchema.options.join(", ")}, or as a list of two or more of them.`,
 				);
 			world.domains[domainKey] = toRegisteredDomain(definition);
 		}

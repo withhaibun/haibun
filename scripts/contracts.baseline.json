@@ -31,8 +31,7 @@
 	},
 	"modules/core/src/steps/authority-stepper.ts": {
 		"writes without listing its writes beyond its products in contract.changes: AuthorityStepper.holdingCapability": 1,
-		"writes without listing its writes beyond its products in contract.changes: AuthorityStepper.holdingOnly": 1,
-		"writes without listing its writes beyond its products in contract.changes: AuthorityStepper.nameConnectingSite": 1
+		"writes without listing its writes beyond its products in contract.changes: AuthorityStepper.holdingOnly": 1
 	},
 	"modules/core/src/steps/blips-stepper.ts": {
 		"writes without listing its writes beyond its products in contract.changes: BlipsStepper.showDeclaredBlips": 1,

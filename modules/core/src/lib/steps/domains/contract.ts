@@ -11,7 +11,7 @@ import { DOMAIN_STATEMENT, DomainKeySchema, normalizeDomainKey } from "../../dom
 import type { TVerdict } from "../../domains/protocol.js";
 import type { TRecordName, WRITE_VERB } from "../../records/domains/unit.js";
 import { isRead } from "../../domains/actions.js";
-import { HAIBUN_NS, isPersisted, type AccessLevel, type TDomainTopology } from "../../domains/resources.js";
+import { HAIBUN_NS, isPersisted, levelsOf, type AccessLevel, type TDomainTopology } from "../../domains/resources.js";
 
 /** The key of the form that names the statement parameter whose products a step returns as its own. */
 const OF = "of";
@@ -190,7 +190,7 @@ export function writeLevels(step: { readonly contract?: TStepContract }, domains
 		const declared = domains[normalizeDomainKey(domain)];
 		if (declared === undefined)
 			throw new Error(`a write's products are in the domain ${domain}, which the domains read don't hold. Read the domains of the stepper that declares it`);
-		return isPersisted(declared.topology) ? [declared.topology.accessLevel] : [];
+		return isPersisted(declared.topology) ? levelsOf(declared.topology) : [];
 	});
 	const changes = step.contract?.changes;
 	const changed = (changes === undefined ? [] : changes).flatMap((change) => {
@@ -198,7 +198,7 @@ export function writeLevels(step: { readonly contract?: TStepContract }, domains
 		const declared = Object.values(domains).find(({ topology }) => isPersisted(topology) && topology.persistedAs === change.persistedAs)?.topology;
 		if (!isPersisted(declared))
 			throw new Error(`a write's changes name the type ${change.persistedAs}, which the domains read don't store. Read the domains of the stepper that declares it`);
-		return [declared.accessLevel];
+		return levelsOf(declared);
 	});
 	return [...new Set([...products, ...changed])];
 }

@@ -16,7 +16,6 @@ import { itemAt, valueAt } from "@haibun/core/lib/domains/item-at.js";
 import { ACTIVITIES_STEPPER } from "@haibun/core/steps/domains/activities-actions.js";
 import { z } from "zod";
 import { Access, type TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
-import { SEQ_PATH_ACCESS } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { inCall } from "@haibun/core/lib/domains/capability-context.js";
 import { DOMAIN_APPLICABLE_STEPS, DOMAIN_GOAL_RESOLUTION, DOMAIN_PLAN_ID, DOMAIN_PLAN_PROGRESS, goalDomainDefinitions } from "@haibun/core/lib/domains/goal-resolution.js";
 import { stepMembers } from "./pipelines/reads.js";
@@ -236,7 +235,7 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 			},
 		},
 		recordedDerivation: {
-			readsAt: SEQ_PATH_ACCESS,
+			readsAt: Access.private,
 			gwta: `derivation of step {step: ${DOMAIN_INDIVIDUAL_ADDRESS}}`,
 			description:
 				"Reads the derivation of a step actuality recorded, from the records its proof wrote, without proving it again: its verdict, the frames of its records, the calls among them with the actions that allowed each, and the line of the first goal it couldn't prove.",

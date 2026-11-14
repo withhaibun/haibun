@@ -251,7 +251,7 @@ function subPropertyOfRel(rel: string): string | string[] | undefined {
 }
 import { NAMESPACE, RDFS_CLASS, RDF_PROPERTY, XSD_BOOLEAN, XSD_DATE, XSD_DATE_TIME, XSD_DECIMAL, XSD_DOUBLE, XSD_INTEGER } from "./vocabularies.js";
 import {
-	AccessLevelSchema,
+	DeclaredLevelsSchema,
 	DOMAIN_PERSISTED_TYPE,
 	topologyEdges,
 	GeneratedAtTimeTextSchema,
@@ -470,7 +470,7 @@ const IRI_TO_REL: Record<string, TRel> = Object.fromEntries(Object.entries(REL_C
 export const HypermediaContextSchema = z.object({
 	"@context": z.record(z.string(), z.union([z.string(), z.object({ "@id": z.string(), "@type": z.string().optional(), range: z.string().optional() })])),
 	"@queryable": z.array(z.string()).optional(),
-	"@accessLevel": AccessLevelSchema,
+	"@accessLevel": DeclaredLevelsSchema,
 	/** The declared types that don't share a record with this one (owl:disjointWith), for a case a standard vocabulary
 	 *  doesn't state. */
 	"@disjointWith": z.array(z.string().min(1)).optional(),

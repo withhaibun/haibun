@@ -24,7 +24,7 @@ describe("a unit written in a step with a contract", () => {
 		DELEGATES = delegates();
 		store = storeDeclaring(
 			{ [CAPABILITY]: { edges: OWNS_BODY }, [NOTE]: { edges: MENTIONS }, [BODY]: {}, [STEP_RECORD]: {} },
-			{ bound: accessBound, writeBound, declared: () => Access.public, stepWrites: writesInFlight, currentStep: () => undefined, recordTime: () => TIME },
+			{ bound: accessBound, writeBound, declared: (type) => ({ type, levels: [Access.public] }), stepWrites: writesInFlight, currentStep: () => undefined, recordTime: () => TIME },
 		);
 	});
 	const held = (label: string, id: string) => store.query({ subject: id, namedGraph: label });

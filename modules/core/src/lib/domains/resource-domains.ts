@@ -10,6 +10,7 @@ import { PROV_ACTIVITY, PROV_AGENT } from "./vocabularies.js";
 import { fromJsonText } from "./json-text.js";
 import {
 	Access,
+	ACCESS_BROADEST_FIRST,
 	ANNOTATION_NOTE_DOMAIN,
 	BODY_LABEL,
 	BodySchema,
@@ -50,7 +51,7 @@ export const principalDomainDefinition: TDomainDefinition = {
 	// This description defines a DID for a reader because a Principal's identity is a DID. Other descriptions link the
 	// word here and don't explain it again.
 	description:
-		"A person or service that acts in this system: the author of records, comments and decisions. Each is identified by a DID. A DID is a decentralized identifier: a stable web address of its own (written did:…) that anyone can look up to find the keys with which it signs. A central directory doesn't assign these identities.",
+		"A person or service that acts in this system: the author of records, comments and decisions. Each is identified by a DID. A DID is a decentralized identifier: a stable web address of its own (written did:…) that anyone can look up to find the keys with which it signs. A central directory doesn't assign these identities. A published identity is public, and a key that only a private record names is private.",
 	topology: {
 		persistedAs: PRINCIPAL_LABEL,
 		type: "sec:Controller",
@@ -58,7 +59,9 @@ export const principalDomainDefinition: TDomainDefinition = {
 		// prov:Agent). Declaring sec:Controller a kind of prov:Agent makes that attribution well-formed against the rel's range.
 		subClassOf: PROV_AGENT,
 		id: "id",
-		accessLevel: Access.public,
+		// A published identity is public. A key that a private record names, such as a private capability's controller, is
+		// private, so a reader who can't read that record can't list the key either.
+		accessLevel: [Access.public, Access.private],
 		properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, controller: LinkRelations.CONTROLLER.rel, publicKey: LinkRelations.PUBLIC_KEY.rel },
 		edges: { service: { rel: LinkRelations.SERVICE.rel, range: ENDPOINT_LABEL } },
 		sortColumns: { name: "TEXT", controller: "TEXT", generatedAtTime: "TIMESTAMPTZ" },
@@ -71,7 +74,8 @@ export const bodyDomainDefinition: TDomainDefinition = {
 	description: "The full content of another record, such as a message's text or a document's data. It is stored beside the record, so large content loads only when opened.",
 	topology: {
 		persistedAs: BODY_LABEL,
-		accessLevel: Access.private,
+		// A Body is held at the level of the record that owns it, which can be any level.
+		accessLevel: ACCESS_BROADEST_FIRST,
 		id: "id",
 		properties: {
 			id: LinkRelations.IDENTIFIER.rel,

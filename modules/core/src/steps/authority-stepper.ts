@@ -15,6 +15,7 @@ import { AUTHORITY_CAPABILITIES, delegatedActions, permissionOf, readAction, wit
 import { activeSitePrincipal, SITE_DID_PREFIX } from "../lib/domains/host-id.js";
 import { Access, AccessLevelSchema, PRINCIPAL_LABEL } from "../lib/domains/resources.js";
 import { principalDomainDefinition } from "../lib/domains/resource-domains.js";
+import { recordChange } from "../lib/steps/domains/contract.js";
 
 const authorityActionSchema = z
 	.string()
@@ -88,7 +89,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			description:
 				"Assigns a connecting site a unique principal, did:site:<mine>.<n>, under this site's own principal, and writes this site's and the assigned principals to the store as Principal individuals. It returns the assigned principal as the site product, and refuses where a store isn't available or the store's principal list saturates.",
 			capability: AUTHORITY_CAPABILITIES.name,
-			contract: { products: { site: DOMAIN_PRINCIPAL_REF } },
+			contract: { products: { site: DOMAIN_PRINCIPAL_REF }, changes: [recordChange(PRINCIPAL_LABEL)] },
 			// Site principals are unique within a federation. An instance with the default identity (did:site:0) requests a
 			// name from the site it connects to where the two principals collide. This step assigns `did:site:<mine>.<n>`,
 			// which is unique under this site's own principal. It writes this site's principal and the assigned principal to

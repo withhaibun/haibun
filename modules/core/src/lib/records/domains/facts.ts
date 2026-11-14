@@ -6,7 +6,7 @@
 import { PROV_ENTITY } from "../../domains/vocabularies.js";
 import { ACTUALITY_FIELD } from "../../actuality/domains/seq-path.js";
 import { z } from "zod";
-import { Access, EDGE, FACT_LABEL, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "../../domains/resources.js";
+import { ACCESS_BROADEST_FIRST, EDGE, FACT_LABEL, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "../../domains/resources.js";
 
 const FACT_DOMAIN = "fact";
 
@@ -33,7 +33,8 @@ export const factDomainDefinition: TDomainDefinition = {
 		type: PROV_ENTITY,
 		id: FACT_FIELD.id,
 		instrumentation: true,
-		accessLevel: Access.private,
+		// A fact is written at the read ceiling of the step that produced it, which can be any level.
+		accessLevel: ACCESS_BROADEST_FIRST,
 		displayLabel: FACT_FIELD.domain,
 		properties: {
 			[FACT_FIELD.id]: LinkRelations.IDENTIFIER.rel,
