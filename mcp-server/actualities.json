@@ -113,10 +113,10 @@
 			"actuality": {
 				"text": "mcp-server",
 				"status": "passed",
-				"tookMs": 600,
+				"tookMs": 500,
 				"digest": {
 					"mcp-server": "6c710ec3b9f627f32df0a59fb03960978e4eae1e54af532c3183aad1cbe2d155",
-					"modules/core/src": "564db882130fc304efc9c58d46c36086cde11c6898766bbc7916056af05ba7a4",
+					"modules/core/src": "ccec43bc08a1b0cca83286ba39a7c98e4e549d3b969203c360fb1fd44ad6db71",
 					"modules/domain-storage/src": "97565d096e8c098014480f2d8e9e18937734561e98133eb46e3d2426affff022",
 					"modules/logic/src": "4703b8ad667acaac60ea22b366dc147ef11d2e19c7dbbba780c36f9c8d3d96c3",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
@@ -129,7 +129,7 @@
 				"/features/mcp-client.feature": {
 					"text": "/features/mcp-client",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 400,
 					"steps": 9
 				}
 			}
