@@ -412,12 +412,12 @@
 			"actuality": {
 				"text": "modules/shu/tests, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 46800,
+				"tookMs": 49000,
 				"digest": {
 					"modules/cli/src": "c4cdba9459233f62316b0c8f28fa4defde1a34481ed7506c76a436b6265efa4d",
-					"modules/core/src": "9099f9d1d56c5896192ab3879e3d5ec6f2f9035b06063f693431c297fe2bd5f5",
+					"modules/core/src": "e9b8a89b510e3ab935fce7dcaa657eb15c31eb3db709106f4d156956ae387d43",
 					"modules/domain-storage/src": "a1ad8d126b38124a77273e6fc594bfcdc8b344639cc4495e9ddc319a0db8b9e1",
-					"modules/logic/src": "dc9163829b22fcf0a1efd5fb375a11dd008b8e188ce7649f17c7877b4eca8b1c",
+					"modules/logic/src": "e8e23731e604ebf28422597172043dc37a4a250c7d36e3ead714a4dfcb35f123",
 					"modules/monitor-tui/src": "a105d615294710fcf073f7232a5f3d7e5860cc719b39b4e2408805fc52be4648",
 					"modules/shu/src": "668efa21b20e9215b3d8447ee7347ed77989bee3317b252dbed04b6615aa43b5",
 					"modules/shu/tests": "902049aeec7cc97440f01b9bc7ab8e4bf6544e3be80fd641b9084f3c1a9b140d",
@@ -438,25 +438,25 @@
 				"/features/federate.feature.ts": {
 					"text": "Federated graph reads from a sibling instance",
 					"status": "passed",
-					"tookMs": 1300,
+					"tookMs": 1600,
 					"steps": 6
 				},
 				"/features/monitor-serves.feature.ts": {
 					"text": "The monitor serves shu on a port of its own",
 					"status": "passed",
-					"tookMs": 1800,
+					"tookMs": 1600,
 					"steps": 200
 				},
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
-					"tookMs": 33800,
-					"steps": 763
+					"tookMs": 35400,
+					"steps": 765
 				},
 				"/features/remote-store.feature.ts": {
 					"text": "A satellite instance keeps its records in the main instance's store",
 					"status": "passed",
-					"tookMs": 1400,
+					"tookMs": 1500,
 					"steps": 8
 				},
 				"/features/voice-ui.feature.ts": {
