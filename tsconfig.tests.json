@@ -1,5 +1,25 @@
 {
 	"extends": "./modules/tsconfig.settings.json",
+	"references": [
+		{ "path": "./modules/cli" },
+		{ "path": "./modules/core" },
+		{ "path": "./modules/domain-storage" },
+		{ "path": "./modules/logic" },
+		{ "path": "./modules/lsp" },
+		{ "path": "./modules/monitor-otel" },
+		{ "path": "./modules/monitor-tui" },
+		{ "path": "./modules/out-junit" },
+		{ "path": "./modules/recorder" },
+		{ "path": "./modules/shu" },
+		{ "path": "./modules/storage-fs" },
+		{ "path": "./modules/storage-mem" },
+		{ "path": "./modules/tooling" },
+		{ "path": "./modules/utils" },
+		{ "path": "./modules/web-accessibility-axe" },
+		{ "path": "./modules/web-playwright" },
+		{ "path": "./modules/web-server-hono" },
+		{ "path": "./e2e-tests" }
+	],
 	"compilerOptions": {
 		"noEmit": true,
 		"allowImportingTsExtensions": true,
@@ -8,13 +28,19 @@
 		"jsx": "react-jsx"
 	},
 	"include": [
-		"modules/*/src/**/*.ts",
-		"modules/*/src/**/*.tsx",
+		"e2e-tests/*/features/**/*.ts",
+		"e2e-tests/*/backgrounds/**/*.ts",
+		"modules/*/tests*/**/*.ts",
 		"modules/*/waypoints/**/*.ts",
+		"modules/*/test/**/*.feature.ts",
+		"modules/*/src/**/*.d.ts",
+		"modules/*/src/**/*.test.ts",
+		"modules/*/src/**/*.test.tsx",
+		"modules/*/src/**/*.test-fake.ts",
 		"modules/*/entries/**/*.ts",
 		"modules/*/scripts/**/*.ts",
 		"scripts/**/*.ts",
 		"vite.config.ts"
 	],
-	"exclude": ["**/node_modules/**", "**/build/**"]
+	"exclude": ["**/node_modules/**", "**/build/**", "**/capture/**"]
 }
