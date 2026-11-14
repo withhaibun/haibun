@@ -16,7 +16,7 @@ import { ACTIVITIES_STEPPER } from "@haibun/core/steps/activities-actions.js";
 import { page } from "@haibun/web-playwright/waypoints/backgrounds/page.feature.ts";
 
 const wp = new WebPlaywright();
-const { waitFor, click, gotoPage, reloadPage, inElement, setValue } = withAction(wp);
+const { waitFor, waitUntilGone, click, gotoPage, reloadPage, inElement, setValue } = withAction(wp);
 const { serveShuApp } = withAction(new ShuStepper());
 const { set, setAs, exists, setFromStatement } = withAction(new VariablesStepper());
 const { comment } = withAction(new ResourcesStepper());
@@ -345,21 +345,28 @@ export const features: TKirejiExport = {
 		reloadPage({}),
 		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
 		waitFor({ target: CACHE_LOG_DISCONNECTED }),
-		`save text from ${CACHE_LOG_EVENTS} to eventsUnheard`,
+		"A press on the monitor rail's bottom glyph moves the monitor to actuality's newest row, so the monitor follows the newest rows.",
+		`in "${MONITOR_CONTAINER}", click ${IDS.SCROLLBAR.POS_BOTTOM}`,
 
 		"Actuality keeps recording while the page doesn't receive its events. The steps below write the records that the reading reads after the stream returns. The feature doesn't check the values these steps set. It depends only on the record each step writes.",
 		set({ what: "unheard-1", value: '"recorded while the page was not listening"' }),
 		set({ what: "unheard-2", value: '"recorded while the page was not listening"' }),
 		set({ what: "unheard-3", value: '"recorded while the page was not listening"' }),
 		set({ what: "unheard-4", value: '"recorded while the page was not listening"' }),
+		"The monitor doesn't show the rows of these steps while the page doesn't receive events.",
+		setAs({ what: "firstUnheard", domain: "page-locator", value: `"${MONITOR_CONTAINER} .log-row:has-text('set unheard-1 ')"` }),
+		setAs({ what: "lastUnheard", domain: "page-locator", value: `"${MONITOR_CONTAINER} .log-row:has-text('set unheard-4 ')"` }),
+		waitUntilGone({ target: "firstUnheard" }),
+		waitUntilGone({ target: "lastUnheard" }),
 
 		scenario({ scenario: "A view catches up when the stream returns" }),
 
 		"The feature allows the stream. It doesn't reload the page or click it. The page reads again when the stream reconnects. The reading's state is behind from that moment until a read that began after it finishes. Its state is loaded after that read. The page uses one path to follow the stream and to catch up. The feature waits for the loaded state. It doesn't wait for a length of time, because the page reconnects and reads on its own schedule. The reading then holds what actuality recorded while the page didn't read the stream.",
 		`requests matching "${STREAM_GLOB}" are "allowed"`,
 		waitFor({ target: CACHE_LOG_LOADED }),
-		`save text from ${CACHE_LOG_EVENTS} to eventsCaughtUp`,
-		"didn't variable eventsCaughtUp is eventsUnheard",
+		"The monitor then shows the row of the first and of the last step that ran while the page didn't receive events, each by its step's text.",
+		waitFor({ target: "firstUnheard" }),
+		waitFor({ target: "lastUnheard" }),
 
 		scenario({ scenario: "A page without a layout of its own starts on the views actuality showed" }),
 

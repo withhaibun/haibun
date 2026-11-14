@@ -119,9 +119,26 @@ export class ChangedSinceRead extends Error {
 export const statedVersion = (verb: TWriteVerb, version: TReadVersion | undefined): TReadVersion | undefined =>
 	verb === WRITE_VERB.create ? null : verb === WRITE_VERB.update ? version : undefined;
 
-/** Refuses the unit whose record `record` names where the version its verb states isn't the version the store holds. */
-export function assertReadVersion(record: TRecordName, read: TReadVersion | undefined, held: TReadVersion): void {
-	if (read !== undefined && read !== held) throw new ChangedSinceRead(record, read, held);
+/**
+ * Refuses the unit whose record `record` names where the version its verb states isn't the version the store holds. A create
+ * of a record the store holds is refused as `NotUnique` where `taken` returns the values of a set the type declares unique that
+ * the create states and the held record holds: those values are taken, as a place in a status list is taken by the issuance that
+ * holds it, and a caller that draws a value again retries on `NotUnique`.
+ */
+export function assertReadVersion(record: TRecordName, read: TReadVersion | undefined, held: TReadVersion, taken: () => Record<string, unknown> | undefined): void {
+	if (read === undefined || read === held) return;
+	const values = read === null ? taken() : undefined;
+	if (values !== undefined) throw new NotUnique(record, values);
+	throw new ChangedSinceRead(record, read, held);
+}
+
+/** Returns the values of the first of `sets` that `stated` states and `held` holds alike. Returns undefined where `stated` and `held` differ in each set. */
+export function takenValues(sets: readonly (readonly string[])[], stated: (field: string) => unknown, held: (field: string) => unknown): Record<string, unknown> | undefined {
+	for (const fields of sets) {
+		const values = uniqueValuesOf(fields, stated);
+		if (values !== undefined && fields.every((field) => held(field) === values[field])) return values;
+	}
+	return undefined;
 }
 
 /** The refusal of a unit that writes outside the contract of the step in progress. */

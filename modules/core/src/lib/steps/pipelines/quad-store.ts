@@ -51,6 +51,7 @@ import { sliceQuadsPerType } from "../derivations/quad-sample.js";
 import {
 	curieOf,
 	NotUnique,
+	takenValues,
 	uniqueValuesOf,
 	WRITE_VERB,
 	type TNode,
@@ -342,7 +343,17 @@ export class QuadStore implements IQuadStore {
 		if (backing) return await through(backing);
 		// A target a backing store holds is read there, so a unit whose targets this layer holds is applied without an await.
 		for (const edge of this.unheldTargets(unit)) if ((await this.storeFor(edge.label)?.versionOf(edge)) === null) unheldTarget(unit.record, edge);
-		this.versions.check([{ name: unit.record, version: unit.version, held: this.holds(unit.record) }]);
+		const recordPart = unit.parts.find(({ label, id }) => label === unit.record.label && id === unit.record.id);
+		const sets = this.declarations?.().of(unit.record.label)?.unique;
+		const taken = () =>
+			recordPart === undefined || sets === undefined
+				? undefined
+				: takenValues(
+						sets,
+						(field) => recordPart.fields[field],
+						(field) => this.propertyQuad(unit.record, field)?.object,
+					);
+		this.versions.check([{ name: unit.record, version: unit.version, held: this.holds(unit.record), taken }]);
 		const parts = withOwnerLevels(
 			unit.parts.map((part) => ({ part: this.keepingForms(part), held: this.holds(part) })),
 			({ part }) => this.writtenLevelOf(part),

@@ -159,7 +159,19 @@ export class DeviceGraph implements TDeviceGraph {
 			},
 			undefined,
 		);
-		this.versions.check([{ name: unit.record, version: unit.version, held: await this.holds(unit.record) }]);
+		const { takenValues } = await import("@haibun/core/lib/records/domains/unit.js");
+		const recordPart = unit.parts.find(({ label, id }) => label === unit.record.label && id === unit.record.id);
+		const sets = this.declarations().of(unit.record.label)?.unique;
+		const heldFields = sets === undefined ? [] : await this.quads.query({ subject: unit.record.id, namedGraph: unit.record.label });
+		const taken = () =>
+			recordPart === undefined || sets === undefined
+				? undefined
+				: takenValues(
+						sets,
+						(field) => recordPart.fields[field],
+						(field) => heldFields.find((q) => q.predicate === field && q.objectType === undefined)?.object,
+					);
+		this.versions.check([{ name: unit.record, version: unit.version, held: await this.holds(unit.record), taken }]);
 		const changes = unit.parts.map(changeOf);
 		await this.quads.change({ removes: changes.flatMap(({ removes }) => removes), adds: changes.flatMap(({ adds }) => adds) });
 		for (const part of unit.parts) this.versions.changed(part);

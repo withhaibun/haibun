@@ -62,8 +62,8 @@ export class RecordVersions {
 
 	/** Refuses the units whose records changed since their callers read them: each states the version its verb states, and
 	 *  whether the store holds its record. */
-	check(units: ReadonlyArray<{ name: TRecordName; version: TReadVersion | undefined; held: boolean }>): void {
-		for (const { name, version, held } of units) assertReadVersion(name, version, this.of(name, held));
+	check(units: ReadonlyArray<{ name: TRecordName; version: TReadVersion | undefined; held: boolean; taken: () => Record<string, unknown> | undefined }>): void {
+		for (const { name, version, held, taken } of units) assertReadVersion(name, version, this.of(name, held), taken);
 	}
 
 	/** Gives the record `name` names its next version, after a write of it. A store calls it once the write is held, so a read of

@@ -1,14 +1,14 @@
 {
 	"build/assets/page/shu-bundle.js": {
-		"KiB": 760
+		"KiB": 762
 	},
 	"build/assets/page/shu-polymorphic-graph-view.js": {
-		"KiB": 2145
+		"KiB": 2147
 	},
 	"build/assets/shu-polymorphic-graph-view.js": {
-		"KiB": 2082
+		"KiB": 2083
 	},
 	"build/assets/shu-report-bundle.js": {
-		"KiB": 1288
+		"KiB": 1290
 	}
 }
