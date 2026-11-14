@@ -121,6 +121,8 @@ export function contractFindings(steppers: readonly AStepper[]): TContractFindin
 		];
 		const statements = [...(contract.states === undefined ? [] : contract.states), ...(contract.requires === undefined ? [] : contract.requires)];
 		const changeFindings = (change: TChange): string[] => {
+			if ("unitsGiven" in change) return [];
+			if ("typeOf" in change) return named.has(change.typeOf) ? [] : [`${UNNAMED_PARAMETER} ({${change.typeOf}})`];
 			if (isRecordChange(change)) return fields.has(change.persistedAs) ? [] : [`${UNDECLARED_RECORD_CHANGE} (${change.persistedAs})`];
 			return "persistedAs" in change ? changedFieldFindings(change) : predicates.has(change.relation) ? [] : [`${UNSTATED_RELATION} (${change.relation})`];
 		};

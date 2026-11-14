@@ -10,7 +10,7 @@
  */
 import { z } from "zod";
 import { unwrapToShape } from "../../domains/zod-unwrap.js";
-import { RecordSchema, recordOf, schemaRecord } from "../../domains/json-text.js";
+import { heldValue, RecordSchema, recordOf, schemaRecord } from "../../domains/json-text.js";
 import { itemAt } from "../../domains/item-at.js";
 import { JSON_LD_KEYWORD } from "../../domains/hypermedia.js";
 import {
@@ -32,11 +32,12 @@ import {
 } from "../domains/quad-types.js";
 import type { IQuadStore, TFederatedGraphSource, TStoreLevels } from "../ports.js";
 import { AccessLevelSchema, BODY_LABEL, HELD_BY, LinkRelations, withinAccess, type AccessLevel, type AccessQueryLevel } from "../../domains/resources.js";
-import { formsOfBody, keptBodyFields } from "../../records/derivations/bodies.js";
+import { formsOfBody, keptBodyFields, storedFieldsOf } from "../../records/derivations/bodies.js";
 import { withBodies, withOwnerLevels } from "../../records/derivations/unit-bodies.js";
 import { seenAt, writesAtEveryLevel, writtenAt } from "../../domains/actions.js";
 import {
 	distinctOf,
+	offeredLinksOf,
 	ownedEdges,
 	readFromRecords,
 	recordsOfQuads,
@@ -48,8 +49,10 @@ import { quadsOfRead, readUpTo, type TRecordReader } from "../../records/pipelin
 import { densityOverQuadStore } from "../../records/pipelines/record-density.js";
 import { QuadLayer } from "../../records/machines/quad-layer.js";
 import { sliceQuadsPerType } from "../derivations/quad-sample.js";
+import { HYPERMEDIA } from "../../domains/protocol.js";
 import {
 	curieOf,
+	NODE_KEY,
 	NotUnique,
 	takenValues,
 	uniqueValuesOf,
@@ -127,11 +130,19 @@ function fieldSchemaOf(schema: z.ZodType, predicate: string): z.ZodType | undefi
 	return fields.get(predicate);
 }
 
-/** Returns a record of a declared type as a store writes it: the fields its schema parsed, and the edges its topology declares,
- *  which the schema doesn't state. */
-function declaredRecord(schema: z.ZodType, { surface }: TReadDeclaration, label: string, data: unknown): Record<string, unknown> {
+/** Returns a record of a declared type as a store writes it: the stored fields its schema parsed, apart from the content fields its
+ *  Bodies hold, and the edges its topology declares, which the schema doesn't state. */
+function declaredRecord(schema: z.ZodType, { surface, contents }: TReadDeclaration, label: string, data: unknown): Record<string, unknown> {
 	const edges = Object.entries(recordOf(data, `a ${label} record`)).filter(([field]) => field in surface.references);
-	return { ...schemaRecord(schema, label, data, true), ...Object.fromEntries(edges) };
+	return { ...schemaRecord(storedFieldsOf(schema, contents, label), label, data, true), ...Object.fromEntries(edges) };
+}
+
+/** Returns a record a read returns with the links of the calls its type offers, under `_links`, as a store that writes records
+ *  attaches them. A reference, which doesn't hold the record's id field, doesn't offer a call. */
+function withOfferedLinks(vertex: Record<string, unknown>, declarations: TReadDeclarations): Record<string, unknown> {
+	const declaration = declarations.of(String(vertex[NODE_KEY.type]));
+	const id = declaration === undefined ? undefined : vertex[declaration.id];
+	return declaration?.links === undefined || id === undefined ? vertex : { ...vertex, [HYPERMEDIA.LINKS]: offeredLinksOf(declaration.links, id) };
 }
 
 /** A change of this store's own layer: it removes the quads of a subject that `replaces` selects, and then holds `holds`. */
@@ -399,7 +410,7 @@ export class QuadStore implements IQuadStore {
 		const held = [...this.quads.ofSubject(part.label, part.id)];
 		const fields = Object.fromEntries(held.filter((q) => !q.objectType).map((q) => [q.predicate, q.object]));
 		const edges = part.edges.filter(({ rel, id }) => !held.some((q) => q.objectType !== undefined && q.predicate === rel && q.object === id)).map(({ rel }) => rel);
-		return contractChangesOf(part, [...changedFields(part, held.length === 0 ? undefined : fields, this.idFieldOf(part.label)), ...edges]);
+		return contractChangesOf(part, [...changedFields(part, held.length === 0 ? undefined : fields, this.idFieldOf(part.label)), ...edges], this.partDeclaration);
 	}
 
 	/** Returns the level of a part's record as this store writes it: the level the part states, else the level of the record this
@@ -482,7 +493,8 @@ export class QuadStore implements IQuadStore {
 		const edges = part.edges.map(({ rel, label: toLabel, id: toId, replaces }): TChange => {
 			// objectType states the target's type, so the quad reads back as an edge rather than a literal property.
 			const quad = this.classified({ subject: id, predicate: rel, object: toId, namedGraph: label, objectType: toLabel, ...level });
-			return holding(quad, replaces ? (q) => q.predicate === rel : (q) => q.predicate === rel && q.object === toId);
+			// An edge replaces edges alone: an edge field holds its target's id as a field beside the edge.
+			return holding(quad, (q) => q.objectType !== undefined && q.predicate === rel && (replaces || q.object === toId));
 		});
 		return [...records, ...edges];
 	}
@@ -506,7 +518,7 @@ export class QuadStore implements IQuadStore {
 		const level = accessLevel ? { accessLevel } : {};
 		return Object.entries(validated)
 			.filter(([, value]) => value !== undefined && value !== null)
-			.map(([predicate, object]) => holding({ subject: id, predicate, object, namedGraph: label, ...level }, keepsEvery));
+			.map(([predicate, object]) => holding({ subject: id, predicate, object: heldValue(object), namedGraph: label, ...level }, keepsEvery));
 	}
 
 	/** Returns the changes of fields of a record: a value replaces the field, and a null removes it. Each field is held at the
@@ -519,9 +531,10 @@ export class QuadStore implements IQuadStore {
 		const levelField = declaration?.schema === undefined || fieldSchemaOf(declaration.schema, LinkRelations.ACCESS_LEVEL.rel) !== undefined;
 		return Object.entries(fields).flatMap(([predicate, object]): TChange[] => {
 			if (object === undefined || (predicate === LinkRelations.ACCESS_LEVEL.rel && !levelField)) return [];
-			const replaces = (q: TQuad): boolean => q.predicate === predicate;
+			// A field replaces the field alone, and an edge the part writes beside it replaces the edges of its relation.
+			const replaces = (q: TQuad): boolean => q.predicate === predicate && q.objectType === undefined;
 			if (object === null) return [{ namedGraph: label, subject: id, replaces }];
-			const quad = { subject: id, predicate, object, namedGraph: label, ...level };
+			const quad = { subject: id, predicate, object: heldValue(object), namedGraph: label, ...level };
 			if (declaration?.schema !== undefined) declaredField(declaration.schema, declaration, quad);
 			return [holding(this.classified(quad), replaces)];
 		});
@@ -664,10 +677,11 @@ export class QuadStore implements IQuadStore {
 		const elsewhere = query.referencedBy ? await this.referencedElsewhere(held, query) : [];
 		if (parsed)
 			for (const { label, fields } of held) {
-				const schema = declared.of(label)?.schema;
-				if (schema !== undefined) schemaRecord(schema, label, fields, false);
+				const declaration = declared.of(label);
+				if (declaration?.schema !== undefined) schemaRecord(storedFieldsOf(declaration.schema, declaration.contents, label), label, fields, false);
 			}
-		return readFromRecords([...held, ...elsewhere], query, declared);
+		const page = readFromRecords([...held, ...elsewhere], query, declared);
+		return { ...page, vertices: page.vertices.map((vertex) => withOfferedLinks(vertex, declared)) };
 	}
 
 	async readRecord<S extends z.ZodType>(type: TRecordType<S>, id: string, accessLevel?: AccessQueryLevel): Promise<z.output<S> | undefined> {

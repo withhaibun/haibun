@@ -54,7 +54,7 @@ export const UNDECLARED_ID_FIELD = "id";
 
 /** The declaration of a vocabulary edge, which any type holds where a node states its targets as references: it reaches a record of
  *  the type each reference names, which the store may not hold. */
-const VOCABULARY_EDGE: TEdgeDeclaration = { ranges: [], owns: false, reference: true, functional: false };
+const VOCABULARY_EDGE: TEdgeDeclaration = { ranges: [], owns: false, reference: true, functional: false, observesActuality: false };
 
 /** Returns the id an `@id` names: the id of the record IRI it states, or the id it states where it isn't a record IRI. */
 const namedId = (iri: unknown): unknown => recordOfIri(iri)?.id ?? iri;
@@ -173,12 +173,28 @@ function referencedBy(label: string, rel: string, { ranges }: TEdgeDeclaration, 
 	);
 }
 
+/** Returns the record an edge field's literal names: the record of the edge's one range whose id the literal states. Throws where
+ *  the literal isn't an id, or the edge reaches several types, so the literal doesn't name its target's type. */
+function namedByField(label: string, field: string, { ranges }: TEdgeDeclaration, literal: unknown): TRecordName {
+	const [range, ...others] = ranges;
+	if (typeof literal === "string" && literal.trim() !== "" && range !== undefined && others.length === 0) return { label: range, id: literal };
+	throw new Error(`${label}'s field "${field}" names the id of its edge's one target type (${ranges.join(", ")}), and holds ${JSON.stringify(literal)}`);
+}
+
+/** Adds an edge to a part, where the part doesn't already write an edge of the relation to the same record. A field and a
+ *  reference that name one target then write one edge. */
+function addEdge(part: { edges: TUnitEdge[] }, edge: TUnitEdge): void {
+	if (!part.edges.some(({ rel, label, id }) => rel === edge.rel && label === edge.label && id === edge.id)) part.edges.push(edge);
+}
+
 /**
  * Derives a node's own part and the parts of the records it owns, transitively. A key is an edge where the type declares it, or
  * the vocabulary holds it and each value is a reference, and it holds a record; else it is a field. A key that names both a field
- * of the type's schema and an edge holds the field's literals beside the edge's records, as a JSON-LD property holds literals
- * and nodes: the field holds its literals as a list where the schema's field is a list, and its one literal otherwise. An empty
- * list under an edge that isn't a list field of the schema doesn't state a target, so it doesn't write a field or an edge.
+ * of the type's schema and an edge is an edge field: each literal it holds is the id of a record of the edge's range, and the part
+ * writes the field and an edge to that record, so every store holds the same edges for the same node. The field holds its
+ * literals beside the edge's records, as a JSON-LD property holds literals and nodes: as a list where the schema's field is a
+ * list, and its one literal otherwise. An empty list under an edge that isn't a list field of the schema doesn't state a target,
+ * so it doesn't write a field or an edge.
  */
 function partsOf(
 	node: Readonly<Record<string, unknown>>,
@@ -198,6 +214,8 @@ function partsOf(
 		const declared = edgeOf(declaration, key, value);
 		const records = targets.filter(isObject);
 		if (declared !== undefined && targets.length === 0 && declaration?.lists.has(key) !== true) continue;
+		if (declared !== undefined && declaration?.fields?.has(key) === true && value !== null)
+			for (const named of targets.filter((target) => !isObject(target))) addEdge(part, { rel: key, ...namedByField(label, key, declared, named), ...edgeWriteOf(declared) });
 		if (declared === undefined || records.length === 0) {
 			if (targets.some(isReference)) throw new Error(`${label} doesn't declare the edge ${key}. Declare it in the type's topology, or write an edge the type declares`);
 			part.fields[key] = value;
@@ -208,7 +226,7 @@ function partsOf(
 		for (const target of records) {
 			if (isReference(target)) {
 				const to = referencedBy(label, key, declared, target);
-				part.edges.push({ rel: key, ...to, ...edgeWriteOf(declared) });
+				addEdge(part, { rel: key, ...to, ...edgeWriteOf(declared) });
 				continue;
 			}
 			const [{ ranges }, stated] = [declared, target[NODE_KEY.type]];
@@ -220,7 +238,7 @@ function partsOf(
 				);
 			const embedded = partsOf(target, toLabel, declarationOf, verb, step);
 			owned.push(...embedded.owned, embedded.part);
-			part.edges.push({ rel: key, label: toLabel, id: embedded.part.id, ...edgeWriteOf({ reference: false, functional: declared.functional }) });
+			addEdge(part, { rel: key, label: toLabel, id: embedded.part.id, ...edgeWriteOf({ reference: false, functional: declared.functional }) });
 		}
 	}
 	// A text the type indexes by its digest is written with its digest.
@@ -303,8 +321,14 @@ export function partDeclarationOf({
 	edges,
 	digests,
 	contents,
-}: Pick<TReadDeclaration, "id" | "keys" | "schema" | "edges" | "digests" | "contents">): TPartDeclaration {
-	const digested = { ...(digests === undefined ? {} : { digests }), ...(keys === undefined ? {} : { keys }), ...(contents === undefined ? {} : { contents }) };
+	observesActuality,
+}: Pick<TReadDeclaration, "id" | "keys" | "schema" | "edges" | "digests" | "contents" | "observesActuality">): TPartDeclaration {
+	const digested = {
+		...(digests === undefined ? {} : { digests }),
+		...(keys === undefined ? {} : { keys }),
+		...(contents === undefined ? {} : { contents }),
+		...(observesActuality === undefined ? {} : { observesActuality }),
+	};
 	if (schema === undefined) return { id, fields: undefined, lists: new Set(), edges, ...digested };
 	let held = schemaFields.get(schema);
 	if (held === undefined) {

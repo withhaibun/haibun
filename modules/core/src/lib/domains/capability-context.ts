@@ -207,6 +207,10 @@ export function actingFor(): TActingFor | undefined {
 	return call?.principal ? { root: false, controller: call.principal } : undefined;
 }
 
+/** Returns `call` with the writes its step's contract allows replaced by `writes`, as a step's call states them once its arguments
+ *  are read. A call outside a step stays as it is. */
+export const writingIn = (call: TCallContext, writes: TStepWrites): TCallContext => (call.step === undefined ? call : { ...call, step: { ...call.step, writes } });
+
 /** Returns the writes the contract of the step in progress allows: the step this call is part of, or the step of another
  *  instance whose store call this is. Undefined outside a step, and for a step on the contracts baseline. */
 export function writesInFlight(): TStepWrites | undefined {

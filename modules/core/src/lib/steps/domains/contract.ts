@@ -28,15 +28,26 @@ export type TField = { readonly persistedAs: string; readonly key: string };
 export type TRelationChange = { readonly relation: string };
 /** Every field and edge of a record type whose records a step writes whole. */
 export type TRecordChange = { readonly persistedAs: string; readonly key?: never };
-/** A write beyond a step's products: a field of a record type, an edge of a relation that a record of any type holds, or every
- *  field and edge of a record type. */
-export type TChange = TField | TRelationChange | TRecordChange;
+/** Every field and edge of a record of the type the step's parameter `typeOf` names, as a step that takes the type it writes does. */
+export type TTypeOfChange = { readonly typeOf: string };
+/** Every field and edge of a record of each type the units a step gives the store name, as a step that writes the records its
+ *  input holds does. */
+export type TUnitsGivenChange = { readonly unitsGiven: true };
+/** A write beyond a step's products: a field of a record type, an edge of a relation that a record of any type holds, every field
+ *  and edge of a record type, of the type a parameter names, or of the types of the units the step gives the store. */
+export type TChange = TField | TRelationChange | TRecordChange | TTypeOfChange | TUnitsGivenChange;
 /** Returns the change of the edges of `relation` from a record of any type. */
 export const relationChange = (relation: string): TRelationChange => ({ relation });
 /** Returns the change of every field and edge of the records of the type stored as `persistedAs`. */
 export const recordChange = (persistedAs: string): TRecordChange => ({ persistedAs });
+/** Returns the change of every field and edge of a record of the type the step's parameter `parameter` names. */
+export const typeOfChange = (parameter: string): TTypeOfChange => ({ typeOf: parameter });
+/** The change of every field and edge of a record of each type the units the step gives the store name. */
+export const UNITS_GIVEN: TUnitsGivenChange = { unitsGiven: true };
 /** Whether a change lists a record type whole. */
-export const isRecordChange = (change: TChange): change is TRecordChange => !("relation" in change) && !("key" in change);
+export const isRecordChange = (change: TChange): change is TRecordChange => "persistedAs" in change && !("key" in change);
+/** Whether a change lists a field of a record type or a relation. */
+const isListedChange = (change: TChange): change is TField | TRelationChange => "relation" in change || "key" in change;
 
 /** Returns the field `key` of the record type that `definition` declares. */
 export function field<S extends z.ZodObject>(definition: { readonly schema: S; readonly topology: { readonly persistedAs: string } }, key: keyof z.infer<S> & string): TField {
@@ -277,6 +288,10 @@ export type TStepWrites = {
 	readonly step: string;
 	readonly products: readonly string[];
 	readonly changes: readonly (TField | TRelationChange)[];
+	/** The parameters whose named type the step writes whole, which `namedWrites` adds to `products` once the call's arguments are read. */
+	readonly typeOf: readonly string[];
+	/** Whether the step writes whole each type that the units it gives the store name. */
+	readonly unitsGiven: boolean;
 	readonly refused: string[];
 	readonly written: TRecordName[];
 };
@@ -289,7 +304,20 @@ export function stepWrites(step: { readonly contract?: TStepContract }, name: st
 	const changes = declared === undefined ? [] : declared;
 	const whole = changes.filter(isRecordChange).map(({ persistedAs }) => persistedAs);
 	const products = [...contractWrites({ contract: { products: step.contract?.products } }, persistedAsOf), ...whole];
-	return { step: name, products, changes: changes.flatMap((change) => (isRecordChange(change) ? [] : [change])), refused: [], written: [] };
+	const typeOf = changes.flatMap((change) => ("typeOf" in change ? [change.typeOf] : []));
+	return { step: name, products, changes: changes.filter(isListedChange), typeOf, unitsGiven: changes.some((change) => "unitsGiven" in change), refused: [], written: [] };
+}
+
+/** Returns the writes of a step's call once its arguments are read: the type each parameter of `typeOf` names is written whole, as
+ *  a product is. The refused and written records stay those of `writes`, which the step's record lists. Throws where such an
+ *  argument doesn't name a type. */
+export function namedWrites(writes: TStepWrites, args: Readonly<Record<string, unknown>>): TStepWrites {
+	const named = writes.typeOf.map((parameter) => {
+		const type = args[parameter];
+		if (typeof type !== "string" || type === "") throw new Error(`${writes.step} writes the type its {${parameter}} names, and the call states ${JSON.stringify(type)}`);
+		return type;
+	});
+	return named.length === 0 ? writes : { ...writes, products: [...writes.products, ...named] };
 }
 
 /** Returns each record type a step's call writes: the stored label of each product domain that `persistedAsOf` returns one for,

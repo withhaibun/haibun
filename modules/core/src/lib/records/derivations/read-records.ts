@@ -43,6 +43,7 @@ import {
 	topologyEdges,
 	type THeldBy,
 	type TContentField,
+	type TOfferedCall,
 	type TRecordKey,
 	type TRecordNamespace,
 	type TRegisteredDomain,
@@ -77,7 +78,17 @@ export type TReadDeclaration = {
 	keys?: readonly TRecordKey[];
 	/** The content fields the type declares, where it declares one. */
 	contents?: readonly TContentField[];
+	/** The calls each record of the type offers, by the rel that names each, where the type declares one. */
+	links?: Readonly<Record<string, TOfferedCall>>;
+	/** Set where the type's records record what actuality did, which a step's contract doesn't list. */
+	observesActuality?: true;
 };
+
+/** Returns the links of the calls a record offers: under each call's rel, its step's method, the parameter that takes the record by
+ *  its id, and what the call does. A store that writes records attaches them to each record it reads, and a page's store holds
+ *  them as the instance served them. */
+export const offeredLinksOf = (calls: Readonly<Record<string, TOfferedCall>>, id: unknown): Record<string, unknown> =>
+	Object.fromEntries(Object.entries(calls).map(([rel, { method, param, summary }]) => [rel, { method, params: { [param]: { id } }, summary }]));
 
 /** What a store reads by: the types and relations it holds, each type's declaration, and the `@id` a read states for each record
  *  it holds. An instance states the record IRI it derives from the type's label and the record's id; a page states the `@id`
@@ -106,7 +117,7 @@ export function readDeclarationsOf(domains: Record<string, TRegisteredDomain>, r
 	const declarationOf = (label: string): TReadDeclaration | undefined => {
 		const domain = persistedDomainOf(domains, label);
 		if (!domain) return undefined;
-		const { id, heldBy, digests, keys } = domain.topology;
+		const { id, heldBy, digests, keys, links, observesActuality } = domain.topology;
 		const title = titledByOf(domain.topology);
 		const unique = uniqueFieldsOf(label, domain.topology);
 		const contents = contentFieldsOf(domain.topology.properties);
@@ -122,6 +133,8 @@ export function readDeclarationsOf(domains: Record<string, TRegisteredDomain>, r
 			...(digests === undefined ? {} : { digests }),
 			...(keys === undefined ? {} : { keys }),
 			...(contents.length === 0 ? {} : { contents }),
+			...(links === undefined || Object.keys(links).length === 0 ? {} : { links }),
+			...(observesActuality === undefined ? {} : { observesActuality }),
 		};
 	};
 	const declarations: TReadDeclarations = {
@@ -358,8 +371,13 @@ function partsOf(
 	return Object.fromEntries(parts.filter(([, owned]) => owned.length > 0));
 }
 
+/** Returns the reference a record's edge reaches where the store doesn't hold the target: a record of the target's type and id
+ *  without fields, at the level of the record that holds the edge, which a read returns as the target's `@id` and `@type`, as a
+ *  store that holds the reference returns it. */
+const referenceOf = ({ label, id }: THeldEdge, level: unknown): THeldRecord => ({ id, label, fields: {}, edges: [], level });
+
 /** Returns the records a read names before its narrowing: its named records in order, the records that reference a record or
- *  that a record references, or the records of its type. */
+ *  that a record references, a target the store doesn't hold as its reference, or the records of its type. */
 function reached(records: readonly THeldRecord[], query: TGraphQuery): TReached[] {
 	const byKey = new Map(records.map((record) => [keyOf(record.label, record.id), record]));
 	const { label, named, references, referencedBy } = query;
@@ -373,8 +391,8 @@ function reached(records: readonly THeldRecord[], query: TGraphQuery): TReached[
 		const source = byKey.get(keyOf(referencedBy.label, referencedBy.id));
 		if (!source) return [];
 		const reached = source.edges.flatMap((edge) => {
-			const target = byKey.get(keyOf(edge.label, edge.id));
-			return !target || (referencedBy.via && !referencedBy.via.includes(edge.rel)) ? [] : [{ edge, target }];
+			if (referencedBy.via && !referencedBy.via.includes(edge.rel)) return [];
+			return [{ edge, target: byKey.get(keyOf(edge.label, edge.id)) ?? referenceOf(edge, source.level) }];
 		});
 		return [...Map.groupBy(reached, ({ edge }) => keyOf(edge.label, edge.id))].map(([, held]) => ({
 			record: itemAt(held, 0).target,

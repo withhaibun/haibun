@@ -7,6 +7,7 @@ import { referencedName } from "../domains/unit.js";
 import { z } from "zod";
 import { MEDIA_TYPE } from "../../domains/media-types.js";
 import { HAS_BODY_EDGE, contentFieldsOf, type TContentField, type TPropertyDef, type TRepresentation } from "../../domains/resources.js";
+import { unwrapToObject } from "../../domains/zod-unwrap.js";
 import { BODY_ID_PREFIX, BodyTextSchema, LinkedBodySchema, type TBodyText, type TLinkedBody } from "../domains/body.js";
 
 /**
@@ -153,4 +154,23 @@ export function preferredReading<T extends { media: string; text?: string }>(rea
 		if (hit !== undefined) return hit;
 	}
 	return usable[0];
+}
+
+/** The schema of each type's stored fields, by its type's schema, built once. */
+const STORED_FIELDS = new WeakMap<z.ZodType, z.ZodType>();
+
+/** Returns the schema of a record's stored fields: its type's schema without the content fields its Bodies hold, since a store
+ *  writes each content field as a form of a Body the record owns. A type without content fields stores its schema's fields. `label` names the type in a refusal. Throws where the schema
+ *  doesn't state its fields as an object. */
+export function storedFieldsOf(schema: z.ZodType, contents: readonly TContentField[] | undefined, label: string): z.ZodType {
+	if (contents === undefined || contents.length === 0) return schema;
+	const held = STORED_FIELDS.get(schema);
+	if (held !== undefined) return held;
+	const object = unwrapToObject(schema);
+	if (object === null) throw new Error(`${label}'s schema doesn't state its fields as an object, so its records' fields aren't read. Declare the schema as an object.`);
+	// omit keeps the object's handling of a field it doesn't declare, as a strict schema refuses one.
+	const omitted: Record<string, true> = Object.fromEntries(contents.flatMap(({ field }) => (field in object.shape ? [[field, true as const]] : [])));
+	const stored = object.omit(omitted as Record<string, true> & Record<number, never>);
+	STORED_FIELDS.set(schema, stored);
+	return stored;
 }

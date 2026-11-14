@@ -116,7 +116,15 @@ describe("RemoteQuadStore", () => {
 		const backing = storeDeclaring(WIDGETS, TEST_LEVELS);
 		const remote = new RemoteQuadStore({ url: "http://main:1", sign, graphs: ["Widget"], fetchImpl: servingPeer(backing).fetchImpl });
 		await remote.connect();
-		const writes: TStepWrites = { step: "WidgetStepper-colour", products: [], changes: [{ persistedAs: "Widget", key: "colour" }], refused: [], written: [] };
+		const writes: TStepWrites = {
+			step: "WidgetStepper-colour",
+			products: [],
+			changes: [{ persistedAs: "Widget", key: "colour" }],
+			typeOf: [],
+			unitsGiven: false,
+			refused: [],
+			written: [],
+		};
 		const units: TUnitWrite[] = [
 			{ verb: WRITE_VERB.merge, node: { "@type": "Widget", id: "w-2", colour: "red" } },
 			{ verb: WRITE_VERB.merge, node: { "@type": "Widget", id: "w-3", name: "Three" } },
@@ -132,7 +140,7 @@ describe("RemoteQuadStore", () => {
 		const backing = storeDeclaring(WIDGETS, TEST_LEVELS);
 		const remote = new RemoteQuadStore({ url: "http://main:1", sign, graphs: ["Widget"], fetchImpl: servingPeer(backing).fetchImpl });
 		await remote.connect();
-		const writes: TStepWrites = { step: "WidgetStepper-colour", products: [], changes: [], refused: [], written: [] };
+		const writes: TStepWrites = { step: "WidgetStepper-colour", products: [], changes: [], typeOf: [], unitsGiven: false, refused: [], written: [] };
 		await expect(runInCall({ ...inCall(), delegatedWrites: writes }, () => remote.merge({ "@type": "Widget", id: "w-4", name: "Four" }))).rejects.toThrow(WriteOutsideContract);
 		expect(writes.refused).toEqual(["Widget.name"]);
 		await remote.merge({ "@type": "Widget", id: "w-5", name: "Five" });

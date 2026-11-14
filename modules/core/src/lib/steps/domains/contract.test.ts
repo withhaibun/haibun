@@ -23,6 +23,9 @@ import {
 	StepContractSchema,
 	recordChange,
 	stepWrites,
+	namedWrites,
+	typeOfChange,
+	UNITS_GIVEN,
 	writeLevels,
 	type TRelation,
 } from "./contract.js";
@@ -107,13 +110,24 @@ describe("contract terms", () => {
 			step: "S-delegate",
 			products: ["Capability"],
 			changes: [revoked],
+			typeOf: [],
+			unitsGiven: false,
 			refused: [],
 			written: [],
 		});
 		expect(
 			stepWrites({ contract: { products: "text", changes: [recordChange(CAPABILITY.topology.persistedAs), revoked] } }, "S-sync", persistedAs),
 			"a type the changes list whole",
-		).toEqual({ step: "S-sync", products: ["Capability"], changes: [revoked], refused: [], written: [] });
+		).toEqual({ step: "S-sync", products: ["Capability"], changes: [revoked], typeOf: [], unitsGiven: false, refused: [], written: [] });
 		expect(stepWrites({ contract: { products: "capability" } }, "S-delegate", persistedAs)).toBeUndefined();
+		const naming = stepWrites({ contract: { products: "text", changes: [typeOfChange("label"), UNITS_GIVEN] } }, "S-create", persistedAs);
+		expect(naming, "the parameters whose named type the step writes, and whether it writes the types of the units it gives").toMatchObject({
+			products: [],
+			typeOf: ["label"],
+			unitsGiven: true,
+		});
+		if (naming === undefined) throw new Error("a step whose contract declares changes states its writes");
+		expect(namedWrites(naming, { label: "Capability" }).products, "the type the call names is written whole").toEqual(["Capability"]);
+		expect(() => namedWrites(naming, { label: 7 }), "an argument that doesn't name a type").toThrow("S-create writes the type its {label} names, and the call states 7");
 	});
 });

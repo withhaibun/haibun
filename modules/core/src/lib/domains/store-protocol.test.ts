@@ -48,7 +48,7 @@ describe("handleStoreCall", () => {
 
 	it("checks a write against the writes of the caller's step, returns each record it wrote, and returns the refusal of a write outside them", async () => {
 		const store = storeDeclaring({ Widget: {} }, TEST_LEVELS);
-		const writes = { step: "Widgets-make", products: [], changes: [{ persistedAs: "Widget", key: "name" }] };
+		const writes = { step: "Widgets-make", products: [], changes: [{ persistedAs: "Widget", key: "name" }], unitsGiven: false };
 		expect((await handleStoreCall(store, "store.merge", { node: { "@type": "Widget", id: "w-1", name: "One" }, writes })).result).toEqual({
 			value: "w-1",
 			written: [{ label: "Widget", id: "w-1" }],

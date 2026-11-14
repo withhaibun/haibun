@@ -334,8 +334,8 @@ export const SeqPathSchema = PersistedVertexSchema.extend({
 	[SEQ_PATH_FIELD.attributedTo]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.digest]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.endedBy]: OPTIONAL_TEXT,
-	// A store that writes an edge for each edge field the schema declares writes the ask as an edge, so a read of the records
-	// that reply to an ask selects them.
+	// The ask is an edge field, so every store writes it as an edge as well, and a read of the records that reply to an ask
+	// selects them.
 	[SEQ_PATH_EDGE.askedIn]: OPTIONAL_TEXT,
 });
 export type TSeqPath = z.infer<typeof SeqPathSchema>;
@@ -409,6 +409,7 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 		// A record is titled by its heading or its step's text, so a graph of an actuality reads as its features, scenarios and steps.
 		displayLabel: SEQ_PATH_FIELD.stepText,
 		instrumentation: true,
+		observesActuality: true,
 		// Actuality writes every step's record, so the steps' graph is complete.
 		complete: true,
 		countedBy: [SEQ_PATH_FIELD.actionStatus, SEQ_PATH_FIELD.level, ACTUALITY_FIELD],

@@ -33,6 +33,7 @@ export const factDomainDefinition: TDomainDefinition = {
 		type: PROV_ENTITY,
 		id: FACT_FIELD.id,
 		instrumentation: true,
+		observesActuality: true,
 		// A fact is written at the read ceiling of the step that produced it, which can be any level.
 		accessLevel: ACCESS_BROADEST_FIRST,
 		displayLabel: FACT_FIELD.domain,

@@ -153,8 +153,9 @@ export const endpointDomainDefinition: TDomainDefinition = {
 			endpointClass: LinkRelations.TAG.rel,
 			reads: LinkRelations.TAG.rel,
 		},
-		// An endpoint is part of the host that serves it, which a request observed reaching it names.
-		edges: { isPartOf: { rel: LinkRelations.PART_OF.rel, range: HTTP_HOST_LABEL } },
+		// An endpoint is part of the host that serves it, which a request observed reaching it names, so the edge records what
+		// actuality did.
+		edges: { isPartOf: { rel: LinkRelations.PART_OF.rel, range: HTTP_HOST_LABEL, observesActuality: true } },
 		// url is the endpoint's identity: the natural lookup filter (strings are queryable only by manual opt-in).
 		sortColumns: { url: "TEXT" },
 	},

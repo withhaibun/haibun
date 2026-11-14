@@ -31,6 +31,8 @@ export type TDeclaredType = {
 	keys?: readonly TRecordKey[];
 	/** The content fields the type declares, where it declares one. */
 	contents?: readonly TContentField[];
+	/** Set where the type's records record what actuality did. */
+	observesActuality?: true;
 };
 
 /** Returns read declarations of the types `types` names. Each type's id field is the one it names or `id`, its filters
@@ -61,6 +63,7 @@ export function declaredTypes(types: Record<string, TDeclaredType>): TReadDeclar
 				...(type.unique === undefined ? {} : { unique: type.unique }),
 				...(type.keys === undefined ? {} : { keys: type.keys }),
 				...(type.contents === undefined ? {} : { contents: type.contents }),
+				...(type.observesActuality === undefined ? {} : { observesActuality: type.observesActuality }),
 			};
 		},
 	};

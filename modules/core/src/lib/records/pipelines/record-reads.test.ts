@@ -8,9 +8,12 @@ const [NOTE, RESOURCE, SELECTOR, BODY] = ["Note", "SpecificResource", "TextQuote
 const store = () =>
 	storeDeclaring({
 		[NOTE]: {
-			edges: { hasBody: { ranges: [BODY], owns: true, reference: false, functional: false }, target: { ranges: [RESOURCE], owns: true, reference: false, functional: false } },
+			edges: {
+				hasBody: { ranges: [BODY], owns: true, reference: false, functional: false, observesActuality: false },
+				target: { ranges: [RESOURCE], owns: true, reference: false, functional: false, observesActuality: false },
+			},
 		},
-		[RESOURCE]: { edges: { hasSelector: { ranges: [SELECTOR], owns: true, reference: false, functional: false } } },
+		[RESOURCE]: { edges: { hasSelector: { ranges: [SELECTOR], owns: true, reference: false, functional: false, observesActuality: false } } },
 		[SELECTOR]: {},
 		[BODY]: {},
 	});

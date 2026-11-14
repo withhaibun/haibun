@@ -713,6 +713,9 @@ export type TEdgeDef = {
 	/** Set where a record reaches at most one target by the edge (`owl:FunctionalProperty`), so a write of the edge replaces the
 	 *  record's edge to any other. */
 	functional?: true;
+	/** Set where the edge records what actuality did, as the host an observed request reached does, and not a feature's data. A
+	 *  step's contract doesn't list a write of it, since actuality writes it while any step is in progress. */
+	observesActuality?: true;
 };
 
 /**
@@ -810,6 +813,12 @@ export type THypermediaTopology = {
 	 * its records. A view hides it until a reader shows it. Absent means a feature's data.
 	 */
 	instrumentation?: boolean;
+	/**
+	 * Set where the type's records record what actuality did, and not a feature's data: a step's record, a fact it asserts, a
+	 * variable it sets, a message it logs and an HTTP exchange observed on the network. Actuality writes them while any step is
+	 * in progress, so a step's contract doesn't list a write of them, and the contract check doesn't check one.
+	 */
+	observesActuality?: true;
 	/**
 	 * Whether the type's named graph is complete: its records are every record of the type, so the reasoner states them as
 	 * one formula and a rule's scoped negation (`log:notIncludes`) over it is a closed check. Absent means the graph is open,

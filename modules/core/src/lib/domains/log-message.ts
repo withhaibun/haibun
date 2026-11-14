@@ -56,6 +56,7 @@ export const logMessageDomainDefinition: TDomainDefinition = {
 		subClassOf: PROV_ENTITY,
 		id: LOG_MESSAGE_FIELD.id,
 		instrumentation: true,
+		observesActuality: true,
 		countedBy: [LOG_MESSAGE_FIELD.level, ACTUALITY_FIELD],
 		// A reader receives a logged message as a log event. This record is the durable copy of that event, so announcing
 		// the write would report the message a second time, once per field.

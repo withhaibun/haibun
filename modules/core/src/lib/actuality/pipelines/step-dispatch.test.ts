@@ -18,7 +18,7 @@ import { LogicStepper } from "../../test/logic-stepper.js";
 import { TEST_DOMAIN, declaresTestDomains, testDomainDefinitions } from "../../test/test-domains.js";
 import { DOMAIN_DOMAIN_KEY, DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_RECORD_ID, DOMAIN_STATEMENT, DOMAIN_STRING, individualRefDomain, registerDomains } from "../../domains/domains.js";
 import type { TWorld } from "../domains/world.js";
-import { Access, DOMAIN_PERSISTED_TYPE, FACT_LABEL, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "../../domains/resources.js";
+import { Access, COMMENT_LABEL, DOMAIN_PERSISTED_TYPE, FACT_LABEL, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "../../domains/resources.js";
 import { SEQ_PATH_EDGE, SEQ_PATH_FIELD, actualityFeatureOf, factIdOf, formatRecordName } from "../domains/seq-path.js";
 import { readUpTo, equalTo } from "../../records/pipelines/record-reads.js";
 import { MAX_PAGE_ROWS } from "../../domains/hypermedia.js";
@@ -34,6 +34,7 @@ import { WRITE_VERB } from "../../records/domains/unit.js";
 import { bodyByMediaType } from "../../records/pipelines/body-reads.js";
 import { MEDIA_TYPE } from "../../domains/media-types.js";
 import { declareSteps } from "../../steps/domains/stepper.js";
+import { typeOfChange } from "../../steps/domains/contract.js";
 
 // --- Test Steppers ---
 
@@ -663,9 +664,10 @@ describe("step-dispatch", () => {
 			const caller = { registry, world, steppers };
 			const delegated = { capabilityAction: RUN_AUTHORITY, held: RUN_AUTHORITY, delegation: { label: "Capability", id: "urn:uuid:a-delegation" }, attributedTo: "a-model" };
 			const greeting = buildFeatureStepForTransport(toolOf("PlainStepper-greet"), { name: "Ada" }, [0, 30, 1]);
-			await runReadingAt(Access.public, () => runInCall({ ...inCall(), ...delegated, ask: "question-1" }, () => dispatchStep(caller, greeting)));
+			const ask = await world.shared.getStore().create({ "@type": COMMENT_LABEL, id: "question-1", author: "did:example:asker", accessLevel: Access.public, body: "greet Ada" });
+			await runReadingAt(Access.public, () => runInCall({ ...inCall(), ...delegated, ask }, () => dispatchStep(caller, greeting)));
 			expect(await bodyOf([0, 30, 1], MEDIA_TYPE.json), "the call's parameters").toBe('{"name":"Ada"}');
-			expect(await fieldOf([0, 30, 1], SEQ_PATH_EDGE.askedIn), "the ask it ran under").toBe("question-1");
+			expect(await fieldOf([0, 30, 1], SEQ_PATH_EDGE.askedIn), "the ask it ran under").toBe(ask);
 			expect(await fieldOf([0, 30, 1], SEQ_PATH_FIELD.attributedTo), "the agent its caller names").toBe("a-model");
 			expect(await fieldOf([0, 30, 1], SEQ_PATH_EDGE.delegation), "an edge to the record of the delegation its caller names").toBe("urn:uuid:a-delegation");
 			expect(await fieldOf([0, 30, 1], LinkRelations.ACCESS_LEVEL.rel), "the read level of the call").toBe(Access.public);
@@ -706,6 +708,39 @@ describe("step-dispatch", () => {
 			expect((await runAuthorizedWith(RUN_AUTHORITY, () => dispatchStep({ registry, world, steppers }, buildFeatureStepForTransport(tool, {}, [0, 31, 1])))).ok).toBe(true);
 			const fieldOf = (field: string) => world.shared.getStore().get(formatRecordName({ actuality: actualityFeatureOf(world.tag), path: [0, 31, 1] }), field, SEQ_PATH_LABEL);
 			expect(await fieldOf(SEQ_PATH_FIELD.refusedWrites), "each refused write").toEqual(["Note.says"]);
+		});
+
+		it("writes the type a parameter names where its contract states that it changes that type, and refuses a write of another type", async () => {
+			const stepper = new (class WritesNamed extends AStepper {
+				description = "A step whose contract states that it changes the type its parameter names, which writes that type and then another.";
+				steps = declareSteps({
+					writeNamed: {
+						description: TEST_STEP,
+						gwta: `write a {label: ${DOMAIN_PERSISTED_TYPE}}`,
+						contract: { products: TEST_DOMAIN.count, changes: [typeOfChange("label")] },
+						action: async ({ label }) => {
+							const store = world.shared.getStore();
+							await store.merge({ "@type": label, id: "named-1", author: "did:example:writer", accessLevel: Access.public, body: "the named type" });
+							const other = await store.merge({ "@type": "Note", id: "note-2", says: "another type" }).then(
+								() => undefined,
+								(err: unknown) => err,
+							);
+							return other === undefined ? actionNotOK("the store wrote a type the step's parameter doesn't name") : actionOKWithProducts({ count: 1 });
+						},
+					},
+				});
+			})();
+			const steppers = [stepper];
+			const registry = new StepRegistry(steppers, world);
+			const tool = registry.get("WritesNamed-writeNamed");
+			if (!tool) throw new Error("Expected the step to be registered");
+			const done = await runAuthorizedWith(RUN_AUTHORITY, () =>
+				dispatchStep({ registry, world, steppers }, buildFeatureStepForTransport(tool, { label: COMMENT_LABEL }, [0, 32, 1])),
+			);
+			expect(done.ok, "the write of the type the parameter names passes").toBe(true);
+			expect(await world.shared.getStore().get("named-1", "body", COMMENT_LABEL)).toBe("the named type");
+			const fieldOf = (field: string) => world.shared.getStore().get(formatRecordName({ actuality: actualityFeatureOf(world.tag), path: [0, 32, 1] }), field, SEQ_PATH_LABEL);
+			expect(await fieldOf(SEQ_PATH_FIELD.refusedWrites), "the write of another type is refused").toEqual(["Note.says"]);
 		});
 
 		describe("what the caller holds", () => {

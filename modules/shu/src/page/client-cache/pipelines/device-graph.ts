@@ -14,6 +14,7 @@ import type { TDeviceGraph, TDeviceQuads, TGraphSaturation } from "../ports.js";
 import { levelsOf, subjectKey } from "../derivations/quads.js";
 import {
 	NODE_KEY,
+	takenValues,
 	WRITE_VERB,
 	type TNode,
 	type TReadVersion,
@@ -25,7 +26,7 @@ import {
 	type TWriteVerb,
 } from "@haibun/core/lib/records/domains/unit.js";
 import { removeEach, writeEach } from "@haibun/core/lib/records/pipelines/write-many.js";
-import type { TPart } from "@haibun/core/lib/records/derivations/unit-parts.js";
+import { partDeclarationOf, unitParts, type TPart } from "@haibun/core/lib/records/derivations/unit-parts.js";
 import { RecordVersions } from "@haibun/core/lib/records/pipelines/record-versions.js";
 import type { TDeviceChange } from "../ports.js";
 
@@ -145,9 +146,6 @@ export class DeviceGraph implements TDeviceGraph {
 	 *  predicate and a null removing it, and each edge in place of the record's edge to its target, or to any target where it is
 	 *  the record's one target of the relation. Returns the id of the unit's record. */
 	private async writeNow(verb: TWriteVerb, node: TNode, version: TReadVersion | undefined): Promise<string> {
-		// A page holds what a site served, which it writes through setMany, so it loads the derivation of a unit's parts where it
-		// writes a node.
-		const { partDeclarationOf, unitParts } = await import("@haibun/core/lib/records/derivations/unit-parts.js");
 		// A page's write isn't part of a step of actuality.
 		const unit = unitParts(
 			verb,
@@ -159,19 +157,19 @@ export class DeviceGraph implements TDeviceGraph {
 			},
 			undefined,
 		);
-		const { takenValues } = await import("@haibun/core/lib/records/domains/unit.js");
 		const recordPart = unit.parts.find(({ label, id }) => label === unit.record.label && id === unit.record.id);
 		const sets = this.declarations().of(unit.record.label)?.unique;
-		const heldFields = sets === undefined ? [] : await this.quads.query({ subject: unit.record.id, namedGraph: unit.record.label });
+		// One read of the record serves the version check and the values of its unique sets.
+		const held = await this.quads.query({ subject: unit.record.id, namedGraph: unit.record.label });
 		const taken = () =>
 			recordPart === undefined || sets === undefined
 				? undefined
 				: takenValues(
 						sets,
 						(field) => recordPart.fields[field],
-						(field) => heldFields.find((q) => q.predicate === field && q.objectType === undefined)?.object,
+						(field) => held.find((q) => q.predicate === field && q.objectType === undefined)?.object,
 					);
-		this.versions.check([{ name: unit.record, version: unit.version, held: await this.holds(unit.record), taken }]);
+		this.versions.check([{ name: unit.record, version: unit.version, held: held.length > 0, taken }]);
 		const changes = unit.parts.map(changeOf);
 		await this.quads.change({ removes: changes.flatMap(({ removes }) => removes), adds: changes.flatMap(({ adds }) => adds) });
 		for (const part of unit.parts) this.versions.changed(part);

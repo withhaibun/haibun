@@ -63,15 +63,31 @@ describe("the parts of a unit", () => {
 	it("holds a field's literals beside its edge's records under one key, as a list where the schema's field is a list", () => {
 		const unit = unitParts(
 			WRITE_VERB.merge,
-			{ "@type": MESSAGE, id: "m2", subject: "two", from: ["Alice <alice>", referenceTo(PERSON, "alice")], to: ["Bob <bob>", referenceTo(PERSON, "bob")] },
+			{ "@type": MESSAGE, id: "m2", subject: "two", from: ["alice", referenceTo(PERSON, "alice")], to: ["bob", referenceTo(PERSON, "carol")] },
 			undefined,
 			declarationOf,
 			undefined,
 		);
 		const [part] = unit.parts;
-		expect(part?.fields).toEqual({ id: "m2", subject: "two", from: "Alice <alice>", to: ["Bob <bob>"] });
-		expect(part?.edges.map(({ rel, id }) => `${rel} ${id}`)).toEqual(["from alice", "to bob"]);
+		expect(part?.fields).toEqual({ id: "m2", subject: "two", from: "alice", to: ["bob"] });
+		expect(
+			part?.edges.map(({ rel, id }) => `${rel} ${id}`),
+			"a field and a reference that name one target write one edge",
+		).toEqual(["from alice", "to bob", "to carol"]);
 		expect(unit.version, "a merge doesn't depend on a read").toBeUndefined();
+	});
+
+	it("writes the edge to the record each id of an edge field names, as its declaration states the edge", () => {
+		const [part] = unitParts(WRITE_VERB.create, { "@type": MESSAGE, id: "m8", subject: "eight", from: "alice", to: ["bob", "carol"] }, undefined, declarationOf, undefined).parts;
+		expect(part?.fields).toEqual({ id: "m8", subject: "eight", from: "alice", to: ["bob", "carol"] });
+		expect(part?.edges.map(({ rel, label, id, target }) => `${rel} ${label} ${id} ${target}`)).toEqual([
+			`from ${PERSON} alice ${EDGE_TARGET.held}`,
+			`to ${PERSON} bob ${EDGE_TARGET.held}`,
+			`to ${PERSON} carol ${EDGE_TARGET.held}`,
+		]);
+		expect(() => unitParts(WRITE_VERB.create, { "@type": MESSAGE, id: "m9", subject: "nine", from: 7 }, undefined, declarationOf, undefined)).toThrow(
+			`Message's field "from" names the id of its edge's one target type (${PERSON}), and holds 7`,
+		);
 	});
 
 	it("doesn't write a field or an edge for an empty list under an edge, and writes an empty field where the schema's field is a list", () => {

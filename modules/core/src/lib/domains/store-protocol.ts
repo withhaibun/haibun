@@ -43,6 +43,7 @@ const StepWritesSchema = z.object({
 	step: z.string(),
 	products: z.array(z.string()),
 	changes: z.array(z.union([z.object({ persistedAs: z.string(), key: z.string() }), z.object({ relation: z.string() })])),
+	unitsGiven: z.boolean(),
 });
 
 /** What a write sends over a transport: the node, and the writes of the caller's step in progress where it is in one. */
@@ -73,9 +74,10 @@ const WriteResultSchema = z
 	.object({ written: WrittenSchema, refused: z.array(z.string()) })
 	.and(z.union([z.object({ refusal: WriteRefusalSchema }), z.object({ value: z.unknown() })]));
 
-/** Returns the writes of a step as a transport carries them, without the refusals the calling side records. */
+/** Returns the writes of a step as a transport carries them, without the refusals the calling side records. The types its
+ *  parameters name are among its products, since a call's arguments are read before it writes. */
 export const sentWrites = (writes: TStepWrites | undefined) =>
-	writes === undefined ? {} : { writes: { step: writes.step, products: [...writes.products], changes: [...writes.changes] } };
+	writes === undefined ? {} : { writes: { step: writes.step, products: [...writes.products], changes: [...writes.changes], unitsGiven: writes.unitsGiven } };
 
 /** A unit of a batch as a transport carries it. */
 const UnitWriteSchema: z.ZodType<TUnitWrite> = z.discriminatedUnion("verb", [
@@ -206,7 +208,7 @@ export async function handleStoreCall(store: IQuadStore, method: string, rawPara
 /** Runs a write within the writes of the caller's step, and returns its result as a transport carries it: each record it wrote and
  *  each change the step's contract refused, with the write's value or the refusal the store threw. */
 async function inCallerWrites<T>(writes: z.infer<typeof StepWritesSchema> | undefined, write: () => Promise<T>) {
-	const delegatedWrites: TStepWrites | undefined = writes === undefined ? undefined : { ...writes, refused: [], written: [] };
+	const delegatedWrites: TStepWrites | undefined = writes === undefined ? undefined : { ...writes, typeOf: [], refused: [], written: [] };
 	// A write outside a step doesn't add to a step's writes.
 	const recorded = () => (delegatedWrites === undefined ? { written: [], refused: [] } : { written: delegatedWrites.written, refused: delegatedWrites.refused });
 	try {

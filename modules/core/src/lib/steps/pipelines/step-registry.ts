@@ -15,8 +15,9 @@ import type { TStepDescriptor } from "../domains/step-discovery.js";
 import { stepDeclaration } from "../derivations/step-tools.js";
 import { StatementStepsSchema, validateProducts } from "../derivations/tool-validation.js";
 import { argumentsOf } from "./populate-action-args.js";
-import { CONTRACT_CHECK, contractProducts } from "../domains/contract.js";
+import { CONTRACT_CHECK, contractProducts, namedWrites } from "../domains/contract.js";
 import { assumedChecked, callPrincipal, contractChecked, contractRefusal } from "./contract-check.js";
+import { inCall, runInCall, writesInFlight, writingIn } from "../../domains/capability-context.js";
 import { writeProducts } from "./product-writes.js";
 
 /** A registered step tool. Every transport (RPC, MCP, a model's turn) dispatches a step through one. */
@@ -248,7 +249,12 @@ export function createStepHandler(stepperName: string, stepName: string, stepDef
 			const checked = { parameters: read.args, ...(principal === undefined ? {} : { principal }) };
 			const required = await contractChecked(world, stepDef, CONTRACT_CHECK.requires, checked);
 			if (required?.refused !== undefined) return contractRefusal(required.refused, [required.checked]);
-			const acted = await stepDef.action(call.args, featureStep);
+			// A step that writes the type a parameter names writes it within the writes its contract allows, once the argument is read.
+			const [current, writes] = [inCall(), writesInFlight()];
+			const act = () => stepDef.action(call.args, featureStep);
+			const acted = await (current === undefined || writes === undefined || writes.typeOf.length === 0
+				? act()
+				: runInCall(writingIn(current, namedWrites(writes, read.args)), act));
 			const result = acted.ok && call.declared !== undefined ? listedResult(acted, call.declared, call.stages) : acted;
 			// A failed result states its reason in errorMessage. Code that the types don't check can omit it, and that failure
 			// is replaced by one that names the step.

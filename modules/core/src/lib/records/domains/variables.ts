@@ -43,6 +43,7 @@ export const variableDomainDefinition: TDomainDefinition = {
 		id: VARIABLE_FIELD.name,
 		heldBy: HELD_BY.inMemoryStore,
 		instrumentation: true,
+		observesActuality: true,
 		// A variable is written at the read ceiling of the step that set it, which can be any level.
 		accessLevel: ACCESS_BROADEST_FIRST,
 		displayLabel: VARIABLE_FIELD.name,

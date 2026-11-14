@@ -8,12 +8,23 @@ import { referenceTo, WriteOutsideContract } from "../../records/domains/unit.js
 
 const [CAPABILITY, NOTE, BODY, STEP_RECORD, TIME] = ["Capability", "Note", "Body", "SeqPath", "2026-11-08T00:00:00.000Z"];
 /** A Capability owns its Body, and a Note reaches a Capability it mentions. */
-const OWNS_BODY = { hasBody: { ranges: [BODY], owns: true, reference: false, functional: false } };
+const OWNS_BODY = { hasBody: { ranges: [BODY], owns: true, reference: false, functional: false, observesActuality: false } };
 const MENTIONS_REL = LinkRelations.MENTIONS.rel;
-const MENTIONS = { [MENTIONS_REL]: { ranges: [CAPABILITY], owns: false, reference: true, functional: false } };
+const MENTIONS = { [MENTIONS_REL]: { ranges: [CAPABILITY], owns: false, reference: true, functional: false, observesActuality: false } };
+/** A Note's edge to the step that observed it, which records what actuality did. */
+const OBSERVED_REL = "observedIn";
+const OBSERVED = { [OBSERVED_REL]: { ranges: [STEP_RECORD], owns: false, reference: true, functional: false, observesActuality: true } };
 const DELEGATE = "CredentialsStepper-delegate";
 /** The writes of a step whose products are Capabilities and whose contract lists a Note's `revoked`, with the writes refused during the step. */
-const delegates = (): TStepWrites => ({ step: DELEGATE, products: [CAPABILITY], changes: [{ persistedAs: NOTE, key: "revoked" }], refused: [], written: [] });
+const delegates = (): TStepWrites => ({
+	step: DELEGATE,
+	products: [CAPABILITY],
+	changes: [{ persistedAs: NOTE, key: "revoked" }],
+	typeOf: [],
+	unitsGiven: false,
+	refused: [],
+	written: [],
+});
 let DELEGATES = delegates();
 const inStepAt = <T>(seqPath: string, writes: TStepWrites | undefined, within: () => Promise<T>): Promise<T> =>
 	runInCall(inStep(inCall(), { seqPath, reportsAt: undefined, writes }), within);
@@ -23,7 +34,7 @@ describe("a unit written in a step with a contract", () => {
 	beforeEach(() => {
 		DELEGATES = delegates();
 		store = storeDeclaring(
-			{ [CAPABILITY]: { edges: OWNS_BODY }, [NOTE]: { edges: MENTIONS }, [BODY]: {}, [STEP_RECORD]: {} },
+			{ [CAPABILITY]: { edges: OWNS_BODY }, [NOTE]: { edges: { ...MENTIONS, ...OBSERVED } }, [BODY]: {}, [STEP_RECORD]: { observesActuality: true } },
 			{ bound: accessBound, writeBound, declared: (type) => ({ type, levels: [Access.public] }), stepWrites: writesInFlight, currentStep: () => undefined, recordTime: () => TIME },
 		);
 	});
@@ -93,16 +104,18 @@ describe("a unit written in a step with a contract", () => {
 	});
 
 	it("checks each write against the innermost step's contract where steps nest", async () => {
-		const notes: TStepWrites = { step: "NotesStepper-note", products: [NOTE], changes: [], refused: [], written: [] };
+		const notes: TStepWrites = { step: "NotesStepper-note", products: [NOTE], changes: [], typeOf: [], unitsGiven: false, refused: [], written: [] };
 		await inStepAt("0.1", DELEGATES, () => inStepAt("0.1.1", notes, () => store.merge({ "@type": NOTE, id: "n-4", says: "the inner step's product" })));
 		expect(await store.get("n-4", "says", NOTE)).toBe("the inner step's product");
 		await expect(inStepAt("0.1", notes, () => inStepAt("0.1.1", DELEGATES, () => store.merge({ "@type": NOTE, id: "n-5", says: "outside" })))).rejects.toThrow(DELEGATE);
 	});
 
-	it("doesn't check a write outside any step, a write in a step that doesn't declare its changes, or actuality's record of itself", async () => {
+	it("doesn't check a write outside any step, a write in a step that doesn't declare its changes, or a record or an edge whose declaration records what actuality did", async () => {
 		await store.merge({ "@type": NOTE, id: "n-6", says: "outside a step" });
 		await inStepAt("0.1", undefined, () => store.merge({ "@type": NOTE, id: "n-7", says: "a step on the contracts baseline" }));
 		await inStepAt("0.1", DELEGATES, () => store.merge({ "@type": STEP_RECORD, id: "0.1", status: "running" }));
+		await inStepAt("0.1", DELEGATES, () => store.merge({ "@type": NOTE, "@id": "n-6", [OBSERVED_REL]: referenceTo(STEP_RECORD, "0.1") }));
+		expect(DELEGATES.refused, "the check doesn't refuse the step's record or the edge that records what actuality did").toEqual([]);
 		expect([await store.get("n-6", "says", NOTE), await store.get("n-7", "says", NOTE), await store.get("0.1", "status", STEP_RECORD)]).toEqual([
 			"outside a step",
 			"a step on the contracts baseline",

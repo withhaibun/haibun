@@ -39,6 +39,10 @@ export const JsonObjectTextSchema = fromJsonText(JsonObjectSchema);
 export const RecordSchema = z.record(z.string(), z.unknown());
 export const RecordsSchema = z.array(RecordSchema);
 
+/** Returns a field's value as a store holds it: a time as its instant's ISO text, which a read returns as every store returns it,
+ *  and any other value as it is. */
+export const heldValue = (value: unknown): unknown => (value instanceof Date ? value.toISOString() : value);
+
 /** Whether a value is an object read by its keys, checked without copying it, for a value a schema has already checked or
  *  that `JSON.parse` returned. */
 export const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);

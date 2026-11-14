@@ -19,6 +19,7 @@ const edge = (ranges: string[], kind: { owns?: true; functional?: true; referenc
 	owns: kind.owns === true,
 	reference: kind.reference === true,
 	functional: kind.functional === true,
+	observesActuality: false,
 });
 /** Notes, each of which may reach other notes through `about`, one note through `in`, one note the store may not hold through
  *  `after`, and owns the notes it holds through `holds`. */
