@@ -7,7 +7,7 @@ import TestSteps from "../lib/test/TestSteps.js";
 import Haibun from "./haibun-stepper.js";
 import VariablesSteppers from "./variables-stepper.js";
 import { ActivitiesStepper } from "./activities-stepper.js";
-import { AStepper } from "../lib/steps/domains/stepper.js";
+import { AStepper, declareSteps } from "../lib/steps/domains/stepper.js";
 import { actionOK } from "../lib/domains/util.js";
 import { itemAt } from "../lib/domains/item-at.js";
 import { hostScopedMethodName } from "../lib/steps/domains/step-method.js";
@@ -55,7 +55,7 @@ describe("on host", () => {
 			detach() {
 				// required by attachTransportsToRegistry duck-type check
 			}
-			steps = {};
+			steps = declareSteps({});
 		}
 
 		const feature = { path: "/features/test.feature", content: "passes\non host 2, passes" };
@@ -127,7 +127,7 @@ describe("the steps actuality holds", () => {
 		class AddsAStep extends AStepper {
 			description = "Adds a step to actuality's registry, as a transport adds another host's steps, and records actuality's signals.";
 			cycles = { onEvent: (event: THaibunEvent) => void (event.kind === "control" && signals.push(event.signal)) };
-			steps = {
+			steps = declareSteps({
 				addsAStep: {
 					description: TEST_STEP,
 					gwta: "transport adds a step",
@@ -139,7 +139,7 @@ describe("the steps actuality holds", () => {
 						return Promise.resolve(actionOK());
 					},
 				},
-			};
+			});
 		}
 		const result = await passWithDefaults([{ path: "/features/test.feature", content: "passes\ntransport adds a step" }], [Haibun, TestSteps, AddsAStep, LogicStepper]);
 		expect(result.ok).toBe(true);
@@ -241,7 +241,7 @@ describe("show steps", () => {
 		const read: Array<readonly number[] | undefined> = [];
 		class ReadsAsOf extends AStepper {
 			description = "Records the step whose actuality a read reads.";
-			steps = { readsAsOf: { description: TEST_STEP, gwta: "read as of the step", action: () => (read.push(inCall()?.asOf), Promise.resolve(actionOK())) } };
+			steps = declareSteps({ readsAsOf: { description: TEST_STEP, gwta: "read as of the step", action: () => (read.push(inCall()?.asOf), Promise.resolve(actionOK())) } });
 		}
 		const result = await passWithDefaults("as of 0.1, read as of the step\nread as of the step", [Haibun, ReadsAsOf, LogicStepper]);
 		expect(result.ok, JSON.stringify(result.failure)).toBe(true);
@@ -252,7 +252,7 @@ describe("show steps", () => {
 		const noted: string[] = [];
 		class Notes extends AStepper {
 			description = "Records what a statement notes.";
-			steps = { note: { description: TEST_STEP, gwta: "note {value: text}", action: ({ value }: { value: string }) => (noted.push(value), Promise.resolve(actionOK())) } };
+			steps = declareSteps({ note: { description: TEST_STEP, gwta: "note {value: text}", action: ({ value }) => (noted.push(value), Promise.resolve(actionOK())) } });
 		}
 		const result = await passWithDefaults('for each step of whose "method" matches "-pass", show steps: note step.method', [Haibun, TestSteps, Notes, LogicStepper]);
 		expect(result.ok, JSON.stringify(result.failure)).toBe(true);
@@ -267,7 +267,7 @@ describe("show steps", () => {
 		const shown: TStepSummaries[] = [];
 		class ActsForAnother extends AStepper {
 			description = "Lists steps as a caller holding only a public read, alone and acting for one holding every action.";
-			steps = {
+			steps = declareSteps({
 				actsForAnother: {
 					description: TEST_STEP,
 					gwta: "list steps for another",
@@ -278,7 +278,7 @@ describe("show steps", () => {
 						return actionOK();
 					},
 				},
-			};
+			});
 		}
 		const result = await passWithDefaults(
 			[{ path: "/features/test.feature", content: `list steps for another\n${SHOW_STEPS_LINE}` }],

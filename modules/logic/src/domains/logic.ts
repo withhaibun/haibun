@@ -14,6 +14,11 @@ import type { TQuad } from "@haibun/core/lib/steps/domains/quad-types.js";
 export const RESOLVE_STATEMENT = `resolve {goal: ${DOMAIN_DOMAIN_KEY}}`;
 /** A domain goal as ensure states it: a registered domain's key, whose fact ensure makes hold by the goal's plan. */
 export const DOMAIN_DOMAIN_GOAL = "domain-goal";
+declare module "@haibun/core/lib/domains/domains.js" {
+	interface DomainTypes {
+		[DOMAIN_DOMAIN_GOAL]: string;
+	}
+}
 
 const VerdictSchema = z.enum(VERDICT);
 

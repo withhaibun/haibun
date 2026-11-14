@@ -20,9 +20,9 @@ import { z } from "zod";
 import { passWithDefaults, DEF_PROTO_OPTIONS, freePort } from "@haibun/core/lib/test/lib.js";
 import LogicStepper from "@haibun/logic/logic-stepper.js";
 import { TEST_DOMAIN, declaresTestDomains } from "@haibun/core/lib/test/test-domains.js";
-import { AStepper, type TFeatureStep } from "@haibun/core/lib/astepper.js";
+import { AStepper } from "@haibun/core/lib/astepper.js";
 import { nextSeqPath } from "@haibun/core/lib/step-dispatch.js";
-import { LogEvent, OK, VERDICT, type TStepArgs } from "@haibun/core/lib/domains/protocol.js";
+import { LogEvent, OK, VERDICT } from "@haibun/core/lib/domains/protocol.js";
 import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOptionName } from "@haibun/core/lib/domains/util.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import FakeAuthorityStepper, { DOMAIN_FAKE_HOLDER, FakeInvoker, fakeGrant } from "@haibun/core/lib/test/fake-authority.js";
@@ -41,6 +41,7 @@ import { TRANSPORT, type ITransport } from "./domains/transport.js";
 import { DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_STEP_METHOD, DOMAIN_TEXT } from "@haibun/core/lib/domains/domains.js";
 import { StepMethodSchema } from "@haibun/core/lib/steps/domains/step-method.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 /** A family of protocol methods a test serves, and the action its method declares. */
 const [PROBE_PREFIX, PROBE_NAME, PROBE_ACTION] = ["probe.", "held", "Probe:held"];
@@ -49,7 +50,7 @@ const PROBE_METHOD = `${PROBE_PREFIX}${PROBE_NAME}`;
 class PingStepper extends AStepper {
 	description = "Steps that respond to a ping, one of them protected and one gated by an admin capability.";
 	cycles = declaresTestDomains();
-	steps = {
+	steps = declareSteps({
 		ping: { description: TEST_STEP, gwta: "ping", contract: { products: TEST_DOMAIN.pong }, action: async () => actionOKWithProducts({ pong: true }) },
 		protectedPing: {
 			description: TEST_STEP,
@@ -92,7 +93,7 @@ class PingStepper extends AStepper {
 				return OK;
 			},
 		},
-	};
+	});
 }
 
 /** The header that follows the stream of the host at `base` for the actuality its handshake returns. */
@@ -185,11 +186,11 @@ class RpcVerifyStepper extends AStepper {
 	cycles = declaresTestDomains();
 	private heldStream?: ReadableStreamDefaultReader<Uint8Array>;
 	private heldCall?: AsyncGenerator<TStreamChunk>;
-	steps = {
+	steps = declareSteps({
 		shownStepsPresentingNothing: {
 			description: TEST_STEP,
 			gwta: `steps shown at {url: ${DOMAIN_LINK}} presenting nothing include {included: ${DOMAIN_STEP_METHOD}}`,
-			action: async ({ url, included }: TStepArgs) => {
+			action: async ({ url, included }) => {
 				const methods = (await shownSteps(String(url))).map((step): string => step.method);
 				return methods.includes(String(included)) ? OK : actionNotOK(`"${String(included)}" not in [${methods.join(", ")}]`);
 			},
@@ -197,7 +198,7 @@ class RpcVerifyStepper extends AStepper {
 		shownStepsToHolder: {
 			description: TEST_STEP,
 			gwta: `steps shown at {url: ${DOMAIN_LINK}} to {holder: ${DOMAIN_FAKE_HOLDER}} include {included: ${DOMAIN_STEP_METHOD}} and not {excluded: ${DOMAIN_STEP_METHOD}}`,
-			action: async ({ url, holder, included, excluded }: TStepArgs) => {
+			action: async ({ url, holder, included, excluded }) => {
 				const shown = await shownSteps(String(url), String(holder));
 				const methods = shown.map((step): string => step.method);
 				if (!methods.includes(String(included))) return actionNotOK(`"${String(included)}" not in [${methods.join(", ")}]`);
@@ -207,7 +208,7 @@ class RpcVerifyStepper extends AStepper {
 		rpcCallSucceeds: {
 			description: TEST_STEP,
 			gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} succeeds`,
-			action: async ({ url, method }: TStepArgs) => {
+			action: async ({ url, method }) => {
 				const res = await fetch(String(url), {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
@@ -222,7 +223,7 @@ class RpcVerifyStepper extends AStepper {
 		otherActualityRefused: {
 			description: TEST_STEP,
 			gwta: `rpc call to {url: ${DOMAIN_LINK}} and its event stream are refused for another actuality, naming the one it holds`,
-			action: async ({ url }: TStepArgs) => {
+			action: async ({ url }) => {
 				const base = new URL(String(url)).origin;
 				const other = crypto.randomUUID();
 				const refused = actualityRefusal(other, await actualityAt(base));
@@ -240,7 +241,7 @@ class RpcVerifyStepper extends AStepper {
 		rpcReadOfStepRefused: {
 			description: TEST_STEP,
 			gwta: `rpc read at {url: ${DOMAIN_LINK}} of {method: ${DOMAIN_STEP_METHOD}} is refused`,
-			action: async ({ url, method }: TStepArgs) => {
+			action: async ({ url, method }) => {
 				const res = await fetch(String(url), {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
@@ -254,7 +255,7 @@ class RpcVerifyStepper extends AStepper {
 		rpcReadOfUncallableRefusedAlike: {
 			description: TEST_STEP,
 			gwta: `rpc read at {url: ${DOMAIN_LINK}} of {method: ${DOMAIN_STEP_METHOD}} without a capability invocation is refused as a call outside its capabilities`,
-			action: async ({ url, method }: TStepArgs) => {
+			action: async ({ url, method }) => {
 				const res = await fetch(String(url), {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
@@ -268,7 +269,7 @@ class RpcVerifyStepper extends AStepper {
 		rpcReadOfStepAnswered: {
 			description: TEST_STEP,
 			gwta: `rpc read at {url: ${DOMAIN_LINK}} of {method: ${DOMAIN_STEP_METHOD}} is answered`,
-			action: async ({ url, method }: TStepArgs) => {
+			action: async ({ url, method }) => {
 				const res = await fetch(String(url), {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
@@ -282,7 +283,7 @@ class RpcVerifyStepper extends AStepper {
 		rpcCallRefusedUnauthenticated: {
 			description: TEST_STEP,
 			gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} presenting authority without a registered verifier is refused unauthenticated`,
-			action: async ({ url, method }: TStepArgs) => {
+			action: async ({ url, method }) => {
 				const res = await fetch(String(url), {
 					method: "POST",
 					headers: { "Content-Type": "application/json", "capability-invocation": `zcap capability="urn:uuid:x",action="PingStepper:protected"` },
@@ -297,7 +298,7 @@ class RpcVerifyStepper extends AStepper {
 		rpcCallSucceedsSigned: {
 			description: TEST_STEP,
 			gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} succeeds when signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}}`,
-			action: async ({ url, method, holder, action }: TStepArgs) => {
+			action: async ({ url, method, holder, action }) => {
 				const res = await postRpc(String(url), String(method), { holder: String(holder), action: String(action) });
 				if (!res.ok) return actionNotOK(`HTTP ${res.status}: ${await res.text()}`);
 				const data = await res.json();
@@ -308,7 +309,7 @@ class RpcVerifyStepper extends AStepper {
 		rpcCallDeniedForCapability: {
 			description: TEST_STEP,
 			gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} is denied for capability {capability: ${TEST_DOMAIN.action}} when signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}}`,
-			action: async ({ url, method, capability, holder, action }: TStepArgs) => {
+			action: async ({ url, method, capability, holder, action }) => {
 				const res = await postRpc(String(url), String(method), { holder: String(holder), action: String(action) });
 				const data = await res.json();
 				if (res.status !== REFUSED_CALL_STATUS) return actionNotOK(`Expected HTTP ${REFUSED_CALL_STATUS}, got ${res.status}`);
@@ -321,7 +322,7 @@ class RpcVerifyStepper extends AStepper {
 		rpcRefusedPresentingNothing: {
 			description: TEST_STEP,
 			gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} without a capability invocation is refused`,
-			action: async ({ url, method }: TStepArgs) => {
+			action: async ({ url, method }) => {
 				const res = await postRpc(String(url), String(method));
 				const data = (await res.json()) as { error?: string; pong?: boolean };
 				const expected = refusal(String(method), undefined, undefined).error;
@@ -331,7 +332,7 @@ class RpcVerifyStepper extends AStepper {
 		rpcUnknownSigned: {
 			description: TEST_STEP,
 			gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} is unknown when signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}}`,
-			action: async ({ url, method, holder, action }: TStepArgs) => {
+			action: async ({ url, method, holder, action }) => {
 				const res = await postRpc(String(url), String(method), { holder: String(holder), action: String(action) });
 				const data = (await res.json()) as { error?: string };
 				const expected = refusal(String(method), undefined, String(holder)).error;
@@ -341,7 +342,7 @@ class RpcVerifyStepper extends AStepper {
 		probeHolds: {
 			description: TEST_STEP,
 			gwta: `probe family at {url: ${DOMAIN_LINK}} presenting nothing holds what is allowed and reads at {level: ${TEST_DOMAIN.accessLevel}}`,
-			action: async ({ url, level }: TStepArgs) => {
+			action: async ({ url, level }) => {
 				const answered = (await (await postRpc(String(url), PROBE_METHOD)).json()) as { held?: unknown; at?: string };
 				const held = [answered.held].flat();
 				return held.includes(PROBE_ACTION) && answered.at === String(level) ? OK : actionNotOK(`held ${JSON.stringify(answered)}`);
@@ -350,7 +351,7 @@ class RpcVerifyStepper extends AStepper {
 		rpcReadsAtPresentingNothing: {
 			description: TEST_STEP,
 			gwta: `rpc read at {url: ${DOMAIN_LINK}} presenting nothing reads at {level: ${TEST_DOMAIN.accessLevel}}`,
-			action: async ({ url, level }: TStepArgs) => {
+			action: async ({ url, level }) => {
 				const at = await readAtLevel(await postRpc(String(url), "PingStepper-readsAt"));
 				return at === String(level) ? OK : actionNotOK(`read at ${at}`);
 			},
@@ -358,7 +359,7 @@ class RpcVerifyStepper extends AStepper {
 		rpcReadsAtSigned: {
 			description: TEST_STEP,
 			gwta: `rpc read at {url: ${DOMAIN_LINK}} signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}} reads at {level: ${TEST_DOMAIN.accessLevel}}`,
-			action: async ({ url, holder, action, level }: TStepArgs) => {
+			action: async ({ url, holder, action, level }) => {
 				const at = await readAtLevel(await postRpc(String(url), "PingStepper-readsAt", { holder: String(holder), action: String(action) }));
 				return at === String(level) ? OK : actionNotOK(`read at ${at}`);
 			},
@@ -366,7 +367,7 @@ class RpcVerifyStepper extends AStepper {
 		rpcReadsAtAsked: {
 			description: TEST_STEP,
 			gwta: `rpc read asking for {asked: ${TEST_DOMAIN.accessLevel}} at {url: ${DOMAIN_LINK}} signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}} reads at {level: ${TEST_DOMAIN.accessLevel}}`,
-			action: async ({ url, holder, action, asked, level }: TStepArgs) => {
+			action: async ({ url, holder, action, asked, level }) => {
 				const at = await readAtLevel(await postRpc(String(url), "PingStepper-readsAt", { holder: String(holder), action: String(action) }, String(asked)));
 				return at === String(level) ? OK : actionNotOK(`read at ${at}`);
 			},
@@ -374,7 +375,7 @@ class RpcVerifyStepper extends AStepper {
 		streamAnswers: {
 			description: TEST_STEP,
 			gwta: `event stream at {url: ${DOMAIN_LINK}} presenting nothing answers {status: ${DOMAIN_NUMBER}}`,
-			action: async ({ url, status }: TStepArgs) => {
+			action: async ({ url, status }) => {
 				const answered = await openStream(String(url));
 				return answered === Number(status) ? OK : actionNotOK(`responded ${answered}`);
 			},
@@ -382,7 +383,7 @@ class RpcVerifyStepper extends AStepper {
 		streamAnswersSigned: {
 			description: TEST_STEP,
 			gwta: `event stream at {url: ${DOMAIN_LINK}} signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}} answers {status: ${DOMAIN_NUMBER}}`,
-			action: async ({ url, holder, action, status }: TStepArgs) => {
+			action: async ({ url, holder, action, status }) => {
 				const answered = await openStream(String(url), { holder: String(holder), action: String(action) });
 				return answered === Number(status) ? OK : actionNotOK(`responded ${answered}`);
 			},
@@ -390,7 +391,7 @@ class RpcVerifyStepper extends AStepper {
 		streamSendsLevels: {
 			description: TEST_STEP,
 			gwta: `event stream at {url: ${DOMAIN_LINK}} signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}} is sent the events at {levels: ${TEST_DOMAIN.accessLevels}}`,
-			action: async ({ url, holder, action, levels }: TStepArgs) => {
+			action: async ({ url, holder, action, levels }) => {
 				const transport = this.getWorld().runtime[TRANSPORT] as ITransport;
 				const sent = await levelsFollowed(String(url), { holder: String(holder), action: String(action) }, transport);
 				return sent.join(",") === String(levels) ? OK : actionNotOK(`the follower was sent the events at levels [${sent.join(",")}]`);
@@ -399,7 +400,7 @@ class RpcVerifyStepper extends AStepper {
 		holdEventStream: {
 			description: TEST_STEP,
 			gwta: `event stream at {url: ${DOMAIN_LINK}} signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}} is held open`,
-			action: async ({ url, holder, action }: TStepArgs) => {
+			action: async ({ url, holder, action }) => {
 				const at = `${String(url)}${SSE_ROUTE}`;
 				const headers = { ...(await following(String(url))), ...(await new FakeInvoker(String(holder)).sign({ method: "GET", url: at, headers: {} }, String(action))) };
 				const res = await fetch(at, { headers });
@@ -421,7 +422,7 @@ class RpcVerifyStepper extends AStepper {
 		holdStreamedCall: {
 			description: TEST_STEP,
 			gwta: `streamed call at {url: ${DOMAIN_LINK}} to {method: ${DOMAIN_STEP_METHOD}} signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}} is held open`,
-			action: async ({ url, method, holder, action }: TStepArgs) => {
+			action: async ({ url, method, holder, action }) => {
 				const body = await rpcBody(String(url), { method: String(method), under: [0, 1, 1, 1], stream: true });
 				const headers = { "content-type": "application/json" };
 				const res = await fetch(String(url), {
@@ -438,7 +439,7 @@ class RpcVerifyStepper extends AStepper {
 		heldCallEnds: {
 			description: TEST_STEP,
 			gwta: `held streamed call ends with {reason: ${DOMAIN_TEXT}}`,
-			action: async ({ reason }: TStepArgs) => {
+			action: async ({ reason }) => {
 				if (!this.heldCall) return actionNotOK("a streamed call isn't held");
 				const rest: TStreamChunk[] = [];
 				for await (const chunk of this.heldCall) rest.push(chunk);
@@ -448,7 +449,7 @@ class RpcVerifyStepper extends AStepper {
 		rpcOldFormatIgnored: {
 			description: TEST_STEP,
 			gwta: `rpc old format to {url: ${DOMAIN_LINK}} is not dispatched`,
-			action: async ({ url }: TStepArgs) => {
+			action: async ({ url }) => {
 				const res = await fetch(String(url), {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
@@ -460,7 +461,7 @@ class RpcVerifyStepper extends AStepper {
 				return OK;
 			},
 		},
-	};
+	});
 }
 
 /** A server on `port` that serves RPC, where every caller holds `allowedWithoutDelegation`, where the case states it: an empty list otherwise. */
@@ -492,7 +493,7 @@ class ReadStepper extends AStepper {
 		);
 	}
 
-	steps = {
+	steps = declareSteps({
 		asked: { description: TEST_STEP, gwta: "run is asked what it holds", contract: { read: true as const }, readsAt: Access.public, action: () => Promise.resolve(OK) },
 		narratedCalls: {
 			description: TEST_STEP,
@@ -503,7 +504,7 @@ class ReadStepper extends AStepper {
 				return Promise.resolve(named("PingStepper-ping") > 0 ? OK : actionNotOK(`serving an act was not narrated: ${JSON.stringify(narrated)}`));
 			},
 		},
-	};
+	});
 }
 
 const NOTICE_LABEL = "TestNotice";
@@ -528,7 +529,7 @@ class NoticeStepper extends AStepper {
 			],
 		}),
 	};
-	steps = {
+	steps = declareSteps({
 		holdsNotice: {
 			description: TEST_STEP,
 			exact: "public notice is held",
@@ -554,7 +555,7 @@ class NoticeStepper extends AStepper {
 		refusedWithoutRead: {
 			description: TEST_STEP,
 			gwta: `rpc call to {url: ${DOMAIN_LINK}} without a capability invocation is refused with the read action it lacks`,
-			action: async ({ url }: TStepArgs) => {
+			action: async ({ url }) => {
 				const method = String(url).slice(String(url).lastIndexOf("/") + 1);
 				const params = method === STORE_READ_METHOD ? { query: { label: NOTICE_LABEL } } : {};
 				const res = await fetch(String(url), {
@@ -571,7 +572,7 @@ class NoticeStepper extends AStepper {
 		refusedAtGate: {
 			description: TEST_STEP,
 			gwta: `rpc call to {url: ${DOMAIN_LINK}} without a capability invocation is refused at its gate, which records the step it refused for lacking {action: ${DOMAIN_TEXT}}`,
-			action: async ({ url, action }: TStepArgs) => {
+			action: async ({ url, action }) => {
 				const method = String(url).slice(String(url).lastIndexOf("/") + 1);
 				const res = await fetch(String(url), {
 					method: "POST",
@@ -585,7 +586,7 @@ class NoticeStepper extends AStepper {
 				return holds ? OK : actionNotOK(`the record of the refused step doesn't state its refusal: ${JSON.stringify(record)}`);
 			},
 		},
-	};
+	});
 }
 
 const steppers = [WebServerStepper, PingStepper, RpcVerifyStepper, ReadStepper, Haibun, LogicStepper];
@@ -845,7 +846,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 		const port = await freePort();
 		class Injects extends AStepper {
 			description = "A step that copies a step into actuality's registry under another name, as a transport injects one.";
-			steps = {
+			steps = declareSteps({
 				injectAStep: {
 					description: TEST_STEP,
 					gwta: "inject a step into actuality's registry",
@@ -857,7 +858,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 						return Promise.resolve(OK);
 					},
 				},
-			};
+			});
 		}
 		const feature = {
 			path: "/features/injected.feature",
@@ -882,11 +883,11 @@ rpc call to "http://localhost:${port}/rpc/Injected-ping" with method "Injected-p
 
 		class CallPathsStepper extends AStepper {
 			description = "Calls under a page's place over RPC: a step that allocates paths under its own, and a step that runs until it is released.";
-			steps = {
+			steps = declareSteps({
 				nestsSteps: {
 					description: TEST_STEP,
 					exact: "nests two steps",
-					action: (_: TStepArgs, featureStep: TFeatureStep) => {
+					action: (_, featureStep) => {
 						observed.paths.push(featureStep.seqPath);
 						nextSeqPath(this.getWorld(), nextSeqPath(this.getWorld(), featureStep.seqPath));
 						return OK;
@@ -895,7 +896,7 @@ rpc call to "http://localhost:${port}/rpc/Injected-ping" with method "Injected-p
 				waitsForRelease: {
 					description: TEST_STEP,
 					exact: "waits for release",
-					action: async (_: TStepArgs, featureStep: TFeatureStep) => {
+					action: async (_, featureStep) => {
 						observed.paths.push(featureStep.seqPath);
 						await new Promise<void>((resolve) => {
 							release = resolve;
@@ -907,7 +908,7 @@ rpc call to "http://localhost:${port}/rpc/Injected-ping" with method "Injected-p
 				callsUnderPagePlace: {
 					description: TEST_STEP,
 					gwta: `calls under a page's place at {base: ${DOMAIN_LINK}}`,
-					action: async ({ base }: TStepArgs) => {
+					action: async ({ base }) => {
 						const call = async (method: string): Promise<Record<string, unknown>> => {
 							const url = `${String(base)}/rpc/${method}`;
 							const body = await rpcBody(url, { method, under: PAGE_PLACE });
@@ -925,7 +926,7 @@ rpc call to "http://localhost:${port}/rpc/Injected-ping" with method "Injected-p
 						return OK;
 					},
 				},
-			};
+			});
 		}
 
 		const feature = { path: "/features/call-paths.feature", content: `webserver is listening for "rpc-call-paths"\ncalls under a page's place at "http://localhost:${port}"\n` };
@@ -946,11 +947,11 @@ rpc call to "http://localhost:${port}/rpc/Injected-ping" with method "Injected-p
 
 		class BeginActionStepper extends AStepper {
 			description = "Begins an action over RPC twice, keeping the seqPath each response states.";
-			steps = {
+			steps = declareSteps({
 				callBeginActionTwice: {
 					description: TEST_STEP,
 					gwta: `begin action twice at {url: ${DOMAIN_LINK}}`,
-					action: async ({ url }: { url: string }) => {
+					action: async ({ url }) => {
 						const u = String(url);
 						const body = rpcEnvelope({ id: "1", method: ACTION_BEGIN, params: {} });
 						const headers = { "Content-Type": "application/json" };
@@ -961,7 +962,7 @@ rpc call to "http://localhost:${port}/rpc/Injected-ping" with method "Injected-p
 						return OK;
 					},
 				},
-			};
+			});
 		}
 
 		const feature = {
@@ -984,11 +985,11 @@ begin action twice at "http://localhost:${port}/rpc/${ACTION_BEGIN}"
 
 		class MissingSeqPathStepper extends AStepper {
 			description = "Makes an RPC call that doesn't state a seqPath.";
-			steps = {
+			steps = declareSteps({
 				callWithoutSeqPath: {
 					description: TEST_STEP,
 					gwta: `rpc call to {url: ${DOMAIN_LINK}} without seqPath succeeds`,
-					action: async ({ url }: { url: string }) => {
+					action: async ({ url }) => {
 						const res = await fetch(String(url), {
 							method: "POST",
 							headers: { "Content-Type": "application/json" },
@@ -998,7 +999,7 @@ begin action twice at "http://localhost:${port}/rpc/${ACTION_BEGIN}"
 						return OK;
 					},
 				},
-			};
+			});
 		}
 
 		const feature = {
@@ -1080,7 +1081,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 
 		class StreamingStepper extends AStepper {
 			description = "Emits three streaming chunks, or refuses the stream.";
-			steps = {
+			steps = declareSteps({
 				stream3: {
 					description: TEST_STEP,
 					gwta: "emit three streaming chunks",
@@ -1093,16 +1094,16 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 					},
 				},
 				failStream: { description: TEST_STEP, gwta: "stream that refuses", action: () => actionNotOK("stream refused") },
-			};
+			});
 		}
 
 		class StreamingRpcVerifyStepper extends AStepper {
 			description = "Makes a streaming RPC call and checks its chunks arrive.";
-			steps = {
+			steps = declareSteps({
 				streamChunksArrive: {
 					description: TEST_STEP,
 					gwta: `stream rpc call to {url: ${DOMAIN_LINK}} method {method: ${DOMAIN_STEP_METHOD}} emits chunks`,
-					action: async ({ url, method }: TStepArgs) => {
+					action: async ({ url, method }) => {
 						const res = await fetch(String(url), {
 							method: "POST",
 							headers: { "Content-Type": "application/json" },
@@ -1127,7 +1128,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 						return OK;
 					},
 				},
-			};
+			});
 		}
 
 		const feature = {
@@ -1149,7 +1150,7 @@ stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-stream3" metho
 
 		class StreamingStepper extends AStepper {
 			description = "Refuses a stream, or fails it with an error.";
-			steps = {
+			steps = declareSteps({
 				refuse: { description: TEST_STEP, gwta: "refuse the stream", action: () => actionNotOK("nope") },
 				fail: {
 					description: TEST_STEP,
@@ -1158,16 +1159,16 @@ stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-stream3" metho
 						throw new Error("broke");
 					},
 				},
-			};
+			});
 		}
 
 		class StreamingErrorVerifyStepper extends AStepper {
 			description = "Makes a streaming RPC call and checks it ends with an error.";
-			steps = {
+			steps = declareSteps({
 				streamErrorArrives: {
 					description: TEST_STEP,
 					gwta: `stream rpc call to {url: ${DOMAIN_LINK}} method {method: ${DOMAIN_STEP_METHOD}} emits an error`,
-					action: async ({ url, method }: TStepArgs) => {
+					action: async ({ url, method }) => {
 						const res = await fetch(String(url), {
 							method: "POST",
 							headers: { "Content-Type": "application/json" },
@@ -1191,7 +1192,7 @@ stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-stream3" metho
 						return OK;
 					},
 				},
-			};
+			});
 		}
 
 		const feature = {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
+import { AStepper, type IHasCycles, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { domainParts } from "@haibun/core/lib/domains/domains.js";
 import { OK, type TStepValue } from "@haibun/core/lib/domains/protocol.js";
 import { failWithDefaults, passWithDefaults } from "@haibun/core/lib/test/lib.js";
@@ -8,23 +8,24 @@ import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import { locatorOf, pickLocator, wayLocator } from "./locators.js";
 import { DOMAIN_PAGE_LOCATOR, DOMAIN_PAGE_TARGET, DOMAIN_PAGE_TEST_ID, DOMAIN_PAGE_TEXT, WebPlaywrightDomains } from "../domains/web-playwright.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 const aimed: unknown[] = [];
 
 class Targets extends AStepper implements IHasCycles {
 	description = "A step that aims at a page target and records the value it receives.";
 	cycles: IStepperCycles = { getConcerns: () => ({ domains: WebPlaywrightDomains }) };
-	steps: TStepperSteps = {
+	steps = declareSteps({
 		aim: {
 			description: TEST_STEP,
 			gwta: `aim at {target: ${DOMAIN_PAGE_TARGET}}`,
-			action: async ({ target }: { target: TStepValue }) => {
+			action: async ({ target }) => {
 				await Promise.resolve();
 				aimed.push(target);
 				return OK;
 			},
 		},
-	};
+	});
 }
 
 describe("how a place on a page is found", () => {

@@ -92,9 +92,11 @@ export function getActionable(value: string) {
 	return value.replace(/;;.*/, "").trim();
 }
 
-export function constructorName(stepper: AStepper) {
+/** The name of an instance's class, such as a stepper's. Its parameter is an object rather than an AStepper: a stepper's steps
+ *  name their stepper, and a check of the stepper as an AStepper there needs the type of the steps TypeScript is inferring. */
+export function constructorName(instance: object) {
 	// Removes the trailing "2" that vitest/esbuild keepNames appends to class names.
-	return stepper.constructor.name.replace(/2$/, "");
+	return instance.constructor.name.replace(/2$/, "");
 }
 
 // from https://stackoverflow.com/questions/1027224/how-can-i-test-if-a-letter-in-a-string-is-uppercase-or-lowercase-using-javascrip

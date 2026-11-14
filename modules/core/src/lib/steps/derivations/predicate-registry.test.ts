@@ -10,6 +10,7 @@ import { AStepper, PREDICATE, READING, type TWaypointRule } from "../domains/ste
 import { phraseParts } from "../domains/phrase.js";
 import { declaredSteps, predicatesOf } from "./predicate-registry.js";
 import { TEST_STEP } from "../../test/test-step.js";
+import { declareSteps } from "../domains/stepper.js";
 
 const action = () => actionOK();
 const RULE: TWaypointRule = {
@@ -24,13 +25,13 @@ const RULE: TWaypointRule = {
 
 class Kitchen extends AStepper {
 	description = "Declares the steps the registry reads.";
-	steps = {
+	steps = declareSteps({
 		plate: { description: TEST_STEP, gwta: "plate {dish: meal} on {plate: crockery | cutlery}", action },
 		served: { description: TEST_STEP, exact: "dinner is served", action },
 		among: { description: TEST_STEP, gwta: "{dish: meal} is among {menu: domain-key}", predicate: PREDICATE.memberOf, action },
 		cook: { description: TEST_STEP, rules: () => [RULE], reading: READING.apply },
 		say: { description: TEST_STEP, prose: true, action },
-	};
+	});
 }
 
 describe("the predicate registry", () => {
@@ -59,7 +60,7 @@ describe("the predicate registry", () => {
 	it("refuses two steps that declare member_of, and names both", () => {
 		class Pantry extends AStepper {
 			description = "Declares member_of a second time.";
-			steps = { stocked: { description: TEST_STEP, gwta: "{dish: meal} is stocked in {shelf: domain-key}", predicate: PREDICATE.memberOf, action } };
+			steps = declareSteps({ stocked: { description: TEST_STEP, gwta: "{dish: meal} is stocked in {shelf: domain-key}", predicate: PREDICATE.memberOf, action } });
 		}
 		expect(() => predicatesOf(declaredSteps([new Kitchen(), new Pantry()]))).toThrow(`Kitchen-among and Pantry-stocked each declare the predicate ${PREDICATE.memberOf}`);
 	});

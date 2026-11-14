@@ -35,6 +35,7 @@ import { RUN_DOMAIN, SUPERVISOR_CAPABILITIES, runDomainDefinitions } from "./dom
 import { DomainKeySchema } from "@haibun/core/lib/domains/domains.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
 import { WRITE_VERB, type TNode } from "@haibun/core/lib/records/domains/unit.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 type TResult = { ok: boolean; errorMessage?: string; products?: { run: string; status: string; record: string } };
 
@@ -58,13 +59,13 @@ class InstanceStepper extends AStepper implements IHasCycles {
 	output = "a line of output";
 	/** The reason the supervisor refuses the next start, as it refuses features that ran against their present dependencies. */
 	refusal: string | undefined;
-	steps = {
+	steps = declareSteps({
 		startRun: {
 			description: TEST_STEP,
 			gwta: `start a haibun run of {where} matching {filter} from {from} on port {port: number} as run {run} host {hostId: number}`,
 			capability: SUPERVISOR_CAPABILITIES.run,
 			contract: { products: RUN_DOMAIN.started },
-			action: (input: { where: string; filter: string; from: string; port: number; run: string; hostId: number }) => {
+			action: (input) => {
 				this.calls.push({ step: "startRun", input, actingAs: inCall()?.principal });
 				if (this.refusal !== undefined) return Promise.resolve(actionNotOK(this.refusal));
 				return Promise.resolve(actionOKWithProducts({ run: input.run, where: input.where, filter: input.filter, record: "1700000000000-0" }));
@@ -75,36 +76,19 @@ class InstanceStepper extends AStepper implements IHasCycles {
 			gwta: `read the haibun run {run} since {cursor: number}`,
 			capability: SUPERVISOR_CAPABILITIES.read,
 			contract: { products: RUN_DOMAIN.read },
-			action: (input: { run: string; cursor: number }) => {
+			action: (input) => {
 				this.calls.push({ step: "readRun", input });
-				const status = this.ended === null ? "running" : "ended";
-				// The real supervisor moves the actuality machine with a test run's events as its output arrives. This double reads fixed output.
-				const { actuality, report } = outcomeOf(this.output);
-				return Promise.resolve(
-					actionOKWithProducts({
-						run: input.run,
-						status,
-						exitCode: this.ended,
-						cursor: 12,
-						output: this.output,
-						dropped: 0,
-						features: actuality.features.length,
-						actuality: actuality.status,
-						steps: actuality.steps,
-						failures: actuality.failures,
-						...(report === undefined ? {} : { report }),
-					}),
-				);
+				return this.readOutcome(input.run);
 			},
 		},
 		waitRun: {
 			description: TEST_STEP,
-			gwta: `wait for the haibun run {run} to end within {seconds: number} seconds`,
+			gwta: `wait for the haibun run {run} since {cursor: number} to end within {seconds: number} seconds`,
 			capability: SUPERVISOR_CAPABILITIES.read,
 			contract: { products: RUN_DOMAIN.read },
-			action: (input: { run: string; seconds: number; cursor: number }) => {
+			action: (input) => {
 				this.calls.push({ step: "waitRun", input });
-				return this.steps.readRun.action({ run: input.run, cursor: input.cursor });
+				return this.readOutcome(input.run);
 			},
 		},
 		stopRun: {
@@ -112,12 +96,34 @@ class InstanceStepper extends AStepper implements IHasCycles {
 			gwta: `stop the haibun run {run}`,
 			capability: SUPERVISOR_CAPABILITIES.stop,
 			contract: { products: RUN_DOMAIN.stopped },
-			action: (input: { run: string }) => {
+			action: (input) => {
 				this.calls.push({ step: "stopRun", input });
 				return Promise.resolve(actionOKWithProducts({ run: input.run }));
 			},
 		},
-	};
+	});
+
+	/** The test run's status and the outcome of its fixed output, as the supervisor's read and wait return them. */
+	private readOutcome(run: string) {
+		const status = this.ended === null ? "running" : "ended";
+		// The real supervisor moves the actuality machine with a test run's events as its output arrives. This double reads fixed output.
+		const { actuality, report } = outcomeOf(this.output);
+		return Promise.resolve(
+			actionOKWithProducts({
+				run,
+				status,
+				exitCode: this.ended,
+				cursor: 12,
+				output: this.output,
+				dropped: 0,
+				features: actuality.features.length,
+				actuality: actuality.status,
+				steps: actuality.steps,
+				failures: actuality.failures,
+				...(report === undefined ? {} : { report }),
+			}),
+		);
+	}
 }
 
 /** Builds the agent, the supervisor double and an in-memory store. The harness lists each individual the store writes,

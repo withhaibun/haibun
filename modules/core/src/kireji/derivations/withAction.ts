@@ -1,4 +1,5 @@
-import { AStepper, TStepperSteps } from "../../lib/steps/domains/stepper.js";
+import { AStepper, TStepperSteps, type TPlaceholderDomain, type TPlaceholderName, type TRequiredTexts } from "../../lib/steps/domains/stepper.js";
+import type { DOMAIN_STATEMENT } from "../../lib/domains/domains.js";
 import { renderStepLine } from "../../lib/steps/derivations/named-vars.js";
 import { phraseParts } from "../../lib/steps/domains/phrase.js";
 
@@ -13,19 +14,6 @@ const isStepWithExact = (step: unknown): step is TStepWithExact => {
 	return typeof (step as Partial<TStepWithExact>).exact === "string";
 };
 
-// Type-level gwta placeholder extraction
-
-// Strip optional regex patterns from gwta strings for type extraction
-type TStripOptionalPatterns<S extends string> = S extends `${infer Before}(${string})?${infer After}` ? TStripOptionalPatterns<`${Before}${After}`> : S;
-
-type TPlaceholderEntries<S extends string> = TPlaceholderEntriesImpl<TStripOptionalPatterns<S>>;
-
-type TPlaceholderEntriesImpl<S extends string> = S extends `${string}{${infer Placeholder}}${infer After}`
-	? [...TPlaceholderEntry<Placeholder>, ...TPlaceholderEntriesImpl<After>]
-	: [];
-
-type TPlaceholderEntry<P extends string> = P extends `${infer Name}:${infer Domain}` ? [[Name, Domain]] : [[P, undefined]];
-
 type TNestedArgValue = string | number | boolean | null | TActionExecutor<string> | TNestedArgValue[] | { [key: string]: TNestedArgValue };
 
 // A slot's input type matches what `resolveArgValue` accepts at runtime:
@@ -34,25 +22,16 @@ type TNestedArgValue = string | number | boolean | null | TActionExecutor<string
 // type in sync with the runtime, rather than narrowing to `string`, lets feature
 // files pass JS literals (`{ did, name }`) for fields whose stepper takes a
 // composite, without forcing manual `JSON.stringify` at every call site.
-type TPlaceholderValueType<Name extends string, Domain extends string | undefined> = Domain extends "statement"
+type TPlaceholderValueType<Name extends string, Domain extends string> = Domain extends typeof DOMAIN_STATEMENT
 	? string | TActionExecutor<string>
 	: Name extends "statement"
 		? string | TActionExecutor<string>
 		: TNestedArgValue;
 
-type TPlaceholderDomain<Entries extends ReadonlyArray<[string, string | undefined]>, Name extends string> =
-	Extract<Entries[number], [Name, string | undefined]> extends [Name, infer Domain] ? (Domain extends string | undefined ? Domain : undefined) : undefined;
-
-type TArgsInputFromEntries<Entries extends ReadonlyArray<[string, string | undefined]>> = {
-	[K in Entries[number][0]]: TPlaceholderValueType<K, TPlaceholderDomain<Entries, K>>;
-};
-
-type TArgsResolvedFromEntries<Entries extends ReadonlyArray<[string, string | undefined]>> = {
-	[K in Entries[number][0]]: string;
-};
-
-type TActionArgsInput<S extends string> = TArgsInputFromEntries<TPlaceholderEntries<S>>;
-type TActionArgsResolved<S extends string> = TArgsResolvedFromEntries<TPlaceholderEntries<S>>;
+/** The arguments a call of a step takes: each placeholder every line of its pattern states, by its name. */
+type TActionArgsInput<S extends string> = { [I in TRequiredTexts<S> as TPlaceholderName<I>]: TPlaceholderValueType<TPlaceholderName<I>, TPlaceholderDomain<I>> };
+/** The arguments of a call as its line states them: each as its text. */
+type TActionArgsResolved<S extends string> = { [I in TRequiredTexts<S> as TPlaceholderName<I>]: string };
 
 export type TActionExecutor<S extends string> = () => { actionName: string; args: TActionArgsResolved<S>; gwta: string };
 
@@ -64,8 +43,12 @@ export type TKirejiStep = string | TActionExecutor<string>;
 // Kireji export structure: keys are feature/background names, values are arrays of steps or a multi-line string
 export type TKirejiExport = { [featureName: string]: TKirejiStep[] | string };
 
-type TActionsFromStepper<S extends TStepperSteps> = {
-	[K in keyof S]: S[K] extends { gwta: infer L extends string } ? TCurriedAction<L> : S[K] extends { exact: infer L extends string } ? TCurriedAction<L> : never;
+/** A step's pattern as `declareSteps` types it: its gwta or its exact line, which share the pattern's type. */
+type TPatternOf<S> = S extends { gwta?: infer L } ? Exclude<L, undefined> : never;
+/** The action of each step `declareSteps` declares with a literal pattern, by the step's name. A step whose pattern isn't a
+ *  literal type, or that doesn't state a pattern, doesn't have one. */
+type TActionsFromStepper<T extends AStepper> = {
+	[K in keyof T["steps"]]: TPatternOf<T["steps"][K]> extends infer L extends string ? (string extends L ? never : TCurriedAction<L>) : never;
 };
 
 type TActionFactory = (args: Record<string, TNestedArgValue>) => TActionExecutor<string>;
@@ -103,10 +86,7 @@ function withoutLineForm<S extends string>(action: TActionExecutor<S>): TActionE
 	return Object.defineProperties(action, { toString: { value: refused }, [Symbol.toPrimitive]: { value: refused } });
 }
 
-// Map to typedSteps if available (e.g., ActivitiesStepper), otherwise use steps directly
-type TStepMap<T extends AStepper> = T extends { typedSteps: infer U } ? (U extends TStepperSteps ? U : T["steps"]) : T["steps"];
-
-export const withAction = <T extends AStepper>(stepper: T): TActionsFromStepper<TStepMap<T>> => stepActions(stepper) as TActionsFromStepper<TStepMap<T>>;
+export const withAction = <T extends AStepper>(stepper: T): TActionsFromStepper<T> => stepActions(stepper) as TActionsFromStepper<T>;
 
 /** The action of each of a stepper's steps that declares a gwta or an exact line, by the step's name. An exact line doesn't take
  *  arguments, so its action is called with `{}`, as a gwta without placeholders is. */

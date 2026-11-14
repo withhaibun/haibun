@@ -12,7 +12,7 @@ import { failWithDefaults, freePort, passWithDefaults } from "@haibun/core/lib/t
 import LogicStepper from "@haibun/logic/logic-stepper.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { actionNotOK, errorDetail, getStepperOptionName } from "@haibun/core/lib/domains/util.js";
-import { DEFAULT_DEST, OK, type TStepArgs } from "@haibun/core/lib/domains/protocol.js";
+import { DEFAULT_DEST, OK } from "@haibun/core/lib/domains/protocol.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import FakeAuthorityStepper, { FakeInvoker, fakeGrant, DOMAIN_FAKE_HOLDER } from "@haibun/core/lib/test/fake-authority.js";
@@ -27,6 +27,7 @@ import { openRelayChannel } from "./relay-client/adapters/relay-channel.js";
 import type { TProveRequest } from "@haibun/core/lib/transport/ports.js";
 import { DOMAIN_LINK, DOMAIN_TEXT } from "@haibun/core/lib/domains/domains.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 const PAGE = `<title>attached</title><button onclick="this.textContent='pressed'">press me</button><input aria-label="note" oninput="document.getElementById('echo').textContent=this.value"><p id="echo"></p>`;
 
@@ -47,11 +48,11 @@ class PersonsExtension extends AStepper {
 	description = "Stands in for a person's extension. It attaches the tab the person has open to an instance's browser relay.";
 	private connection?: RelayConnection;
 	private ended?: Promise<string>;
-	steps = {
+	steps = declareSteps({
 		attaches: {
 			description: TEST_STEP,
 			gwta: `person's extension attaches their tab at {base: ${DOMAIN_LINK}}, signed by {holder: ${DOMAIN_FAKE_HOLDER}}`,
-			action: async ({ base, holder }: TStepArgs) => {
+			action: async ({ base, holder }) => {
 				const channel = await openRelayChannel({ base: String(base), sign: signedAs(String(holder)) });
 				this.connection = new RelayConnection(channel, chrome, () => undefined);
 				const ended = Promise.withResolvers<string>();
@@ -65,7 +66,7 @@ class PersonsExtension extends AStepper {
 		refused: {
 			description: TEST_STEP,
 			gwta: `extension attaching at {base: ${DOMAIN_LINK}}, signed by {holder: ${DOMAIN_FAKE_HOLDER}}, is refused for {why: ${DOMAIN_TEXT}}`,
-			action: async ({ base, holder, why }: TStepArgs) => {
+			action: async ({ base, holder, why }) => {
 				try {
 					await openRelayChannel({ base: String(base), sign: signedAs(String(holder)) });
 					return actionNotOK("the relay accepted the attachment instead of refusing it");
@@ -85,13 +86,13 @@ class PersonsExtension extends AStepper {
 		toldEnded: {
 			description: TEST_STEP,
 			gwta: `person's extension is told its attachment ended because {why: ${DOMAIN_TEXT}}`,
-			action: async ({ why }: TStepArgs) => {
+			action: async ({ why }) => {
 				if (!this.ended) return actionNotOK("the extension didn't attach a tab");
 				const reason = await this.ended;
 				return reason.includes(String(why)) ? OK : actionNotOK(`the attachment ended because ${reason}`);
 			},
 		},
-	};
+	});
 }
 
 const steppers = [WebServerStepper, WebPlaywright, VariablesStepper, StorageMem, AuthorityStepper, FakeAuthorityStepper, PersonsExtension, LogicStepper];

@@ -32,14 +32,21 @@ import {
 } from "../domains/authority-types.js";
 import { RefusedCall } from "../transport/domains/rpc-wire.js";
 import { TEST_STEP } from "./test-step.js";
+import { declareSteps } from "../steps/domains/stepper.js";
 
 const HOLDER_HEADER = "fake-holder";
 /** The domain of a holder's name. The stand-in invoker presents the name on each request it signs, and a test grants actions to it. */
 export const DOMAIN_FAKE_HOLDER = "fake-authority-holder";
+const FakeHolderSchema = z.string().min(1);
+declare module "../domains/domains.js" {
+	interface DomainTypes {
+		[DOMAIN_FAKE_HOLDER]: z.output<typeof FakeHolderSchema>;
+	}
+}
 /** The holder domain's definition. The fake authority stepper declares it, and `testDomainDefinitions` contains it for test steppers whose steps take a holder. */
 export const FAKE_HOLDER_DOMAIN: TDomainDefinition = {
 	selectors: [DOMAIN_FAKE_HOLDER],
-	schema: z.string().min(1),
+	schema: FakeHolderSchema,
 	description: "A holder's name. The stand-in invoker presents it on each request it signs, and a test grants actions to it.",
 };
 const INVOCATION_HEADER = "capability-invocation";
@@ -132,16 +139,16 @@ export default class FakeAuthorityStepper extends AStepper {
 
 	cycles: IStepperCycles = { getConcerns: () => ({ domains: [FAKE_HOLDER_DOMAIN] }) };
 
-	steps = {
+	steps = declareSteps({
 		presentAuthorityAs: {
 			description: TEST_STEP,
 			gwta: `present authority as {holder: ${DOMAIN_FAKE_HOLDER}}`,
-			action: ({ holder }: { holder: string }) => this.withAuthority((authority) => authority.registerInvoker(new FakeInvoker(holder))),
+			action: ({ holder }) => this.withAuthority((authority) => authority.registerInvoker(new FakeInvoker(holder))),
 		},
 		acceptAuthority: {
 			description: TEST_STEP,
 			gwta: `accept authority from {holder: ${DOMAIN_FAKE_HOLDER}} for {actions: ${DOMAIN_ACTIONS}}`,
-			action: ({ holder, actions }: { holder: string; actions: string[] }) =>
+			action: ({ holder, actions }) =>
 				this.withAuthority((authority) => {
 					this.grants.set(holder, actions);
 					authority.registerVerifier(new FakeVerifier(this.grants));
@@ -150,13 +157,13 @@ export default class FakeAuthorityStepper extends AStepper {
 		withdrawAuthority: {
 			description: TEST_STEP,
 			gwta: `withdraw authority from {holder: ${DOMAIN_FAKE_HOLDER}}`,
-			action: ({ holder }: { holder: string }) =>
+			action: ({ holder }) =>
 				this.withAuthority((authority) => {
 					this.grants.delete(holder);
 					authority.revoked(fakeGrant(holder));
 				}),
 		},
-	};
+	});
 
 	private withAuthority(register: (authority: NonNullable<ReturnType<typeof getAuthority>>) => void) {
 		register(heldAuthority(this.getWorld().runtime, "registering a stand-in"));

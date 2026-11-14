@@ -13,10 +13,17 @@ import {
 	type TRelRange,
 } from "./resources.js";
 import type { TLinkVocabulary } from "./typed-links.js";
-import { parseJsonText } from "./json-text.js";
+import type { TStepValue } from "./protocol.js";
+import type { TFieldComparison } from "./lists.js";
+import type { TFeatureStep } from "../steps/domains/stepper.js";
+import type { DateSchema, DurationSchema, NumberSchema, StepPathSchema, StringSchema } from "./value-schemas.js";
+import { parseJsonText, type JsonObjectTextSchema } from "./json-text.js";
 import { actionList } from "./actions.js";
 import { unwrapToShape } from "./zod-unwrap.js";
 import type { TWorld } from "../actuality/domains/world.js";
+
+/** What a reference domain's key adds to the key of the type it references. */
+const REF_SUFFIX = "-ref";
 
 export const DOMAIN_STATEMENT = "statement";
 export const DOMAIN_STRING = "string";
@@ -96,6 +103,51 @@ export const DOMAIN_BEARER_TOKEN = "bearer-token";
 /** What separates the parts of a union domain's key. */
 export const DOMAIN_UNION = " | ";
 
+/**
+ * The TypeScript type of the value each domain coerces, by the domain's key. `declareSteps` types an action's arguments from it.
+ * The module that exports a domain's key adds the domain's entry to this interface by module augmentation. A step's pattern
+ * names the key, so the step's file imports that module, and the entry is in every program that types the step. The entries of the domains whose keys this module exports are stated here: a statement's value is the feature steps its line
+ * resolves to, a variable value's parameter receives the resolved TStepValue, and a reference to a record is `{ id }`.
+ */
+export interface DomainTypes {
+	[ref: `${string}${typeof REF_SUFFIX}`]: TIndividualRef;
+	[DOMAIN_PERSISTED_TYPE]: z.output<typeof NameSchema>;
+	[DOMAIN_DOMAIN_KEY]: string;
+	[DOMAIN_STEPPER_NAME]: string;
+	[DOMAIN_STRING]: z.output<typeof StringSchema>;
+	[DOMAIN_TEXT]: z.output<typeof StringSchema>;
+	[DOMAIN_LINK]: z.output<typeof StringSchema>;
+	[DOMAIN_NUMBER]: z.output<typeof NumberSchema>;
+	[DOMAIN_DATE]: z.output<typeof DateSchema>;
+	[DOMAIN_DURATION]: z.output<typeof DurationSchema>;
+	[DOMAIN_STEP_PATH]: z.output<typeof StepPathSchema>;
+	[DOMAIN_VARIABLE_NAME]: z.output<typeof NameSchema>;
+	[DOMAIN_DOMAIN_NAME]: z.output<typeof NameSchema>;
+	[DOMAIN_GLOB]: z.output<typeof NameSchema>;
+	[DOMAIN_FILE_PATH]: z.output<typeof NameSchema>;
+	[DOMAIN_TITLE]: z.output<typeof NameSchema>;
+	[DOMAIN_WAYPOINT_ARGUMENT]: z.output<typeof NameSchema>;
+	[DOMAIN_ROUTE]: z.output<typeof NameSchema>;
+	[DOMAIN_BEARER_TOKEN]: z.output<typeof NameSchema>;
+	[DOMAIN_LINK_REL]: z.output<typeof NameSchema>;
+	[DOMAIN_UNIVERSAL]: string;
+	[DOMAIN_LINE_COMMENT]: string;
+	[DOMAIN_TEMPLATE]: string;
+	[DOMAIN_HYPERMEDIA_DECLARATION]: string;
+	[DOMAIN_STEP_METHOD]: string;
+	[DOMAIN_STATEMENT_LINES]: string[];
+	[DOMAIN_PERSISTED_TYPES]: z.output<ReturnType<typeof listedSchema>>;
+	[DOMAIN_ACTIONS]: z.output<ReturnType<typeof listedSchema>>;
+	[DOMAIN_BACKGROUND_NAMES]: z.output<typeof backgroundNamesSchema>;
+	[DOMAIN_SET_VALUES]: z.output<typeof setValuesSchema>;
+	[DOMAIN_FIELD_COMPARISON]: TFieldComparison;
+	[DOMAIN_RECORD_ID]: z.output<typeof recordIdInputSchema>;
+	[DOMAIN_JSON]: z.output<ReturnType<typeof z.json>>;
+	[DOMAIN_JSON_OBJECT]: z.output<typeof JsonObjectTextSchema>;
+	[DOMAIN_STATEMENT]: TFeatureStep[];
+	[DOMAIN_VARIABLE_VALUE]: TStepValue;
+}
+
 /** The domains a domain key names: itself, or each part of a union. */
 export const domainParts = (domainKey: string): string[] => domainKey.split(DOMAIN_UNION);
 
@@ -173,8 +225,8 @@ export function fieldRangesOf(domain: TRegisteredDomain | undefined, domains: Re
 }
 
 /** The key of the domain whose value is a reference to a record of the type a domain key names. */
-export function refDomainKey(domainKey: string): string {
-	return `${domainKey}-ref`;
+export function refDomainKey<K extends string>(domainKey: K): `${K}${typeof REF_SUFFIX}` {
+	return `${domainKey}${REF_SUFFIX}`;
 }
 
 /**
@@ -222,6 +274,18 @@ export const registerStepperNames = (world: TWorld, names: string[]) => {
 };
 
 export const asDomainKey = (domains: string[]) => domains?.sort().join(DOMAIN_UNION);
+
+/** The key of a union of two or more domains: its parts joined by DOMAIN_UNION. A step's parameter of a union domain receives
+ *  the resolved TStepValue, and `declareSteps` reads that from this type. */
+export type TUnionDomainKey = `${string}${typeof DOMAIN_UNION}${string}`;
+
+/** The key of the union of the domains, in the order `asDomainKey` states them. Throws where fewer than two domains are given,
+ *  since one domain's key is the domain's own. */
+export function unionDomainKey(domains: readonly string[]): TUnionDomainKey {
+	const [first, ...rest] = [...domains].sort();
+	if (first === undefined || rest.length === 0) throw new Error(`a union domain joins two or more domains, and ${JSON.stringify(domains)} doesn't; name the domain itself`);
+	return `${first}${DOMAIN_UNION}${rest.join(DOMAIN_UNION)}`;
+}
 
 /** The domain key a step parameter takes: the domain its phrase names, with a union's parts in order. */
 export const paramDomainKey = (declared: string): string => normalizeDomainKey(asDomainKey(domainParts(declared)));

@@ -17,7 +17,7 @@ import { requiredAction } from "../domains/actions.js";
 import { constructorName } from "../domains/util.js";
 import { proseFindings } from "./prose-baseline.js";
 import { refusalFindings } from "./refusal-rules.js";
-import { parsedSources, sourceFiles, type TPackages } from "./repository-files.js";
+import { parsedSources, sourceFiles, typescriptFiles, type TPackages } from "./repository-files.js";
 import {
 	declaredSteps,
 	fixedStatements,
@@ -33,7 +33,15 @@ import {
 	undeclaredLists,
 	unexercised,
 } from "./step-rules.js";
-import { absenceCheckFindings, downstreamNameFindings, oneReadFindings, onePathFindings, unboundedReadFindings, vocabularyFindings } from "./surface-rules.js";
+import {
+	absenceCheckFindings,
+	downstreamNameFindings,
+	oneReadFindings,
+	onePathFindings,
+	unboundedReadFindings,
+	untypedStepsFindings,
+	vocabularyFindings,
+} from "./surface-rules.js";
 
 /** What a repository's rules read, each path from its root. */
 export type TRepositoryRules = {
@@ -69,6 +77,9 @@ export type TRepositoryRules = {
 	/** The documents a contributor reads first. */
 	firstRead: readonly string[];
 };
+
+/** The pathspec that lists every file of a repository. */
+const REPOSITORY_ROOT = ".";
 
 const described = (found: { file: string; finding: string }[]): string[] => found.map(({ file, finding }) => `${file} ${finding}`);
 
@@ -124,6 +135,11 @@ export function describeRepositoryRules(rules: TRepositoryRules): void {
 			it("reads the store in the logic engine only through its reader, apart from what one-read.baseline.json records", async () => {
 				const fix = "read the store through readerOf in haibun's modules/logic/src/pipelines/reads.ts, which returns the engine's reads";
 				await expectWithinBaseline({ baselineFile: baseline("one-read"), found: oneReadFindings(sources), testFile, fix });
+			});
+
+			it("declares each stepper's steps through declareSteps, in every TypeScript file it holds", () => {
+				const typescript = parsedSources(repository, typescriptFiles(repository, [REPOSITORY_ROOT]));
+				expect(described(untypedStepsFindings(typescript)), "set the steps property from declareSteps({ ... }), which types each action's arguments from its pattern").toEqual([]);
 			});
 
 			it("states the bound of each read of pages of records outside an export and the tests", () => {

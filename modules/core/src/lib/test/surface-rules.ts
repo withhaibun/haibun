@@ -3,7 +3,8 @@
  * through the logic engine's prover, so every surface has one path (one path). The logic engine reads the store only through
  * its read request's reader (one read). A file doesn't name a concept by a synonym the vocabulary table removes (one
  * vocabulary), name an application built on the repository (downstream names), or state a safety check over a class
- * expression as an absence (positive checks).
+ * expression as an absence (positive checks). A stepper declares its steps through declareSteps, which types each action's
+ * arguments from its pattern (typed steps).
  */
 import { readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
@@ -38,6 +39,31 @@ export function onePathFindings(sources: TSources): TFound[] {
 			visit(source);
 			return found;
 		});
+}
+
+export const UNTYPED_STEPS = "declares its steps without declareSteps";
+
+/** Each class property `steps` set from an object literal, or from a value checked with `satisfies`. An object literal's
+ *  actions receive untyped arguments, with or without `satisfies TStepperSteps`. declareSteps is the one form that types an
+ *  action's arguments from its pattern. */
+export function untypedStepsFindings(sources: TSources): TFound[] {
+	return [...sources].flatMap(([file, source]) => {
+		const found: TFound[] = [];
+		const visit = (node: ts.Node): void => {
+			if (ts.isPropertyDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === "steps" && node.initializer !== undefined) {
+				let value: ts.Expression = node.initializer;
+				let satisfied = false;
+				while (ts.isSatisfiesExpression(value) || ts.isAsExpression(value) || ts.isParenthesizedExpression(value)) {
+					satisfied = satisfied || ts.isSatisfiesExpression(value);
+					value = value.expression;
+				}
+				if (satisfied || ts.isObjectLiteralExpression(value)) found.push({ file, finding: UNTYPED_STEPS, line: lineOf(node) });
+			}
+			ts.forEachChild(node, visit);
+		};
+		visit(source);
+		return found;
+	});
 }
 
 /** The logic engine's source, and its reader, the one file of it that reads the store. */

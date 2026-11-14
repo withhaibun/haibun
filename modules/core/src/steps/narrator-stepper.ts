@@ -3,7 +3,7 @@ import { resolve } from "path";
 
 import type { TWorld } from "../lib/actuality/domains/world.js";
 import { OK, Origin, isPendingScenario } from "../lib/domains/protocol.js";
-import { IHasCycles, IHasOptions, AStepper, TFeatureStep, IStepperCycles, TStartFeature, SCENARIO_HEADING, type TStepperSteps } from "../lib/steps/domains/stepper.js";
+import { IHasCycles, IHasOptions, AStepper, TFeatureStep, IStepperCycles, TStartFeature, SCENARIO_HEADING, declareSteps } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOK, getStepperOption, stringOrError } from "../lib/domains/util.js";
 import { narratedAudio } from "./pipelines/narration.js";
 import { hostSpeech } from "./root.js";
@@ -63,27 +63,26 @@ class Narrator extends AStepper implements IHasOptions, IHasCycles {
 		return this.maybeSay(featureStep);
 	}
 
-	steps = {
+	steps = declareSteps({
 		prose: {
 			prose: true,
 			description: "Plays the rendered narration of the prose line and emits a speech artifact.",
 			precludes: [`Haibun.prose`],
-			action: async (_args: Record<string, never>, featureStep: TFeatureStep) => this.maybeSay(featureStep),
+			action: async (_args, featureStep) => this.maybeSay(featureStep),
 		},
 		feature: {
 			precludes: [`Haibun.feature`],
 			gwta: `Feature: {feature: ${DOMAIN_TITLE}}`,
 			description: "Sets the variable feature to the feature's title and narrates the line.",
-			action: async ({ feature }: { feature: string }, featureStep: TFeatureStep) => this.rememberAndSay("feature", feature, featureStep),
+			action: async ({ feature }, featureStep) => this.rememberAndSay("feature", feature, featureStep),
 		},
 		scenario: {
 			precludes: [`Haibun.scenario`],
 			gwta: SCENARIO_HEADING,
 			description: "Sets the variable scenario to the scenario's title and narrates the line, and passes where the heading is pending.",
-			action: async ({ scenario }: { scenario: string }, featureStep: TFeatureStep) =>
-				isPendingScenario(featureStep.in) ? OK : this.rememberAndSay("scenario", scenario, featureStep),
+			action: async ({ scenario }, featureStep) => (isPendingScenario(featureStep.in) ? OK : this.rememberAndSay("scenario", scenario, featureStep)),
 		},
-	} as const satisfies TStepperSteps;
+	});
 
 	async maybeSay(featureStep: TFeatureStep) {
 		const transcript = featureStep.in;

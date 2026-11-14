@@ -18,6 +18,7 @@ import WebPlaywright from "./web-playwright-stepper.js";
 import { BrowserFactory } from "./adapters/browser-factory.js";
 import { READS_THE_PAGE } from "./domains/actions.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 afterAll(async () => {
 	await BrowserFactory.closeBrowsers();
@@ -33,7 +34,7 @@ const answered: { clicked?: TStepResult; asked?: TStepResult } = {};
 /** Calls WebPlaywright's steps by name, as a model's tool call does, and reads their results as the turn does. */
 class CallerProbe extends AStepper {
 	description = "Calls WebPlaywright's steps by name, as a model's tool call does.";
-	steps = {
+	steps = declareSteps({
 		callsThePage: {
 			description: TEST_STEP,
 			gwta: CALLS_THE_PAGE,
@@ -54,7 +55,7 @@ class CallerProbe extends AStepper {
 				return actionOK();
 			},
 		},
-	};
+	});
 }
 
 describe("an action a model calls", () => {

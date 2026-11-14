@@ -25,6 +25,7 @@ import { serveThePageFrom } from "../../test/setup.js";
 import { DOMAIN_LINK } from "@haibun/core/lib/domains/domains.js";
 import { endPage } from "../adapters/page-held.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 /** The step another host adds, named as actuality names that host's steps. */
 const ADDED = hostScopedMethodName(9, "Haibun-validateStep");
@@ -34,11 +35,11 @@ let holdsAdded: Promise<void> | undefined;
 
 class StepsPage extends AStepper {
 	description = "Opens a page on the actuality that follows actuality's steps, adds a step as a transport does, and checks what the page holds.";
-	steps = {
+	steps = declareSteps({
 		opens: {
 			description: TEST_STEP,
 			gwta: `page at {base: ${DOMAIN_LINK}} reads actuality's steps`,
-			action: async ({ base }: { base: string }) => {
+			action: async ({ base }) => {
 				endPage();
 				await serveThePageFrom(base);
 				installServedConduit(base, requiredActionOf);
@@ -83,7 +84,7 @@ class StepsPage extends AStepper {
 				return actionOK();
 			},
 		},
-	};
+	});
 }
 
 describe("a page open on a run", () => {

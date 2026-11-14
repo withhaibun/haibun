@@ -11,6 +11,7 @@ import { AStepper } from "../steps/domains/stepper.js";
 import { constructorName } from "../domains/util.js";
 import { itemAt } from "../domains/item-at.js";
 import { TEST_STEP } from "../test/test-step.js";
+import { declareSteps } from "../steps/domains/stepper.js";
 
 describe("isLowerCase", () => {
 	it("is lower case", () => {
@@ -24,7 +25,7 @@ describe("findStepperFromOptions", () => {
 	const TestOptionsStepper = class TestOptionsStepper extends AStepper implements IHasOptions {
 		description = "A stepper with options A and B.";
 		options = { A: { desc: "A exists", parse: (input: string) => util.stringOrError(input) }, B: { desc: "B exists", parse: (input: string) => util.stringOrError(input) } };
-		steps = { test: { description: TEST_STEP, exact: "have a stepper option", action: async () => await Promise.resolve(OK) } };
+		steps = declareSteps({ test: { description: TEST_STEP, exact: "have a stepper option", action: async () => await Promise.resolve(OK) } });
 	};
 
 	it("finds from single option", async () => {
@@ -61,19 +62,19 @@ describe("findStepperFromOptionOrKind", () => {
 	const StorageStepper = class StorageStepper extends AStepper {
 		description = "A storage stepper.";
 		kind = StepperKinds.STORAGE;
-		steps = { test: { description: TEST_STEP, exact: "storage step", action: async () => await Promise.resolve(OK) } };
+		steps = declareSteps({ test: { description: TEST_STEP, exact: "storage step", action: async () => await Promise.resolve(OK) } });
 	};
 
 	const AlternativeStorageStepper = class AlternativeStorageStepper extends AStepper {
 		description = "Another storage stepper.";
 		kind = StepperKinds.STORAGE;
-		steps = { test: { description: TEST_STEP, exact: "alt storage step", action: async () => await Promise.resolve(OK) } };
+		steps = declareSteps({ test: { description: TEST_STEP, exact: "alt storage step", action: async () => await Promise.resolve(OK) } });
 	};
 
 	const ConsumerStepper = class ConsumerStepper extends AStepper implements IHasOptions {
 		description = "A stepper whose option names its storage stepper.";
 		options = { [StepperKinds.STORAGE]: { desc: "Storage stepper to use", parse: (input: string) => util.stringOrError(input) } };
-		steps = { test: { description: TEST_STEP, exact: "consumer step", action: async () => await Promise.resolve(OK) } };
+		steps = declareSteps({ test: { description: TEST_STEP, exact: "consumer step", action: async () => await Promise.resolve(OK) } });
 	};
 
 	it("finds single stepper by kind when an option isn't specified", async () => {
@@ -122,7 +123,7 @@ describe("verifyRequiredOptions", () => {
 			A: { required: true, altSource: "B", desc: "A is an option", parse: (input: string) => util.stringOrError(input) },
 			B: { desc: "B is an altsource", parse: (input: string) => util.stringOrError(input) },
 		};
-		steps = { test: { description: TEST_STEP, exact: "have a stepper option", action: async () => await Promise.resolve(OK) } };
+		steps = declareSteps({ test: { description: TEST_STEP, exact: "have a stepper option", action: async () => await Promise.resolve(OK) } });
 	}
 	it("has option", () => {
 		const toswq = new TestOptionsStepperWithRequired();
@@ -268,7 +269,7 @@ describe("checkNoPoliteStepPrefixes", () => {
 		const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
 		const Bad = class BadStepper extends AStepper {
 			description = "A step whose phrase starts with a stopword.";
-			steps = { bad: { description: TEST_STEP, gwta: "and then some", action: async () => OK } };
+			steps = declareSteps({ bad: { description: TEST_STEP, gwta: "and then some", action: async () => OK } });
 		};
 		expect(() => util.createSteppers([Bad])).toThrow(/could never match/);
 		spy.mockRestore();

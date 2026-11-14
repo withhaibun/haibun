@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { AStepper, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
+import { AStepper, declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 import { DomainKeySchema, mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import { Access, LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
@@ -51,7 +51,7 @@ const domains = mapDefinitionsToDomains([
 
 class Shop extends AStepper {
 	description = "Fills a cart, places an order from it, and prints its receipt.";
-	steps: TStepperSteps = {
+	steps = declareSteps({
 		fillCart: { description: TEST_STEP, gwta: "fill a cart", contract: { products: "cart" }, action },
 		placeOrder: { description: TEST_STEP, gwta: "place an order from {cart: cart}", contract: { products: "order" }, action },
 		printReceipt: { description: TEST_STEP, gwta: "print a receipt for {order: order}", contract: { products: "receipt" }, action },
@@ -59,7 +59,7 @@ class Shop extends AStepper {
 		loopB: { description: TEST_STEP, gwta: "turn {a: loop-a} to b", contract: { products: "loop-b" }, action },
 		audit: { description: TEST_STEP, gwta: "audit {ledger: ledger}", action },
 		ship: { description: TEST_STEP, gwta: "ship {shipment: shipment}", contract: { products: "delivery" }, action },
-	};
+	});
 }
 
 const signatures = stepSignatures([new Shop()]);
@@ -78,11 +78,11 @@ describe("goals over producer rules", () => {
 	it("generates the producer rules the removed products fields gave, from each form of contract.products", () => {
 		class Forms extends AStepper {
 			description = "Returns a cart, an order and its receipt by field, and the products of a statement it runs.";
-			steps: TStepperSteps = {
+			steps = declareSteps({
 				one: { description: TEST_STEP, gwta: "fill one cart", contract: { products: "cart" }, action },
 				byField: { description: TEST_STEP, gwta: "order from {cart: cart}", contract: { products: { order: "order", receipt: "receipt" } }, action },
 				passOn: { description: TEST_STEP, gwta: "pass on {what: statement}", contract: { products: { of: "what" } }, action },
-			};
+			});
 		}
 		const after = stepSignatures([new Forms()]);
 		// The outputs `productsDomain`, `productsDomains` and `productsOf` gave the same steps: the domain, each field's domain, and an empty list.

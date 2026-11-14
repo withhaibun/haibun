@@ -3,7 +3,7 @@ import { z } from "zod";
 import { fromJsonText } from "../lib/domains/json-text.js";
 import { persistPrincipalIndividual } from "../lib/domains/principal-individual.js";
 import { proverOf, type TWorld } from "../lib/actuality/domains/world.js";
-import { AStepper, READING, type IHasCycles, type IStepperCycles, type TStepContext, type TEndFeature, type TStepperSteps } from "../lib/steps/domains/stepper.js";
+import { AStepper, READING, type IHasCycles, type IStepperCycles, type TStepContext, type TEndFeature, declareSteps } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/domains/util.js";
 import { counted, CountedFields } from "../lib/domains/hypermedia.js";
 import { SessionAuthority } from "../lib/pipelines/session-authority.js";
@@ -82,7 +82,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 		},
 	};
 
-	steps = {
+	steps = declareSteps({
 		nameConnectingSite: {
 			exact: "name a connecting site",
 			description:
@@ -158,7 +158,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			reading: READING.within,
 			context: ({ cap, target }) => this.underCapability(cap, String(target)),
 		},
-	} as const satisfies TStepperSteps;
+	});
 
 	/**
 	 * The context of a signed capability that the registered IAuthorityVerifier verifies. haibun-core doesn't implement

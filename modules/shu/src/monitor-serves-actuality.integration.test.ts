@@ -22,6 +22,7 @@ import GraphSourceStepper from "./graph-source-stepper.js";
 import ShuStepper from "./shu-stepper.js";
 import { RPC_METHOD } from "./domains/elements.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 const PORT = await freePort();
 const MONITOR = localOrigin(PORT);
@@ -39,7 +40,7 @@ class ReadsTheMonitorStepper extends AStepper {
 		await super.setWorld(world, steppers);
 		this.steppers = steppers;
 	}
-	steps = {
+	steps = declareSteps({
 		readTheMonitor: {
 			description: TEST_STEP,
 			gwta: "read the monitor",
@@ -53,7 +54,7 @@ class ReadsTheMonitorStepper extends AStepper {
 				return OK;
 			},
 		},
-	};
+	});
 }
 
 describe("the monitor serves the shu views of actuality on its own port", () => {

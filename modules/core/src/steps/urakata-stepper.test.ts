@@ -4,7 +4,7 @@ import { LogicStepper } from "../lib/test/logic-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun-stepper.js";
 import UrakataStepper from "./urakata-stepper.js";
-import { AStepper } from "../lib/steps/domains/stepper.js";
+import { AStepper, declareSteps } from "../lib/steps/domains/stepper.js";
 import { actionOKWithProducts } from "../lib/domains/util.js";
 import { URAKATA, URAKATA_ID_DOMAIN, type IUrakataRegistry, type IUrakataTicker } from "../lib/domains/urakata.js";
 import { getFromRuntime } from "../lib/domains/util.js";
@@ -18,7 +18,7 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 class TickHarnessStepper extends AStepper {
 	description = "Starts a ticker that counts its ticks.";
 	tickCount = 0;
-	steps = {
+	steps = declareSteps({
 		startTick: {
 			description: TEST_STEP,
 			gwta: "start tick",
@@ -38,7 +38,7 @@ class TickHarnessStepper extends AStepper {
 				return Promise.resolve(actionOKWithProducts({ id: u.id }));
 			},
 		},
-	};
+	});
 }
 
 describe("urakata-stepper", () => {

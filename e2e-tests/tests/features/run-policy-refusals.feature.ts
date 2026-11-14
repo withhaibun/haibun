@@ -15,7 +15,7 @@ const WITHOUT_POLICY = "@haibun/e2e-tests/policy-test/config-no-policy.json";
 /** A run of `where` ends, and its output states `refusal`. */
 const ended = (run: string, where: string, refusal: string) => [
 	startRun({ where: `"${where}"`, filter: '""', from: '"."', port: "0", run: `"${run}"`, hostId: "0" }),
-	setFromStatement({ what: run, statement: waitRun({ run: `"${run}"`, seconds: "60" }) }),
+	setFromStatement({ what: run, statement: waitRun({ run: `"${run}"`, cursor: "0", seconds: "60" }) }),
 	matches({ value: `${run}.output`, pattern: `"*${refusal}*"` }),
 ];
 /** A run of `where` refuses to start its features: it exits with code 1, and its output states `refusal`. */

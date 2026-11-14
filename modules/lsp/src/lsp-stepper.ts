@@ -2,15 +2,16 @@
  * The Language Server Protocol for haibun features in an editor: completion, hover, diagnostics and semantic highlighting.
  * Once the world is set, the stepper starts the language server over the connection the root builds.
  */
-import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
+import { AStepper } from "@haibun/core/lib/astepper.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { LanguageServer } from "./pipelines/language-server.js";
 import { lspPorts } from "./root.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 export default class LspStepper extends AStepper {
 	description = "Provides completion, hover, diagnostics and semantic highlighting for haibun features in an IDE.";
 
-	steps = {} as const satisfies TStepperSteps;
+	steps = declareSteps({});
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);

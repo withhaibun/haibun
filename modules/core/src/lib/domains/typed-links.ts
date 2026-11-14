@@ -51,6 +51,11 @@ export const IndividualAddressSchema = z.object({
 	id: z.string().describe("The individual's id within that type."),
 });
 export type TIndividualAddress = z.infer<typeof IndividualAddressSchema>;
+declare module "./domains.js" {
+	interface DomainTypes {
+		[DOMAIN_INDIVIDUAL_ADDRESS]: TIndividualAddress;
+	}
+}
 
 /** An in-app reference to a type, an individual or a part of an individual. The SPA's renderer takes this shape. */
 type TRefHref = { kind: typeof REF_DENOTES.type; target: { domain: string } } | { kind: typeof REF_DENOTES.individual; target: TIndividualAddress & { selector?: TPart } };

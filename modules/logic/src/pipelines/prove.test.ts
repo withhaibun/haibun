@@ -12,7 +12,7 @@ import TestSteps from "@haibun/core/lib/test/TestSteps.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import ActivitiesStepper from "@haibun/core/steps/activities-stepper.js";
-import { AStepper, type IHasCycles, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
+import { AStepper, type IHasCycles, declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 import { CONTINUE_AFTER_ERROR, RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
 import { readUpTo } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { MAX_PAGE_ROWS } from "@haibun/core/lib/domains/hypermedia.js";
@@ -52,7 +52,7 @@ class WaitingEngine extends AStepper implements IHasCycles {
 			this.getWorld().runtime.prover = proverOf(waitingAt(await logicEngine()), reasoner(), []);
 		},
 	};
-	steps = {} as const satisfies TStepperSteps;
+	steps = declareSteps({});
 }
 
 describe("a proof that stops on an exception", () => {

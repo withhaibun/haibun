@@ -96,6 +96,13 @@ export const classExpressionDomainDefinition: TDomainDefinition = {
  *  over the variables the background's steps set. */
 export const DOMAIN_CLAIMED_FEATURE = "claimed-feature";
 export const DOMAIN_CONTRACT_CLAIM = "contract-claim";
+declare module "@haibun/core/lib/domains/domains.js" {
+	interface DomainTypes {
+		[DOMAIN_CLASS_EXPRESSION]: string;
+		[DOMAIN_CLAIMED_FEATURE]: string;
+		[DOMAIN_CONTRACT_CLAIM]: string;
+	}
+}
 export const reasoningDomainDefinitions: TDomainDefinition[] = [
 	{ selectors: [DOMAIN_CLAIMED_FEATURE], schema: z.string().min(1), written: true, description: "A background by its name, whose steps' contracts a claim chains" },
 	{

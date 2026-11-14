@@ -12,6 +12,7 @@ import Haibun from "../../../steps/haibun-stepper.js";
 import ActivitiesStepper from "../../../steps/activities-stepper.js";
 import { getDefaultWorld } from "../../test/lib.js";
 import { TEST_STEP } from "../../test/test-step.js";
+import { declareSteps } from "../../steps/domains/stepper.js";
 
 describe("resolve steps", () => {
 	it("resolves steps", async () => {
@@ -26,11 +27,11 @@ describe("resolve steps", () => {
 describe("validate map steps", () => {
 	class TestStepper extends AStepper {
 		description = "Exact, gwta and interpolated steps for resolving lines.";
-		steps = {
+		steps = declareSteps({
 			exact: { description: TEST_STEP, exact: "exact1", action: async () => Promise.resolve(OK) },
 			gwta: { description: TEST_STEP, gwta: "gwta(?<num>.)", action: async () => Promise.resolve(OK) },
 			gwtaInterpolated: { description: TEST_STEP, gwta: "is {what}", action: async () => Promise.resolve(OK) },
-		};
+		});
 	}
 
 	const getResolvedSteps = async (features: TExpandedFeature[]) => {
@@ -78,10 +79,10 @@ describe("unique stepper", () => {
 	const astep = "step";
 	class UniqueStepper extends AStepper {
 		description = "A unique step and a normal step with the same phrase.";
-		steps = {
+		steps = declareSteps({
 			uniqueStep: { description: TEST_STEP, unique: true, gwta: astep, action: async () => Promise.resolve(OK) },
 			normalStep: { description: TEST_STEP, gwta: astep, action: async () => Promise.resolve(OK) },
-		};
+		});
 	}
 	test("uses unique step when multiple match", async () => {
 		const features = asExpandedFeatures([{ path: "l1", content: astep }]);
@@ -96,11 +97,13 @@ describe("unique stepper", () => {
 describe("preclude stepper", () => {
 	class PrecludedStepper extends AStepper {
 		description = "A step another stepper precludes.";
-		steps = { doesSomething: { description: TEST_STEP, gwta: "does {something}", action: async () => Promise.resolve(OK) } };
+		steps = declareSteps({ doesSomething: { description: TEST_STEP, gwta: "does {something}", action: async () => Promise.resolve(OK) } });
 	}
 	class PrecluderStepper extends AStepper {
 		description = "A step that precludes PrecludedStepper.doesSomething.";
-		steps = { doesSomething: { description: TEST_STEP, gwta: "does {something} else", precludes: ["PrecludedStepper.doesSomething"], action: async () => Promise.resolve(OK) } };
+		steps = declareSteps({
+			doesSomething: { description: TEST_STEP, gwta: "does {something} else", precludes: ["PrecludedStepper.doesSomething"], action: async () => Promise.resolve(OK) },
+		});
 	}
 	test("precludes stepper", async () => {
 		const features = asExpandedFeatures([{ path: "l1", content: "does something else" }]);
@@ -116,14 +119,14 @@ describe("preclude stepper", () => {
 describe("prose", () => {
 	class LineStepper extends AStepper {
 		description = "Steps whose phrases read like prose.";
-		steps = {
+		steps = declareSteps({
 			type: { description: TEST_STEP, gwta: "type {text}", action: async () => Promise.resolve(OK) },
 			layout: { description: TEST_STEP, gwta: "{mode} the graph layout", action: async () => Promise.resolve(OK) },
-		};
+		});
 	}
 	class SpokenProse extends AStepper {
 		description = "A prose step that precludes Haibun.prose.";
-		steps = { prose: { description: TEST_STEP, prose: true, precludes: ["Haibun.prose"], action: async () => Promise.resolve(OK) } };
+		steps = declareSteps({ prose: { description: TEST_STEP, prose: true, precludes: ["Haibun.prose"], action: async () => Promise.resolve(OK) } });
 	}
 	const resolvedTo = (line: string, ...steppers: CStepper[]) => {
 		const { stepperName, actionName } = new Resolver(createSteppers([Haibun, ...steppers]), []).findSingleStepAction(line);
@@ -152,7 +155,7 @@ describe("the steps a resolver offers", () => {
 	it("are read again once a stepper adds a step, so a line resolves to a step added after the first resolution (CP7R3)", () => {
 		class GrowingStepper extends AStepper {
 			description = "Holds steps that a test adds after a line resolved.";
-			steps: AStepper["steps"] = { first: { description: TEST_STEP, exact: "first step", action: async () => Promise.resolve(OK) } };
+			steps: AStepper["steps"] = declareSteps({ first: { description: TEST_STEP, exact: "first step", action: async () => Promise.resolve(OK) } });
 		}
 		const steppers = createSteppers([GrowingStepper as CStepper]);
 		const resolver = new Resolver(steppers, []);

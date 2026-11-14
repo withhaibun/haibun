@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { AStepper, CycleWhen, type IHasCycles, type IStepperCycles, type IStepperWhen } from "../domains/stepper.js";
 import { cycleOrder } from "./cycle-order.js";
 import { doStepperCycle, doStepperCycleSync } from "../pipelines/stepper-cycles.js";
+import { declareSteps } from "../domains/stepper.js";
 
 const ran: string[] = [];
 
@@ -13,7 +14,7 @@ const ran: string[] = [];
 const cycling = (name: string, cyclesWhen: IStepperWhen): AStepper & IHasCycles =>
 	new (class extends AStepper implements IHasCycles {
 		description = `Records ${name} as each cycle runs.`;
-		steps = {};
+		steps = declareSteps({});
 		cyclesWhen = cyclesWhen;
 		cycles: IStepperCycles = { startFeature: () => void ran.push(name), onEvent: () => void ran.push(name) };
 	})();

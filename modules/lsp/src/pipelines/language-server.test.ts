@@ -21,13 +21,14 @@ import { OUTSIDE_A_WORKSPACE } from "../domains/lsp.js";
 import type { TLspConnection, TLspHandlers, TLspLog, TWorkspace, TWorkspaces } from "../ports.js";
 import { LanguageServer } from "./language-server.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 class SampleStepper extends AStepper {
 	description = "Steps that set a variable and take one argument, for the language server to resolve.";
-	steps = {
+	steps = declareSteps({
 		set: { description: TEST_STEP, gwta: "set {name} to {value}", action: async () => OK },
 		testStep: { description: TEST_STEP, gwta: "test step with {param}", action: async () => OK },
-	};
+	});
 }
 
 /** A connection that records what the server sends and the handlers it registers. */
@@ -215,7 +216,7 @@ describe("the language server's workspace status", () => {
 describe("the language server's tool handler", () => {
 	class McpStepper extends AStepper {
 		description = "Lists and runs one tool, for the tool handler to reach.";
-		steps = {};
+		steps = declareSteps({});
 		getTools = () => [{ name: "echo" }];
 		executeTool = (name: string, args: Record<string, unknown>) => Promise.resolve({ name, args });
 	}

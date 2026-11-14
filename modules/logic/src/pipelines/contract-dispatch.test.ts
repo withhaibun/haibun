@@ -9,7 +9,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
+import { AStepper, type IHasCycles, type IStepperCycles, declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 import { CHECK_NAMESPACE, CONTRACT_CHECK, derived, doesntHold, field, holds, parameter, PRODUCTS, type TRelation } from "@haibun/core/lib/steps/domains/contract.js";
 import { refDomainKey } from "@haibun/core/lib/domains/domains.js";
 import { DEF_PROTO_OPTIONS, failWithDefaults } from "@haibun/core/lib/test/lib.js";
@@ -58,6 +58,13 @@ const DELEGATION_LABEL = "ContractDelegation";
 const ACTIONS = ["read", "write"];
 const ACTION_DOMAIN = "contract-action";
 const GRANT_NAME_DOMAIN = "contract-grant-name";
+declare module "@haibun/core/lib/domains/domains.js" {
+	interface DomainTypes {
+		[GRANT_DOMAIN]: z.output<typeof GrantSchema>;
+		[ACTION_DOMAIN]: string;
+		[GRANT_NAME_DOMAIN]: string;
+	}
+}
 /** The id of the grant a line names by its name. */
 const grantNamed = (name: string): string => `urn:grant:${name}`;
 
@@ -87,12 +94,12 @@ class Delegating extends AStepper implements IHasCycles {
 			relations: [REVOKED, ALLOWS],
 		}),
 	};
-	steps = {
+	steps = declareSteps({
 		hold: {
 			description: TEST_STEP,
 			gwta: `hold grant {grant: ${GRANT_DOMAIN}}`,
 			contract: { products: HELD_GRANT_DOMAIN, written: WRITE_VERB.create },
-			action: ({ grant }: { grant: z.infer<typeof GrantSchema> }) => Promise.resolve(actionOKWithProducts(grant)),
+			action: ({ grant }) => Promise.resolve(actionOKWithProducts(grant)),
 		},
 		delegate: {
 			description: TEST_STEP,
@@ -104,7 +111,7 @@ class Delegating extends AStepper implements IHasCycles {
 				states: [holds(ALLOWS, PRODUCTS, parameter("action"))],
 				complete: [field(GRANT, "revoked")],
 			},
-			action: ({ action }: { action: string }) => {
+			action: ({ action }) => {
 				this.ran.push(action);
 				return Promise.resolve(actionOKWithProducts({ id: `urn:delegation:${action}`, allowedAction: "read" }));
 			},
@@ -118,12 +125,12 @@ class Delegating extends AStepper implements IHasCycles {
 				requires: [doesntHold(REVOKED, derived(GRANT, grantNamed, parameter("name")))],
 				complete: [field(GRANT, "revoked")],
 			},
-			action: ({ action }: { action: string }) => {
+			action: ({ action }) => {
 				this.ran.push(action);
 				return Promise.resolve(actionOKWithProducts({ id: `urn:delegation:named:${action}`, allowedAction: "read" }));
 			},
 		},
-	} as const satisfies TStepperSteps;
+	});
 }
 
 /** Runs `lines` as features, each after the last fails, and returns their step records and the delegations the store holds. */

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
-import { AStepper, type TStepperSteps } from "../steps/domains/stepper.js";
+import { AStepper } from "../steps/domains/stepper.js";
 import { OK } from "../domains/protocol.js";
 import { Access, LinkRelations } from "../domains/resources.js";
 import { WRITE_VERB } from "../records/domains/unit.js";
@@ -35,6 +35,7 @@ import {
 	unexercised,
 } from "./step-rules.js";
 import { TEST_STEP } from "./test-step.js";
+import { declareSteps } from "../steps/domains/stepper.js";
 
 /** What each demo step needs: an action, which a test doesn't gate. */
 const ACTS = { capability: "DemoStepper:act", description: TEST_STEP, action: () => OK };
@@ -42,7 +43,7 @@ const STEPPER_FILE = "modules/demo/src/demo-stepper.ts";
 
 class DemoStepper extends AStepper {
 	description = "Steps whose patterns the rules read";
-	steps = {
+	steps = declareSteps({
 		openStore: { gwta: "open the store", ...ACTS },
 		openKey: { gwta: "open a key", contract: { products: "key" }, ...ACTS },
 		readStore: { description: TEST_STEP, gwta: "show the store", contract: { read: true }, readsAt: Access.public, action: () => OK },
@@ -55,7 +56,7 @@ class DemoStepper extends AStepper {
 		blank: { exact: "", ...ACTS },
 		quiet: { exact: "quiet", ...ACTS },
 		heading: { gwta: "Heading: {title: string}", ...ACTS },
-	} as const satisfies TStepperSteps;
+	});
 }
 class InheritingStepper extends DemoStepper {}
 
@@ -188,7 +189,7 @@ class ListingStepper extends AStepper {
 			],
 		}),
 	};
-	steps = {
+	steps = declareSteps({
 		firstRows: { description: TEST_STEP, gwta: "show the first {n: number} rows", readsAt: Access.public, contract: { read: true, products: "rows" }, action: () => OK },
 		rowsMatching: { description: TEST_STEP, gwta: "show rows matching {text: string}", readsAt: Access.public, contract: { read: true, products: "counted" }, action: () => OK },
 		rowsSince: { description: TEST_STEP, gwta: "show rows since {at: date}", readsAt: Access.public, contract: { read: true, products: "listed" }, action: () => OK },
@@ -203,7 +204,7 @@ class ListingStepper extends AStepper {
 		delegate: { gwta: "delegate reading until {expires: date}", ...ACTS },
 		combine: { gwta: "limited to {count: number}, {statement: statement}", transformsList: () => (list: TList) => list, ...ACTS },
 		selected: { gwta: "run the tests matching {filter: string}", ...ACTS },
-	} as const satisfies TStepperSteps;
+	});
 }
 const listing = () => declaredSteps([{ file: STEPPER_FILE, stepper: new ListingStepper() }]);
 
@@ -247,12 +248,12 @@ class StoringStepper extends AStepper {
 			],
 		}),
 	};
-	steps = {
+	steps = declareSteps({
 		writtenByDispatch: { gwta: "note {id: string} through dispatch", contract: { products: "note", written: WRITE_VERB.create }, ...ACTS },
 		writtenItself: { gwta: "note {id: string} itself", contract: { products: "note" }, ...ACTS },
 		readNote: { gwta: "read note {id: string}", readsAt: Access.public, contract: { read: true, products: "note" }, ...ACTS },
 		draft: { gwta: "draft {id: string}", contract: { products: "draft" }, ...ACTS },
-	} as const satisfies TStepperSteps;
+	});
 }
 
 describe("the products a step writes", () => {
@@ -305,7 +306,7 @@ describe("a quantifier's filter", () => {
 				],
 			}),
 		};
-		steps = {};
+		steps = declareSteps({});
 	}
 
 	it("is flagged where it names a field the domain doesn't index, and not where the domain indexes it or doesn't index its members", () => {

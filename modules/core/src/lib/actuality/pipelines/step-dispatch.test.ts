@@ -33,26 +33,27 @@ import { TEST_STEP } from "../../test/test-step.js";
 import { WRITE_VERB } from "../../records/domains/unit.js";
 import { bodyByMediaType } from "../../records/pipelines/body-reads.js";
 import { MEDIA_TYPE } from "../../domains/media-types.js";
+import { declareSteps } from "../../steps/domains/stepper.js";
 
 // --- Test Steppers ---
 
 class PlainStepper extends AStepper {
 	description = "A step that takes a name and returns OK.";
-	steps = {
+	steps = declareSteps({
 		greet: {
 			description: TEST_STEP,
 			gwta: "say hello to {name}",
-			action: ({ name }: { name: string }) => {
+			action: ({ name }) => {
 				return OK;
 			},
 		},
-	};
+	});
 }
 
 class ProductStepper extends AStepper {
 	description = "Steps that return a count, fail and throw, for the dispatch tests.";
 	cycles = declaresTestDomains();
-	steps = {
+	steps = declareSteps({
 		getCount: {
 			description: TEST_STEP,
 			gwta: "get the count",
@@ -75,7 +76,7 @@ class ProductStepper extends AStepper {
 				throw new Error("boom");
 			},
 		},
-	};
+	});
 }
 
 /** A tool a transport carries without the step's definition, as a remote host's tool arrives. */
@@ -113,7 +114,7 @@ class PassesOn extends AStepper implements IHasCycles {
 		this.steppers = steppers;
 	}
 	private ran = ({ what }: { what: TFeatureStep[] }, featureStep: TFeatureStep) => proveStatements(stepperContext(this.getWorld(), this.steppers), featureStep, what);
-	steps = {
+	steps = declareSteps({
 		counts: { description: TEST_STEP, gwta: COUNT, contract: { products: TEST_DOMAIN.count }, action: async () => actionOKWithProducts({ count: 1 }) },
 		unnamed: { description: TEST_STEP, gwta: COUNT_UNNAMED, action: async () => actionOKWithProducts({ count: 1 }) },
 		answersAs: { description: TEST_STEP, gwta: `${ANSWER_AS} {what: statement}`, contract: { products: { of: "what" } }, action: this.ran },
@@ -124,12 +125,12 @@ class PassesOn extends AStepper implements IHasCycles {
 			contract: { products: { of: "what" } },
 			action: async () => actionOKWithProducts({ said: "no count" }),
 		},
-	};
+	});
 }
 
 class CapabilityStepper extends AStepper {
 	description = "A step that requires CapabilityStepper:protected.";
-	steps = { protectedPing: { description: TEST_STEP, gwta: "protected ping", capability: "CapabilityStepper:protected", action: () => OK } };
+	steps = declareSteps({ protectedPing: { description: TEST_STEP, gwta: "protected ping", capability: "CapabilityStepper:protected", action: () => OK } });
 }
 
 /** Returns the value of the count fact of the step at `path`, or undefined where the store doesn't hold one. */
@@ -249,7 +250,7 @@ describe("step-dispatch", () => {
 		const toolTaking = (gwta: string, w: TWorld) => {
 			const stepper = new (class extends AStepper {
 				description = "A step whose pattern each validation test supplies.";
-				steps = { test: { description: TEST_STEP, gwta, action: async () => OK } };
+				steps = declareSteps({ test: { description: TEST_STEP, gwta, action: async () => OK } });
 			})();
 			const tool = buildStepRegistry([stepper], w).get(`${stepper.constructor.name}-test`);
 			if (!tool) throw new Error("Expected tool to be registered");
@@ -297,7 +298,7 @@ describe("step-dispatch", () => {
 			registerDomains(w, [[{ selectors: ["myDomain"], schema: z.string(), coerce: (proto) => String(proto.value).toUpperCase(), description: "a value upper-cased" }]]);
 			const stepper = new (class extends AStepper {
 				description = "A step taking a value of a domain that upper-cases it.";
-				steps = { doIt: { description: TEST_STEP, gwta: "do it with {val: myDomain}", action: async () => OK } };
+				steps = declareSteps({ doIt: { description: TEST_STEP, gwta: "do it with {val: myDomain}", action: async () => OK } });
 			})();
 			const registry = buildStepRegistry([stepper], w);
 			const tool = registry.get(`${stepper.constructor.name}-doIt`);
@@ -311,10 +312,10 @@ describe("step-dispatch", () => {
 			w.runtime.backgrounds = [];
 			const stepper = new (class extends AStepper {
 				description = "A step that runs a statement, and a step a statement states.";
-				steps = {
+				steps = declareSteps({
 					run: { description: TEST_STEP, gwta: `run {what: ${DOMAIN_STATEMENT}}`, action: async () => OK },
 					wave: { description: TEST_STEP, gwta: "wave", action: async () => OK },
-				};
+				});
 			})();
 			const steppers = [stepper];
 			const tool = buildStepRegistry(steppers, w).get(`${stepper.constructor.name}-run`);
@@ -330,7 +331,7 @@ describe("step-dispatch", () => {
 			registerDomains(w, [[individualRefDomain("test-ref", "test-target", z.string(), "a reference to a test target")]]);
 			const stepper = new (class extends AStepper {
 				description = "A step that revokes a record by its reference.";
-				steps = { revoke: { description: TEST_STEP, gwta: "revoke {what: test-ref}", action: async () => OK } };
+				steps = declareSteps({ revoke: { description: TEST_STEP, gwta: "revoke {what: test-ref}", action: async () => OK } });
 			})();
 			const tool = buildStepRegistry([stepper], w).get(`${stepper.constructor.name}-revoke`);
 			if (!tool) throw new Error("Expected tool to be registered");
@@ -437,15 +438,15 @@ describe("step-dispatch", () => {
 		it("validates, authorizes, and preserves seqPath", async () => {
 			const stepper = new (class extends AStepper {
 				description = "A protected step that echoes a message.";
-				steps = {
+				steps = declareSteps({
 					protectedEcho: {
 						description: TEST_STEP,
 						gwta: "protected echo {message}",
 						capability: "Remote:invoke",
 						contract: { products: TEST_DOMAIN.echoed },
-						action: async ({ message }: { message: string }) => actionOKWithProducts({ echoed: message }),
+						action: async ({ message }) => actionOKWithProducts({ echoed: message }),
 					},
-				};
+				});
 			})();
 			const steppers = [stepper];
 			const registry = new StepRegistry(steppers, world);
@@ -465,7 +466,7 @@ describe("step-dispatch", () => {
 			const nested: { registry?: StepRegistry } = {};
 			const stepper = new (class extends AStepper {
 				description = "An outer step that dispatches a guarded step inside its own call.";
-				steps = {
+				steps = declareSteps({
 					guarded: { description: TEST_STEP, gwta: "guarded", capability: NESTED, action: () => OK },
 					outer: {
 						description: TEST_STEP,
@@ -482,7 +483,7 @@ describe("step-dispatch", () => {
 							return result.ok ? OK : actionNotOK(String(result.errorMessage));
 						},
 					},
-				};
+				});
 			})();
 			const steppers = [stepper];
 			const registry = new StepRegistry(steppers, world);
@@ -502,14 +503,14 @@ describe("step-dispatch", () => {
 			registerDomains(world, [[{ selectors: [FILTER], schema: z.string(), description: "a filter whose empty value matches everything" }]]);
 			const stepper = new (class extends AStepper {
 				description = "A step that filters by a value its domain validates.";
-				steps = {
+				steps = declareSteps({
 					filters: {
 						description: TEST_STEP,
 						gwta: `filter by {filter: ${FILTER}}`,
 						contract: { products: TEST_DOMAIN.echoed },
-						action: async ({ filter }: { filter: string }) => actionOKWithProducts({ echoed: filter }),
+						action: async ({ filter }) => actionOKWithProducts({ echoed: filter }),
 					},
-				};
+				});
 			})();
 			const steppers = [stepper];
 			const registry = new StepRegistry(steppers, world);
@@ -531,7 +532,7 @@ describe("step-dispatch", () => {
 			expect((await said(`${ANSWER_WRONGLY} ${COUNT}`)).error, "products not in its statement's domain").toMatch(/passing on PassesOn\.counts products failed schema validation/);
 			const naming = new (class extends AStepper {
 				description = "A step that passes on the products of a parameter that isn't a statement.";
-				steps = { names: { description: TEST_STEP, gwta: "name {n: number}", contract: { products: { of: "n" } }, action: async () => OK } };
+				steps = declareSteps({ names: { description: TEST_STEP, gwta: "name {n: number}", contract: { products: { of: "n" } }, action: async () => OK } });
 			})();
 			expect(() => new StepRegistry([naming], world), "a step naming a parameter that doesn't take a statement").toThrow(
 				/contract.products.of names \{n\}, which isn't a statement its phrase takes/,
@@ -541,15 +542,15 @@ describe("step-dispatch", () => {
 		it("pairs a record id with the parameter naming its type, and takes the id however a line gives it", async () => {
 			const reads = new (class extends AStepper {
 				description = "A step that reads a record by its type and id.";
-				steps = {
+				steps = declareSteps({
 					readsRecord: {
 						description: TEST_STEP,
 						gwta: `read {label: ${DOMAIN_PERSISTED_TYPE}} {id: ${DOMAIN_RECORD_ID}}`,
 						recordIds: { id: "label" },
 						contract: { products: TEST_DOMAIN.echoed },
-						action: async ({ id }: { id: string }) => actionOKWithProducts({ echoed: id }),
+						action: async ({ id }) => actionOKWithProducts({ echoed: id }),
 					},
-				};
+				});
 			})();
 			const steppers = [reads];
 			const registry = new StepRegistry(steppers, world);
@@ -567,7 +568,7 @@ describe("step-dispatch", () => {
 					[
 						new (class extends AStepper {
 							description = "A step each test declares with what it reads.";
-							steps = { reads: { action: async () => OK, ...step } as TStepperStep };
+							steps = declareSteps({ reads: { action: async () => OK, ...step } as TStepperStep });
 						})(),
 					],
 					world,
@@ -594,18 +595,18 @@ describe("step-dispatch", () => {
 			const released = new Promise<void>((resolve) => (release = resolve));
 			const stepper = new (class extends AStepper {
 				description = "A step that logs its argument once two calls of it have started.";
-				steps = {
+				steps = declareSteps({
 					sayOnceBothStarted: {
 						description: TEST_STEP,
 						gwta: "say {what} once both have started",
-						action: async ({ what }: { what: string }) => {
+						action: async ({ what }) => {
 							if (++started === 2) release();
 							await released;
 							world.eventLogger.info(what);
 							return OK;
 						},
 					},
-				};
+				});
 			})();
 			const steppers = [stepper];
 			const registry = new StepRegistry(steppers, world);
@@ -665,7 +666,7 @@ describe("step-dispatch", () => {
 		it("lists on the step's record each write a store refused during the step, where the step continues past the refusal", async () => {
 			const stepper = new (class ImportsNotes extends AStepper {
 				description = "A step whose contract lists an empty set of changes, which writes a note outside its contract and continues.";
-				steps = {
+				steps = declareSteps({
 					importNotes: {
 						description: TEST_STEP,
 						gwta: "import notes",
@@ -681,7 +682,7 @@ describe("step-dispatch", () => {
 							return refusal === undefined ? actionNotOK("the store wrote a note outside the step's contract") : actionOKWithProducts({ count: 0 });
 						},
 					},
-				};
+				});
 			})();
 			const steppers = [stepper];
 			const registry = new StepRegistry(steppers, world);
@@ -703,7 +704,7 @@ describe("step-dispatch", () => {
 			};
 			class Held extends AStepper {
 				description = "A step that reads at the caller's ceiling, a step that reads records, a step that writes a record, and a read step at private.";
-				steps = {
+				steps = declareSteps({
 					writesNotice: {
 						description: TEST_STEP,
 						gwta: "write a notice",
@@ -723,7 +724,7 @@ describe("step-dispatch", () => {
 						action: async () => actionOKWithProducts({ count: (await world.shared.getStore().all()).length }),
 					},
 					describesItself: { description: TEST_STEP, gwta: "describe this", contract: { read: true as const }, readsAt: Access.private, action: async () => OK },
-				};
+				});
 			}
 			const held = () => {
 				const steppers = [new Held()];
@@ -792,7 +793,7 @@ describe("step-dispatch", () => {
 		it("returns the result of a read over a transport without recording the read, and records a read that a feature states in its own body", async () => {
 			const stepper = new (class extends AStepper {
 				description = "A read that counts.";
-				steps = {
+				steps = declareSteps({
 					howMany: {
 						description: TEST_STEP,
 						gwta: "how many",
@@ -800,7 +801,7 @@ describe("step-dispatch", () => {
 						contract: { read: true as const, products: TEST_DOMAIN.count },
 						action: async () => actionOKWithProducts({ count: 3 }),
 					},
-				};
+				});
 			})();
 			const steppers = [stepper];
 			const registry = new StepRegistry(steppers, world);
@@ -851,7 +852,9 @@ describe("step-dispatch", () => {
 		it("records an RPC call's results as a record of their type linked to its step, held where the steps' records are and retained as they are", async () => {
 			const stepper = new (class extends AStepper {
 				description = "An act that counts.";
-				steps = { counts: { description: TEST_STEP, gwta: "counts", contract: { products: TEST_DOMAIN.count }, action: async () => actionOKWithProducts({ count: 7 }) } };
+				steps = declareSteps({
+					counts: { description: TEST_STEP, gwta: "counts", contract: { products: TEST_DOMAIN.count }, action: async () => actionOKWithProducts({ count: 7 }) },
+				});
 			})();
 			const steppers = [stepper];
 			const registry = new StepRegistry(steppers, world);
@@ -876,7 +879,7 @@ describe("step-dispatch", () => {
 		it("holds a fact of what a step retains, so actuality doesn't hold the products of a step that doesn't retain them", async () => {
 			const stepper = new (class extends AStepper {
 				description = "Steps whose products are retained and not retained.";
-				steps = {
+				steps = declareSteps({
 					counted: { description: TEST_STEP, gwta: "counted", contract: { products: TEST_DOMAIN.count }, action: async () => actionOKWithProducts({ count: 4 }) },
 					notRetained: {
 						description: TEST_STEP,
@@ -885,7 +888,7 @@ describe("step-dispatch", () => {
 						retainProducts: false,
 						action: async () => actionOKWithProducts({ count: 5 }),
 					},
-				};
+				});
 			})();
 			const steppers = [stepper];
 			const registry = new StepRegistry(steppers, world);
@@ -1015,11 +1018,11 @@ describe("step-dispatch", () => {
 
 		class DomainEchoStepper extends AStepper {
 			description = "A step that produces a test letter, and steps that declare domains wrongly.";
-			steps = {
+			steps = declareSteps({
 				produceEmail: { description: TEST_STEP, gwta: "produce an letter", contract: { products: "test-letter" }, action: () => actionOKWithProducts({ id: "e1", subject: "hi" }) },
 				unregisteredInput: { description: TEST_STEP, gwta: "consume {who: no-such-domain}", action: () => OK },
 				unknownDomain: { description: TEST_STEP, gwta: "produce a ghost", contract: { products: "not-registered" }, action: () => actionOKWithProducts({}) },
-			};
+			});
 		}
 
 		beforeEach(() => {
@@ -1030,7 +1033,7 @@ describe("step-dispatch", () => {
 			registerDomains(world, [[{ selectors: ["test-view"], schema: z.object({}), description: "A view", ui: { component: "test-view-element" } }]]);
 			class ShowsAView extends AStepper {
 				description = "A step that shows a view.";
-				steps = { showIt: { description: TEST_STEP, gwta: "show the view", contract: { products: "test-view" }, action: () => actionOKWithProducts({}) } };
+				steps = declareSteps({ showIt: { description: TEST_STEP, gwta: "show the view", contract: { products: "test-view" }, action: () => actionOKWithProducts({}) } });
 			}
 			const steppers = [new ShowsAView()];
 			const registry = new StepRegistry(steppers, world);
@@ -1045,7 +1048,7 @@ describe("step-dispatch", () => {
 		it("registers a step whose contract names a known domain", () => {
 			class JustProduce extends AStepper {
 				description = "A step that produces a test letter.";
-				steps = { produceEmail: new DomainEchoStepper().steps.produceEmail };
+				steps = declareSteps({ produceEmail: new DomainEchoStepper().steps.produceEmail });
 			}
 			const registry = buildStepRegistry([new JustProduce()], world);
 			const tool = registry.get("JustProduce-produceEmail");
@@ -1055,7 +1058,7 @@ describe("step-dispatch", () => {
 		it("refuses a parameter whose domain the steppers don't register, naming the step, the parameter and the domain", () => {
 			class JustUnregistered extends AStepper {
 				description = "A step taking a domain the steppers don't register.";
-				steps = { unregisteredInput: new DomainEchoStepper().steps.unregisteredInput };
+				steps = declareSteps({ unregisteredInput: new DomainEchoStepper().steps.unregisteredInput });
 			}
 			expect(() => buildStepRegistry([new JustUnregistered()], world)).toThrow(
 				`step JustUnregistered.unregisteredInput: {who} names the domain "no-such-domain", which the loaded steppers don't register.`,
@@ -1065,7 +1068,7 @@ describe("step-dispatch", () => {
 		it("rejects a contract naming an unregistered domain", () => {
 			class JustUnknown extends AStepper {
 				description = "A step producing a domain the steppers don't register.";
-				steps = { unknownDomain: new DomainEchoStepper().steps.unknownDomain };
+				steps = declareSteps({ unknownDomain: new DomainEchoStepper().steps.unknownDomain });
 			}
 			expect(() => buildStepRegistry([new JustUnknown()], world)).toThrow(/contract.products names the domain "[^"]+", which the loaded steppers don't register/);
 		});
@@ -1077,7 +1080,7 @@ describe("step-dispatch", () => {
 
 		class IssuerStepper extends AStepper {
 			description = "Steps that issue, revoke and suspend a demo permit.";
-			steps = {
+			steps = declareSteps({
 				issueDemoPermit: {
 					description: TEST_STEP,
 					gwta: "issue demo permit",
@@ -1097,7 +1100,7 @@ describe("step-dispatch", () => {
 					action: () => actionOKWithProducts({ id: "permit-1", subject: "did:example:alice" }),
 				},
 				unrelatedStep: { description: TEST_STEP, gwta: "do unrelated thing {name: string}", action: () => OK },
-			};
+			});
 		}
 
 		beforeEach(() => {
@@ -1145,7 +1148,9 @@ describe("step-dispatch", () => {
 		it("doesn't emit `_links` when the other steps don't accept this product's domain", async () => {
 			class IsolatedStepper extends AStepper {
 				description = "A step whose product the other steps don't take.";
-				steps = { produce: { description: TEST_STEP, gwta: "produce a lone product", contract: { products: "lone-domain" }, action: () => actionOKWithProducts({ id: "x" }) } };
+				steps = declareSteps({
+					produce: { description: TEST_STEP, gwta: "produce a lone product", contract: { products: "lone-domain" }, action: () => actionOKWithProducts({ id: "x" }) },
+				});
 			}
 			registerDomains(world, [[{ selectors: ["lone-domain"], schema: z.object({ id: z.string() }), description: "Lone" }]]);
 			const stepper = new IsolatedStepper();
@@ -1167,7 +1172,7 @@ describe("step-dispatch", () => {
 			// A step takes a ref domain whose schema is `{id}` and whose topology.ranges.id names the persisted domain a step produces. The link derivation follows that range. individualRefDomain declares this range on the ref domain that a step takes to name a record by reference.
 			class VertexRefStepper extends AStepper {
 				description = "Steps that produce a permit vertex and revoke it by reference.";
-				steps = {
+				steps = declareSteps({
 					producePermit: { description: TEST_STEP, gwta: "produce a permit", contract: { products: "permit-vertex" }, action: () => actionOKWithProducts({ id: "permit-1" }) },
 					revokePermit: {
 						description: TEST_STEP,
@@ -1175,7 +1180,7 @@ describe("step-dispatch", () => {
 						contract: { products: "permit-revocation" },
 						action: () => actionOKWithProducts({ revoked: true }),
 					},
-				};
+				});
 			}
 			registerDomains(world, [
 				[
@@ -1210,10 +1215,10 @@ describe("step-dispatch", () => {
 		it("omits params skeleton when the product doesn't have an `id`: the consumer fills params from the step's shown schema", async () => {
 			class IdlessStepper extends AStepper {
 				description = "Steps that produce and consume a product without an id.";
-				steps = {
+				steps = declareSteps({
 					produce: { description: TEST_STEP, gwta: "produce an idless thing", contract: { products: "idless" }, action: () => actionOKWithProducts({ name: "thing" }) },
 					consume: { description: TEST_STEP, gwta: "consume {what: idless}", action: () => OK },
-				};
+				});
 			}
 			registerDomains(world, [[{ selectors: ["idless"], schema: z.object({ name: z.string() }), description: "Idless" }]]);
 			const stepper = new IdlessStepper();

@@ -5,7 +5,7 @@ import { recordBlip } from "../lib/pipelines/record-blip.js";
 import BlipsStepper, { renderWatch } from "./blips-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun-stepper.js";
-import { AStepper } from "../lib/steps/domains/stepper.js";
+import { AStepper, declareSteps } from "../lib/steps/domains/stepper.js";
 import { OK } from "../lib/domains/protocol.js";
 import { eventHubOfTest, failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
 import { LogicStepper } from "../lib/test/logic-stepper.js";
@@ -134,17 +134,17 @@ describe("a watch: which occurrences, in what order", () => {
 /** A stepper whose `view scrolls` step records a scroll occurrence. These tests use it in place of a real emitter. */
 class Emitter extends AStepper {
 	description = "Records a scroll blip.";
-	steps = {
+	steps = declareSteps({
 		scrolled: {
 			description: TEST_STEP,
 			gwta: "view scrolls {distance: number}",
-			action: ({ distance }: { distance: number }) => {
+			action: ({ distance }) => {
 				declareBlips({ ...SCROLL, attributes: z.object({ view: z.string() }) });
 				recordBlip(this.getWorld(), SCROLL.name, distance, { view: "a" });
 				return Promise.resolve(OK);
 			},
 		},
-	};
+	});
 }
 
 const STEPPERS = [Haibun, BlipsStepper, VariablesStepper, Emitter, LogicStepper];

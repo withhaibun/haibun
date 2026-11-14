@@ -8,17 +8,7 @@ import { CLIENT_LOG_ACTION } from "./page/domains/page-calls.js";
 import { resolve } from "node:path";
 import { z } from "zod";
 
-import {
-	AStepper,
-	type IHasCycles,
-	type IHasOptions,
-	type TStepperSteps,
-	StepperKinds,
-	CycleWhen,
-	type TEndFeature,
-	type IStepperCycles,
-	type TFeatureStep,
-} from "@haibun/core/lib/astepper.js";
+import { AStepper, type IHasCycles, type IHasOptions, StepperKinds, CycleWhen, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { recordBlip } from "@haibun/core/lib/pipelines/record-blip.js";
 // The view vocabulary declares itself at import, so an arriving batch finds its names already declared here.
 import "./domains/blips.js";
@@ -49,6 +39,7 @@ import { ARTIFACTS_ROUTE, runArtifactDomainDefinition } from "@haibun/core/lib/d
 import type ShuStepper from "./shu-stepper.js";
 import { DOMAIN_GRAPH_QUERY } from "@haibun/core/lib/quad-types.js";
 import { DOMAIN_FILE_PATH } from "@haibun/core/lib/domains/domains.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 // The monitor holds a window of what actuality sends, never actuality itself: an unbounded buffer exhausts the process's
 // heap over months. The store holds the graph and the disk log holds the events.
@@ -84,6 +75,12 @@ const LogEventSchema = z.object({
 export type TLogEvent = z.infer<typeof LogEventSchema>;
 
 const DOMAIN_CLIENT_BLIPS = "shu-client-blips";
+declare module "@haibun/core/lib/domains/domains.js" {
+	interface DomainTypes {
+		[DOMAIN_LOG_EVENT]: TLogEvent;
+		[DOMAIN_CLIENT_BLIPS]: TClientBlips;
+	}
+}
 /** The domain of a standalone shu report a step wrote: where it was written. */
 const DOMAIN_SHU_REPORT = "shu-report";
 
@@ -280,13 +277,13 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		return written;
 	}
 
-	steps = {
+	steps = declareSteps({
 		savesShuTo: {
 			gwta: `saves shu( uncompressed)? to {where: ${DOMAIN_FILE_PATH}}`,
 			description:
 				"Write the standalone shu HTML report to the given path. Invokable any time during a feature; endFeature writes once more so the final file always reflects all of actuality. Uncompressed, the report's payload is plain JSON, so the redacted text can be read and audited directly, and the write is a one-off that doesn't become the feature's output.",
 			contract: { products: DOMAIN_SHU_REPORT },
-			action: async ({ where }: { where: string }, featureStep: TFeatureStep) => {
+			action: async ({ where }, featureStep) => {
 				const compressed = !UNCOMPRESSED.test(featureStep.in);
 				if (compressed) this.outputPath = where;
 				const written = await this.writeStandaloneReport({ fixedPath: where, compressed });
@@ -317,7 +314,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			contract: { read: true },
 			// A page is delegated the report's own action, which a read of what actuality records would widen.
 			capability: CLIENT_LOG_ACTION,
-			action: ({ event }: { event: TLogEvent }) => {
+			action: ({ event }) => {
 				const { level, message, source, attributes } = event;
 				const prefix = source ? `[${source}] ` : "";
 				const line = `${prefix}${message}`;
@@ -335,7 +332,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			contract: { read: true },
 			// A blip reaches actuality's telemetry, so a caller holds the read of what actuality records, as its own page does.
 			readsAt: Access.private,
-			action: ({ batch }: { batch: TClientBlips }) => {
+			action: ({ batch }) => {
 				const world = this.getWorld();
 				for (const blip of batch.blips) recordBlip(world, blip.name, blip.value, { ...blip.attributes, at: blip.at });
 				// A browser buffer that overflowed between batches would otherwise be invisible: actuality holds what it was
@@ -347,5 +344,5 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				return OK;
 			},
 		},
-	} as const satisfies TStepperSteps;
+	});
 }

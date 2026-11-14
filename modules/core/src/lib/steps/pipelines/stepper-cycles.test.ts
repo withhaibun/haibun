@@ -3,10 +3,11 @@ import { AStepper, type IStepperCycles } from "../domains/stepper.js";
 import { readWorkSince } from "../../domains/event-loop.js";
 import { doStepperCycle } from "./stepper-cycles.js";
 import { PhaseRunner } from "./phase-runner.js";
+import { declareSteps } from "../domains/stepper.js";
 
 class Starting extends AStepper {
 	description = "Reads the work in flight as a cycle method runs.";
-	steps = {};
+	steps = declareSteps({});
 	seen: string[][] = [];
 	cycles: IStepperCycles = {
 		endScenario: () => {

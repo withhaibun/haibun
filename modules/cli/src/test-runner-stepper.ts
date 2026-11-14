@@ -38,6 +38,7 @@ import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { isLevelEnd } from "@haibun/core/lib/actuality/machines/actuality.js";
 import { locatedBase, supervisorPorts } from "./root.js";
 import { DOMAIN_FILE_PATH } from "@haibun/core/lib/domains/domains.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 /** The InstanceStepper steps this stepper's tools call. InstanceStepper starts, reads and stops each test run. This
  *  stepper determines which test runs may start and records their outcomes. It doesn't hold a process or a port.
@@ -70,6 +71,13 @@ const ANSWER_LIMIT = 4000;
 /** The domains of the step name and the parameters a caller passes to askTestRun. */
 const DOMAIN_ASKED_STEP = "asked-step";
 const DOMAIN_ASKED_PARAMS = "asked-params";
+const AskedStepSchema = z.string().min(1, "doesn't name a step");
+declare module "@haibun/core/lib/domains/domains.js" {
+	interface DomainTypes {
+		[DOMAIN_ASKED_STEP]: z.output<typeof AskedStepSchema>;
+		[DOMAIN_ASKED_PARAMS]: string;
+	}
+}
 /** Removes the quotes a feature line puts around an argument that contains spaces. A model writes the argument without quotes. */
 const unquote = (value: string): string => value.trim().replace(/^"(.*)"$/s, "$1");
 
@@ -194,11 +202,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 				{ selectors: [DOMAIN_TEST_RUN_READ], schema: TestRunReadSchema, description: "A test run's output since the last read, and its status" },
 				{ selectors: [DOMAIN_TEST_RUN_EXAMINED], schema: TestRunExaminedSchema, description: "A test run's outcome: its summary, its failed steps and its report path" },
 				{ selectors: [DOMAIN_TEST_RUN_ANSWER], schema: TestRunAnswerSchema, description: "A standing test run's response to a call of one of its own steps" },
-				{
-					selectors: [DOMAIN_ASKED_STEP],
-					schema: z.string().min(1, "doesn't name a step"),
-					description: "A step to call on a test run, by its host-scoped method name or the step part of that name",
-				},
+				{ selectors: [DOMAIN_ASKED_STEP], schema: AskedStepSchema, description: "A step to call on a test run, by its host-scoped method name or the step part of that name" },
 				{
 					selectors: [DOMAIN_ASKED_PARAMS],
 					schema: z.string(),
@@ -255,7 +259,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		this.steppers = steppers;
 	}
 
-	steps = {
+	steps = declareSteps({
 		runTest: {
 			gwta: `run the tests in {where: ${DOMAIN_FILE_PATH}} matching {filter: ${RUN_DOMAIN.featureFilter}}`,
 			capability: SUPERVISOR_CAPABILITIES.run,
@@ -264,7 +268,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			// The products are the started test run, so `run-started` is a goal. Resolving it selects this step as a plan,
 			// so the resolver offers starting a test run as a step.
 			contract: { products: RUN_DOMAIN.started },
-			action: async ({ where, filter }: { where: string; filter: string }) => await this.askedToRun(where, filter),
+			action: async ({ where, filter }) => await this.askedToRun(where, filter),
 		},
 		runAllTests: {
 			gwta: `run all the tests in {where: ${DOMAIN_FILE_PATH}}`,
@@ -272,7 +276,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			description:
 				"Start a test run of every feature in a directory. The products name it and its actuality's record. The limits of a filtered test run apply: one at a time, and not again until a dependency of the features changes.",
 			contract: { products: RUN_DOMAIN.started },
-			action: async ({ where }: { where: string }) => await this.askedToRun(where, ""),
+			action: async ({ where }) => await this.askedToRun(where, ""),
 		},
 		readTestRun: {
 			gwta: `read the test run`,
@@ -297,7 +301,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			description:
 				"Wait for the test run in flight to end, and return its status and the end of its output. The supervisor responds when the test run exits or its features finish, so this is one call for any duration. A test run that doesn't pass fails this step with its last output. The wait is bounded: reaching the limit fails the step with the seconds waited, so a test run that hangs fails this step and doesn't block the process.",
 			contract: { products: DOMAIN_TEST_RUN_READ },
-			action: async ({ seconds }: { seconds: number }) => {
+			action: async ({ seconds }) => {
 				const tracked = this.inFlight;
 				if (!tracked) return actionNotOK(this.nothingToRead("await"));
 				// The supervisor holds the child process and responds when the test run ends, so this step doesn't poll.
@@ -346,7 +350,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			// A model receives the `text` product of a tool call, so `text` holds the summary. `answer` holds the full
 			// response and a listing's entries for a caller that requests them.
 			contract: { products: DOMAIN_TEST_RUN_ANSWER },
-			action: async ({ method, params }: { method: string; params: string }) => {
+			action: async ({ method, params }) => {
 				const tracked = this.inFlight ?? [...this.standing.values()].at(-1) ?? this.runsThisAsk.at(-1) ?? this.lastRun;
 				if (!tracked)
 					return actionNotOK(
@@ -389,7 +393,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			gwta: `note that {filter: ${RUN_DOMAIN.featureFilter}} in {where: ${DOMAIN_FILE_PATH}} has changed`,
 			description:
 				"Note that a change was applied to the named features, so they run again whatever their dependencies show. The supervisor refuses a test run of features against their present state until their state changes or a caller notes a change, since that test run would repeat the last outcome whether it passed or failed.",
-			action: ({ filter, where }: { filter: string; where: string }) => {
+			action: ({ filter, where }) => {
 				this.noteApplied(filter, where);
 				return Promise.resolve(actionOK());
 			},
@@ -397,7 +401,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		noteEverythingChanged: {
 			gwta: `note that the tests in {where: ${DOMAIN_FILE_PATH}} have changed`,
 			description: "The same note for a test run of every feature in a base. It has its own line because an empty argument doesn't name every feature.",
-			action: ({ where }: { where: string }) => {
+			action: ({ where }) => {
 				this.noteApplied("", where);
 				return Promise.resolve(actionOK());
 			},
@@ -419,7 +423,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 				return actionOK();
 			},
 		},
-	};
+	});
 
 	/** Starts a test run for runTest and runAllTests, and checks the limits for both. An empty filter runs every feature
 	 *  of the base. */

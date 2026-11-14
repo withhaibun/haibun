@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AStepper, READING, type TStepperSteps } from "@haibun/core/lib/astepper.js";
+import { AStepper, READING } from "@haibun/core/lib/astepper.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
@@ -12,6 +12,7 @@ import { SEQ_PATH_EDGE, SEQ_PATH_FIELD, actualityFeatureOf, formatRecordName } f
 import { LinkRelations, SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import type { TRestsOn } from "@haibun/core/lib/domains/authority-types.js";
 import { calledStep, dispatchCall, type TCaller } from "./dispatch-call.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 const RELAY = "Relay:run";
 const GUARDED = "Relay:guarded";
@@ -19,7 +20,7 @@ const GUARDED = "Relay:guarded";
 /** A step that proves the statement it states as a node of its own proof, and the guarded step that statement names. */
 class RelayStepper extends AStepper {
 	description = "A step whose statement's node requires an action the step itself doesn't require.";
-	steps = {
+	steps = declareSteps({
 		relay: {
 			description: TEST_STEP,
 			gwta: "relay {what: statement}",
@@ -29,7 +30,7 @@ class RelayStepper extends AStepper {
 			context: () => Promise.resolve(<T>(run: () => Promise<T>) => run()),
 		},
 		guarded: { description: TEST_STEP, gwta: "guarded", capability: GUARDED, action: () => Promise.resolve(OK) },
-	} as const satisfies TStepperSteps;
+	});
 }
 
 const CALLER = "did:example:caller";

@@ -219,6 +219,11 @@ const AnnotationNoteSchema = z
 		"The full shape of one W3C Web Annotation: the anchored passage, the note, its time and any cross-referenced passages. Each prose annotate form binds a part of this shape, and this composite carries all of it.",
 	);
 export type TAnnotationNote = z.infer<typeof AnnotationNoteSchema>;
+declare module "./domains.js" {
+	interface DomainTypes {
+		[ANNOTATION_NOTE_DOMAIN]: TAnnotationNote;
+	}
+}
 export const annotationNoteDomainDefinition: TDomainDefinition = {
 	selectors: [ANNOTATION_NOTE_DOMAIN],
 	schema: fromJsonText(AnnotationNoteSchema),

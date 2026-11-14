@@ -20,6 +20,7 @@ import InstanceStepper from "@haibun/cli/instance-stepper.js";
 import MonitorStepper from "./monitor-stepper.js";
 import ShuStepper from "./shu-stepper.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 /**
  * Live two-instance store delegation, in the federate-graph-reads pattern: a launched main instance
@@ -49,7 +50,7 @@ const reasonRefused = (call: Promise<unknown>): Promise<string> =>
 
 class StoreDelegationProbeStepper extends AStepper {
 	description = "Probes the delegated store surface of another instance, for the remote store test.";
-	steps = {
+	steps = declareSteps({
 		probeDelegatedStore: {
 			description: TEST_STEP,
 			gwta: "probe the delegated store surface",
@@ -66,7 +67,7 @@ class StoreDelegationProbeStepper extends AStepper {
 				return OK;
 			},
 		},
-	};
+	});
 }
 
 describe("a satellite keeps records in the main instance's store over live RPC", () => {

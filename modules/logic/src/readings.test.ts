@@ -15,7 +15,7 @@ import { readUpTo } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { MAX_PAGE_ROWS } from "@haibun/core/lib/domains/hypermedia.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
-import { AStepper, READING, untilWithoutDuration, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
+import { AStepper, READING, untilWithoutDuration, declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 import { DOMAIN_STATEMENT } from "@haibun/core/lib/domains/domains.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
 
@@ -24,7 +24,7 @@ const STEPPERS = [Haibun, TestSteps, VariablesStepper, ActivitiesStepper, LogicS
 /** A stepper that declares a step that reads as until without stating how long it proves its statements again. */
 class UntilWithoutDuration extends AStepper {
 	description = "Declares a step that reads as until without a duration";
-	steps = { retry: { description: TEST_STEP, gwta: `retry {statements: ${DOMAIN_STATEMENT}}`, reading: READING.until } } as const satisfies TStepperSteps;
+	steps = declareSteps({ retry: { description: TEST_STEP, gwta: `retry {statements: ${DOMAIN_STATEMENT}}`, reading: READING.until } });
 }
 
 /** A line or lines, and whether their feature passes. */

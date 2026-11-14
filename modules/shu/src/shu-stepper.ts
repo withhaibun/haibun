@@ -4,7 +4,7 @@
  */
 import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { z } from "zod";
-import { AStepper, type TStepperSteps, type IHasOptions } from "@haibun/core/lib/astepper.js";
+import { AStepper, type IHasOptions } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK, actionOKWithProducts, errorDetail, getFromRuntime, getStepperOption, intOrError } from "@haibun/core/lib/domains/util.js";
 import { RESPONSE_TIMEOUT_MS, type TDeploymentSettings, type TServedHydration } from "./domains/hydration.js";
 import { counted, getJsonLdContext } from "@haibun/core/lib/domains/hypermedia.js";
@@ -24,6 +24,7 @@ import { graphLayout } from "./pipelines/graph-source.js";
 import { servedBundles, servedVersion } from "./root.js";
 import type { TServedAsset } from "./ports.js";
 import { BUNDLE_NAMES, bundleFileName } from "./domains/bundle-files.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 /** The domain of where a graph view placed each node. */
 const DOMAIN_GRAPH_LAYOUT = "graph-layout";
@@ -182,12 +183,12 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 	 *  until the stepper reads its options. */
 	private settings: TOptionSettings | undefined = undefined;
 
-	steps = {
+	steps = declareSteps({
 		serveShuApp: {
 			gwta: `serve shu app at {path: ${DOMAIN_ROUTE}}`,
 			description:
 				"Mounts the shu app on the feature's web server at the path, with the page's bundles, their chunks and source maps, and the JSON-LD context the page reads. Fails when the web server isn't loaded, or the path doesn't start with a slash, or the path ends with one.",
-			action: ({ path }: { path: string }) => {
+			action: ({ path }) => {
 				const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER) as IWebServer;
 				if (!webserver) return actionNotOK("webserver not available, load web-server-stepper before shu");
 				const pathError = validateMountPath(path);
@@ -226,7 +227,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				}
 			},
 		},
-	} as const satisfies TStepperSteps;
+	});
 
 	/** Serve the app on a server at a path, with the view bundle, its source map and the JSON-LD context the page reads.
 	 *  `opensAt` is the address a reader who arrives without one is shown, where actuality hasn't shown a view of its own. */

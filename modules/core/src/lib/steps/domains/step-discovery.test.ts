@@ -7,15 +7,16 @@ import { createStepTool } from "../pipelines/step-registry.js";
 import { StepDescriptorSchema } from "./step-discovery.js";
 import { toolDefinition } from "./step-discovery.js";
 import { TEST_STEP } from "../../test/test-step.js";
+import { declareSteps } from "./stepper.js";
 
 class DescribedSteps extends AStepper {
 	description = "Steps of each kind a stepper declares.";
-	steps = {
+	steps = declareSteps({
 		exactStep: { description: TEST_STEP, exact: "do something", action: async () => OK },
 		gwtaStep: { gwta: "set {name} to {value}", description: "Sets a value.", contract: { read: true as const }, readsAt: Access.private, action: async () => OK },
 		numberStep: { description: TEST_STEP, gwta: "wait {seconds: number} seconds", capability: "DescribedSteps:wait", action: async () => OK },
 		fallbackStep: { description: TEST_STEP, gwta: "do {what} with {how}", fallback: true, action: async () => OK },
-	};
+	});
 }
 
 const describedAs = (stepName: keyof DescribedSteps["steps"]) => {

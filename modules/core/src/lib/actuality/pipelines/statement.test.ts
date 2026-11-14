@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { AStepper, TFeatureStep } from "../../steps/domains/stepper.js";
-import { OK, TStepArgs } from "../../domains/protocol.js";
+import { OK } from "../../domains/protocol.js";
 import { passWithDefaults, DEF_PROTO_OPTIONS, failWithDefaults } from "../../test/lib.js";
 import { LogicStepper } from "../../test/logic-stepper.js";
 import { actionNotOK } from "../../domains/util.js";
@@ -8,16 +8,17 @@ import { proveStatements, stepperContext } from "./step-dispatch.js";
 import { DOMAIN_STATEMENT } from "../../domains/domains.js";
 import Haibun from "../../../steps/haibun-stepper.js";
 import { TEST_STEP } from "../../test/test-step.js";
+import { declareSteps } from "../../steps/domains/stepper.js";
 
 class StatementTestStepper extends AStepper {
 	description = "Declares the steps alpha and beta and a step that executes its statement argument.";
-	steps = {
+	steps = declareSteps({
 		alpha: { description: TEST_STEP, exact: "alpha", action: async () => Promise.resolve(OK) },
 		beta: { description: TEST_STEP, exact: "beta", action: async () => Promise.resolve(OK) },
 		do: {
 			description: TEST_STEP,
 			gwta: `do {steps:${DOMAIN_STATEMENT}}`,
-			action: async (args: TStepArgs, featureStep: TFeatureStep) => {
+			action: async (args, featureStep) => {
 				try {
 					const steps = args.steps as unknown;
 					if (!Array.isArray(steps)) throw new Error("steps must be feature steps");
@@ -33,7 +34,7 @@ class StatementTestStepper extends AStepper {
 				}
 			},
 		},
-	};
+	});
 }
 
 describe("statement type", () => {

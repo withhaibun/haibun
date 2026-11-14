@@ -2,6 +2,7 @@ import { AStepper, type IHasCycles, type IHasOptions, type IStepperCycles } from
 import { actionOKWithProducts, getStepperOption } from "../domains/util.js";
 import { z } from "zod";
 import { TEST_STEP } from "./test-step.js";
+import { declareSteps } from "../steps/domains/stepper.js";
 
 const TestOptionResultSchema = z.object({ summary: z.string() });
 const DOMAIN_TEST_OPTION_RESULT = "test-option-result";
@@ -12,7 +13,7 @@ export const TestStepsWithOptions = class TestStepsWithOptions extends AStepper 
 	};
 	options = { EXISTS: { desc: "option exists", parse: () => ({ result: 42 }) } };
 	description = "Steps that read a stepper option, for tests of how a run passes options to a stepper.";
-	steps = {
+	steps = declareSteps({
 		test: {
 			description: TEST_STEP,
 			exact: "have a stepper option",
@@ -22,7 +23,7 @@ export const TestStepsWithOptions = class TestStepsWithOptions extends AStepper 
 				return Promise.resolve(actionOKWithProducts({ summary: "options" }));
 			},
 		},
-	};
+	});
 };
 
 export default TestStepsWithOptions;

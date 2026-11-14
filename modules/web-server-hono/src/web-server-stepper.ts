@@ -1,16 +1,7 @@
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { actionNotOK, getStepperOptionName, intOrError, boolOrError, errorDetail } from "@haibun/core/lib/domains/util.js";
-import {
-	AStepper,
-	CycleWhen,
-	type IHasCycles,
-	type IHasOptions,
-	type TEndActuality,
-	type TEndFeature,
-	type IStepperCycles,
-	type TStepperSteps,
-} from "@haibun/core/lib/astepper.js";
+import { AStepper, CycleWhen, type IHasCycles, type IHasOptions, type TEndActuality, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { actionList } from "@haibun/core/lib/domains/actions.js";
 import { DOMAIN_TEXT, DOMAIN_FILE_PATH, DOMAIN_ROUTE, DOMAIN_LINK } from "@haibun/core/lib/domains/domains.js";
@@ -26,6 +17,7 @@ import { serveRpc } from "./pipelines/serve-rpc.js";
 import { servedFolderGates } from "./pipelines/served-folder.js";
 import { serverSettings, type TServing } from "./pipelines/server-settings.js";
 import { heldServer, holdServer, listeningPorts, newServer, stopProcess, whyNotSignedIn } from "./root.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 const cycles = (wss: WebServerStepper): IStepperCycles => ({
 	getConcerns: () => ({ domains: [endpointDomainDefinition] }),
@@ -130,12 +122,12 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		this.rpc = settings.rpc;
 	}
 
-	steps = {
+	steps = declareSteps({
 		stopInstance: {
 			gwta: `stop this instance because {reason: ${DOMAIN_TEXT}}`,
 			capability: WEB_SERVER_CAPABILITIES.stop,
 			description: "Ends this instance's process, stating why, so its log records what stopped it.",
-			action: ({ reason }: { reason: string }) => {
+			action: ({ reason }) => {
 				this.getWorld().eventLogger.info(`stopping this instance: ${reason}`);
 				stopProcess();
 				return OK;
@@ -144,7 +136,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		asksToSignIn: {
 			gwta: `every visitor to {address: ${DOMAIN_LINK}} is asked to sign in`,
 			description: "Check that an address refuses a request that doesn't sign in, as a site behind basic auth does. It fails with what the address returned and what to change.",
-			action: async ({ address }: { address: string }) => {
+			action: async ({ address }) => {
 				const why = await whyNotSignedIn(address);
 				return why ? actionNotOK(why) : OK;
 			},
@@ -153,7 +145,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			gwta: `webserver is listening for {why: ${DOMAIN_TEXT}}`,
 			description:
 				"Starts the feature's web server listening on its port, and passes where the port is held, since the server already listens. The step records why the server listens, which a call that finds the port held states.",
-			action: async ({ why }: { why: string }) => {
+			action: async ({ why }) => {
 				await this.listen(why);
 				return OK;
 			},
@@ -162,19 +154,19 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			gwta: `serve files at {where: ${DOMAIN_ROUTE}} from {loc: ${DOMAIN_FILE_PATH}}`,
 			description:
 				"Serves the files of the directory on the feature's web server under the route, with the read each file requires and the artifact policy while the server dispatches `/rpc` calls, as the RPC option states. Fails, stating why the files weren't served, where the mount is refused.",
-			action: ({ where, loc }: { where: string; loc: string }) =>
+			action: ({ where, loc }) =>
 				this.mounting(`the files of ${loc} at ${where}`, (server) => server.checkAddStaticFolder(loc, where, filesFrom(loc), ...this.servedFolderGates(server))),
 		},
 		indexFiles: {
 			gwta: `index files from {loc: ${DOMAIN_FILE_PATH}}`,
 			description:
 				"Serves an index of the files in the directory on the feature's web server at the root, with the read each file requires and the artifact policy while the server dispatches `/rpc` calls, as the RPC option states. Fails, stating why the index wasn't served, where the mount is refused.",
-			action: ({ loc }: { loc: string }) =>
+			action: ({ loc }) =>
 				this.mounting(`an index of ${loc}`, (server) =>
 					server.checkAddIndexFolder(loc, "/", { description: `An index of the files in ${loc}` }, ...this.servedFolderGates(server)),
 				),
 		},
-	} as const satisfies TStepperSteps;
+	});
 
 	/** The feature's server, which its start cycle made. */
 	private server(): IWebServer {

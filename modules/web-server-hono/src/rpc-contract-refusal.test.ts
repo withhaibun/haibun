@@ -8,10 +8,10 @@ import { z } from "zod";
 import { RPC_PROTOCOL, RpcRefusalSchema, type TRpcRefusal } from "@haibun/core/lib/rpc-wire.js";
 import { actualityAt } from "@haibun/core/lib/transport/adapters/rpc-call.js";
 import { DEF_PROTO_OPTIONS, freePort, passWithDefaults } from "@haibun/core/lib/test/lib.js";
-import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
+import { AStepper, type IHasCycles, type IStepperCycles, declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 import { doesntHold, parameter, type TRelation } from "@haibun/core/lib/steps/domains/contract.js";
 import { actionNotOK, actionOKWithProducts, getStepperOptionName } from "@haibun/core/lib/domains/util.js";
-import { OK, VERDICT, type TStepArgs } from "@haibun/core/lib/domains/protocol.js";
+import { OK, VERDICT } from "@haibun/core/lib/domains/protocol.js";
 import { DOMAIN_LINK } from "@haibun/core/lib/domains/domains.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
 import LogicStepper from "@haibun/logic/logic-stepper.js";
@@ -24,6 +24,11 @@ const REVOKED: TRelation = {
 };
 const GrantSchema = z.object({ id: z.string(), revoked: z.string().optional() });
 const GRANT_DOMAIN = "rpc-contract-grant";
+declare module "@haibun/core/lib/domains/domains.js" {
+	interface DomainTypes {
+		[GRANT_DOMAIN]: z.output<typeof GrantSchema>;
+	}
+}
 const DELEGATION_DOMAIN = "rpc-contract-delegation";
 /** The grants a call states, by name. */
 const GRANTS: Record<string, z.infer<typeof GrantSchema>> = { revoked: { id: "urn:grant:revoked", revoked: "2026-11-01T00:00:00Z" } };
@@ -41,25 +46,25 @@ class Delegating extends AStepper implements IHasCycles {
 			relations: [REVOKED],
 		}),
 	};
-	steps = {
+	steps = declareSteps({
 		delegate: {
 			description: TEST_STEP,
 			gwta: `delegate from {grant: ${GRANT_DOMAIN}}`,
 			contract: { products: DELEGATION_DOMAIN, requires: [doesntHold(REVOKED, parameter("grant"))] },
-			action: ({ grant }: { grant: z.infer<typeof GrantSchema> }) => Promise.resolve(actionOKWithProducts({ id: `${grant.id}:delegated` })),
+			action: ({ grant }) => Promise.resolve(actionOKWithProducts({ id: `${grant.id}:delegated` })),
 		},
-	} as const satisfies TStepperSteps;
+	});
 }
 
 /** Calls `delegate` over RPC from a revoked grant and holds the refusal the response states. */
 class Calling extends AStepper {
 	description = "Calls a step over RPC and holds the refusal its response states.";
 	refusal: TRpcRefusal | undefined;
-	steps = {
+	steps = declareSteps({
 		callRevoked: {
 			description: TEST_STEP,
 			gwta: `call delegate from the revoked grant at {url: ${DOMAIN_LINK}}`,
-			action: async ({ url }: TStepArgs) => {
+			action: async ({ url }) => {
 				const body = {
 					jsonrpc: "2.0",
 					protocol: RPC_PROTOCOL,
@@ -75,7 +80,7 @@ class Calling extends AStepper {
 				return OK;
 			},
 		},
-	} as const satisfies TStepperSteps;
+	});
 }
 
 describe("a call over RPC that its step's contract refuses", () => {

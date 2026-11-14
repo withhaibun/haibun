@@ -11,27 +11,20 @@
 import { z } from "zod";
 import { fromJsonText } from "@haibun/core/lib/domains/json-text.js";
 import { listOf, type TListQuery } from "@haibun/core/lib/domains/lists.js";
-import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
+import { AStepper, type IHasCycles, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { Access, AccessQueryLevelSchema, DOMAIN_PERSISTED_TYPE, LinkRelations, type TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import { actionNotOK, actionOKWithProducts, errorDetail } from "@haibun/core/lib/domains/util.js";
 import { typeCollectionRemedy } from "@haibun/core/lib/domains/typed-links.js";
-import {
-	DOMAIN_GRAPH_QUERY,
-	GraphQueryResultSchema,
-	type TRecordQuery,
-	queriedList,
-	DOMAIN_DENSITY_QUERY,
-	DensityResultSchema,
-	type TDensityRequest,
-} from "@haibun/core/lib/quad-types.js";
+import { DOMAIN_GRAPH_QUERY, GraphQueryResultSchema, type TRecordQuery, queriedList, DOMAIN_DENSITY_QUERY, DensityResultSchema } from "@haibun/core/lib/quad-types.js";
 import { compiledDensity, readRecordQuery } from "@haibun/core/lib/records/pipelines/record-query.js";
-import { DOMAIN_RECORD_ID, DOMAIN_LINK, DOMAIN_PRINCIPAL_REF, type TIndividualRef } from "@haibun/core/lib/domains/domains.js";
+import { DOMAIN_RECORD_ID, DOMAIN_LINK, DOMAIN_PRINCIPAL_REF } from "@haibun/core/lib/domains/domains.js";
 import { clusteredQuads, federate, graphAxiomsOf, recordWithFrame, selectValues, servingSite } from "./pipelines/graph-source.js";
 import { DOMAIN_GRAPH_AXIOMS, FramedIndividualSchema } from "@haibun/core/lib/records/domains/axioms.js";
-import { GraphViewSchema, ViewAxiomsSchema, type TGraphView } from "./domains/graph-view.js";
+import { GraphViewSchema, ViewAxiomsSchema } from "./domains/graph-view.js";
 import { SHU_TAG } from "./domains/elements.js";
 import { POLYMORPHIC_VIEW_JS } from "./domains/serving.js";
 import { openPeerGraphSource } from "./root.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 /** The values a filter offers for each field of a type that names one. */
 const ShuSelectValuesSchema = z.object({ values: z.record(z.string(), z.array(z.string())) });
@@ -67,6 +60,11 @@ const DOMAIN_SITE_FEDERATED = "site-federated";
 const DOMAIN_DENSITY = "density";
 const DOMAIN_GRAPH_ROWS = "graph-rows";
 const DOMAIN_GRAPH_VIEW = "graph-view";
+declare module "@haibun/core/lib/domains/domains.js" {
+	interface DomainTypes {
+		[DOMAIN_GRAPH_VIEW]: z.output<typeof GraphViewSchema>;
+	}
+}
 /** A subject the merged graph holds, and the site that serves it. */
 const SubjectServedSchema = z.object({ subject: z.string(), site: z.string() });
 /** The site from which a peer's reads were federated. */
@@ -121,7 +119,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 	description = "The graph a page reads: a query, a count over a span, the clustered sample a graph view draws, and the reads a federated peer serves.";
 	cycles: IStepperCycles = { getConcerns: () => ({ domains: GRAPH_SOURCE_DOMAINS }) };
 
-	steps = {
+	steps = declareSteps({
 		getIndividualWithEdges: {
 			readsAt: Access.public,
 			gwta: `get individual {label: ${DOMAIN_PERSISTED_TYPE}} {id: ${DOMAIN_RECORD_ID}} with edges`,
@@ -133,7 +131,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			// A page reads an individual with its edges the same way whatever serves the read. This step reads the store
 			// this instance holds, which is what a site without a graph engine of its own has; a deployment that gates a
 			// read by what a reader may see declares its own step, and the page reads through that one instead.
-			action: async ({ label, id }: { label: string; id: string }) => {
+			action: async ({ label, id }) => {
 				const held = await recordWithFrame(this.getWorld().shared.getStore(), label, id);
 				return held === undefined
 					? actionNotOK(`actuality doesn't hold the ${label} record ${id}; the ${label} collection lists the records it holds`, { remedy: typeCollectionRemedy(label) })
@@ -145,7 +143,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			gwta: `get select values for {label: ${DOMAIN_PERSISTED_TYPE}}`,
 			description: "Returns, for each field of the type, the values a filter selects. Fails where a filter topology isn't registered for the type.",
 			contract: { read: true, products: DOMAIN_SELECT_VALUES },
-			action: async ({ label }: { label: string }) => {
+			action: async ({ label }) => {
 				const values = await selectValues(this.getWorld(), label);
 				return values === undefined ? actionNotOK(`a filter topology isn't registered for ${label}`) : actionOKWithProducts({ values });
 			},
@@ -158,7 +156,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			contract: { read: true, products: DOMAIN_CLUSTERED_QUADS },
 			// The sampled graph is the RPC response; keeping it on the event too holds a second copy of it per call.
 			retainProducts: false,
-			action: async (asked: Record<string, unknown>) => {
+			action: async (asked) => {
 				const read = ClusteredQuadsAskSchema.safeParse(asked);
 				if (!read.success) return actionNotOK(`getClusteredQuads: ${z.prettifyError(read.error)}`);
 				try {
@@ -176,7 +174,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			contract: { read: true, products: DOMAIN_GRAPH_AXIOMS },
 			// The description is the RPC response; keeping it on the event too holds a second copy of it per call.
 			retainProducts: false,
-			action: async ({ view }: { view: TGraphView }) => actionOKWithProducts(await graphAxiomsOf(this.getWorld(), view)),
+			action: async ({ view }) => actionOKWithProducts(await graphAxiomsOf(this.getWorld(), view)),
 		},
 		clusteredGraphHoldsFromSite: {
 			gwta: `clustered graph holds {type: ${DOMAIN_PERSISTED_TYPE}} {subject: ${DOMAIN_RECORD_ID}} from site {site: ${DOMAIN_PRINCIPAL_REF}}`,
@@ -187,7 +185,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			// Federation-health inspection: does this instance's merged view hold {subject} (a {type} individual)
 			// SERVED BY {site}? Reads the same clustered surface the views render from, so it asserts exactly what a
 			// user would see, including that the subject's stamp names the site that serves it.
-			action: async ({ type, subject, site: { id: site } }: { type: string; subject: string; site: TIndividualRef }) => {
+			action: async ({ type, subject, site: { id: site } }) => {
 				const served = await servingSite(this.getWorld(), type, subject, Access.private);
 				if (!served.held) return actionNotOK(`the clustered graph doesn't hold ${type} ${subject}`);
 				if (served.site === site) return actionOKWithProducts({ subject, site });
@@ -201,7 +199,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			contract: { products: DOMAIN_SITE_FEDERATED },
 			// Reads-first federation: a peer instance's clustered reads merge into this one's view, each of the peer's subjects
 			// stamped with its site principal, so the view groups by site.
-			action: async ({ where }: { where: string }) => {
+			action: async ({ where }) => {
 				try {
 					return actionOKWithProducts({ site: await federate(this.getWorld(), openPeerGraphSource, where) });
 				} catch (err) {
@@ -219,7 +217,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			// The counts are the products; keeping them on the event too is the per-read bloat.
 			retainProducts: false,
 			// The same counts a page computes over its own copy of the graph, so the two never drift.
-			action: async ({ query }: { query: TDensityRequest }) => {
+			action: async ({ query }) => {
 				const compiled = compiledDensity(this.getWorld(), query);
 				return "refused" in compiled ? actionNotOK(compiled.refused) : actionOKWithProducts(await this.getWorld().shared.getStore().density(compiled));
 			},
@@ -234,11 +232,11 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			contract: { read: true, products: DOMAIN_GRAPH_ROWS },
 			takesListQuery: ({ query }: { query: TRecordQuery }, listQuery: TListQuery) => queriedList(query, listQuery),
 			// The same records a page reads from its own copy of the graph, so the two never drift.
-			action: async ({ query }: { query: TRecordQuery }) => {
+			action: async ({ query }) => {
 				const store = this.getWorld().shared.getStore();
 				const page = await readRecordQuery(this.getWorld(), query, (compiled) => store.readRecords(compiled));
 				return "refused" in page ? actionNotOK(page.refused) : actionOKWithProducts(page);
 			},
 		},
-	} as const satisfies TStepperSteps;
+	});
 }

@@ -20,6 +20,7 @@ import { DOMAIN_TEXT } from "../../domains/domains.js";
 import { itemAt } from "../../domains/item-at.js";
 import Haibun from "../../../steps/haibun-stepper.js";
 import { TEST_STEP } from "../../test/test-step.js";
+import { declareSteps } from "../../steps/domains/stepper.js";
 
 describe("the path allocated under a parent step", () => {
 	const aWorld = () => ({ runtime: { seqPaths: new Map<string, number>() } }) as unknown as Parameters<typeof nextSeqPath>[0];
@@ -144,11 +145,11 @@ describe("actualityFailure", () => {
 describe("the digest of a scenario's declared lines", () => {
 	class NotingStepper extends AStepper {
 		description = "Starts a scenario, notes a text, and refuses.";
-		steps = {
+		steps = declareSteps({
 			scenario: { description: TEST_STEP, gwta: `Scenario: {what: ${DOMAIN_TEXT}}`, action: () => Promise.resolve(actionOK()) },
 			note: { description: TEST_STEP, gwta: `note {what: ${DOMAIN_TEXT}}`, action: () => Promise.resolve(actionOK()) },
 			refuse: { description: TEST_STEP, gwta: "refuse here", action: () => Promise.resolve(actionNotOK("refused")) },
-		};
+		});
 	}
 	/** The digests each scenario's record states, in order. */
 	const digestsOf = async (content: string, passes = true) => {
@@ -175,12 +176,12 @@ describe("the digest of a scenario's declared lines", () => {
 describe("the actuality the Executor moves", () => {
 	class SceneStepper extends AStepper {
 		description = "Starts a feature or a scenario, notes a text, and refuses.";
-		steps = {
+		steps = declareSteps({
 			feature: { description: TEST_STEP, gwta: `Feature: {what: ${DOMAIN_TEXT}}`, action: () => Promise.resolve(actionOK()) },
 			scenario: { description: TEST_STEP, gwta: `Scenario: {what: ${DOMAIN_TEXT}}`, action: () => Promise.resolve(actionOK()) },
 			note: { description: TEST_STEP, gwta: `note {what: ${DOMAIN_TEXT}}`, action: () => Promise.resolve(actionOK()) },
 			refuse: { description: TEST_STEP, gwta: "refuse here", action: () => Promise.resolve(actionNotOK("refused")) },
-		};
+		});
 	}
 
 	it("starts and ends each level, and numbers each scenario once in its events and its steps' paths, a second feature heading starting the next", async () => {
@@ -244,7 +245,7 @@ describe("the actuality the Executor moves", () => {
 describe("a pending scenario", () => {
 	class CountingStepper extends AStepper {
 		description = "Passes.";
-		steps = { passes: { description: TEST_STEP, exact: "passes", action: () => Promise.resolve(actionOK()) } };
+		steps = declareSteps({ passes: { description: TEST_STEP, exact: "passes", action: () => Promise.resolve(actionOK()) } });
 	}
 
 	it("doesn't resolve or run its lines, and the feature's result names it as pending", async () => {

@@ -14,6 +14,13 @@ export const TEST_DOMAIN = {
 	action: "test-action",
 	accessLevels: "test-access-levels",
 } as const;
+declare module "../domains/domains.js" {
+	interface DomainTypes {
+		[TEST_DOMAIN.accessLevel]: z.output<typeof AccessLevelSchema>;
+		[TEST_DOMAIN.action]: string;
+		[TEST_DOMAIN.accessLevels]: z.output<typeof AccessLevelSchema>[];
+	}
+}
 
 export const testDomainDefinitions: TDomainDefinition[] = [
 	{ selectors: [TEST_DOMAIN.readAt], schema: z.object({ at: z.string() }).strict(), description: "The access level of a step's read" },

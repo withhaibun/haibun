@@ -5,7 +5,7 @@ import * as path from "path";
 import { passWithDefaults, DEF_PROTO_OPTIONS, freePort } from "@haibun/core/lib/test/lib.js";
 import LogicStepper from "@haibun/logic/logic-stepper.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
-import { OK, type TStepArgs } from "@haibun/core/lib/domains/protocol.js";
+import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { getStepperOptionName, actionNotOK, perProcessOptionNames } from "@haibun/core/lib/domains/util.js";
 import WebServerStepper from "./web-server-stepper.js";
 import { BASIC_AUTH_OPTION } from "@haibun/core/lib/domains/basic-auth.js";
@@ -17,6 +17,7 @@ import { servedFileRefusal } from "./pipelines/served-folder.js";
 import { ORIGINS_REQUIRED, originList } from "./domains/web-server.js";
 import { PRODUCTION } from "@haibun/core/lib/domains/dev-mode.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 // WebServerStepper expects a 'files' directory in cwd
 const FILES_DIR = path.join(process.cwd(), "files");
@@ -38,11 +39,11 @@ afterAll(() => {
 
 class VerifyStepper extends AStepper {
 	description = "Fetches from the web server and checks what it returns.";
-	steps = {
+	steps = declareSteps({
 		fetchFrom: {
 			description: TEST_STEP,
 			gwta: `fetch from {url: ${DOMAIN_LINK}} includes {text: ${DOMAIN_TEXT}}`,
-			action: async ({ url, text }: TStepArgs) => {
+			action: async ({ url, text }) => {
 				try {
 					const res = await fetch(String(url));
 					if (!res.ok) {
@@ -61,7 +62,7 @@ class VerifyStepper extends AStepper {
 		refusedFrom: {
 			description: TEST_STEP,
 			gwta: `fetch from {url: ${DOMAIN_LINK}} is refused with the read it requires as its remedy`,
-			action: async ({ url }: TStepArgs) => {
+			action: async ({ url }) => {
 				const res = await fetch(String(url));
 				const refused = servedFileRefusal(new URL(String(url)).pathname, ALLOWING);
 				const body: unknown = await res.json();
@@ -73,12 +74,12 @@ class VerifyStepper extends AStepper {
 		policyOf: {
 			description: TEST_STEP,
 			gwta: `fetch from {url: ${DOMAIN_LINK}} carries the policy {policy: ${DOMAIN_TEXT}}`,
-			action: async ({ url, policy }: TStepArgs) => {
+			action: async ({ url, policy }) => {
 				const carried = String((await fetch(String(url))).headers.get("content-security-policy"));
 				return carried === String(policy) ? OK : actionNotOK(`${String(url)} carries the policy ${carried}`);
 			},
 		},
-	};
+	});
 }
 
 /** The option through which a deployment allows a read without a delegation. */

@@ -16,19 +16,20 @@ import { AUTHORITY_KEY } from "../domains/session-authority.js";
 import { callerAt, RUN_AUTHORITY, runAuthorizedWith, runInCall } from "../domains/capability-context.js";
 import type { TWorld } from "../actuality/domains/world.js";
 import { SITE_DID_PREFIX } from "../domains/host-id.js";
-import { DOMAIN_STRING, asDomainKey, DOMAIN_TEXT } from "../domains/domains.js";
-import { OK, Origin, type TStepValue } from "../domains/protocol.js";
+import { DOMAIN_STRING, DOMAIN_JSON_OBJECT, DOMAIN_TEXT, unionDomainKey } from "../domains/domains.js";
+import { OK, Origin } from "../domains/protocol.js";
 import { ACTION_BEGIN, ANSWERED_WITHOUT_PRODUCTS, callFailed } from "./domains/rpc-wire.js";
 import { hostHandshake } from "../test/rpc-answer.js";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { actualityClock } from "../actuality/root.js";
 import { TEST_STEP } from "../test/test-step.js";
+import { declareSteps } from "../steps/domains/stepper.js";
 
 const ECHOED_LABEL = "test-echoed-label";
 /** Two domains whose union a parameter takes. */
 const PICKS = ["test-pick-by-name", "test-pick-by-id"];
-const DOMAIN_PICK = asDomainKey(PICKS);
+const DOMAIN_PICK = unionDomainKey(PICKS);
 
 /** The id the host states for itself. The proxy prefixes the host's steps with it. */
 const HOST = 7;
@@ -47,12 +48,12 @@ class EchoStepper extends AStepper {
 			],
 		}),
 	};
-	steps = {
+	steps = declareSteps({
 		echo: {
 			description: TEST_STEP,
 			gwta: `echo {message: ${DOMAIN_TEXT}}`,
 			contract: { products: TEST_DOMAIN.echoed },
-			action: async ({ message }: { message: string }) => actionOKWithProducts({ echoed: message }),
+			action: async ({ message }) => actionOKWithProducts({ echoed: message }),
 		},
 		protectedPing: {
 			description: TEST_STEP,
@@ -67,15 +68,15 @@ class EchoStepper extends AStepper {
 			description: TEST_STEP,
 			gwta: `echo the pick {pick: ${DOMAIN_PICK}}`,
 			contract: { products: TEST_DOMAIN.echoed },
-			action: async ({ pick }: { pick: TStepValue }) => actionOKWithProducts({ echoed: String(pick.value) }),
+			action: async ({ pick }) => actionOKWithProducts({ echoed: String(pick.value) }),
 		},
 		echoLabel: {
 			description: TEST_STEP,
-			gwta: "echo the label of {query: json}",
+			gwta: `echo the label of {query: ${DOMAIN_JSON_OBJECT}}`,
 			contract: { products: ECHOED_LABEL },
-			action: async ({ query }: { query: { label?: string } }) => actionOKWithProducts({ label: query.label ?? null }),
+			action: async ({ query }) => actionOKWithProducts({ label: query.label ?? null }),
 		},
-	};
+	});
 }
 
 describe("RemoteStepperProxy", () => {

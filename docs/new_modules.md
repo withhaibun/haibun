@@ -28,7 +28,9 @@ Add the stepper's options, steps and methods.
 The source file looks like this:
 
 ```typescript
-import { OK, TNamed, AStepper, TWorld } from '@haibun/core/lib/defs.js';
+import { AStepper, declareSteps } from '@haibun/core/lib/astepper.js';
+import { OK } from '@haibun/core/lib/domains/protocol.js';
+import type { TWorld } from '@haibun/core/lib/world.js';
 import { actionNotOK, stringOrError, findStepperFromOption } from '@haibun/core/lib/util/index.js';
 import { STORAGE_ITEM, STORAGE_LOCATION } from '@haibun/domain-storage/domain-storage.js';
 import { AStorage } from '@haibun/domain-storage/AStorage.js';
@@ -48,24 +50,26 @@ const FilesExist = class FilesExist extends AStepper implements IHasOptions {
 		await super.setWorld(world, steppers);
 		this.storage = findStepperFromOption(steppers, this, this.getWorld().moduleOptions, STORAGE);
 	}
-	steps = {
+	steps = declareSteps({
 		fileExists: {
 			gwta: `file {what} exists`,
-			action: async ({ what }: TNamed) => {
+			action: async ({ what }) => {
 				const exists = this.storage?.exists(what);
 				return exists ? OK : actionNotOK(`${what} does not exist`);
 			},
 		},
 		fileDoesNotExist: {
 			gwta: `missing file {what}`,
-			action: async ({ what }: TNamed) => {
+			action: async ({ what }) => {
 				const exists = this.storage?.exists(what);
 				return exists ? actionNotOK(`${what} is not missing`) : OK;
 			},
 		},
-	};
+	});
 };
 ```
+
+A stepper declares its steps through `declareSteps` from core's `lib/steps/domains/stepper.ts`. It reads each step's pattern as its literal type and types the arguments the step's action receives from the pattern's placeholders, so `what` above is a string. A repository rule refuses a `steps` property set from an object literal or checked with `satisfies TStepperSteps`.
 
 Features can use the statements _file "README.md" exists_ and _missing file "missing.md"_ once the module compiles.
 The module requires a storage implementation, such as `@haibun/storage-fs`.
@@ -157,10 +161,20 @@ A domain that doesn't declare `coerce` coerces a value with its schema's `parse`
 - Put behaviour in step actions, not in schemas.
 - Add a domain for a new data shape, so that steps don't each parse it.
 
+Each domain declares the TypeScript type of the value it coerces as an entry of the `DomainTypes` interface in core's `lib/domains/domains.ts`, by module augmentation in the module that exports the domain's key. `declareSteps` types a parameter of that domain with the entry. A parameter of a domain without an entry receives `unknown`, and a parameter of a union of domains receives the resolved `TStepValue`, since the step selects its behaviour by the value's domain.
+
+```ts
+declare module "@haibun/core/lib/domains/domains.js" {
+	interface DomainTypes {
+		[PAGE_SELECTOR]: string;
+	}
+}
+```
+
 #### Example
 
 ```ts
-steps = {
+steps = declareSteps({
 	pauseSeconds: {
 		gwta: `pause for {ms:${DOMAIN_NUMBER}}s`,
 		action: async ({ ms }) => {
@@ -173,12 +187,12 @@ steps = {
 		action: async ({ selector }) => this.page.click(selector),
 	},
 	conditional: {
-		gwta: `if {when:${DOAIN_STATEMENT}}, {what:${DOAIN_STATEMENT}}`,
+		gwta: `if {when:${DOMAIN_STATEMENT}}, {what:${DOMAIN_STATEMENT}}`,
 		action: async ({ when, what }) => {
 			/* each holds the feature steps its statement resolves to */
 		},
 	},
-};
+});
 ```
 
 ## Example modules and tests

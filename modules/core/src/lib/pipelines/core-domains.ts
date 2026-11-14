@@ -3,7 +3,7 @@ import { DOMAIN_GRAPH_QUERY, RecordQuerySchema, DOMAIN_DENSITY_QUERY, DensityReq
 import { fromJsonText, JsonObjectTextSchema } from "../domains/json-text.js";
 import { fieldComparisonSchema } from "../domains/lists.js";
 import { DOMAIN_FILE_DATA, DOMAIN_IMAGE_REFERENCE, FileDataSchema, ImageReferenceSchema, recordedFileData } from "../domains/media-object.js";
-import { extractSeqPathPrefix, parseSeqPath, seqPathDomainDefinition } from "../actuality/domains/seq-path.js";
+import { seqPathDomainDefinition } from "../actuality/domains/seq-path.js";
 import { factDomainDefinition } from "../records/domains/facts.js";
 import { variableDomainDefinition } from "../records/domains/variables.js";
 import { classDomainDefinition, propertyDomainDefinition } from "../records/domains/ontology.js";
@@ -12,7 +12,7 @@ import { MEDIA_TYPE } from "../domains/media-types.js";
 import { RDFS_DATATYPE } from "../domains/vocabularies.js";
 import { Access, DOMAIN_PERSISTED_TYPE, HELD_BY, LinkRelations, type TCoercionSite, type TDomainDefinition } from "../domains/resources.js";
 import type { TWorld } from "../actuality/domains/world.js";
-import { TStepValue } from "../domains/protocol.js";
+import type { TStepValue } from "../domains/protocol.js";
 import { DOMAIN_INDIVIDUAL_ADDRESS, IndividualAddressSchema } from "../domains/typed-links.js";
 import {
 	DOMAIN_ACTIONS,
@@ -39,7 +39,6 @@ import {
 	DOMAIN_STEP_METHOD,
 	DOMAIN_LINK_REL,
 	DOMAIN_VARIABLE_VALUE,
-	DURATION_TERM,
 	DOMAIN_TEMPLATE,
 	DOMAIN_WAYPOINT_ARGUMENT,
 	DOMAIN_UNIVERSAL,
@@ -57,11 +56,10 @@ import {
 	recordIdInputSchema,
 	NameSchema,
 } from "../domains/domains.js";
+import { DateSchema, DurationSchema, NumberSchema, StepPathSchema, StringSchema } from "../domains/value-schemas.js";
 import { findFeatureStepsFromStatement } from "../actuality/pipelines/resolver.js";
 import { lineOfCall } from "../steps/derivations/named-vars.js";
 
-const numberSchema = z.coerce.number({ error: "invalid number" }).refine((value) => Number.isFinite(value), "invalid number");
-const stringSchema = z.coerce.string({ error: "value is required" });
 const statementSchema = z.string({ error: "statement label is required" }).min(1, "statement cannot be empty");
 /** A statement as a call states it: its step's method and the step's parameters. */
 const StatementCallSchema = z.object({ method: z.string().min(1), params: z.record(z.string(), z.unknown()) }).strict();
@@ -83,22 +81,6 @@ function callLine(world: TWorld, { method, params }: z.infer<typeof StatementCal
 	}
 	return lineOfCall(tool.descriptor.pattern, stated);
 }
-const dateSchema = z.coerce.date({ error: "invalid date" });
-/** Reads a step's place from its dot-joined sequence path, or from an id that begins with one. */
-const stepPathSchema = z.preprocess((value, ctx) => {
-	if (typeof value !== "string") return value;
-	const prefix = extractSeqPathPrefix(value);
-	const path = prefix === null ? null : parseSeqPath(prefix);
-	if (path === null) ctx.addIssue({ code: "custom", message: `${JSON.stringify(value)} doesn't name a step: a step's place is dot-joined integers, such as 0.1.5.3` });
-	return path ?? value;
-}, z.array(z.number().int()).min(1));
-/** Reads a length of time in milliseconds from seconds or milliseconds, such as `2s` or `30 ms`, or from a number of milliseconds. */
-const durationSchema = z.preprocess((value, ctx) => {
-	if (typeof value !== "string") return value;
-	const match = DURATION_TERM.exec(value.trim());
-	if (!match) ctx.addIssue({ code: "custom", message: `${JSON.stringify(value)} isn't a length of time: give seconds or milliseconds, such as 2s or 30 ms` });
-	return match ? Number(match[1]) * (match[2] === "s" ? 1000 : 1) : value;
-}, z.number().nonnegative());
 
 /** The Domain type, whose records core derives from the declarations, so the type states `heldBy: declarations`. */
 const domainRecordDefinition: TDomainDefinition = {
@@ -136,8 +118,8 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	classDomainDefinition,
 	propertyDomainDefinition,
 	domainRecordDefinition,
-	{ selectors: [DOMAIN_STRING], schema: stringSchema, description: "A plain string literal captured from feature text." },
-	{ selectors: [DOMAIN_TEXT], schema: stringSchema, description: "Free text a person writes: a note, a question, a reason or a passage quoted, read as written." },
+	{ selectors: [DOMAIN_STRING], schema: StringSchema, description: "A plain string literal captured from feature text." },
+	{ selectors: [DOMAIN_TEXT], schema: StringSchema, description: "Free text a person writes: a note, a question, a reason or a passage quoted, read as written." },
 	{
 		selectors: [DOMAIN_VARIABLE_NAME],
 		schema: NameSchema,
@@ -180,10 +162,10 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	},
 	{
 		selectors: [DOMAIN_STEP_PATH],
-		schema: stepPathSchema,
+		schema: StepPathSchema,
 		description: "A step's place in actuality: its dot-joined sequence path, such as 0.1.5.3, or an id that begins with one, as an event's does.",
 	},
-	{ selectors: [DOMAIN_DURATION], schema: durationSchema, description: "A length of time, given as seconds or milliseconds, such as 2s or 30 ms, read as milliseconds." },
+	{ selectors: [DOMAIN_DURATION], schema: DurationSchema, description: "A length of time, given as seconds or milliseconds, such as 2s or 30 ms, read as milliseconds." },
 	{
 		selectors: [DOMAIN_FIELD_COMPARISON],
 		schema: fieldComparisonSchema,
@@ -216,16 +198,16 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		schema: fromJsonText(z.array(z.string().min(1)).min(1)),
 		description: "Step lines, in order, as a JSON array: the statements a saved activity runs.",
 	},
-	{ selectors: [DOMAIN_LINK], schema: stringSchema, description: "A URI string for a navigable link." },
+	{ selectors: [DOMAIN_LINK], schema: StringSchema, description: "A URI string for a navigable link." },
 	{
 		selectors: [DOMAIN_NUMBER],
-		schema: numberSchema,
+		schema: NumberSchema,
 		description: "A numeric literal coerced with Number().",
 		comparator: (value, baseline) => (value as number) - (baseline as number),
 	},
 	{
 		selectors: [DOMAIN_DATE],
-		schema: dateSchema,
+		schema: DateSchema,
 		description: "A Date object coerced from an ISO timestamp, epoch milliseconds or a Date literal.",
 		comparator: (value, baseline) => (value as Date).getTime() - (baseline as Date).getTime(),
 	},

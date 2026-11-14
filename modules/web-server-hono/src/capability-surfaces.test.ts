@@ -23,6 +23,7 @@ import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import McpStepper from "./mcp-stepper.js";
 import WebServerStepper from "./web-server-stepper.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 const MCP_HEADERS = { "content-type": "application/json", accept: "application/json, text/event-stream" };
 
@@ -51,11 +52,11 @@ class SurfacesStepper extends AStepper {
 		await super.setWorld(world, steppers);
 		this.steppers = steppers;
 	}
-	steps = {
+	steps = declareSteps({
 		everyStepRefused: {
 			description: TEST_STEP,
 			gwta: `every registered step is refused without a capability in process, over rpc and over mcp on port {port: ${DOMAIN_NUMBER}}`,
-			action: async ({ port }: { port: number }) => {
+			action: async ({ port }) => {
 				const world = this.getWorld();
 				const base = `http://localhost:${port}`;
 				const actualityId = await actualityAt(base);
@@ -84,7 +85,7 @@ class SurfacesStepper extends AStepper {
 				return unrefused.length === 0 ? OK : actionNotOK(`calls without a capability ran: ${unrefused.join(", ")}`);
 			},
 		},
-	};
+	});
 }
 
 describe("capability on every call", () => {

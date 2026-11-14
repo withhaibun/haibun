@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
+import { AStepper, type IHasCycles, type IStepperCycles, declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 import { holds, parameter, PRODUCTS, RELATION_NAMESPACE, type TRelation, type TStepContract } from "@haibun/core/lib/steps/domains/contract.js";
 import { failWithDefaults, passWithDefaults } from "@haibun/core/lib/test/lib.js";
 import { actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
@@ -18,6 +18,11 @@ const BELOW = `<${RELATION_NAMESPACE}below>`;
 const BELOW_RELATION: TRelation = { name: "below", phrase: "{a} is below {b}", rules: `{ (?a ?b) ${BELOW} true . (?b ?c) ${BELOW} true } => { (?a ?c) ${BELOW} true } .` };
 const NODE_DOMAIN = "claim-node";
 const NODE_PRODUCTS = "claim-placed-node";
+declare module "@haibun/core/lib/domains/domains.js" {
+	interface DomainTypes {
+		[NODE_DOMAIN]: string;
+	}
+}
 
 /** Places a node under a parent, under `contract`. */
 const placing = (contract: TStepContract) =>
@@ -32,14 +37,14 @@ const placing = (contract: TStepContract) =>
 				relations: [BELOW_RELATION],
 			}),
 		};
-		steps = {
+		steps = declareSteps({
 			place: {
 				description: TEST_STEP,
 				gwta: `place a node under {parent: ${NODE_DOMAIN}}`,
 				contract,
-				action: ({ parent }: { parent: string }) => Promise.resolve(actionOKWithProducts({ id: `${parent}/node` })),
+				action: ({ parent }) => Promise.resolve(actionOKWithProducts({ id: `${parent}/node` })),
 			},
-		} as const satisfies TStepperSteps;
+		});
 	};
 
 const BACKGROUNDS = [

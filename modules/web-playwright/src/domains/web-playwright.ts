@@ -16,7 +16,7 @@ import {
 	TDomainDefinition,
 	ENDPOINT_CLASS,
 } from "@haibun/core/lib/domains/resources.js";
-import { asDomainKey, createEnumDomainDefinition, NameSchema } from "@haibun/core/lib/domains/domains.js";
+import { createEnumDomainDefinition, NameSchema, unionDomainKey } from "@haibun/core/lib/domains/domains.js";
 import {
 	BrowserTabSchema,
 	BrowserTabTextSchema,
@@ -70,7 +70,7 @@ const PAGE_LOCATOR_DOMAINS = PAGE_LOCATORS.filter(isDomainLocator).map(({ domain
 /** The ways to find what a click presses, each a way to read the page. */
 export const WAY_LOCATORS = PAGE_LOCATORS.filter(isWayLocator);
 /** An element on a page, identified by a value of any locator domain. A literal is page text. */
-export const DOMAIN_PAGE_TARGET = asDomainKey([...PAGE_LOCATOR_DOMAINS]);
+export const DOMAIN_PAGE_TARGET = unionDomainKey(PAGE_LOCATOR_DOMAINS);
 /** A key as Playwright names it, such as Enter or Control+A. */
 export const DOMAIN_KEYBOARD_KEY = "keyboard-key";
 /** The name of a cookie a page holds. */
@@ -162,6 +162,37 @@ export const AUTHORIZATION_SCHEMES = { basic: "Basic", bearer: "Bearer" } as con
 export type TAuthorizationScheme = (typeof AUTHORIZATION_SCHEMES)[keyof typeof AUTHORIZATION_SCHEMES];
 export const DOMAIN_AUTHORIZATION_SCHEME = "authorization-scheme";
 export const DOMAIN_AUTHORIZATION_CREDENTIALS = "authorization-credentials";
+
+declare module "@haibun/core/lib/domains/domains.js" {
+	/** The value each browser domain coerces. A union of locator domains is a page target, whose parameter receives the
+	 *  resolved TStepValue. */
+	interface DomainTypes {
+		[DOMAIN_HTTP_METHOD]: (typeof HTTP_METHODS_WITHOUT_BODY)[number] | (typeof HTTP_METHODS_WITH_BODY)[number];
+		[DOMAIN_HTTP_METHOD_WITH_BODY]: (typeof HTTP_METHODS_WITH_BODY)[number];
+		[DOMAIN_HTTP_METHOD_WITHOUT_BODY]: (typeof HTTP_METHODS_WITHOUT_BODY)[number];
+		[DOMAIN_FIND_WAY]: TFindWay;
+		[DOMAIN_REQUEST_STATE]: (typeof REQUEST_STATE)[keyof typeof REQUEST_STATE];
+		[DOMAIN_BROWSER_TYPE]: TBrowserTypes;
+		[DOMAIN_AUTHORIZATION_SCHEME]: TAuthorizationScheme;
+		[DOMAIN_AUTHORIZATION_CREDENTIALS]: z.output<typeof NameSchema>;
+		[DOMAIN_URL_GLOB]: z.output<typeof NameSchema>;
+		[DOMAIN_KEYBOARD_KEY]: z.output<typeof NameSchema>;
+		[DOMAIN_COOKIE_NAME]: z.output<typeof NameSchema>;
+		[DOMAIN_QUERY_PARAMETER]: z.output<typeof NameSchema>;
+		[DOMAIN_MEDIA_TYPE]: z.output<typeof MediaTypeSchema>;
+		[DOMAIN_PAGE_LOCATOR]: z.output<typeof locatorSchema>;
+		[DOMAIN_PAGE_TEXT]: z.output<typeof locatorSchema>;
+		[DOMAIN_PAGE_TEST_ID]: z.output<typeof locatorSchema>;
+		[DOMAIN_PAGE_LABEL]: z.output<typeof locatorSchema>;
+		[DOMAIN_PAGE_PLACEHOLDER]: z.output<typeof locatorSchema>;
+		[DOMAIN_PAGE_ROLE]: z.output<typeof locatorSchema>;
+		[DOMAIN_PAGE_TITLE]: z.output<typeof locatorSchema>;
+		[DOMAIN_PAGE_ALT_TEXT]: z.output<typeof locatorSchema>;
+	}
+}
+
+/** What a media type matches: a type and a subtype joined by a slash. */
+const MediaTypeSchema = z.string().regex(/^[\w.+-]+\/[\w.+*-]+/, "isn't a media type");
 
 export const WebPlaywrightDomains: TDomainDefinition[] = [
 	createEnumDomainDefinition({ name: DOMAIN_HTTP_METHOD, values: [...HTTP_METHODS_WITHOUT_BODY, ...HTTP_METHODS_WITH_BODY], description: "An HTTP method a request is made with" }),
@@ -283,7 +314,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 	{ selectors: [DOMAIN_KEYBOARD_KEY], schema: NameSchema, description: "A key as Playwright names it, such as Enter or Control+A" },
 	{ selectors: [DOMAIN_COOKIE_NAME], schema: NameSchema, description: "The name of a cookie a page holds" },
 	{ selectors: [DOMAIN_QUERY_PARAMETER], schema: NameSchema, written: true, description: "The name of a parameter of a page's address query, as the line writes it" },
-	{ selectors: [DOMAIN_MEDIA_TYPE], schema: z.string().regex(/^[\w.+-]+\/[\w.+*-]+/, "isn't a media type"), description: "A media type, such as application/json" },
+	{ selectors: [DOMAIN_MEDIA_TYPE], schema: MediaTypeSchema, description: "A media type, such as application/json" },
 	{ selectors: [DOMAIN_PAGE_TEST_ID], schema: locatorSchema, description: "Playwright getByTestId selector (data-testid attribute)" },
 	{ selectors: [DOMAIN_PAGE_LABEL], schema: locatorSchema, description: "Playwright getByLabel selector (label text)" },
 	{ selectors: [DOMAIN_PAGE_PLACEHOLDER], schema: locatorSchema, description: "Playwright getByPlaceholder selector (placeholder text)" },

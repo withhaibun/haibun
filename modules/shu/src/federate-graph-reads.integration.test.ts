@@ -18,6 +18,7 @@ import MonitorStepper from "./monitor-stepper.js";
 import GraphSourceStepper from "./graph-source-stepper.js";
 import ShuStepper from "./shu-stepper.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 /**
  * Tests live federation over real RPC, as web-server-hono's rpc-dispatch.test.ts does. The first case's world serves the
@@ -35,7 +36,7 @@ function resetCaptures(): void {
 
 class FederationVerifyStepper extends AStepper {
 	description = "Captures a clustered read federated from another instance for the federation test.";
-	steps = {
+	steps = declareSteps({
 		captureFederatedRead: {
 			description: TEST_STEP,
 			gwta: "capture the federated clustered read",
@@ -46,7 +47,7 @@ class FederationVerifyStepper extends AStepper {
 				return OK;
 			},
 		},
-	};
+	});
 }
 
 describe("federate graph reads over live RPC", () => {

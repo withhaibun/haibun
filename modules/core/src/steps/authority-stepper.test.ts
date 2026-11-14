@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { getDefaultWorld, passWithDefaults } from "../lib/test/lib.js";
 import { LogicStepper } from "../lib/test/logic-stepper.js";
-import { AStepper } from "../lib/steps/domains/stepper.js";
+import { AStepper, declareSteps } from "../lib/steps/domains/stepper.js";
 import { OK } from "../lib/domains/protocol.js";
 import { actionNotOK } from "../lib/domains/util.js";
 import { inCall, readingAt, runInCall } from "../lib/domains/capability-context.js";
@@ -26,18 +26,14 @@ const READS_PUBLIC = readAction(Access.public);
 
 class PingStepper extends AStepper {
 	description = "Provides the steps that these tests run.";
-	steps = {
+	steps = declareSteps({
 		protectedPing: { description: TEST_STEP, exact: "protected ping", capability: "Ping:protected", action: () => Promise.resolve(OK) },
 		readsPublicOnly: {
 			description: TEST_STEP,
 			exact: "reads public only",
 			action: () => Promise.resolve(readingAt() === "public" ? OK : actionNotOK(`reads at ${readingAt() ?? "every level"}`)),
 		},
-		repeats: {
-			description: TEST_STEP,
-			gwta: `repeats {said: ${DOMAIN_TEXT}}`,
-			action: ({ said }: { said: string }) => Promise.resolve(said === KEPT ? OK : actionNotOK(`was given ${said}`)),
-		},
+		repeats: { description: TEST_STEP, gwta: `repeats {said: ${DOMAIN_TEXT}}`, action: ({ said }) => Promise.resolve(said === KEPT ? OK : actionNotOK(`was given ${said}`)) },
 		holdsACall: {
 			description: TEST_STEP,
 			exact: "holds a call",
@@ -53,7 +49,7 @@ class PingStepper extends AStepper {
 			exact: "reads kept",
 			action: async () => ((await this.getWorld().shared.get(KEPT_NAME)) === undefined ? OK : actionNotOK("read actuality's variable above its ceiling")),
 		},
-	};
+	});
 }
 
 /** The capability on which a held call rests. */

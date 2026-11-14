@@ -6,7 +6,7 @@
 import { listOf } from "../lib/domains/lists.js";
 import { CountedFields, counted } from "../lib/domains/hypermedia.js";
 import { z } from "zod";
-import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type TStepperSteps } from "../lib/steps/domains/stepper.js";
+import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, declareSteps } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts } from "../lib/domains/util.js";
 import { EVENT_ATTRIBUTE, STEP_FAILURE_EVENT } from "../lib/domains/protocol.js";
 import { UrakataRegistry } from "../lib/pipelines/urakata.js";
@@ -74,7 +74,7 @@ class UrakataStepper extends AStepper implements IHasCycles, IHasUrakata {
 		},
 	};
 
-	steps = {
+	steps = declareSteps({
 		showUrakata: {
 			gwta: "show urakata",
 			description: "Returns the urakata running in the feature, each with what it is, when it started, its tick and error counts, and its stop time.",
@@ -88,7 +88,7 @@ class UrakataStepper extends AStepper implements IHasCycles, IHasUrakata {
 		stopUrakata: {
 			gwta: `stop urakata {id: ${URAKATA_ID_DOMAIN}}`,
 			description: "Stops the urakata of the id, cancelling its ticks and recording its stop time. It fails where the id isn't registered.",
-			action: async ({ id }: { id: string }) => {
+			action: async ({ id }) => {
 				await this.urakata().stop(id);
 				return actionOK();
 			},
@@ -97,7 +97,7 @@ class UrakataStepper extends AStepper implements IHasCycles, IHasUrakata {
 		forgetUrakata: {
 			gwta: `forget urakata {id: ${URAKATA_ID_DOMAIN}}`,
 			description: "Stops the urakata of the id and removes it from the registry. It fails where the id isn't registered.",
-			action: async ({ id }: { id: string }) => {
+			action: async ({ id }) => {
 				await this.urakata().forget(id);
 				return actionOK();
 			},
@@ -106,12 +106,12 @@ class UrakataStepper extends AStepper implements IHasCycles, IHasUrakata {
 		urakataIsRunning: {
 			gwta: `urakata is running {id: ${URAKATA_ID_DOMAIN}}`,
 			description: "Holds where the urakata of the id is running, and refuses where it was stopped. It fails where the id isn't registered.",
-			action: ({ id }: { id: string }) => {
+			action: ({ id }) => {
 				const u = this.urakata().get(id);
 				return u.stoppedAt === undefined ? actionOK() : actionNotOK(`urakata "${id}" was stopped at ${u.stoppedAt}, not running`);
 			},
 		},
-	} as const satisfies TStepperSteps;
+	});
 }
 
 export default UrakataStepper;

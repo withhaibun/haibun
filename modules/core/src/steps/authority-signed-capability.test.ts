@@ -10,7 +10,7 @@ import { z } from "zod";
 import { getDefaultWorld, testWithWorld } from "../lib/test/lib.js";
 import { LogicStepper } from "../lib/test/logic-stepper.js";
 import { resolveSitePrincipal } from "../lib/domains/host-id.js";
-import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "../lib/steps/domains/stepper.js";
+import { AStepper, type IHasCycles, type IStepperCycles, declareSteps } from "../lib/steps/domains/stepper.js";
 import { Access, COMMENT_LABEL, LinkRelations, type TDomainDefinition } from "../lib/domains/resources.js";
 import { getAuthority } from "../lib/domains/session-authority.js";
 import { readAction } from "../lib/domains/actions.js";
@@ -34,7 +34,7 @@ const testNodeDomain: TDomainDefinition = {
 class TestNodeStepper extends AStepper implements IHasCycles {
 	description = "Declares a minimal persisted type for attribution tests.";
 	cycles: IStepperCycles = { getConcerns: () => ({ domains: [testNodeDomain] }) };
-	steps = {};
+	steps = declareSteps({});
 }
 
 /** Holds the evidence the registered verifier last received, and the result it returns. StubVerifierStepper registers
@@ -58,7 +58,7 @@ class StubVerifierStepper extends AStepper implements IHasCycles {
 			getAuthority(this.getWorld().runtime)?.registerVerifier(verifier);
 		},
 	};
-	steps: TStepperSteps = {};
+	steps = declareSteps({});
 }
 
 const SUBKEY_DID = "did:site:0:alice";

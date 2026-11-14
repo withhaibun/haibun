@@ -13,6 +13,7 @@ import { delegatorOf, inCall } from "../domains/capability-context.js";
 import type { TRemoteSteps } from "./ports.js";
 import { remoteSteps } from "./root.js";
 import { readRemoteHost, remoteTools, type TRemoteHost } from "./pipelines/remote-host.js";
+import { declareSteps } from "../steps/domains/stepper.js";
 
 export class RemoteStepperProxy extends AStepper {
 	readonly name: string;
@@ -63,7 +64,7 @@ export class RemoteStepperProxy extends AStepper {
 		return this.host?.descriptors;
 	}
 
-	steps = {};
+	steps = declareSteps({});
 }
 
 export default RemoteStepperProxy;

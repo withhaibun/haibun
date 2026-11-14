@@ -5,7 +5,7 @@ import { LogicStepper } from "../lib/test/logic-stepper.js";
 import DebuggerStepper, { TDebuggingType } from "./debugger-stepper.js";
 import Haibun from "./haibun-stepper.js";
 import type { IPrompter } from "../lib/prompts/ports.js";
-import { AStepper } from "../lib/steps/domains/stepper.js";
+import { AStepper, declareSteps } from "../lib/steps/domains/stepper.js";
 import { actionNotOK } from "../lib/domains/util.js";
 import { OK } from "../lib/domains/protocol.js";
 import { dispatchStep } from "../lib/actuality/pipelines/step-dispatch.js";
@@ -132,7 +132,7 @@ describe("DebuggerStepper RPC dispatch", () => {
 	it("does not prompt on actionNotOK when dispatched via RPC transport", async () => {
 		const failing = new (class FailingStepper extends AStepper {
 			description = "A step that always fails.";
-			steps = { alwaysFails: { description: TEST_STEP, gwta: "always fails", action: async () => actionNotOK("intentional failure") } };
+			steps = declareSteps({ alwaysFails: { description: TEST_STEP, gwta: "always fails", action: async () => actionNotOK("intentional failure") } });
 		})();
 
 		const world = worldPrompted(
@@ -159,7 +159,7 @@ describe("DebuggerStepper RPC dispatch", () => {
 	it("does not prompt before step-by-step RPC dispatch", async () => {
 		const echo = new (class EchoStepper extends AStepper {
 			description = "A step that echoes a text.";
-			steps = { echo: { description: TEST_STEP, gwta: `echo {what: ${DOMAIN_TEXT}}`, action: async () => OK } };
+			steps = declareSteps({ echo: { description: TEST_STEP, gwta: `echo {what: ${DOMAIN_TEXT}}`, action: async () => OK } });
 		})();
 
 		const world = worldPrompted(

@@ -5,12 +5,15 @@
 import { describe, expect, it } from "vitest";
 import { mayCall, readAction, requiredAction } from "@haibun/core/lib/domains/actions.js";
 import { Access } from "@haibun/core/lib/domains/resources.js";
+import type { TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 import WebPlaywright from "./web-playwright-stepper.js";
 import { READS_THE_PAGE, WEB_PLAYWRIGHT, WEB_PLAYWRIGHT_ACTIONS } from "./domains/actions.js";
 
 const wp = new WebPlaywright();
+/** The browser's steps by name, as a caller that names a step by its text reads them. */
+const steps: TStepperSteps = wp.steps;
 const step = (name: string) => {
-	const def = wp.steps[name];
+	const def = steps[name];
 	if (!def) throw Error(`${WEB_PLAYWRIGHT} doesn't have a step ${name}`);
 	return { capability: requiredAction(WEB_PLAYWRIGHT, name, def), readsAt: def.readsAt };
 };

@@ -1,4 +1,4 @@
-import { AStepper, IHasCycles, IHasOptions, TStepperSteps, IStepperCycles, TBeforeStep, TAfterStep, TAfterStepResult, TFeatureStep } from "../lib/steps/domains/stepper.js";
+import { AStepper, IHasCycles, IHasOptions, IStepperCycles, TBeforeStep, TAfterStep, TAfterStepResult, TFeatureStep, declareSteps } from "../lib/steps/domains/stepper.js";
 import type { TWorld } from "../lib/actuality/domains/world.js";
 import { TActionResult, OK, TDebugSignal } from "../lib/domains/protocol.js";
 import { makePrompt } from "../lib/prompts/pipelines/prompter.js";
@@ -100,7 +100,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 
 		return { rerunStep: controlSignal === "retry", nextStep: controlSignal === "next", failed: controlSignal === "fail" ? "failed at the debugger" : undefined };
 	}
-	steps = {
+	steps = declareSteps({
 		// Each command reads as its word or its first letter, as a person types it at the prompt.
 		fail: { gwta: "f(ail)?", description: "Fails the step, ending the feature at the failure.", action: () => this.fail() },
 		next: { gwta: "n(ext)?", description: "Continues past the step that failed to the next step.", action: () => this.next() },
@@ -115,7 +115,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 				return Promise.resolve(OK);
 			},
 		},
-	} as const satisfies TStepperSteps;
+	});
 
 	retry(): Promise<TActionResult> {
 		return Promise.resolve(actionOK({ controlSignal: "retry" }));

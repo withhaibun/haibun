@@ -39,7 +39,12 @@ export type TImport = { specifier: string; typeOnly: boolean; line: number };
 
 /** The TypeScript source files actuality runs under `roots`, each by its path from the repository root: not a declaration, not a test module, not ignored. */
 export function sourceFiles(repository: string, roots: readonly string[]): string[] {
-	return listedFiles(repository, roots).filter((path) => SOURCE.test(path) && !DECLARATION.test(path) && !TEST_MODULE.test(path));
+	return typescriptFiles(repository, roots).filter((path) => !TEST_MODULE.test(path));
+}
+
+/** The TypeScript files under `roots`, test modules among them, each by its path from the repository root: not a declaration, not ignored. */
+export function typescriptFiles(repository: string, roots: readonly string[]): string[] {
+	return listedFiles(repository, roots).filter((path) => SOURCE.test(path) && !DECLARATION.test(path));
 }
 
 const PackageSchema = z.object({ name: z.string().min(1), exports: ExportTargetSchema.optional() });

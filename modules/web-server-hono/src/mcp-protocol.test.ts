@@ -9,6 +9,7 @@ import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { getStepperOptionName } from "@haibun/core/lib/domains/util.js";
 import { DOMAIN_NUMBER, DOMAIN_TEXT } from "@haibun/core/lib/domains/domains.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 interface _ListToolsResult {
 	tools: { name: string; description?: string }[];
@@ -20,7 +21,7 @@ interface _CallToolResult {
 
 class TestStepper extends AStepper {
 	description = "Steps an MCP client calls, and a step that checks the MCP protocol a run serves.";
-	steps = {
+	steps = declareSteps({
 		testStep: {
 			description: TEST_STEP,
 			exact: "test mcp action",
@@ -31,7 +32,7 @@ class TestStepper extends AStepper {
 		testStepWithSpaces: {
 			description: TEST_STEP,
 			gwta: `test mcp action with { arg: ${DOMAIN_TEXT} }`,
-			action: ({ arg }: { arg: string }) => {
+			action: ({ arg }) => {
 				if (arg !== "spaced") throw Error(`expected spaced, got ${arg}`);
 				return OK;
 			},
@@ -39,7 +40,7 @@ class TestStepper extends AStepper {
 		verifyProtocol: {
 			description: TEST_STEP,
 			gwta: `verify mcp protocol on port {port: ${DOMAIN_NUMBER}}`,
-			action: async ({ port }: { port: string }) => {
+			action: async ({ port }) => {
 				const mcpUrl = `http://localhost:${port}/mcp`;
 				// A browser sends a preflight before the headers a signed invocation carries, and sends each header only where the preflight's response allows it.
 				const preflight = await fetch(mcpUrl, { method: "OPTIONS" });
@@ -85,7 +86,7 @@ class TestStepper extends AStepper {
 				return OK;
 			},
 		},
-	};
+	});
 }
 
 describe("McpStepper Protocol Conformance", () => {

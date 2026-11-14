@@ -152,15 +152,23 @@ const isPattern = (part: string): boolean => {
 		return false;
 	}
 };
-/** The domain of a feature filter: patterns of feature paths separated by commas, as haibun-cli takes them. An empty filter selects every feature. */
+/** A feature filter: patterns of feature paths separated by commas, as haibun-cli takes them. An empty filter selects every feature. */
+const FeatureFilterSchema = z
+	.string()
+	.refine(
+		(filter) => filter.split(",").every(isPattern),
+		"has a part that isn't a regular expression. A lone * isn't a regular expression, and .* matches every path. Correct that part, or leave the filter empty to run every feature",
+	);
+declare module "@haibun/core/lib/domains/domains.js" {
+	interface DomainTypes {
+		[RUN_DOMAIN.name]: z.output<typeof NameSchema>;
+		[RUN_DOMAIN.featureFilter]: z.output<typeof FeatureFilterSchema>;
+	}
+}
+/** The domain of a feature filter. */
 export const featureFilterDomainDefinition: TDomainDefinition = {
 	selectors: [RUN_DOMAIN.featureFilter],
-	schema: z
-		.string()
-		.refine(
-			(filter) => filter.split(",").every(isPattern),
-			"has a part that isn't a regular expression. A lone * isn't a regular expression, and .* matches every path. Correct that part, or leave the filter empty to run every feature",
-		),
+	schema: FeatureFilterSchema,
 	description:
 		"Comma-separated regular expressions that select the features a run executes by path. haibun-cli takes the same form. Two examples are graph and a.*b. An empty filter runs every feature",
 };

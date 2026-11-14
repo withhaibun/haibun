@@ -8,7 +8,7 @@
  */
 import { listOf } from "../lib/domains/lists.js";
 import { CountedFields, counted } from "../lib/domains/hypermedia.js";
-import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "../lib/steps/domains/stepper.js";
+import { AStepper, type IHasCycles, type IStepperCycles, declareSteps } from "../lib/steps/domains/stepper.js";
 import type { TDomainDefinition } from "../lib/domains/resources.js";
 import { blipDeclarations, blipDeclared, blipRollup, blipWatch, renderOccurrence, WATCH_WINDOW, type TBlipSeries } from "../lib/domains/blips.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/domains/util.js";
@@ -41,6 +41,12 @@ const DeclaredSchema = z.object({
 const DOMAIN_BLIP_WATCH = "blip-watch";
 /** The blips a watch names, as a list. A dotted namespace names every blip under it. */
 const DOMAIN_BLIP_NAMES = "blip-names";
+const BlipNamesSchema = listedSchema(z.string().min(1), "blip");
+declare module "../lib/domains/domains.js" {
+	interface DomainTypes {
+		[DOMAIN_BLIP_NAMES]: z.output<typeof BlipNamesSchema>;
+	}
+}
 const DOMAIN_WATCHED_BLIPS = "watched-blips";
 const DOMAIN_DECLARED_BLIPS = "declared-blips";
 
@@ -106,7 +112,7 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 				{ selectors: [DOMAIN_BLIP_WATCH], schema: WatchSchema, description: "The blips a watch names, and the size of its window" },
 				{
 					selectors: [DOMAIN_BLIP_NAMES],
-					schema: listedSchema(z.string().min(1), "blip"),
+					schema: BlipNamesSchema,
 					description: "The blips a watch names, given as a list or as text separated by commas. A dotted namespace names every blip under it",
 				},
 				{ selectors: [DOMAIN_WATCHED_BLIPS], schema: ShowSchema, list: listOf(ShowSchema, "occurrences"), description: "The occurrences a watch holds, and their totals" },
@@ -128,13 +134,13 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 		},
 	};
 
-	steps = {
+	steps = declareSteps({
 		watchBlips: {
 			gwta: `watch blips {names: ${DOMAIN_BLIP_NAMES}}`,
 			description:
 				"Start collecting occurrences with the given names, in order. Names are comma separated. A dotted namespace matches every name under it (`haibun.http` matches `haibun.http.request`). Each name must be declared. Replaces any earlier watch. Read with `show watched blips`.",
 			contract: { products: DOMAIN_BLIP_WATCH },
-			action: async ({ names: watching }: { names: string[] }) => {
+			action: async ({ names: watching }) => {
 				await Promise.resolve();
 				const declared = blipDeclarations().map((d) => d.name);
 				const unknown = watching.filter((n) => !declared.some((d) => d === n || d.startsWith(`${n}.`)));
@@ -191,5 +197,5 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 				return actionOKWithProducts({ text, blips, names: declared.map((d) => d.name), ...counted(blips.length) });
 			},
 		},
-	} as const satisfies TStepperSteps;
+	});
 }

@@ -5,7 +5,7 @@
  * Reads events as core's THaibunEvent and derives step status with core's EventFormatter.
  */
 
-import { AStepper, IHasCycles, IHasOptions, StepperKinds, IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
+import { AStepper, IHasCycles, IHasOptions, StepperKinds, IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { NESTED_FAILURE, STATUS, type TBlipEvent, THaibunEvent, EventFormatter } from "@haibun/core/lib/domains/protocol.js";
 import { LEVEL_STATUS } from "@haibun/core/lib/actuality/domains/level-status.js";
 import { stringOrError, getStepperOption } from "@haibun/core/lib/domains/util.js";
@@ -15,6 +15,7 @@ import { trace, Tracer, Span, SpanStatusCode, context } from "@opentelemetry/api
 import { logs, SeverityNumber } from "@opentelemetry/api-logs";
 import type { TOtelProviders } from "./ports.js";
 import { otelProviders } from "./root.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 /** The OTLP endpoint and the service name the stepper reports to where its options don't state them, as the options document. */
 const OTLP_ENDPOINT = "http://localhost:4318";
@@ -240,5 +241,5 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 		this.getWorld().eventLogger.info("[monitor-otel] Shutdown complete");
 	}
 
-	steps = {} as const satisfies TStepperSteps;
+	steps = declareSteps({});
 }

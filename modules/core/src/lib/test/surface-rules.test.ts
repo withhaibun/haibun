@@ -1,6 +1,7 @@
 /**
- * The rules over a repository's text: a downstream application's name, apart from the file that states the names, and a safety
- * check over a class expression stated as an absence.
+ * The rules over a repository's text: a downstream application's name, apart from the file that states the names, a safety
+ * check over a class expression stated as an absence, a read of pages without a bound, and a stepper's steps declared without
+ * declareSteps.
  */
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -8,7 +9,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import ts from "typescript";
-import { absenceCheckFindings, downstreamNameFindings, unboundedReadFindings } from "./surface-rules.js";
+import { absenceCheckFindings, downstreamNameFindings, unboundedReadFindings, untypedStepsFindings, UNTYPED_STEPS } from "./surface-rules.js";
 
 const repository = mkdtempSync(join(tmpdir(), "haibun-surface-"));
 execFileSync("git", ["init", "-q"], { cwd: repository });
@@ -42,5 +43,18 @@ describe("the rules over a repository's text", () => {
 		};
 		const sources = new Map(Object.entries(texts).map(([file, text]) => [file, ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true)]));
 		expect(unboundedReadFindings(sources).map(({ file, finding }) => `${file} ${finding}`)).toEqual(["src/reads.ts reads pages of records without a bound"]);
+	});
+
+	it("finds a stepper's steps set from an object literal or checked with satisfies, and leaves those declareSteps declares", () => {
+		const texts: Record<string, string> = {
+			"src/literal.ts": "class A { steps = { a: { gwta: 'a' } }; }",
+			"src/satisfied.ts": "class B { steps = { b: { gwta: 'b' } } as const satisfies TStepperSteps; }",
+			"src/declared-satisfied.ts": "class C { steps = declareSteps({ c: { gwta: 'c' } }) satisfies TStepperSteps; }",
+			"src/declared.test.ts": "class D { steps = declareSteps({ d: { gwta: 'd' } }); }",
+			"src/given.ts": "class E { steps = given; }",
+		};
+		const sources = new Map(Object.entries(texts).map(([file, text]) => [file, ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true)]));
+		expect(untypedStepsFindings(sources).map(({ file }) => file)).toEqual(["src/literal.ts", "src/satisfied.ts", "src/declared-satisfied.ts"]);
+		expect(new Set(untypedStepsFindings(sources).map(({ finding }) => finding))).toEqual(new Set([UNTYPED_STEPS]));
 	});
 });

@@ -176,6 +176,12 @@ export const DensityRequestSchema = /* @__PURE__ */ DensityQuerySchema.omit({ fi
 	.extend({ expression: z.string().min(1).optional().describe("The class expression each counted record is a member of, in Manchester syntax.") })
 	.strict();
 export type TDensityRequest = z.infer<typeof DensityRequestSchema>;
+declare module "../../domains/domains.js" {
+	interface DomainTypes {
+		[DOMAIN_GRAPH_QUERY]: TRecordQuery;
+		[DOMAIN_DENSITY_QUERY]: TDensityRequest;
+	}
+}
 
 /** One entry per bucket, oldest first, each counting its records by group. A bucket that doesn't hold a record is an empty
  *  entry, so the result's length is the bucket count the read states and a view draws the gaps. A bucket's own span is the

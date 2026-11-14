@@ -9,6 +9,7 @@ import { TWorld } from "@haibun/core/lib/world.js";
 import { shownLogLevel, type THaibunEvent, type TShownLogLevel } from "@haibun/core/lib/domains/protocol.js";
 import { EventFormatter } from "@haibun/core/lib/domains/protocol.js";
 import type { IPrompter, TPrompt, TPromptResponse } from "@haibun/core/lib/prompts/ports.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 const EventLine = ({ line }: { line: string }) => <Text>{line}</Text>;
 
@@ -84,7 +85,7 @@ const MonitorApp = ({
 export default class TuiMonitorStepper extends AStepper implements IHasCycles, IPrompter {
 	description = "Shows actuality's steps in the terminal as they execute. Prompts the operator in the terminal.";
 	kind = StepperKinds.MONITOR;
-	steps = {};
+	steps = declareSteps({});
 
 	private lines: string[] = [];
 	private lastLevel: string = "";

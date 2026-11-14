@@ -1,4 +1,4 @@
-import { AStepper, type IHasCycles, type IHasOptions, type TStepperSteps } from "@haibun/core/lib/astepper.js";
+import { AStepper, type IHasCycles, type IHasOptions } from "@haibun/core/lib/astepper.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { getStepperOption, stringOrError } from "@haibun/core/lib/domains/util.js";
@@ -9,6 +9,7 @@ import { WEB_SERVER_PORT_OPTION } from "./domains/web-server.js";
 import { capabilityVerifier } from "./pipelines/capability-verifier.js";
 import { serveMcp, type TMcpParts } from "./pipelines/mcp.js";
 import { heldServer, listeningPorts, servedVersion } from "./root.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 /** The port of the MCP endpoint where both its own PORT and the web server's are unset. */
 const MCP_PORT = 8128;
@@ -101,16 +102,16 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		eventLogger.info(`[MCP] WebServer started on port ${port}`);
 	}
 
-	steps = {
+	steps = declareSteps({
 		serveMcpTools: {
 			gwta: `serve mcp tools at {path: ${DOMAIN_ROUTE}}`,
 			description:
 				"Serves each of actuality's steps the caller holds as a tool on the feature's web server at the path, a tool's call running through the server's dispatch, verified as an `/rpc` call is. The endpoint listens on its own PORT, else on the web server's port, which it then shares, else on its own port.",
-			action: async ({ path }: { path: string }) => {
+			action: async ({ path }) => {
 				this.path = path;
 				await this.serve();
 				return OK;
 			},
 		},
-	} as const satisfies TStepperSteps;
+	});
 }

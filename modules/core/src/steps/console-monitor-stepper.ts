@@ -1,4 +1,4 @@
-import { AStepper, IHasCycles, StepperKinds } from "../lib/steps/domains/stepper.js";
+import { AStepper, IHasCycles, StepperKinds, declareSteps } from "../lib/steps/domains/stepper.js";
 import { getStepperOption } from "../lib/domains/util.js";
 import { shownLogLevel, type THaibunEvent, type TShownLogLevel } from "../lib/domains/protocol.js";
 import { EventFormatter } from "../lib/domains/protocol.js";
@@ -10,7 +10,7 @@ export default class ConsoleMonitorStepper extends AStepper implements IHasCycle
 	description = "Display lifecycle and log events to console";
 
 	kind = StepperKinds.MONITOR;
-	steps = {};
+	steps = declareSteps({});
 
 	options = {
 		CONSOLE_MONITOR_VERBOSE: { desc: "Show all events including step starts", parse: (s: string) => ({ result: s === "true" }) },

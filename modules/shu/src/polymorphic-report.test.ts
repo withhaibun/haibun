@@ -92,7 +92,7 @@ async function generateReport(shown: readonly string[], writes = 1, queries: Arr
 	const out = reportPath(shown);
 	// Actuality writes its report as itself, as its feature line and its end do.
 	const line = { in: `saves shu to "${out}"` } as TFeatureStep;
-	for (let i = 0; i < writes; i++) await runAuthorizedWith(RUN_AUTHORITY, () => monitor.steps.savesShuTo.action({ where: out }, line));
+	for (let i = 0; i < writes; i++) await runAuthorizedWith(RUN_AUTHORITY, async () => monitor.steps.savesShuTo.action({ where: out }, line));
 	return readFileSync(out, "utf-8");
 }
 

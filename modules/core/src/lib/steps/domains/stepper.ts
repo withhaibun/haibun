@@ -5,7 +5,18 @@
 import type { FeatureVariables } from "../../actuality/pipelines/feature-variables.js";
 import type { TWorld, TEnvVariables } from "../../actuality/domains/world.js";
 import type { TOptionValue, TFeatures, TSourceLocation, TStepInput } from "../../actuality/domains/actuality.js";
-import type { TSeqPath, TActionResult, TStepArgs, TStepValue, TStepResult, TFeatureResult, TExecutorResult, THaibunEvent, TProvenanceIdentifier } from "../../domains/protocol.js";
+import type {
+	TSeqPath,
+	TActionResult,
+	TStepArgs,
+	TStepValue,
+	TStepValueValue,
+	TStepResult,
+	TFeatureResult,
+	TExecutorResult,
+	THaibunEvent,
+	TProvenanceIdentifier,
+} from "../../domains/protocol.js";
 import type { AccessLevel, TCoercionSite, TDomainDefinition } from "../../domains/resources.js";
 import type { TStepReads } from "../../domains/actions.js";
 import type { TListing, TListItem, TListQuery, TListStage } from "../../domains/lists.js";
@@ -13,7 +24,7 @@ import type { IQuadStore } from "../ports.js";
 import type { TEntailment } from "../../records/domains/claim.js";
 import type { TRelation, TStepContract } from "./contract.js";
 import { constructorName } from "../../domains/util.js";
-import { DOMAIN_TITLE } from "../../domains/domains.js";
+import { DOMAIN_TITLE, type DOMAIN_STRING, type DOMAIN_UNION, type DomainTypes } from "../../domains/domains.js";
 
 export const StepperKinds = {
 	MONITOR: "MONITOR",
@@ -301,6 +312,86 @@ type TReadingStep = {
 };
 
 export type TStepperStep = TStepperStepBase & (TActionStep | TReadingStep);
+
+// ============================================================================
+// Typed step declaration
+// ============================================================================
+
+/** The text inside each pair of braces of a pattern, such as `what: variable-name`. */
+type TPlaceholderTexts<P extends string> = P extends `${string}{${infer Inner}}${infer Rest}` ? Inner | TPlaceholderTexts<Rest> : never;
+/** The text of the group that ends at a `)?`: the text after the last `(` before it. */
+type TLastGroup<G extends string> = G extends `${string}(${infer Inner}` ? TLastGroup<Inner> : G;
+/** The text of each optional group `(...)?` of a pattern. */
+type TOptionalGroups<P extends string> = P extends `${string}(${infer Group})?${infer Rest}` ? TLastGroup<Group> | TOptionalGroups<Rest> : never;
+/** A text with the spaces at its start and its end removed. */
+type TTrimmed<S extends string> = S extends ` ${infer T}` ? TTrimmed<T> : S extends `${infer T} ` ? TTrimmed<T> : S;
+/** A placeholder's name: its text before the colon, as `placeholderOf` in phrase.ts reads it. */
+export type TPlaceholderName<I extends string> = TTrimmed<I extends `${infer N}:${string}` ? N : I>;
+/** A placeholder's domain: its text after the colon, or `string` where the placeholder doesn't name one. */
+export type TPlaceholderDomain<I extends string> = I extends `${string}:${infer D}` ? (TTrimmed<D> extends "" ? typeof DOMAIN_STRING : TTrimmed<D>) : typeof DOMAIN_STRING;
+/**
+ * The value an action receives for a parameter of a domain. A union domain's parameter receives the resolved TStepValue, since
+ * the step selects its behaviour by the value's domain (`argumentsOf` in populate-action-args.ts). Every other parameter
+ * receives the value its domain coerces, of the type the domain's DomainTypes entry states. A domain without an entry, or a
+ * domain key that isn't a literal type, gives TStepValueValue.
+ */
+type TDomainValue<D extends string> = string extends D
+	? TStepValueValue
+	: D extends `${string}${typeof DOMAIN_UNION}${string}`
+		? TStepValue
+		: D extends keyof DomainTypes
+			? DomainTypes[D]
+			: TStepValueValue;
+/** The placeholder texts of a pattern's optional groups. A line that leaves a group out doesn't state the group's parameters. */
+type TOptionalTexts<P extends string> = TPlaceholderTexts<TOptionalGroups<P>>;
+/** The placeholder texts every line of a pattern states: those outside its optional groups. */
+export type TRequiredTexts<P extends string> = Exclude<TPlaceholderTexts<P>, TOptionalTexts<P>>;
+/**
+ * The arguments an action receives from its step's pattern: a property for each placeholder, by its name, of its domain's
+ * value type. A placeholder inside an optional group is an optional property. A pattern without a literal type, such as one
+ * a function builds, gives TStepArgs, as does a step without a pattern, whose pattern `declareSteps` infers as unknown.
+ */
+export type TArgsOf<P> = P extends string ? TArgsOfPattern<P> : TStepArgs;
+type TArgsOfPattern<P extends string> = string extends P
+	? TStepArgs
+	: P extends `${string})?${string}`
+		? TArgsOfTexts<TRequiredTexts<P>> & Partial<TArgsOfTexts<TOptionalTexts<P>>>
+		: TArgsOfTexts<TPlaceholderTexts<P>>;
+/** A property for each placeholder text, by its name, of its domain's value type. */
+type TArgsOfTexts<I extends string> = { [Text in I as TPlaceholderName<Text>]: TDomainValue<TPlaceholderDomain<Text>> };
+/** The arguments a step's `takesListQuery` returns `Q`, which dispatch passes to the action in place of the line's. A step
+ *  that doesn't state one, whose `Q` is unknown, doesn't add any. */
+type TListArgs<Q> = unknown extends Q ? never : Exclude<Q, undefined>;
+/** The arguments an action receives: its pattern's, and those its `takesListQuery` adds, which are absent where a list
+ *  combinator doesn't state a query. */
+type TActionArgs<P, Q> = unknown extends Q ? TArgsOf<P> : TArgsOf<P> & Partial<TListArgs<Q>>;
+/** A step whose action receives the arguments its pattern `P` types, with those its `takesListQuery` adds. */
+type TDeclaredAction<P, Q> = {
+	takesListQuery?: (args: TArgsOf<P>, query: TListQuery) => (TListArgs<Q> & TStepArgs) | undefined;
+	action: (args: TActionArgs<P, Q>, featureStep: TFeatureStep) => Promise<TActionResult> | TActionResult;
+	reading?: undefined;
+	rule?: undefined;
+	context?: undefined;
+};
+/** A step as `declareSteps` takes it: its pattern `P`, as a gwta or an exact line, and an action typed by that pattern, or a reading. */
+export type TDeclaredStep<P, Q = unknown> = Omit<TStepperStepBase, "takesListQuery"> & { gwta?: P; exact?: P } & (TDeclaredAction<P, Q> | TReadingStep);
+/** A stepper's steps as `declareSteps` returns them, each by its name with its pattern `T[K]` and its list arguments `Q[K]`. */
+export type TDeclaredSteps<T extends Record<string, unknown>, Q = Record<never, never>> = { [K in keyof T]: TDeclaredStep<T[K], K extends keyof Q ? Q[K] : unknown> };
+/** The list arguments each step's `takesListQuery` returns, by the step's name. */
+type TListArgsOf<Q> = { [K in keyof Q]: { takesListQuery?: (args: never, query: TListQuery) => Q[K] } };
+
+/**
+ * Declares a stepper's steps. Each step's pattern is read as its literal type `T[K]`, and its action's arguments are typed from
+ * the pattern's placeholders, so an action that reads a parameter its pattern doesn't state, or reads it as another type,
+ * doesn't compile. TypeScript infers `T` from the patterns alone, since a pattern inferred with the rest of its step widens to
+ * string. A step without a pattern, such as a prose step, doesn't give TypeScript a pattern to infer, so `T` admits unknown for it. `Q`
+ * is what each `takesListQuery` returns, which its action also receives. TypeScript infers it where `takesListQuery` states
+ * its parameters' types, and checks those types against the pattern. `S` is each step as written, so a caller reads a step's
+ * action, or its reading, by the step's name. An exact line doesn't state placeholders, so its action receives `{}`.
+ */
+export const declareSteps = <const T extends Record<string, unknown>, Q, S extends Record<keyof T, object>>(
+	steps: TDeclaredSteps<T, Q> & TListArgsOf<Q> & S,
+): TDeclaredSteps<T, Q> & S => steps;
 
 export interface CStepper {
 	new (): AStepper;

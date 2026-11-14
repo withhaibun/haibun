@@ -43,6 +43,11 @@ export const UrakataSchema = PersistedVertexSchema.extend({
 export type TUrakata = z.infer<typeof UrakataSchema>;
 
 /** The domain of a registered ticker's id. A stepper registers tickers at runtime, so the definition doesn't list the ids. */
+declare module "./domains.js" {
+	interface DomainTypes {
+		[URAKATA_ID_DOMAIN]: z.output<typeof NameSchema>;
+	}
+}
 export const urakataIdDomainDefinition: TDomainDefinition = { selectors: [URAKATA_ID_DOMAIN], schema: NameSchema, description: "Active urakata id (registered ticker)" };
 
 /**

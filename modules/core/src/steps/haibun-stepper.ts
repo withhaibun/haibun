@@ -5,7 +5,6 @@ import { OK } from "../lib/domains/protocol.js";
 import {
 	AStepper,
 	IHasCycles,
-	TStepperSteps,
 	TStepperStep,
 	TFeatureStep,
 	IStepperCycles,
@@ -13,6 +12,8 @@ import {
 	READING,
 	SCENARIO_HEADING,
 	UNTIL_DURATION,
+	declareSteps,
+	type TArgsOf,
 } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts } from "../lib/domains/util.js";
 import { findFeatureStepsFromStatement } from "../lib/actuality/pipelines/resolver.js";
@@ -65,7 +66,8 @@ import {
 	skippedItems,
 	whoseItems,
 	whoseQuery,
-	type TFieldComparison,
+	type TListing,
+	type TListQuery,
 } from "../lib/domains/lists.js";
 import { inCall, runInCall, shownTo } from "../lib/domains/capability-context.js";
 import { validateStep } from "../lib/pipelines/step-validation.js";
@@ -99,6 +101,11 @@ const StepPathValueSchema = z.array(z.number().int()).min(1);
 /** How `ends with` ends a feature. */
 const DOMAIN_ENDING = "ending";
 const ENDING = { ok: "OK", notOk: "not OK" } as const;
+declare module "../lib/domains/domains.js" {
+	interface DomainTypes {
+		[DOMAIN_ENDING]: (typeof ENDING)[keyof typeof ENDING];
+	}
+}
 
 class Haibun extends AStepper implements IHasCycles {
 	description = "Core steps for features, scenarios, backgrounds, and prose";
@@ -152,7 +159,11 @@ class Haibun extends AStepper implements IHasCycles {
 
 	/** A list combinator: a read that proves its statement and returns the statement's products with the list its listing makes
 	 *  of the list they hold. Each step the statement holds is gated as it runs. */
-	private listCombinator(gwta: string, description: string, stage: Pick<TStepperStep, "transformsList" | "listQuery" | "precludes">) {
+	private listCombinator<const P extends string>(
+		gwta: P,
+		description: string,
+		stage: { transformsList(values: TArgsOf<P>): TListing; listQuery?(values: TArgsOf<P>): TListQuery; precludes?: string[] },
+	) {
 		return {
 			readsAt: Access.public,
 			gwta,
@@ -163,7 +174,7 @@ class Haibun extends AStepper implements IHasCycles {
 		} as const satisfies TStepperStep;
 	}
 
-	steps = {
+	steps = declareSteps({
 		useStoreAt: {
 			gwta: `use store at {where: ${DOMAIN_LINK}} for {types: ${DOMAIN_PERSISTED_TYPES}}`,
 			description:
@@ -173,7 +184,7 @@ class Haibun extends AStepper implements IHasCycles {
 			// the capability-gated store surface, so the serving site's store holds those records instead of this instance's
 			// store. Each record has one store. requestSigner signs each call with actuality's invoker, under a delegation
 			// the serving site issued to this process.
-			action: async ({ where, types: graphs }: { where: string; types: string[] }) => {
+			action: async ({ where, types: graphs }) => {
 				const store = this.getWorld().shared.getStore();
 				if (!(store instanceof QuadStore)) return actionNotOK("use store at: the world store does not support backing registration");
 				const remote = remoteQuadStore({ url: where, sign: requestSigner(this.getWorld().runtime), graphs });
@@ -187,8 +198,7 @@ class Haibun extends AStepper implements IHasCycles {
 			gwta: `on host {hostId: number}, {statement:${DOMAIN_STATEMENT}}`,
 			description: "Proves the statement with its steps routed to the host by the host's id, so they run against that host. It returns the statement's products.",
 			contract: { products: { of: "statement" } },
-			action: ({ hostId, statement }: { hostId: number; statement: TFeatureStep[] }, featureStep: TFeatureStep) =>
-				proveStatements(stepperContext(this.getWorld(), this.steppers), featureStep, statement, hostId),
+			action: ({ hostId, statement }, featureStep) => proveStatements(stepperContext(this.getWorld(), this.steppers), featureStep, statement, hostId),
 		},
 
 		showSteps: this.declarationRead(SHOW_STEPS_LINE, SHOW_STEPS_DESCRIPTION, DOMAIN_STEP_SUMMARIES, () => stepSummaries(this.getWorld(), runRegistry(this.getWorld()), shownTo())),
@@ -198,7 +208,7 @@ class Haibun extends AStepper implements IHasCycles {
 		matching: this.listCombinator(
 			`matching {text: ${DOMAIN_TEXT}}, {statement: ${DOMAIN_STATEMENT}}`,
 			"Keeps the items of the statement's list that hold the text in one of their values, compared without regard to case, and counts them.",
-			{ transformsList: ({ text }: { text: string }) => matchingItems(text) },
+			{ transformsList: ({ text }) => matchingItems(text) },
 		),
 		counting: this.listCombinator(
 			`counting {statement: ${DOMAIN_STATEMENT}}`,
@@ -208,59 +218,52 @@ class Haibun extends AStepper implements IHasCycles {
 		limitedTo: this.listCombinator(
 			`limited to {count: ${DOMAIN_NUMBER}}, {statement: ${DOMAIN_STATEMENT}}`,
 			"Keeps the first items of the statement's list, up to the count. The count of the whole list stays.",
-			{ transformsList: ({ count }: { count: number }) => limitedItems(count), listQuery: ({ count }: { count: number }) => ({ limit: count }) },
+			{ transformsList: ({ count }) => limitedItems(count), listQuery: ({ count }) => ({ limit: count }) },
 		),
 		orderedBy: this.listCombinator(
 			`ordered by {field: ${DOMAIN_TEXT}}, {statement: ${DOMAIN_STATEMENT}}`,
 			"Orders the items of the statement's list by the values of a field they hold, as a graph read orders them: numbers by size and any other value by its text, with an item that doesn't hold the field first.",
-			{ transformsList: ({ field }: { field: string }) => orderedItems(field, false), listQuery: ({ field }: { field: string }) => ({ order: { field, descending: false } }) },
+			{ transformsList: ({ field }) => orderedItems(field, false), listQuery: ({ field }) => ({ order: { field, descending: false } }) },
 		),
 		orderedByDescending: this.listCombinator(
 			`ordered by {field: ${DOMAIN_TEXT}} descending, {statement: ${DOMAIN_STATEMENT}}`,
 			"Orders the items of the statement's list by the values of a field they hold, the greatest first, with an item that doesn't hold the field last.",
-			{
-				transformsList: ({ field }: { field: string }) => orderedItems(field, true),
-				listQuery: ({ field }: { field: string }) => ({ order: { field, descending: true } }),
-				precludes: ["Haibun.orderedBy"],
-			},
+			{ transformsList: ({ field }) => orderedItems(field, true), listQuery: ({ field }) => ({ order: { field, descending: true } }), precludes: ["Haibun.orderedBy"] },
 		),
 		skipping: this.listCombinator(
 			`skipping {count: ${DOMAIN_NUMBER}}, {statement: ${DOMAIN_STATEMENT}}`,
 			"Keeps the items of the statement's list after the first, up to the count. The count of the whole list stays.",
-			{ transformsList: ({ count }: { count: number }) => skippedItems(count), listQuery: ({ count }: { count: number }) => ({ skip: count }) },
+			{ transformsList: ({ count }) => skippedItems(count), listQuery: ({ count }) => ({ skip: count }) },
 		),
 		limitedPer: this.listCombinator(
 			`limited to {count: ${DOMAIN_NUMBER}} per {field: ${DOMAIN_TEXT}}, {statement: ${DOMAIN_STATEMENT}}`,
 			"Keeps the first items of the statement's list for each value of a field they hold, up to the count. The count of the whole list stays.",
-			{ transformsList: ({ count, field }: { count: number; field: string }) => perFieldItems(count, field), precludes: ["Haibun.limitedTo"] },
+			{ transformsList: ({ count, field }) => perFieldItems(count, field), precludes: ["Haibun.limitedTo"] },
 		),
 		whose: this.listCombinator(
 			`whose {field: ${DOMAIN_TEXT}} {comparison: ${DOMAIN_FIELD_COMPARISON}}, {statement: ${DOMAIN_STATEMENT}}`,
 			"Keeps the items of the statement's list whose value of a field compares with a value, and counts them: matches holds the text without regard to case, is equals it, and is more than and is less than order by it, numbers by size and any other value by its text.",
-			{
-				transformsList: ({ field, comparison }: { field: string; comparison: TFieldComparison }) => whoseItems(field, comparison),
-				listQuery: ({ field, comparison }: { field: string; comparison: TFieldComparison }) => whoseQuery(field, comparison),
-			},
+			{ transformsList: ({ field, comparison }) => whoseItems(field, comparison), listQuery: ({ field, comparison }) => whoseQuery(field, comparison) },
 		),
 		exactly: this.listCombinator(
 			`exactly {count: ${DOMAIN_NUMBER}}, {statement: ${DOMAIN_STATEMENT}}`,
 			"Returns the statement's list where it holds exactly the count of items, and is refused with the count it holds otherwise. Under until, it waits for the count.",
-			{ transformsList: ({ count }: { count: number }) => exactlyItems(count) },
+			{ transformsList: ({ count }) => exactlyItems(count) },
 		),
 		atLeast: this.listCombinator(
 			`at least {count: ${DOMAIN_NUMBER}}, {statement: ${DOMAIN_STATEMENT}}`,
 			"Returns the statement's list where it holds at least the count of items, and is refused with the count it holds otherwise. Under until, it waits for the count.",
-			{ transformsList: ({ count }: { count: number }) => atLeastItems(count) },
+			{ transformsList: ({ count }) => atLeastItems(count) },
 		),
 		since: this.listCombinator(
 			`since {time: ${DOMAIN_DATE}}, {statement: ${DOMAIN_STATEMENT}}`,
 			"Keeps the records of the statement's list whose time is at or after the time, and counts them. A list that doesn't state its items' time is refused.",
-			{ transformsList: ({ time }: { time: Date }) => sinceItems(time) },
+			{ transformsList: ({ time }) => sinceItems(time) },
 		),
 		before: this.listCombinator(
 			`before {time: ${DOMAIN_DATE}}, {statement: ${DOMAIN_STATEMENT}}`,
 			"Keeps the records of the statement's list whose time is before the time, and counts them. A list that doesn't state its items' time is refused.",
-			{ transformsList: ({ time }: { time: Date }) => beforeItems(time) },
+			{ transformsList: ({ time }) => beforeItems(time) },
 		),
 
 		asOf: {
@@ -275,7 +278,7 @@ class Haibun extends AStepper implements IHasCycles {
 			gwta: `for each {what: ${DOMAIN_VARIABLE_NAME}} of {list: ${DOMAIN_STATEMENT}}: {statement: ${DOMAIN_STATEMENT}}`,
 			description:
 				"Proves the statement after the colon for each item of the list's statement, as its combinators make the list, with the item bound to the variable: its id, and each of its fields as variable.field. Holds where the statement holds for every item, and is refused with the first item's refusal otherwise.",
-			action: async ({ what, list, statement }: { what: string; list: TFeatureStep[]; statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
+			action: async ({ what, list, statement }, featureStep) => {
 				const ctx = stepperContext(this.getWorld(), this.steppers);
 				const read = await provedList(ctx, featureStep, list);
 				if ("failure" in read) return read.failure;
@@ -293,7 +296,7 @@ class Haibun extends AStepper implements IHasCycles {
 			description:
 				"Whether a line resolves to exactly one of the steps the caller may call, and which method that step is, with the reading of each value whose domain states one and, for a claim, the reasoning task, the axiom in OWL 2 functional and Manchester syntax and the entailment in DL notation; otherwise why the line doesn't resolve to one of them or resolves to more than one.",
 			contract: { read: true, products: DOMAIN_STEP_VALIDATION },
-			action: ({ text }: { text: string }) => {
+			action: ({ text }) => {
 				const validation = validateStep(text, this.steppers, shownTo());
 				const domains = this.getWorld().domains;
 				if ("error" in validation) {
@@ -338,7 +341,7 @@ class Haibun extends AStepper implements IHasCycles {
 				}
 				return false;
 			},
-			action: async ({ names }: { names: string[] }, featureStep: TFeatureStep) => {
+			action: async ({ names }, featureStep) => {
 				const world = this.getWorld();
 				// Prepends 'Backgrounds: ' so expandLine reads the line as a background directive.
 				const expanded = findFeatureStepsFromStatement(`Backgrounds: ${names.join(", ")}`, this.steppers, world, featureStep.source?.path, featureStep.seqPath);
@@ -352,7 +355,7 @@ class Haibun extends AStepper implements IHasCycles {
 		feature: {
 			gwta: `Feature: {feature: ${DOMAIN_TITLE}}`,
 			description: "Heads a feature, setting its title in actuality so the lines that follow are part of it.",
-			action: ({ feature }: { feature: string }) => {
+			action: ({ feature }) => {
 				this.getWorld().runtime.feature = feature;
 				return OK;
 			},
@@ -361,7 +364,7 @@ class Haibun extends AStepper implements IHasCycles {
 			gwta: SCENARIO_HEADING,
 			description:
 				"Heads a scenario. A heading that starts with Pending states a requirement the steppers don't provide yet: its lines don't resolve or run, and actuality's summary counts the scenario as pending until its heading is Scenario:.",
-			action: ({ scenario }: { scenario: string }) => {
+			action: ({ scenario }) => {
 				this.getWorld().runtime.scenario = scenario;
 				return OK;
 			},
@@ -369,17 +372,17 @@ class Haibun extends AStepper implements IHasCycles {
 		endsWith: {
 			gwta: `ends with {result: ${DOMAIN_ENDING}}`,
 			description: "Ends the feature with the stated result: it passes where the result is OK and fails where it is not OK.",
-			action: ({ result }: { result: string }) => (result === ENDING.ok ? actionOK() : actionNotOK(`the feature states that it ends with ${result}, so this step fails`)),
+			action: ({ result }) => (result === ENDING.ok ? actionOK() : actionNotOK(`the feature states that it ends with ${result}, so this step fails`)),
 		},
 		pause: {
 			description: 'Pause for a duration. Accepts seconds or milliseconds with an optional space, e.g. `pause for "2s"` or `pause for "30 ms"`.',
 			gwta: `pause for {duration: ${DOMAIN_DURATION}}`,
-			action: async ({ duration }: { duration: number }) => {
+			action: async ({ duration }) => {
 				await this.getWorld().clock.wait(duration);
 				return OK;
 			},
 		},
 		comment: { gwta: `;;{comment: ${DOMAIN_LINE_COMMENT}}`, description: "Matches a line's `;;` comment and passes.", action: () => OK },
-	} as const satisfies TStepperSteps;
+	});
 }
 export default Haibun;

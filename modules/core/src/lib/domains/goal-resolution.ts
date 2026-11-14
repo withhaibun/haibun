@@ -16,6 +16,11 @@ export const DOMAIN_GOAL_RESOLUTION = "goal-resolution";
 export const DOMAIN_APPLICABLE_STEPS = "applicable-steps";
 export const DOMAIN_PLAN_PROGRESS = "plan-progress";
 export const DOMAIN_PLAN_ID = "plan-id";
+declare module "./domains.js" {
+	interface DomainTypes {
+		[DOMAIN_PLAN_ID]: z.output<typeof NameSchema>;
+	}
+}
 
 /** The source of a step that doesn't take a domain, which the chain view draws as the origin of its edge. */
 export const SOURCE_DOMAIN = "∅";

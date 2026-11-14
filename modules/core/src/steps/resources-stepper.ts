@@ -13,7 +13,7 @@ import { listOf } from "../lib/domains/lists.js";
 import { CountedFields, counted, MAX_PAGE_ROWS } from "../lib/domains/hypermedia.js";
 import { itemAt } from "../lib/domains/item-at.js";
 import { z } from "zod";
-import { AStepper, IHasCycles, TStepperSteps, IStepperCycles, type TBeforeStep } from "../lib/steps/domains/stepper.js";
+import { AStepper, IHasCycles, IStepperCycles, type TBeforeStep, declareSteps } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/domains/util.js";
 import { requirePrincipal } from "../lib/pipelines/principal.js";
 import {
@@ -33,7 +33,6 @@ import {
 	Access,
 } from "../lib/domains/resources.js";
 import {
-	type TAnnotationNote,
 	annotationNoteDomainDefinition,
 	bodyDomainDefinition,
 	readingDomainDefinition,
@@ -170,7 +169,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 		return actionOKWithProducts({ ...written, contextRoot });
 	}
 
-	steps = {
+	steps = declareSteps({
 		checkCitations: {
 			// Re-anchors every stored anchored passage against the current text of its source. A quote that doesn't match the
 			// current text makes the statements about it stale. The step fails and lists each passage that doesn't resolve.
@@ -210,7 +209,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			description:
 				"Returns the statements made with the stated relation, each with the reading that asserted it and the line that contains that reading. A coverage table is this read with the citation relation.",
 			contract: { products: DOMAIN_STATEMENTS },
-			action: async ({ rel }: { rel: string }) => {
+			action: async ({ rel }) => {
 				const statements = (await statementsWith(this.getWorld().shared.getStore(), rel)) as TStatementRow[];
 				return actionOKWithProducts({ statements, ...counted(statements.length) });
 			},
@@ -222,7 +221,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 				"Writes a comment holding the text on the record, authored by the instance's principal, and links it to the record with a narrate edge. It returns the comment's id and the record's conversation root.",
 			recordIds: { id: "label" },
 			contract: { products: DOMAIN_COMMENT_CREATED },
-			action: async ({ label, id, text }: { label: string; id: string; text: string }) => {
+			action: async ({ label, id, text }) => {
 				const store = this.getWorld().shared.getStore();
 				// The comment's narrate edge reaches its subject. narrate is a sub-property of inReplyTo, so the edge grounds the comment and threads it.
 				const commentId = await createComment(store, this.linkVocabulary, this.commentWriter(), text, { edges: { [LinkRelations.NARRATE.rel]: referenceTo(label, id) } });
@@ -241,7 +240,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			// The gwta binds label, id, exact and text. UI authoring calls this action over RPC with optional link passages
 			// and with a prefix and a suffix from the selection's context. The prefix and suffix resolve the anchor to one
 			// occurrence.
-			action: async (p: { label: string; id: string; exact: string; text: string; prefix?: string; suffix?: string; links?: Array<TQuoteAnchor> }) => this.runAnnotate(p),
+			action: async (p) => this.runAnnotate(p),
 		},
 		annotateLinking: {
 			// `linking` follows the id directly, so the `annotate … quoting …` gwta doesn't match this line and the two
@@ -251,8 +250,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 				"Writes an annotation that anchors on the passage and cross-references the linked passage in the record, with the note as its body. It returns the comment's id, the anchor's specific resource, the linked passage, and the record's conversation root.",
 			recordIds: { id: "label" },
 			contract: { products: DOMAIN_ANNOTATION_CREATED },
-			action: async ({ label, id, exact, linkExact, text }: { label: string; id: string; exact: string; linkExact: string; text: string }) =>
-				this.runAnnotate({ label, id, exact, text, links: [{ exact: linkExact }] }),
+			action: async ({ label, id, exact, linkExact, text }) => this.runAnnotate({ label, id, exact, text, links: [{ exact: linkExact }] }),
 		},
 		annotateNote: {
 			// Takes the passage, note, time and cross-reference links in one value. It writes notes the prose forms can't
@@ -262,7 +260,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			description:
 				"Writes an annotation from the note value, which states the anchored passage, the body, the period, and the cross-referenced passages in one value. It returns the comment's id, the anchor's specific resource, the linked passages, and the record's conversation root.",
 			contract: { products: DOMAIN_ANNOTATION_CREATED },
-			action: async ({ data }: { data: TAnnotationNote }) => this.runAnnotate(data),
+			action: async ({ data }) => this.runAnnotate(data),
 		},
 		annotations: {
 			readsAt: Access.public,
@@ -271,7 +269,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			description: "Returns the annotations anchored in the record, each with the comment's body, its author and times, and the passages it cross-references.",
 			recordIds: { id: "label" },
 			contract: { read: true, products: DOMAIN_ANNOTATIONS },
-			action: async ({ id }: { label: string; id: string }) => {
+			action: async ({ id }) => {
 				const store = this.getWorld().shared.getStore();
 				// Walks the W3C Web Annotation chain backward from the annotated individual, each read keyed by the record it
 				// starts from, so the walk reads the records of this individual's annotations and not every record of a type.
@@ -344,7 +342,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 				return actionOKWithProducts({ annotations, ...counted(annotations.length) });
 			},
 		},
-	} as const satisfies TStepperSteps;
+	});
 
 	constructor() {
 		super();

@@ -9,7 +9,7 @@ import { z } from "zod";
 import { ActivitiesStepper } from "./activities-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun-stepper.js";
-import { AStepper, type IStepperCycles, type TStepperSteps } from "../lib/steps/domains/stepper.js";
+import { AStepper, type IStepperCycles, declareSteps } from "../lib/steps/domains/stepper.js";
 import { actionOK } from "../lib/domains/util.js";
 import { fromJsonText } from "../lib/domains/json-text.js";
 import { passWithDefaults } from "../lib/test/lib.js";
@@ -18,23 +18,31 @@ import { TEST_STEP } from "../lib/test/test-step.js";
 
 const PersonSchema = z.object({ did: z.url(), name: z.string() }).strict();
 
+/** The domain of a person given as JSON. */
+const DOMAIN_PERSON_INPUT = "person-input";
+declare module "../lib/domains/domains.js" {
+	interface DomainTypes {
+		[DOMAIN_PERSON_INPUT]: z.output<typeof PersonSchema>;
+	}
+}
+
 let lastReceived: { did: string; name: string } | undefined;
 
 class PersonStepper extends AStepper {
 	description = "Takes a person given as JSON.";
 	cycles: IStepperCycles = {
-		getConcerns: () => ({ domains: [{ selectors: ["person-input"], schema: fromJsonText(PersonSchema), description: "A person identified by DID with a display name." }] }),
+		getConcerns: () => ({ domains: [{ selectors: [DOMAIN_PERSON_INPUT], schema: fromJsonText(PersonSchema), description: "A person identified by DID with a display name." }] }),
 	};
-	steps: TStepperSteps = {
+	steps = declareSteps({
 		registerPerson: {
 			description: TEST_STEP,
-			gwta: "register person {person: person-input}",
-			action: ({ person }: { person: { did: string; name: string } }) => {
+			gwta: `register person {person: ${DOMAIN_PERSON_INPUT}}`,
+			action: ({ person }) => {
 				lastReceived = person;
 				return actionOK();
 			},
 		},
-	};
+	});
 }
 
 describe("parameterized activity body composes a typed composite from its argument", () => {

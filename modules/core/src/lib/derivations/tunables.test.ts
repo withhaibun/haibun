@@ -1,17 +1,18 @@
 import { describe, it, expect } from "vitest";
-import { AStepper, type TStepperSteps } from "../steps/domains/stepper.js";
+import { AStepper } from "../steps/domains/stepper.js";
 import { getTunableOptions, type IHasTunables, type TTunableOption } from "./tunables.js";
 import { intOrError } from "../domains/util.js";
 import { itemAt } from "../domains/item-at.js";
+import { declareSteps } from "../steps/domains/stepper.js";
 
 class PlainStepper extends AStepper {
 	description = "doesn't declare tunables";
-	steps: TStepperSteps = {};
+	steps = declareSteps({});
 }
 
 class TunableA extends AStepper implements IHasTunables {
 	description = "declares one tunable";
-	steps: TStepperSteps = {};
+	steps = declareSteps({});
 	tunables = {
 		CYCLE_MS: {
 			desc: "cycle tick interval",
@@ -25,7 +26,7 @@ class TunableA extends AStepper implements IHasTunables {
 
 class TunableMixed extends AStepper implements IHasTunables {
 	description = "declares tunables of several kinds";
-	steps: TStepperSteps = {};
+	steps = declareSteps({});
 	tunables = {
 		RETENTION_DAYS: { desc: "retain knowledge for N days", parse: intOrError, range: { kind: "number" as const, min: 1, max: 365 } },
 		ENABLE_FANCY: { desc: "feature toggle", parse: (input: string) => ({ result: input === "true" }), range: { kind: "boolean" as const } },
@@ -41,7 +42,7 @@ class TunableMixed extends AStepper implements IHasTunables {
 class TunableEmpty extends AStepper implements IHasTunables {
 	description = "implements IHasTunables without a tunables property";
 	declare tunables?: IHasTunables["tunables"];
-	steps: TStepperSteps = {};
+	steps = declareSteps({});
 }
 
 describe("getTunableOptions", () => {
@@ -86,7 +87,7 @@ describe("getTunableOptions", () => {
 		// It doesn't check instanceof against a stepper base class.
 		class NotDeclared extends AStepper {
 			description = "has a tunables field without declaring IHasTunables in its types";
-			steps: TStepperSteps = {};
+			steps = declareSteps({});
 			tunables = { QUIET: { desc: "quiet mode", parse: (s: string) => ({ result: s === "true" }), range: { kind: "boolean" as const } } };
 		}
 		const tunables = getTunableOptions([new NotDeclared()]);

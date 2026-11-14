@@ -2,6 +2,7 @@ import { AStepper } from "../steps/domains/stepper.js";
 import type { TWorld } from "../actuality/domains/world.js";
 
 import { THaibunEvent } from "../domains/protocol.js";
+import { declareSteps } from "../steps/domains/stepper.js";
 
 /**
  * Collects events for test inspection.
@@ -27,7 +28,7 @@ export class EventCollectorStepper extends AStepper {
 		world.eventLogger.subscribe(this.subscriberCallback);
 	}
 
-	steps = {};
+	steps = declareSteps({});
 
 	getEvents(): THaibunEvent[] {
 		return [...this.events];

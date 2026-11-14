@@ -7,7 +7,7 @@ import { HAIBUN_RECORD_NAMESPACE } from "../lib/domains/resources.js";
 import { describe, it, expect } from "vitest";
 import { failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
 import { LogicStepper } from "../lib/test/logic-stepper.js";
-import { AStepper, type TFeatureStep } from "../lib/steps/domains/stepper.js";
+import { AStepper, declareSteps } from "../lib/steps/domains/stepper.js";
 import { actionOK } from "../lib/domains/util.js";
 import { findFeatureStepsFromStatement } from "../lib/actuality/pipelines/resolver.js";
 import { proveStatements, stepperContext } from "../lib/actuality/pipelines/step-dispatch.js";
@@ -37,11 +37,11 @@ const seen = { applied: false, ran: false };
 /** Resolves the saved waypoint's head as a line and proves it, as a statement resolved after the save is. */
 class SavedWaypointProbe extends AStepper {
 	description = "Resolves a saved waypoint's head as a line and proves it.";
-	steps = {
+	steps = declareSteps({
 		applyTheSavedWaypoint: {
 			description: TEST_STEP,
 			gwta: "apply the saved waypoint",
-			action: async (_: unknown, featureStep: TFeatureStep) => {
+			action: async (_, featureStep) => {
 				const world = this.getWorld();
 				const steppers = world.runtime.steppers as AStepper[];
 				const statement = findFeatureStepsFromStatement(OUTCOME, steppers, world, undefined, [0]);
@@ -50,7 +50,7 @@ class SavedWaypointProbe extends AStepper {
 				return actionOK();
 			},
 		},
-	};
+	});
 }
 const STEPPERS = [ActivitiesStepper, VariablesStepper, AuthorityStepper, SavedWaypointProbe, LogicStepper];
 
@@ -88,7 +88,7 @@ describe("a waypoint a step saves", () => {
 		 *  later process opens holds it. */
 		class HoldsTheRecord extends AStepper {
 			description = "Keeps saved waypoints in a store that outlasts each feature's, and holds a record in it as actuality starts.";
-			steps = {};
+			steps = declareSteps({});
 			cycles = {
 				startActuality: async () => {
 					const store = this.getWorld().shared.getStore();

@@ -15,13 +15,14 @@ import { releasePayloads } from "./executor.js";
 import type { TFeatureSteps, TStepResult } from "../../domains/protocol.js";
 import { itemAt } from "../../domains/item-at.js";
 import { TEST_STEP } from "../../test/test-step.js";
+import { declareSteps } from "../../steps/domains/stepper.js";
 
 const LARGE_ANSWER = "test-large-answer";
 
 class ProducingStepper extends AStepper {
 	description = "Produces a large product, and refuses with a large product.";
 	cycles = { getConcerns: () => ({ domains: [{ selectors: [LARGE_ANSWER], schema: z.object({ big: z.string() }), description: "A large product" }] }) };
-	steps = {
+	steps = declareSteps({
 		produces: {
 			description: TEST_STEP,
 			gwta: "produce a large answer",
@@ -33,7 +34,7 @@ class ProducingStepper extends AStepper {
 			gwta: "refuse with a large answer",
 			action: () => Promise.resolve(actionNotOK("it refused", { products: { big: "x".repeat(10000) } } as never)),
 		},
-	};
+	});
 }
 
 describe("the finished step results actuality holds", () => {

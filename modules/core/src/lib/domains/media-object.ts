@@ -23,6 +23,13 @@ const FILE_DATA = new RegExp(`^data:(${MEDIA_TYPE_FORM})(?:;[\\w.+-]+=[^;,]*)*;b
 
 export const FileDataSchema = z.string().regex(FILE_DATA).describe("A file's bytes as a data: URL in base64.");
 
+declare module "./domains.js" {
+	interface DomainTypes {
+		[DOMAIN_IMAGE_REFERENCE]: TImageReference;
+		[DOMAIN_FILE_DATA]: z.output<typeof FileDataSchema>;
+	}
+}
+
 /** A file as a call sends it to a page: its name, and its bytes as a data: address that states their media type. */
 export const SentFileSchema = z.object({ name: z.string(), file: FileDataSchema });
 

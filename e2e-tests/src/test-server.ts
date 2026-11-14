@@ -34,6 +34,7 @@ import { MAX_PAGE_ROWS } from "@haibun/core/lib/domains/hypermedia.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { nextSeqPath, proveStep, stepperContext } from "@haibun/core/lib/step-dispatch.js";
 import { streamContext, streamOver } from "@haibun/core/lib/step-stream-context.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 /** The times a step's record states once the step ended. */
 const EndedSchema = z.object({ generatedAtTime: z.string(), endedAtTime: z.string() });
@@ -272,12 +273,12 @@ class TestServer extends AStepper {
 		return c.html('<a id="to-download" href="/download">Uploaded file</a>');
 	};
 
-	steps: TStepperSteps = {
+	steps: TStepperSteps = declareSteps({
 		placeNode: {
 			gwta: `place a node under {parent: ${DOMAIN_NODE}}`,
 			description: "Returns a node placed under the parent, whose contract states that the node is below the parent.",
 			contract: { products: DOMAIN_PLACED_NODE, states: [holds(BELOW, PRODUCTS, parameter("parent"))] },
-			action: async ({ parent }: TStepArgs) => actionOKWithProducts({ id: `${String(parent)}/node` }),
+			action: async ({ parent }) => actionOKWithProducts({ id: `${String(parent)}/node` }),
 		},
 		protectedRpcPing: {
 			gwta: "protected rpc ping",
@@ -302,7 +303,7 @@ class TestServer extends AStepper {
 			gwta: `mcp steps shown at {url: ${DOMAIN_LINK}} to {holder: ${DOMAIN_FAKE_HOLDER}} matching {text: ${DOMAIN_TEXT}} include {toolName: ${DOMAIN_STEP_METHOD}}`,
 			description:
 				"Lists the tools the MCP endpoint at the URL holds, and reads the steps the endpoint shows to the holder for the text. The methods of the steps the holder may call include the one named, and the step fails where they don't.",
-			action: async ({ url, holder, text, toolName }: TStepArgs) => {
+			action: async ({ url, holder, text, toolName }) => {
 				await mcpListTools(String(url));
 				const shown = await mcpShownSteps(String(url), String(text), String(holder));
 				return shown.includes(String(toolName)) ? actionOK() : actionNotOK(`Expected ${String(toolName)} among the steps shown [${shown.join(", ")}]`);
@@ -312,7 +313,7 @@ class TestServer extends AStepper {
 			gwta: `mcp call to {url: ${DOMAIN_LINK}} with tool {toolName: ${DOMAIN_STEP_METHOD}} without a capability invocation is refused`,
 			description:
 				"Calls the tool of the MCP endpoint at the URL without a capability invocation, and proves that the response's tool result is an error that holds the refusal's error text.",
-			action: async ({ url, toolName }: TStepArgs) => {
+			action: async ({ url, toolName }) => {
 				const response = await mcpCallTool(String(url), String(toolName));
 				const expected = refusal(String(toolName), undefined, undefined).error;
 				return mcpToolResult(response).isError && mcpText(response) === expected ? actionOK() : actionNotOK(`Expected "${expected}", got ${JSON.stringify(response)}`);
@@ -322,7 +323,7 @@ class TestServer extends AStepper {
 			gwta: `mcp call to {url: ${DOMAIN_LINK}} with tool {toolName: ${DOMAIN_STEP_METHOD}} is denied for capability {capability: ${TEST_DOMAIN.action}} when signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}}`,
 			description:
 				"Calls the tool of the MCP endpoint at the URL, signed by the holder for the action, and proves that the response's tool result is an error that denies the call for the capability named.",
-			action: async ({ url, toolName, capability, holder, action }: TStepArgs) => {
+			action: async ({ url, toolName, capability, holder, action }) => {
 				const response = await mcpCallTool(String(url), String(toolName), { holder: String(holder), action: String(action) });
 				return mcpToolResult(response).isError
 					? deniedFor(REFUSED_CALL_STATUS, mcpText(response), String(capability))
@@ -333,7 +334,7 @@ class TestServer extends AStepper {
 			gwta: `mcp call to {url: ${DOMAIN_LINK}} with tool {toolName: ${DOMAIN_STEP_METHOD}} succeeds when signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}}`,
 			description:
 				"Calls the tool of the MCP endpoint at the URL, signed by the holder for the action, and proves that the response's tool result succeeds and holds a pong of true.",
-			action: async ({ url, toolName, holder, action }: TStepArgs) => {
+			action: async ({ url, toolName, holder, action }) => {
 				const response = await mcpCallTool(String(url), String(toolName), { holder: String(holder), action: String(action) });
 				if (mcpToolResult(response).isError) return actionNotOK(`Expected MCP success, got ${JSON.stringify(response)}`);
 				const parsed = JSON.parse(mcpText(response) || "{}") as { pong?: boolean };
@@ -344,7 +345,7 @@ class TestServer extends AStepper {
 			gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} without a capability invocation is refused`,
 			description:
 				"Calls the method over RPC at the URL without a capability invocation, and proves that the response refuses the call with the refused call's status and the refusal's error.",
-			action: async ({ url, method }: TStepArgs) => {
+			action: async ({ url, method }) => {
 				const response = await post(String(url), await rpcCall(String(url), "rpc-refused", String(method)), undefined);
 				const error = ((await response.json()) as { error?: unknown }).error;
 				const expected = refusal(String(method), undefined, undefined).error;
@@ -356,7 +357,7 @@ class TestServer extends AStepper {
 		rpcAllowedSigned: {
 			gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} succeeds when signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}}`,
 			description: "Calls the method over RPC at the URL, signed by the holder for the action, and proves that the response is successful and its error field is unset.",
-			action: async ({ url, method, holder, action }: TStepArgs) => {
+			action: async ({ url, method, holder, action }) => {
 				const response = await post(String(url), await rpcCall(String(url), "rpc-allowed", String(method)), { holder: String(holder), action: String(action) });
 				if (!response.ok) return actionNotOK(`HTTP ${response.status}: ${await response.text()}`);
 				const data = (await response.json()) as Record<string, unknown>;
@@ -366,7 +367,7 @@ class TestServer extends AStepper {
 		readLeavesNoRecord: {
 			gwta: `read of {method: ${DOMAIN_STEP_METHOD}} with {params: ${DOMAIN_JSON}} over RPC at {url: ${DOMAIN_LINK}} leaves no record`,
 			description: "Reads the method over RPC at the URL with the params, and proves that the records of the method hold the same count before and after the read.",
-			action: async ({ method, params, url }: TStepArgs) => {
+			action: async ({ method, params, url }) => {
 				const world = this.getWorld();
 				const { stepperName, stepName } = runRegistry(world).named(String(method)).descriptor;
 				const called = calledOf(stepperName, stepName);
@@ -381,7 +382,7 @@ class TestServer extends AStepper {
 			gwta: `two callers prove {statement: ${DOMAIN_STATEMENT}} at once`,
 			description:
 				"Proves the statement with two callers at once, and proves that the two callers' records overlap in time. A caller's failed proof, or a call that starts after the other ends, fails the step.",
-			action: async ({ statement }: { statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
+			action: async ({ statement }, featureStep) => {
 				const world = this.getWorld();
 				const ctx = stepperContext(world, this.steppers);
 				const paths = [nextSeqPath(world, featureStep.seqPath), nextSeqPath(world, featureStep.seqPath)];
@@ -398,7 +399,7 @@ class TestServer extends AStepper {
 			gwta: `call to {statement: ${DOMAIN_STATEMENT}} that its caller stops ends as stopped`,
 			description:
 				"Proves the statement through a stream that its caller ends, and proves that the call's record holds the stopped status. A call that ends as the other status fails the step.",
-			action: async ({ statement }: { statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
+			action: async ({ statement }, featureStep) => {
 				const world = this.getWorld();
 				const stopping = new AbortController();
 				const stream = streamOver(() => undefined, stopping);
@@ -413,7 +414,7 @@ class TestServer extends AStepper {
 			gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} is denied for capability {capability: ${TEST_DOMAIN.action}} when signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}}`,
 			description:
 				"Calls the method over RPC at the URL, signed by the holder for the action, and proves that the response denies the call for the capability named, with its status and error.",
-			action: async ({ url, method, capability, holder, action }: TStepArgs) => {
+			action: async ({ url, method, capability, holder, action }) => {
 				const response = await post(String(url), await rpcCall(String(url), "rpc-denied", String(method)), { holder: String(holder), action: String(action) });
 				return deniedFor(response.status, ((await response.json()) as { error?: unknown }).error, String(capability));
 			},
@@ -422,7 +423,7 @@ class TestServer extends AStepper {
 			gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} is refused when signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}}`,
 			description:
 				"Calls the method over RPC at the URL, signed by the holder for the action, and proves that the response refuses the call with the status of a refused invocation.",
-			action: async ({ url, method, holder, action }: TStepArgs) => {
+			action: async ({ url, method, holder, action }) => {
 				const response = await post(String(url), await rpcCall(String(url), "rpc-refused", String(method)), { holder: String(holder), action: String(action) });
 				const data = (await response.json()) as { error?: unknown };
 				return response.status === REFUSED_INVOCATION
@@ -454,7 +455,7 @@ class TestServer extends AStepper {
 			gwta: `start upload route at {loc: ${DOMAIN_ROUTE}}`,
 			description:
 				"Adds the upload route at the location, which saves the file its request holds in the upload field to a temporary file, and responds with a link to the download route. A request without the file receives the status 400.",
-			action: (args: TStepArgs, vstep: TFeatureStep) => {
+			action: (args, vstep) => {
 				const { loc } = args as { loc: string };
 				try {
 					const webserver: IWebServer = getFromRuntime(this.getWorld().runtime, WEBSERVER);
@@ -486,7 +487,7 @@ class TestServer extends AStepper {
 		changeServerAuthToken: {
 			gwta: `change server auth token to {token: ${DOMAIN_BEARER_TOKEN}}`,
 			description: "Changes the server's auth token to the one named.",
-			action: (args: TStepArgs, _vstep: TFeatureStep) => {
+			action: (args, _vstep) => {
 				const { token } = args as { token: string };
 				this.authToken = token;
 				return actionOK();
@@ -531,14 +532,14 @@ class TestServer extends AStepper {
 			gwta: `make auth scheme {scheme: ${DOMAIN_AUTH_SCHEME}}`,
 			description:
 				"Sets the auth scheme the dynamic auth middleware applies to the server's protected routes to the one named, and holds its handler, which the logout route calls.",
-			action: (args: TStepArgs, _vstep: TFeatureStep) => {
+			action: (args, _vstep) => {
 				const { scheme } = args as { scheme: string };
 				this.currentAuthScheme = scheme as TSchemeType;
 				this.authSchemeHandler = authSchemes[scheme as TSchemeType](this);
 				return OK;
 			},
 		},
-	};
+	});
 }
 
 export default TestServer;

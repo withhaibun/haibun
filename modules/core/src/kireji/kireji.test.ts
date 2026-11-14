@@ -3,7 +3,7 @@ import { withAction, stepActions, TActionExecutor, ACTION_WITHOUT_LINE_FORM } fr
 import { toBdd } from "../lib/actuality/adapters/feature-files.js";
 import { itemAt } from "../lib/domains/item-at.js";
 import { Resolver } from "../lib/actuality/pipelines/resolver.js";
-import { AStepper, TStepperSteps } from "../lib/steps/domains/stepper.js";
+import { AStepper, declareSteps } from "../lib/steps/domains/stepper.js";
 import { OK } from "../lib/domains/protocol.js";
 import { ActivitiesStepper } from "../steps/activities-stepper.js";
 import { TEST_STEP } from "../lib/test/test-step.js";
@@ -47,27 +47,27 @@ const fromBdd = (bdd: string, steppers: AStepper[]): Promise<Record<string, TAct
 // A mock stepper for testing purposes
 class TestStepper extends AStepper {
 	description = "Steps a kireji feature converts to and from BDD.";
-	steps = {
+	steps = declareSteps({
 		set: { description: TEST_STEP, gwta: "set {what} to {value}", action: () => Promise.resolve(OK) },
 		doSomething: { description: TEST_STEP, gwta: "do something", action: () => Promise.resolve(OK) },
 		stayUp: { description: TEST_STEP, exact: "this feature stays up", action: () => Promise.resolve(OK) },
 		registerOutcome: { description: TEST_STEP, gwta: "outcome {outcome}", action: () => Promise.resolve(OK) },
 		not: { description: TEST_STEP, gwta: "not {statement}", action: () => Promise.resolve(OK) },
-	} as const satisfies TStepperSteps;
+	});
 }
 
 // A stepper with optional patterns to test regex stripping
 class OptionalPatternStepper extends AStepper {
 	description = "Steps whose patterns have optional parts.";
-	steps = {
+	steps = declareSteps({
 		setOptional: { description: TEST_STEP, gwta: "set( empty)? {what} to {value}", action: () => Promise.resolve(OK) },
 		clickOptional: { description: TEST_STEP, gwta: "click( on)? {target}", action: () => Promise.resolve(OK) },
-	} as const satisfies TStepperSteps;
+	});
 }
 
 class ProseStepper extends AStepper {
 	description = "A step that states prose.";
-	steps = { prose: { description: TEST_STEP, gwta: "prose: {prose}", action: () => Promise.resolve(OK) } };
+	steps = declareSteps({ prose: { description: TEST_STEP, gwta: "prose: {prose}", action: () => Promise.resolve(OK) } });
 }
 
 const testStepper = new TestStepper();
@@ -180,10 +180,10 @@ describe("withAction", () => {
 describe("withAction object argument encoding", () => {
 	class ObjectArgStepper extends AStepper {
 		description = "Steps that take an object argument.";
-		steps = {
+		steps = declareSteps({
 			createIssuer: { description: TEST_STEP, gwta: "create issuer {issuer}", action: () => Promise.resolve(OK) },
 			issuePermit: { description: TEST_STEP, gwta: "issue permit {permit}", action: () => Promise.resolve(OK) },
-		} as const satisfies TStepperSteps;
+		});
 	}
 	const { createIssuer, issuePermit } = withAction(new ObjectArgStepper());
 

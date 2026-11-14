@@ -1,6 +1,6 @@
 import type { Page } from "playwright";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import { AStepper, IHasCycles, IHasOptions, StepperKinds, TStepperSteps, TFeatureStep } from "@haibun/core/lib/astepper.js";
+import { AStepper, IHasCycles, IHasOptions, StepperKinds, TFeatureStep } from "@haibun/core/lib/astepper.js";
 import { stringOrError, findStepper, actionNotOK, actionOK, findStepperFromOptionOrKind } from "@haibun/core/lib/domains/util.js";
 import { earlDomainDefinitions } from "./domains/earl.js";
 import { checkPage } from "./pipelines/check-page.js";
@@ -9,6 +9,7 @@ import { actualityFeatureOf, formatRecordName, formatSeqPath } from "@haibun/cor
 import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import type { AStorage } from "@haibun/domain-storage/domains/storage.js";
 import { HtmlArtifact } from "@haibun/core/lib/domains/protocol.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 type TGetsPage = { getPage: () => Promise<Page> };
 
@@ -25,20 +26,20 @@ class A11yStepper extends AStepper implements IHasOptions, IHasCycles {
 		this.storage = findStepperFromOptionOrKind(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
 	}
 
-	steps = {
+	steps = declareSteps({
 		checkA11yRuntime: {
 			gwta: `page is accessible accepting serious {serious:number} and moderate {moderate:number}`,
 			description:
 				"Checks the page the runtime holds with axe, records the result of each rule that applies to it as an EARL assertion, saves the report as an HTML artifact where a storage stepper keeps artifacts, and passes when the page's serious and moderate violations are within the given counts. Fails where the runtime doesn't hold a page, and where the page's serious or moderate violations exceed the counts accepted, stating the counts found and the counts accepted.",
-			action: async ({ serious, moderate }: { serious: string; moderate: string }, featureStep: TFeatureStep) => {
+			action: async ({ serious, moderate }, featureStep) => {
 				const page = await this.pageGetter?.getPage();
 				if (!page) {
 					return actionNotOK(`the runtime doesn't hold a page`);
 				}
-				return await this.checkA11y(page, parseInt(serious, 10), parseInt(moderate, 10), featureStep);
+				return await this.checkA11y(page, serious, moderate, featureStep);
 			},
 		},
-	} as const satisfies TStepperSteps;
+	});
 	/** Check the page with axe, record the result of each rule that applies to it as an assertion the step made, save the report, and pass where
 	 *  the page's serious and moderate violations are within the counts accepted. A check that fails to run fails the
 	 *  step, stating why. */

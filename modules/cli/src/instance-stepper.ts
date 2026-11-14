@@ -27,7 +27,7 @@ import type { THandshake } from "@haibun/core/lib/transport/domains/rpc-wire.js"
 import type { ChildProcess } from "node:child_process";
 import path from "path";
 import { z } from "zod";
-import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type TStepperSteps } from "@haibun/core/lib/astepper.js";
+import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature } from "@haibun/core/lib/astepper.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { actionNotOK, actionOKWithProducts, basesFrom, perProcessOptionNames } from "@haibun/core/lib/domains/util.js";
 import { namesPackage } from "@haibun/core/lib/actuality.js";
@@ -51,12 +51,11 @@ import { INSTANCE_PORT_ENV, KEY_ENV, RUN_DOMAIN, RUN_TAIL_CHARS, RunTail, SUPERV
 import { DOMAIN_FILE_PATH, DOMAIN_NUMBER } from "@haibun/core/lib/domains/domains.js";
 import { listOf } from "@haibun/core/lib/domains/lists.js";
 import { CountedFields, counted } from "@haibun/core/lib/domains/hypermedia.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 const READY_POLL_MS = 300;
 /** The extension of a config's file, which a run names in place of the directory that holds its config.json. */
 const JSON_FILE = ".json";
-/** The cursor of a run's output at its start. */
-const OUTPUT_START = 0;
 const STDERR_TAIL_CHARS = 4_000;
 /** The HAIBUN_ENV variable a launched instance reads to address its launcher: `use store at $LAUNCHED_FROM$ …`. */
 const LAUNCHED_FROM = "LAUNCHED_FROM";
@@ -193,14 +192,14 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		},
 	};
 
-	steps = {
+	steps = declareSteps({
 		startInstance: {
 			gwta: `start a haibun instance from {where: ${DOMAIN_FILE_PATH}} on port {port: ${DOMAIN_NUMBER}} as host {hostId: ${DOMAIN_NUMBER}}`,
 			description:
 				"Starts an instance that serves, in a child of this process: it forks the CLI from a config `where` names, on the given port as the given host id, and waits until the instance responds to the action.begin handshake as serving. The products carry the instance's url, its site principal and its host id; the step fails where the config isn't there, the child exits, a step of the child's actuality fails, its features end before the instance serves, or the instance reports a different host id.",
 			capability: SUPERVISOR_CAPABILITIES.launch,
 			contract: { products: DOMAIN_INSTANCE_STARTED },
-			action: async ({ where, port, hostId }: { where: string; port: number; hostId: number }) => {
+			action: async ({ where, port, hostId }) => {
 				return await this.launch({ ...configIn("start instance", where), port, hostId });
 			},
 		},
@@ -210,7 +209,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			description:
 				"Stop an instance this process launched, and launch it again with the same bases, config, port and host id. The step waits until the instance serves. An instance serves its source as it was when the instance started, so a change to that source takes effect after a restart. The process that restarts an instance is never the instance it restarts.",
 			contract: { products: DOMAIN_INSTANCE_STARTED },
-			action: async ({ port }: { port: number }) => {
+			action: async ({ port }) => {
 				const held = this.launchedInstance("restart instance", port);
 				await supervisorPorts.processes.terminate(held.child);
 				this.children = this.children.filter((c) => c !== held);
@@ -221,7 +220,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			gwta: `reach the steps of the haibun instance on port {port: number}`,
 			description:
 				"Register the steps of an instance this process launched, under the instance's host id. A caller then calls one as `on host {id}, <step>`, and it is dispatched and gated as a local step is. The instance lists only the steps that this process's capabilities at the instance allow. Reading the steps requires a read capability, and the instance delegates that capability to its launcher's key. The steps stay registered across a restart, since a restart keeps the instance's port and host id.",
-			action: async ({ port }: { port: number }) => {
+			action: async ({ port }) => {
 				this.launchedInstance("reach instance", port);
 				await this.registerHost(localOrigin(port));
 				return OK;
@@ -233,7 +232,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			description:
 				"Run features from a directory in a child of this process. The filter selects the features. The step doesn't await the child, so the caller can watch it while it executes (see `read the haibun run`). The child starts in the `from` directory, because a config's relative stepper paths and a base's served files resolve against the directory in which a run starts. That directory is usually the base itself. For a base whose runs start in its parent directory, it is that parent. The child's web server takes the given port, so two runs can execute at once without both taking a default port. Port zero leaves a run on the ports its features declare. With host zero, a run ends when its features finish. With a host above zero, a run stays up and takes that host id, and this process registers its steps. A caller then calls one of those steps as `on host {id}, <step>`, without a second calling mechanism. A run that stays up needs a port of its own, since a caller can't reach a run that doesn't have an address.",
 			contract: { products: RUN_DOMAIN.started },
-			action: async ({ where, filter, from, port, run, hostId }: { where: string; filter: string; from: string; port: number; run: string; hostId: number }) => {
+			action: async ({ where, filter, from, port, run, hostId }) => {
 				const standing = hostId > 0;
 				if (standing && port <= 0) return actionNotOK("start run: a run with a host above 0 stays up and needs a port above 0. Pass a port, or use host 0");
 				const started = await this.startRun({ where, filter, from, port, run, standing, hostId: standing ? hostId : DEFAULT_HOST_ID });
@@ -275,17 +274,16 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			description:
 				"A run's process output since a cursor, whether it is still running, and the counts and first failure accrued from its events. The process output is the only record of a run that fails before it serves. A serving run's events carry seqPaths and outcomes. The returned cursor is where the next read starts, so a read doesn't return the same output twice.",
 			contract: { products: RUN_DOMAIN.read },
-			action: ({ run, cursor }: { run: string; cursor: number }) => this.readRun(run, cursor),
+			action: ({ run, cursor }) => this.readRun(run, cursor),
 		},
 		waitRun: {
-			gwta: `wait for the haibun run {run: ${RUN_DOMAIN.name}} to end within {seconds: number} seconds`,
+			gwta: `wait for the haibun run {run: ${RUN_DOMAIN.name}} since {cursor: number} to end within {seconds: number} seconds`,
 			precludes: ["WebPlaywright.waitFor"],
 			capability: SUPERVISOR_CAPABILITIES.read,
 			description:
 				"Wait until a run exits or reports that its features finished, or until the timeout passes, then return. This process receives the child's exit event and its report that its features finished, so the step returns as soon as either arrives and the caller doesn't poll. The products have the same shape as readRun's. At the timeout the step returns the same products with a status of running. A timeout isn't a failure. The caller then waits again or stops it with `stop the haibun run`.",
 			contract: { products: RUN_DOMAIN.read },
-			// A line doesn't state a cursor, so a wait it states returns the output of a run from its start.
-			action: ({ run, seconds, cursor }: { run: string; seconds: number; cursor?: number }) => this.waitRun(run, seconds, cursor === undefined ? OUTPUT_START : cursor),
+			action: ({ run, seconds, cursor }) => this.waitRun(run, seconds, cursor),
 		},
 		stopRun: {
 			gwta: `stop the haibun run {run: ${RUN_DOMAIN.name}}`,
@@ -293,7 +291,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			description:
 				"Ends a run this process started, whether or not it has finished. A run left standing holds its port until it is stopped. The records of its levels that hadn't ended state that they stopped.",
 			contract: { products: RUN_DOMAIN.stopped },
-			action: async ({ run }: { run: string }) => {
+			action: async ({ run }) => {
 				const held = this.startedRun("stop run", run);
 				await supervisorPorts.processes.terminate(held.child);
 				await this.stopLevels(held);
@@ -302,7 +300,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 				return actionOKWithProducts({ run });
 			},
 		},
-	} as const satisfies TStepperSteps;
+	});
 
 	/** Forks the CLI with a feature filter and doesn't await the child. This process supervises the child, and readRun reads its output. */
 	private async startRun({

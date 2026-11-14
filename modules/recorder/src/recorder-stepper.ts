@@ -1,13 +1,14 @@
 /**
  * RecorderStepper - Captures browser interactions and generates .feature files
  */
-import { AStepper, IHasCycles, IHasOptions, CycleWhen, type TStepperSteps } from "@haibun/core/lib/astepper.js";
+import { AStepper, IHasCycles, IHasOptions, CycleWhen } from "@haibun/core/lib/astepper.js";
 import { OK, TActionResult } from "@haibun/core/lib/domains/protocol.js";
 import { errorDetail, getStepperOption, stringOrError } from "@haibun/core/lib/domains/util.js";
 import type { WebPlaywright } from "@haibun/web-playwright";
 import { DOMAIN_FILE_PATH } from "@haibun/core/lib/domains/domains.js";
 import { startRecording, type TRecording } from "./pipelines/recording.js";
 import { recordingPorts } from "./root.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 const OUTPUT_OPTION = "OUTPUT";
 const TITLE_OPTION = "TITLE";
@@ -47,12 +48,12 @@ export class RecorderStepper extends AStepper implements IHasOptions, IHasCycles
 		}
 	}
 
-	steps = {
+	steps = declareSteps({
 		startRecording: {
 			gwta: `record interactions to {file: ${DOMAIN_FILE_PATH}}`,
 			description:
 				"Starts a recording of the page's interactions to the feature file at the path, with the title the TITLE option states. Each interaction is logged and appended to the file as the step that reproduces it, and a navigation to the address the page is at, or to an about: page, isn't recorded.",
-			action: async ({ file }: { file: string }): Promise<TActionResult> => {
+			action: async ({ file }): Promise<TActionResult> => {
 				const title = getStepperOption(this, TITLE_OPTION, this.getWorld().moduleOptions) ?? RECORDED_TITLE;
 				this.recording = await startRecording(recordingPorts(this.getWorld().eventLogger), String(file), title);
 				await this.instrumentCurrentPage();
@@ -70,7 +71,7 @@ export class RecorderStepper extends AStepper implements IHasOptions, IHasCycles
 				return Promise.resolve(OK);
 			},
 		},
-	} as const satisfies TStepperSteps;
+	});
 }
 
 export default RecorderStepper;

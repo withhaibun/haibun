@@ -1,5 +1,5 @@
 import { SAVED_WAYPOINT_DOMAIN, SAVED_WAYPOINT_LABEL, SavedWaypointSchema, savedWaypointDomainDefinition, type TSavedWaypoint } from "../lib/domains/saved-waypoint.js";
-import { AStepper, IHasCycles, TFeatureStep, IStepperCycles, TStepperSteps, CycleWhen, READING, ruleStatedAt, type TWaypointRule } from "../lib/steps/domains/stepper.js";
+import { AStepper, IHasCycles, TFeatureStep, IStepperCycles, CycleWhen, READING, ruleStatedAt, type TWaypointRule, declareSteps } from "../lib/steps/domains/stepper.js";
 import { runSteppers, type TWorld } from "../lib/actuality/domains/world.js";
 import { OK } from "../lib/domains/protocol.js";
 import { actionNotOK, actionOKWithProducts, getActionable, errorDetail, dePolite, getStepTerm } from "../lib/domains/util.js";
@@ -9,7 +9,7 @@ import { proveStatements, stepperContext } from "../lib/actuality/pipelines/step
 import type { TWaypointEntry } from "../lib/domains/goal-resolution.js";
 import { stepMethodName } from "../lib/steps/domains/step-method.js";
 import { phraseParts } from "../lib/steps/domains/phrase.js";
-import { refDomainKey, type TIndividualRef } from "../lib/domains/domains.js";
+import { refDomainKey } from "../lib/domains/domains.js";
 import { ACTIVITIES_ACTIONS, ACTIVITIES_STEPPER } from "./domains/activities-actions.js";
 import { readUpTo } from "../lib/records/pipelines/record-reads.js";
 import { WRITE_VERB } from "../lib/records/domains/unit.js";
@@ -124,22 +124,21 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		this.rules = this.rules.filter(({ scope, saved }) => scope !== undefined || saved === true);
 	}
 
-	readonly steps = {
+	readonly steps = declareSteps({
 		saveWaypoint: {
 			description:
 				"Saves a waypoint whose activity is these lines, and states its rule, which then applies in every feature. The step refuses a line that doesn't resolve to one step and a head that is already a rule's, before it states the rule. Saving a head again with the same lines returns the existing record.",
 			gwta: `save waypoint {outcome: ${DOMAIN_TITLE}} doing {statements: ${DOMAIN_STATEMENT_LINES}}`,
 			capability: ACTIVITIES_ACTIONS.saveWaypoint,
 			contract: { products: SAVED_WAYPOINT_DOMAIN, written: WRITE_VERB.merge },
-			action: async ({ outcome, statements }: { outcome: string; statements: string[] }, featureStep: TFeatureStep) =>
-				actionOKWithProducts(await this.saveWaypoint(outcome, statements, featureStep.source?.path ?? SAVED_WAYPOINT_SOURCE)),
+			action: async ({ outcome, statements }, featureStep) => actionOKWithProducts(await this.saveWaypoint(outcome, statements, featureStep.source?.path ?? SAVED_WAYPOINT_SOURCE)),
 		},
 		runSavedWaypoint: {
 			description:
 				"Runs a saved waypoint's lines in order under this step, by the waypoint's head. A line written before the waypoint was saved, or resolved on a host that doesn't hold the waypoint, uses this step in place of the head.",
 			gwta: `run the saved waypoint {waypoint: ${refDomainKey(SAVED_WAYPOINT_DOMAIN)}}`,
 			capability: ACTIVITIES_ACTIONS.runSavedWaypoint,
-			action: async ({ waypoint }: { waypoint: TIndividualRef }, featureStep: TFeatureStep) => {
+			action: async ({ waypoint }, featureStep) => {
 				const rule = this.rules.find(({ head, saved }) => saved === true && head === waypoint.id);
 				if (rule === undefined) return actionNotOK(`"${waypoint.id}" isn't a waypoint saved here`);
 				const world = this.getWorld();
@@ -186,7 +185,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			gwta: `after every {stepperName: ${DOMAIN_STEPPER_NAME}}, {statement: ${DOMAIN_STATEMENT}}`,
 			description:
 				"States a rule over step records: after each step of the stepper that a feature's line states, the statement is proved under that step, apart from a step of the statement's own action.",
-			action: ({ stepperName }: { stepperName: string }, featureStep: TFeatureStep) => {
+			action: ({ stepperName }, featureStep) => {
 				const statement = getStepTerm(featureStep, "statement");
 				if (statement === undefined) return actionNotOK(`${featureStep.in} doesn't state the statement its rule proves`);
 				const source = featureStep.source === undefined ? { path: this.feature } : featureStep.source;
@@ -220,7 +219,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			capability: ACTIVITIES_ACTIONS.applyWaypoint,
 			reading: READING.apply,
 		},
-	} as const satisfies TStepperSteps;
+	});
 
 	/** Returns the waypoints whose rules apply, for the affordances snapshot (the ProvidesWaypoints capability). A waypoint is
 	 *  ensured where its proof holds now, which this step proves beneath itself. */

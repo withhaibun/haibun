@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
+import { AStepper, type IHasCycles, type IStepperCycles, declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 import { doesntHold, field, holds, parameter, PRINCIPAL, recordChange, relationChange, type TRelation, type TStepContract } from "@haibun/core/lib/steps/domains/contract.js";
 import { Access, EDGE, LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { actionOK } from "@haibun/core/lib/domains/util.js";
@@ -40,7 +40,7 @@ const declaring = (contract: TStepContract): AStepper =>
 	new (class Declaring extends AStepper implements IHasCycles {
 		description = "Declares a step with the contract a case states.";
 		cycles: IStepperCycles = { getConcerns: () => ({ domains: [GRANT], relations: [REVOKED] }) };
-		steps: TStepperSteps = { revoke: { description: TEST_STEP, gwta: "revoke {grant: grant}", contract, action: async () => actionOK() } };
+		steps = declareSteps({ revoke: { description: TEST_STEP, gwta: "revoke {grant: grant}", contract, action: async () => actionOK() } });
 	})();
 
 describe("the declarations check of contracts", () => {

@@ -10,7 +10,7 @@ import { handleStoreCall, isStoreMethod } from "../../domains/store-protocol.js"
 import { RemoteQuadStore } from "./remote-quad-store.js";
 import { FakeInvoker } from "../../test/fake-authority.js";
 import { z } from "zod";
-import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "../../steps/domains/stepper.js";
+import { AStepper, type IHasCycles, type IStepperCycles } from "../../steps/domains/stepper.js";
 import { Access, LinkRelations, openWorld } from "../../domains/resources.js";
 import { ASSUMED_CHECK, CHECK_NAMESPACE, field } from "../../steps/domains/contract.js";
 import { actionOK } from "../../domains/util.js";
@@ -22,6 +22,7 @@ import { LOGIC_STEPPER } from "../../domains/protocol.js";
 import { inCall, runInCall } from "../../domains/capability-context.js";
 import { ChangedSinceRead, WRITE_VERB, WriteOutsideContract, type TUnitWrite } from "../../records/domains/unit.js";
 import type { TStepWrites } from "../../steps/domains/contract.js";
+import { declareSteps } from "../../steps/domains/stepper.js";
 
 const sign = new FakeInvoker("satellite").sign;
 const WIDGETS = { Widget: { filters: ["id"] } };
@@ -153,7 +154,7 @@ describe("RemoteQuadStore", () => {
 					await store.registerStore(remote, ["Widget"]);
 				},
 			};
-			steps = {
+			steps = declareSteps({
 				read: {
 					description: TEST_STEP,
 					gwta: "read a widget",
@@ -163,7 +164,7 @@ describe("RemoteQuadStore", () => {
 						return actionOK();
 					},
 				},
-			} as const satisfies TStepperSteps;
+			});
 		}
 		const result = await passWithDefaults("read a widget\n", [ReadsWidgets, ...(await getSteppers([LOGIC_STEPPER]))]);
 		expect(await backing.get("w-7", "colour", "Widget"), "the serving store holds the record").toBe("red");

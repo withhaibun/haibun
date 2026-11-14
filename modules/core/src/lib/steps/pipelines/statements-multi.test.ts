@@ -5,10 +5,11 @@ import { passWithDefaults, DEF_PROTO_OPTIONS, failWithDefaults } from "../../tes
 import { LogicStepper } from "../../test/logic-stepper.js";
 import { DOMAIN_STATEMENT } from "../../domains/domains.js";
 import { TEST_STEP } from "../../test/test-step.js";
+import { declareSteps } from "../domains/stepper.js";
 
 class StatementTestStepper extends AStepper {
 	description = "Steps alpha and beta, and a step taking two statements.";
-	steps: Record<string, TStepperStep> = {
+	steps: Record<string, TStepperStep> = declareSteps({
 		alpha: { description: TEST_STEP, exact: "alpha", action: () => OK },
 		beta: { description: TEST_STEP, exact: "beta", action: () => OK },
 		compound: {
@@ -18,7 +19,7 @@ class StatementTestStepper extends AStepper {
 			// The action only needs to acknowledge that both resolved.
 			action: () => OK,
 		},
-	};
+	});
 }
 
 describe("multi statement variables", () => {

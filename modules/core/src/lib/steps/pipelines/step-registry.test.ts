@@ -17,6 +17,7 @@ import { MATCHING_METHOD, SHOW_STEP_DEFINITIONS_LINE, SHOW_STEPS_LINE, StepDefin
 import { RUN_AUTHORITY } from "../../domains/capability-context.js";
 import { ActionSchema } from "../../domains/actions.js";
 import { TEST_STEP } from "../../test/test-step.js";
+import { declareSteps } from "../domains/stepper.js";
 
 /** A domain with date fields and a defaulted field. A persisted type's generatedAtTime is a defaulted date field. */
 const RecordSchema = z.object({ subject: z.string(), dateSent: z.coerce.date(), generatedAtTime: z.coerce.date().default(() => new Date()) }).strict();
@@ -27,7 +28,7 @@ const stepDef = { description: TEST_STEP, gwta: "create record {data: test-recor
 
 class RecordSteps extends AStepper {
 	description = "steps that create records";
-	steps = { createRecord: stepDef };
+	steps = declareSteps({ createRecord: stepDef });
 }
 
 describe("step tool input schemas", () => {
@@ -53,7 +54,7 @@ const emptyRegistryWorld = { domains: {}, runtime: {} } as unknown as TWorld;
 /** A stepper with one plain step. It stands for the steps actuality registers locally. */
 class LocalSteps extends AStepper {
 	description = "a step that passes";
-	steps = { passes: { description: TEST_STEP, gwta: "passes", action: async () => actionOK() } };
+	steps = declareSteps({ passes: { description: TEST_STEP, gwta: "passes", action: async () => actionOK() } });
 }
 
 /** A step that another host declares, as its proxy registers it in actuality's registry. */
@@ -137,10 +138,10 @@ describe("what a read of actuality's declarations shows", () => {
 	it("shows every step and domain as a counted list of steps, with the steppers of the steps and the links that read their steps and definitions", () => {
 		class ManySteps extends AStepper {
 			description = "steps that read and write records";
-			steps = {
+			steps = declareSteps({
 				readRecord: { gwta: "read record {id: record-key}", description: "Reads one record.", action: async () => actionOK() },
 				writeRecord: { description: TEST_STEP, gwta: "write record {id: record-key}", action: async () => actionOK() },
-			};
+			});
 		}
 		const world = {
 			runtime: { records: HAIBUN_RECORD_NAMESPACE },
@@ -197,7 +198,7 @@ describe("what a read of actuality's declarations shows", () => {
 		expect(changes, "and a rebuild of the same steps doesn't either").toBe(1);
 		class MoreSteps extends AStepper {
 			description = "a step that a rebuild adds";
-			steps = { fails: { description: TEST_STEP, gwta: "fails", action: async () => actionOK() } };
+			steps = declareSteps({ fails: { description: TEST_STEP, gwta: "fails", action: async () => actionOK() } });
 		}
 		registry.refresh([...steppers, new MoreSteps()], emptyWorld);
 		expect(changes, "a rebuild that adds a step is a change").toBe(2);
@@ -269,14 +270,14 @@ describe("the refusal a caller from outside actuality receives", () => {
 describe("a step's refusal", () => {
 	class RefusingStepper extends AStepper {
 		description = "Refuses with a remedy, and throws a refused call.";
-		steps = {
+		steps = declareSteps({
 			refuses: { description: TEST_STEP, exact: "refuses", action: () => actionNotOK("the record isn't held", { remedy: typeCollectionRemedy("Letter") }) },
 			throwsARefusal: {
 				description: TEST_STEP,
 				exact: "throws a refusal",
 				action: () => Promise.reject(new RefusedCall({ error: "a call refused", remedy: { do: "request", action: "Pool:drain" } })),
 			},
-		};
+		});
 	}
 
 	it("carries the remedy a step states, and the remedy a refused call it threw carries (CA1G6)", async () => {

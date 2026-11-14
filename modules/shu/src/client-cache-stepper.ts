@@ -5,9 +5,10 @@
  * so the steps here don't repeat what the view shows.
  */
 import { z } from "zod";
-import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
+import { AStepper, type IHasCycles, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
 import { SHU_TAG } from "./domains/elements.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 export default class ClientCacheStepper extends AStepper implements IHasCycles {
 	description = "Opens the client cache view, which shows what a page caches of actuality.";
@@ -24,12 +25,12 @@ export default class ClientCacheStepper extends AStepper implements IHasCycles {
 		}),
 	};
 
-	steps = {
+	steps = declareSteps({
 		showClientCache: {
 			gwta: "show client cache",
 			description: "Open the client cache view: what the page caches of actuality, every value under its own test id.",
 			contract: { products: SHU_TAG.CLIENT_CACHE_COLUMN },
 			action: () => actionOKWithProducts({}),
 		},
-	} as const satisfies TStepperSteps;
+	});
 }

@@ -16,15 +16,16 @@ import { DOMAIN_NUMBER } from "@haibun/core/lib/domains/domains.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { StepMethodSchema } from "@haibun/core/lib/steps/domains/step-method.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
+import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 class TestStepper extends AStepper {
 	description = "Steps that check the MCP tools a run lists.";
-	steps = {
+	steps = declareSteps({
 		testA: { description: TEST_STEP, exact: "test action a", action: async () => OK },
 		verifyTools: {
 			description: TEST_STEP,
 			gwta: `verify mcp tools on port {port: ${DOMAIN_NUMBER}}`,
-			action: async ({ port }: { port: string }) => {
+			action: async ({ port }) => {
 				const mcpUrl = `http://localhost:${port}/mcp`;
 				const client = new Client({ name: "client", version: "1.0" }, { capabilities: {} });
 				try {
@@ -62,7 +63,7 @@ class TestStepper extends AStepper {
 				return OK;
 			},
 		},
-	};
+	});
 }
 
 describe("McpStepper tools", () => {

@@ -8,14 +8,15 @@ import { createSteppers } from "../../domains/util.js";
 import { DOMAIN_STATEMENT } from "../../domains/domains.js";
 import { itemAt } from "../../domains/item-at.js";
 import { TEST_STEP } from "../../test/test-step.js";
+import { declareSteps } from "../../steps/domains/stepper.js";
 
 // A test stepper that uses a statement typed placeholder
 class StatementStepper extends AStepper {
 	description = "A step taking a statement, and a base step.";
-	steps = {
+	steps = declareSteps({
 		meta: { description: TEST_STEP, gwta: `meta {action: ${DOMAIN_STATEMENT}}`, action: async () => Promise.resolve(OK) },
 		base: { description: TEST_STEP, gwta: "base action", action: async () => Promise.resolve(OK) },
-	};
+	});
 }
 
 describe("statement variable validation", () => {

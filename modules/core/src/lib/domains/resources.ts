@@ -878,10 +878,10 @@ type TRangesTopology = {
  */
 export type TDomainTopology = THypermediaTopology | TRangesTopology;
 
-/** Returns true when a domain's topology states persistedAs. */
 /** The field a type's records are sorted by where a query doesn't state one: the field it declares, or the time each was generated. */
 export const sortFieldOf = (topology: { defaultSort?: string }): string => topology.defaultSort ?? LinkRelations.GENERATED_AT_TIME.rel;
 
+/** Returns true when a domain's topology states persistedAs. */
 export function isPersisted(topology: TDomainTopology | undefined): topology is THypermediaTopology {
 	return !!topology && "persistedAs" in topology && typeof topology.persistedAs === "string";
 }
