@@ -371,7 +371,6 @@ export function unexercised(repository: string, steps: readonly TDeclaredStep[])
 		.map((step) => ({ file: step.file, finding: `${UNEXERCISED}: ${step.stepper}.${step.key}` }));
 }
 
-/** One finding for each declared step, under the repository, so its baseline holds the count of steps, which only falls. */
 /** Each step that isn't a read and doesn't list its writes beyond its products in its contract's `changes`. */
 export const unlistedChanges = (steps: readonly TDeclaredStep[]): TFound[] =>
 	steps.filter(({ read, listsChanges }) => !read && !listsChanges).map(({ file, stepper, key }) => ({ file, finding: `${UNLISTED_CHANGES}: ${stepper}.${key}` }));
@@ -385,6 +384,7 @@ export function ownProducts(steppers: readonly { stepper: AStepper }[], steps: r
 		.map(({ file, stepper, key }) => ({ file, finding: `${OWN_PRODUCTS}: ${stepper}.${key}` }));
 }
 
+/** One finding for each declared step, under the repository, so its baseline holds the count of steps, which only falls. */
 export const stepCount = (steps: readonly TDeclaredStep[]): TFound[] => steps.map(() => ({ file: REPOSITORY_FILE, finding: DECLARED_STEPS }));
 
 /** A word of a pattern, outside its placeholders, that filters, bounds, pages, orders or counts a list. A web page and an ordered

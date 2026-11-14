@@ -4,6 +4,7 @@ import { LogicStepper } from "../test/logic-stepper.js";
 import VariablesStepper from "../../steps/variables-stepper.js";
 import Haibun from "../../steps/haibun-stepper.js";
 import { z } from "zod";
+import { readDeclarationsOf } from "../records/derivations/read-records.js";
 import {
 	DOMAIN_ACTIONS,
 	DOMAIN_DURATION,
@@ -14,9 +15,10 @@ import {
 	refTargetOf,
 	registerDomains,
 	registeredDomain,
+	registrationOf,
 	toRegisteredDomain,
 } from "./domains.js";
-import { Access, LinkRelations, PersistedVertexSchema, type THypermediaTopology, type TPropertyDef, type TDomainDefinition } from "./resources.js";
+import { Access, HAIBUN_RECORD_NAMESPACE, LinkRelations, PersistedVertexSchema, type THypermediaTopology, type TPropertyDef, type TDomainDefinition } from "./resources.js";
 
 const steppers = [VariablesStepper, Haibun, LogicStepper];
 
@@ -186,6 +188,29 @@ describe("a reference to a record of a type", () => {
 		const ref = registeredDomain(world.domains, refDomainKey(TICKET), "the test");
 		expect(ref.schema.parse("ticket-7")).toEqual({ id: "ticket-7" });
 		expect(() => ref.schema.parse("7")).toThrow(/isn't a ticket id/);
+	});
+});
+
+describe("the read declarations of a world's domains", () => {
+	it("are derived once, and again after a domain is registered", () => {
+		const world = getDefaultWorld();
+		const before = readDeclarationsOf(world.domains, HAIBUN_RECORD_NAMESPACE);
+		expect(readDeclarationsOf(world.domains, HAIBUN_RECORD_NAMESPACE), "a read without a registration between reuses the derivation").toBe(before);
+		const registration = registrationOf(world.domains);
+		registerDomains(world, [
+			[
+				{
+					selectors: ["memo"],
+					schema: z.object({ id: z.string() }),
+					description: "a memo",
+					topology: { persistedAs: "Memo", accessLevel: Access.private, id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } },
+				},
+			],
+		]);
+		expect(registrationOf(world.domains), "a registration is counted").toBeGreaterThan(registration);
+		const after = readDeclarationsOf(world.domains, HAIBUN_RECORD_NAMESPACE);
+		expect(after).not.toBe(before);
+		expect(after.types).toContain("Memo");
 	});
 });
 

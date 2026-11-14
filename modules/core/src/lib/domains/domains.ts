@@ -193,6 +193,21 @@ export const isWrittenByCaller = (domainKey: string, domains: Record<string, TRe
 
 type TEnumDomainInput = { name: string; values: string[]; description?: string; ordered?: boolean };
 
+/** The count of registrations into each map of domains. Every function here that registers a domain counts one, so a derivation
+ *  over a map's domains is derived once per registration, and derived again after the next. */
+const registrations = new WeakMap<Record<string, TRegisteredDomain>, number>();
+
+/** Returns the count of registrations into `domains`: 0 for a map built whole, which isn't registered into again. */
+export function registrationOf(domains: Record<string, TRegisteredDomain>): number {
+	const count = registrations.get(domains);
+	return count === undefined ? 0 : count;
+}
+
+/** Counts a registration into `domains`. */
+const countRegistration = (domains: Record<string, TRegisteredDomain>): void => {
+	registrations.set(domains, registrationOf(domains) + 1);
+};
+
 export const registerDomains = (world: TWorld, results: TDomainDefinition[][]) => {
 	for (const stepperWithDomains of results) {
 		for (const definition of stepperWithDomains) {
@@ -261,6 +276,7 @@ export const deriveNamingDomains = (domains: Record<string, TRegisteredDomain>) 
 		names: registered,
 		description: "A registered domain's key; the Domain records list them",
 	});
+	countRegistration(domains);
 	return domains;
 };
 
@@ -272,6 +288,7 @@ export const registerStepperNames = (world: TWorld, names: string[]) => {
 	world.domains[DOMAIN_STEPPER_NAME] = toRegisteredDomain(
 		createEnumDomainDefinition({ name: DOMAIN_STEPPER_NAME, values: [...new Set(names)], description: "A loaded stepper's name" }),
 	);
+	countRegistration(world.domains);
 };
 
 export const asDomainKey = (domains: string[]) => domains?.sort().join(DOMAIN_UNION);

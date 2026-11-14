@@ -48,7 +48,7 @@ import {
 	type TRecordNamespace,
 	type TRegisteredDomain,
 } from "../../domains/resources.js";
-import { persistedDomainOf } from "../../domains/domains.js";
+import { persistedDomainOf, registrationOf } from "../../domains/domains.js";
 import { recordIri } from "./record-iri.js";
 import { edgeDeclarationsOf, type TEdgeDeclaration } from "./edge-declarations.js";
 import { itemAt } from "../../domains/item-at.js";
@@ -103,15 +103,15 @@ export type TReadPage = { limit: number; offset: number } | { perType: number };
 
 const unique = (values: Iterable<string>): string[] => [...new Set(values)].sort();
 
-/** The read declarations derived from a set of domains, and the count of those domains. */
-const declarationsFor = new WeakMap<Record<string, TRegisteredDomain>, { size: number; records: TRecordNamespace; declarations: TReadDeclarations }>();
+/** The read declarations derived from a set of domains, and the count of registrations into the domains when they were derived. */
+const declarationsFor = new WeakMap<Record<string, TRegisteredDomain>, { registration: number; records: TRecordNamespace; declarations: TReadDeclarations }>();
 
 /** Returns the read declarations of the persisted types among `domains`. A type's declaration is derived once, where a read
  *  first names it, and the declarations are derived again where a domain was registered since. */
 export function readDeclarationsOf(domains: Record<string, TRegisteredDomain>, records: TRecordNamespace): TReadDeclarations {
-	const size = Object.keys(domains).length;
+	const registration = registrationOf(domains);
 	const held = declarationsFor.get(domains);
-	if (held?.size === size && held.records === records) return held.declarations;
+	if (held?.registration === registration && held.records === records) return held.declarations;
 	const persisted = Object.values(domains).flatMap(({ schema, topology }) => (isPersisted(topology) ? [{ schema, topology }] : []));
 	const derived = new Map<string, TReadDeclaration | undefined>();
 	const declarationOf = (label: string): TReadDeclaration | undefined => {
@@ -146,7 +146,7 @@ export function readDeclarationsOf(domains: Record<string, TRegisteredDomain>, r
 			return derived.get(label);
 		},
 	};
-	declarationsFor.set(domains, { size, records, declarations });
+	declarationsFor.set(domains, { registration, records, declarations });
 	return declarations;
 }
 
