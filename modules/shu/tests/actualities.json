@@ -412,14 +412,14 @@
 			"actuality": {
 				"text": "modules/shu/tests, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 47300,
+				"tookMs": 46400,
 				"digest": {
 					"modules/cli/src": "c4cdba9459233f62316b0c8f28fa4defde1a34481ed7506c76a436b6265efa4d",
-					"modules/core/src": "790f6e6c10c1c693c3f60dbb03334f5fef1985e8f48d703824ed7e3dd6ec6869",
+					"modules/core/src": "167dd7192e53c83cd6e3734f7ea8d3a70babc882722b9f5668120e77436bb3aa",
 					"modules/domain-storage/src": "a1ad8d126b38124a77273e6fc594bfcdc8b344639cc4495e9ddc319a0db8b9e1",
 					"modules/logic/src": "dc9163829b22fcf0a1efd5fb375a11dd008b8e188ce7649f17c7877b4eca8b1c",
 					"modules/monitor-tui/src": "a105d615294710fcf073f7232a5f3d7e5860cc719b39b4e2408805fc52be4648",
-					"modules/shu/src": "37c25d8b1a30cf5660d0377f3ae39a6fb28b0dfa326cd6bb33e57372e55be139",
+					"modules/shu/src": "668efa21b20e9215b3d8447ee7347ed77989bee3317b252dbed04b6615aa43b5",
 					"modules/shu/tests": "902049aeec7cc97440f01b9bc7ab8e4bf6544e3be80fd641b9084f3c1a9b140d",
 					"modules/shu/waypoints": "7dc9c4a47d546a40d28e609997d2236967c01ebb925e55511322e4abc6772a86",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
@@ -432,7 +432,7 @@
 				"/features/address.feature.ts": {
 					"text": "An address names a type",
 					"status": "passed",
-					"tookMs": 1200,
+					"tookMs": 1300,
 					"steps": 209
 				},
 				"/features/federate.feature.ts": {
@@ -450,8 +450,8 @@
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
-					"tookMs": 34600,
-					"steps": 768
+					"tookMs": 33700,
+					"steps": 763
 				},
 				"/features/remote-store.feature.ts": {
 					"text": "A satellite instance keeps its records in the main instance's store",
