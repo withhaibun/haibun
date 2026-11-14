@@ -113,7 +113,7 @@
 			"actuality": {
 				"text": "mcp-server",
 				"status": "passed",
-				"tookMs": 600,
+				"tookMs": 700,
 				"digest": {
 					"mcp-server": "6c710ec3b9f627f32df0a59fb03960978e4eae1e54af532c3183aad1cbe2d155",
 					"modules/core/src": "54578552ecb3c9643f7b7c6a755cf3b3d51c52d60adcc9771cbc189317dbe78e",
