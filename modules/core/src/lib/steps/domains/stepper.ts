@@ -91,6 +91,12 @@ export function hasCycles(stepper: AStepper): stepper is AStepper & IHasCycles {
 	return "cycles" in stepper && typeof stepper.cycles === "object" && stepper.cycles !== null;
 }
 
+/** Returns the domains a stepper declares in its concerns, or an empty list where it doesn't declare cycles, concerns or domains. */
+export function declaredDomains(stepper: AStepper): TDomainDefinition[] {
+	const declared = hasCycles(stepper) ? stepper.cycles.getConcerns?.()?.domains : undefined;
+	return declared === undefined ? [] : declared;
+}
+
 // ============================================================================
 // Resolved feature & step (stepper-protocol shapes)
 // ============================================================================

@@ -16,6 +16,8 @@ import {
 	PRINCIPAL,
 	PRODUCTS,
 	productDomains,
+	productLevels,
+	type TStepContract,
 	RELATION_NAMESPACE,
 	statementN3,
 	statementNotation,
@@ -24,6 +26,8 @@ import {
 	stepWrites,
 	type TRelation,
 } from "./contract.js";
+import { Access, type AccessLevel } from "../../domains/resources.js";
+import { WRITE_VERB } from "../../records/domains/unit.js";
 
 /** A record type as a stepper declares one, and two relations its statements share. */
 const CAPABILITY = { schema: z.object({ id: z.string(), revoked: z.string() }), topology: { persistedAs: "Capability" } };
@@ -42,6 +46,18 @@ describe("contract.products", () => {
 		expect(productDomains({ contract: { products: "cart" } })).toEqual(["cart"]);
 		expect(productDomains({ contract: { products: { order: "order", receipt: "receipt" } } })).toEqual(["order", "receipt"]);
 		expect(productDomains({ contract: { products: { of: "statement" } } })).toEqual([]);
+	});
+
+	it("returns the level each stored type of written products declares, and returns an empty list where dispatch doesn't write the products or they aren't records", () => {
+		/** A stored type's topology, which declares its level. */
+		const stored = (persistedAs: string, accessLevel: AccessLevel) => ({ topology: { persistedAs, id: "id", properties: {}, accessLevel } });
+		const domains = { cart: stored("Cart", Access.public), order: stored("Order", Access.private), receipt: {} };
+		const written = (products: TStepContract["products"]): TStepContract => ({ products, written: WRITE_VERB.merge });
+		expect(productLevels({ contract: written("cart") }, domains)).toEqual([Access.public]);
+		expect(productLevels({ contract: written({ order: "order", receipt: "receipt" }) }, domains), "a receipt isn't a stored type").toEqual([Access.private]);
+		expect(productLevels({ contract: { products: "cart" } }, domains), "a step that writes its own records doesn't have its products written").toEqual([]);
+		expect(productLevels({ contract: { read: true, products: "cart" } }, domains), "a read doesn't write").toEqual([]);
+		expect(() => productLevels({ contract: written("basket") }, domains)).toThrow("the domain basket, which the domains read don't hold");
 	});
 
 	it("carries each form in a descriptor, reading a lone `of` as the statement form", () => {

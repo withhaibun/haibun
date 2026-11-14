@@ -106,12 +106,12 @@
 			"actuality": {
 				"text": "modules/shu/tests-basic-auth",
 				"status": "passed",
-				"tookMs": 3300,
+				"tookMs": 3200,
 				"digest": {
-					"modules/core/src": "564db882130fc304efc9c58d46c36086cde11c6898766bbc7916056af05ba7a4",
+					"modules/core/src": "821e1b27ae36337ac1aba000e9da9eb8aa2886dc60a99c37d9dab08fd4d57b8e",
 					"modules/domain-storage/src": "97565d096e8c098014480f2d8e9e18937734561e98133eb46e3d2426affff022",
 					"modules/logic/src": "4703b8ad667acaac60ea22b366dc147ef11d2e19c7dbbba780c36f9c8d3d96c3",
-					"modules/shu/src": "d3558873d8cdb85dd872de5f395a0d6a153e812174f3bb06bbf1ccd5db554e5c",
+					"modules/shu/src": "40abd7b248bcd4d499845848163a5e065cb4b60e4d171d6f5e8d2136bc38ed34",
 					"modules/shu/tests-basic-auth": "535e2108c1aaa9f494da113350f8c249d4d7b5ce687a1f652d4cd92ba4972e0e",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",

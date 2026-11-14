@@ -1,7 +1,17 @@
 import type { TExpandedFeature, TExpandedLine, TFeatures, TFeature } from "../domains/actuality.js";
 import type { TWorld } from "../domains/world.js";
 import { TStepValue, SCENARIO_START, HEADINGS, Origin, isPendingScenario } from "../../domains/protocol.js";
-import { AStepper, READING, TStepAction, TResolvedFeature, TStepperStep, TFeatureStep, UNTIL_DURATION, hasCycles, untilWithoutDuration } from "../../steps/domains/stepper.js";
+import {
+	AStepper,
+	READING,
+	TStepAction,
+	TResolvedFeature,
+	TStepperStep,
+	TFeatureStep,
+	UNTIL_DURATION,
+	declaredDomains,
+	untilWithoutDuration,
+} from "../../steps/domains/stepper.js";
 import type { TDomainDefinition } from "../../domains/resources.js";
 import { matchGwtaToAction } from "../../steps/derivations/named-vars.js";
 import { getActionable, dePolite, actionNotOK, asError, errorDetail } from "../../domains/util.js";
@@ -250,12 +260,9 @@ export class Resolver {
 		(steppers: readonly AStepper[]) => steppers,
 		(steppers: readonly AStepper[]): Map<string, NonNullable<TDomainDefinition["refuses"]>> =>
 			new Map(
-				steppers.flatMap((stepper) => {
-					const declared = hasCycles(stepper) ? stepper.cycles.getConcerns?.()?.domains : undefined;
-					return (declared === undefined ? [] : declared).flatMap(({ selectors, refuses }) =>
-						refuses === undefined ? [] : selectors.map((selector) => [selector, refuses] as const),
-					);
-				}),
+				steppers.flatMap((stepper) =>
+					declaredDomains(stepper).flatMap(({ selectors, refuses }) => (refuses === undefined ? [] : selectors.map((selector) => [selector, refuses] as const))),
+				),
 			),
 	);
 

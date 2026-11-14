@@ -7,11 +7,11 @@
  * fields of record types. The browser imports this module.
  */
 import { z } from "zod";
-import { DOMAIN_STATEMENT, DomainKeySchema } from "../../domains/domains.js";
+import { DOMAIN_STATEMENT, DomainKeySchema, normalizeDomainKey } from "../../domains/domains.js";
 import type { TVerdict } from "../../domains/protocol.js";
 import type { TRecordName, WRITE_VERB } from "../../records/domains/unit.js";
 import { isRead } from "../../domains/actions.js";
-import { HAIBUN_NS } from "../../domains/resources.js";
+import { HAIBUN_NS, isPersisted, type AccessLevel, type TDomainTopology } from "../../domains/resources.js";
 
 /** The key of the form that names the statement parameter whose products a step returns as its own. */
 const OF = "of";
@@ -172,6 +172,25 @@ export function productDomains(step: { readonly contract?: Pick<TStepContract, "
 	const { domain, fields } = contractProducts(step);
 	if (domain !== undefined) return [domain];
 	return fields === undefined ? [] : Object.values(fields);
+}
+
+/** A domain as a write's products read it: its topology, which states a stored type and its level where it declares one. */
+type TProductsDomain = { readonly topology?: TDomainTopology };
+
+/**
+ * Returns the level each stored type of a step's products declares where its contract declares `written`, which are the levels
+ * at which dispatch writes the products. A step that doesn't declare `written` doesn't have its products written, and a
+ * products domain that doesn't declare a stored type isn't a record. Throws where `domains` doesn't hold a products domain.
+ */
+export function productLevels(step: { readonly contract?: TStepContract }, domains: Readonly<Record<string, TProductsDomain>>): AccessLevel[] {
+	if (step.contract?.written === undefined) return [];
+	const levels = productDomains(step).flatMap((domain) => {
+		const declared = domains[normalizeDomainKey(domain)];
+		if (declared === undefined)
+			throw new Error(`a write's products are in the domain ${domain}, which the domains read don't hold. Read the domains of the stepper that declares it`);
+		return isPersisted(declared.topology) ? [declared.topology.accessLevel] : [];
+	});
+	return [...new Set(levels)];
 }
 
 /** The term an argument renders as: a parameter by its name, the products, the principal, a field as `Type.key`, or a derived
