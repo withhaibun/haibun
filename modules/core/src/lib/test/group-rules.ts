@@ -1,7 +1,8 @@
 /**
  * Rules for the test groups of a repository and for its first-read documents. A group states its options in its config's `options`
  * and `moduleOptions`, and a script states only its command. A group names what it uses by its package rather than by a
- * parent path or a link. A first-read document names only paths that exist. A group's actualities file and every baseline are
+ * parent path or a link. A first-read document names only paths that exist, and its code imports only modules a workspace package
+ * exports. A group's actualities file and every baseline are
  * tracked, so each commit holds the measurements of the code it holds.
  */
 import { execFileSync, spawnSync } from "node:child_process";
@@ -11,7 +12,7 @@ import { dirname, isAbsolute, join, normalize, relative, resolve, sep } from "no
 import { z } from "zod";
 import { itemAt } from "../domains/item-at.js";
 import type { TFound } from "./baseline.js";
-import { TEST_MODULE } from "./repository-files.js";
+import { namesWorkspacePackage, resolvedSource, TEST_MODULE, type TPackages } from "./repository-files.js";
 import { ACTUALITIES_FILE } from "../adapters/dependency-state.js";
 
 /** An option of haibun that a script assigns before a command, which a config states instead. */
@@ -22,6 +23,8 @@ const MARKDOWN_LINK = /\]\(([^)\s]+)\)/g;
 const QUOTED_PATH = /`((?:\.{1,2}\/)?[\w-]+(?:\/[\w.-]+)+\.(?:md|json|mjs|sh|feature|ts|yml))`/g;
 const NOT_A_PATH = /^(?:[a-z][a-z0-9+.-]*:|#|\/)/i;
 const GENERATED = /(?:^|\/)(?:build|build-local|node_modules|capture)\//;
+/** A module a document's code imports by its package's name, such as `@haibun/core/lib/astepper.js`. */
+const PACKAGE_IMPORT = /\bfrom\s+['"]([^'"./][^'"]*)['"]/g;
 /** A string of a JSON file that names a path through a parent directory. */
 const PARENT_PATH = /"([^"]*\.\.\/[^"]*)"/g;
 /** The mode git records for a symbolic link. */
@@ -205,16 +208,22 @@ export function untrackedRecords(repository: string, groupDirectories: readonly 
 }
 
 /** Each relative link and each quoted path of the markdown documents, by their paths from the repository root, that names a path
- *  absent from the repository. A path resolves from its document or from the repository root. */
-export function brokenPaths(repository: string, documents: readonly string[]): TFound[] {
+ *  absent from the repository, and each module their code imports from a workspace package that the package doesn't export. A
+ *  path resolves from its document or from the repository root, and a module through its package's export map. */
+export function brokenPaths(repository: string, documents: readonly string[], packages: TPackages): TFound[] {
 	return documents.flatMap((document) => {
 		const text = readFileSync(join(repository, document), "utf-8");
 		const named = [...text.matchAll(MARKDOWN_LINK)].map((m) => itemAt(m, 1)).filter((target) => !NOT_A_PATH.test(target));
 		const quoted = [...text.matchAll(QUOTED_PATH)].map((m) => itemAt(m, 1)).filter((target) => !GENERATED.test(target));
-		return [...named, ...quoted]
+		const absent = [...named, ...quoted]
 			.map((target) => target.replace(/#.*/, ""))
 			.filter((target) => target !== "")
 			.filter((target) => !existsSync(resolve(repository, dirname(document), target)) && !existsSync(resolve(repository, target)))
 			.map((target) => ({ file: document, finding: `names ${target}, which the repository doesn't hold` }));
+		const unexported = [...text.matchAll(PACKAGE_IMPORT)]
+			.map((m) => itemAt(m, 1))
+			.filter((specifier) => namesWorkspacePackage(specifier, packages) && resolvedSource(repository, document, specifier, packages) === undefined)
+			.map((specifier) => ({ file: document, finding: `imports ${specifier}, which its package doesn't export` }));
+		return [...absent, ...unexported];
 	});
 }

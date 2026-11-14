@@ -21,24 +21,27 @@ const statedValue = (value: unknown): string => {
  * when the call arrives. The domain then coerces the value at the call's seqPath with `steppers`, as it coerces a feature
  * line's value. A call doesn't have a feature, so a statement it gives resolves without a feature's path. Each domain's schema
  * accepts the forms of its value that a feature line may give, so a call may give them too. Throws an error that names every
- * required parameter the input doesn't hold and every refused value.
+ * required parameter the input doesn't hold, every key the step's pattern doesn't declare and every refused value, so an
+ * action receives only what its pattern declares.
  */
 export function validateToolInput(fromSeqPath: TSeqPath, tool: StepTool, input: Record<string, unknown>, world: TWorld, steppers: AStepper[]): Record<string, unknown> {
-	const validated: Record<string, unknown> = { ...input };
+	const { method, pattern, inputSchema } = tool.descriptor;
+	const validated: Record<string, unknown> = {};
 	const site: TCoercionSite = { seqPath: fromSeqPath, path: undefined, steppers };
-	const errors: string[] = [];
-
-	const required = tool.descriptor.inputSchema.required;
-	for (const key of required) {
-		if (!(key in input) || input[key] === undefined) {
-			errors.push(`"${key}": required`);
-		}
-	}
+	const errors = inputSchema.required.flatMap((key) => (input[key] === undefined ? [`"${key}": required`] : []));
 
 	for (const [key, value] of Object.entries(input)) {
+		if (!(key in inputSchema.properties)) {
+			errors.push(`"${key}": the pattern \`${pattern}\` doesn't declare it`);
+			continue;
+		}
 		const domainKey = tool.paramDomainKeys.get(key);
-		if (domainKey === undefined) continue;
-		const domain = registeredDomain(world.domains, domainKey, `${tool.descriptor.method}: parameter "${key}"`);
+		// A remote host's tool doesn't hold its parameters' domains in this process, so the host validates its values.
+		if (domainKey === undefined) {
+			validated[key] = value;
+			continue;
+		}
+		const domain = registeredDomain(world.domains, domainKey, `${method}: parameter "${key}"`);
 		const result = domain.schema.safeParse(value);
 		if (!result.success) {
 			errors.push(`"${key}" (value: ${statedValue(value)}): ${errorDetail(result.error)}`);
@@ -48,7 +51,7 @@ export function validateToolInput(fromSeqPath: TSeqPath, tool: StepTool, input: 
 	}
 
 	if (errors.length) {
-		throw new Error(`${tool.descriptor.method} validation failed (caller: [${fromSeqPath.join(".")}]): ${errors.join(", ")}`);
+		throw new Error(`${method} validation failed (caller: [${fromSeqPath.join(".")}]): ${errors.join(", ")}`);
 	}
 
 	return validated;

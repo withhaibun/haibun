@@ -62,6 +62,7 @@ class OptionalPatternStepper extends AStepper {
 	steps = declareSteps({
 		setOptional: { description: TEST_STEP, gwta: "set( empty)? {what} to {value}", action: () => Promise.resolve(OK) },
 		clickOptional: { description: TEST_STEP, gwta: "click( on)? {target}", action: () => Promise.resolve(OK) },
+		saveOptional: { description: TEST_STEP, gwta: "save {what}( as {name})?", action: () => Promise.resolve(OK) },
 	});
 }
 
@@ -219,7 +220,17 @@ describe("withAction object argument encoding", () => {
 });
 
 describe("withAction with optional patterns", () => {
-	const { setOptional, clickOptional } = withAction(optionalPatternStepper);
+	const { setOptional, clickOptional, saveOptional } = withAction(optionalPatternStepper);
+
+	it("takes the placeholders outside the optional groups, as its type does, since the line leaves the groups out", () => {
+		const action = saveOptional({ what: "report" })();
+		expect(action.args).toEqual({ what: "report" });
+		expect(action.gwta).toBe("save report");
+		if (false as boolean) {
+			// @ts-expect-error a placeholder inside an optional group isn't an argument of the action
+			saveOptional({ what: "report", name: "copy" });
+		}
+	});
 
 	it("should handle steps with optional patterns - extracting correct arguments", () => {
 		const executor = setOptional({ what: "value", value: "test" });

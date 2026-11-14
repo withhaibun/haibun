@@ -1,7 +1,7 @@
 import { AStepper, TStepperSteps, type TPlaceholderDomain, type TPlaceholderName, type TRequiredTexts } from "../../lib/steps/domains/stepper.js";
 import type { DOMAIN_STATEMENT } from "../../lib/domains/domains.js";
 import { renderStepLine } from "../../lib/steps/derivations/named-vars.js";
-import { phraseParts } from "../../lib/steps/domains/phrase.js";
+import { phraseParts, requiredNames } from "../../lib/steps/domains/phrase.js";
 
 type TStepWithGwta = TStepperSteps[keyof TStepperSteps] & { gwta: string };
 type TStepWithExact = TStepperSteps[keyof TStepperSteps] & { exact: string };
@@ -97,7 +97,8 @@ export const stepActions = (stepper: AStepper): Record<string, TActionFactory> =
 		const step = stepper.steps[actionName];
 
 		if (isStepWithGwta(step)) {
-			const argNames = phraseParts(step.gwta).map(({ name }) => name);
+			// A line renders without its optional groups, so an action takes the placeholders outside them, as TActionArgsInput types it.
+			const argNames = requiredNames(phraseParts(step.gwta));
 
 			actions[actionName] = (args: Record<string, TNestedArgValue>) => {
 				const normalizedArgs: Record<string, string> = {};

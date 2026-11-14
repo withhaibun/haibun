@@ -9,7 +9,7 @@ import { DOMAIN_PERSISTED_TYPE } from "../../domains/resources.js";
 import { requiredAction } from "../../domains/actions.js";
 import { constructorName } from "../../domains/util.js";
 import { stepMethodName } from "../domains/step-method.js";
-import { stepParts } from "../domains/phrase.js";
+import { requiredNames, stepParts } from "../domains/phrase.js";
 import type { TWorld } from "../../actuality/domains/world.js";
 import { DOMAIN_DOMAIN_KEY, DOMAIN_RECORD_ID, DOMAIN_STATEMENT, registeredDomain } from "../../domains/domains.js";
 import type { TInputSchema, TStepDescriptor } from "../domains/step-discovery.js";
@@ -106,16 +106,18 @@ function assertRecordPairings(step: string, stepDef: TStepperStep, paramDomainKe
 /**
  * The JSON Schema of a step's input parameters, which discovery, MCP and a page read, and each parameter's domain key.
  * jsonSchemaFor converts each Zod domain schema into a full JSON Schema: its enums, its object structure and its
- * descriptions. Validation reads each domain by its key when a call arrives.
+ * descriptions. Validation reads each domain by its key when a call arrives. A parameter inside an optional group of the
+ * pattern isn't required, since a line may leave the group out.
  */
 function inputSchemaOf(step: string, stepDef: TStepperStep, world: TWorld): { inputSchema: TInputSchema; paramDomainKeys: Map<string, string> } {
 	const properties: TInputSchema["properties"] = {};
-	const paramDomainKeys = new Map(stepParts(stepDef).map(({ name, domain }) => [name, domain]));
+	const parts = stepParts(stepDef);
+	const paramDomainKeys = new Map(parts.map(({ name, domain }) => [name, domain]));
 	for (const [term, domainKey] of paramDomainKeys) {
 		const domain = registeredDomain(world.domains, domainKey, `${step}: {${term}}`);
 		// The schema describes what a caller supplies, so a field the domain fills is optional.
 		const jsonSchema = jsonSchemaFor(`${step}: {${term}}'s domain "${domainKey}"`, domain.schema, "input");
 		properties[term] = domain.description && !jsonSchema.description ? { ...jsonSchema, description: domain.description } : { ...jsonSchema };
 	}
-	return { inputSchema: { type: "object" as const, properties, required: [...paramDomainKeys.keys()] }, paramDomainKeys };
+	return { inputSchema: { type: "object" as const, properties, required: requiredNames(parts) }, paramDomainKeys };
 }

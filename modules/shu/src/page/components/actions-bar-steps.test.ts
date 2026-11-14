@@ -233,13 +233,13 @@ describe("a waypoint's head in step mode", () => {
 	const HEAD = "view {view} is scrolled to its end";
 	const RULE: TPredicate = {
 		name: HEAD,
-		parts: [{ name: "view", domain: "waypoint-argument" }],
+		parts: [{ name: "view", domain: "waypoint-argument", optional: false }],
 		line: HEAD,
 		method: "ActivitiesStepper-apply",
 		waypoint: "@haibun/shu",
 		description: "Open a view",
 	};
-	const STEP: TPredicate = { name: SHOW.method, parts: [{ name: "name", domain: "string" }], line: SHOW.pattern, method: SHOW.method };
+	const STEP: TPredicate = { name: SHOW.method, parts: [{ name: "name", domain: "string", optional: false }], line: SHOW.pattern, method: SHOW.method };
 	let t: TShuTestHandle;
 	beforeEach(() => {
 		provideLayout();

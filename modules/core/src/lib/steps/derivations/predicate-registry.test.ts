@@ -68,4 +68,11 @@ describe("the predicate registry", () => {
 	it("reads each placeholder of a phrase once, in its order, with a union's parts in order", () => {
 		expect(phraseParts("{a} and {b: zeta | alpha} then {a}").map(({ name, domain }) => `${name}: ${domain}`)).toEqual(["a: string", "b: alpha | zeta"]);
 	});
+
+	it("reads a placeholder inside an optional group as optional, from the last ( before its )?", () => {
+		const optionalOf = (phrase: string) => phraseParts(phrase).map(({ name, optional }) => `${name}${optional ? "?" : ""}`);
+		expect(optionalOf("accept {a} to {b}( as {c})?")).toEqual(["a", "b", "c?"]);
+		expect(optionalOf("set( empty)? {what}( (to|as) {value})?"), "a group inside a group's text").toEqual(["what", "value?"]);
+		expect(optionalOf("{a}( or {a})?"), "a placeholder also stated in a group").toEqual(["a?"]);
+	});
 });

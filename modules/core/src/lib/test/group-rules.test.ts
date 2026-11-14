@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { linksAndParentPaths, optionAssignments, untrackedRecords } from "./group-rules.js";
+import { brokenPaths, linksAndParentPaths, optionAssignments, untrackedRecords } from "./group-rules.js";
 
 describe("the parent paths and tracking files of a repository's groups", () => {
 	let repository = "";
@@ -27,6 +27,19 @@ describe("the parent paths and tracking files of a repository's groups", () => {
 		execFileSync("git", ["init", "-q"], { cwd: repository, env: gitEnv() });
 	});
 	afterEach(() => rmSync(repository, { recursive: true, force: true }));
+
+	it("find a document's path the repository doesn't hold and its code's import of a module its workspace package doesn't export", () => {
+		committed({
+			"modules/lib/src/held.ts": "export {};\n",
+			"docs/guide.md":
+				"See [the plan](plan.md).\n\n```ts\nimport { a } from '@scope/lib/held.js';\nimport type { b } from \"@scope/lib/absent.js\";\nimport { c } from 'zod';\n```\n",
+		});
+		const packages = { "@scope/lib": { directory: "modules/lib", exports: { "./held.js": { "haibun-source": "./src/held.js", default: "./build/held.js" } } } };
+		expect(brokenPaths(repository, ["docs/guide.md"], packages)).toEqual([
+			{ file: "docs/guide.md", finding: "names plan.md, which the repository doesn't hold" },
+			{ file: "docs/guide.md", finding: "imports @scope/lib/absent.js, which its package doesn't export" },
+		]);
+	});
 
 	it("find a feature's import of a package's code by a parent path, apart from the group's own backgrounds and a test", () => {
 		committed({

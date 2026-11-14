@@ -2,7 +2,7 @@ import { describe, it, test, expect } from "vitest";
 
 import { OK, TStepArgs, Origin } from "../../domains/protocol.js";
 import { AStepper } from "../domains/stepper.js";
-import { getNamedMatches, lineOfCall, matchGwtaToAction, namedInterpolation } from "./named-vars.js";
+import { getNamedMatches, lineOfCall, mapInputToStepValues, matchGwtaToAction, namedInterpolation } from "./named-vars.js";
 import { Resolver } from "../../actuality/pipelines/resolver.js";
 import { createSteppers } from "../../domains/util.js";
 import { getDefaultWorld } from "../../test/lib.js";
@@ -90,5 +90,12 @@ describe("lineOfCall", () => {
 	it("renders a call as its step's pattern with each value it states written literally, and leaves a part it doesn't state as the pattern names it", () => {
 		expect(lineOfCall("plate {dish: meal} on {plate: number}", { dish: "soup", plate: 2 })).toBe('plate "soup" on 2');
 		expect(lineOfCall("plate {dish: meal} on {plate: number}", { dish: "soup" })).toBe('plate "soup" on {plate: number}');
+	});
+});
+
+describe("mapInputToStepValues", () => {
+	it("keeps each declared placeholder's domain and refuses a key the pattern doesn't name", () => {
+		expect(mapInputToStepValues({ x: "a" }, { x: "a" }, "take {x: string}").x).toEqual({ term: "a", value: "a", domain: DOMAIN_STRING, origin: Origin.quoted });
+		expect(() => mapInputToStepValues({ depth: 2 }, { depth: 2 }, "take {x: string}")).toThrow(/"depth" isn't a parameter of the pattern `take \{x: string\}`/);
 	});
 });

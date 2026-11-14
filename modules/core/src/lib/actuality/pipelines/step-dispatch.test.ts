@@ -267,6 +267,21 @@ describe("step-dispatch", () => {
 			expect(() => validateToolInput([], toolTaking(`test {x: ${DOMAIN_STRING}}`, w), {}, w, [])).toThrow(/validation failed.*"x": required/);
 		});
 
+		it("refuses a key its pattern doesn't declare, naming the key and the step", () => {
+			const w = getDefaultWorld();
+			const tool = toolTaking(`test {x: ${DOMAIN_STRING}}`, w);
+			expect(() => validateToolInput([], tool, { x: "hello", cursor: 3 }, w, [])).toThrow(/-test validation failed.*"cursor": the pattern `test \{x: string\}` doesn't declare it/);
+		});
+
+		it("takes a placeholder in an optional group without requiring it, as the input schema states", () => {
+			const w = getDefaultWorld();
+			const tool = toolTaking(`test {x: ${DOMAIN_STRING}}( as {y: ${DOMAIN_STRING}})?`, w);
+			expect(tool.descriptor.inputSchema.required, "the schema requires only the placeholders outside the group").toEqual(["x"]);
+			expect(Object.keys(tool.descriptor.inputSchema.properties), "and declares both").toEqual(["x", "y"]);
+			expect(validateToolInput([], tool, { x: "hello" }, w, []), "without the optional one").toEqual({ x: "hello" });
+			expect(validateToolInput([], tool, { x: "hello", y: "there" }, w, []).y, "with it").toBe("there");
+		});
+
 		it("throws on invalid type", () => {
 			const w = getDefaultWorld();
 			expect(() => validateToolInput([], toolTaking(`test {x: ${DOMAIN_NUMBER}}`, w), { x: "not-a-number" }, w, [])).toThrow(/validation failed/);

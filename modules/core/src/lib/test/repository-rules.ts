@@ -259,7 +259,7 @@ export function describeRepositoryRules(rules: TRepositoryRules): void {
 		});
 
 		it("names only paths that the repository holds (TX13)", () => {
-			expect(described(brokenPaths(repository, rules.firstRead)), "correct each path or remove it").toEqual([]);
+			expect(described(brokenPaths(repository, rules.firstRead, rules.packages)), "correct each path or remove it").toEqual([]);
 		});
 	});
 }

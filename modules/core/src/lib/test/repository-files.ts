@@ -119,10 +119,16 @@ function exportedPath({ exports }: TPackage, subpath: string): string | undefine
 	return conditionalPath(pattern.target)?.replaceAll(SUBPATH_WILDCARD, matched);
 }
 
+/** Whether a specifier names the workspace package `name` or a module under it. */
+const namesPackage = (specifier: string, name: string): boolean => specifier === name || specifier.startsWith(`${name}/`);
+
+/** Whether a specifier names a workspace package or a module under one. */
+export const namesWorkspacePackage = (specifier: string, packages: TPackages): boolean => Object.keys(packages).some((name) => namesPackage(specifier, name));
+
 /** The path from the repository root of what a workspace specifier names, with a build file read as the source file it compiles. */
 function packagedTarget(specifier: string, packages: TPackages): string | undefined {
 	const [owner] = Object.entries(packages)
-		.filter(([name]) => specifier === name || specifier.startsWith(`${name}/`))
+		.filter(([name]) => namesPackage(specifier, name))
 		.sort(([a], [b]) => b.length - a.length);
 	if (owner === undefined) return undefined;
 	const [name, found] = owner;

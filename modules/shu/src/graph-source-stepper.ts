@@ -17,7 +17,7 @@ import { actionNotOK, actionOKWithProducts, errorDetail } from "@haibun/core/lib
 import { typeCollectionRemedy } from "@haibun/core/lib/domains/typed-links.js";
 import { DOMAIN_GRAPH_QUERY, GraphQueryResultSchema, type TRecordQuery, queriedList, DOMAIN_DENSITY_QUERY, DensityResultSchema } from "@haibun/core/lib/quad-types.js";
 import { compiledDensity, readRecordQuery } from "@haibun/core/lib/records/pipelines/record-query.js";
-import { DOMAIN_RECORD_ID, DOMAIN_LINK, DOMAIN_PRINCIPAL_REF } from "@haibun/core/lib/domains/domains.js";
+import { DOMAIN_RECORD_ID, DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_PRINCIPAL_REF } from "@haibun/core/lib/domains/domains.js";
 import { clusteredQuads, federate, graphAxiomsOf, recordWithFrame, selectValues, servingSite } from "./pipelines/graph-source.js";
 import { DOMAIN_GRAPH_AXIOMS, FramedIndividualSchema } from "@haibun/core/lib/records/domains/axioms.js";
 import { GraphViewSchema, ViewAxiomsSchema } from "./domains/graph-view.js";
@@ -60,9 +60,19 @@ const DOMAIN_SITE_FEDERATED = "site-federated";
 const DOMAIN_DENSITY = "density";
 const DOMAIN_GRAPH_ROWS = "graph-rows";
 const DOMAIN_GRAPH_VIEW = "graph-view";
+/** The parameters of a clustered read beside how many records of each type it reads: the query level, the types it reads, and
+ *  whether a federated read requests the peer's own data rather than its view of the world (see TClusteredQuadsOpts). */
+const DOMAIN_ACCESS_QUERY_LEVEL = "access-query-level";
+const DOMAIN_TYPE_NAMES = "type-names";
+const DOMAIN_READ_SCOPE = "read-scope";
+const TypeNamesSchema = z.array(z.string());
+const ReadScopeSchema = z.enum(["own", "federated"]);
 declare module "@haibun/core/lib/domains/domains.js" {
 	interface DomainTypes {
 		[DOMAIN_GRAPH_VIEW]: z.output<typeof GraphViewSchema>;
+		[DOMAIN_ACCESS_QUERY_LEVEL]: z.output<typeof AccessQueryLevelSchema>;
+		[DOMAIN_TYPE_NAMES]: z.output<typeof TypeNamesSchema>;
+		[DOMAIN_READ_SCOPE]: z.output<typeof ReadScopeSchema>;
 	}
 }
 /** A subject the merged graph holds, and the site that serves it. */
@@ -80,6 +90,13 @@ const GRAPH_SOURCE_DOMAINS: TDomainDefinition[] = [
 	{ selectors: [DOMAIN_SUBJECT_SERVED], schema: SubjectServedSchema, description: "A subject the merged graph holds, and the site that serves it" },
 	{ selectors: [DOMAIN_SITE_FEDERATED], schema: SiteFederatedSchema, description: "The site a peer's reads were federated from" },
 	{ selectors: [DOMAIN_DENSITY], schema: DensityResultSchema, description: "How many records fall in each division of a span" },
+	{ selectors: [DOMAIN_ACCESS_QUERY_LEVEL], schema: AccessQueryLevelSchema, description: "The access level a read requests, or all of them" },
+	{ selectors: [DOMAIN_TYPE_NAMES], schema: fromJsonText(TypeNamesSchema), description: "The names of the types a read reads" },
+	{
+		selectors: [DOMAIN_READ_SCOPE],
+		schema: ReadScopeSchema,
+		description: "Whether a clustered read reads the instance's view with its federated peers, or only what the instance serves to a peer",
+	},
 	{
 		selectors: [DOMAIN_GRAPH_ROWS],
 		schema: GraphQueryResultSchema,
@@ -103,17 +120,6 @@ const GRAPH_SOURCE_DOMAINS: TDomainDefinition[] = [
 			"The axioms of what a graph shows: a frame for each class, property and individual, in Manchester syntax and DL notation, with the statement and the record behind each, beside the view they state",
 	},
 ];
-
-/** The parameters a graph view sends `get clustered quads` over RPC. A value may arrive as its text. They state how many
- *  records of each type to read, the types, the query level, and whether a federated read requests the peer's own data
- *  rather than its view of the world (see TClusteredQuadsOpts). Each type's records are a page, so the step rejects a
- *  count above `MAX_PAGE_ROWS`. A page states every parameter but the types and the scope. */
-const ClusteredQuadsAskSchema = z.object({
-	perTypeLimit: z.coerce.number().int(),
-	types: fromJsonText(z.array(z.string())).optional(),
-	accessLevel: AccessQueryLevelSchema,
-	scope: z.enum(["own", "federated"]).optional(),
-});
 
 export default class GraphSourceStepper extends AStepper implements IHasCycles {
 	description = "The graph a page reads: a query, a count over a span, the clustered sample a graph view draws, and the reads a federated peer serves.";
@@ -150,17 +156,15 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 		},
 		getClusteredQuads: {
 			readsAt: Access.public,
-			gwta: "get clustered quads",
+			gwta: `get clustered quads of {perTypeLimit: ${DOMAIN_NUMBER}} per type at {accessLevel: ${DOMAIN_ACCESS_QUERY_LEVEL}}( of {types: ${DOMAIN_TYPE_NAMES}})?( over {scope: ${DOMAIN_READ_SCOPE}})?`,
 			description:
-				"Returns the clustered sample a graph view draws: the quads, and per type what was sampled and what was left out, with the site that serves each sampled subject. Fails, stating the fields the ask must hold, where the ask is malformed, or stating why the read failed, where the read throws.",
+				"Returns the clustered sample a graph view draws, of at most the count of records of each type at the access level: the quads, and per type what was sampled and what was left out, with the site that serves each sampled subject. Reads only the types named where the line names them, and only what the instance serves to a peer where the scope is own. Fails, stating why the read failed, where the read throws.",
 			contract: { read: true, products: DOMAIN_CLUSTERED_QUADS },
 			// The sampled graph is the RPC response; keeping it on the event too holds a second copy of it per call.
 			retainProducts: false,
 			action: async (asked) => {
-				const read = ClusteredQuadsAskSchema.safeParse(asked);
-				if (!read.success) return actionNotOK(`getClusteredQuads: ${z.prettifyError(read.error)}`);
 				try {
-					return actionOKWithProducts({ ...(await clusteredQuads(this.getWorld(), read.data)) });
+					return actionOKWithProducts({ ...(await clusteredQuads(this.getWorld(), asked)) });
 				} catch (err) {
 					return actionNotOK(`the clustered sample wasn't read: ${errorDetail(err)}`);
 				}

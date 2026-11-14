@@ -22,8 +22,8 @@ import { argumentTerm, NEGATED_PLACE, NEGATION_GWTA, type TRelation, type TState
 import { literalTerm, phraseValues, renderStepLine } from "./named-vars.js";
 
 /** A part that takes a member of a domain. */
-const member = (name: string): TPart => ({ name, domain: DOMAIN_VARIABLE_VALUE });
-const PRECEDES: TPredicate = { name: PREDICATE.precedes, parts: [{ name: "domain", domain: DOMAIN_DOMAIN_KEY }, member("before"), member("after")] };
+const member = (name: string): TPart => ({ name, domain: DOMAIN_VARIABLE_VALUE, optional: false });
+const PRECEDES: TPredicate = { name: PREDICATE.precedes, parts: [{ name: "domain", domain: DOMAIN_DOMAIN_KEY, optional: false }, member("before"), member("after")] };
 
 /** Each step of the steppers, by its stepper's name and its own name. */
 export const declaredSteps = (steppers: readonly AStepper[]): TStepAction[] =>

@@ -5,7 +5,7 @@
  */
 import type { TStepperStep, TStepAction } from "../domains/stepper.js";
 import { type TStepValue, type TOrigin, Origin } from "../../domains/protocol.js";
-import { DOMAIN_DURATION, DOMAIN_STATEMENT, DOMAIN_STRING, DURATION_TERM } from "../../domains/domains.js";
+import { DOMAIN_DURATION, DOMAIN_STATEMENT, DURATION_TERM } from "../../domains/domains.js";
 import { itemAt } from "../../domains/item-at.js";
 import { phraseParts, placeholderOf } from "../domains/phrase.js";
 
@@ -195,16 +195,22 @@ export const lineOfCall = (pattern: string, input: Readonly<Record<string, unkno
 
 /** Each parameter of a call from a transport as a step value: its term the value the call states, and its value the one
  *  `values` holds. A validated call's values are validated and coerced by validateToolInput, so each value is carried
- *  through and populateActionArgs doesn't resolve it again. A key the phrase names keeps its declared domain, and any other
- *  key is added as a quoted string. */
+ *  through and populateActionArgs doesn't resolve it again. Each key keeps the domain its placeholder declares, and a
+ *  placeholder inside an optional group that the call doesn't state is left out, as a line that leaves the group out leaves
+ *  it. Throws for a key the phrase doesn't name, so an action receives only what its pattern declares. */
 export function mapInputToStepValues(stated: Readonly<Record<string, unknown>>, values: Readonly<Record<string, unknown>>, gwta: string): Record<string, TStepValue> {
 	const { stepValuesMap } = namedInterpolation(gwta);
-	const updatedMap: Record<string, TStepValue> = stepValuesMap === undefined ? {} : stepValuesMap;
-	for (const [key, val] of Object.entries(values)) {
-		const written = stated[key];
-		const term = typeof written === "object" && written !== null ? JSON.stringify(written) : String(written);
-		const existing = updatedMap[key];
-		updatedMap[key] = existing ? { ...existing, term, value: val, origin: Origin.quoted } : { term, value: val, origin: Origin.quoted, domain: DOMAIN_STRING };
-	}
-	return updatedMap;
+	// A phrase without placeholders doesn't hold a map of them.
+	const declared = stepValuesMap === undefined ? {} : stepValuesMap;
+	for (const key of Object.keys(values))
+		if (declared[key] === undefined) throw new Error(`"${key}" isn't a parameter of the pattern \`${gwta}\`; state only the parameters its placeholders name`);
+	const optional = new Set(phraseParts(gwta).flatMap(({ name, optional }) => (optional ? [name] : [])));
+	return Object.fromEntries(
+		Object.entries(declared).flatMap(([name, placeholder]): [string, TStepValue][] => {
+			if (!(name in values)) return optional.has(name) ? [] : [[name, placeholder]];
+			const written = stated[name];
+			const term = typeof written === "object" && written !== null ? JSON.stringify(written) : String(written);
+			return [[name, { ...placeholder, term, value: values[name], origin: Origin.quoted }]];
+		}),
+	);
 }

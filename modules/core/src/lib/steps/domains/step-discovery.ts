@@ -140,13 +140,14 @@ const DomainSummarySchema = z.object({ description: OptionalText, [HYPERMEDIA.LI
 const StepDefinitionSchema = StepDescriptorSchema.extend({ ...CallableFields, [HYPERMEDIA.LINKS]: z.object({ call: z.object({ method: z.string() }).strict() }).strict() });
 export type TStepDefinition = z.infer<typeof StepDefinitionSchema>;
 
-/** A predicate of the registry as a definition states it: its name, its parts with their domains, and, where a line states it,
+/** A predicate of the registry as a definition states it: its name, its parts with their domains and whether a line may leave
+ *  each out, and, where a line states it,
  *  the line and the step whose method proves it. A waypoint's head names the library that states its rule and its description.
  *  A formula names a predicate by its name, with its parts in order. */
 const PredicateSchema = z
 	.object({
 		name: z.string(),
-		parts: z.array(z.object({ name: z.string(), domain: z.string() }).strict()).readonly(),
+		parts: z.array(z.object({ name: z.string(), domain: z.string(), optional: z.boolean() }).strict()).readonly(),
 		line: OptionalText,
 		method: OptionalText,
 		waypoint: OptionalText,

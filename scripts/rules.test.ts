@@ -43,11 +43,12 @@ describeRepositoryRules({
 		"InstanceStepper.startRun": "matching names the features a run starts, a selection of its input",
 		"TestRunnerStepper.runTest": "matching names the features a test run runs, a selection of its input",
 		"WebPlaywright.requestsMatching": "matching names the requests a route writes their state for",
+		"GraphSourceStepper.getClusteredQuads": "per type states how many records of each type the clustered sample draws, a part of the sample's shape a graph view states",
 	},
 	prose: { roots: [...sources, ...features, "e2e-tests", "docs", "scripts"], exclude: [] },
 	vocabularyTable: "docs/architecture.md",
 	downstreamNames: ["spopg", "muskeg", "Triton"],
 	groups: () => foundGroups(REPOSITORY, groupPorts(REPOSITORY).files(), fileSystem),
 	groupSample: "modules/shu/tests",
-	firstRead: ["README.md", "AGENTS.md", "CLAUDE.md", "docs/architecture.md", "docs/develop_haibun.md"],
+	firstRead: ["README.md", "AGENTS.md", "CLAUDE.md", "docs/architecture.md", "docs/develop_haibun.md", "docs/new_modules.md"],
 });

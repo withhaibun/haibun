@@ -20,24 +20,25 @@ Configure the repository for TypeScript and tests.
 The haibun-sarif repository shows one configuration.
 Haibun's scaffolding creates one too.
 
-Create a source file, such as `src/files-exist.ts`.
+Create a source file for the stepper in the project's source directory, such as `files-exist.ts`.
 
 Extend the `AStepper` abstract class.
-Add the stepper's options, steps and methods.
+Add the stepper's description, options, steps and methods.
 
 The source file looks like this:
 
 ```typescript
-import { AStepper, declareSteps } from '@haibun/core/lib/astepper.js';
+import { AStepper, declareSteps, type IHasOptions } from '@haibun/core/lib/astepper.js';
 import { OK } from '@haibun/core/lib/domains/protocol.js';
+import { DOMAIN_FILE_PATH } from '@haibun/core/lib/domains.js';
 import type { TWorld } from '@haibun/core/lib/world.js';
-import { actionNotOK, stringOrError, findStepperFromOption } from '@haibun/core/lib/util/index.js';
-import { STORAGE_ITEM, STORAGE_LOCATION } from '@haibun/domain-storage/domain-storage.js';
+import { actionNotOK, findStepperFromOption, stringOrError } from '@haibun/core/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/AStorage.js';
 
 const STORAGE = 'STORAGE';
 
-const FilesExist = class FilesExist extends AStepper implements IHasOptions {
+export default class FilesExist extends AStepper implements IHasOptions {
+	description = 'Checks whether files exist in a storage.';
 	options = {
 		[STORAGE]: {
 			required: true,
@@ -52,24 +53,20 @@ const FilesExist = class FilesExist extends AStepper implements IHasOptions {
 	}
 	steps = declareSteps({
 		fileExists: {
-			gwta: `file {what} exists`,
-			action: async ({ what }) => {
-				const exists = this.storage?.exists(what);
-				return exists ? OK : actionNotOK(`${what} does not exist`);
-			},
+			gwta: `file {what: ${DOMAIN_FILE_PATH}} exists`,
+			description: 'Checks that the file exists in the storage.',
+			action: ({ what }) => (this.storage?.exists(what) ? OK : actionNotOK(`${what} doesn't exist`)),
 		},
 		fileDoesNotExist: {
-			gwta: `missing file {what}`,
-			action: async ({ what }) => {
-				const exists = this.storage?.exists(what);
-				return exists ? actionNotOK(`${what} is not missing`) : OK;
-			},
+			gwta: `missing file {what: ${DOMAIN_FILE_PATH}}`,
+			description: "Checks that the file doesn't exist in the storage.",
+			action: ({ what }) => (this.storage?.exists(what) ? actionNotOK(`${what} exists`) : OK),
 		},
 	});
-};
+}
 ```
 
-A stepper declares its steps through `declareSteps` from core's `lib/steps/domains/stepper.ts`. It reads each step's pattern as its literal type and types the arguments the step's action receives from the pattern's placeholders, so `what` above is a string. A repository rule refuses a `steps` property set from an object literal or checked with `satisfies TStepperSteps`.
+A stepper declares its steps through `declareSteps` from core's [stepper.ts](../modules/core/src/lib/steps/domains/stepper.ts). It reads each step's pattern as its literal type and types the arguments the step's action receives from the pattern's placeholders, so `what` above is a string. A placeholder inside an optional group, such as `( as {name})?`, is an optional argument, since a line may leave the group out. A step receives only the arguments its pattern declares, and a call that states another is refused. A repository rule refuses a `steps` property set from an object literal or checked with `satisfies TStepperSteps`.
 
 Features can use the statements _file "README.md" exists_ and _missing file "missing.md"_ once the module compiles.
 The module requires a storage implementation, such as `@haibun/storage-fs`.
@@ -161,7 +158,7 @@ A domain that doesn't declare `coerce` coerces a value with its schema's `parse`
 - Put behaviour in step actions, not in schemas.
 - Add a domain for a new data shape, so that steps don't each parse it.
 
-Each domain declares the TypeScript type of the value it coerces as an entry of the `DomainTypes` interface in core's `lib/domains/domains.ts`, by module augmentation in the module that exports the domain's key. `declareSteps` types a parameter of that domain with the entry. A parameter of a domain without an entry receives `unknown`, and a parameter of a union of domains receives the resolved `TStepValue`, since the step selects its behaviour by the value's domain.
+Each domain declares the TypeScript type of the value it coerces as an entry of the `DomainTypes` interface in core's [domains.ts](../modules/core/src/lib/domains/domains.ts), by module augmentation in the module that exports the domain's key. `declareSteps` types a parameter of that domain with the entry. A parameter of a domain without an entry receives `unknown`, and a parameter of a union of domains receives the resolved `TStepValue`, since the step selects its behaviour by the value's domain.
 
 ```ts
 declare module "@haibun/core/lib/domains/domains.js" {
