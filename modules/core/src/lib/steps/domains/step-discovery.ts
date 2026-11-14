@@ -77,7 +77,6 @@ export const StepDescriptorSchema = z
 		/** The access level of the records the step reads, where the step states one. A caller's read must reach this level. */
 		readsAt: AccessLevelSchema.optional(),
 		/** The access levels of the records the step writes, where it states them for a route that calls it. */
-		writesAt: z.array(AccessLevelSchema).optional(),
 		/** Whether the step is a kaname step of the types it takes, shown and listed first. */
 		kaname: z.boolean(),
 		/** Whether the resolver drops the step from a line's candidates where a step that isn't a fallback also matches the line. */

@@ -16,7 +16,6 @@ import {
 	PRINCIPAL,
 	PRODUCTS,
 	productDomains,
-	productLevels,
 	type TStepContract,
 	RELATION_NAMESPACE,
 	statementN3,
@@ -24,6 +23,7 @@ import {
 	StepContractSchema,
 	recordChange,
 	stepWrites,
+	writeLevels,
 	type TRelation,
 } from "./contract.js";
 import { Access, type AccessLevel } from "../../domains/resources.js";
@@ -48,16 +48,21 @@ describe("contract.products", () => {
 		expect(productDomains({ contract: { products: { of: "statement" } } })).toEqual([]);
 	});
 
-	it("returns the level each stored type of written products declares, and returns an empty list where dispatch doesn't write the products or they aren't records", () => {
+	it("returns the level each stored type of written products declares and each type its changes name, and an empty list where it doesn't write records", () => {
 		/** A stored type's topology, which declares its level. */
 		const stored = (persistedAs: string, accessLevel: AccessLevel) => ({ topology: { persistedAs, id: "id", properties: {}, accessLevel } });
-		const domains = { cart: stored("Cart", Access.public), order: stored("Order", Access.private), receipt: {} };
+		const domains = { cart: stored("Cart", Access.public), order: stored("Order", Access.private), receipt: {}, audit: stored("Audit", Access.opened) };
 		const written = (products: TStepContract["products"]): TStepContract => ({ products, written: WRITE_VERB.merge });
-		expect(productLevels({ contract: written("cart") }, domains)).toEqual([Access.public]);
-		expect(productLevels({ contract: written({ order: "order", receipt: "receipt" }) }, domains), "a receipt isn't a stored type").toEqual([Access.private]);
-		expect(productLevels({ contract: { products: "cart" } }, domains), "a step that writes its own records doesn't have its products written").toEqual([]);
-		expect(productLevels({ contract: { read: true, products: "cart" } }, domains), "a read doesn't write").toEqual([]);
-		expect(() => productLevels({ contract: written("basket") }, domains)).toThrow("the domain basket, which the domains read don't hold");
+		expect(writeLevels({ contract: written("cart") }, domains)).toEqual([Access.public]);
+		expect(writeLevels({ contract: written({ order: "order", receipt: "receipt" }) }, domains), "a receipt isn't a stored type").toEqual([Access.private]);
+		expect(writeLevels({ contract: { products: "cart" } }, domains), "a step that writes its own records doesn't have its products written").toEqual([]);
+		expect(writeLevels({ contract: { read: true, products: "cart" } }, domains), "a read doesn't write").toEqual([]);
+		expect(
+			writeLevels({ contract: { products: "receipt", changes: [recordChange("Audit"), { persistedAs: "Order", key: "total" }] } }, domains),
+			"the types its changes name",
+		).toEqual([Access.opened, Access.private]);
+		expect(() => writeLevels({ contract: written("basket") }, domains)).toThrow("the domain basket, which the domains read don't hold");
+		expect(() => writeLevels({ contract: { changes: [recordChange("Basket")] } }, domains)).toThrow("the type Basket, which the domains read don't store");
 	});
 
 	it("carries each form in a descriptor, reading a lone `of` as the statement form", () => {

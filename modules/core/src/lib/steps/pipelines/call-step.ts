@@ -23,6 +23,7 @@ import { allocateSyntheticSeqPath } from "../../domains/host-id.js";
 import type { TSeqPath, TStepResult } from "../../domains/protocol.js";
 import { callerAt, runInCall } from "../../domains/capability-context.js";
 import { actionsToReadAndWrite } from "../../domains/actions.js";
+import { writeLevels } from "../domains/contract.js";
 
 /**
  * Returns the feature step that a call from a transport (RPC, MCP) runs as, with input that holds each value as the step
@@ -116,15 +117,17 @@ export async function callStatedStepFrom(from: { getWorld: () => TWorld; stepper
 
 /**
  * Calls a step by name from a route, as the caller the route states. A route that writes, or reads what isn't public, acts
- * through a declared step: the call holds the step's required action and the read and writes the step declares
- * (`readsAt`, `writesAt`), acting as `principal`, the party for which the route acts once it has checked what its
- * protocol requires, such as a request's state. The step's gate, record and proof are a call's, so what the route did
- * reads as that step and why it holds.
+ * through a declared step: the call holds the step's required action, the read at the step's `readsAt` level, and the write
+ * action of each level its contract writes at (`writeLevels`), acting as `principal`, the party for which the route acts once
+ * it has checked what its protocol requires, such as a request's state. The step's gate, record and proof are a call's, so
+ * what the route did reads as that step and why it holds.
  */
 export function callStepAsRoute(world: TWorld, method: string, input: Record<string, unknown>, principal: string | undefined): Promise<TStepCall> {
-	const { capability, readsAt, writesAt } = runRegistry(world).named(method).descriptor;
+	const { descriptor, stepDef } = runRegistry(world).named(method);
+	const { capability, readsAt } = descriptor;
+	if (stepDef === undefined) throw new Error(`${method} runs at another host, and a route calls a step this process runs. Name a step of this process`);
 	if (readsAt === undefined) throw new Error(`${method} is called from a route and doesn't state readsAt, the level of the records it reads`);
-	const held = [capability, ...actionsToReadAndWrite(readsAt, writesAt === undefined ? [] : writesAt)];
+	const held = [capability, ...actionsToReadAndWrite(readsAt, writeLevels(stepDef, world.domains))];
 	return runInCall(callerAt({ held, principal }), () => callStatedStepFrom({ getWorld: () => world, steppers: runSteppers(world) }, method, input));
 }
 

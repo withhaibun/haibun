@@ -178,19 +178,29 @@ export function productDomains(step: { readonly contract?: Pick<TStepContract, "
 type TProductsDomain = { readonly topology?: TDomainTopology };
 
 /**
- * Returns the level each stored type of a step's products declares where its contract declares `written`, which are the levels
- * at which dispatch writes the products. A step that doesn't declare `written` doesn't have its products written, and a
- * products domain that doesn't declare a stored type isn't a record. Throws where `domains` doesn't hold a products domain.
+ * Returns the levels at which a step's call writes records: the level each stored type of its products declares where its
+ * contract declares `written`, and the level of each type its `changes` names, whole or by a field. A route that calls the
+ * step, and a page that runs it, holds the write action of each. A step that doesn't declare `written` doesn't have its products
+ * written, a products domain that doesn't declare a stored type isn't a record, and a read doesn't write. Throws where `domains`
+ * doesn't hold a products domain or a stored type `changes` names.
  */
-export function productLevels(step: { readonly contract?: TStepContract }, domains: Readonly<Record<string, TProductsDomain>>): AccessLevel[] {
-	if (step.contract?.written === undefined) return [];
-	const levels = productDomains(step).flatMap((domain) => {
+export function writeLevels(step: { readonly contract?: TStepContract }, domains: Readonly<Record<string, TProductsDomain>>): AccessLevel[] {
+	const written = step.contract?.written === undefined ? [] : productDomains(step);
+	const products = written.flatMap((domain) => {
 		const declared = domains[normalizeDomainKey(domain)];
 		if (declared === undefined)
 			throw new Error(`a write's products are in the domain ${domain}, which the domains read don't hold. Read the domains of the stepper that declares it`);
 		return isPersisted(declared.topology) ? [declared.topology.accessLevel] : [];
 	});
-	return [...new Set(levels)];
+	const changes = step.contract?.changes;
+	const changed = (changes === undefined ? [] : changes).flatMap((change) => {
+		if (!("persistedAs" in change)) return [];
+		const declared = Object.values(domains).find(({ topology }) => isPersisted(topology) && topology.persistedAs === change.persistedAs)?.topology;
+		if (!isPersisted(declared))
+			throw new Error(`a write's changes name the type ${change.persistedAs}, which the domains read don't store. Read the domains of the stepper that declares it`);
+		return [declared.accessLevel];
+	});
+	return [...new Set([...products, ...changed])];
 }
 
 /** The term an argument renders as: a parameter by its name, the products, the principal, a field as `Type.key`, or a derived
