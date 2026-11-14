@@ -412,10 +412,10 @@
 			"actuality": {
 				"text": "modules/shu/tests, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 50500,
+				"tookMs": 49200,
 				"digest": {
 					"modules/cli/src": "c4cdba9459233f62316b0c8f28fa4defde1a34481ed7506c76a436b6265efa4d",
-					"modules/core/src": "2f39f6112f7d3be071144a8dae87f8465f1712619ce4067f818e371882b3e2f3",
+					"modules/core/src": "dd20c8d0433b1cb527a3e5ee920f73635aff367123785d2df90c671e12c75c5f",
 					"modules/domain-storage/src": "a1ad8d126b38124a77273e6fc594bfcdc8b344639cc4495e9ddc319a0db8b9e1",
 					"modules/logic/src": "2ad8e22a1f9332065f594304b7016942e8e12f9d331c4049b1e88e946096006e",
 					"modules/monitor-tui/src": "a105d615294710fcf073f7232a5f3d7e5860cc719b39b4e2408805fc52be4648",
@@ -450,19 +450,19 @@
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
-					"tookMs": 36900,
-					"steps": 771
+					"tookMs": 35800,
+					"steps": 763
 				},
 				"/features/remote-store.feature.ts": {
 					"text": "A satellite instance keeps its records in the main instance's store",
 					"status": "passed",
-					"tookMs": 1400,
+					"tookMs": 1600,
 					"steps": 8
 				},
 				"/features/voice-ui.feature.ts": {
 					"text": "UI extension propagation: domain ui → concern catalog → SPA actions bar",
 					"status": "passed",
-					"tookMs": 2400,
+					"tookMs": 2500,
 					"steps": 213
 				}
 			}

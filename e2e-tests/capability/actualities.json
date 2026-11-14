@@ -50,7 +50,7 @@
 					"e2e-tests/src": "260a250979e4596eb9a66444ac92d5a11114308f7484cc99662f8392171c2864",
 					"modules/cli/src": "c4cdba9459233f62316b0c8f28fa4defde1a34481ed7506c76a436b6265efa4d",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "dd1d514b122f52b6b2c84fa3c0a0a7fbf64f4204ef5bc329707eae132bf6cd83",
+					"modules/core/src": "dd20c8d0433b1cb527a3e5ee920f73635aff367123785d2df90c671e12c75c5f",
 					"modules/domain-storage/src": "a1ad8d126b38124a77273e6fc594bfcdc8b344639cc4495e9ddc319a0db8b9e1",
 					"modules/logic/src": "2ad8e22a1f9332065f594304b7016942e8e12f9d331c4049b1e88e946096006e",
 					"modules/monitor-otel/src": "0328172b0413f3bb3eb1bb477ce61e9c581c3028c508ac640c16114affb4e761",
