@@ -412,27 +412,27 @@
 			"actuality": {
 				"text": "modules/shu/tests, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 43300,
+				"tookMs": 47300,
 				"digest": {
-					"modules/cli/src": "fdbbad5564c4db466f131cb025e386ae3a6ec829fef7bc4368f108168106d5e2",
-					"modules/core/src": "ccec43bc08a1b0cca83286ba39a7c98e4e549d3b969203c360fb1fd44ad6db71",
-					"modules/domain-storage/src": "97565d096e8c098014480f2d8e9e18937734561e98133eb46e3d2426affff022",
-					"modules/logic/src": "4703b8ad667acaac60ea22b366dc147ef11d2e19c7dbbba780c36f9c8d3d96c3",
-					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/shu/src": "40abd7b248bcd4d499845848163a5e065cb4b60e4d171d6f5e8d2136bc38ed34",
+					"modules/cli/src": "c4cdba9459233f62316b0c8f28fa4defde1a34481ed7506c76a436b6265efa4d",
+					"modules/core/src": "790f6e6c10c1c693c3f60dbb03334f5fef1985e8f48d703824ed7e3dd6ec6869",
+					"modules/domain-storage/src": "a1ad8d126b38124a77273e6fc594bfcdc8b344639cc4495e9ddc319a0db8b9e1",
+					"modules/logic/src": "dc9163829b22fcf0a1efd5fb375a11dd008b8e188ce7649f17c7877b4eca8b1c",
+					"modules/monitor-tui/src": "a105d615294710fcf073f7232a5f3d7e5860cc719b39b4e2408805fc52be4648",
+					"modules/shu/src": "37c25d8b1a30cf5660d0377f3ae39a6fb28b0dfa326cd6bb33e57372e55be139",
 					"modules/shu/tests": "902049aeec7cc97440f01b9bc7ab8e4bf6544e3be80fd641b9084f3c1a9b140d",
 					"modules/shu/waypoints": "7dc9c4a47d546a40d28e609997d2236967c01ebb925e55511322e4abc6772a86",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
-					"modules/web-playwright/src": "f6455940bf8b0c2ef5f1a5570db084b632a0ad03ccdde8e4ff9441ebbdb5491c",
-					"modules/web-server-hono/src": "fd72ebf6fd5c831cd64b9b0d110163c0dc36acc08c837ffbfd7484094a5c4f53"
+					"modules/web-playwright/src": "56e1dacf371f67ecc1f59bcb2544996d73ebb94ec45a931c9f16c8e25304ce4b",
+					"modules/web-server-hono/src": "a5867998ef6454839e7d37d1bedcc4b1b5d43e71feaee073ce49c0c2254292b3"
 				}
 			},
 			"features": {
 				"/features/address.feature.ts": {
 					"text": "An address names a type",
 					"status": "passed",
-					"tookMs": 1100,
+					"tookMs": 1200,
 					"steps": 209
 				},
 				"/features/federate.feature.ts": {
@@ -444,25 +444,25 @@
 				"/features/monitor-serves.feature.ts": {
 					"text": "The monitor serves shu on a port of its own",
 					"status": "passed",
-					"tookMs": 1400,
+					"tookMs": 1500,
 					"steps": 200
 				},
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
-					"tookMs": 31400,
-					"steps": 763
+					"tookMs": 34600,
+					"steps": 768
 				},
 				"/features/remote-store.feature.ts": {
 					"text": "A satellite instance keeps its records in the main instance's store",
 					"status": "passed",
-					"tookMs": 1400,
+					"tookMs": 1500,
 					"steps": 8
 				},
 				"/features/voice-ui.feature.ts": {
 					"text": "UI extension propagation: domain ui → concern catalog → SPA actions bar",
 					"status": "passed",
-					"tookMs": 2000,
+					"tookMs": 2400,
 					"steps": 213
 				}
 			}

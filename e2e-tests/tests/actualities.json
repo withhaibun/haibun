@@ -590,26 +590,26 @@
 			"actuality": {
 				"text": "e2e-tests/tests, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
 				"status": "passed",
-				"tookMs": 22400,
+				"tookMs": 23800,
 				"digest": {
-					"e2e-tests/src": "6b6b58f64026ff1c6202081ed15de0151412fbf6e53077e108c5c044692afeba",
-					"e2e-tests/tests": "6fa3a1394beaa6c286a82c0cd0a242a3e08d3cc9153e78460878e32c8419da8d",
-					"modules/cli/src": "fdbbad5564c4db466f131cb025e386ae3a6ec829fef7bc4368f108168106d5e2",
+					"e2e-tests/src": "260a250979e4596eb9a66444ac92d5a11114308f7484cc99662f8392171c2864",
+					"e2e-tests/tests": "49774895fc3d5da2dfdc80333b7bad968d3f69b2c127492cb4594f0817475617",
+					"modules/cli/src": "c4cdba9459233f62316b0c8f28fa4defde1a34481ed7506c76a436b6265efa4d",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "ccec43bc08a1b0cca83286ba39a7c98e4e549d3b969203c360fb1fd44ad6db71",
-					"modules/domain-storage/src": "97565d096e8c098014480f2d8e9e18937734561e98133eb46e3d2426affff022",
-					"modules/logic/src": "4703b8ad667acaac60ea22b366dc147ef11d2e19c7dbbba780c36f9c8d3d96c3",
-					"modules/monitor-otel/src": "4fbef0f2c78fed7b3e2d03ec4ab094bef11766724e5f5f6efb73491ea1d4dea6",
-					"modules/monitor-tui/src": "e5d032043b24efb984368238c284ae1565f9e74dd2f2a73e9be1ac6382074c10",
-					"modules/out-junit/src": "22d1ca5d4f4449cae6186ff8d84c1f0b182e7591e1ffda9520a38daa3e8681d2",
-					"modules/recorder/src": "079caf826dbcad8943531b3f8f716e79a45d55f1668d29417e2a230978236208",
-					"modules/shu/src": "40abd7b248bcd4d499845848163a5e065cb4b60e4d171d6f5e8d2136bc38ed34",
+					"modules/core/src": "790f6e6c10c1c693c3f60dbb03334f5fef1985e8f48d703824ed7e3dd6ec6869",
+					"modules/domain-storage/src": "a1ad8d126b38124a77273e6fc594bfcdc8b344639cc4495e9ddc319a0db8b9e1",
+					"modules/logic/src": "dc9163829b22fcf0a1efd5fb375a11dd008b8e188ce7649f17c7877b4eca8b1c",
+					"modules/monitor-otel/src": "0328172b0413f3bb3eb1bb477ce61e9c581c3028c508ac640c16114affb4e761",
+					"modules/monitor-tui/src": "a105d615294710fcf073f7232a5f3d7e5860cc719b39b4e2408805fc52be4648",
+					"modules/out-junit/src": "9da006ef45f24c87e9a9be65535eb5b0d07a5b8e7bcd6fe0d00d0aea5d18efc7",
+					"modules/recorder/src": "6991e85f7b56f133caf88a01eb45bab67b98ac3ad472e2d902e2b18be05e8560",
+					"modules/shu/src": "37c25d8b1a30cf5660d0377f3ae39a6fb28b0dfa326cd6bb33e57372e55be139",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "d7e0277c5f7eef2261d0b447b4dcc689aa565d98c23596c51c512acdd7bdb2cb",
 					"modules/utils/src": "698b48ed8fbac4dc3c0483e6bb3ccd88640ebc98696b8cc493b5740d1017db8d",
-					"modules/web-accessibility-axe/src": "ee53bd6b78b538fd9d910ca47bea66a7d15872feea8280ce26cd5ec33a620f7d",
-					"modules/web-playwright/src": "f6455940bf8b0c2ef5f1a5570db084b632a0ad03ccdde8e4ff9441ebbdb5491c",
-					"modules/web-server-hono/src": "fd72ebf6fd5c831cd64b9b0d110163c0dc36acc08c837ffbfd7484094a5c4f53",
+					"modules/web-accessibility-axe/src": "b761bca1c7381b0dccc371862524d0a845b7c8847b67780c218c99567e786c54",
+					"modules/web-playwright/src": "56e1dacf371f67ecc1f59bcb2544996d73ebb94ec45a931c9f16c8e25304ce4b",
+					"modules/web-server-hono/src": "a5867998ef6454839e7d37d1bedcc4b1b5d43e71feaee073ce49c0c2254292b3",
 					"modules/web-server-hono/waypoints": "fa5853749829db27d77867eb4c13e1860184beafed284ebff8f0672c617affe3"
 				}
 			},
@@ -617,7 +617,7 @@
 				"/features/a11y-fail.feature": {
 					"text": "/features/a11y-fail",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 800,
 					"steps": 13
 				},
 				"/features/a11y-pass.feature": {
@@ -677,7 +677,7 @@
 				"/features/elements.feature": {
 					"text": "/features/elements",
 					"status": "passed",
-					"tookMs": 800,
+					"tookMs": 900,
 					"steps": 17
 				},
 				"/features/executor-rpc.feature.ts": {
@@ -707,13 +707,13 @@
 				"/features/once.feature.ts": {
 					"text": "A group of features runs once per state of what it depends on",
 					"status": "passed",
-					"tookMs": 1700,
+					"tookMs": 2100,
 					"steps": 20
 				},
 				"/features/page-visits.feature.ts": {
 					"text": "Visit pages",
 					"status": "passed",
-					"tookMs": 1600,
+					"tookMs": 1700,
 					"steps": 65
 				},
 				"/features/popup.feature": {
@@ -737,13 +737,13 @@
 				"/features/run-policy-refusals.feature.ts": {
 					"text": "A run refuses a run policy its config doesn't allow",
 					"status": "passed",
-					"tookMs": 1800,
+					"tookMs": 1900,
 					"steps": 16
 				},
 				"/features/trauma_center.feature": {
 					"text": "/features/trauma_center",
 					"status": "passed",
-					"tookMs": 800,
+					"tookMs": 900,
 					"steps": 93
 				},
 				"/features/upload-verify.feature": {
@@ -755,13 +755,13 @@
 				"/features/visited-pages.feature": {
 					"text": "/features/visited-pages",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 700,
 					"steps": 31
 				},
 				"/features/workflow.feature.ts": {
 					"text": "workflow",
 					"status": "passed",
-					"tookMs": 300,
+					"tookMs": 400,
 					"steps": 64
 				},
 				"/features/xss.feature": {
