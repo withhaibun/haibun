@@ -52,7 +52,7 @@
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
 					"modules/core/src": "54578552ecb3c9643f7b7c6a755cf3b3d51c52d60adcc9771cbc189317dbe78e",
 					"modules/domain-storage/src": "a1ad8d126b38124a77273e6fc594bfcdc8b344639cc4495e9ddc319a0db8b9e1",
-					"modules/logic/src": "e8e23731e604ebf28422597172043dc37a4a250c7d36e3ead714a4dfcb35f123",
+					"modules/logic/src": "1e527329907cbb3e08187098b03768a17df5d4f620deef198ad58b9e46bb2859",
 					"modules/monitor-otel/src": "0328172b0413f3bb3eb1bb477ce61e9c581c3028c508ac640c16114affb4e761",
 					"modules/monitor-tui/src": "a105d615294710fcf073f7232a5f3d7e5860cc719b39b4e2408805fc52be4648",
 					"modules/out-junit/src": "9da006ef45f24c87e9a9be65535eb5b0d07a5b8e7bcd6fe0d00d0aea5d18efc7",
@@ -71,7 +71,7 @@
 				"/features/identity-and-capability.feature.ts": {
 					"text": "Identity and capability authorization",
 					"status": "passed",
-					"tookMs": 800,
+					"tookMs": 900,
 					"steps": 30
 				}
 			}

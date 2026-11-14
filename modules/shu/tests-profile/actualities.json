@@ -195,11 +195,11 @@
 			"actuality": {
 				"text": "modules/shu/tests-profile, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 17800,
+				"tookMs": 16300,
 				"digest": {
 					"modules/core/src": "54578552ecb3c9643f7b7c6a755cf3b3d51c52d60adcc9771cbc189317dbe78e",
 					"modules/domain-storage/src": "a1ad8d126b38124a77273e6fc594bfcdc8b344639cc4495e9ddc319a0db8b9e1",
-					"modules/logic/src": "e8e23731e604ebf28422597172043dc37a4a250c7d36e3ead714a4dfcb35f123",
+					"modules/logic/src": "1e527329907cbb3e08187098b03768a17df5d4f620deef198ad58b9e46bb2859",
 					"modules/monitor-tui/src": "a105d615294710fcf073f7232a5f3d7e5860cc719b39b4e2408805fc52be4648",
 					"modules/shu/src": "d88f71f15b6fbe807dbdba811149b3632554247cca86e0593f9a5200e91a98cf",
 					"modules/shu/tests-profile": "eb1cfda576cf4aae1ca5a8d0e0ffbb36426f51454e736ef0380eff5f3fe07f9f",
@@ -220,19 +220,19 @@
 				"/features/c-reading-a-report.feature.ts": {
 					"text": "Reading a report of this actuality",
 					"status": "passed",
-					"tookMs": 3100,
+					"tookMs": 2900,
 					"steps": 227
 				},
 				"/features/d-two-origins.feature.ts": {
 					"text": "What a reader holds is held per address",
 					"status": "passed",
-					"tookMs": 3700,
+					"tookMs": 3300,
 					"steps": 218
 				},
 				"/features/e-deleting-an-actuality.feature.ts": {
 					"text": "Deleting an actuality this device holds",
 					"status": "passed",
-					"tookMs": 4600,
+					"tookMs": 4000,
 					"steps": 214
 				}
 			}
@@ -459,11 +459,11 @@
 			"actuality": {
 				"text": "modules/shu/tests-profile, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 4000,
+				"tookMs": 3500,
 				"digest": {
 					"modules/core/src": "54578552ecb3c9643f7b7c6a755cf3b3d51c52d60adcc9771cbc189317dbe78e",
 					"modules/domain-storage/src": "a1ad8d126b38124a77273e6fc594bfcdc8b344639cc4495e9ddc319a0db8b9e1",
-					"modules/logic/src": "e8e23731e604ebf28422597172043dc37a4a250c7d36e3ead714a4dfcb35f123",
+					"modules/logic/src": "1e527329907cbb3e08187098b03768a17df5d4f620deef198ad58b9e46bb2859",
 					"modules/monitor-tui/src": "a105d615294710fcf073f7232a5f3d7e5860cc719b39b4e2408805fc52be4648",
 					"modules/shu/src": "d88f71f15b6fbe807dbdba811149b3632554247cca86e0593f9a5200e91a98cf",
 					"modules/shu/tests-profile": "eb1cfda576cf4aae1ca5a8d0e0ffbb36426f51454e736ef0380eff5f3fe07f9f",
@@ -478,7 +478,7 @@
 				"/features/a-an-actuality-to-come-back-to.feature.ts": {
 					"text": "An actuality to come back to",
 					"status": "passed",
-					"tookMs": 2700,
+					"tookMs": 2300,
 					"steps": 213
 				}
 			}
