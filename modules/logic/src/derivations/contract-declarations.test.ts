@@ -26,11 +26,19 @@ import { sentenceTerm, statementSentence, statementTerm, type TLineTerm } from "
 import { termText } from "./registry.js";
 
 const GrantSchema = z.object({ id: z.string(), revoked: z.string() });
+/** The edge field of a grant to the grant it is held under, which its schema doesn't hold. */
+const HELD_BY = "heldBy";
 const GRANT = {
 	selectors: ["grant"],
 	schema: fromJsonText(GrantSchema),
 	description: "A grant a holder acts under",
-	topology: { persistedAs: "Grant", id: "id", accessLevel: Access.private, properties: { id: LinkRelations.IDENTIFIER.rel } },
+	topology: {
+		persistedAs: "Grant",
+		id: "id",
+		accessLevel: Access.private,
+		properties: { id: LinkRelations.IDENTIFIER.rel },
+		edges: { [HELD_BY]: { range: "Grant", rel: LinkRelations.FROM_ACTOR.rel } },
+	},
 };
 const REVOKED: TRelation = { name: "revoked_grant", phrase: "{grant} is revoked", rules: "" };
 const UNDECLARED: TRelation = { name: "undeclared", phrase: "{grant} is undeclared", rules: "" };
@@ -44,8 +52,13 @@ const declaring = (contract: TStepContract): AStepper =>
 	})();
 
 describe("the declarations check of contracts", () => {
-	it("holds a contract whose relations, parameters and fields the registry lists, a field of a schema that reads JSON text among them", () => {
-		const changes = [field({ schema: GrantSchema, topology: GRANT.topology }, "revoked"), relationChange(EDGE.mentions), recordChange(GRANT.topology.persistedAs)];
+	it("holds a contract whose relations, parameters and fields the registry lists, a field of a schema that reads JSON text and a changed edge field among them", () => {
+		const changes = [
+			field({ schema: GrantSchema, topology: GRANT.topology }, "revoked"),
+			{ persistedAs: GRANT.topology.persistedAs, key: HELD_BY },
+			relationChange(EDGE.mentions),
+			recordChange(GRANT.topology.persistedAs),
+		];
 		expect(contractFindings([declaring({ requires: [doesntHold(REVOKED, parameter("grant"))], changes })])).toEqual([]);
 	});
 
@@ -55,6 +68,7 @@ describe("the declarations check of contracts", () => {
 			[{ requires: [holds(REVOKED, parameter("grant"), PRINCIPAL)] }, ARITY],
 			[{ requires: [holds(REVOKED, parameter("door"))] }, UNNAMED_PARAMETER],
 			[{ changes: [{ persistedAs: "Grant", key: "expired" }] }, UNDECLARED_FIELD],
+			[{ requires: [holds(REVOKED, { persistedAs: "Grant", key: HELD_BY })] }, UNDECLARED_FIELD],
 			[{ complete: [{ persistedAs: "Grant", key: "expired" }] }, UNDECLARED_FIELD],
 			[{ changes: [relationChange("expired")] }, UNSTATED_RELATION],
 			[{ changes: [recordChange("Lease")] }, UNDECLARED_RECORD_CHANGE],

@@ -58,17 +58,19 @@ export function relationFindings(relations: readonly TRelation[]): TContractFind
 }
 
 /** The keys of each record type the steppers declare, by its stored label, read through the wrappers of its schema, such as
- *  the preprocess of a schema that reads JSON text. */
-function declaredFields(steppers: readonly AStepper[]): Map<string, ReadonlySet<string>> {
-	return new Map(
-		steppers.flatMap((stepper) => {
-			const domains = hasCycles(stepper) ? stepper.cycles.getConcerns?.().domains : undefined;
-			return (domains === undefined ? [] : domains).flatMap(({ schema, topology }) => {
-				const shape = unwrapToShape(schema);
-				return topology?.persistedAs === undefined || shape === null ? [] : [[topology.persistedAs, new Set(Object.keys(shape))] as const];
-			});
-		}),
-	);
+ *  the preprocess of a schema that reads JSON text, and the fields of the type's declared edges. A store reads a write's change of
+ *  an edge field as a change of that field, so `changes` lists it as a field; a statement reads only the schema's keys. */
+function declaredFields(steppers: readonly AStepper[]): { schemas: Map<string, ReadonlySet<string>>; edges: Map<string, ReadonlySet<string>> } {
+	const types = steppers.flatMap((stepper) => {
+		const domains = hasCycles(stepper) ? stepper.cycles.getConcerns?.().domains : undefined;
+		return (domains === undefined ? [] : domains).flatMap(({ schema, topology }) => {
+			const shape = unwrapToShape(schema);
+			return topology?.persistedAs === undefined || shape === null
+				? []
+				: [{ type: topology.persistedAs, keys: Object.keys(shape), edges: topology.edges === undefined ? [] : Object.keys(topology.edges) }];
+		});
+	});
+	return { schemas: new Map(types.map(({ type, keys }) => [type, new Set(keys)])), edges: new Map(types.map(({ type, edges }) => [type, new Set(edges)])) };
 }
 
 /** The relation of each field a record type the steppers declare states every member has (`required`), once for each key. */
@@ -95,11 +97,12 @@ export function declaredRelations(steppers: readonly AStepper[]): ReadonlySet<TR
 
 /** Returns the findings of each step's contract. */
 export function contractFindings(steppers: readonly AStepper[]): TContractFinding[] {
-	const fields = declaredFields(steppers);
+	const { schemas: fields, edges } = declaredFields(steppers);
 	const relations = declaredRelations(steppers);
 	const predicates = new Set(statementPredicates());
 	const fieldFindings = (fieldOf: TField): string[] =>
 		fields.get(fieldOf.persistedAs)?.has(fieldOf.key) === true ? [] : [`${UNDECLARED_FIELD} (${fieldOf.persistedAs}.${fieldOf.key})`];
+	const changedFieldFindings = (fieldOf: TField): string[] => (edges.get(fieldOf.persistedAs)?.has(fieldOf.key) === true ? [] : fieldFindings(fieldOf));
 	const stepFindings = declaredSteps(steppers).flatMap(({ stepperName, actionName, step }) => {
 		const { contract } = step;
 		if (contract === undefined) return [];
@@ -119,7 +122,7 @@ export function contractFindings(steppers: readonly AStepper[]): TContractFindin
 		const statements = [...(contract.states === undefined ? [] : contract.states), ...(contract.requires === undefined ? [] : contract.requires)];
 		const changeFindings = (change: TChange): string[] => {
 			if (isRecordChange(change)) return fields.has(change.persistedAs) ? [] : [`${UNDECLARED_RECORD_CHANGE} (${change.persistedAs})`];
-			return "persistedAs" in change ? fieldFindings(change) : predicates.has(change.relation) ? [] : [`${UNSTATED_RELATION} (${change.relation})`];
+			return "persistedAs" in change ? changedFieldFindings(change) : predicates.has(change.relation) ? [] : [`${UNSTATED_RELATION} (${change.relation})`];
 		};
 		const changes = [...(contract.changes === undefined ? [] : contract.changes), ...(contract.complete === undefined ? [] : contract.complete)];
 		const method = stepMethodName(stepperName, actionName);
