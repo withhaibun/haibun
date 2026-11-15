@@ -11,6 +11,13 @@ export const LABEL_FONT = "/assets/shu-label-font.woff";
 /** Where troika's lookup of fallback fonts reads, for a label character the label font lacks (`label-font-fallback.ts`). */
 export const LABEL_FONT_FALLBACKS = "/assets/shu-label-fonts";
 
+/** The label font and its fallbacks, as paths beside the page's bundle, which is served under `PAGE_ASSETS`: each stands one
+ *  level above the page folder. The page reads them through `resolvePageAsset`, so they carry whatever prefix serves the page
+ *  and the AppAPI gateway reaches them on the app. The server routes above stay site-root paths. */
+const besidePageBundle = (underAssets: string): string => `../${underAssets.slice("/assets/".length)}`;
+export const LABEL_FONT_RELATIVE = besidePageBundle(LABEL_FONT);
+export const LABEL_FONT_FALLBACKS_RELATIVE = besidePageBundle(LABEL_FONT_FALLBACKS);
+
 /** The shapes of the resolver's requests below `LABEL_FONT_FALLBACKS`, as route paths. */
 export const LABEL_FONT_FALLBACK_ROUTES = ["codepoint-index/:plane/:range", "font-meta/:font", "font-files/:font/:file"] as const;
 
@@ -21,8 +28,12 @@ export const PAGE_ASSETS = "/assets/page";
 export const PAGE_CHUNKS = `${PAGE_ASSETS}/${PAGE_CHUNK_DIR}`;
 /** The page's bundle, which the served page loads as a module under the response's script nonce. */
 export const PAGE_BUNDLE_JS = `${PAGE_ASSETS}/${bundleFileName(BUNDLE_NAMES.page)}`;
-/** The graph view's bundle, which the page loads as the reader opens the view. */
-export const POLYMORPHIC_VIEW_JS = `${PAGE_ASSETS}/${bundleFileName(BUNDLE_NAMES.polymorphic)}`;
+/** The page's bundle as the page names it: without the leading slash, so it resolves beside the served page and carries
+ *  whatever prefix serves the page, which is how the AppAPI gateway reaches it on the app. */
+export const PAGE_BUNDLE_JS_RELATIVE = PAGE_BUNDLE_JS.slice(1);
+/** The graph view's bundle, named by its bare file so the page imports it from beside the page's own bundle (where it is
+ *  served) through `resolveViewScript`, which resolves a bare name under whatever prefix serves the page. */
+export const POLYMORPHIC_VIEW_JS = bundleFileName(BUNDLE_NAMES.polymorphic);
 
 /** A Content-Security-Policy's source for the site's own pages. */
 export const OWN_PAGES = "'self'";

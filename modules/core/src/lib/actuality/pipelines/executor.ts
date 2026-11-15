@@ -66,7 +66,7 @@ const endOf = (ok: boolean) => ({ stage: "end", status: ok ? STATUS.completed : 
 
 export class Executor {
 	/** Executes the features under RUN_AUTHORITY. Every line, cycle and finalizer executes as the instance and holds its authority.
-	 *  An outside caller reaches a step only through a transport. The transport passes the caller's invoked action and held
+	 *  An outside caller reaches a step only through a transport. The transport passes the action the caller names and held
 	 *  actions to dispatchStep. */
 	static executeFeatures(steppers: AStepper[], world: TWorld, features: TResolvedFeature[]): Promise<TExecutorResult> {
 		return runAuthorizedWith(RUN_AUTHORITY, () => Executor.runFeatures(steppers, world, features));

@@ -5,6 +5,7 @@ import * as PageHash from "../pipelines/page-hash.js";
 import { heldCatalog, holdsCatalog } from "../pipelines/held-catalog.js";
 import { recordComponent, uiOfComponent } from "../derivations/catalog.js";
 import * as Kinds from "../derivations/pane-kinds.js";
+import * as Address from "../derivations/address.js";
 import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import type { TPagePane } from "../machines/panes.js";
 import type { TPaneMarks, TStripElement } from "../ports.js";
@@ -48,18 +49,33 @@ const MARKS: TPaneMarks = {
 	events: { minimize: SHU_EVENT.COLUMN_MINIMIZE, maximize: SHU_EVENT.COLUMN_MAXIMIZE, dock: SHU_EVENT.COLUMN_DOCK, expand: SHU_EVENT.COLUMN_EXPAND },
 };
 
+/** The preference key holding the page's last address. No pane id starts with "~", so it can't collide with a pane's entry. */
+export const LAYOUT_KEY = "~layout";
+
 const scope = (): Panes.TPanesScope => ({
 	machine: pagePanes(),
 	held: panesHeld(),
 	address: { get: () => PageHash.getHash(pageHashScope()), push: (hash) => PageHash.pushHash(pageHashScope(), hash) },
 	active: activePane,
 	minimizedBefore: (id) => pagePreferences().read(SHU_TAG.COLUMN_PANE, id)?.minimized === true,
+	// Persists the address the page wrote, under "~layout" (no pane id starts with "~", so it can't collide), so a frame the
+	// site recreates empty can restore the columns from the snapshot read at boot.
+	layout: { write: (hash) => pagePreferences().write(SHU_TAG.COLUMN_PANE, LAYOUT_KEY, () => ({ hash })) },
 	kinds: PANE_CONTEXT,
 });
 
 /** Opens the panes on `strip`, with the panes the page always holds, and restores them at each arrival at an address. */
 export function openStrip(strip: TStripElement, hooks: Panes.TPaneHooks, pagePanes: ReadonlyArray<TPagePane>): void {
 	const paneStrip = pagePaneStrip(strip, MARKS);
+	// Decide now, before the page writes its defaults: an arrival that names no panes — the app's frame recreated by the site
+	// it is embedded in, which doesn't carry the address the app wrote — gets the persisted layout restored. A named arrival (a
+	// shared link, or the browser keeping the frame's own address) is left as it is.
+	// The persisted layout names the panes the reader last had. Where it names a pane the arrival's address doesn't — the
+	// columns a frame the site recreated dropped, while the app still arrives showing only its default panes — restore it.
+	const arrived = new Set((Address.hashParams(PageHash.getHash(pageHashScope())).getAll(Address.COLUMN_PARAM) as unknown[]).map(String));
+	const persisted = pagePreferences().read(SHU_TAG.COLUMN_PANE, LAYOUT_KEY)?.hash;
+	const savedCols = typeof persisted === "string" ? (Address.hashParams(persisted).getAll(Address.COLUMN_PARAM) as unknown[]).map(String) : [];
+	if (typeof persisted === "string" && savedCols.some((col) => !arrived.has(col))) panesHeld().restoreFrom = persisted;
 	Panes.openStrip(scope(), paneStrip, hooks, pagePanes);
 	// Each control and each arrival reads the page's panes as they are then.
 	paneStrip.onControl((id, change) => Panes.control(scope(), id, change));

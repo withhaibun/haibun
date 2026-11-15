@@ -130,7 +130,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				"Saves a waypoint whose activity is these lines, and states its rule, which then applies in every feature. The step refuses a line that doesn't resolve to one step and a head that is already a rule's, before it states the rule. Saving a head again with the same lines returns the existing record.",
 			gwta: `save waypoint {outcome: ${DOMAIN_TITLE}} doing {statements: ${DOMAIN_STATEMENT_LINES}}`,
 			capability: ACTIVITIES_ACTIONS.saveWaypoint,
-			contract: { products: SAVED_WAYPOINT_DOMAIN, written: WRITE_VERB.merge },
+			contract: { products: SAVED_WAYPOINT_DOMAIN, written: WRITE_VERB.merge, changes: [] },
 			action: async ({ outcome, statements }, featureStep) => actionOKWithProducts(await this.saveWaypoint(outcome, statements, featureStep.source?.path ?? SAVED_WAYPOINT_SOURCE)),
 		},
 		runSavedWaypoint: {
@@ -138,6 +138,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				"Runs a saved waypoint's lines in order under this step, by the waypoint's head. A line written before the waypoint was saved, or resolved on a host that doesn't hold the waypoint, uses this step in place of the head.",
 			gwta: `run the saved waypoint {waypoint: ${refDomainKey(SAVED_WAYPOINT_DOMAIN)}}`,
 			capability: ACTIVITIES_ACTIONS.runSavedWaypoint,
+			contract: { changes: [] },
 			action: async ({ waypoint }, featureStep) => {
 				const rule = this.rules.find(({ head, saved }) => saved === true && head === waypoint.id);
 				if (rule === undefined) return actionNotOK(`"${waypoint.id}" isn't a waypoint saved here`);
@@ -150,6 +151,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		activity: {
 			gwta: `Activity: {activity: ${DOMAIN_TITLE}}`,
 			description: "Marks an activity heading. Its lines define the activity of each waypoint it states, and don't run where the feature reaches the heading.",
+			contract: { changes: [] },
 			action: () => OK,
 			// An activity's lines are the activity of each waypoint it states, and don't run where the feature reaches them.
 			resolveFeatureLine: (line: string, path: string, _stepper: AStepper, _backgrounds: unknown, allLines?: string[], lineIndex?: number, actualSourcePath?: string) => {
@@ -164,12 +166,19 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			gwta: `waypoint {outcome: ${DOMAIN_TITLE}} with {proof:${DOMAIN_STATEMENT}}`,
 			precludes: [`${ACTIVITIES_STEPPER}.waypointLabel`],
 			description: "States a waypoint's rule, whose head holds where its proof holds. Where a feature reaches the line, its proof is proved.",
+			contract: { changes: [] },
 			reading: READING.waypoint,
 		},
-		waypointLabel: { gwta: `waypoint {outcome: ${DOMAIN_TITLE}}`, description: "States a waypoint whose activity runs where its line is proved.", reading: READING.waypoint },
+		waypointLabel: {
+			gwta: `waypoint {outcome: ${DOMAIN_TITLE}}`,
+			description: "States a waypoint whose activity runs where its line is proved.",
+			contract: { changes: [] },
+			reading: READING.waypoint,
+		},
 		forEvery: {
 			gwta: `for every {universal: ${DOMAIN_UNIVERSAL}}`,
 			description: "States the rule H ← B, for every {x: D} where B, H: a line that unifies with the head H proves the body B, with x a member of D.",
+			contract: { changes: [] },
 			reading: READING.waypoint,
 			// A universal states the rule of the waypoint line it reads as, its head's variable ranging over the domain.
 			resolveFeatureLine: (line: string, path: string, _stepper: AStepper, _backgrounds: unknown, _allLines?: string[], at?: number, actualSourcePath?: string) => {
@@ -185,6 +194,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			gwta: `after every {stepperName: ${DOMAIN_STEPPER_NAME}}, {statement: ${DOMAIN_STATEMENT}}`,
 			description:
 				"States a rule over step records: after each step of the stepper that a feature's line states, the statement is proved under that step, apart from a step of the statement's own action.",
+			contract: { changes: [] },
 			action: ({ stepperName }, featureStep) => {
 				const statement = getStepTerm(featureStep, "statement");
 				if (statement === undefined) return actionNotOK(`${featureStep.in} doesn't state the statement its rule proves`);
@@ -208,6 +218,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				"Proves a waypoint's head: where its proof doesn't hold, its activity runs and its proof is proved again, P ∨ (¬P ∧ [A]P). The record of the waypoint states each part of the proof.",
 			gwta: `ensure {outcome:${DOMAIN_STATEMENT}}`,
 			unique: true,
+			contract: { changes: [] },
 			reading: READING.ensure,
 		},
 		apply: {

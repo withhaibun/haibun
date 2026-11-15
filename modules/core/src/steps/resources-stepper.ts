@@ -18,6 +18,8 @@ import { actionNotOK, actionOKWithProducts } from "../lib/domains/util.js";
 import { requirePrincipal } from "../lib/pipelines/principal.js";
 import {
 	COMMENT_LABEL,
+	FRAGMENT_SELECTOR_LABEL,
+	READING_LABEL,
 	SEQ_PATH_LABEL,
 	DOMAIN_PERSISTED_TYPE,
 	LinkRelations,
@@ -53,6 +55,17 @@ import { logMessageDomainDefinition } from "../lib/domains/log-message.js";
 import { runArtifactDomainDefinition } from "../lib/domains/run-artifact.js";
 import { statementsWith, type TStatementRow } from "../lib/steps/pipelines/statements.js";
 import { referenceTo } from "../lib/records/domains/unit.js";
+import { recordChange } from "../lib/steps/domains/contract.js";
+
+/** The records each comment and annotate step writes beyond its products: the note, the anchor of each passage it states,
+ *  each selector that resolves an anchor, and the Reading that records the statements its links state. */
+const DISCOURSE_CHANGES = [
+	recordChange(COMMENT_LABEL),
+	recordChange(READING_LABEL),
+	recordChange(SPECIFIC_RESOURCE_LABEL),
+	recordChange(TEXT_QUOTE_SELECTOR_LABEL),
+	recordChange(FRAGMENT_SELECTOR_LABEL),
+];
 
 /** Describes an anchored passage for a message: the quote, and the recorded words before and after it. */
 function describeAnchor(selector: TQuoteAnchor): string {
@@ -176,7 +189,8 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			gwta: `check citations resolve`,
 			description:
 				"Re-anchors every stored anchored passage against its source's current text and returns how many citations it checked. It fails and lists each passage that doesn't resolve, including one whose source doesn't hold text.",
-			contract: { products: DOMAIN_CITATIONS_CHECKED },
+			readsAt: Access.private,
+			contract: { read: true, products: DOMAIN_CITATIONS_CHECKED },
 			action: async () => {
 				const store = this.getWorld().shared.getStore();
 				const unresolved: string[] = [];
@@ -208,7 +222,8 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			gwta: `statements with {rel: ${DOMAIN_LINK_REL}}`,
 			description:
 				"Returns the statements made with the stated relation, each with the reading that asserted it and the line that contains that reading. A coverage table is this read with the citation relation.",
-			contract: { products: DOMAIN_STATEMENTS },
+			readsAt: Access.private,
+			contract: { read: true, products: DOMAIN_STATEMENTS },
 			action: async ({ rel }) => {
 				const statements = (await statementsWith(this.getWorld().shared.getStore(), rel)) as TStatementRow[];
 				return actionOKWithProducts({ statements, ...counted(statements.length) });
@@ -220,7 +235,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			description:
 				"Writes a comment holding the text on the record, authored by the instance's principal, and links it to the record with a narrate edge. It returns the comment's id and the record's conversation root.",
 			recordIds: { id: "label" },
-			contract: { products: DOMAIN_COMMENT_CREATED },
+			contract: { products: DOMAIN_COMMENT_CREATED, changes: DISCOURSE_CHANGES },
 			action: async ({ label, id, text }) => {
 				const store = this.getWorld().shared.getStore();
 				// The comment's narrate edge reaches its subject. narrate is a sub-property of inReplyTo, so the edge grounds the comment and threads it.
@@ -236,7 +251,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			description:
 				"Writes an annotation that quotes the passage in the record and holds the note as its body, resolving the quote to one occurrence by an optional prefix and suffix. It returns the comment's id, the anchor's specific resource, and the record's conversation root.",
 			recordIds: { id: "label" },
-			contract: { products: DOMAIN_ANNOTATION_CREATED },
+			contract: { products: DOMAIN_ANNOTATION_CREATED, changes: DISCOURSE_CHANGES },
 			// The gwta binds label, id, exact and text. UI authoring calls this action over RPC with optional link passages
 			// and with a prefix and a suffix from the selection's context. The prefix and suffix resolve the anchor to one
 			// occurrence.
@@ -249,7 +264,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			description:
 				"Writes an annotation that anchors on the passage and cross-references the linked passage in the record, with the note as its body. It returns the comment's id, the anchor's specific resource, the linked passage, and the record's conversation root.",
 			recordIds: { id: "label" },
-			contract: { products: DOMAIN_ANNOTATION_CREATED },
+			contract: { products: DOMAIN_ANNOTATION_CREATED, changes: DISCOURSE_CHANGES },
 			action: async ({ label, id, exact, linkExact, text }) => this.runAnnotate({ label, id, exact, text, links: [{ exact: linkExact }] }),
 		},
 		annotateNote: {
@@ -259,7 +274,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			gwta: `annotate note {data: ${ANNOTATION_NOTE_DOMAIN}}`,
 			description:
 				"Writes an annotation from the note value, which states the anchored passage, the body, the period, and the cross-referenced passages in one value. It returns the comment's id, the anchor's specific resource, the linked passages, and the record's conversation root.",
-			contract: { products: DOMAIN_ANNOTATION_CREATED },
+			contract: { products: DOMAIN_ANNOTATION_CREATED, changes: DISCOURSE_CHANGES },
 			action: async ({ data }) => this.runAnnotate(data),
 		},
 		annotations: {

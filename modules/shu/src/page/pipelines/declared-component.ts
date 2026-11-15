@@ -42,7 +42,9 @@ export async function loadDeclaredComponent(elements: TElements, catalog: () => 
 	if (!ui) refuse(log, "missing-ui", tag, `the concerns don't declare ui.component "${tag}". A domain declares its component with ui: { component, js }`, {});
 	const js = ui.js;
 	if (typeof js !== "string" || js === "") refuse(log, "missing-script", tag, `the concern that declares <${tag}> doesn't name its script in ui.js`, {});
-	const script = js.startsWith("/") ? js : `/${js}`;
+	// The concern's script, imported as it names it: a path relative to the page's own bundle (which resolves under whatever prefix
+	// serves the page), or an absolute one where the concern declares one.
+	const script = js;
 	const at = { "haibun.shu.external-component.url": script };
 	report(log, "debug", "fetch", tag, at);
 	try {

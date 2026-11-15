@@ -1,20 +1,5 @@
 {
-	"modules/core/src/lib/adapters/dependency-state.ts": {
-		"asserts a type with `as` where a schema parses the value": 4
-	},
-	"modules/core/src/lib/adapters/workspace-lib.ts": {
-		"asserts a type with `as` where a schema parses the value": 1
-	},
-	"modules/core/src/lib/transport/adapters/remote-quad-store.ts": {
-		"asserts a type with `as` where a schema parses the value": 1
-	},
 	"modules/core/src/lib/transport/adapters/rpc-client.ts": {
-		"asserts a type with `as` where a schema parses the value": 1
-	},
-	"modules/core/src/steps/adapters/speech.ts": {
-		"asserts a type with `as` where a schema parses the value": 7
-	},
-	"modules/logic/src/adapters/swipl.ts": {
 		"asserts a type with `as` where a schema parses the value": 1
 	},
 	"modules/shu/src/page/adapters/embedder-channel.ts": {
@@ -40,35 +25,5 @@
 	},
 	"modules/shu/src/page/graph/adapters/context-document.ts": {
 		"asserts a type with `as` where a schema parses the value": 1
-	},
-	"modules/storage-mem/src/adapters/memory-files.ts": {
-		"asserts a type with `as` where a schema parses the value": 2
-	},
-	"modules/tooling/src/adapters/bundles.ts": {
-		"asserts a type with `as` where a schema parses the value": 2
-	},
-	"modules/utils/src/scaffold/adapters/scaffold.ts": {
-		"asserts a type with `as` where a schema parses the value": 1
-	},
-	"modules/web-playwright/src/adapters/browser-model.ts": {
-		"asserts a type with `as` where a schema parses the value": 3
-	},
-	"modules/web-playwright/src/adapters/cdp-relay-v2.ts": {
-		"asserts a type with `as` where a schema parses the value": 5
-	},
-	"modules/web-playwright/src/adapters/cdp-relay.ts": {
-		"asserts a type with `as` where a schema parses the value": 4
-	},
-	"modules/web-playwright/src/adapters/page-fetch.ts": {
-		"asserts a type with `as` where a schema parses the value": 1
-	},
-	"modules/web-playwright/src/adapters/twin-page.ts": {
-		"asserts a type with `as` where a schema parses the value": 5
-	},
-	"modules/web-playwright/src/relay-client/adapters/relay-channel.ts": {
-		"asserts a type with `as` where a schema parses the value": 2
-	},
-	"modules/web-playwright/src/relay-client/adapters/relay-connection.ts": {
-		"asserts a type with `as` where a schema parses the value": 12
 	}
 }

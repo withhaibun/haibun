@@ -46,6 +46,7 @@ export class ServerHono implements IWebServer {
 	private _port?: number;
 	readonly allowedWithoutDelegation: readonly string[];
 	readonly origins: readonly string[];
+	readonly originalUrlSecret: string | undefined;
 
 	constructor(
 		private readonly eventLogger: IEventLogger,
@@ -57,6 +58,7 @@ export class ServerHono implements IWebServer {
 	) {
 		this.allowedWithoutDelegation = serving.allowedWithoutDelegation;
 		this.origins = serving.origins;
+		this.originalUrlSecret = serving.originalUrlSecret;
 		this.createApp();
 	}
 

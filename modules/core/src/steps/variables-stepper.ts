@@ -40,7 +40,7 @@ import {
 import { fromJsonText } from "../lib/domains/json-text.js";
 import { typeCollectionRemedy } from "../lib/domains/typed-links.js";
 import { HypermediaContextSchema, hypermediaDomainFromContext, type THypermediaContext } from "../lib/domains/hypermedia.js";
-import { AccessLevelSchema, REL_CONTEXT, LinkRelations, isPersisted, type TRel, type TRegisteredDomain, type TDomainDefinition } from "../lib/domains/resources.js";
+import { Access, AccessLevelSchema, REL_CONTEXT, LinkRelations, isPersisted, type TRel, type TRegisteredDomain, type TDomainDefinition } from "../lib/domains/resources.js";
 
 const clearVars = (vars: VariablesStepper) => async () => {
 	await vars.getWorld().shared.clear();
@@ -91,12 +91,14 @@ class VariablesStepper extends AStepper implements IHasCycles {
 	}
 	steps = declareSteps({
 		defineOpenSet: {
+			contract: { changes: [] },
 			gwta: `set of {domain: ${DOMAIN_DOMAIN_NAME}} as {superdomains: ${DOMAIN_STATEMENT}}`,
 			description:
 				"Registers the domain as a set whose values it inherits from the listed superdomains, by the union of their values where they are sets or the union of their schemas otherwise. It refuses where a superdomain isn't registered or the domain already is.",
 			action: ({ domain, superdomains }, featureStep) => this.registerSubdomainFromStatement(domain, superdomains, featureStep),
 		},
 		defineOrderedSet: {
+			contract: { changes: [] },
 			precludes: [`${VariablesStepper.name}.defineValuesSet`, `${VariablesStepper.name}.defineSet`],
 			gwta: `ordered set of {domain: ${DOMAIN_DOMAIN_NAME}} is {values:${DOMAIN_STATEMENT}}`,
 			description:
@@ -104,6 +106,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			action: ({ domain, values }, featureStep) => this.registerValuesDomainFromStatement(domain, values, featureStep, { ordered: true, label: "ordered set" }),
 		},
 		defineValuesSet: {
+			contract: { changes: [] },
 			gwta: `set of {domain: ${DOMAIN_DOMAIN_NAME}} is {values:${DOMAIN_STATEMENT}}`,
 			description:
 				"Registers the domain as a set holding the stated values, so a variable of it takes one of them. It refuses where the domain is already registered or the values can't be read from the line.",
@@ -113,6 +116,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		// @context or its prose shorthand. `by` is the direction word (not `from`, which means "from a
 		// statement's result").
 		defineHypermediaDomain: {
+			contract: { changes: [] },
 			gwta: `set of {domain: ${DOMAIN_DOMAIN_NAME}} by {spec: ${DOMAIN_HYPERMEDIA_DECLARATION}}`,
 			description:
 				"Registers the domain as a persisted hypermedia domain from the declaration, a JSON-LD context or its prose shorthand, deriving its topology and schema, and the declared types that don't share a record with it. It refuses where the domain is already registered, the declaration doesn't parse or it names a type that isn't declared.",
@@ -120,8 +124,15 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			action: ({ domain, spec }, featureStep) =>
 				this.registerHypermediaDomain(domain, spec, featureStep.source === undefined ? `the step ${featureStep.seqPath.join(".")}` : featureStep.source.path),
 		},
-		statementSetValues: { gwta: `\\[{items: ${DOMAIN_SET_VALUES}}\\]`, description: "Matches the bracketed values of a set declaration and passes.", action: () => OK },
+		statementSetValues: {
+			readsAt: Access.private,
+			contract: { read: true },
+			gwta: `\\[{items: ${DOMAIN_SET_VALUES}}\\]`,
+			description: "Matches the bracketed values of a set declaration and passes.",
+			action: () => OK,
+		},
 		composeAs: {
+			contract: { changes: [] },
 			gwta: `compose {what: ${DOMAIN_VARIABLE_NAME}} as {domain: ${DOMAIN_DOMAIN_KEY}} with {template: ${DOMAIN_TEMPLATE}}`,
 			description:
 				"Sets the variable to the template with each placeholder filled by the value it names, in the stated domain. It refuses where a placeholder doesn't resolve or the domain rejects the value.",
@@ -138,6 +149,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			},
 		},
 		compose: {
+			contract: { changes: [] },
 			gwta: `compose {what: ${DOMAIN_VARIABLE_NAME}} with {template: ${DOMAIN_TEMPLATE}}`,
 			description:
 				"Sets the variable to the template with each placeholder filled by the value it names, as a string. It refuses where a placeholder doesn't resolve or the domain rejects the value.",
@@ -153,6 +165,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			},
 		},
 		setFromStatement: {
+			contract: { changes: [] },
 			gwta: `set {what: ${DOMAIN_VARIABLE_NAME}} from {statement: ${DOMAIN_STATEMENT}}`,
 			description:
 				"Proves the statement and sets the variable to the products it returns, as a structured value with dot-path access. It refuses where the statement fails or doesn't return products.",
@@ -167,6 +180,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			},
 		},
 		increment: {
+			contract: { changes: [] },
 			gwta: `increment {what: ${DOMAIN_VARIABLE_NAME}}`,
 			description:
 				"Advances the variable to the value its domain's order puts next, staying at the last, or adds one where the value is a number. It refuses where the variable isn't set, its value isn't a member of its ordered set, or its value isn't a number.",
@@ -208,13 +222,15 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		showVars: {
 			gwta: "show vars",
 			description: "Returns every feature variable and its value.",
-			contract: { products: DOMAIN_VARS_SNAPSHOT },
+			readsAt: Access.private,
+			contract: { read: true, products: DOMAIN_VARS_SNAPSHOT },
 			action: async () => {
 				const vars = Object.fromEntries(Object.entries(await this.getWorld().shared.all()).map(([key, variable]) => [key, variable.value]));
 				return actionOKWithProducts({ vars });
 			},
 		},
 		set: {
+			contract: { changes: [] },
 			gwta: `set( empty)? {what: ${DOMAIN_VARIABLE_NAME}} to {value: ${DOMAIN_VARIABLE_VALUE}}`,
 			description:
 				"Sets the variable to the value, keeping the domain it already holds, and for a `set empty` line passes where the variable is already set. It refuses where the domain rejects the value.",
@@ -233,6 +249,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			},
 		},
 		setAs: {
+			contract: { changes: [] },
 			gwta: `set( empty)? {what: ${DOMAIN_VARIABLE_NAME}} as( read-only)? {domain: ${DOMAIN_DOMAIN_KEY}} to {value: ${DOMAIN_VARIABLE_VALUE}}`,
 			description:
 				"Sets the variable to the value in the stated domain, read-only where the line states it, and for a `set empty` line passes where the variable is already set. It refuses where the domain rejects the value.",
@@ -251,6 +268,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			},
 		},
 		unset: {
+			contract: { changes: [] },
 			gwta: `unset {what: ${DOMAIN_VARIABLE_NAME}}`,
 			description: "Removes the variable from the feature, so a later read of it is refused as unset.",
 			action: async ({ what }) => {
@@ -259,6 +277,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			},
 		},
 		setRandom: {
+			contract: { changes: [] },
 			precludes: [`${VariablesStepper.name}.set`],
 			gwta: `set( empty)? {what: ${DOMAIN_VARIABLE_NAME}} to {length: number} random characters`,
 			description: "Sets the variable to a random string of the stated length. It refuses where the length is under 1 or over 100.",
@@ -282,6 +301,8 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 
 		is: {
+			readsAt: Access.private,
+			contract: { read: true },
 			gwta: `variable {what: ${DOMAIN_VARIABLE_NAME}} is {value: ${DOMAIN_VARIABLE_VALUE}}`,
 			description: "Holds where the variable's value equals the value, comparing them by the variable's domain. It refuses where the variable isn't set or the values differ.",
 			action: async ({ what: term, value }, featureStep) => {
@@ -298,18 +319,24 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			},
 		},
 		isLessThan: {
+			readsAt: Access.private,
+			contract: { read: true },
 			gwta: `variable {what: ${DOMAIN_VARIABLE_NAME}} is less than {value: ${DOMAIN_VARIABLE_VALUE}}`,
 			precludes: ["VariablesStepper.is"],
 			description: "Holds where the order of the variable's domain puts its value before the value, precedes(D, x, v): an ordered set's order, a number's or a date's.",
 			action: ({ what, value }, featureStep) => this.ordered(featureStep, what, value, (order) => order < 0),
 		},
 		isMoreThan: {
+			readsAt: Access.private,
+			contract: { read: true },
 			gwta: `variable {what: ${DOMAIN_VARIABLE_NAME}} is more than {value: ${DOMAIN_VARIABLE_VALUE}}`,
 			precludes: ["VariablesStepper.is"],
 			description: "Holds where the order of the variable's domain puts the value before its value, precedes(D, v, x): an ordered set's order, a number's or a date's.",
 			action: ({ what, value }, featureStep) => this.ordered(featureStep, what, value, (order) => order > 0),
 		},
 		exists: {
+			readsAt: Access.private,
+			contract: { read: true },
 			gwta: `variable {what: ${DOMAIN_VARIABLE_NAME}} exists`,
 			description: "Holds where the variable is set, or the environment holds a variable of the same name, and refuses otherwise.",
 			action: async ({ what: term }, featureStep) => {
@@ -325,7 +352,8 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		showVar: {
 			gwta: `show var {what: ${DOMAIN_VARIABLE_NAME}}`,
 			description: "Returns the variable's value and domain, and marks it a secret where it is one. It returns the variable with an undefined value where it isn't set.",
-			contract: { products: DOMAIN_VAR_SNAPSHOT },
+			readsAt: Access.private,
+			contract: { read: true, products: DOMAIN_VAR_SNAPSHOT },
 			action: async ({ what: term }, featureStep) => {
 				const shared = this.getWorld().shared;
 				const stepValue = await shared.resolveVariable({ term, origin: Origin.defined }, featureStep);
@@ -339,6 +367,8 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			},
 		},
 		isIn: {
+			readsAt: Access.private,
+			contract: { read: true },
 			gwta: `{value: ${DOMAIN_VARIABLE_VALUE}} is in {domain: ${DOMAIN_DOMAIN_KEY}}`,
 			predicate: PREDICATE.memberOf,
 			// A quantifier's line, such as every x in D is S, matches this pattern too, and a quantifier takes the line.
@@ -357,6 +387,8 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		// Supports * as wildcard (matches any characters)
 		// Variables in pattern are interpolated: "{counter URI}*" resolves to actual value
 		matches: {
+			readsAt: Access.private,
+			contract: { read: true },
 			gwta: `matches {value: ${DOMAIN_VARIABLE_VALUE}} with {pattern: ${DOMAIN_GLOB}}`,
 			description:
 				"Holds where the value matches the glob pattern, with a `*` wildcard and the pattern's placeholders filled by their values. A list matches where one of its items does. It refuses where the value doesn't match the pattern.",

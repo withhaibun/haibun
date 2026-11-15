@@ -27,3 +27,9 @@ export class MarkdownRendererController {
 		return this.#loaded;
 	}
 }
+
+/** Settles once the renderer has loaded: awaiting this and then a host's update complete observes the render the load
+ *  caused, which is how a test reads what a person ends up seeing rather than what arrived first. */
+export const rendererLoaded = async (): Promise<void> => {
+	await loading();
+};

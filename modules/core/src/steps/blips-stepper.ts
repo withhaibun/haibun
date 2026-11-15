@@ -9,7 +9,7 @@
 import { listOf } from "../lib/domains/lists.js";
 import { CountedFields, counted } from "../lib/domains/hypermedia.js";
 import { AStepper, type IHasCycles, type IStepperCycles, declareSteps } from "../lib/steps/domains/stepper.js";
-import type { TDomainDefinition } from "../lib/domains/resources.js";
+import { Access, type TDomainDefinition } from "../lib/domains/resources.js";
 import { blipDeclarations, blipDeclared, blipRollup, blipWatch, renderOccurrence, WATCH_WINDOW, type TBlipSeries } from "../lib/domains/blips.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/domains/util.js";
 import { OK } from "../lib/domains/protocol.js";
@@ -139,7 +139,7 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 			gwta: `watch blips {names: ${DOMAIN_BLIP_NAMES}}`,
 			description:
 				"Start collecting occurrences with the given names, in order. Names are comma separated. A dotted namespace matches every name under it (`haibun.http` matches `haibun.http.request`). Each name must be declared. Replaces any earlier watch. Read with `show watched blips`.",
-			contract: { products: DOMAIN_BLIP_WATCH },
+			contract: { products: DOMAIN_BLIP_WATCH, changes: [] },
 			action: async ({ names: watching }) => {
 				await Promise.resolve();
 				const declared = blipDeclarations().map((d) => d.name);
@@ -155,6 +155,7 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 		stopWatchingBlips: {
 			gwta: "stop watching blips",
 			description: "Stop collecting. The window already collected stays readable until a new watch replaces it.",
+			contract: { changes: [] },
 			action: async () => {
 				await Promise.resolve();
 				blipWatch.stop();
@@ -165,7 +166,8 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 			gwta: "show watched blips",
 			description:
 				"Show the watched occurrences as text. The text states the total recorded, then a count for each name and each value of its declared dimensions over every recorded occurrence. A measured series adds its total and its largest value. The text then lists the window oldest first. Each line holds an occurrence's position, name, value, step path and attributes. The products hold the total recorded and the number of occurrences the window holds.",
-			contract: { products: DOMAIN_WATCHED_BLIPS },
+			readsAt: Access.private,
+			contract: { read: true, products: DOMAIN_WATCHED_BLIPS },
 			action: async () => {
 				await Promise.resolve();
 				const held = blipWatch.occurrences();
@@ -185,7 +187,8 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 			gwta: "show declared blips",
 			description:
 				"List every blip name actuality can record, with its description. A declaration that uses `origin` adds the `path:line` that declares it. Use it to find a name to watch and the code that declares it.",
-			contract: { products: DOMAIN_DECLARED_BLIPS },
+			readsAt: Access.private,
+			contract: { read: true, products: DOMAIN_DECLARED_BLIPS },
 			action: async () => {
 				await Promise.resolve();
 				const declared = blipDeclarations();

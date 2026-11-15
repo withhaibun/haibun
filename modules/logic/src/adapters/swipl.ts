@@ -7,6 +7,7 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import SWIPL from "swipl-wasm";
+import { z } from "zod";
 import { DIFFERENT_BUILDS, ProofStateSchema } from "../domains/logic.js";
 import type { TLogicEngine } from "../ports.js";
 import { N3_BUILTINS_SOURCE } from "../domains/reasoning.js";
@@ -20,9 +21,11 @@ const TRANSLATED_LIBRARIES = ["lists", "tabling"];
 
 type TRuntime = Awaited<ReturnType<typeof SWIPL>>;
 
+const PrologAnswerSchema = z.record(z.string(), z.unknown()).nullable();
+
 /** Runs a goal once and returns its bindings. Throws with the goal and the runtime's result where the goal doesn't succeed. */
 function once(runtime: TRuntime, goal: string, input?: Record<string, unknown>): Record<string, unknown> {
-	const answer = runtime.prolog.query(goal, input).once() as Record<string, unknown> | null;
+	const answer = PrologAnswerSchema.parse(runtime.prolog.query(goal, input).once());
 	if (answer === null || answer.success !== true) {
 		const cause = answer?.error;
 		const error = cause === undefined ? "" : `: ${typeof cause === "string" ? cause : JSON.stringify(cause)}`;

@@ -12,7 +12,8 @@ import { z } from "zod";
 import { fromJsonText } from "@haibun/core/lib/domains/json-text.js";
 import { listOf, type TListQuery } from "@haibun/core/lib/domains/lists.js";
 import { AStepper, type IHasCycles, type IStepperCycles } from "@haibun/core/lib/astepper.js";
-import { Access, AccessQueryLevelSchema, DOMAIN_PERSISTED_TYPE, LinkRelations, type TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
+import { Access, AccessQueryLevelSchema, DOMAIN_PERSISTED_TYPE, LinkRelations, PRINCIPAL_LABEL, type TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
+import { recordChange } from "@haibun/core/lib/steps/domains/contract.js";
 import { actionNotOK, actionOKWithProducts, errorDetail } from "@haibun/core/lib/domains/util.js";
 import { typeCollectionRemedy } from "@haibun/core/lib/domains/typed-links.js";
 import { DOMAIN_GRAPH_QUERY, GraphQueryResultSchema, type TRecordQuery, queriedList, DOMAIN_DENSITY_QUERY, DensityResultSchema } from "@haibun/core/lib/quad-types.js";
@@ -185,7 +186,8 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			description:
 				"Checks that this instance's merged view holds the individual of the given type and subject, served by the given site, over the same clustered surface a graph view draws, and returns the subject with the site that serves it. Fails where the view doesn't hold the subject, or where the subject is served by a different site.",
 			recordIds: { subject: "type" },
-			contract: { products: DOMAIN_SUBJECT_SERVED },
+			readsAt: Access.public,
+			contract: { read: true, products: DOMAIN_SUBJECT_SERVED },
 			// Federation-health inspection: does this instance's merged view hold {subject} (a {type} individual)
 			// SERVED BY {site}? Reads the same clustered surface the views render from, so it asserts exactly what a
 			// user would see, including that the subject's stamp names the site that serves it.
@@ -200,9 +202,11 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			gwta: `federate graph reads from {where: ${DOMAIN_LINK}}`,
 			description:
 				"Merges the peer instance at the link into this instance's view, stamping each of the peer's subjects with its site principal so the view groups by site, and returns the site of the federated reads. Fails, stating why, where the reads weren't federated.",
-			contract: { products: DOMAIN_SITE_FEDERATED },
 			// Reads-first federation: a peer instance's clustered reads merge into this one's view, each of the peer's subjects
-			// stamped with its site principal, so the view groups by site.
+			// stamped with its site principal, so the view groups by site. The merged reads are the quad store's in-memory
+			// sources; where the peer's principal collides with this site's default, naming a unique one writes the two
+			// Principal individuals to the store.
+			contract: { products: DOMAIN_SITE_FEDERATED, changes: [recordChange(PRINCIPAL_LABEL)] },
 			action: async ({ where }) => {
 				try {
 					return actionOKWithProducts({ site: await federate(this.getWorld(), openPeerGraphSource, where) });

@@ -13,7 +13,7 @@ import { registerDomains } from "@haibun/core/lib/domains/domains.js";
 import ShuStepper from "./shu-stepper.js";
 import { buildSpaHtml } from "./derivations/page-html.js";
 import { mayFrame } from "./derivations/content-security-policy.js";
-import { EMBEDDER_ORIGIN_OPTION, PAGE_ASSETS, PAGE_BUNDLE_JS } from "./domains/serving.js";
+import { EMBEDDER_ORIGIN_OPTION, PAGE_ASSETS, PAGE_BUNDLE_JS, PAGE_BUNDLE_JS_RELATIVE } from "./domains/serving.js";
 import { gunzipSync } from "node:zlib";
 import { actualityClock } from "@haibun/core/lib/actuality/root.js";
 import { stubVerifier } from "@haibun/core/lib/test/fake-authority.js";
@@ -186,7 +186,9 @@ describe("the app a deployment serves", () => {
 			return { page, nonce };
 		};
 		const first = respond();
-		expect(first.page, "the page's script carries the nonce its policy names").toContain(`<script type="module" nonce="${first.nonce}" src="${PAGE_BUNDLE_JS}">`);
+		expect(first.page, "the page's script names its bundle beside the page, so it carries whatever prefix serves the page").toContain(
+			`<script type="module" nonce="${first.nonce}" src="${PAGE_BUNDLE_JS_RELATIVE}">`,
+		);
 		expect(first.page.match(/ nonce=/g), "and only that script").toHaveLength(1);
 		expect(respond().nonce, "a second response names another").not.toBe(first.nonce);
 	});

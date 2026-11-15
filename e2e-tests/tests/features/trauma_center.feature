@@ -50,8 +50,8 @@ Feature: Patient Rights and Hospital Journey
 
   Rights Protection (whenever).
   The patient's privacy must be protected whenever it is pending review.
-  set Privacy status to "Pending"
-  whenever variable Privacy status is "Pending", ensure Right to "Privacy" is upheld
+  set Privacy status to "Unreviewed"
+  whenever variable Privacy status is "Unreviewed", ensure Right to "Privacy" is upheld
   
   Verify Privacy is respected.
   variable Privacy status is "Respected"

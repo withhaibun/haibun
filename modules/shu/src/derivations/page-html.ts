@@ -5,7 +5,7 @@
 import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { HYDRATION_ID } from "../domains/elements.js";
 import type { TServedHydration } from "../domains/hydration.js";
-import { PAGE_BUNDLE_JS } from "../domains/serving.js";
+import { PAGE_BUNDLE_JS_RELATIVE } from "../domains/serving.js";
 
 /** The document around the page's scripts: the app's mount point, into which the bundle renders. */
 function spaDocument(basePath: string, scriptsHtml: string): string {
@@ -37,7 +37,7 @@ ${scriptsHtml}
 
 /** The page a server serves: its hydration element, and its bundle loaded as a module under the response's script nonce. */
 export function buildSpaHtml(basePath: string, hydration: TServedHydration, nonce: string): string {
-	const scripts = `  <script type="${MEDIA_TYPE.json}" id="${HYDRATION_ID}">${JSON.stringify(hydration)}</script>\n\n  <script type="module" nonce="${nonce}" src="${PAGE_BUNDLE_JS}"></script>`;
+	const scripts = `  <script type="${MEDIA_TYPE.json}" id="${HYDRATION_ID}">${JSON.stringify(hydration)}</script>\n\n  <script type="module" nonce="${nonce}" src="${PAGE_BUNDLE_JS_RELATIVE}"></script>`;
 	return spaDocument(basePath, scripts);
 }
 

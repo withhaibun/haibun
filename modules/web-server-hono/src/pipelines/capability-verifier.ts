@@ -3,6 +3,7 @@
  * actuality's authority, since a signed request's proof covers its method, its address and its body's digest. Other
  * packages read it as `@haibun/web-server-hono/capability-auth.js`.
  */
+import { createHmac, timingSafeEqual } from "node:crypto";
 import type { MiddlewareHandler } from "hono";
 import { authorityRefusal, REFUSED_INVOCATION, type TRpcRefusal } from "@haibun/core/lib/rpc-wire.js";
 import { sentByAnotherSite } from "@haibun/core/lib/request-context.js";
@@ -14,6 +15,11 @@ import { DELEGATIONS_READ_ACTION, type TRestsOn } from "@haibun/core/lib/domains
 import { PRESENTED_AUTHORITY_HEADER } from "../domains/web-server.js";
 import type { Context, TAuthorizedRequest, TCapabilityVerifier, TRequestAuthority, TRequestHeaders, TServed } from "../ports.js";
 
+/** The headers a trusted proxy that re-addresses a request states the address its caller actually used with: the address,
+ * and its HMAC under the deployment's shared secret, which only the deployment and the proxy know. */
+const ORIGINAL_URL_HEADER = "x-original-url";
+const ORIGINAL_URL_SIGNATURE_HEADER = "x-original-url-sig";
+
 /**
  * What the caller of a request may do: the actions this deployment allows without a delegation, which form an empty list
  * unless it states otherwise, and the one action its proof invokes, which the verifier registered to read that proof
@@ -23,8 +29,24 @@ import type { Context, TAuthorizedRequest, TCapabilityVerifier, TRequestAuthorit
  * A proof also states who made it: what is done under a proof is done by whoever proved it, so a record of the doing can
  * name them rather than the process that carried it out.
  */
+
+/** The address a request's proof covers. A trusted proxy that re-addresses a request to reach this server attests the
+ * address the caller actually used under the deployment's shared secret, so a proof that covers the caller's address
+ * verifies against it rather than the address the proxy forwarded. Where the proxy doesn't attest, or the deployment
+ * shares no secret, the forwarded address stands. */
+function addressCoveredByProof(headers: TRequestHeaders, secret: string | undefined, forwarded: string): { url: string } | { error: string } {
+	const original = headerOf(headers, ORIGINAL_URL_HEADER);
+	if (original === undefined || secret === undefined) return { url: forwarded };
+	const signature = headerOf(headers, ORIGINAL_URL_SIGNATURE_HEADER);
+	if (signature === undefined || !URL.canParse(original)) return { error: "the original-URL attestation doesn't name an address with its signature" };
+	const expected = createHmac("sha256", secret).update(original).digest();
+	const given = Buffer.from(signature, "hex");
+	if (given.length !== expected.length || !timingSafeEqual(given, expected)) return { error: "the original-URL attestation didn't verify under the deployment's secret" };
+	return { url: original };
+}
+
 export async function grantedCapabilityForRequest(request: TAuthorizedRequest | undefined, runtime: TRuntime, served: TServed): Promise<TRequestAuthority> {
-	const { allowedWithoutDelegation, origins } = served;
+	const { allowedWithoutDelegation, origins, originalUrlSecret } = served;
 	// What is allowed without a delegation is allowed to a caller. A page of another site sending a request through a
 	// reader's browser isn't that caller, and it can't present a proof, so it is allowed only what a step doesn't require.
 	const headers = request?.headers;
@@ -35,7 +57,11 @@ export async function grantedCapabilityForRequest(request: TAuthorizedRequest | 
 	const authority = getAuthority(runtime);
 	if (!authority?.hasVerifier()) return { granted: [], held: [], refused: "the request presents authority, and a verifier isn't registered to check it" };
 	if (!request?.method || !request.url) return { granted: [], held: [], refused: "the request presents authority without the method and address its proof covers" };
-	const verdict = await authority.verifyEvidence({ kind: "request", method: request.method, url: request.url, headers, body: request.body });
+	// The proof covers the address the caller used, which a re-addressing proxy attests; what the proxy forwarded is
+	// what this server routes, not what the proof binds.
+	const covered = addressCoveredByProof(headers, originalUrlSecret, request.url);
+	if ("error" in covered) return { granted: [], held: [], refused: covered.error };
+	const verdict = await authority.verifyEvidence({ kind: "request", method: request.method, url: covered.url, headers, body: request.body });
 	if (!verdict.ok) return { granted: [], held: [], refused: `the presented authority failed verification: ${verdict.error}` };
 	if (!verdict.invoked) return { granted: [], held: [], refused: "the verified request doesn't name the action it invokes" };
 	const chainAllows = verdict.allowedAction === undefined ? [] : verdict.allowedAction;

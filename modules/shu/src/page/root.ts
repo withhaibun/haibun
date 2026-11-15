@@ -34,7 +34,7 @@ import type {
 } from "./ports.js";
 import type { TDockedPane, TPageTypes, TStripPane } from "./domains/page-state.js";
 import { NOTHING_SELECTED_LABEL, type TPageContext } from "../domains/schemas.js";
-import { authorityFailed, isServerUnreachable, refusalCarried } from "@haibun/core/lib/rpc-wire.js";
+import { SSE_ROUTE, authorityFailed, isServerUnreachable, refusalCarried } from "@haibun/core/lib/rpc-wire.js";
 import type { TProveRequest } from "@haibun/core/lib/transport/ports.js";
 import { failFastOrLog, isDev } from "@haibun/core/lib/domains/dev-mode.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
@@ -313,16 +313,18 @@ export function installServedConduit(basePath: string, required: (method: string
 export const installCarriedConduit = (): TConduit => installConduit(carriedConduit());
 
 /** Installs the page's ports at its start, once it holds its hydration: the reader's authority, and the conduit and event
- *  stream of a page a site serves, whose calls are signed under the action `required` returns for each method and whose
- *  stream is at `streamUrl`, or of a page that carries a record of actuality. */
-export function startPage(authority: TAuthority, required: (method: string) => string | undefined, streamUrl: string): void {
+ *  stream of a page a site serves, whose calls are signed under the action `required` returns for each method and which the
+ *  site serves under `routeBase`, or of a page that carries a record of actuality. `routeBase` is the path prefix below the
+ *  site's origin the app's routes are served under: the empty string where the site serves them at its origin, and the prefix
+ *  of a reverse proxy where the page is addressed under it, so the page's calls to the site go through the proxy. */
+export function startPage(authority: TAuthority, required: (method: string) => string | undefined, routeBase: string): void {
 	installAuthority(authority);
 	if (pageHydration().carried() !== undefined) {
 		installCarriedConduit();
 		installCarriedEventStream();
 	} else {
-		installServedConduit("", required);
-		installServedEventStream(streamUrl);
+		installServedConduit(routeBase, required);
+		installServedEventStream(`${routeBase}${SSE_ROUTE}`);
 	}
 }
 

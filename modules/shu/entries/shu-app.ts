@@ -26,9 +26,9 @@ import "../src/page/components/shu-product-view.js";
 import "../src/page/components/shu-views-picker.js";
 import "../src/page/components/shu-ref-element.js";
 import "../src/page/components/shu-theme-switch.js";
+import { setPageBundleUrl } from "../src/page/domains/view-script.js";
 import { readAction } from "@haibun/core/lib/domains/actions.js";
 import { Access } from "@haibun/core/lib/domains/resources.js";
-import { SSE_ROUTE } from "@haibun/core/lib/rpc-wire.js";
 import { DELEGATIONS_READ_METHOD, type TDelegations } from "@haibun/core/lib/domains/authority-types.js";
 import { SHU_TAG } from "../src/domains/elements.js";
 import {
@@ -100,7 +100,17 @@ async function start(): Promise<void> {
 	// The page loads its signer's HTTP signature code at its first signed request.
 	holdInvocationSigner(signerLoadedOnFirstUse);
 	installViewLoaders(VIEWS_LOADED_ON_OPEN);
-	startPage(authorityPort(), requiredActionOf, SSE_ROUTE);
+	// The served document's main element, which holds the page, and the path the site serves its routes under: read before the
+	// page starts, since the page's calls to the site are rooted below the address up to that path.
+	const main = document.getElementById(MAIN_ID);
+	if (main === null) throw new Error(`the served document doesn't hold its main element, #${MAIN_ID}`);
+	const apiBase = main.getAttribute(API_BASE_ATTRIBUTE);
+	if (apiBase === null) throw new Error(`the served document's main element doesn't state ${API_BASE_ATTRIBUTE}`);
+	// The prefix below the site's origin the app's routes are served under. The document is addressed at that prefix plus the
+	// mount path, so the prefix is the address up to the mount path: empty where the site serves the app at its origin, and the
+	// reverse proxy's prefix where the page is addressed under it, so the page's calls to the site go through the proxy.
+	const routeBase = location.pathname.slice(0, Math.max(0, location.pathname.length - apiBase.length));
+	startPage(authorityPort(), requiredActionOf, routeBase);
 	// The page that embeds shu at the deployment's embedder origin posts the page the reader has open and a delegation to
 	// shu's key.
 	const embedder = carried === undefined && window.parent !== window ? deploymentEmbedderOrigin() : undefined;
@@ -152,16 +162,15 @@ async function start(): Promise<void> {
 			if (servedAt !== undefined) pushHash(servedAt);
 		}
 	}
-	const main = document.getElementById(MAIN_ID);
-	if (main === null) throw new Error(`the served document doesn't hold its main element, #${MAIN_ID}`);
-	const apiBase = main.getAttribute(API_BASE_ATTRIBUTE);
-	if (apiBase === null) throw new Error(`the served document's main element doesn't state ${API_BASE_ATTRIBUTE}`);
 	const page = document.createElement(SHU_TAG.PAGE) as ShuPage;
 	page.opening = opening;
 	page.apiBase = apiBase;
 	main.replaceChildren(page);
 }
 
+// The page bundle's own URL, recorded before any view is loaded, so a concern that names a view by its bare bundle file
+// imports it from beside this bundle, under whatever prefix serves the page.
+setPageBundleUrl(import.meta.url);
 reportRefusedScripts(pageObservers(), pageLog);
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => void start());
 else void start();

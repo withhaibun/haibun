@@ -7,6 +7,7 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { build, context, type BuildOptions, type Metafile, type Plugin } from "esbuild";
+import { z } from "zod";
 import { BUDGET_FINDING, type TBundle, type TBundleSizes } from "../domains/bundle.ts";
 
 export { BUDGET_FINDING, BUDGET_FIX, HAIBUN_SOURCE, type TBundle, type TBundleSizes } from "../domains/bundle.ts";
@@ -28,7 +29,8 @@ const packageOf = (path: string): { dir: string; name: string } | undefined => {
 	const groups = PACKAGE_DIR.exec(path)?.groups;
 	return groups?.dir === undefined || groups.name === undefined ? undefined : { dir: groups.dir, name: groups.name };
 };
-const versionOf = (dir: string): string => (JSON.parse(readFileSync(join(dir, "package.json"), "utf-8")) as { version: string }).version;
+const PackageVersionSchema = z.object({ version: z.string() });
+const versionOf = (dir: string): string => PackageVersionSchema.parse(JSON.parse(readFileSync(join(dir, "package.json"), "utf-8"))).version;
 
 /**
  * Resolves a package that a source file outside the root imports (a linked repository's source, such as haibun's beside an application)
@@ -279,7 +281,7 @@ export async function runBundleScript(root: string, groups: Readonly<Record<stri
 }
 
 /** An esbuild failure, with each error and the file that holds it. */
-type TBuildFailure = { errors?: Array<{ text: string; location?: { file: string } | null }> };
+const BuildFailureSchema = z.object({ errors: z.array(z.object({ text: z.string(), location: z.object({ file: z.string() }).nullable().optional() })).optional() });
 
 /** Builds a bundle in memory, as its script builds it, and returns its metafile and the text of each output by its path from the
  *  root, or throws each error of the build with the file that holds it. */
@@ -288,7 +290,8 @@ export async function buildInMemory(root: string, bundle: TBundle): Promise<{ me
 		const { metafile, outputFiles } = await build({ ...bundleOptions(root, bundle), write: false, logLevel: "silent" });
 		return { metafile, outputs: Object.fromEntries(outputFiles.map((file) => [relative(root, file.path), file.text])) };
 	} catch (err) {
-		const { errors } = err as TBuildFailure;
+		const parsed = BuildFailureSchema.safeParse(err);
+		const errors = parsed.success ? parsed.data.errors : undefined;
 		throw new Error(errors !== undefined && errors.length > 0 ? errors.map((e) => `${e.location?.file ?? root}: ${e.text}`).join("\n") : String(err), { cause: err });
 	}
 }

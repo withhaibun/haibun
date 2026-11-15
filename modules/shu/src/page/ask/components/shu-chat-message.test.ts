@@ -13,6 +13,7 @@ import { SCOPE } from "../../domains/current-subject.js";
 import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
 import { followPaneLink } from "../../components/ref-navigation.js";
 import { ChatMessageSchema, FORK_CONTROLS, ShuChatMessage } from "./shu-chat-message.js";
+import { rendererLoaded } from "../../controllers/markdown-renderer-controller.js";
 import { SHU_EVENT } from "../../../domains/elements.js";
 import "../../components/shu-ref-element.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/domains/resources.js";
@@ -38,6 +39,10 @@ async function rendered(message: Record<string, unknown>): Promise<HTMLElement> 
 	const el = new ShuChatMessage();
 	el.message = ChatMessageSchema.parse({ ...SETTLED, ...message });
 	document.body.appendChild(el);
+	await el.updateComplete;
+	// The markdown renderer loads after the first render, and the message renders again once it has; await the load and
+	// that render, so a test asserts what a reader ends up seeing rather than what arrived first.
+	await rendererLoaded();
 	await el.updateComplete;
 	return el;
 }

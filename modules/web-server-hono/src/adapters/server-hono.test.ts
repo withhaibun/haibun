@@ -21,7 +21,7 @@ const mockLogger = eventHubOfTest();
 
 const P = { description: "test route" };
 /** A server that names an empty list of origins and admits every visitor. */
-const OPEN: TServing = { origins: [], allowedWithoutDelegation: [], admitted: [] };
+const OPEN: TServing = { origins: [], allowedWithoutDelegation: [], admitted: [], originalUrlSecret: undefined };
 /** The origin of a named server. */
 const NAMED = "https://example.org";
 

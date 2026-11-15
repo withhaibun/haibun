@@ -29,7 +29,8 @@ export default class ClientCacheStepper extends AStepper implements IHasCycles {
 		showClientCache: {
 			gwta: "show client cache",
 			description: "Open the client cache view: what the page caches of actuality, every value under its own test id.",
-			contract: { products: SHU_TAG.CLIENT_CACHE_COLUMN },
+			// The view's own domain: the dispatcher mounts it from the declaration, and the step doesn't write a store record.
+			contract: { products: SHU_TAG.CLIENT_CACHE_COLUMN, changes: [] },
 			action: () => actionOKWithProducts({}),
 		},
 	});

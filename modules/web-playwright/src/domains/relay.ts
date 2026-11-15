@@ -1,6 +1,18 @@
 /** What the browser relay holds and reads, as the steps that reach a person's attached browser return it: its tabs, a tab's text, and the attachment. */
 import { z } from "zod";
 
+/** A Chrome tab returned by `chrome.tabs.*` calls. */
+export const TabSchema = z.looseObject({
+	id: z.number().optional(),
+	index: z.number(),
+	windowId: z.number(),
+	openerTabId: z.number().optional(),
+	url: z.string().optional(),
+	title: z.string().optional(),
+	active: z.boolean(),
+	pinned: z.boolean(),
+});
+
 /** A tab open in the attached browser, as the extension lists it. */
 export const BrowserTabSchema = z.object({ id: z.number(), title: z.string().optional(), url: z.string().optional() });
 export type TBrowserTab = z.infer<typeof BrowserTabSchema>;

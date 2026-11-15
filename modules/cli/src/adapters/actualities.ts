@@ -92,7 +92,7 @@ export function actualityConditions(c: TActualityConditions): string {
 		options,
 		moduleOptions: c.moduleOptions,
 		policy: c.policy ?? null,
-		withSteppers: [...(c.withSteppers ?? [])],
+		withSteppers: c.withSteppers === undefined ? [] : [...c.withSteppers],
 	};
 	return sha256(stable(keyed)).slice(0, 16);
 }

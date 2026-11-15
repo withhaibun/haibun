@@ -24,5 +24,21 @@ setupShuTest({
 });
 await getAvailableSteps();
 const bundle = document.createElement("script");
+bundle.type = "module";
 bundle.src = POLYMORPHIC_ROUTE.bundle;
+const loaded = new Promise<void>((resolve, reject) => {
+	bundle.addEventListener("load", () => resolve());
+	bundle.addEventListener("error", () => reject(new Error("the view's bundle didn't load")));
+});
 document.head.append(bundle);
+await loaded;
+// The view attaches after the bundle has run, as the app attaches a view it has loaded, so the element is upgraded
+// once the bundle has recorded its own URL and can resolve the label font beside it.
+const box = document.getElementById("box") as HTMLElement;
+const view = document.createElement("shu-polymorphic-graph-view");
+if (box.hasAttribute("data-external")) {
+	view.setAttribute("data-external", "");
+	view.setAttribute("data-persist-scope", box.getAttribute("data-persist-scope") ?? "");
+}
+view.style.cssText = "display:block;width:100%;height:100%";
+box.append(view);

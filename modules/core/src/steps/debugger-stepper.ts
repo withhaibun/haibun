@@ -101,15 +101,17 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 		return { rerunStep: controlSignal === "retry", nextStep: controlSignal === "next", failed: controlSignal === "fail" ? "failed at the debugger" : undefined };
 	}
 	steps = declareSteps({
-		// Each command reads as its word or its first letter, as a person types it at the prompt.
-		fail: { gwta: "f(ail)?", description: "Fails the step, ending the feature at the failure.", action: () => this.fail() },
-		next: { gwta: "n(ext)?", description: "Continues past the step that failed to the next step.", action: () => this.next() },
-		retry: { gwta: "r(etry)?", description: "Reruns the step that failed.", action: () => this.retry() },
-		step: { gwta: "s(tep)?", description: "Runs the line and pauses again before the next, staying in step-by-step mode.", action: () => this.step() },
-		continue: { gwta: "c(ontinue)?", description: "Runs the line and stops pausing, so the feature runs to its end.", action: () => this.continue() },
+		// Each command reads as its word or its first letter, as a person types it at the prompt. Each changes only the debugger's
+		// own mode, which the store doesn't hold.
+		fail: { gwta: "f(ail)?", description: "Fails the step, ending the feature at the failure.", contract: { changes: [] }, action: () => this.fail() },
+		next: { gwta: "n(ext)?", description: "Continues past the step that failed to the next step.", contract: { changes: [] }, action: () => this.next() },
+		retry: { gwta: "r(etry)?", description: "Reruns the step that failed.", contract: { changes: [] }, action: () => this.retry() },
+		step: { gwta: "s(tep)?", description: "Runs the line and pauses again before the next, staying in step-by-step mode.", contract: { changes: [] }, action: () => this.step() },
+		continue: { gwta: "c(ontinue)?", description: "Runs the line and stops pausing, so the feature runs to its end.", contract: { changes: [] }, action: () => this.continue() },
 		debugStepByStep: {
 			exact: "debug step by step",
 			description: "Switches the debugger to step-by-step mode, pausing before each line for a command.",
+			contract: { changes: [] },
 			action: (): Promise<TActionResult> => {
 				this.debuggingType = TDebuggingType.StepByStep;
 				return Promise.resolve(OK);

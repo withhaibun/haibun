@@ -19,7 +19,7 @@ import type { AccessLevel } from "@haibun/core/lib/domains/resources.js";
 import { notARead } from "../domains/web-server.js";
 import { isRead } from "@haibun/core/lib/domains/actions.js";
 
-/** Who makes a call and under what: the action the request invoked (`capabilityAction`) and those its caller holds, who proved themselves,
+/** Who makes a call and under what: the action the request names (`capabilityAction`) and those its caller holds, who proved themselves,
  *  what their proof rests on, and the delegate a refusal names as able to grant the lacked action. */
 export type TCaller = { capabilityAction: string[]; held: string[]; principal: string | undefined; restsOn: TRestsOn | undefined; delegate: string | undefined };
 

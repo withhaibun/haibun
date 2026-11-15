@@ -61,13 +61,13 @@ Types are defined with Haibun compound statements and sets in place of raw JSON.
 #### Examples of Improvements:
 
 **1. Negative Conditions**
-*   *Current:* `whenever not variable Privacy status is "Pending"`
-*   *Improved:* `whenever it is not that variable "Privacy" status is "Pending"`
+*   *Current:* `whenever not variable Privacy status is "Unreviewed"`
+*   *Improved:* `whenever it is not that variable "Privacy" status is "Unreviewed"`
 *   *Mechanism:*
     *   Stopwords: [it](file:///home/vid/Private/D/dev/withhaibun/haibun.zod/modules/core/src/lib/domain-types.ts#39-40), [is](file:///home/vid/Private/D/dev/withhaibun/haibun.zod/modules/core/src/steps/variables-stepper.ts#41-47), `that`
     *   The core step stays `not variable ...`. The [not](file:///home/vid/Private/D/dev/withhaibun/haibun.zod/e2e-tests/tests/features/haibun-overview.feature.not) step performs the negation.
     *   **Aliases:** Use `stepper.aliases` to map [not](file:///home/vid/Private/D/dev/withhaibun/haibun.zod/e2e-tests/tests/features/haibun-overview.feature.not) to `isn't`.
-        *   *Result:* `whenever variable "Privacy" status isn't "Pending"`
+        *   *Result:* `whenever variable "Privacy" status isn't "Unreviewed"`
 
 **2. Ensure Statements**
 *   *Current:* `ensure Patient is admitted to "Emergency"`

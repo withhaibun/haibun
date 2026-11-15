@@ -62,7 +62,7 @@ export class SSETransport implements ITransport, IStepTransport {
 		webserver.addRoute("get", SSE_ROUTE, { description: "Server-Sent Events stream for live framework events", service: true }, async (c) => {
 			const authority = await verifier.allowing(c, FOLLOWS_THE_RUN);
 			if (authority instanceof Response) return authority;
-			// Following is what the request invoked; which events it is sent is bounded by the reads its caller holds.
+			// Following is what the request names; which events it is sent is bounded by the reads its caller holds.
 			const { held } = authority;
 			// A follower states the actuality it follows, and the stream ends once this instance holds another.
 			const following = c.req.header(ACTUALITY_HEADER);
@@ -200,7 +200,7 @@ export class SSETransport implements ITransport, IStepTransport {
 
 	/**
 	 * Whether a call reads actuality rather than acting upon it. Reading actuality isn't an act of actuality, which is why a read
-	 * invoked into a running instance doesn't write a record and doesn't announce a step. Narrating that a read was served
+	 * sent into a running instance doesn't write a record and doesn't announce a step. Narrating that a read was served
 	 * would be the same fact by another route: a view reading at a level that carried the line would read actuality again
 	 * for its own reading, and each such read would be served, narrated and read again without end.
 	 */

@@ -337,8 +337,8 @@ not set response as json to {woops  ;; would fail: malformed json
 A domain's membership, `{value} is in {domain}`, is the predicate `member_of(V, D)`. Ordered domains enable comparisons and
 state transitions, often useful for waypoints, and a comparison reads the order the declaration states, `precedes(D, A, B)`.
 ```
-ordered set of Request status is ["pending", "loading", "complete", "error"]
-set api_state as Request status to "pending"
+ordered set of Request status is ["queued", "loading", "complete", "error"]
+set api_state as Request status to "queued"
 increment api_state
 variable api_state is "loading"
 variable api_state is less than "complete"

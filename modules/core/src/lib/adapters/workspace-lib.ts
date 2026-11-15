@@ -2,11 +2,17 @@ import path, { dirname } from "path";
 import nodeFS from "fs";
 
 import { namesPackage, type TStepperEntry } from "../actuality/domains/actuality.js";
-import { CStepper } from "../steps/domains/stepper.js";
+import { AStepper, type CStepper } from "../steps/domains/stepper.js";
 import { createSteppers } from "../domains/util.js";
 import { use } from "./module-loader.js";
 import { fileURLToPath } from "url";
 import type { RemoteStepperProxy } from "../transport/remote-proxy-stepper.js";
+
+function assertRemoteProxyClass(cls: unknown): asserts cls is typeof RemoteStepperProxy {
+	if (typeof cls !== "function" || !(cls.prototype instanceof AStepper)) {
+		throw new Error(`${REMOTE_PROXY} is not a stepper class`);
+	}
+}
 
 /** The file-system calls feature collection and workspace discovery make, which a test gives in place of node's. */
 export type TFileSystem = Pick<typeof nodeFS, "existsSync" | "readdirSync" | "statSync" | "readFileSync">;
@@ -30,7 +36,8 @@ export async function getSteppers(stepperEntries: TStepperEntry[]) {
 		} else {
 			// Remote stepper: create a factory that returns a pre-configured RemoteStepperProxy
 			const { remote } = entry;
-			const RemoteProxy = (await use(REMOTE_PROXY)) as unknown as typeof RemoteStepperProxy;
+			const RemoteProxy: unknown = await use(REMOTE_PROXY);
+			assertRemoteProxyClass(RemoteProxy);
 			steppers.push(
 				class extends RemoteProxy {
 					constructor() {

@@ -53,14 +53,15 @@ export class TwinPage implements TTwin {
 			return;
 		}
 		for (const method of LOCATING_METHODS) {
-			const original = page[method] as (...args: unknown[]) => Locator;
-			(page[method] as (...args: unknown[]) => unknown) = (...args: unknown[]) => {
-				const located = original.apply(page, args);
+			const original: unknown = Reflect.get(page, method);
+			if (typeof original !== "function") continue;
+			Reflect.set(page, method, (...args: unknown[]) => {
+				const located: Locator = original.apply(page, args);
 				this.duplicateTwinElement(located).catch((error: unknown) => {
 					this.world.eventLogger.error(`the twin didn't copy the element ${String(method)} located with ${JSON.stringify(args)}: ${String(error)}`);
 				});
 				return located;
-			};
+			});
 		}
 		page.__instrumented = true;
 	}
@@ -101,8 +102,8 @@ export class TwinPage implements TTwin {
 				outerHTML: element.outerHTML,
 			};
 
-			if (element.tagName === "CANVAS") {
-				data.dataURL = (element as HTMLCanvasElement).toDataURL();
+			if (element instanceof HTMLCanvasElement) {
+				data.dataURL = element.toDataURL();
 			}
 
 			return data;
@@ -137,7 +138,7 @@ export class TwinPage implements TTwin {
 
 			const temp = document.createElement("div");
 			temp.innerHTML = data.outerHTML;
-			const newElementNode = temp.firstChild as Element;
+			const newElementNode = temp.firstElementChild;
 			if (newElementNode) {
 				const finalSelector =
 					newElementNode.tagName.toLowerCase() +
@@ -155,8 +156,8 @@ export class TwinPage implements TTwin {
 					elementToDrawOn = existingElement;
 				}
 
-				if (data.dataURL && elementToDrawOn && elementToDrawOn.tagName === "CANVAS") {
-					const canvas = elementToDrawOn as HTMLCanvasElement;
+				if (data.dataURL && elementToDrawOn instanceof HTMLCanvasElement) {
+					const canvas = elementToDrawOn;
 					const ctx = canvas.getContext("2d");
 					if (ctx) {
 						const img = new Image();

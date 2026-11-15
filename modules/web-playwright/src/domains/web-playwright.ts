@@ -138,7 +138,7 @@ export const DOMAIN_BROWSER_TYPE = "browser-type";
 export const DOMAIN_URL_GLOB = "url-glob";
 
 /** A JSON response's body: a record, or a list of records. */
-const JsonResponseSchema = z.union([RecordSchema, RecordsSchema]);
+export const JsonResponseSchema = z.union([RecordSchema, RecordsSchema]);
 export type TJsonResponse = z.infer<typeof JsonResponseSchema>;
 
 /** A response as a step captured it, which actuality keeps as JSON text in a variable. */

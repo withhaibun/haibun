@@ -1,12 +1,12 @@
 /** The files of a storage in a volume in memory, which starts with the files a directory listing names. */
-import { Volume, type IFs, type DirectoryJSON } from "memfs";
+import { createFsFromVolume, Volume, type IFs, type DirectoryJSON } from "memfs";
 import { dirname } from "path";
 import { CREATE_ONLY } from "@haibun/domain-storage/adapters/write-flags.js";
 import type { IFile, TStorageFiles } from "@haibun/domain-storage/ports.js";
 
 /** The files of a new volume that holds `base`, and the volume. */
 export function memoryFiles(base: DirectoryJSON): TStorageFiles & { volume: IFs } {
-	const volume = <IFs>Volume.fromJSON(base);
+	const volume = createFsFromVolume(Volume.fromJSON(base));
 	const mkdirp = (dir: string): void => {
 		volume.mkdirSync(dir, { recursive: true });
 	};
@@ -20,7 +20,8 @@ export function memoryFiles(base: DirectoryJSON): TStorageFiles & { volume: IFs 
 		writeFileBuffer: (file, contents) => volume.writeFileSync(file, contents),
 		lstatToIFile(file) {
 			const l = volume.lstatSync(file);
-			return Promise.resolve(<IFile>{ name: file, created: l.mtimeMs, isDirectory: l.isDirectory(), isFile: l.isFile() });
+			const entry: IFile = { name: file, created: l.mtimeMs, size: Number(l.size), isDirectory: l.isDirectory(), isFile: l.isFile() };
+			return Promise.resolve(entry);
 		},
 		readdir(dir) {
 			try {

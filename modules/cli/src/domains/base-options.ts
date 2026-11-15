@@ -77,8 +77,10 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv, specl: TSpecl): TPro
 	const errors: string[] = [];
 	let nenv: TEnvVariables = specl.env !== undefined ? { ...specl.env } : {};
 
-	const baseOptions = (BaseOptions as IHasOptions).options ?? {};
-	for (const [k, v] of Object.entries(baseOptions)) if (v.default !== undefined) options[k] = v.default;
+	const baseOptions = (BaseOptions as IHasOptions).options;
+	if (baseOptions !== undefined) {
+		for (const [k, v] of Object.entries(baseOptions)) if (v.default !== undefined) options[k] = v.default;
+	}
 
 	const stated: Record<string, string> = { ...specl.options };
 	for (const [k, value] of Object.entries(env)) {
@@ -87,7 +89,7 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv, specl: TSpecl): TPro
 		else stated[k.replace(BASE_PREFIX, "")] = value;
 	}
 	for (const [opt, value] of Object.entries(stated)) {
-		const baseOption = baseOptions[opt];
+		const baseOption = baseOptions?.[opt];
 		if (baseOption === undefined) {
 			errors.push(`${opt} isn't an option`);
 			continue;

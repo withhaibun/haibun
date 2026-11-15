@@ -50,7 +50,8 @@ import type { TFenceGl } from "../adapters/frame-time.js";
 import { ObserverController } from "../../controllers/observer-controller.js";
 import { pageAddress } from "../../controllers/hash-controller.js";
 import { carriedLabelFont } from "../../controllers/hydration-controller.js";
-import { LABEL_FONT_FALLBACKS } from "../../../domains/serving.js";
+import { LABEL_FONT_FALLBACKS_RELATIVE, LABEL_FONT_RELATIVE } from "../../../domains/serving.js";
+import { resolvePageAsset } from "../../domains/view-script.js";
 import { DEFAULT_REGULATION_THRESHOLDS, evaluateRegulation, newRegulationState, recordFrameTime } from "../derivations/regulation.js";
 import { GRAPH_DRAWING_BLIP, GRAPH_FRAME_BLIP, GRAPH_REGULATION_BLIP, type TDrawingReason, type TWakeCause } from "../../../domains/graph-blips.js";
 import { actorBars, seqLabelOf, seqNodesOf, sequenceExtentOf, type SeqNode } from "../derivations/sequence-model.js";
@@ -891,10 +892,12 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const container = this.querySelector<HTMLElement>("#polymorphic-canvas");
 		if (!container) throw new Error("shu-graph-scene: #polymorphic-canvas not found");
 
-		// A served page reads troika's lookup of a character the label font lacks at an address absolute on its own. A page that
-		// carries a record of actuality, which a site doesn't serve, reads the font it carries.
-		const address = pageAddress();
-		configureLabelFonts(address === undefined ? carriedLabelFont() : { fallbacks: new URL(LABEL_FONT_FALLBACKS, address).href });
+		// A served page reads the label font, and troika's fallback lookup, beside its own bundle, so both carry whatever prefix
+		// serves the page and a gateway reaches them on the app. A page that carries a record of actuality, which a site doesn't
+		// serve, reads the font it carries.
+		configureLabelFonts(
+			pageAddress() === undefined ? carriedLabelFont() : { font: resolvePageAsset(LABEL_FONT_RELATIVE), fallbacks: resolvePageAsset(LABEL_FONT_FALLBACKS_RELATIVE) },
+		);
 		const VR = ForceGraphVR as unknown as new (el: HTMLElement) => FGInstance;
 		// The library builds its scene while the canvas holder is out of the page, so A-Frame reads the attributes set here as
 		// it attaches the scene.

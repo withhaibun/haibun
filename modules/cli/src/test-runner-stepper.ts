@@ -31,7 +31,8 @@ import { persistPrincipalIndividual } from "@haibun/core/lib/domains/principal-i
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { RECORDED_STATUS, type TRecordedStatus } from "@haibun/core/lib/domains/protocol.js";
 import { StepFailureSchema } from "@haibun/core/lib/actuality/domains/step-failure.js";
-import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
+import { PRINCIPAL_LABEL, SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
+import { recordChange } from "@haibun/core/lib/steps/domains/contract.js";
 import { RUN_DOMAIN, SUPERVISOR_CAPABILITIES, runDomainDefinitions, runReadSchema, runStartedSchema } from "./domains/run.js";
 import { bareMethodName, hostOfMethodName, hostScopedMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
@@ -267,7 +268,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 				"Start a test run of the named features. The products name it and the id of its actuality's record, which the supervisor writes from the test run's moves, so later findings can reference it. One test run at a time: a start while a test run is in flight is refused with the id of that test run. Features that ran against the present state of their dependencies don't run again until a dependency changes or a caller notes a change.",
 			// The products are the started test run, so `run-started` is a goal. Resolving it selects this step as a plan,
 			// so the resolver offers starting a test run as a step.
-			contract: { products: RUN_DOMAIN.started },
+			contract: { products: RUN_DOMAIN.started, changes: [recordChange(PRINCIPAL_LABEL)] },
 			action: async ({ where, filter }) => await this.askedToRun(where, filter),
 		},
 		runAllTests: {
@@ -275,7 +276,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			capability: SUPERVISOR_CAPABILITIES.run,
 			description:
 				"Start a test run of every feature in a directory. The products name it and its actuality's record. The limits of a filtered test run apply: one at a time, and not again until a dependency of the features changes.",
-			contract: { products: RUN_DOMAIN.started },
+			contract: { products: RUN_DOMAIN.started, changes: [recordChange(PRINCIPAL_LABEL)] },
 			action: async ({ where }) => await this.askedToRun(where, ""),
 		},
 		readTestRun: {
@@ -283,7 +284,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			capability: SUPERVISOR_CAPABILITIES.read,
 			description:
 				"Read the output of the test run in flight since the last read, and its status. This step clears the test run in flight when the test run has exited or its actuality has ended, so the next test run can start. The status comes from the exit code, or from the actuality's status of a standing test run.",
-			contract: { products: DOMAIN_TEST_RUN_READ },
+			contract: { products: DOMAIN_TEST_RUN_READ, changes: [] },
 			action: async () => {
 				const tracked = this.inFlight;
 				if (!tracked) return actionNotOK(this.nothingToRead("read"));
@@ -300,7 +301,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			capability: SUPERVISOR_CAPABILITIES.read,
 			description:
 				"Wait for the test run in flight to end, and return its status and the end of its output. The supervisor responds when the test run exits or its features finish, so this is one call for any duration. A test run that doesn't pass fails this step with its last output. The wait is bounded: reaching the limit fails the step with the seconds waited, so a test run that hangs fails this step and doesn't block the process.",
-			contract: { products: DOMAIN_TEST_RUN_READ },
+			contract: { products: DOMAIN_TEST_RUN_READ, changes: [] },
 			action: async ({ seconds }) => {
 				const tracked = this.inFlight;
 				if (!tracked) return actionNotOK(this.nothingToRead("await"));
@@ -329,7 +330,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			capability: SUPERVISOR_CAPABILITIES.read,
 			description:
 				"Examine the test run in flight or else the last test run started since beginAsk: how it ended, each step it recorded as failed with the seqPath of the failure, and the path of its report. Each field comes from the test run's own events, as the supervisor read them. Output formatted for a person doesn't carry step events, so its feature and step counts are zero, and the report shows the outcome.",
-			contract: { products: DOMAIN_TEST_RUN_EXAMINED },
+			contract: { products: DOMAIN_TEST_RUN_EXAMINED, changes: [] },
 			action: async () => {
 				const tracked = this.inFlight ?? this.runsThisAsk.at(-1);
 				if (!tracked) return actionNotOK(this.nothingToRead("examine"));
@@ -349,7 +350,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 				"Call one of the standing test run's own steps by its method name on the test run's host. Calling showSteps on that host returns those names, and a wrong name fails with names that host registers. The step runs on the test run under the same capability check as any step, and returns what the test run holds, not what actuality holds. Parameters are name=value pairs or JSON. A step that takes one parameter also accepts a bare value or a bare object, and an object parameter accepts its JSON text. Use this for each question about the test and not about actuality. Every other step reads from actuality.",
 			// A model receives the `text` product of a tool call, so `text` holds the summary. `answer` holds the full
 			// response and a listing's entries for a caller that requests them.
-			contract: { products: DOMAIN_TEST_RUN_ANSWER },
+			contract: { products: DOMAIN_TEST_RUN_ANSWER, changes: [] },
 			action: async ({ method, params }) => {
 				const tracked = this.inFlight ?? [...this.standing.values()].at(-1) ?? this.runsThisAsk.at(-1) ?? this.lastRun;
 				if (!tracked)
@@ -393,6 +394,8 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			gwta: `note that {filter: ${RUN_DOMAIN.featureFilter}} in {where: ${DOMAIN_FILE_PATH}} has changed`,
 			description:
 				"Note that a change was applied to the named features, so they run again whatever their dependencies show. The supervisor refuses a test run of features against their present state until their state changes or a caller notes a change, since that test run would repeat the last outcome whether it passed or failed.",
+			// The note clears the recorded outcomes from the group's actualities file, leaving the store as it is.
+			contract: { changes: [] },
 			action: ({ filter, where }) => {
 				this.noteApplied(filter, where);
 				return Promise.resolve(actionOK());
@@ -401,6 +404,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		noteEverythingChanged: {
 			gwta: `note that the tests in {where: ${DOMAIN_FILE_PATH}} have changed`,
 			description: "The same note for a test run of every feature in a base. It has its own line because an empty argument doesn't name every feature.",
+			contract: { changes: [] },
 			action: ({ where }) => {
 				this.noteApplied("", where);
 				return Promise.resolve(actionOK());
@@ -411,6 +415,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			capability: SUPERVISOR_CAPABILITIES.stop,
 			description:
 				"End the test run in flight or else the last standing test run, and release its port. A standing test run holds its port after its features finish, so stop it when the caller doesn't have another step to call on it.",
+			contract: { changes: [] },
 			action: async () => {
 				// A test run whose features have finished can still stand and hold its port for askTestRun. Stopping ends it,
 				// so this step also stops a standing test run that isn't in flight.

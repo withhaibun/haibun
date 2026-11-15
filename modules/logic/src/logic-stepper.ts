@@ -146,36 +146,45 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 
 	steps = declareSteps({
 		whenever: {
+			contract: { changes: [] },
 			gwta: `whenever {condition:${DOMAIN_STATEMENT}}, {action:${DOMAIN_STATEMENT}}`,
 			description: "Proves the action again while the condition holds, within the engine's bound.",
 			reading: READING.whenever,
 		},
 		where: {
+			contract: { changes: [] },
 			gwta: `where {condition:${DOMAIN_STATEMENT}}, {action:${DOMAIN_STATEMENT}}`,
 			description: "Proves the action where the condition holds, and holds where it doesn't: C → A.",
 			reading: READING.where,
 		},
-		anyOf: { gwta: `any of {alternatives: ${DOMAIN_ALTERNATIVES}}`, description: "Holds where one of the comma-separated statements holds: A ∨ B ∨ C.", reading: READING.anyOf },
+		anyOf: {
+			gwta: `any of {alternatives: ${DOMAIN_ALTERNATIVES}}`,
+			description: "Holds where one of the comma-separated statements holds: A ∨ B ∨ C.",
+			contract: { changes: [] },
+			reading: READING.anyOf,
+		},
 		didnt: {
 			gwta: NEGATION_GWTA,
 			description:
 				"Holds where its statement is refuted, is unknown where its statement is unknown, and is refuted where its statement is proved. It negates a step's line and a statement of facts, such as `didn't {capability} is revoked`. A missing fact makes a statement refuted only where its relation is declared complete. Its products hold the failure: its failing step's error text as refusal, and that step's seqPath, so a feature that expects a failure confirms it was the expected error with set … from didn't … and then matches ….refusal with the error's pattern. Its record states its verdict.",
-			contract: { products: DOMAIN_REFUSAL },
+			contract: { products: DOMAIN_REFUSAL, changes: [] },
 			reading: READING.didnt,
 		},
 		maybe: {
 			gwta: `maybe {statements:${DOMAIN_STATEMENT}}`,
 			description: "Proves the statement and holds whatever its verdict, which its record states and it returns: P ∨ ⊤.",
-			contract: { products: DOMAIN_STATUS },
+			contract: { products: DOMAIN_STATUS, changes: [] },
 			reading: READING.maybe,
 		},
 		some: {
+			contract: { changes: [] },
 			gwta: `some ${QUANTIFIED}`,
 			description:
 				"Holds where the statement holds for a member of the domain: ∃x ∈ D. P(x). An empty domain doesn't have one. A member's fields are read as x.field, and a list combinator stated before it, such as whose, selects the members.",
 			reading: READING.some,
 		},
 		every: {
+			contract: { changes: [] },
 			gwta: `every ${QUANTIFIED}`,
 			description:
 				"Holds where the statement holds for every member of the domain: ∀x ∈ D. P(x). It holds over an empty domain. A member's fields are read as x.field, and a list combinator stated before it, such as whose, selects the members.",
@@ -185,7 +194,7 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 			gwta: RESOLVE_STATEMENT,
 			description:
 				"Proves a goal over the producer rules that the steps' signatures state, without calling a step. Returns its verdict, the facts that prove it, the plans that would prove it, and a proved goal's proof as statements. A goal that lacks both a fact and a plan is unknown, and the first sub-goal it couldn't prove is proved under it.",
-			contract: { products: DOMAIN_GOAL_RESOLUTION },
+			contract: { products: DOMAIN_GOAL_RESOLUTION, changes: [] },
 			action: ({ goal }, featureStep) => resolved(this.goalScope(), featureStep, goal, RESOLVE_STATEMENT),
 		},
 		ensure: {
@@ -194,27 +203,27 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 			unique: true,
 			description:
 				"Proves a domain goal, and where only its plan would prove it, calls each step of its first plan under this step and proves the goal again. A plan whose steps take a value from the caller is advanced one step at a time with plan. A line that states a waypoint's head ensures the waypoint.",
-			contract: { products: DOMAIN_GOAL_RESOLUTION },
+			contract: { products: DOMAIN_GOAL_RESOLUTION, changes: [] },
 			action: ({ goal }, featureStep) => ensured(this.goalScope(), featureStep, goal),
 		},
 		plan: {
 			gwta: `plan {goal: ${DOMAIN_DOMAIN_KEY}}`,
 			description:
 				"Writes a plan toward a goal that isn't proved, the steps that would make it hold, held as facts of the plan's graph under the principal that begins it. Returns the step its next advance calls and the parameters that step takes.",
-			contract: { products: DOMAIN_PLAN_PROGRESS },
+			contract: { products: DOMAIN_PLAN_PROGRESS, changes: [] },
 			action: ({ goal }, featureStep) => planBegun(this.goalScope(), featureStep, goal),
 		},
 		advancePlan: {
 			gwta: `advance plan {plan: ${DOMAIN_PLAN_ID}} with {args: ${DOMAIN_JSON_OBJECT}}`,
 			description:
 				"Calls the next step of a plan, as it holds now, under this step with the values given, and holds the fact it asserted. Only the principal that began the plan advances it, since the values are that principal's.",
-			contract: { products: DOMAIN_PLAN_PROGRESS },
+			contract: { products: DOMAIN_PLAN_PROGRESS, changes: [] },
 			action: ({ plan, args }, featureStep) => planAdvanced(this.goalScope(), featureStep, plan, args),
 		},
 		showApplicableSteps: {
 			gwta: "show the applicable steps",
 			description: "Returns the steps the caller may call next and the resolution of each goal a step returns, over the facts that hold now, or, under `as of`, at a step.",
-			contract: { products: DOMAIN_APPLICABLE_STEPS },
+			contract: { products: DOMAIN_APPLICABLE_STEPS, changes: [] },
 			action: (_args, featureStep) => applicableStepsAt(this.goalScope(), featureStep, inCall()?.asOf),
 		},
 		applicableSteps: {
@@ -228,7 +237,7 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 			gwta: `show derivation of {statement: ${DOMAIN_STATEMENT}}`,
 			description:
 				"Proves a statement of one step under this step, and returns its verdict, the records its proof wrote, the calls among them with the actions that allowed each, and the line of the first goal it couldn't prove.",
-			contract: { products: DOMAIN_DERIVATION },
+			contract: { products: DOMAIN_DERIVATION, changes: [] },
 			action: async ({ statement }, featureStep) => {
 				if (statement.length !== 1) return actionNotOK(`\`${featureStep.in}\` states ${statement.length} steps. State one step to show its derivation.`);
 				return actionOKWithProducts(await derivationUnder(stepperContext(this.getWorld(), this.steppers), reasoner(), featureStep, itemAt(statement, 0)));

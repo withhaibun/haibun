@@ -1,7 +1,8 @@
 /**
  * The settings of an instance's web server, read from its stepper's options: the port and interface it listens on, the
  * origins it is reached at, the actions every caller may take without a delegation, the people its routes admit by HTTP
- * basic auth, and whether each feature's server serves RPC.
+ * basic auth, the secret a trusted proxy attests a request's original address with, and whether each feature's server
+ * serves RPC.
  */
 import type { AStepper } from "@haibun/core/lib/astepper.js";
 import type { TModuleOptions } from "@haibun/core/lib/world.js";
@@ -11,8 +12,9 @@ import { basicAuthUsers, type TBasicAuthUser } from "@haibun/core/lib/domains/ba
 import { isDev } from "@haibun/core/lib/domains/dev-mode.js";
 import { DEFAULT_PORT, isLoopback, ORIGINS_REQUIRED, originList, WEB_SERVER_STEPPER } from "../domains/web-server.js";
 
-/** What a server serves: the origins it is reached at, what every caller may do without a delegation, and who its routes admit. */
-export type TServing = { origins: string[]; allowedWithoutDelegation: string[]; admitted: TBasicAuthUser[] };
+/** What a server serves: the origins it is reached at, what every caller may do without a delegation, who its routes
+ * admit, and the secret a trusted proxy attests a request's original address with, undefined where no proxy attests. */
+export type TServing = { origins: string[]; allowedWithoutDelegation: string[]; admitted: TBasicAuthUser[]; originalUrlSecret: string | undefined };
 
 /** Where a server listens, what it serves, and whether it serves RPC. An absent hostname listens on this machine's loopback interface. */
 export type TServerSettings = { port: number; hostname: string | undefined; serving: TServing; rpc: boolean };
@@ -28,6 +30,7 @@ export function serverSettings(stepper: AStepper, moduleOptions: TModuleOptions)
 	const origins = originsOption === undefined ? [] : originList(originsOption);
 	if (origins.length === 0 && !isDev()) throw new Error(`${WEB_SERVER_STEPPER}: ${ORIGINS_REQUIRED}`);
 	const allowedWithoutDelegation = actionList(getStepperOption(stepper, "ALLOW_WITHOUT_DELEGATION", moduleOptions));
+	const originalUrlSecret = getStepperOption(stepper, "ORIGINAL_URL_SECRET", moduleOptions);
 	const basicAuth = getStepperOption(stepper, "BASIC_AUTH", moduleOptions);
 	const admitted = basicAuth === undefined ? [] : basicAuthUsers(basicAuth);
 	// Every action, allowed to every caller of a server that other hosts reach without signing in, is every action given
@@ -36,5 +39,5 @@ export function serverSettings(stepper: AStepper, moduleOptions: TModuleOptions)
 		throw new Error(
 			`${WEB_SERVER_STEPPER}: ALLOW_WITHOUT_DELEGATION allows every action, and INTERFACE ${hostname} lets other hosts reach the server without BASIC_AUTH. Name the actions a caller may take, set BASIC_AUTH, or serve on 127.0.0.1.`,
 		);
-	return { port, hostname, serving: { origins, allowedWithoutDelegation, admitted }, rpc: getStepperOption(stepper, "RPC", moduleOptions) === "true" };
+	return { port, hostname, serving: { origins, allowedWithoutDelegation, admitted, originalUrlSecret }, rpc: getStepperOption(stepper, "RPC", moduleOptions) === "true" };
 }

@@ -1,19 +1,5 @@
 {
-	"modules/cli/src/adapters/actualities.ts": {
-		"fills an absent value with a constant through ??": 1
-	},
-	"modules/cli/src/domains/base-options.ts": {
-		"fills an absent value with a constant through ??": 1
-	},
-	"modules/cli/src/instance-stepper.ts": {
-		"fills a falsy value with a constant through ||": 1,
-		"fills an absent value with a constant through ??": 1
-	},
 	"modules/cli/src/pipelines/run-cli.ts": {
-		"fills a falsy value with a constant through ||": 2,
-		"fills an absent value with a constant through ??": 1
-	},
-	"modules/cli/src/pipelines/specl.ts": {
 		"fills a falsy value with a constant through ||": 1
 	},
 	"modules/cli/src/test-runner-stepper.ts": {
@@ -109,11 +95,7 @@
 		"fills an absent value with a constant through ??": 4
 	},
 	"modules/monitor-otel/src/monitor-otel-stepper.ts": {
-		"fills a falsy value with a constant through ||": 5,
-		"fills an absent value with a constant through ??": 3
-	},
-	"modules/monitor-tui/src/monitor-tui-stepper.tsx": {
-		"fills a falsy value with a constant through ||": 1
+		"fills an absent value with a constant through ??": 2
 	},
 	"modules/out-junit/src/out-junit-stepper.ts": {
 		"fills an absent value with a constant through ??": 1
@@ -147,7 +129,7 @@
 		"states a parameter's default value": 4
 	},
 	"modules/shu/src/page/components/shu-actions-bar.ts": {
-		"fills a falsy value with a constant through ||": 2
+		"fills a falsy value with a constant through ||": 1
 	},
 	"modules/shu/src/page/components/shu-activity-history.ts": {
 		"fills an absent value with a constant through ??": 1
@@ -206,7 +188,7 @@
 		"fills an absent value with a constant through ??": 5
 	},
 	"modules/shu/src/page/components/shu-page-strip.ts": {
-		"fills a falsy value with a constant through ||": 2,
+		"fills a falsy value with a constant through ||": 1,
 		"fills an absent value with a constant through ??": 1
 	},
 	"modules/shu/src/page/components/shu-result-table.ts": {

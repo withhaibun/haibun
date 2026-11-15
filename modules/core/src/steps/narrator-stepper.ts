@@ -74,12 +74,15 @@ class Narrator extends AStepper implements IHasOptions, IHasCycles {
 			precludes: [`Haibun.feature`],
 			gwta: `Feature: {feature: ${DOMAIN_TITLE}}`,
 			description: "Sets the variable feature to the feature's title and narrates the line.",
+			// The title is held as a variable and the narration as an artifact event, outside the store's records.
+			contract: { changes: [] },
 			action: async ({ feature }, featureStep) => this.rememberAndSay("feature", feature, featureStep),
 		},
 		scenario: {
 			precludes: [`Haibun.scenario`],
 			gwta: SCENARIO_HEADING,
 			description: "Sets the variable scenario to the scenario's title and narrates the line, and passes where the heading is pending.",
+			contract: { changes: [] },
 			action: async ({ scenario }, featureStep) => (isPendingScenario(featureStep.in) ? OK : this.rememberAndSay("scenario", scenario, featureStep)),
 		},
 	});

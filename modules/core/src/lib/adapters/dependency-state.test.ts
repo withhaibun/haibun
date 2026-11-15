@@ -199,4 +199,9 @@ describe("the dependency roots of a group", () => {
 		const configDir = path.join(repo, "tests");
 		expect(() => dependencyRoots({ steppers: [], dependsOn: ["../fixtures"] }, [configDir], configDir, configDir)).toThrow(/dependsOn names \.\.\/fixtures/);
 	});
+
+	it("throws when a module's package.json dependencies are malformed", () => {
+		const repo = aRepository({ "package.json": "{}", "app/package.json": JSON.stringify({ dependencies: "not-a-map" }), "app/build/x-stepper.js": "" });
+		expect(() => dependencyRoots({ steppers: ["./app/build/x-stepper"] }, [], repo, repo)).toThrow();
+	});
 });

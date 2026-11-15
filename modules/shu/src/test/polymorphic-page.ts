@@ -26,7 +26,8 @@ import { builtEntry, openTestPage } from "./test-page.js";
  */
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const BUNDLE_PATH = join(HERE, "..", "..", "build", "assets", "shu-polymorphic-graph-view.js");
+const BUNDLE_PATH = join(HERE, "..", "..", "build", "assets", "page", "shu-polymorphic-graph-view.js");
+const CHUNK_DIR = join(HERE, "..", "..", "build", "assets", "page", "chunks");
 const ENTRY_PATH = join(HERE, "polymorphic-page-entry.ts");
 
 /** The page's entry, built once per test file: it starts the page and then loads the view's bundle. */
@@ -44,12 +45,12 @@ export const BOX: TBox = { width: 1000, height: 700 };
 /** The scope an embedded graph on the page keeps its settings under. */
 const EMBEDDED_SCOPE = "embedded";
 
-/** The page, its view the page's main graph, or a graph a host embeds to draw its own data (`data-external`). */
+/** The page, its view the page's main graph, or a graph a host embeds to draw its own data (`data-external`). The view's
+ *  element is not in the page's own markup: the page's entry attaches it once the bundle has run, so the custom element is
+ *  upgraded after the bundle has recorded its own URL, the way the app attaches a view it has loaded. */
 const pageWith = (external: boolean, box: TBox): string => `<!doctype html><html><head><meta charset="utf-8"><script type="module" src="${POLYMORPHIC_ROUTE.entry}"></script></head>
 <body style="margin:0">
-	<div id="box" style="position:fixed;left:0;top:0;width:${box.width}px;height:${box.height}px;">
-		<shu-polymorphic-graph-view ${external ? `data-external data-persist-scope="${EMBEDDED_SCOPE}"` : ""} style="display:block;width:100%;height:100%"></shu-polymorphic-graph-view>
-	</div>
+	<div id="box" ${external ? `data-external data-persist-scope="${EMBEDDED_SCOPE}"` : ""} style="position:fixed;left:0;top:0;width:${box.width}px;height:${box.height}px;"></div>
 </body></html>`;
 
 export type TQuadFed = { subject: string; namedGraph: string; predicate: string; object: string; timestamp: number };
@@ -203,7 +204,11 @@ export async function openPolymorphicPage(opts: { external: boolean; box: TBox; 
 			if (url === "/") res.writeHead(200, { "Content-Type": MEDIA_TYPE.html }).end(html);
 			else if (url === POLYMORPHIC_ROUTE.entry) res.writeHead(200, { "Content-Type": MEDIA_TYPE.javascript }).end(started);
 			else if (url === POLYMORPHIC_ROUTE.bundle) res.writeHead(200, { "Content-Type": MEDIA_TYPE.javascript }).end(bundle);
-			else if (url === LABEL_FONT) res.writeHead(200, { "Content-Type": "font/woff" }).end(Buffer.from(bundleFile().labelFont()));
+			else if (url.startsWith(`${POLYMORPHIC_ROUTE.bundle.slice(0, POLYMORPHIC_ROUTE.bundle.lastIndexOf("/"))}/chunks/`)) {
+				const name = url.slice(url.lastIndexOf("/") + 1);
+				if (!/^[A-Za-z0-9._-]+$/.test(name)) return false;
+				res.writeHead(200, { "Content-Type": MEDIA_TYPE.javascript }).end(readFileSync(join(CHUNK_DIR, name), "utf-8"));
+			} else if (url === LABEL_FONT) res.writeHead(200, { "Content-Type": "font/woff" }).end(Buffer.from(bundleFile().labelFont()));
 			else if (url.startsWith(`${LABEL_FONT_FALLBACKS}/`)) {
 				const response = labelFontResponse(bundleFile(), url.slice(LABEL_FONT_FALLBACKS.length + 1));
 				if (response === undefined) return false;

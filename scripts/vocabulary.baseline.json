@@ -1,9 +1,7 @@
 {
-	"docs/architecture.md": {
-		"names running, ended as \"pending\"": 2
-	},
-	"docs/planning/improvements-plan.md": {
-		"names running, ended as \"pending\"": 3
+	"docs/planning/fol-in-haibun.md": {
+		"names action as granted": 2,
+		"names fact as working memory": 6
 	},
 	"e2e-tests/requirements/features/04-combinators.feature.ts": {
 		"names proved, refuted, unknown, contradiction as maybe-outcome": 1,
@@ -11,9 +9,6 @@
 	},
 	"e2e-tests/requirements/features/07-records.feature.ts": {
 		"names proved, refuted, unknown, contradiction as speculative": 2
-	},
-	"e2e-tests/tests/features/trauma_center.feature": {
-		"names running, ended as \"pending\"": 2
 	},
 	"modules/cli/src/instance-stepper.test.ts": {
 		"names passed, failed, untested as \"completed\"": 2
@@ -29,9 +24,6 @@
 		"names passed, failed, untested as \"completed\"": 4,
 		"names record as step result": 1
 	},
-	"modules/core/src/lib/actuality/pipelines/executor.ts": {
-		"names action as invoked": 1
-	},
 	"modules/core/src/lib/actuality/pipelines/finished-payloads.test.ts": {
 		"names record as step result": 1
 	},
@@ -39,26 +31,13 @@
 		"names action as invoked": 12,
 		"names record as step result": 1
 	},
-	"modules/core/src/lib/domains/actions.ts": {
-		"names action as granted": 8,
-		"names action as invoked": 2
-	},
 	"modules/core/src/lib/domains/authority-types.ts": {
 		"names action as invoked": 2
-	},
-	"modules/core/src/lib/domains/capability-context.ts": {
-		"names action as invoked": 2
-	},
-	"modules/core/src/lib/domains/domains.ts": {
-		"names action as granted": 1
 	},
 	"modules/core/src/lib/domains/protocol.ts": {
 		"names passed, failed, untested as \"completed\"": 1,
 		"names running, ended as \"pending\"": 1,
 		"names running, ended as \"skipped\"": 1
-	},
-	"modules/core/src/lib/steps/pipelines/call-step.ts": {
-		"names action as granted": 1
 	},
 	"modules/core/src/lib/test/fake-authority.ts": {
 		"names action as granted": 7,
@@ -66,9 +45,6 @@
 	},
 	"modules/core/src/lib/transport/adapters/remote-quad-store.test.ts": {
 		"names action as invoked": 3
-	},
-	"modules/core/src/run-policy/domains/run-policy.ts": {
-		"names action as granted": 3
 	},
 	"modules/core/src/schema/marks.test.ts": {
 		"names passed, failed, untested as \"completed\"": 2
@@ -182,17 +158,11 @@
 		"names action as invoked": 6
 	},
 	"modules/web-server-hono/src/pipelines/capability-verifier.ts": {
-		"names action as granted": 7,
+		"names action as granted": 8,
 		"names action as invoked": 2
-	},
-	"modules/web-server-hono/src/pipelines/dispatch-call.ts": {
-		"names action as invoked": 1
 	},
 	"modules/web-server-hono/src/pipelines/event-stream.test.ts": {
 		"names action as granted": 2
-	},
-	"modules/web-server-hono/src/pipelines/event-stream.ts": {
-		"names action as invoked": 2
 	},
 	"modules/web-server-hono/src/pipelines/mcp.ts": {
 		"names action as granted": 2

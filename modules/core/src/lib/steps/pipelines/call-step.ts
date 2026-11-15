@@ -2,7 +2,7 @@
  * Calls a registered step by name, with its arguments as data instead of a written line.
  *
  * A caller that runs a step without a feature file needs four things: the tool from the registry, a synthetic seqPath,
- * a feature step built for transport, and dispatch. External protocols, chains, goals and agents that act on a granted
+ * a feature step built for transport, and dispatch. External protocols, chains, goals and agents that act on a delegated
  * proposal are such callers. This module performs all four, so one module defines the shape of a call by name. The
  * step's gate, cycles and record treat such a call the same as a written line.
  *

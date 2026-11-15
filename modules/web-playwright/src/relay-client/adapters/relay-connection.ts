@@ -22,11 +22,18 @@
  */
 
 import { EXTENSION_COMMAND, type TRelayMessage } from "../../adapters/relay-wire.js";
-import type { Debuggee, Tab } from "../../ports.js";
+import { z } from "zod";
+import { TabSchema } from "../../domains/relay.js";
+import type { Tab } from "../../ports.js";
 import type { TClock, TChromeApi, TRelayChannel, TRelayTabs } from "../ports.js";
 
 type TChromeEvent = { addListener(listener: (...args: unknown[]) => void): void; removeListener(listener: (...args: unknown[]) => void): void };
-type ProtocolCommand = { id: number; method: string; params?: unknown };
+const isChromeEvent = (v: unknown): v is TChromeEvent =>
+	typeof v === "object" && v !== null && "addListener" in v && typeof v.addListener === "function" && "removeListener" in v && typeof v.removeListener === "function";
+
+const ProtocolCommandSchema = z.object({ id: z.number(), method: z.string(), params: z.unknown().optional() });
+type ProtocolCommand = z.infer<typeof ProtocolCommandSchema>;
+const DebuggeeSchema = z.object({ tabId: z.number().optional(), extensionId: z.string().optional(), targetId: z.string().optional() });
 type TBrowserTabText = { id: number; title: string; url: string; text: string };
 
 /** Whether a chrome.* method is the debugger's, which reaches only a tab the relay may use. */
@@ -102,7 +109,8 @@ export class ChromeRelayConnection {
 	#installEventForwarders(): void {
 		for (const fullMethod of CHROME_EVENT_METHODS) {
 			const target = resolveChromeMember(this.#chrome, fullMethod);
-			const event = Reflect.get(target.obj, target.name) as TChromeEvent;
+			const event: unknown = Reflect.get(target.obj, target.name);
+			if (!isChromeEvent(event)) throw new Error(`the chrome API's ${fullMethod} isn't an event`);
 			const listener = (...args: unknown[]) => this.#onChromeEvent(fullMethod, args);
 			event.addListener(listener);
 			this.#removeListeners.push(() => event.removeListener(listener));
@@ -134,7 +142,7 @@ export class ChromeRelayConnection {
 		if (tabId === undefined || !(isDebuggerMethod(fullMethod) ? this.#tabs.debugged(tabId) : this.#tabs.usable(tabId))) return;
 		if (fullMethod === "chrome.tabs.onCreated") {
 			// A tab opened from a tab the relay may use is one it may use.
-			const opened = (args[0] as Tab).id;
+			const opened = TabSchema.parse(args[0]).id;
 			if (opened !== undefined) this.#tabs.permitted(opened);
 		}
 		this.#sendMessage({ method: fullMethod, params: args });
@@ -142,7 +150,7 @@ export class ChromeRelayConnection {
 			this.#tabs.removed(tabId);
 			this.#closeWhereClosed();
 		}
-		if (fullMethod === "chrome.debugger.onDetach") this.#onDetach(tabId, args[1] as string | undefined);
+		if (fullMethod === "chrome.debugger.onDetach") this.#onDetach(tabId, typeof args[1] === "string" ? args[1] : undefined);
 	}
 
 	/** The browser took the debugger off a tab: where its page went, the connection reattaches it, unless it went again within its cooldown. */
@@ -183,7 +191,7 @@ export class ChromeRelayConnection {
 	async #onMessageAsync(message: TRelayMessage): Promise<void> {
 		const response: TRelayMessage = { id: message.id };
 		try {
-			response.result = await this.#handleCommand(message as ProtocolCommand);
+			response.result = await this.#handleCommand(ProtocolCommandSchema.parse(message));
 		} catch (error) {
 			this.#log(`the command ${JSON.stringify(message)} failed:`, error);
 			response.error = error instanceof Error ? error.message : String(error);
@@ -192,19 +200,19 @@ export class ChromeRelayConnection {
 	}
 
 	async #handleCommand(message: ProtocolCommand): Promise<unknown> {
-		const args = message.params === undefined ? [] : (message.params as unknown[]);
+		const args = message.params === undefined ? [] : z.array(z.unknown()).parse(message.params);
 		if (message.method === EXTENSION_COMMAND.readTab) return await this.#readTab(Number(args[0]));
 		if (!ALLOWED_CHROME_COMMANDS.has(message.method)) throw new Error(`the relay sent the command ${message.method}, which the extension doesn't carry out`);
 		this.#checkPermitted(message.method, args);
 		const result = await invokeChromeMethod(this.#chrome, message.method, args);
 		// The relay takes the debugger off a tab when the steps acting in it end, and the tab stays the person's to attach
 		// again, so the attachment holds; the browser's own detachment arrives as chrome.debugger.onDetach.
-		const target = args[0] as Debuggee | undefined;
+		const target = DebuggeeSchema.optional().parse(args[0]);
 		if (message.method === "chrome.debugger.attach" && target?.tabId !== undefined) this.#tabs.attached(target.tabId);
 		if (message.method === "chrome.debugger.detach" && target?.tabId !== undefined) this.#tabs.released(target.tabId);
 		// A tab the relay created is one it may use.
 		if (message.method === "chrome.tabs.create") {
-			const created = (result as Tab | undefined)?.id;
+			const created = TabSchema.optional().parse(result)?.id;
 			if (created !== undefined) this.#tabs.permitted(created);
 		}
 		return result === undefined ? {} : result;
@@ -221,7 +229,7 @@ export class ChromeRelayConnection {
 	 *  created. Listing, opening and closing a tab reach any tab: the instance's action for each holds a step to its delegation. */
 	#checkPermitted(method: string, args: unknown[]): void {
 		if (!isDebuggerMethod(method)) return;
-		const tabId = (args[0] as Debuggee | undefined)?.tabId;
+		const tabId = DebuggeeSchema.optional().parse(args[0])?.tabId;
 		if (typeof tabId !== "number" || !this.#tabs.usable(tabId))
 			throw new Error(`${method}: tab ${String(tabId)} is not a tab the person attached, one opened from an attached tab, or one the relay created`);
 	}
@@ -236,11 +244,11 @@ function tabIdForEventArgs(fullMethod: string, args: unknown[]): number | undefi
 	switch (fullMethod) {
 		case "chrome.debugger.onEvent":
 		case "chrome.debugger.onDetach":
-			return (args[0] as Debuggee | undefined)?.tabId;
+			return DebuggeeSchema.optional().parse(args[0])?.tabId;
 		case "chrome.tabs.onCreated":
-			return (args[0] as Tab).openerTabId;
+			return TabSchema.parse(args[0]).openerTabId;
 		case "chrome.tabs.onRemoved":
-			return args[0] as number;
+			return z.number().parse(args[0]);
 	}
 	return undefined;
 }
@@ -263,5 +271,5 @@ async function invokeChromeMethod(chrome: TChromeApi, fullMethod: string, args: 
 	const { obj, name } = resolveChromeMember(chrome, fullMethod);
 	const fn: unknown = Reflect.get(obj, name);
 	if (typeof fn !== "function") throw new Error(`the chrome API's ${fullMethod} isn't a function`);
-	return await (fn as (...a: unknown[]) => Promise<unknown>).apply(obj, args);
+	return await Reflect.apply(fn, obj, args);
 }

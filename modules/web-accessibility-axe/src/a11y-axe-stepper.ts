@@ -2,7 +2,8 @@ import type { Page } from "playwright";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { AStepper, IHasCycles, IHasOptions, StepperKinds, TFeatureStep } from "@haibun/core/lib/astepper.js";
 import { stringOrError, findStepper, actionNotOK, actionOK, findStepperFromOptionOrKind } from "@haibun/core/lib/domains/util.js";
-import { earlDomainDefinitions } from "./domains/earl.js";
+import { EARL_LABEL, earlDomainDefinitions } from "./domains/earl.js";
+import { recordChange } from "@haibun/core/lib/steps/domains/contract.js";
 import { checkPage } from "./pipelines/check-page.js";
 import { axePorts } from "./root.js";
 import { actualityFeatureOf, formatRecordName, formatSeqPath } from "@haibun/core/lib/seq-path.js";
@@ -31,6 +32,16 @@ class A11yStepper extends AStepper implements IHasOptions, IHasCycles {
 			gwta: `page is accessible accepting serious {serious:number} and moderate {moderate:number}`,
 			description:
 				"Checks the page the runtime holds with axe, records the result of each rule that applies to it as an EARL assertion, saves the report as an HTML artifact where a storage stepper keeps artifacts, and passes when the page's serious and moderate violations are within the given counts. Fails where the runtime doesn't hold a page, and where the page's serious or moderate violations exceed the counts accepted, stating the counts found and the counts accepted.",
+			// The check writes each type the EARL graph holds: the assertion, and the assertor, subject, case and result it names.
+			contract: {
+				changes: [
+					recordChange(EARL_LABEL.assertor),
+					recordChange(EARL_LABEL.testSubject),
+					recordChange(EARL_LABEL.testCase),
+					recordChange(EARL_LABEL.testResult),
+					recordChange(EARL_LABEL.assertion),
+				],
+			},
 			action: async ({ serious, moderate }, featureStep) => {
 				const page = await this.pageGetter?.getPage();
 				if (!page) {

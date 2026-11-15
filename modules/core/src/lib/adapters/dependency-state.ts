@@ -18,10 +18,16 @@ import { promisify } from "node:util";
 import nodeFS from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
+import { z } from "zod";
 import { namesPackage, type TSpecl } from "../actuality/domains/actuality.js";
+import { errorDetail } from "../domains/util.js";
 import { getModuleLocation, packageLocation } from "./workspace-lib.js";
 import { itemAt } from "../domains/item-at.js";
 import { sha256, type TDigest } from "../domains/digest.js";
+
+const PackageDependenciesSchema = z.object({ dependencies: z.record(z.string(), z.string()).optional() });
+const TsConfigSchema = z.object({ compilerOptions: z.object({ rootDir: z.string().optional() }).optional() });
+const GitStderrSchema = z.object({ stderr: z.string().optional() });
 
 /** The name of the file that records a group's actualities: the state each read, and the outcome and duration of each of its
  *  levels. The file is written beside the group's configuration. The state excludes every file with this name, because an
@@ -62,7 +68,7 @@ function whereItIs(location: string): string {
 function dependedModules(moduleDir: string): string[] {
 	const pkgJson = path.join(moduleDir, "package.json");
 	if (!nodeFS.existsSync(pkgJson)) return [];
-	const pkg = JSON.parse(nodeFS.readFileSync(pkgJson, "utf-8")) as { dependencies?: Record<string, string> };
+	const pkg = PackageDependenciesSchema.parse(JSON.parse(nodeFS.readFileSync(pkgJson, "utf-8")));
 	const lookup = createRequire(pkgJson).resolve.paths;
 	return (pkg.dependencies === undefined ? [] : Object.keys(pkg.dependencies)).flatMap((name) => {
 		const found = lookup(name)
@@ -82,11 +88,11 @@ function dependedModules(moduleDir: string): string[] {
 function sourcesOf(moduleDir: string): string {
 	const tsconfig = path.join(moduleDir, "tsconfig.json");
 	if (!nodeFS.existsSync(tsconfig)) return moduleDir;
-	let declared: { compilerOptions?: { rootDir?: string } };
+	let declared: z.output<typeof TsConfigSchema>;
 	try {
-		declared = JSON.parse(nodeFS.readFileSync(tsconfig, "utf-8"));
+		declared = TsConfigSchema.parse(JSON.parse(nodeFS.readFileSync(tsconfig, "utf-8")));
 	} catch (err: unknown) {
-		throw new Error(`${tsconfig} could not be read as JSON, so the source directory of ${moduleDir} can't be determined. Correct the file: ${(err as Error).message}`);
+		throw new Error(`${tsconfig} could not be read as JSON, so the source directory of ${moduleDir} can't be determined. Correct the file: ${errorDetail(err)}`);
 	}
 	const rootDir = declared.compilerOptions?.rootDir;
 	if (!rootDir) return moduleDir;
@@ -147,10 +153,11 @@ export async function repositoryTop(dir: string): Promise<string | undefined> {
 	try {
 		return (await git(dir, ["rev-parse", "--show-toplevel"])).trim();
 	} catch (err: unknown) {
-		const said = String((err as { stderr?: string }).stderr ?? "").trim();
+		const parsedErr = GitStderrSchema.safeParse(err);
+		const said = parsedErr.success ? String(parsedErr.data.stderr ?? "").trim() : "";
 		if (said.includes("not a git repository")) return undefined;
 		throw new Error(
-			`git rev-parse --show-toplevel failed in ${dir}, so its dependency state can't be read. Check that the directory exists and that git runs there: ${said || (err as Error).message}`,
+			`git rev-parse --show-toplevel failed in ${dir}, so its dependency state can't be read. Check that the directory exists and that git runs there: ${said || errorDetail(err)}`,
 		);
 	}
 }

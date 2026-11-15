@@ -7,8 +7,10 @@ import { createHash } from "crypto";
 import { existsSync, mkdirSync, readdirSync, cpSync, unlinkSync } from "fs";
 import * as nodePath from "path";
 import { createRequire } from "module";
+import { z } from "zod";
 
 import { itemAt } from "../../lib/domains/item-at.js";
+import { errorDetail } from "../../lib/domains/util.js";
 import type { TRenderedAudioMap, TSpeech } from "../ports.js";
 
 /** The part of kokoro-js's KokoroTTS that synthesis calls: a model loaded by its id, which renders a transcript as audio. */
@@ -58,7 +60,7 @@ function getMediafileDuration(filePath: string): Promise<number> {
 		}
 		return Promise.resolve(duration);
 	} catch (error) {
-		console.error(`Error getting duration for ${filePath}: ${(error as Error).message}`);
+		console.error(`Error getting duration for ${filePath}: ${errorDetail(error)}`);
 		throw error;
 	}
 }
@@ -76,7 +78,7 @@ async function renderSpeech(transcript: string): Promise<string> {
 		try {
 			doExec("npm install --no-save kokoro-js", true);
 		} catch (e) {
-			console.error(`Failed to install kokoro-js: ${(e as Error).message}`);
+			console.error(`Failed to install kokoro-js: ${errorDetail(e)}`);
 			throw e;
 		}
 	}
@@ -85,10 +87,11 @@ async function renderSpeech(transcript: string): Promise<string> {
 	let KokoroTTS: TKokoroTTS;
 	try {
 		const require = createRequire(localKokoroPath + "/package.json");
-		const kokoroModule = require("kokoro-js") as { KokoroTTS: TKokoroTTS };
+		const KokoroModuleSchema = z.object({ KokoroTTS: z.custom<TKokoroTTS>((v) => (typeof v === "function" || typeof v === "object") && v !== null && "from_pretrained" in v) });
+		const kokoroModule = KokoroModuleSchema.parse(require("kokoro-js"));
 		KokoroTTS = kokoroModule.KokoroTTS;
 	} catch (e) {
-		throw new Error(`Failed to import kokoro-js: ${(e as Error).message}`);
+		throw new Error(`Failed to import kokoro-js: ${errorDetail(e)}`);
 	}
 
 	try {
@@ -110,7 +113,7 @@ async function renderSpeech(transcript: string): Promise<string> {
 
 		return tmpFile;
 	} catch (e) {
-		console.error("Error in TTS generation:", (e as Error).message);
+		console.error("Error in TTS generation:", errorDetail(e));
 		throw e;
 	}
 }
@@ -131,7 +134,7 @@ async function renderAudio(hash: string, transcript: string, cacheDir: string): 
 	try {
 		unlinkSync(generatedWavPath);
 	} catch (e) {
-		console.warn(`Failed to clean up temp file ${generatedWavPath}: ${(e as Error).message}`);
+		console.warn(`Failed to clean up temp file ${generatedWavPath}: ${errorDetail(e)}`);
 	}
 
 	return { transcript, durationS, cachedPath: finalCachedPath };
@@ -171,7 +174,7 @@ function playAudioFile(audioPath: string): Promise<void> {
 				reject(new Error(`Error running ffplay: ${err.message}`));
 			});
 		} catch (error) {
-			reject(new Error(`Failed to execute ffplay: ${(error as Error).message}`));
+			reject(new Error(`Failed to execute ffplay: ${errorDetail(error)}`));
 		}
 	});
 }

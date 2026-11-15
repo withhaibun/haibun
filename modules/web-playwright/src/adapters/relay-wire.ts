@@ -19,7 +19,7 @@ export const RELAY_ATTACHED = "relay.attached";
 export const RELAY_OPEN_MS = 10_000;
 
 /** A message between the relay and the attached extension: a command for it, or its result, or a chrome event. */
-const RelayMessageSchema = z.object({
+export const RelayMessageSchema = z.object({
 	id: z.number().optional(),
 	method: z.string().optional(),
 	params: z.unknown().optional(),

@@ -10,7 +10,7 @@ import { readNdjson } from "@haibun/core/lib/rpc-wire.js";
 import type { TProveRequest } from "@haibun/core/lib/transport/ports.js";
 import { actualityAt, postRpc } from "@haibun/core/lib/transport/adapters/rpc-call.js";
 import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
-import { RELAY_ATTACHED, RELAY_METHOD_PREFIX, RELAY_OPEN_MS, type TRelayBatch, type TRelayCall, type TRelayMessage } from "../../adapters/relay-wire.js";
+import { RELAY_ATTACHED, RELAY_METHOD_PREFIX, RELAY_OPEN_MS, RelayMessageSchema, type TRelayBatch, type TRelayCall, type TRelayMessage } from "../../adapters/relay-wire.js";
 import type { TRelayChannel } from "../ports.js";
 
 export async function openRelayChannel({ base, sign }: { base: string; sign: TProveRequest }): Promise<TRelayChannel> {
@@ -31,7 +31,8 @@ export async function openRelayChannel({ base, sign }: { base: string; sign: TPr
 		const chunks = readNdjson<TStreamChunk>(attached.body);
 		const first = await chunks.next();
 		const opening = first.done ? undefined : first.value;
-		if (!opening || opening.error || (opening.message as TRelayMessage | undefined)?.method !== RELAY_ATTACHED)
+		const openingMessage = opening?.message === undefined ? undefined : RelayMessageSchema.safeParse(opening.message);
+		if (!opening || opening.error || !openingMessage?.success || openingMessage.data.method !== RELAY_ATTACHED)
 			throw new Error(`relay.attach was refused: ${opening ? (opening.error ?? JSON.stringify(opening)) : "the stream ended before the relay held the extension"}`);
 		return chunks;
 	};
@@ -77,7 +78,7 @@ export async function openRelayChannel({ base, sign }: { base: string; sign: TPr
 		try {
 			for await (const chunk of chunks) {
 				if (chunk.error) throw new Error(chunk.error);
-				if (chunk.message) channel.onmessage?.(chunk.message as TRelayMessage);
+				if (chunk.message) channel.onmessage?.(RelayMessageSchema.parse(chunk.message));
 			}
 		} catch (e) {
 			if (open) channel.close(`the relay ended the attachment: ${errorDetail(e)}`);

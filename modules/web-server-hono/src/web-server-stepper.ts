@@ -4,12 +4,14 @@ import { actionNotOK, getStepperOptionName, intOrError, boolOrError, errorDetail
 import { AStepper, CycleWhen, type IHasCycles, type IHasOptions, type TEndActuality, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { actionList } from "@haibun/core/lib/domains/actions.js";
+import { Access } from "@haibun/core/lib/domains/resources.js";
 import { DOMAIN_TEXT, DOMAIN_FILE_PATH, DOMAIN_ROUTE, DOMAIN_LINK } from "@haibun/core/lib/domains/domains.js";
 import { STORE_METHOD_PREFIX, storeMethods } from "@haibun/core/lib/domains/store-protocol.js";
 import { basicAuthUsers } from "@haibun/core/lib/domains/basic-auth.js";
+import { recordChange } from "@haibun/core/lib/steps/domains/contract.js";
 import type { IWebServer, MiddlewareHandler, TRoutePurpose } from "./ports.js";
 import { TRANSPORT, type ITransport } from "./domains/transport.js";
-import { DEFAULT_PORT, endpointDomainDefinition, originList, WEB_SERVER_CAPABILITIES } from "./domains/web-server.js";
+import { DEFAULT_PORT, endpointDomainDefinition, EndpointLabels, originList, WEB_SERVER_CAPABILITIES } from "./domains/web-server.js";
 import { FOLLOWER_WRITES_IN_FLIGHT } from "./machines/follower.js";
 import { capabilityVerifier } from "./pipelines/capability-verifier.js";
 import { SSETransport } from "./pipelines/event-stream.js";
@@ -104,11 +106,15 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 				}
 			},
 		},
+		ORIGINAL_URL_SECRET: {
+			desc: "The secret a trusted proxy that re-addresses a request attests the address its caller actually used with: the proxy states the address with its HMAC under this secret, and the server verifies a presented proof over the attested address rather than the one it received. Unset, a proof verifies over the address the server received",
+			parse: (input: string) => ({ result: input }),
+		},
 	};
 	port: number = DEFAULT_PORT;
 	hostname?: string;
 	/** The origins each feature's server is reached at, what every caller may do without a delegation, and whom every route admits by HTTP basic auth. */
-	serving: TServing = { origins: [], allowedWithoutDelegation: [], admitted: [] };
+	serving: TServing = { origins: [], allowedWithoutDelegation: [], admitted: [], originalUrlSecret: undefined };
 	/** Whether each feature's server serves RPC calls to actuality's steps. */
 	rpc = false;
 
@@ -127,6 +133,8 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			gwta: `stop this instance because {reason: ${DOMAIN_TEXT}}`,
 			capability: WEB_SERVER_CAPABILITIES.stop,
 			description: "Ends this instance's process, stating why, so its log records what stopped it.",
+			// Stopping the process doesn't write a store record; the log statement reaches the event hub, not the store.
+			contract: { changes: [] },
 			action: ({ reason }) => {
 				this.getWorld().eventLogger.info(`stopping this instance: ${reason}`);
 				stopProcess();
@@ -136,6 +144,8 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		asksToSignIn: {
 			gwta: `every visitor to {address: ${DOMAIN_LINK}} is asked to sign in`,
 			description: "Check that an address refuses a request that doesn't sign in, as a site behind basic auth does. It fails with what the address returned and what to change.",
+			readsAt: Access.public,
+			contract: { read: true },
 			action: async ({ address }) => {
 				const why = await whyNotSignedIn(address);
 				return why ? actionNotOK(why) : OK;
@@ -145,6 +155,8 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			gwta: `webserver is listening for {why: ${DOMAIN_TEXT}}`,
 			description:
 				"Starts the feature's web server listening on its port, and passes where the port is held, since the server already listens. The step records why the server listens, which a call that finds the port held states.",
+			// Listening is the server's in-memory state; the step doesn't write a store record.
+			contract: { changes: [] },
 			action: async ({ why }) => {
 				await this.listen(why);
 				return OK;
@@ -154,6 +166,8 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			gwta: `serve files at {where: ${DOMAIN_ROUTE}} from {loc: ${DOMAIN_FILE_PATH}}`,
 			description:
 				"Serves the files of the directory on the feature's web server under the route, with the read each file requires and the artifact policy while the server dispatches `/rpc` calls, as the RPC option states. Fails, stating why the files weren't served, where the mount is refused.",
+			// A mount is the server's in-memory state; the step records each route it mounts as its Endpoint.
+			contract: { changes: [recordChange(EndpointLabels.Endpoint)] },
 			action: ({ where, loc }) =>
 				this.mounting(`the files of ${loc} at ${where}`, (server) => server.checkAddStaticFolder(loc, where, filesFrom(loc), ...this.servedFolderGates(server))),
 		},
@@ -161,6 +175,8 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			gwta: `index files from {loc: ${DOMAIN_FILE_PATH}}`,
 			description:
 				"Serves an index of the files in the directory on the feature's web server at the root, with the read each file requires and the artifact policy while the server dispatches `/rpc` calls, as the RPC option states. Fails, stating why the index wasn't served, where the mount is refused.",
+			// A mount is the server's in-memory state; the step records the route it mounts as its Endpoint.
+			contract: { changes: [recordChange(EndpointLabels.Endpoint)] },
 			action: ({ loc }) =>
 				this.mounting(`an index of ${loc}`, (server) =>
 					server.checkAddIndexFolder(loc, "/", { description: `An index of the files in ${loc}` }, ...this.servedFolderGates(server)),

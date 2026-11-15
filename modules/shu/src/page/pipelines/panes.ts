@@ -24,7 +24,14 @@ export type TPaneHooks = { load(tag: string): Promise<void>; attach: TPaneAttach
 
 /** What the page holds of its panes beside the machine: the strip and the hooks it opens panes with, the last address it
  *  wrote, and whether a reconcile is under way or requested. */
-export type TPanesHeld = { strip: TPaneStrip | undefined; hooks: TPaneHooks | undefined; lastWritten: string | undefined; reconciling: boolean; requested: boolean };
+export type TPanesHeld = {
+	strip: TPaneStrip | undefined;
+	hooks: TPaneHooks | undefined;
+	lastWritten: string | undefined;
+	reconciling: boolean;
+	requested: boolean /** The layout the first restore applies: the persisted one, set at boot only when the arrival named no panes. */;
+	restoreFrom?: string;
+};
 
 /** What the pane pipeline reads and writes. */
 export type TPanesScope = {
@@ -36,6 +43,9 @@ export type TPanesScope = {
 	active: TSharedCell<string | null>;
 	/** Whether the reader minimized the pane `id` when it was last shown. */
 	minimizedBefore(id: string): boolean;
+	/** Persists the address the page writes, so an arrival that names no panes — such as the app's frame recreated by the site
+	 *  it is embedded in — can still restore the reader's columns from the boot snapshot. */
+	layout?: { write(hash: string): void };
 	kinds: Kinds.TPaneContext;
 };
 
@@ -81,8 +91,24 @@ export function control(scope: TPanesScope, id: string, change: TPaneControl): v
 /** Reads the address into the panes it names, at an arrival at an address the page didn't write. The page's own write already
  *  matches the machine, and a read of it during an open removes the pane being opened. */
 export function restoreFromAddress(scope: TPanesScope): void {
-	const hash = scope.address.get();
-	if (hash === scope.held.lastWritten) return;
+	// A frame the site recreates arrives without the address the app wrote, so at boot, before any write, the page decides
+	// whether the arrival named no panes and records the persisted layout to restore. The first restore applies it, puts it
+	// back in the address, and consumes it, so a later pane-less arrival the reader made isn't refilled.
+	const live = scope.address.get();
+	let hash = live;
+	let seeded = false;
+	if (scope.held.restoreFrom !== undefined) {
+		const saved = scope.held.restoreFrom;
+		scope.held.restoreFrom = undefined;
+		if (saved !== live) {
+			hash = saved;
+			seeded = true;
+			scope.held.lastWritten = saved;
+			scope.address.push(saved);
+		}
+	}
+	// A read of the address the page just wrote matches the machine, and a read of it during an open would remove the open pane.
+	if (!seeded && hash === scope.held.lastWritten) return;
 	const params = Address.hashParams(hash);
 	const named = new Map<string, DesiredPane>();
 	for (const raw of params.getAll(Address.COLUMN_PARAM)) {
@@ -234,5 +260,6 @@ function writeAddress(scope: TPanesScope): void {
 	const next = Address.hashOf(params);
 	// The address this writes is the page's own, so its arrival doesn't restore the panes again.
 	scope.held.lastWritten = next;
+	scope.layout?.write(next);
 	if (next !== base) scope.address.push(next);
 }

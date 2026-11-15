@@ -21,17 +21,16 @@
  * worker (off the main thread), sync() kicks it off and its callback sizes the background to the measured text bounds.
  */
 import { Text, configureTextBuilder } from "troika-three-text";
-import { LABEL_FONT } from "../../../domains/serving.js";
 import type { TCarriedLabelFont } from "../../../domains/hydration.js";
 import { UNCOVERED_FLAGS, coveredText } from "../../../derivations/carried-label-font.js";
 import { FULL_BURN, GLOW_SPREAD, type GlowThree, MarkGlow, makeGlow } from "../derivations/highlight.js";
 import type { LabelVisual, NodeVisual, Obj3D } from "../domains/graph-types.js";
 
-/** The font of a page's labels. A served page reads the font shu serves beside its bundles, and troika looks up a character
+/** The font of a page's labels. A served page reads the font shu serves beside its bundle, and troika looks up a character
  *  that font lacks at `fallbacks`, an absolute address, since troika reads it in a worker. A page that carries a record of
  *  actuality opens from a file, where the two addresses don't resolve, so it holds the font as a data URL with the pattern
  *  of the characters the font lacks. */
-export type TLabelFonts = { fallbacks: string } | TCarriedLabelFont;
+export type TLabelFonts = { font: string; fallbacks: string } | TCarriedLabelFont;
 
 /** The pattern of the characters the carried font lacks, or undefined on a served page, whose site serves troika's lookup
  *  of each such character. */
@@ -42,7 +41,7 @@ let carriedUncovered: RegExp | undefined;
 export function configureLabelFonts(fonts: TLabelFonts): void {
 	const served = "fallbacks" in fonts;
 	carriedUncovered = served ? undefined : new RegExp(fonts.uncovered, UNCOVERED_FLAGS);
-	configureTextBuilder(served ? { defaultFontURL: LABEL_FONT, unicodeFontsURL: fonts.fallbacks } : { defaultFontURL: fonts.font });
+	configureTextBuilder(served ? { defaultFontURL: fonts.font, unicodeFontsURL: fonts.fallbacks } : { defaultFontURL: fonts.font });
 }
 
 /** Returns `content` as troika draws it: on a page that carries its font, with each character the font lacks replaced. */

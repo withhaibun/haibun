@@ -99,9 +99,9 @@ function accessRank(level: string): number {
 	return RUN_ACCESS_LEVELS.indexOf(level as TRunAccess);
 }
 
-/** Check if granted level includes required level (w ⊃ a ⊃ r) */
-export function accessLevelIncludes(granted: string, required: string): boolean {
-	return accessRank(granted) >= accessRank(required);
+/** Check if allowed level includes required level (w ⊃ a ⊃ r) */
+export function accessLevelIncludes(allowed: string, required: string): boolean {
+	return accessRank(allowed) >= accessRank(required);
 }
 
 /** Extract access prefix from feature filename, or undefined if unrecognized */

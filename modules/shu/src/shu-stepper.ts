@@ -188,6 +188,8 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			gwta: `serve shu app at {path: ${DOMAIN_ROUTE}}`,
 			description:
 				"Mounts the shu app on the feature's web server at the path, with the page's bundles, their chunks and source maps, and the JSON-LD context the page reads. Fails when the web server isn't loaded, or the path doesn't start with a slash, or the path ends with one.",
+			// A mount is the server's in-memory state; the step doesn't write a store record.
+			contract: { changes: [] },
 			action: ({ path }) => {
 				const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER) as IWebServer;
 				if (!webserver) return actionNotOK("webserver not available, load web-server-stepper before shu");
@@ -211,14 +213,15 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				"Opens the polymorphic graph view of the shu app: one graph as a force cloud, a layered flow, a gantt or a sequence. The dispatcher injects the markers that mount the view from the domain's declaration.",
 			// Opened through the same affordance path as every other view: the products domain is the view's own, and the
 			// step-hypermedia projection injects what mounts it from the registered declaration.
-			contract: { products: SHU_TAG.POLYMORPHIC_GRAPH_VIEW },
+			contract: { products: SHU_TAG.POLYMORPHIC_GRAPH_VIEW, changes: [] },
 			action: () => actionOKWithProducts({}),
 		},
 		getGraphLayout: {
 			gwta: "get graph layout",
 			description:
 				"Returns where the graph view placed each node: the nodes and edges as pipe-delimited tokens, and the clusters with the count of each type's records and the count sampled. Fails, stating why the layout wasn't read, where the read throws.",
-			contract: { products: DOMAIN_GRAPH_LAYOUT },
+			readsAt: Access.public,
+			contract: { read: true, products: DOMAIN_GRAPH_LAYOUT },
 			action: async () => {
 				try {
 					return actionOKWithProducts(await graphLayout(this.getWorld()));

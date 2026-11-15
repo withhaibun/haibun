@@ -20,8 +20,8 @@ export const readsDotenv = (specl: TSpecl): boolean => specl.environments !== un
  *  contains config.json gives that file. The working directory's config.json is the fallback. */
 export function configFileFrom(bases: TBase, fs: TFileSystem): string {
 	const found = bases?.filter((b) => (b.endsWith("json") && fs.existsSync(b)) || fs.existsSync(`${b}/config.json`));
-	const configCandidate = (found && found[0]) || ".";
-	return configCandidate.endsWith("json") ? configCandidate : `${configCandidate}/config.json`;
+	if (found && found[0]) return found[0].endsWith("json") ? found[0] : `${found[0]}/config.json`;
+	return "./config.json";
 }
 
 const sameEntry = (a: TStepperEntry, b: TStepperEntry): boolean => JSON.stringify(a) === JSON.stringify(b);

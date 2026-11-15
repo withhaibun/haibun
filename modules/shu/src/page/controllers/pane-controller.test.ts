@@ -16,12 +16,12 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { FRAGMENT_SPEC } from "@haibun/core/lib/domains/media-fragments.js";
 import { ShuElement } from "../components/shu-element.js";
 import * as Address from "../derivations/address.js";
-import { installConduit, installServedConduit } from "../root.js";
+import { installConduit, installServedConduit, pagePreferences } from "../root.js";
 import { TestConduit, newPage } from "../../test/setup.js";
 import { IMPORTED_VIEWS } from "../../test/pane-requests.js";
 import type { TStripElement } from "../ports.js";
 import { activePane } from "../root.js";
-import { PANE_CONTEXT, paneOfEntry, activatePane, dismissPane, openStrip, relabelPane, requestPane, requestPaneFrom, restorePanes } from "./pane-controller.js";
+import { LAYOUT_KEY, PANE_CONTEXT, paneOfEntry, activatePane, dismissPane, openStrip, relabelPane, requestPane, requestPaneFrom, restorePanes } from "./pane-controller.js";
 import { columnEntryOf, DesiredPaneSchema, paneIdOf, tagOf, labelOf } from "../derivations/pane-kinds.js";
 import "../graph/components/shu-graph-source.js";
 
@@ -150,6 +150,9 @@ describe("the page's panes", () => {
 		reloadPage();
 		activePane.set(null);
 		document.body.innerHTML = "";
+		// A case stands alone: the layout a file run earlier in this worker left in the page's cookies would otherwise
+		// restore its panes onto this page.
+		pagePreferences().forget(SHU_TAG.COLUMN_PANE, LAYOUT_KEY);
 		offline();
 		ShuElement.pushHash("#?");
 		if (!customElements.get("shu-column-pane"))

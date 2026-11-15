@@ -13,12 +13,15 @@ import { UrakataRegistry } from "../lib/pipelines/urakata.js";
 import {
 	URAKATA,
 	URAKATA_ID_DOMAIN,
+	URAKATA_LABEL,
 	UrakataSchema,
 	type IHasUrakata,
 	type IUrakataRegistry,
 	urakataIdDomainDefinition,
 	urakataTaskDomainDefinition,
 } from "../lib/domains/urakata.js";
+import { recordChange } from "../lib/steps/domains/contract.js";
+import { Access } from "../lib/domains/resources.js";
 
 const DOMAIN_URAKATA_LIST = "urakata-list";
 const UrakataListSchema = z.object({ urakata: z.array(UrakataSchema), ...CountedFields });
@@ -78,7 +81,8 @@ class UrakataStepper extends AStepper implements IHasCycles, IHasUrakata {
 		showUrakata: {
 			gwta: "show urakata",
 			description: "Returns the urakata running in the feature, each with what it is, when it started, its tick and error counts, and its stop time.",
-			contract: { products: DOMAIN_URAKATA_LIST },
+			readsAt: Access.private,
+			contract: { read: true, products: DOMAIN_URAKATA_LIST },
 			action: () => {
 				const urakata = this.urakata().list();
 				return actionOKWithProducts({ urakata, ...counted(urakata.length) });
@@ -88,6 +92,8 @@ class UrakataStepper extends AStepper implements IHasCycles, IHasUrakata {
 		stopUrakata: {
 			gwta: `stop urakata {id: ${URAKATA_ID_DOMAIN}}`,
 			description: "Stops the urakata of the id, cancelling its ticks and recording its stop time. It fails where the id isn't registered.",
+			// A stop persists the task's record with its stop time, which the registry's own transition writes.
+			contract: { changes: [recordChange(URAKATA_LABEL)] },
 			action: async ({ id }) => {
 				await this.urakata().stop(id);
 				return actionOK();
@@ -97,6 +103,7 @@ class UrakataStepper extends AStepper implements IHasCycles, IHasUrakata {
 		forgetUrakata: {
 			gwta: `forget urakata {id: ${URAKATA_ID_DOMAIN}}`,
 			description: "Stops the urakata of the id and removes it from the registry. It fails where the id isn't registered.",
+			contract: { changes: [recordChange(URAKATA_LABEL)] },
 			action: async ({ id }) => {
 				await this.urakata().forget(id);
 				return actionOK();
@@ -106,6 +113,8 @@ class UrakataStepper extends AStepper implements IHasCycles, IHasUrakata {
 		urakataIsRunning: {
 			gwta: `urakata is running {id: ${URAKATA_ID_DOMAIN}}`,
 			description: "Holds where the urakata of the id is running, and refuses where it was stopped. It fails where the id isn't registered.",
+			readsAt: Access.private,
+			contract: { read: true },
 			action: ({ id }) => {
 				const u = this.urakata().get(id);
 				return u.stoppedAt === undefined ? actionOK() : actionNotOK(`urakata "${id}" was stopped at ${u.stoppedAt}, not running`);

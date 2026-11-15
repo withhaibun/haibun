@@ -21,14 +21,17 @@
  * is the call that holds it (`attach`) and the calls that carry its results (`receive`). `any` is typed as `unknown`.
  */
 
+import { z } from "zod";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import type { ConnectOverCDPTransport } from "playwright";
 import { ExtensionProtocolV2 } from "./cdp-relay-v2.js";
 import type { CDPMessage } from "./browser-model.js";
 import { EXTENSION_COMMAND, type TRelayMessage } from "./relay-wire.js";
 import type { Tab, TBrowserRelay } from "../ports.js";
-import type { TRelayAttachment } from "../domains/relay.js";
+import { TabSchema, type TRelayAttachment } from "../domains/relay.js";
 
-type CDPCommand = { id: number; sessionId?: string; method: string; params?: unknown };
+const CDPCommandSchema = z.object({ id: z.number(), sessionId: z.string().optional(), method: z.string(), params: z.unknown().optional() });
+type CDPCommand = z.infer<typeof CDPCommandSchema>;
 
 type TPending = { resolve: (result: unknown) => void; reject: (error: Error) => void; error: Error };
 type TExtension = {
@@ -110,7 +113,7 @@ export class BrowserRelay implements TBrowserRelay {
 		// Playwright's client is held while actuality's steps act in the attached browser. Its closing takes the debugger
 		// off the tabs and keeps the attachment, so the next client drives them again.
 		const client: ConnectOverCDPTransport = {
-			send: (message) => void this.handlePlaywrightMessage(extension, message as CDPCommand),
+			send: (message) => void this.handlePlaywrightMessage(extension, CDPCommandSchema.parse(message)),
 			close: () => {
 				if (this.cdpClient !== client) return;
 				this.cdpClient = undefined;
@@ -125,7 +128,7 @@ export class BrowserRelay implements TBrowserRelay {
 
 	/** Every tab open in the attached browser, as the extension lists it. */
 	async listTabs(): Promise<Tab[]> {
-		return (await this.command("chrome.tabs.query", [{}])) as Tab[];
+		return z.array(TabSchema).parse(await this.command("chrome.tabs.query", [{}]));
 	}
 
 	/** A tab's title, its address and the text its page shows, read by the extension without the debugger. */
@@ -135,7 +138,7 @@ export class BrowserRelay implements TBrowserRelay {
 
 	/** Opens a tab at `url`, which the relay may then drive as it drives a tab it creates. */
 	async openTab(url: string): Promise<Tab> {
-		const tab = (await this.command("chrome.tabs.create", [{ url }])) as Tab;
+		const tab = TabSchema.parse(await this.command("chrome.tabs.create", [{ url }]));
 		this.extension?.protocol.rememberTab(tab);
 		return tab;
 	}
@@ -177,7 +180,7 @@ export class BrowserRelay implements TBrowserRelay {
 			const result = await this.handleCDPCommand(extension, method, params, sessionId);
 			this.sendToCDPClient({ id, sessionId, result });
 		} catch (e) {
-			this.sendToCDPClient({ id, sessionId, error: { message: (e as Error).message } });
+			this.sendToCDPClient({ id, sessionId, error: { message: errorDetail(e) } });
 		}
 	}
 

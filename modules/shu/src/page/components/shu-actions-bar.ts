@@ -177,7 +177,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		// Optional action-bar slot extensions load once the types are read: a missing or unserved one is reported by itself
 		// and does not stop the bar.
 		const types = this.#query.loadDomains().then(() => {
-			void loadSlotExtensions(SHU_TAG.ACTIONS_BAR, [ACTION_BAR_CHAT_SLOT, ACTION_BAR_ASK_SLOT], this.getAttribute("api-base") || "", () => this.requestUpdate()).catch((err) =>
+			void loadSlotExtensions(SHU_TAG.ACTIONS_BAR, [ACTION_BAR_CHAT_SLOT, ACTION_BAR_ASK_SLOT], () => this.requestUpdate()).catch((err) =>
 				reportToRun("warn", SHU_TAG.ACTIONS_BAR, "optional UI extensions failed to load", { error: errorDetail(err) }),
 			);
 		});

@@ -98,7 +98,7 @@ export const DOMAIN_STATEMENT_LINES = "statement-lines";
 export const DOMAIN_PERSISTED_TYPES = "persisted-types";
 /** The backgrounds a feature includes, by name, given as a list. */
 export const DOMAIN_BACKGROUND_NAMES = "background-names";
-/** A token whose holder is granted what it grants, sent as `Authorization: Bearer` (RFC 6750). */
+/** A token whose bearer holds what it delegates, sent as `Authorization: Bearer` (RFC 6750). */
 export const DOMAIN_BEARER_TOKEN = "bearer-token";
 
 /** What separates the parts of a union domain's key. */

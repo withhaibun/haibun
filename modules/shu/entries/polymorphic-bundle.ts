@@ -7,3 +7,8 @@
  */
 import "../src/page/graph/components/shu-polymorphic-graph-view.js";
 import "../src/page/graph/components/shu-class-browser.js";
+import { setPageBundleUrl } from "../src/page/domains/view-script.js";
+
+// This bundle's own URL, recorded before a view mounts, so the view reads the label font and its fallbacks from beside
+// this bundle, under whatever prefix serves the page, as the app's own entry does.
+setPageBundleUrl(import.meta.url);

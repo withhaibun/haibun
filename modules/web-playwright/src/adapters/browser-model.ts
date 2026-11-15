@@ -30,8 +30,12 @@
  * 4. A later tab, a debugger's detachment and a tab's removal reach the same inputs, which emit their CDP events.
  */
 
+import { z } from "zod";
 import type { DebuggerSession, Debuggee, Tab } from "../ports.js";
-import type { TRelayAttachment } from "../domains/relay.js";
+import { TabSchema, type TRelayAttachment } from "../domains/relay.js";
+
+const SessionParamsSchema = z.object({ sessionId: z.string().optional() });
+const TargetInfoResultSchema = z.object({ targetInfo: z.looseObject({ targetId: z.string().optional() }).optional() });
 
 export type CDPMessage = { id?: number; sessionId?: string; method?: string; params?: unknown; result?: unknown; error?: { code?: number; message: string } };
 
@@ -107,7 +111,8 @@ export class BrowserModel {
 		if (!tabSession) return;
 		// A child session's commands route to the tab that holds it: `Target.attachedToTarget` adds one, and
 		// `Target.detachedFromTarget` removes it.
-		const childSessionId = (params as { sessionId?: string } | undefined)?.sessionId;
+		const parsed = SessionParamsSchema.safeParse(params);
+		const childSessionId = parsed.success ? parsed.data.sessionId : undefined;
 		if (method === "Target.attachedToTarget" && childSessionId) tabSession.childSessions.add(childSessionId);
 		else if (method === "Target.detachedFromTarget" && childSessionId) tabSession.childSessions.delete(childSessionId);
 		// A tab's own events carry the relay's session for it, and a child session's events keep their own.
@@ -125,7 +130,7 @@ export class BrowserModel {
 	}
 
 	async createTarget(url: string | undefined): Promise<{ targetId: string | undefined }> {
-		const tab = (await this.#sendToExtension("chrome.tabs.create", [{ url }])) as Tab | undefined;
+		const tab = TabSchema.optional().parse(await this.#sendToExtension("chrome.tabs.create", [{ url }]));
 		if (tab?.id === undefined) throw new Error(`the extension opened a tab at ${String(url)} without stating its id`);
 		this.#knownTabs.set(tab.id, tab);
 		const tabSession = await this.#attachTab(tab.id);
@@ -169,7 +174,7 @@ export class BrowserModel {
 		const existing = this.#tabSessions.get(tabId);
 		if (existing) return existing;
 		await this.#sendToExtension("chrome.debugger.attach", [{ tabId }, DEBUGGER_VERSION]);
-		const result = (await this.#sendToExtension("chrome.debugger.sendCommand", [{ tabId }, "Target.getTargetInfo"])) as { targetInfo?: TTargetInfo } | undefined;
+		const result = TargetInfoResultSchema.optional().parse(await this.#sendToExtension("chrome.debugger.sendCommand", [{ tabId }, "Target.getTargetInfo"]));
 		const targetInfo = result?.targetInfo;
 		const sessionId = `${SESSION_PREFIX}${this.#nextSessionId++}`;
 		const tabSession: TabSession = { tabId, sessionId, targetInfo, childSessions: new Set() };

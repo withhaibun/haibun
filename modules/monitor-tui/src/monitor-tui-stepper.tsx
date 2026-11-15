@@ -182,7 +182,7 @@ export default class TuiMonitorStepper extends AStepper implements IHasCycles, I
 
 			if (event.kind === "lifecycle" && event.type === "step") {
 				if (event.stage === "start") {
-					this.running = new Map(this.running).set(event.id, event.in || "");
+					this.running = new Map(this.running).set(event.id, event.in === undefined ? "" : event.in);
 				} else if (event.stage === "end") {
 					this.running = new Map(this.running);
 					this.running.delete(event.id);

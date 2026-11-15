@@ -100,10 +100,10 @@ export function mayCall(held: string | string[] | undefined, step: TCalled): boo
  * a prefix ending in `*` that matches it. A read entry allows a read at its own level and at each narrower level, since a
  * reader who may see private records may see public ones.
  */
-export function capabilityAllows(granted: string | string[] | undefined, required: string): boolean {
-	if (!granted) return false;
+export function capabilityAllows(delegated: string | string[] | undefined, required: string): boolean {
+	if (!delegated) return false;
 	const asked = readLevelOf(required);
-	return (Array.isArray(granted) ? granted : [granted]).some((entry) => {
+	return (Array.isArray(delegated) ? delegated : [delegated]).some((entry) => {
 		if (entry === "*" || entry === required) return true;
 		if (entry.endsWith("*")) return required.startsWith(entry.slice(0, -1));
 		const held = readLevelOf(entry);
@@ -112,8 +112,8 @@ export function capabilityAllows(granted: string | string[] | undefined, require
 }
 
 /** Returns the broadest read level that a caller's actions allow, or undefined where it doesn't hold a read. */
-export function readCeilingOf(granted: string | string[] | undefined): AccessLevel | undefined {
-	return ACCESS_BROADEST_FIRST.find((level) => capabilityAllows(granted, readAction(level)));
+export function readCeilingOf(delegated: string | string[] | undefined): AccessLevel | undefined {
+	return ACCESS_BROADEST_FIRST.find((level) => capabilityAllows(delegated, readAction(level)));
 }
 
 /** The action that following actuality's events requires. It is a read at the narrowest level. Each event states the
@@ -275,14 +275,14 @@ export function allowedActionFor(actions: string[]): string[] | undefined {
  * Returns the action a holder invokes under `delegation` for a call that requires `required` at `target`. The delegation
  * allows the call where it lists an action that allows `required` or doesn't list an action, `target` is at or under its
  * `invocationTarget`, and its expiry is later than `now`. A delegation that lists actions is matched on those actions, so
- * the action invoked is one it names and can differ from `required`. Returns undefined where the delegation doesn't
+ * the action used is one it names and can differ from `required`. Returns undefined where the delegation doesn't
  * allow the call.
  */
 export function actionUnder(delegation: TDelegation, required: string, target: string, now = Date.now()): string | undefined {
 	const over = typeof delegation.invocationTarget === "string" ? delegation.invocationTarget : undefined;
 	const expires = typeof delegation.expires === "string" ? Date.parse(delegation.expires) : Number.NaN;
 	if (!over || !(target === over || target.startsWith(over.endsWith("/") ? over : `${over}/`)) || !(expires > now)) return undefined;
-	// A delegation that doesn't restrict an action is invoked for `required`.
+	// A delegation that doesn't restrict an action applies to `required`.
 	if (delegation.allowedAction === undefined) return required;
 	return delegatedActions(delegation).find((action) => capabilityAllows(action, required));
 }
@@ -309,5 +309,5 @@ export function narrowing(held: TDelegation[], to: { wanted: string[]; expires: 
 }
 
 /** The actions on actuality's own authority. `delegate` permits stating and delegating the authority. `revoke` permits
- *  revoking a capability the authority granted. `name` permits naming the sites that connect to this instance. */
+ *  revoking a capability the authority delegated. `name` permits naming the sites that connect to this instance. */
 export const AUTHORITY_CAPABILITIES = { delegate: "Authority:delegate", revoke: "Authority:revoke", name: "Authority:name" } as const;

@@ -139,7 +139,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 		},
 		holdingOnly: {
 			gwta: `holding only {actions: ${DOMAIN_ACTIONS}}, {what: statement}`,
-			contract: { products: { of: "what" } },
+			contract: { products: { of: "what" }, changes: [] },
 			description:
 				"Proves a statement as the same caller with only those of the listed actions that its caller holds. The actions are comma-separated. A statement can do less than its caller and never more, so a feature can state a caller that holds some actions and not others. A refusal names the action the caller lacks.",
 			reading: READING.within,
@@ -154,7 +154,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 		},
 		holdingCapability: {
 			gwta: `holding capability {cap: ${DOMAIN_JSON}} at {target: ${DOMAIN_LINK}}, {what: statement}`,
-			contract: { products: { of: "what" } },
+			contract: { products: { of: "what" }, changes: [] },
 			description: "Proves a statement under a signed capability that the registered verifier verifies, as the principal it names and with the actions it delegates.",
 			reading: READING.within,
 			context: ({ cap, target }) => this.underCapability(cap, String(target)),

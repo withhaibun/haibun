@@ -125,8 +125,8 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 							attributes: {
 								"haibun.event.type": "step",
 								"haibun.event.id": event.id,
-								"haibun.stepper": event.stepperName || "unknown",
-								"haibun.action": event.actionName || "unknown",
+								"haibun.stepper": event.stepperName ? event.stepperName : "unknown",
+								"haibun.action": event.actionName ? event.actionName : "unknown",
 							},
 						},
 						parentContext,
@@ -140,9 +140,9 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 						const indication = EventFormatter.getIndication(event);
 						if (indication === STATUS.failed) {
 							stepSpan.setStatus({ code: SpanStatusCode.ERROR, message: event.error });
-							stepSpan.setAttribute("haibun.error", event.error || "unknown error");
+							stepSpan.setAttribute("haibun.error", event.error ? event.error : "unknown error");
 						} else if (indication === NESTED_FAILURE) {
-							stepSpan.setAttribute("haibun.error", event.error || "nested failure");
+							stepSpan.setAttribute("haibun.error", event.error ? event.error : "nested failure");
 						}
 						stepSpan.end();
 						this.stepSpans.delete(event.id);
@@ -161,7 +161,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 			// Copies event.attributes unchanged into the log record attributes. Emitters write OTel-aligned keys: haibun.* for
 			// haibun data and exception.* for error data.
 			logger.emit({
-				severityNumber: severityMap[event.level] || SeverityNumber.INFO,
+				severityNumber: severityMap[event.level] === undefined ? SeverityNumber.INFO : severityMap[event.level],
 				severityText: event.level.toUpperCase(),
 				body: event.message,
 				attributes: { "haibun.event.id": event.id, "haibun.event.kind": "log", ...event.attributes },
@@ -201,7 +201,10 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 		if (!span) return;
 		span.addEvent(
 			blip.name,
-			{ ...(blip.value !== undefined ? { "haibun.blip.value": blip.value } : {}), ...((blip.attributes ?? {}) as Record<string, string | number | boolean>) },
+			{
+				...(blip.value !== undefined ? { "haibun.blip.value": blip.value } : {}),
+				...(blip.attributes === undefined ? {} : (blip.attributes as Record<string, string | number | boolean>)),
+			},
 			blip.timestamp,
 		);
 	}

@@ -3,6 +3,7 @@
  * unserved extension is reported by itself, and the others load.
  */
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
+import { resolveViewScript } from "../domains/view-script.js";
 import { slotExtensions } from "../controllers/catalog-controller.js";
 import { getAvailableSteps } from "../controllers/registry-controller.js";
 import { reportToRun } from "../controllers/client-log-controller.js";
@@ -10,7 +11,7 @@ import type { TClientLogLevel } from "../ports.js";
 
 /** Load each extension declared for one of the slots, notifying the component after each loads, and throw naming every one
  *  that didn't load. */
-export async function loadSlotExtensions(source: string, slots: ReadonlyArray<string>, apiBase: string, onLoaded: () => void): Promise<void> {
+export async function loadSlotExtensions(source: string, slots: ReadonlyArray<string>, onLoaded: () => void): Promise<void> {
 	const report = (level: TClientLogLevel, message: string, attributes: Record<string, unknown> = {}): void =>
 		reportToRun(level, source, message, {
 			"haibun.shu.slot-extension.event": "ui-extension",
@@ -25,8 +26,9 @@ export async function loadSlotExtensions(source: string, slots: ReadonlyArray<st
 	report("debug", `${slotted.length} slot extensions found`, { count: slotted.length });
 	const errors: string[] = [];
 	for (const [label, ui] of slotted) {
-		const raw = String(ui.js);
-		const jsUrl = raw.startsWith("http") || raw.startsWith("/") ? raw : `${apiBase}/${raw}`;
+		// The extension's script, imported as the concern names it: a path relative to the page's own bundle (which resolves under
+		// whatever prefix serves the page), or an absolute one where the concern declares one.
+		const jsUrl = resolveViewScript(String(ui.js));
 		try {
 			await import(jsUrl);
 			onLoaded();

@@ -1,1 +1,38 @@
-{}
+{
+	"docs/planning/fol-in-haibun.md": {
+		"anthropomorphic": 11,
+		"em-dash": 23,
+		"negated-noun": 4,
+		"relation-verb": 3,
+		"terminal-preposition": 4
+	},
+	"modules/shu/src/page/controllers/pane-controller.ts": {
+		"anthropomorphic": 1,
+		"em-dash": 4,
+		"negated-noun": 3
+	},
+	"modules/shu/src/page/domains/view-script.ts": {
+		"em-dash": 2,
+		"negated-noun": 2,
+		"terminal-preposition": 1
+	},
+	"modules/shu/src/page/pipelines/panes.ts": {
+		"anthropomorphic": 1,
+		"em-dash": 2,
+		"negated-noun": 3
+	},
+	"modules/shu/src/page/root.ts": {
+		"relation-verb": 1
+	},
+	"modules/web-server-hono/src/pipelines/capability-verifier.ts": {
+		"anthropomorphic": 1,
+		"negated-noun": 1
+	},
+	"modules/web-server-hono/src/pipelines/server-settings.ts": {
+		"negated-noun": 1
+	},
+	"modules/web-server-hono/src/ports.ts": {
+		"negated-noun": 1,
+		"terminal-preposition": 1
+	}
+}

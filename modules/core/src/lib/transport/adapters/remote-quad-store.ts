@@ -11,7 +11,7 @@ import { STORE_METHOD_PREFIX, appliedWrite, requiredStoreCapability, sentWrites,
 import { writesInFlight } from "../../domains/capability-context.js";
 import type { TRequestSigner } from "../../domains/authority-types.js";
 import type { z } from "zod";
-import type { AccessLevel, AccessQueryLevel } from "../../domains/resources.js";
+import type { AccessQueryLevel } from "../../domains/resources.js";
 import { typedRecord } from "../../steps/domains/quad-types.js";
 import type { IQuadStore } from "../../steps/ports.js";
 import {
@@ -148,7 +148,7 @@ export class RemoteQuadStore implements IQuadStore {
 		const types = opts.types ? opts.types.filter((t) => this.config.graphs.includes(t)) : [...this.config.graphs];
 		if (types.length === 0) return { quads: [], clusters: [] };
 		const site = this.site;
-		const r = await this.call<TClusteredQuads>("getClusteredQuads", { perTypeLimit: opts.perTypeLimit, types, accessLevel: opts.accessLevel as AccessLevel, scope: opts.scope });
+		const r = await this.call<TClusteredQuads>("getClusteredQuads", { perTypeLimit: opts.perTypeLimit, types, accessLevel: opts.accessLevel, scope: opts.scope });
 		const defaultSite = r.site ?? site;
 		const clusters = r.clusters.map((c) => ({ ...c, sites: Object.fromEntries(c.sampledSubjects.map((s) => [s, c.sites?.[s] ?? defaultSite])) }));
 		return { quads: r.quads, clusters, site };

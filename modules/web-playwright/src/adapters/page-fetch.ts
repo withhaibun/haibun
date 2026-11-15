@@ -1,5 +1,5 @@
 /** An HTTP request made with `fetch`, and its response as the endpoint returned it: text and JSON where the body is text, or the response's bytes and media type where the body is binary. */
-import type { TCapturedResponse, TJsonResponse } from "../domains/web-playwright.js";
+import { JsonResponseSchema, type TCapturedResponse, type TJsonResponse } from "../domains/web-playwright.js";
 import type { TPageFetch } from "../ports.js";
 
 /** Whether a response's media type names text or JSON, rather than binary bytes. */
@@ -46,7 +46,7 @@ export const fetchInPage: TPageFetch = async (request) => {
 		const text = await response.text();
 		let json: TJsonResponse | undefined;
 		try {
-			json = JSON.parse(text) as TJsonResponse;
+			json = JsonResponseSchema.parse(JSON.parse(text));
 		} catch {
 			// A body that isn't JSON is its text alone.
 		}

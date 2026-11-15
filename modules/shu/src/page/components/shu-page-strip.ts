@@ -87,7 +87,7 @@ export class ShuPageStrip extends ShuElement<typeof PageStripSchema> {
 	protected override onConnected(): void {
 		// A click in the strip opens, closes and pins the docked pane, so it isn't a click elsewhere that closes the pane.
 		this.setAttribute(SHU_ATTR.DOCK_CONTROLS, "");
-		void loadSlotExtensions(SHU_TAG.PAGE_STRIP, [PERMISSIONS_SLOT], this.getAttribute("api-base") || "", () => this.requestUpdate()).catch((err) =>
+		void loadSlotExtensions(SHU_TAG.PAGE_STRIP, [PERMISSIONS_SLOT], () => this.requestUpdate()).catch((err) =>
 			reportToRun("warn", SHU_TAG.PAGE_STRIP, "optional UI extensions failed to load", { error: errorDetail(err) }),
 		);
 		// Actuality moving on changes the cursor's position in it.

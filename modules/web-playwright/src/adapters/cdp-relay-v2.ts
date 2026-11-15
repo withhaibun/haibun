@@ -27,11 +27,20 @@
  * Playwright's CDP until `ready()` resolves, so `Target.setAutoAttach` reads a full model.
  */
 
+import { z } from "zod";
 import { BrowserModel } from "./browser-model.js";
 
 import type { SendCommand, SendToCDPClient } from "./browser-model.js";
-import type { Tab, TChromeEvents } from "../ports.js";
-import type { TRelayAttachment } from "../domains/relay.js";
+import type { Tab } from "../ports.js";
+import { TabSchema, type TRelayAttachment } from "../domains/relay.js";
+
+const DebuggeeSchema = z.object({ tabId: z.number().optional(), extensionId: z.string().optional(), targetId: z.string().optional() });
+const DebuggerSessionSchema = DebuggeeSchema.extend({ sessionId: z.string().optional() });
+const DebuggerOnEventParamsSchema = z.tuple([DebuggerSessionSchema, z.string(), z.record(z.string(), z.unknown()).optional()]);
+const DebuggerOnDetachParamsSchema = z.tuple([DebuggeeSchema]);
+const TabsOnCreatedParamsSchema = z.tuple([TabSchema]);
+const TabsOnRemovedParamsSchema = z.tuple([z.number()]);
+const TargetParamsSchema = z.object({ url: z.string().optional(), targetId: z.string().optional() });
 
 export class ExtensionProtocolV2 {
 	readonly #model: BrowserModel;
@@ -77,22 +86,22 @@ export class ExtensionProtocolV2 {
 	handleExtensionEvent(method: string, params: unknown): void {
 		switch (method) {
 			case "chrome.debugger.onEvent": {
-				const [source, cdpMethod, cdpParams] = params as TChromeEvents["chrome.debugger.onEvent"]["params"];
+				const [source, cdpMethod, cdpParams] = DebuggerOnEventParamsSchema.parse(params);
 				this.#model.onDebuggerEvent(source, cdpMethod, cdpParams);
 				break;
 			}
 			case "chrome.debugger.onDetach": {
-				const [source] = params as TChromeEvents["chrome.debugger.onDetach"]["params"];
+				const [source] = DebuggerOnDetachParamsSchema.parse(params);
 				this.#model.onDebuggerDetach(source);
 				break;
 			}
 			case "chrome.tabs.onCreated": {
-				const [tab] = params as TChromeEvents["chrome.tabs.onCreated"]["params"];
+				const [tab] = TabsOnCreatedParamsSchema.parse(params);
 				this.#model.onTabCreated(tab);
 				break;
 			}
 			case "chrome.tabs.onRemoved": {
-				const [tabId] = params as TChromeEvents["chrome.tabs.onRemoved"]["params"];
+				const [tabId] = TabsOnRemovedParamsSchema.parse(params);
 				this.#model.onTabRemoved(tabId);
 				break;
 			}
@@ -106,7 +115,7 @@ export class ExtensionProtocolV2 {
 
 	/** A CDP command the protocol handles itself, with its result, or undefined for one the extension carries out. */
 	async handleCDPCommand(method: string, params: unknown, sessionId: string | undefined): Promise<{ result: unknown } | undefined> {
-		const named = params as { url?: string; targetId?: string } | undefined;
+		const named = TargetParamsSchema.optional().parse(params);
 		switch (method) {
 			case "Target.setAutoAttach": {
 				if (sessionId) return undefined;

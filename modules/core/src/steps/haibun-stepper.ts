@@ -42,6 +42,7 @@ import { requestSigner } from "../lib/domains/session-authority.js";
 import { STEP_DEFINITIONS_LIST, STEP_SUMMARIES_LIST, stepDefinitions, stepSummaries } from "../lib/steps/pipelines/discover-steps.js";
 import { runRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { stepMethodName } from "../lib/steps/domains/step-method.js";
+import { UNITS_GIVEN } from "../lib/steps/domains/contract.js";
 import {
 	DOMAIN_STEP_DEFINITIONS,
 	DOMAIN_STEP_SUMMARIES,
@@ -179,7 +180,8 @@ class Haibun extends AStepper implements IHasCycles {
 			gwta: `use store at {where: ${DOMAIN_LINK}} for {types: ${DOMAIN_PERSISTED_TYPES}}`,
 			description:
 				"Mounts another instance's store at the link, routing the stated persisted types to it so their records are held there. It returns the store's site and the routed types, and refuses where the world store can't register a backing store.",
-			contract: { products: DOMAIN_STORE_IN_USE },
+			// Mounting moves every record of the routed types into the new store, so the step writes the types it gives it whole.
+			contract: { products: DOMAIN_STORE_IN_USE, changes: [UNITS_GIVEN] },
 			// Mounts another instance's store for the given types. RemoteQuadStore sends writes and reads of those types over
 			// the capability-gated store surface, so the serving site's store holds those records instead of this instance's
 			// store. Each record has one store. requestSigner signs each call with actuality's invoker, under a delegation
@@ -197,7 +199,7 @@ class Haibun extends AStepper implements IHasCycles {
 		onHost: {
 			gwta: `on host {hostId: number}, {statement:${DOMAIN_STATEMENT}}`,
 			description: "Proves the statement with its steps routed to the host by the host's id, so they run against that host. It returns the statement's products.",
-			contract: { products: { of: "statement" } },
+			contract: { products: { of: "statement" }, changes: [] },
 			action: ({ hostId, statement }, featureStep) => proveStatements(stepperContext(this.getWorld(), this.steppers), featureStep, statement, hostId),
 		},
 
@@ -278,6 +280,7 @@ class Haibun extends AStepper implements IHasCycles {
 			gwta: `for each {what: ${DOMAIN_VARIABLE_NAME}} of {list: ${DOMAIN_STATEMENT}}: {statement: ${DOMAIN_STATEMENT}}`,
 			description:
 				"Proves the statement after the colon for each item of the list's statement, as its combinators make the list, with the item bound to the variable: its id, and each of its fields as variable.field. Holds where the statement holds for every item, and is refused with the first item's refusal otherwise.",
+			contract: { changes: [] },
 			action: async ({ what, list, statement }, featureStep) => {
 				const ctx = stepperContext(this.getWorld(), this.steppers);
 				const read = await provedList(ctx, featureStep, list);
@@ -321,6 +324,7 @@ class Haibun extends AStepper implements IHasCycles {
 		until: {
 			description: 'Proves the statements again until they hold, and is refuted where they haven\'t held within the duration, e.g. `until passes within "2s"`: ◇≤d P.',
 			gwta: `until {statements:${DOMAIN_STATEMENT}} within {${UNTIL_DURATION}: ${DOMAIN_DURATION}}`,
+			contract: { changes: [] },
 			reading: READING.until,
 		},
 
@@ -341,6 +345,7 @@ class Haibun extends AStepper implements IHasCycles {
 				}
 				return false;
 			},
+			contract: { changes: [] },
 			action: async ({ names }, featureStep) => {
 				const world = this.getWorld();
 				// Prepends 'Backgrounds: ' so expandLine reads the line as a background directive.
@@ -349,12 +354,13 @@ class Haibun extends AStepper implements IHasCycles {
 				return result.ok ? OK : actionNotOK(`backgrounds failed: ${result.errorMessage}`);
 			},
 		},
-		nothing: { exact: "", description: "Matches a blank line or one that holds only a comment, and passes.", action: () => OK },
+		nothing: { exact: "", description: "Matches a blank line or one that holds only a comment, and passes.", contract: { changes: [] }, action: () => OK },
 		prose: { prose: true, description: "Matches a prose line, a sentence that a step's pattern doesn't match, and passes.", action: () => OK },
 
 		feature: {
 			gwta: `Feature: {feature: ${DOMAIN_TITLE}}`,
 			description: "Heads a feature, setting its title in actuality so the lines that follow are part of it.",
+			contract: { changes: [] },
 			action: ({ feature }) => {
 				this.getWorld().runtime.feature = feature;
 				return OK;
@@ -364,6 +370,7 @@ class Haibun extends AStepper implements IHasCycles {
 			gwta: SCENARIO_HEADING,
 			description:
 				"Heads a scenario. A heading that starts with Pending states a requirement the steppers don't provide yet: its lines don't resolve or run, and actuality's summary counts the scenario as pending until its heading is Scenario:.",
+			contract: { changes: [] },
 			action: ({ scenario }) => {
 				this.getWorld().runtime.scenario = scenario;
 				return OK;
@@ -371,18 +378,20 @@ class Haibun extends AStepper implements IHasCycles {
 		},
 		endsWith: {
 			gwta: `ends with {result: ${DOMAIN_ENDING}}`,
-			description: "Ends the feature with the stated result: it passes where the result is OK and fails where it is not OK.",
+			description: "Ends the feature with the stated result: it passes where the result is OK and fails where the result is not OK.",
+			contract: { changes: [] },
 			action: ({ result }) => (result === ENDING.ok ? actionOK() : actionNotOK(`the feature states that it ends with ${result}, so this step fails`)),
 		},
 		pause: {
 			description: 'Pause for a duration. Accepts seconds or milliseconds with an optional space, e.g. `pause for "2s"` or `pause for "30 ms"`.',
 			gwta: `pause for {duration: ${DOMAIN_DURATION}}`,
+			contract: { changes: [] },
 			action: async ({ duration }) => {
 				await this.getWorld().clock.wait(duration);
 				return OK;
 			},
 		},
-		comment: { gwta: `;;{comment: ${DOMAIN_LINE_COMMENT}}`, description: "Matches a line's `;;` comment and passes.", action: () => OK },
+		comment: { gwta: `;;{comment: ${DOMAIN_LINE_COMMENT}}`, description: "Matches a line's `;;` comment and passes.", contract: { changes: [] }, action: () => OK },
 	});
 }
 export default Haibun;

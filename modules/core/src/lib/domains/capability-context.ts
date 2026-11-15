@@ -1,7 +1,7 @@
 /**
  * Holds the record of the call in progress, for the duration of that call.
  *
- * A call's record states the action it invoked, the actions its caller holds, who the caller proved to be and what that
+ * A call's record states the action it names, the actions its caller holds, who the caller proved to be and what that
  * proof rests on, the delegation and the attributed agent, the read scope, the ask, the listing it is shown and the step in
  * flight. One AsyncLocalStorage store holds the record instead of `world.runtime`, for two reasons. The async chain scopes
  * the record to the dispatch that set it, so concurrent calls don't read each other's record. The store isn't a mutable
@@ -39,7 +39,7 @@ export type TReadScope = ({ ceiling: AccessLevel | undefined } | { refusal: TRpc
 
 /**
  * The record of one call.
- * - `capabilityAction` is the action the call invoked, and `held` the actions its caller holds. A step dispatched beneath another
+ * - `capabilityAction` is the action the call names, and `held` the actions its caller holds. A step dispatched beneath another
  *   doesn't hold a capabilityAction, and runs under the held action that allows it. `outside` states that the caller is outside
  *   actuality.
  * - `principal` is who proved themselves at the boundary, and `restsOn` the capabilities on which its proof rests.
