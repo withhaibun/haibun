@@ -98,6 +98,9 @@ export const runArtifactDomainDefinition: TDomainDefinition = {
 		subClassOf: PROV_ENTITY,
 		id: RUN_ARTIFACT_FIELD.id,
 		instrumentation: true,
+		// Actuality writes an artifact while any step is in progress, so it isn't a change a step's contract lists, the way
+		// a log message isn't: this record is the durable copy of the artifact event the step emits.
+		observesActuality: true,
 		// A reader receives an artifact as the artifact event a step emits. This record is the durable copy of that event, so
 		// announcing the write would report the artifact a second time.
 		announceWrites: false,
