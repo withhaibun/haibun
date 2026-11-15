@@ -67,6 +67,8 @@ describe("the tabs the extension lets the relay attach", () => {
 
 		const created = (await command("chrome.tabs.create", [{ url: "about:blank" }])).result as Tab;
 		expect((await command("chrome.debugger.attach", [{ tabId: created.id }, "1.3"])).error, "a tab the relay created").toBeUndefined();
+		// Removing a tab names it by number, not by debuggee, so the command's first argument isn't read as one.
+		expect((await command("chrome.tabs.remove", [created.id])).error, "closing the tab the relay created").toBeUndefined();
 		connection.close("done");
 	});
 });

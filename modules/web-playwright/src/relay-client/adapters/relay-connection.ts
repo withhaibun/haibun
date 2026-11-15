@@ -206,10 +206,15 @@ export class ChromeRelayConnection {
 		this.#checkPermitted(message.method, args);
 		const result = await invokeChromeMethod(this.#chrome, message.method, args);
 		// The relay takes the debugger off a tab when the steps acting in it end, and the tab stays the person's to attach
-		// again, so the attachment holds; the browser's own detachment arrives as chrome.debugger.onDetach.
-		const target = DebuggeeSchema.optional().parse(args[0]);
-		if (message.method === "chrome.debugger.attach" && target?.tabId !== undefined) this.#tabs.attached(target.tabId);
-		if (message.method === "chrome.debugger.detach" && target?.tabId !== undefined) this.#tabs.released(target.tabId);
+		// again, so the attachment holds; the browser's own detachment arrives as chrome.debugger.onDetach. Only the debugger's
+		// own commands carry a debuggee as their first argument, so only theirs are read for one.
+		if (message.method === "chrome.debugger.attach" || message.method === "chrome.debugger.detach") {
+			const target = DebuggeeSchema.optional().parse(args[0]);
+			if (target?.tabId !== undefined) {
+				if (message.method === "chrome.debugger.attach") this.#tabs.attached(target.tabId);
+				else this.#tabs.released(target.tabId);
+			}
+		}
 		// A tab the relay created is one it may use.
 		if (message.method === "chrome.tabs.create") {
 			const created = TabSchema.optional().parse(result)?.id;

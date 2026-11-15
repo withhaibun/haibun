@@ -37,9 +37,9 @@ import { TabSchema, type TRelayAttachment } from "../domains/relay.js";
 const DebuggeeSchema = z.object({ tabId: z.number().optional(), extensionId: z.string().optional(), targetId: z.string().optional() });
 const DebuggerSessionSchema = DebuggeeSchema.extend({ sessionId: z.string().optional() });
 const DebuggerOnEventParamsSchema = z.tuple([DebuggerSessionSchema, z.string(), z.record(z.string(), z.unknown()).optional()]);
-const DebuggerOnDetachParamsSchema = z.tuple([DebuggeeSchema]);
+const DebuggerOnDetachParamsSchema = z.tuple([DebuggeeSchema, z.unknown().optional(), z.unknown().optional()]);
 const TabsOnCreatedParamsSchema = z.tuple([TabSchema]);
-const TabsOnRemovedParamsSchema = z.tuple([z.number()]);
+const TabsOnRemovedParamsSchema = z.tuple([z.number(), z.unknown().optional()]);
 const TargetParamsSchema = z.object({ url: z.string().optional(), targetId: z.string().optional() });
 
 export class ExtensionProtocolV2 {

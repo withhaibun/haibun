@@ -44,6 +44,15 @@ function driven(relay: BrowserRelay) {
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("the browser relay", () => {
+	it("takes a tab's removal and a debugger's detachment as the browser reports them, with each second and third argument beside the first", () => {
+		const relay = new BrowserRelay(() => undefined);
+		const first = attached(relay);
+		relay.receive([{ method: "chrome.tabs.onCreated", params: [TAB] }], HOLDER);
+		expect(() => relay.receive([{ method: "chrome.tabs.onRemoved", params: [7, { windowId: 1, isWindowClosing: false }] }], HOLDER)).not.toThrow();
+		expect(() => relay.receive([{ method: "chrome.debugger.onDetach", params: [{ tabId: 7 }, "canceled_by_user", undefined] }], HOLDER)).not.toThrow();
+		first.end();
+	});
+
 	it("doesn't drive a browser while one isn't attached, and holds one extension at a time", async () => {
 		const reported: unknown[] = [];
 		const relay = new BrowserRelay((e) => void reported.push(e));
