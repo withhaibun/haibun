@@ -34,6 +34,7 @@ import {
 	UNEXERCISED,
 	unexercised,
 } from "./step-rules.js";
+import { gitEnv } from "../adapters/listed-files.js";
 import { TEST_STEP } from "./test-step.js";
 import { declareSteps } from "../steps/domains/stepper.js";
 
@@ -90,12 +91,7 @@ describe("the call sites of a step", () => {
 	};
 	beforeEach(() => {
 		repository = mkdtempSync(join(tmpdir(), "haibun-step-rules-"));
-		const env = { ...process.env };
-		delete env.GIT_DIR;
-		delete env.GIT_WORK_TREE;
-		delete env.GIT_INDEX_FILE;
-		delete env.GIT_PREFIX;
-		execFileSync("git", ["init", "-q"], { cwd: repository, env });
+		execFileSync("git", ["init", "-q"], { cwd: repository, env: gitEnv() });
 	});
 	afterEach(() => rmSync(repository, { recursive: true, force: true }));
 
@@ -146,12 +142,7 @@ describe("the steps a repository exercises", () => {
 	};
 	beforeEach(() => {
 		repository = mkdtempSync(join(tmpdir(), "haibun-step-exercise-"));
-		const env = { ...process.env };
-		delete env.GIT_DIR;
-		delete env.GIT_WORK_TREE;
-		delete env.GIT_INDEX_FILE;
-		delete env.GIT_PREFIX;
-		execFileSync("git", ["init", "-q"], { cwd: repository, env });
+		execFileSync("git", ["init", "-q"], { cwd: repository, env: gitEnv() });
 	});
 	afterEach(() => rmSync(repository, { recursive: true, force: true }));
 
@@ -291,7 +282,7 @@ describe("a quantifier's filter", () => {
 	let repository = "";
 	beforeEach(() => {
 		repository = mkdtempSync(join(tmpdir(), "haibun-step-indexed-"));
-		execFileSync("git", ["init", "-q"], { cwd: repository });
+		execFileSync("git", ["init", "-q"], { cwd: repository, env: gitEnv() });
 	});
 	afterEach(() => rmSync(repository, { recursive: true, force: true }));
 

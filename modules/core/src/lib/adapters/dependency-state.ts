@@ -20,6 +20,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { z } from "zod";
 import { namesPackage, type TSpecl } from "../actuality/domains/actuality.js";
+import { gitEnv } from "./listed-files.js";
 import { errorDetail } from "../domains/util.js";
 import { getModuleLocation, packageLocation } from "./workspace-lib.js";
 import { itemAt } from "../domains/item-at.js";
@@ -141,7 +142,7 @@ const GIT_OUTPUT_BYTES = 64 * 1024 * 1024;
 /** Runs git with the given arguments in a directory, off the event loop, and returns its standard output, writing `input` to its
  *  standard input where it is given. Standard error is piped rather than inherited, so a caller reads it from the thrown error. */
 async function git(dir: string, args: string[], input?: string): Promise<string> {
-	const running = execGit("git", args, { cwd: dir, encoding: "utf-8", maxBuffer: GIT_OUTPUT_BYTES });
+	const running = execGit("git", args, { cwd: dir, encoding: "utf-8", maxBuffer: GIT_OUTPUT_BYTES, env: gitEnv() });
 	if (input !== undefined) running.child.stdin?.end(input);
 	return (await running).stdout;
 }

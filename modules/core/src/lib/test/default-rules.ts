@@ -20,6 +20,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
+import { gitEnv } from "../adapters/listed-files.js";
 import type { TFound } from "./baseline.js";
 import { constInitializers, lineOf, unwrapped, type TSources } from "./repository-files.js";
 
@@ -103,15 +104,6 @@ function sourceDefaults(file: string, source: ts.SourceFile): TFound[] {
 	visit(source);
 	return found;
 }
-
-const gitEnv = (): NodeJS.ProcessEnv => {
-	const env = { ...process.env };
-	delete env.GIT_DIR;
-	delete env.GIT_WORK_TREE;
-	delete env.GIT_INDEX_FILE;
-	delete env.GIT_PREFIX;
-	return env;
-};
 
 /** The compose files git tracks in a repository, by their paths from the repository root. */
 export function composeFiles(repository: string): string[] {

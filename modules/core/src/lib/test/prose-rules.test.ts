@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { gitEnv } from "../adapters/listed-files.js";
 import {
 	allowanceFrom,
 	NO_ALLOWANCE,
@@ -590,7 +591,7 @@ describe("proseViolations", () => {
 	const repository = (files: Record<string, string>): string => {
 		const root = mkdtempSync(join(tmpdir(), "prose-rules-"));
 		made.push(root);
-		execFileSync("git", ["init", "-q"], { cwd: root });
+		execFileSync("git", ["init", "-q"], { cwd: root, env: gitEnv() });
 		for (const [path, text] of Object.entries(files)) {
 			mkdirSync(dirname(join(root, path)), { recursive: true });
 			writeFileSync(join(root, path), text);

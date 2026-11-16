@@ -18,6 +18,7 @@ import { RUN_TAIL_CHARS, RunTail, featureFilterDomainDefinition, runEnvironment,
 import { verifiedRun } from "./pipelines/run-conditions.js";
 import { supervisorPorts } from "./root.js";
 import { execFileSync } from "node:child_process";
+import { gitEnv } from "@haibun/core/lib/adapters/listed-files.js";
 import nodeFS from "node:fs";
 import path from "node:path";
 import { getConfigFromBase } from "./pipelines/specl.js";
@@ -242,7 +243,7 @@ describe("whether a run would repeat the outcome of an earlier run", () => {
 	 *  its .env file, as a repository that holds a group does. */
 	const aGroup = () => {
 		const dir = testTempDir("haibun-verified-run-");
-		execFileSync("git", ["init", "-q"], { cwd: dir });
+		execFileSync("git", ["init", "-q"], { cwd: dir, env: gitEnv() });
 		nodeFS.writeFileSync(path.join(dir, ".gitignore"), ".env\n");
 		const config = path.join(dir, "config.json");
 		nodeFS.writeFileSync(config, JSON.stringify({ steppers: [] }));

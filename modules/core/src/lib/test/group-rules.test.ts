@@ -3,18 +3,11 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { gitEnv } from "../adapters/listed-files.js";
 import { brokenPaths, linksAndParentPaths, optionAssignments, untrackedRecords } from "./group-rules.js";
 
 describe("the parent paths and tracking files of a repository's groups", () => {
 	let repository = "";
-	const gitEnv = (): NodeJS.ProcessEnv => {
-		const env = { ...process.env };
-		delete env.GIT_DIR;
-		delete env.GIT_WORK_TREE;
-		delete env.GIT_INDEX_FILE;
-		delete env.GIT_PREFIX;
-		return env;
-	};
 	const committed = (files: Record<string, string>) => {
 		for (const [file, text] of Object.entries(files)) {
 			mkdirSync(dirname(join(repository, file)), { recursive: true });

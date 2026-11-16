@@ -5,13 +5,14 @@ import { describe, it, expect } from "vitest";
 import { execFileSync } from "node:child_process";
 import nodeFS from "node:fs";
 import path from "node:path";
+import { gitEnv } from "./listed-files.js";
 import { ACTUALITIES_FILE, dependencyRoots, dependencyState, moduleRootOf } from "./dependency-state.js";
 
 /** Creates a temporary git repository with the given files and returns its real path. The files aren't committed,
  *  because the state is read from the working tree. */
 function aRepository(files: Record<string, string>): string {
 	const dir = testTempDir("haibun-state-");
-	execFileSync("git", ["init", "-q"], { cwd: dir });
+	execFileSync("git", ["init", "-q"], { cwd: dir, env: gitEnv() });
 	for (const [file, content] of Object.entries(files)) {
 		nodeFS.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
 		nodeFS.writeFileSync(path.join(dir, file), content);

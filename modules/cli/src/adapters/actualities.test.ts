@@ -6,6 +6,7 @@ import nodeFS from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { ACTUALITIES_FILE } from "@haibun/core/lib/adapters/dependency-state.js";
+import { gitEnv } from "@haibun/core/lib/adapters/listed-files.js";
 import { RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
 import { digestFields } from "@haibun/core/lib/domains/digest.js";
 import { forgetOutcome, forgetOutcomes, machineKey, outcomeAgainst, recordActuality, actualityConditions, verificationOf } from "./actualities.js";
@@ -14,7 +15,7 @@ import { forgetOutcome, forgetOutcomes, machineKey, outcomeAgainst, recordActual
  *  dependency is its own directory, or its features and its library where it names them as two roots. */
 function aGroup(): { dir: string; config: string } {
 	const dir = testTempDir("haibun-verified-");
-	execFileSync("git", ["init", "-q"], { cwd: dir });
+	execFileSync("git", ["init", "-q"], { cwd: dir, env: gitEnv() });
 	nodeFS.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ steppers: [] }));
 	for (const dependency of ["features", "lib"]) nodeFS.mkdirSync(path.join(dir, dependency));
 	nodeFS.writeFileSync(path.join(dir, "features/a.feature"), "Feature: a\n");

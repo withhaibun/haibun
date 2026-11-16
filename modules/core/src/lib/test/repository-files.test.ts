@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { gitEnv } from "../adapters/listed-files.js";
 import { importsOf, parsedSource, resolvedSource, sourceFiles, workspacePackages } from "./repository-files.js";
 
 const made: string[] = [];
@@ -14,7 +15,7 @@ afterEach(() => {
 function aRepository(files: Record<string, string>): string {
 	const repository = mkdtempSync(join(tmpdir(), "haibun-repository-"));
 	made.push(repository);
-	execFileSync("git", ["init", "--quiet"], { cwd: repository });
+	execFileSync("git", ["init", "--quiet"], { cwd: repository, env: gitEnv() });
 	for (const [path, contents] of Object.entries(files)) {
 		mkdirSync(join(repository, dirname(path)), { recursive: true });
 		writeFileSync(join(repository, path), contents);

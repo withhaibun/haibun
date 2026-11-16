@@ -9,10 +9,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import ts from "typescript";
+import { gitEnv } from "../adapters/listed-files.js";
 import { absenceCheckFindings, downstreamNameFindings, unboundedReadFindings, untypedStepsFindings, UNTYPED_STEPS } from "./surface-rules.js";
 
 const repository = mkdtempSync(join(tmpdir(), "haibun-surface-"));
-execFileSync("git", ["init", "-q"], { cwd: repository });
+execFileSync("git", ["init", "-q"], { cwd: repository, env: gitEnv() });
 mkdirSync(join(repository, "features"));
 /** The lines of a feature the rules read, each joined from its words, so this file doesn't state the checks it holds. */
 const FEATURE = [["set none from exactly", "0 individuals of SeqPath"], ["didn't individual", "Step:s1 is a Note"], ["every Note is a prov:Entity"], ["Acme ships it"]];

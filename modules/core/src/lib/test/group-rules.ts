@@ -14,6 +14,7 @@ import { itemAt } from "../domains/item-at.js";
 import type { TFound } from "./baseline.js";
 import { namesWorkspacePackage, resolvedSource, TEST_MODULE, type TPackages } from "./repository-files.js";
 import { ACTUALITIES_FILE } from "../adapters/dependency-state.js";
+import { gitEnv } from "../adapters/listed-files.js";
 
 /** An option of haibun that a script assigns before a command, which a config states instead. */
 const OPTION_ASSIGNMENT = /\bHAIBUN_[A-Z0-9_]+(?==)/g;
@@ -48,15 +49,6 @@ const GroupConfigSchema = z.object({ steppers: z.array(z.unknown()), environment
 /** The suffix of every baseline file's name. */
 const BASELINE_SUFFIX = ".baseline.json";
 const BASELINE = `:(glob)**/*${BASELINE_SUFFIX}`;
-
-const gitEnv = (): NodeJS.ProcessEnv => {
-	const env = { ...process.env };
-	delete env.GIT_DIR;
-	delete env.GIT_WORK_TREE;
-	delete env.GIT_INDEX_FILE;
-	delete env.GIT_PREFIX;
-	return env;
-};
 
 /** The files git tracks in a repository that match a pattern, by their paths from the repository root. */
 export const trackedFiles = (repository: string, pattern: string): string[] =>
@@ -157,7 +149,7 @@ function pathsOutOfRepository(repository: string): TFound[] {
 
 /** The paths of `files` that a .gitignore entry of the repository ignores, whether or not git tracks them. */
 function ignoredOf(repository: string, files: readonly string[]): Set<string> {
-	const checked = spawnSync("git", ["check-ignore", "--no-index", "--stdin"], { cwd: repository, input: files.join("\n"), encoding: "utf-8" });
+	const checked = spawnSync("git", ["check-ignore", "--no-index", "--stdin"], { cwd: repository, input: files.join("\n"), encoding: "utf-8", env: gitEnv() });
 	if (checked.status !== 0 && checked.status !== 1) throw new Error(`git check-ignore failed in ${repository}: ${checked.stderr}. Check that git runs there.`);
 	return new Set(checked.stdout.split("\n").filter(Boolean));
 }
