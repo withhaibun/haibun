@@ -7,7 +7,7 @@ import { MONITOR_PATH } from "@haibun/shu/monitor-stepper.js";
 import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
 import { registerTestIds } from "@haibun/shu/test/step-ui.js";
 
-const { waitFor, gotoPage } = withAction(new WebPlaywright());
+const { gotoPage } = withAction(new WebPlaywright());
 const { feature, scenario } = withAction(new Haibun());
 
 /** The port the monitor serves on, which this feature opens. */
@@ -23,7 +23,7 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "A reader opens the monitor's address" }),
 		"A monitor that is given a port serves shu for the features being run, on a server of its own, so a feature doesn't serve shu to be read. A reader who opens the monitor's address without naming a view is shown the monitor, beside the list of the actualities this device holds.",
 		gotoPage({ name: `"${MONITOR}"` }),
-		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
-		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
+		`wait for [data-testid='\${IDS.MONITOR.LOG_STREAM}']`,
+		`wait for [data-testid='\${IDS.CLIENT_CACHE.ROOT}']`,
 	],
 };

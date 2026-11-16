@@ -6,6 +6,8 @@ import VariablesStepper from "./variables-stepper.js";
 import { DEFAULT_DEST, Origin } from "../lib/domains/protocol.js";
 import Haibun from "./haibun-stepper.js";
 import { OBSCURED_VALUE } from "../lib/steps/domains/secrets.js";
+import { STORAGE_FILES } from "../lib/domains/storage-port.js";
+import { AStepper, StepperKinds, declareSteps, type IStepperCycles } from "../lib/steps/domains/stepper.js";
 import { SHARED_GRAPH } from "../lib/actuality/pipelines/feature-variables.js";
 import { readUpTo, recordWithEdges } from "../lib/records/pipelines/record-reads.js";
 import { MAX_PAGE_ROWS } from "../lib/domains/hypermedia.js";
@@ -518,5 +520,72 @@ describe("a transport's call", () => {
 		const result = await runAuthorizedWith([tool.descriptor.capability, readAction(Access.public)], () => dispatchStep({ registry, world, steppers: callers }, call));
 		expect(result.ok, result.errorMessage).toBe(true);
 		expect(await world.shared.get("greeting")).toBe("hi");
+	});
+});
+
+describe("a source property compared at the source", () => {
+	const files: Record<string, string> = { "a.txt": "ααααα", "big.txt": "x".repeat(4 * 1024 * 1024 + 1) };
+	const bytes = new Map(Object.entries(files).map(([path, text]) => [path, new TextEncoder().encode(text)]));
+	const port = {
+		readFile: (path: string) => (bytes.has(path) ? new TextDecoder().decode(bytes.get(path)) : "") as string,
+		lstatToIFile: async (path: string) => ({ size: new TextEncoder().encode(files[path] ?? "").length }),
+		exists: (path: string) => path in files,
+	};
+	class FakeStorage extends AStepper {
+		description = "Holds test files.";
+		kind = StepperKinds.STORAGE;
+		steps = declareSteps({});
+		cycles: IStepperCycles = {
+			startFeature: () => {
+				this.getWorld().runtime[STORAGE_FILES] = port;
+			},
+		};
+	}
+	const withStorage = [...steppers, FakeStorage];
+
+	it("checks a property through the domain's evaluator, without copying it", async () => {
+		const res = await passWithDefaults('set f as file-path to "a.txt"\nvariable f.text contains "ααα"', withStorage);
+		expect(res.ok).toBe(true);
+	});
+
+	it("matches a property's text through the evaluator, without copying it", async () => {
+		const res = await passWithDefaults('set f as file-path to "a.txt"\nmatches f.text with "*α*"', withStorage);
+		expect(res.ok).toBe(true);
+		const miss = await failWithDefaults('set f as file-path to "a.txt"\nmatches f.text with "*β*"', withStorage);
+		expect(miss.ok).toBe(false);
+		expect(JSON.stringify(miss.featureResults), "the refusal states the in-place read").toMatch(/read 10 bytes in place/);
+	});
+
+	it("reads a source property named by a CURIE, whose capitalized label matches through the kebab-case domain", async () => {
+		const res = await passWithDefaults('set t to FilePath:"a.txt".text\nvariable t contains "ααα"\nvariable FilePath:"a.txt".exists is "true"', withStorage);
+		const failed = res.featureResults?.[0]?.stepResults.find((step) => !step.ok);
+		expect(failed?.in, JSON.stringify(failed ?? null)).toBeUndefined();
+		expect(res.ok).toBe(true);
+	});
+
+	it("refuses a comparison whose verdict is false", async () => {
+		const res = await failWithDefaults('set f as file-path to "a.txt"\nvariable f.text is "β"', withStorage);
+		expect(res.ok).toBe(false);
+	});
+
+	it("copies a property value within its ceiling on set", async () => {
+		const res = await passWithDefaults('set f as file-path to "a.txt"\nset t to f.text\nvariable t is "ααααα"', withStorage);
+		expect(res.ok).toBe(true);
+	});
+
+	it("refuses a copy over the ceiling, stating both counts", async () => {
+		const res = await failWithDefaults('set f as file-path to "big.txt"\nset t to f.text', withStorage);
+		expect(JSON.stringify(res.featureResults)).toMatch(/over the 4194304 its property allows/);
+	});
+
+	it("keeps the heap flat over a thousand reads of a large property", { timeout: 120_000 }, async () => {
+		const read = 'set f as file-path to "big.txt"\nvariable f.text contains "x"';
+		const feature = [{ path: "/features/heap.feature", content: `${read}\n`.repeat(1_001) }];
+		await passWithDefaults(feature, withStorage);
+		const before = process.memoryUsage().heapUsed;
+		const res = await passWithDefaults(feature, withStorage);
+		expect(res.ok).toBe(true);
+		const growth = process.memoryUsage().heapUsed - before;
+		expect(growth, "a thousand reads of a four-megabyte text hold its bytes at most a few times over").toBeLessThan(64 * 1024 * 1024);
 	});
 });

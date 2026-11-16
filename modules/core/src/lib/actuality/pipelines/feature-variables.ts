@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { AStepper, TFeatureStep, coercionSite } from "../../steps/domains/stepper.js";
 import { fromJsonText, parsedRecord } from "../../domains/json-text.js";
-import { parseDotPath, navigateValue } from "../../domains/dot-path.js";
+import { type TNavigateResult, parseDotPath, navigateValue } from "../../domains/dot-path.js";
+import { readSourceProperty, sourcePropertyOf } from "../../domains/source-properties.js";
 import { itemAt } from "../../domains/item-at.js";
 import { runEnvEntries, runEnvVariable, type TWorld } from "../domains/world.js";
 import { Origin, TOrigin, TProvenanceIdentifier, TStepValue } from "../../domains/protocol.js";
@@ -27,11 +28,11 @@ import { OBSCURED_VALUE, isSecretName } from "../../steps/domains/secrets.js";
 import type { TSecrets } from "../../steps/ports.js";
 import { accessBound, readingAsStated, writeBound, writesInFlight } from "../../domains/capability-context.js";
 import { stepRecordInFlight } from "../domains/step-in-flight.js";
-import { EDGE, SEQ_PATH_LABEL, declaredLevels } from "../../domains/resources.js";
+import { EDGE, SEQ_PATH_LABEL, declaredLevels, isPersisted } from "../../domains/resources.js";
 import { recordTime } from "../domains/record-time.js";
 import { actualityFeatureOf, formatRecordName } from "../domains/seq-path.js";
 import { IQuadStore } from "../../steps/ports.js";
-import { quadObservation, SHARED_GRAPH } from "../../steps/domains/quad-types.js";
+import { quadObservation, SHARED_GRAPH, type TGraphQuery } from "../../steps/domains/quad-types.js";
 import { recordOfCurie, referenceTo } from "../../records/domains/unit.js";
 import { listed, listQueries, queriedFields, type TListItem, type TListStage } from "../../domains/lists.js";
 
@@ -193,8 +194,29 @@ export class FeatureVariables {
 		if (term.includes(".")) {
 			const dot = await this.resolveDotPath(term, featureStep);
 			if (dot.found) return { value: dot.value, domain: jsonValueDomain(dot.value), origin: Origin.var, secret: dot.secret };
+			return undefined;
 		}
+		// A CURIE of a source domain whose records actuality doesn't hold, like `BrowserPage:0`, names its value by its id:
+		// the property readers read the subject itself, the way a storage reads a `FilePath` by its path.
+		const named = recordOfCurie(term);
+		const domainKey = named === undefined ? undefined : this.domainKeyOfLabel(named.label);
+		if (
+			named !== undefined &&
+			domainKey !== undefined &&
+			this.world.domains[domainKey]?.properties !== undefined &&
+			persistedDomainOf(this.world.domains, named.label) === undefined
+		)
+			return { value: named.id.replace(/^"(.*)"$/s, "$1"), domain: domainKey, origin: Origin.var };
 		return undefined;
+	}
+
+	/** The key of the domain a CURIE's label names. A label is written capitalized, as `BrowserPage:0` and `FilePath:"a.txt"`
+	 *  are, while a domain of kebab-case name is registered by that name; a domain registered under its label's own name wins. */
+	private domainKeyOfLabel(label: string): string {
+		const written = normalizeDomainKey(label);
+		if (this.world.domains[written] !== undefined) return written;
+		const kebab = normalizeDomainKey(label.replace(/([a-z\d])([A-Z])/g, "$1-$2").toLowerCase());
+		return this.world.domains[kebab] !== undefined ? kebab : written;
 	}
 
 	/** Resolve a term a statement names. A statement's terms are its author's, so they are read at the ceiling the statement
@@ -370,10 +392,7 @@ export class FeatureVariables {
 
 	/** Reads a dot path, `base.field`, from the item a quantifier or `for each` binds to the base, a stored variable's value, or the
 	 *  record a CURIE names, in that order. */
-	private async resolveDotPath(
-		lookupTerm: string,
-		featureStep?: TFeatureStep,
-	): Promise<(ReturnType<typeof navigateValue> & { secret?: boolean }) | { value: undefined; found: false }> {
+	private async resolveDotPath(lookupTerm: string, featureStep?: TFeatureStep): Promise<(TNavigateResult & { secret?: boolean }) | { value: undefined; found: false }> {
 		const { baseName, pathSegments } = parseDotPath(lookupTerm);
 		if (pathSegments.length === 0) return { value: undefined, found: false };
 		const item = featureStep?.boundItems?.[baseName];
@@ -381,6 +400,9 @@ export class FeatureVariables {
 		const baseEntry = await this.getStoredEntry(baseName);
 		if (!baseEntry) return await this.curieDotPath(baseName, pathSegments);
 		let baseValue = baseEntry.value;
+		// A source domain's property is read through its reader, within its byte ceiling, wherever the path leads.
+		const property = sourcePropertyOf(this.world.domains, baseEntry.domain, pathSegments[0]);
+		if (property !== undefined) return { value: await readSourceProperty(this.world, baseEntry.value, property, pathSegments.slice(1)), found: true, secret: baseEntry.secret };
 		if (typeof baseValue === "string") {
 			// A base that holds text rather than JSON doesn't have fields.
 			const read = fromJsonText(z.json()).safeParse(baseValue);
@@ -391,17 +413,24 @@ export class FeatureVariables {
 		return { ...navigateValue(baseValue, pathSegments), secret: baseEntry.secret };
 	}
 
-	/** Reads a path into the record a CURIE names, `Label:id` or `Label:"id"`, of a type a domain persists. Throws where the path
-	 *  starts with a field the domain doesn't declare, naming those it declares. */
-	private async curieDotPath(base: string, segments: string[]): Promise<ReturnType<typeof navigateValue> | { value: undefined; found: false }> {
+	/** Reads a path into the value a CURIE names, `Label:id` or `Label:"id"`. For a type a domain persists, the path reads
+	 *  the record; for a source domain whose value actuality doesn't hold, it reads the declared property, and throws where
+	 *  the path starts with a field the domain doesn't declare, naming those it declares. */
+	private async curieDotPath(base: string, segments: string[]): Promise<TNavigateResult | { value: undefined; found: false }> {
 		const named = recordOfCurie(base);
-		const domain = named === undefined ? undefined : persistedDomainOf(this.world.domains, named.label);
-		if (named === undefined || domain === undefined) return { value: undefined, found: false };
-		const { properties, edges } = domain.topology;
-		const declared = [...Object.keys(properties), ...Object.keys(edges === undefined ? {} : edges)];
+		if (named === undefined) return { value: undefined, found: false };
+		const persisted = persistedDomainOf(this.world.domains, named.label);
 		const field = itemAt(segments, 0);
+		if (persisted === undefined) {
+			const property = sourcePropertyOf(this.world.domains, this.domainKeyOfLabel(named.label), field);
+			return property === undefined
+				? { value: undefined, found: false }
+				: { value: await readSourceProperty(this.world, named.id.replace(/^"(.*)"$/s, "$1"), property, segments.slice(1)), found: true };
+		}
+		const { properties, edges } = persisted.topology;
+		const declared = [...Object.keys(properties), ...Object.keys(edges === undefined ? {} : edges)];
 		if (!declared.includes(field)) throw new Error(`Domain '${named.label}' doesn't declare property '${field}'. Declared properties: ${declared.join(", ")}`);
-		const record = await this.store.readRecord({ label: named.label, schema: domain.schema }, named.id.replace(/^"(.*)"$/s, "$1"));
+		const record = await this.store.readRecord({ label: named.label, schema: persisted.schema }, named.id.replace(/^"(.*)"$/s, "$1"));
 		return record === undefined ? { value: undefined, found: false } : navigateValue(record, segments);
 	}
 
@@ -412,15 +441,29 @@ export class FeatureVariables {
 	 * domain doesn't index, or where a stage refuses the list.
 	 */
 	async getDomainMembers(domainName: string, endedBy: number, stages: readonly TListStage[]): Promise<TListItem[]> {
-		const { members } = registeredDomain(this.world.domains, normalizeDomainKey(domainName), "a quantifier's domain");
+		const domain = registeredDomain(this.world.domains, normalizeDomainKey(domainName), "a quantifier's domain");
+		const { members } = domain;
+		const persisted = isPersisted(domain.topology) ? domain.topology : undefined;
 		const indexed = members?.indexed;
-		const [taken] = indexed === undefined ? [] : listQueries(stages);
+		const [taken] = indexed === undefined && persisted === undefined ? [] : listQueries(stages);
 		const unindexed = taken === undefined || indexed === undefined ? [] : queriedFields(taken.query).filter((field) => !indexed.includes(field));
 		if (unindexed.length > 0) throw new Error(`${domainName} doesn't index ${unindexed.join(", ")}; filter and order its members by ${indexed?.join(", ")}`);
-		const items = members === undefined ? await this.valueItems(domainName) : await members.read(this.world, endedBy, taken === undefined ? {} : taken.query);
+		const items =
+			members !== undefined
+				? await members.read(this.world, endedBy, taken === undefined ? {} : taken.query)
+				: persisted !== undefined
+					? await this.recordItems(persisted.persistedAs, taken === undefined ? undefined : taken.query)
+					: await this.valueItems(domainName);
 		const list = listed({ items, total: items.length, saturated: false }, stages.slice(taken === undefined ? 0 : taken.stated));
 		if ("refused" in list) throw new Error(`the members of ${domainName}: ${list.refused}`);
 		return list.items;
+	}
+
+	/** The store's records of the type a domain persists, each as an item of its fields. The query's filters and order reach the
+	 *  store; where the read's page leaves records out, the quantifier holds the page it read. */
+	private async recordItems(persistedAs: string, query?: TGraphQuery): Promise<TListItem[]> {
+		const page = await this.world.shared.getStore().readRecords({ label: persistedAs, ...(query ?? {}), skipCount: true });
+		return page.vertices;
 	}
 
 	/** A domain's values, each as an item of its id. */

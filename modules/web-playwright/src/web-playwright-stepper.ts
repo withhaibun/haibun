@@ -7,7 +7,16 @@ import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { AStepper, CycleWhen, READING, StepperKinds, type IHasCycles, type IHasOptions, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { ActionSchema, readAction, type TAction } from "@haibun/core/lib/domains/actions.js";
 import { inCall } from "@haibun/core/lib/domains/capability-context.js";
-import { DOMAIN_FILE_PATH, DOMAIN_GLOB, DOMAIN_JSON, DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_STATEMENT, DOMAIN_TEXT, DOMAIN_VARIABLE_NAME } from "@haibun/core/lib/domains/domains.js";
+import {
+	DOMAIN_FILE_PATH,
+	DOMAIN_JSON,
+	DOMAIN_LINK,
+	DOMAIN_NUMBER,
+	DOMAIN_STATEMENT,
+	DOMAIN_TEXT,
+	DOMAIN_VARIABLE_NAME,
+	DOMAIN_VARIABLE_VALUE,
+} from "@haibun/core/lib/domains/domains.js";
 import { DOMAIN_IMAGE_REFERENCE } from "@haibun/core/lib/domains/media-object.js";
 import { Access } from "@haibun/core/lib/domains/resources.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
@@ -35,28 +44,29 @@ import {
 	DOMAIN_ACCESSIBILITY_SNAPSHOT,
 	DOMAIN_JSON_RESPONSE,
 	DOMAIN_BROWSER_EXTENSION,
+	DOMAIN_BROWSER_PAGE,
 	DOMAIN_BROWSER_TYPE,
-	DOMAIN_COOKIE_NAME,
 	DOMAIN_FIND_WAY,
 	DOMAIN_AUTHORIZATION_CREDENTIALS,
 	DOMAIN_AUTHORIZATION_SCHEME,
 	DOMAIN_HTTP_METHOD,
 	DOMAIN_HTTP_METHOD_WITH_BODY,
 	DOMAIN_HTTP_METHOD_WITHOUT_BODY,
+	DOMAIN_HTTP_RESPONSE,
 	DOMAIN_KEYBOARD_KEY,
 	DOMAIN_MEDIA_TYPE,
 	DOMAIN_PAGE_LOCATOR,
 	DOMAIN_PAGE_TARGET,
-	DOMAIN_PAGE_TEST_ID,
 	DOMAIN_PAGE_TEXT,
-	DOMAIN_QUERY_PARAMETER,
 	DOMAIN_REQUEST_STATE,
 	DOMAIN_RUNNING_BROWSER_EXTENSION,
 	DOMAIN_URL_GLOB,
 	REQUEST_STATE,
+	WEB_PAGES,
 	WebPlaywrightDomains,
 } from "./domains/web-playwright.js";
 import { BrowserSession, type TPageAction } from "./pipelines/browser-session.js";
+import { browserPages } from "./pipelines/browser-pages.js";
 import { connecting, loadedResult, loadingExtension, type TLoadedExtension } from "./pipelines/browser-options.js";
 import { expectDownload, receiveDownload } from "./pipelines/downloads.js";
 import { runningExtension } from "./pipelines/extension.js";
@@ -79,26 +89,14 @@ import {
 	setTimeouts,
 	typeText,
 	uploadFile,
+	waitFor,
+	waitGone,
 	withinContainer,
 } from "./pipelines/page-input.js";
-import {
-	canvasIsEmpty,
-	cookieIs,
-	pageAddress,
-	queryParameter,
-	readThePage,
-	hasTestId,
-	screenshotOf,
-	sees,
-	textOf,
-	waitForAddress,
-	waitForTarget,
-	waitUntilGone,
-} from "./pipelines/page-reads.js";
+import { canvasIsEmpty, readThePage, screenshotOf } from "./pipelines/page-reads.js";
 import { listTabs, openTab, readTab } from "./pipelines/relay-tabs.js";
-import { AUTHORIZATION, authorization, logout, request, requestToken, setExtraHTTPHeaders, statusIs, type TRestContext, jsonResponse } from "./pipelines/rest.js";
+import { AUTHORIZATION, authorization, logout, request, requestToken, setExtraHTTPHeaders, type TRestContext, jsonResponse } from "./pipelines/rest.js";
 import { captureScreenshot } from "./pipelines/screenshots.js";
-import { keepText } from "./pipelines/variables.js";
 import type { TBrowserOptions, TBrowserRelay, TTwin } from "./ports.js";
 import { browserPorts, serveRelay, type TBrowserPorts } from "./root.js";
 import { counted } from "@haibun/core/lib/domains/hypermedia.js";
@@ -246,6 +244,9 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		},
 		startFeature: async ({ resolvedFeature, index }) => {
 			this.session.startFeature();
+			// The property readers of the locator domains and of `browser-page` reach the page through the port, published
+			// once the session is made, the way a storage publishes its files to the FilePath readers.
+			(this.getWorld().runtime as Record<string, unknown>)[WEB_PAGES] = browserPages(this.session, this.getWorld());
 			if (this.servesRelay) this.#serveRelay();
 			await writeFeatureArtifact(this.storage, index, resolvedFeature);
 		},
@@ -321,6 +322,22 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			...ANSWERED_BY_THE_PAGE,
 			action: ({ target }) => hoverOver(this.session, target),
 		},
+		waitFor: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.act,
+			gwta: `wait for {target: ${DOMAIN_PAGE_TARGET}}`,
+			description: "Waits for the first element the target locates: a test id until it is attached, every other target until it is visible.",
+			contract: { changes: [] },
+			...ANSWERED_BY_THE_PAGE,
+			action: ({ target }) => waitFor(this.session, target),
+		},
+		waitGone: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.act,
+			gwta: `wait until {target: ${DOMAIN_PAGE_TARGET}} is gone`,
+			description: "Waits until the first element the target locates is detached or hidden.",
+			contract: { changes: [] },
+			...ANSWERED_BY_THE_PAGE,
+			action: ({ target }) => waitGone(this.session, target),
+		},
 		scrollUpAScreen: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: `scroll {target: ${DOMAIN_PAGE_TARGET}} up a screen`,
@@ -337,33 +354,6 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			...ANSWERED_BY_THE_PAGE,
 			action: ({ option, field }) => selectOption(this.session, option, field),
 		},
-		shouldSeeTestId: {
-			...PAGE_READ,
-			gwta: `has test id {testId: ${DOMAIN_PAGE_TEST_ID}}`,
-			description: "Holds where the page holds an element with the test id, and fails where it doesn't.",
-			contract: { read: true },
-			action: ({ testId }) => hasTestId(this.session, testId),
-		},
-		seeText: {
-			...PAGE_READ,
-			gwta: `see {text: ${DOMAIN_TEXT}}`,
-			description: "Holds where the page's body shows the text, and fails where it doesn't.",
-			contract: { read: true },
-			action: ({ text }) => sees(this.session, text, "body"),
-		},
-		waitFor: {
-			gwta: `wait for {target: ${DOMAIN_PAGE_TARGET}}`,
-			description:
-				"Waits for the target's first element: attached to the document where the target is a test id, visible where it is any other locator. A target that doesn't appear in time fails the step.",
-			contract: { changes: [] },
-			action: ({ target }) => waitForTarget(this.session, target),
-		},
-		waitUntilGone: {
-			gwta: `wait until {target: ${DOMAIN_PAGE_TARGET}} is gone`,
-			description: "Waits until the target's first element is hidden, and fails where it is still shown.",
-			contract: { changes: [] },
-			action: ({ target }) => waitUntilGone(this.session, target),
-		},
 
 		// TABS
 		onNewTab: {
@@ -377,55 +367,21 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 				return OK;
 			},
 		},
-		currentTabIs: {
-			// Which of the person's own pages is current is theirs alone, so the read is private.
-			readsAt: Access.private,
-			gwta: `current tab is {tab: ${DOMAIN_NUMBER}}`,
-			description: "Holds where the session's current tab is the one named, and fails where it is the other.",
-			contract: { read: true },
-			// A check, once: a feature that waits for a tab to open waits through `until`.
-			action: ({ tab }) => (this.session.tab === tab ? OK : actionNotOK(`current tab is ${this.session.tab}, not ${tab}`)),
-		},
-		onTabX: {
+		makePageCurrent: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
-			gwta: `on tab {tab: ${DOMAIN_NUMBER}}`,
-			description: "Makes the tab numbered current, so the steps that follow act on it, and the session opens its page where the tab doesn't hold one.",
+			gwta: `make the page {page: ${DOMAIN_BROWSER_PAGE}} current`,
+			description: "Makes the tab the page numbers current, so the steps that follow act on it, and the session opens its page where the tab doesn't hold one.",
 			contract: { changes: [] },
-			action: ({ tab }) => {
-				this.session.tab = tab;
+			action: ({ page }) => {
+				this.session.tab = page;
 				return OK;
 			},
 		},
-
-		// ADDRESS AND COOKIES
-		cookieIs: {
-			...PAGE_READ,
-			gwta: `cookie {name: ${DOMAIN_COOKIE_NAME}} is {value: ${DOMAIN_TEXT}}`,
-			description: "Holds where the page's cookie of the name holds the value, and fails where it holds another value or the page doesn't hold the cookie.",
-			contract: { read: true },
-			action: ({ name, value }) => cookieIs(this.session, this.getWorld().tag.featureNum, name, value),
-		},
-		waitForURIMatch: {
-			...PAGE_READ,
-			gwta: `wait until URI matches {pattern: ${DOMAIN_GLOB}}`,
-			description: "Waits until the page's address matches the glob pattern, and fails where it doesn't in time.",
-			contract: { changes: [] },
-			action: ({ pattern }) => waitForAddress(this.session, pattern),
-		},
-		saveURI: {
-			...PAGE_READ,
-			gwta: `save URI to {where: ${DOMAIN_VARIABLE_NAME}}`,
-			description: "Sets the variable to the page's address.",
-			contract: { changes: [] },
-			action: async ({ where }, featureStep) => keepText(this.getWorld(), where, await pageAddress(this.session), featureStep),
-		},
-		saveURIQueryParameter: {
-			...PAGE_READ,
-			gwta: `save URI query parameter {what: ${DOMAIN_QUERY_PARAMETER}} to {where: ${DOMAIN_VARIABLE_NAME}}`,
-			description: "Sets the variable to the value of the query parameter in the page's address.",
-			contract: { changes: [] },
-			action: async ({ what, where }, featureStep) => keepText(this.getWorld(), where, await queryParameter(this.session, what), featureStep),
-		},
+		// What a page shows, holds or waits for is read through the locator domains' properties: `see {text}` and the
+		// rest are waypoints in @haibun/web-playwright/waypoints over `variable {target}.text`, `variable {target}.count`
+		// and `until variable {target}.visible`, and the page's own fields are read as `BrowserPage:{tab}.uri` and the
+		// like. `on a new tab` and `make the page {tab} current` move the session, and a step that acts on a page acts
+		// on the current tab; to read another tab's page without moving the session, name it: `variable BrowserPage:1.uri`.
 
 		// CLICK
 		click: {
@@ -661,13 +617,6 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			action: async () =>
 				actionOKWithProducts(await readThePage(this.session, Object.fromEntries(SNAPSHOT_ACTIONS.map((step) => [step, { method: stepMethodName(constructorName(this), step) }])))),
 		},
-		saveTextFrom: {
-			...PAGE_READ,
-			gwta: `save text from {element: ${DOMAIN_PAGE_TARGET}} to {where: ${DOMAIN_VARIABLE_NAME}}`,
-			description: "Sets the variable to the text of the element the target locates.",
-			contract: { changes: [] },
-			action: async ({ element, where }, featureStep) => keepText(this.getWorld(), where, await textOf(this.session, element), featureStep),
-		},
 		resizeWindow: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: `resize window to {width: ${DOMAIN_NUMBER}}x{height: ${DOMAIN_NUMBER}}`,
@@ -723,25 +672,26 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
 			gwta: `request OAuth 2.0 access token from {endpoint: ${DOMAIN_LINK}}`,
 			description:
-				"Requests an OAuth 2.0 access token from the endpoint inside the page, and sends it as the bearer of every later request the page makes. A response without the access token fails the step.",
-			contract: { changes: [] },
+				"Requests an OAuth 2.0 access token from the endpoint inside the page, sends it as the bearer of every later request the page makes, and returns the endpoint's response as the step's product. A response without the access token fails the step.",
+			contract: { products: DOMAIN_HTTP_RESPONSE, changes: [] },
 			action: ({ endpoint }, featureStep) => requestToken(this.#rest, featureStep, endpoint),
 		},
 		restTokenLogout: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
 			gwta: `perform OAuth 2.0 logout from {endpoint: ${DOMAIN_LINK}}`,
-			description: "Logs the page out of OAuth 2.0 through the endpoint, so the later requests the page makes drop the extra headers.",
-			contract: { changes: [] },
+			description:
+				"Logs the page out of OAuth 2.0 through the endpoint, so the later requests the page makes drop the extra headers, and returns the endpoint's response as the step's product.",
+			contract: { products: DOMAIN_HTTP_RESPONSE, changes: [] },
 			action: ({ endpoint }, featureStep) => logout(this.#rest, featureStep, endpoint),
 		},
 		acceptEndpointRequest: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
 			gwta: `accept {accept: ${DOMAIN_MEDIA_TYPE}} using ${HTTP} {method: ${DOMAIN_HTTP_METHOD_WITHOUT_BODY}} to {endpoint: ${DOMAIN_LINK}}( as {name: ${DOMAIN_FILE_PATH}})?`,
 			description:
-				"Makes the HTTP request of the method to the endpoint inside the page, with the Accept header set to the media type named, optionally saving a binary response with the given name, and keeps its response as the last one.",
-			// The kept response and the HttpRequest, HttpHost and HttpClient records the request observes are Variable and
-			// observation records, which actuality writes as its own bookkeeping, leaving the step's change list empty.
-			contract: { changes: [] },
+				"Makes the HTTP request of the method to the endpoint inside the page, with the Accept header set to the media type named, optionally saving a binary response with the given name, and returns its response as the step's product.",
+			// The response is the step's product, and the HttpRequest, HttpHost and HttpClient records the request observes
+			// are observation records, which actuality writes as its own bookkeeping, leaving the step's change list empty.
+			contract: { products: DOMAIN_HTTP_RESPONSE, changes: [] },
 			action: ({ accept, method, endpoint, name }, featureStep) =>
 				request(this.#rest, featureStep, endpoint, method, { headers: { accept }, ...(name !== undefined ? { saveAs: name } : {}) }),
 		},
@@ -749,34 +699,26 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
 			gwta: `make an ${HTTP} {method: ${DOMAIN_HTTP_METHOD}} to {endpoint: ${DOMAIN_LINK}}`,
 			description:
-				"Makes the HTTP request of the method to the endpoint inside the page, and keeps its response as the last one. A method that sends a body sends an empty JSON body where the step omits it.",
-			contract: { changes: [] },
+				"Makes the HTTP request of the method to the endpoint inside the page and returns its response as the step's product. A method that sends a body sends an empty JSON body where the step omits it.",
+			contract: { products: DOMAIN_HTTP_RESPONSE, changes: [] },
 			action: ({ method, endpoint }, featureStep) => request(this.#rest, featureStep, endpoint, method),
 		},
 		restEndpointRequestWithPayload: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
 			precludes: [`${constructorName(this)}.restEndpointRequest`],
 			gwta: `make an ${HTTP} {method: ${DOMAIN_HTTP_METHOD_WITH_BODY}} to {endpoint: ${DOMAIN_LINK}} with {payload: ${DOMAIN_JSON}}`,
-			description: "Makes the HTTP request of the method to the endpoint inside the page with the JSON payload, and keeps its response as the last one.",
-			contract: { changes: [] },
+			description: "Makes the HTTP request of the method to the endpoint inside the page with the JSON payload and returns its response as the step's product.",
+			contract: { products: DOMAIN_HTTP_RESPONSE, changes: [] },
 			action: ({ method, endpoint, payload }, featureStep) =>
 				request(this.#rest, featureStep, endpoint, method, { postData: JSON.stringify(payload), headers: { "Content-Type": MEDIA_TYPE.json } }),
 		},
 		showJsonResponse: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: "show JSON response",
+			gwta: `show JSON response of {response: ${DOMAIN_VARIABLE_VALUE}}`,
 			description:
-				'Lists the members of the last JSON response. Narrow, count and iterate them with the list combinators, as in `exactly 2, whose "name" matches "Include", show JSON response`.',
+				'Lists the members of the JSON response. Narrow, count and iterate them with the list combinators, as in `exactly 2, whose "name" matches "Include", show JSON response of records`.',
 			contract: { read: true, products: DOMAIN_JSON_RESPONSE },
-			action: () => jsonResponse(this.getWorld()),
-		},
-		restLastStatusIs: {
-			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `${HTTP} status is {status: ${DOMAIN_NUMBER}}`,
-			description:
-				"Holds where the last response the requests inside the page received has the status, and fails where a response wasn't received, or where its status is the other.",
-			contract: { read: true },
-			action: ({ status }) => statusIs(this.getWorld(), status),
+			action: ({ response }) => jsonResponse(response),
 		},
 	});
 }

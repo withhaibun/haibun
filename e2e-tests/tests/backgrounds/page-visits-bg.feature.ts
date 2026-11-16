@@ -33,7 +33,7 @@ export const backgrounds: TKirejiExport = {
 		ensure({ outcome: knowsTheSitePages }),
 		increment({ what: pagesVisited }),
 		"go to the {page} webpage",
-		"waypoint Navigate to {page} with variable WebPlaywright.currentURI is {page}",
+		"waypoint Navigate to {page} with variable BrowserPage:0.uri is {page}",
 		`↑ Parameterized outcome - use with: ensure Navigate to mainUrl, ensure Navigate to haibunUrl.`,
 	],
 };

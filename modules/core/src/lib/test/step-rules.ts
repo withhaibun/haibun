@@ -60,6 +60,10 @@ export type TDeclaredStep = {
 	productDomains: readonly string[];
 	/** Whether its contract lists the writes beyond its products in `changes`. */
 	listsChanges: boolean;
+	/** The stored labels of the record types listed by the lines of its contract's `changes`. */
+	changedTypes: readonly string[];
+	/** The relations of the edges listed by the lines of its contract's `changes`. */
+	changedEdges: readonly string[];
 	/** Whether its contract names the verb through which dispatch writes its products. */
 	written: boolean;
 };
@@ -108,6 +112,8 @@ export function declaredSteps(steppers: readonly { file: string; stepper: AStepp
 					combinator,
 					productDomains: declaredDomains,
 					listsChanges: step.contract?.changes !== undefined,
+					changedTypes: (step.contract?.changes ?? []).flatMap((change) => ("persistedAs" in change ? [change.persistedAs] : [])),
+					changedEdges: (step.contract?.changes ?? []).flatMap((change) => ("relation" in change ? [change.relation] : [])),
 					written: step.contract?.written !== undefined,
 				},
 			];
@@ -369,6 +375,30 @@ export function unexercised(repository: string, steps: readonly TDeclaredStep[])
 /** Each step that isn't a read and doesn't list its writes beyond its products in its contract's `changes`. */
 export const unlistedChanges = (steps: readonly TDeclaredStep[]): TFound[] =>
 	steps.filter(({ read, listsChanges }) => !read && !listsChanges).map(({ file, stepper, key }) => ({ file, finding: `${UNLISTED_CHANGES}: ${stepper}.${key}` }));
+
+export const ACTUALITY_CONTRACT = "names a type of actuality in its contract, which actuality records on its own";
+
+/** Each step holding a contract line about records of a type or edges of a relation that declare `observesActuality`: calls
+ *  write such records themselves, so the line stands in place of writing done by the call itself. */
+export function actualityContracts(steppers: readonly { stepper: AStepper }[], steps: readonly TDeclaredStep[]): TFound[] {
+	const types = new Set<string>();
+	const relations = new Set<string>();
+	const shared: string[] = [];
+	for (const definition of definitionsOf(steppers).values()) {
+		const topology = definition.topology;
+		if (topology === undefined || !isPersisted(topology)) continue;
+		if (topology.observesActuality === true) types.add(topology.persistedAs);
+		for (const edge of Object.values(topology.edges ?? {})) {
+			if (edge.rel === undefined) continue;
+			if (edge.observesActuality === true) relations.add(edge.rel);
+			else if (!shared.includes(edge.rel)) shared.push(edge.rel);
+		}
+	}
+	const guarded = [...relations].filter((rel) => !shared.includes(rel));
+	return steps
+		.filter(({ changedTypes, changedEdges }) => changedTypes.some((label) => types.has(label)) || changedEdges.some((rel) => guarded.includes(rel)))
+		.map(({ file, stepper, key }) => ({ file, finding: `${ACTUALITY_CONTRACT}: ${stepper}.${key}` }));
+}
 
 /** Each step that isn't a read and returns products of a type its stepper's concerns store, without a contract that names the
  *  verb dispatch writes them with, so the step writes its products itself. */

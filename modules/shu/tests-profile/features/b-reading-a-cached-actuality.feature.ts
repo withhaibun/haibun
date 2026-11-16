@@ -7,7 +7,7 @@ import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
 import { registerTestIds } from "@haibun/shu/test/step-ui.js";
 
 const wp = new WebPlaywright();
-const { waitFor, click, gotoPage } = withAction(wp);
+const { click, gotoPage } = withAction(wp);
 const { serveShuApp } = withAction(new ShuStepper());
 const { setAs } = withAction(new VariablesStepper());
 const { feature, scenario } = withAction(new Haibun());
@@ -29,11 +29,11 @@ export const features: TKirejiExport = {
 		'webserver is listening for "reading an actuality this device holds"',
 		gotoPage({ name: `"${host}/spa"` }),
 		"show monitor",
-		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
+		`wait for [data-testid='\${IDS.MONITOR.LOG_STREAM}']`,
 		"show client cache",
-		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
+		`wait for [data-testid='\${IDS.CLIENT_CACHE.ROOT}']`,
 		"The device is read after the view opens, so the list is waited for by the control that exists only once an earlier actuality is held, rather than read the moment the view attaches.",
-		waitFor({ target: IDS.CLIENT_CACHE.READ_EARLIER }),
+		`wait for [data-testid='\${IDS.CLIENT_CACHE.READ_EARLIER}']`,
 		`save text from ${IDS.CLIENT_CACHE.ROOT} to cachedActualities`,
 		'matches cachedActualities with "*An actuality to come back to*"',
 		`save text from ${IDS.CLIENT_CACHE.READING} to readingNow`,
@@ -43,11 +43,11 @@ export const features: TKirejiExport = {
 		click({ target: IDS.CLIENT_CACHE.READ_EARLIER }),
 		`save text from ${IDS.CLIENT_CACHE.READING} to readingEarlier`,
 		'matches readingEarlier with "*An actuality to come back to*"',
-		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
+		`wait for [data-testid='\${IDS.MONITOR.LOG_STREAM}']`,
 
 		"An actuality that a site isn't recording is finished, and reading it doesn't wait on a site. What can be read of it is what this device holds, and its source states that it has read it.",
 		setAs({ what: SOURCE_LOADED, domain: "page-test-id", value: `"${SOURCE_LOADED}"` }),
-		waitFor({ target: SOURCE_LOADED }),
+		`wait for [data-testid='\${SOURCE_LOADED}']`,
 
 		scenario({ scenario: "The time control returns the views to the actuality being recorded" }),
 

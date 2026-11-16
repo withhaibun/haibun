@@ -8,7 +8,7 @@ Scenario: Generate and clear a QR code
   webserver is listening for "qrcode"
   
   go to the qrcode URI webpage
-  wait for "QR Code Generator"
+  see "QR Code Generator"
 
   canvas "canvas" is empty
 

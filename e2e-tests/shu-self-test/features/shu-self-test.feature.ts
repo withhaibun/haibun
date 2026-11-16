@@ -8,7 +8,7 @@ import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
 import { SHU_TAG } from "@haibun/shu/domains/elements.js";
 import { createStepUI, paneOfComponent, registerTestIds, tapPane } from "@haibun/shu/test/step-ui.js";
 import { COMMENT_DOMAIN, COMMENT_LABEL } from "@haibun/core/lib/domains/resources.js";
-import { DOMAIN_PAGE_TEST_ID } from "@haibun/web-playwright/domains.js";
+import { DOMAIN_PAGE_LOCATOR, DOMAIN_PAGE_TEST_ID } from "@haibun/web-playwright/domains.js";
 import { domains } from "@haibun/shu/waypoints/backgrounds/domains.feature.ts";
 import { headingAnchor } from "@haibun/core/lib/domains/document-content.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
@@ -16,7 +16,7 @@ import { ACTIVITIES_STEPPER } from "@haibun/core/steps/activities-actions.js";
 import { page } from "@haibun/web-playwright/waypoints/backgrounds/page.feature.ts";
 
 const wp = new WebPlaywright();
-const { waitFor, waitUntilGone, click, gotoPage, reloadPage, inElement, setValue } = withAction(wp);
+const { click, gotoPage, reloadPage, inElement, setValue } = withAction(wp);
 const { serveShuApp } = withAction(new ShuStepper());
 const { set, setAs, exists, setFromStatement } = withAction(new VariablesStepper());
 const { comment } = withAction(new ResourcesStepper());
@@ -26,6 +26,16 @@ const { enterStepMode, passesStepForm, chooseGraphLabel, collapseActionsBar } = 
 const host = "http://localhost:8239";
 const IDS = SHU_TEST_IDS;
 const q = (text: string): string => `"${text}"`;
+/** A line that waits for the element with the test id to attach: the attribute selector locates it exactly. */
+const waitId = (id: string): string => `wait for [data-testid='${id}']`;
+/** A line that waits until the element with the test id is detached or hidden. */
+const goneId = (id: string): string => page.waitForGone(`[data-testid='${id}']`);
+/** A line that waits until the element the locator finds is detached or hidden. */
+/** Lines that read an element's text and check it against the text: the set names the element by its test id exactly, and
+ *  the check reads the element's `text` property, at the page. */
+const textIs = (id: string, text: string): string[] => [`set ${id} as ${DOMAIN_PAGE_LOCATOR} to [data-testid='${id}']`, `variable ${id}.text is "${text}"`];
+/** Lines that read an element's text and match it against the glob, the text read at the page. */
+const textMatches = (id: string, glob: string): string[] => [`set ${id} as ${DOMAIN_PAGE_LOCATOR} to [data-testid='${id}']`, `matches ${id}.text with "${glob}"`];
 /** Every open virtualized column has its own rail. This tag scopes a press on a rail to the document column. */
 const DOC_CONTAINER = SHU_TAG.DOCUMENT_COLUMN;
 const MONITOR_CONTAINER = SHU_TAG.MONITOR_COLUMN;
@@ -94,36 +104,36 @@ export const features: TKirejiExport = {
 
 		"The monitor column renders actuality's records as a log with one row for each step. It reads the records again after the event stream sends an event. The log's toolbar on the page shows that the column mounted.",
 		"show monitor",
-		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
+		waitId(IDS.MONITOR.LOG_STREAM),
 
 		"The monitor shows a step's screenshot on that step's row. The screenshot doesn't get a row of its own, so a step and its product are read together. Actuality takes a screenshot after each WebPlaywright step. The navigation that opened this page produced one.",
-		waitFor({ target: IDS.MONITOR.PRODUCED }),
+		waitId(IDS.MONITOR.PRODUCED),
 
 		"Each column holds its own settings. The pane shows a column's settings when a person primes the settings tap action and taps the pane. The monitor's settings hold the log's level and whether the log shows substeps. A substep is a step that actuality runs to carry out another step. The log hides substeps by default, so a person reading what the feature did sees the feature's own steps. Showing substeps lists them. Each substep's row links to the step it carries out. The screenshot that actuality takes after each browser step is a substep, so showing substeps shows it.",
 		...tapPane(IDS.TAP_ACTIONS.SETTINGS, MONITOR_PANE),
 		inElement({ container: `"${MONITOR_PANE}"`, what: `click ${IDS.MONITOR.SUBSTEPS}` }),
-		waitFor({ target: IDS.MONITOR.ESTABLISHED_BY }),
+		waitId(IDS.MONITOR.ESTABLISHED_BY),
 
 		"Turning substeps off shows the feature's own steps again. Each step's products stay on its row.",
 		inElement({ container: `"${MONITOR_PANE}"`, what: `click ${IDS.MONITOR.SUBSTEPS}` }),
-		waitFor({ target: IDS.MONITOR.PRODUCED }),
+		waitId(IDS.MONITOR.PRODUCED),
 		...tapPane(IDS.TAP_ACTIONS.SETTINGS, MONITOR_PANE),
 
 		"The log's scroll rail shows the shared cursor. A person moves the cursor on the rail. The page doesn't have a separate range control. The cursor always marks a moment of actuality, so the rail shows its mark from the start. The mark is at the live edge until a person moves the cursor.",
-		waitFor({ target: IDS.SCROLLBAR.RAIL }),
-		waitFor({ target: IDS.SCROLLBAR.CURSOR }),
+		waitId(IDS.SCROLLBAR.RAIL),
+		waitId(IDS.SCROLLBAR.CURSOR),
 
 		scenario({ scenario: "The log narrows to its rail, and the playback controls move the cursor" }),
 
 		"A minimized monitor shows a narrow form of itself. It hides its rows and keeps its rail. The rail keeps the cursor's mark. The column's strip is the rail, so a click on the strip acts on the rail and doesn't restore the rows. Priming minimize and tapping the pane minimizes it.",
 		...tapPane(IDS.TAP_ACTIONS.MINIMIZE, MONITOR_PANE),
-		waitFor({ target: IDS.SCROLLBAR.RAIL }),
-		waitFor({ target: IDS.SCROLLBAR.CURSOR }),
+		waitId(IDS.SCROLLBAR.RAIL),
+		waitId(IDS.SCROLLBAR.CURSOR),
 
 		"The rail doesn't advance the cursor over time. The playback controls move it over time: back to the start, play, back to now and the playback speed. The current-time control on the page strip opens them in a popover outside every pane. The current-time control also opens the log minimized when the log isn't open. The log is already open here, so the control leaves it minimized. The feature presses back to the start, play twice and back to now. These presses check the browser path. The server serves the controls. Each control accepts a press. The page keeps its log throughout. The playback component's unit tests check where the cursor is after each press. Those tests drive the component's frames and don't wait for them.",
 		click({ target: IDS.APP.TIME_OFFSET }),
-		waitFor({ target: IDS.PLAYBACK.RESTART }),
-		waitFor({ target: IDS.PLAYBACK.SPEED }),
+		waitId(IDS.PLAYBACK.RESTART),
+		waitId(IDS.PLAYBACK.SPEED),
 		click({ target: IDS.PLAYBACK.RESTART }),
 		click({ target: IDS.PLAYBACK.PLAY }),
 		click({ target: IDS.PLAYBACK.PLAY }),
@@ -134,30 +144,30 @@ export const features: TKirejiExport = {
 
 		"Tapping minimize again restores the column. The rows return. The rail is the same element and still shows the cursor's mark.",
 		...tapPane(IDS.TAP_ACTIONS.MINIMIZE, MONITOR_PANE),
-		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
-		waitFor({ target: IDS.SCROLLBAR.CURSOR }),
+		waitId(IDS.MONITOR.LOG_STREAM),
+		waitId(IDS.SCROLLBAR.CURSOR),
 
 		scenario({ scenario: "Open the graph view and confirm the comments render" }),
 
 		"The graph view draws each individual of a shown type as a node in a scene that a person can rotate. It hides instrumentation types and schema types by default. The comments written above give the view records to draw. The scene on the page shows that the view requested the store's records from the server, read the response and drew the records. The graph view is a separate bundle. The page fetches that bundle from the server, so the scene on the page also shows that the server serves it.",
 		"show polymorphic graph view",
-		waitFor({ target: IDS.POLYMORPHIC_VIEW.ROOT }),
-		waitFor({ target: IDS.POLYMORPHIC_VIEW.SCENE }),
+		waitId(IDS.POLYMORPHIC_VIEW.ROOT),
+		waitId(IDS.POLYMORPHIC_VIEW.SCENE),
 
 		scenario({ scenario: "Browse the comments in the column browser" }),
 
 		"The column browser lists the stored records of a chosen type. Choosing the Comment type queries the store. The browser shows the comments written earlier in a table with one row for each comment. Every store returns this query's result in one shape, so the browser doesn't hold code for a particular type.",
 		...chooseGraphLabel(COMMENT_LABEL),
-		waitFor({ target: IDS.QUERY.TABLE }),
-		waitFor({ target: IDS.QUERY.FIRST_ROW }),
+		waitId(IDS.QUERY.TABLE),
+		waitId(IDS.QUERY.FIRST_ROW),
 
 		scenario({ scenario: "Invoke `show the applicable steps` from Step mode and inspect the goals section" }),
 
 		"The affordances panel renders the logic engine's verdict for each goal: proved, unknown or refuted. The panel doesn't list forward-reachable steps. The actions bar's step picker lists them. The goals list mounts in the panel.",
 		...enterStepMode,
 		...passesStepForm("LogicStepper-showApplicableSteps"),
-		waitFor({ target: IDS.AFFORDANCES.ROOT }),
-		waitFor({ target: IDS.AFFORDANCES.GOALS_LIST }),
+		waitId(IDS.AFFORDANCES.ROOT),
+		waitId(IDS.AFFORDANCES.GOALS_LIST),
 
 		scenario({ scenario: "Ensure on a waypoint whose head holds a placeholder takes the placeholder's value" }),
 		"A waypoint's head can hold a placeholder. The waypoint's Ensure opens the ensure form with the head as a sentence and an input for the placeholder. The form calls ensure with the head and the value entered, and the waypoint's activity runs for that value.",
@@ -173,22 +183,22 @@ export const features: TKirejiExport = {
 		setAs({ what: "greeted-run", domain: "page-locator", value: `"${ENSURE_CALLER} [data-testid$='-step-run']"` }),
 		click({ target: "greeted-run" }),
 		setAs({ what: "greeted-result", domain: "page-locator", value: `"${ENSURE_CALLER}[data-testid$='-step-result']"` }),
-		waitFor({ target: "greeted-result" }),
+		`wait for greeted-result`,
 		'variable greeted is "Ada"',
 
 		scenario({ scenario: "The affordances hold the domain chain, drawn as a graph" }),
 
 		"`show the applicable steps` returns the steps on offer, each goal's verdict and the step graph's lint findings: unsupplied steps, unreachable domains and unproduced domains. The affordances panel holds the domain chain in a section of its own, which the graph view draws from the forward edges and the goal verdicts. The feature opens the section and waits for the chain view, its graph slot and the canvas in that slot.",
 		...passesStepForm("LogicStepper-showApplicableSteps"),
-		waitFor({ target: IDS.AFFORDANCES.ROOT }),
+		waitId(IDS.AFFORDANCES.ROOT),
 		click({ target: IDS.AFFORDANCES.CHAIN }),
-		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
-		waitFor({ target: IDS.DOMAIN_CHAIN.GRAPH }),
+		waitId(IDS.DOMAIN_CHAIN.ROOT),
+		waitId(IDS.DOMAIN_CHAIN.GRAPH),
 		setAs({ what: CHAIN_GRAPH_CANVAS, domain: "page-locator", value: `"${CHAIN_GRAPH_CANVAS_SELECTOR}"` }),
-		waitFor({ target: CHAIN_GRAPH_CANVAS }),
+		`wait for ${CHAIN_GRAPH_CANVAS}`,
 		"The graph view draws the domain chain, so the chain holds the graph view's controls. The layout group opens in the chain as it does on the main graph. It offers each view type, including the layered top-down and left-right views.",
 		inElement({ container: `"${CHAIN_PANE}"`, what: `click ${IDS.POLYMORPHIC_VIEW.SETTINGS.layout}` }),
-		inElement({ container: `"${CHAIN_PANE}"`, what: `wait for ${IDS.POLYMORPHIC_VIEW.VIEW_TYPE}` }),
+		inElement({ container: `"${CHAIN_PANE}"`, what: `wait for [data-testid='${IDS.POLYMORPHIC_VIEW.VIEW_TYPE}']` }),
 
 		scenario({ scenario: "Goal resolution: `resolve` leaves a registered domain that a step doesn't return unknown" }),
 
@@ -201,47 +211,44 @@ export const features: TKirejiExport = {
 		"A view-open product is a request to mount a pane. Running the same show step twice reuses the open pane, and the pane's open chain section stays open. Each refresh of the affordances stream would add another pane without that reuse. This scenario invokes the step a second time and waits for the chain view's root and graph. Each wait reads the first match, so the scenario doesn't count the panes.",
 		...enterStepMode,
 		...passesStepForm("LogicStepper-showApplicableSteps"),
-		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
-		waitFor({ target: IDS.DOMAIN_CHAIN.GRAPH }),
+		waitId(IDS.DOMAIN_CHAIN.ROOT),
+		waitId(IDS.DOMAIN_CHAIN.GRAPH),
 
 		scenario({ scenario: "Reload while the affordances pane is open: it must restore, with its domain chain" }),
 
 		"Reloading the page restores the affordances panel from the URL hash. The panel reads the applicable steps when it mounts without a product, so its chain section draws the chain after the reload. The feature waits for the panel's root after the reload, opens the chain section and waits for the chain.",
 		reloadPage({}),
 		"The app restores the panes from the URL hash. The reloaded URL still holds the affordances pane in its hash.",
-		"save URI to reloadUri",
-		'matches reloadUri with "*shu-affordances-panel*"',
-		waitFor({ target: IDS.AFFORDANCES.ROOT }),
+		'matches BrowserPage:0.uri with "*shu-affordances-panel*"',
+		waitId(IDS.AFFORDANCES.ROOT),
 		click({ target: IDS.AFFORDANCES.CHAIN }),
-		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
+		waitId(IDS.DOMAIN_CHAIN.ROOT),
 		"The hash restore also restores the monitor and the graph view. The monitor shows its rail with the cursor's mark.",
-		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
-		waitFor({ target: IDS.SCROLLBAR.CURSOR }),
-		waitFor({ target: IDS.POLYMORPHIC_VIEW.ROOT }),
+		waitId(IDS.MONITOR.LOG_STREAM),
+		waitId(IDS.SCROLLBAR.CURSOR),
+		waitId(IDS.POLYMORPHIC_VIEW.ROOT),
 
 		"The show document step opens the document beside the monitor. Both views read actuality the same way. Each reads at the level it shows. Each view spans all of actuality by index and pages a region in as a person scrolls to it. The views don't request a region twice. The document opens at the live edge with its newest events. The top glyph of its rail represents actuality's first row. Pressing the top glyph loads that region. The feature's own heading then appears on the page.",
 		"show document",
-		waitFor({ target: IDS.DOCUMENT.ROOT }),
+		waitId(IDS.DOCUMENT.ROOT),
 		setAs({ what: FEATURE_HEADING, domain: "page-test-id", value: `"${FEATURE_HEADING}"` }),
 		`in "${DOC_CONTAINER}", click ${IDS.SCROLLBAR.POS_TOP}`,
-		waitFor({ target: FEATURE_HEADING }),
+		waitId(FEATURE_HEADING),
 
 		"A feature reads every cache value from the client cache view. The view lists each run source read so far with its extent and its cached spans. It lists the live stream by level and what the device's store caches. Each value has its own test id. The document reads actuality at log level, so the view lists the log-level run source. The press on the document's top glyph paged in the start of actuality, so that source's cached spans begin at row 0. Its extent counts the events so far.",
 		"show client cache",
-		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
+		waitId(IDS.CLIENT_CACHE.ROOT),
 		setAs({ what: CACHE_LOG_CACHED, domain: "page-test-id", value: `"${CACHE_LOG_CACHED}"` }),
 		setAs({ what: CACHE_LOG_EVENTS, domain: "page-test-id", value: `"${CACHE_LOG_EVENTS}"` }),
-		waitFor({ target: CACHE_LOG_CACHED }),
-		`save text from ${CACHE_LOG_CACHED} to cacheLogCached`,
-		'matches cacheLogCached with "0..*"',
-		`save text from ${CACHE_LOG_EVENTS} to cacheLogEvents`,
-		'didn\'t variable cacheLogEvents is "0"',
+		waitId(CACHE_LOG_CACHED),
+		`matches ${CACHE_LOG_CACHED}.text with "0..*"`,
+		`didn't variable ${CACHE_LOG_EVENTS}.text is "0"`,
 
 		"The monitor's rail also spans all of actuality by index, whatever the monitor caches. Its top glyph represents actuality's first row. Pressing the top glyph loads that region. The first row then appears on the page, although the log cached only its newest page before the press. The page strip's current-time control still opens the playback controls after the reload.",
 		`in "${MONITOR_CONTAINER}", click ${IDS.SCROLLBAR.POS_TOP}`,
-		waitFor({ target: IDS.MONITOR.FIRST_ROW }),
+		waitId(IDS.MONITOR.FIRST_ROW),
 		click({ target: IDS.APP.TIME_OFFSET }),
-		waitFor({ target: IDS.PLAYBACK.PLAY }),
+		waitId(IDS.PLAYBACK.PLAY),
 		"A second press closes the popover again.",
 		click({ target: IDS.APP.TIME_OFFSET }),
 
@@ -250,13 +257,13 @@ export const features: TKirejiExport = {
 		"A reader closes the affordances pane. A later step runs, and the page reloads. Both leave the pane closed. The server replays its event history to every page that connects, and a view shown in that history must not reopen itself.",
 		...tapPane(IDS.TAP_ACTIONS.CLOSE, `${SHU_TAG.COLUMN_PANE}[data-column-key='shu-affordances-panel']`),
 		"page has settled",
-		page.testIdIsGone(`"${IDS.AFFORDANCES.GOALS_LIST}"`),
+		goneId(IDS.AFFORDANCES.GOALS_LIST),
 		set({ what: "closed-pane-check", value: '"still closed"' }),
 		"page has settled",
-		page.testIdIsGone(`"${IDS.AFFORDANCES.GOALS_LIST}"`),
+		goneId(IDS.AFFORDANCES.GOALS_LIST),
 		reloadPage({}),
 		"page has settled",
-		page.testIdIsGone(`"${IDS.AFFORDANCES.GOALS_LIST}"`),
+		goneId(IDS.AFFORDANCES.GOALS_LIST),
 
 		scenario({ scenario: "Variable inspection: `show vars` should produce an entry per variable set above" }),
 
@@ -275,7 +282,7 @@ export const features: TKirejiExport = {
 
 		"The graph view holds its options in named groups. Each group opens from its own head icon. The layout group holds every control that determines how the graph is placed. Opening it shows the orientation, the view type, the grouping and the depth together. The page doesn't split them across separate toolbars.",
 		inElement({ container: `"${MAIN_GRAPH_PANE}"`, what: `click ${IDS.POLYMORPHIC_VIEW.SETTINGS.layout}` }),
-		inElement({ container: `"${MAIN_GRAPH_PANE}"`, what: `wait for ${IDS.POLYMORPHIC_VIEW.VIEW_TYPE}` }),
+		inElement({ container: `"${MAIN_GRAPH_PANE}"`, what: `wait for [data-testid='${IDS.POLYMORPHIC_VIEW.VIEW_TYPE}']` }),
 
 		scenario({ scenario: "Write the standalone HTML report mid-feature" }),
 
@@ -285,8 +292,8 @@ export const features: TKirejiExport = {
 		'saves shu uncompressed to "/tmp/shu-audit.html"',
 
 		"The affordances panel has been open since a step showed it. The panel reads the applicable steps after each step to stay current. Actuality doesn't record a read as an act. Actuality's records name the step that showed the panel and don't name the panel's reads. The report holds actuality's records, so it names showApplicableSteps and doesn't name applicableSteps.",
-		'text at "/tmp/shu-audit.html" contains "LogicStepper.showApplicableSteps"',
-		'didn\'t text at "/tmp/shu-audit.html" contains "LogicStepper.applicableSteps"',
+		'variable FilePath:"/tmp/shu-audit.html".text contains "LogicStepper.showApplicableSteps"',
+		'didn\'t variable FilePath:"/tmp/shu-audit.html".text contains "LogicStepper.applicableSteps"',
 
 		scenario({ scenario: "A reload with the server unreachable reads actuality from the device" }),
 
@@ -294,17 +301,14 @@ export const features: TKirejiExport = {
 		`requests matching "${RPC_GLOB}" are "blocked"`,
 		`requests matching "${STREAM_GLOB}" are "blocked"`,
 		reloadPage({}),
-		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
+		waitId(IDS.CLIENT_CACHE.ROOT),
 		setAs({ what: CACHE_LOG_LOADED, domain: "page-test-id", value: `"${CACHE_LOG_LOADED}"` }),
-		`save text from ${IDS.CLIENT_CACHE.SERVER} to offlineServer`,
-		'variable offlineServer is "has not responded to this page"',
-		`save text from ${IDS.CLIENT_CACHE.REGISTRY} to offlineRegistry`,
-		'matches offlineRegistry with "from the device*"',
+		...textIs(IDS.CLIENT_CACHE.SERVER, "has not responded to this page"),
+		...textMatches(IDS.CLIENT_CACHE.REGISTRY, "from the device*"),
 		setAs({ what: CACHE_LOG_DISCONNECTED, domain: "page-test-id", value: `"${CACHE_LOG_DISCONNECTED}"` }),
-		waitFor({ target: CACHE_LOG_DISCONNECTED }),
-		`save text from ${CACHE_LOG_CACHED} to offlineCached`,
-		'matches offlineCached with "0..*"',
-		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
+		waitId(CACHE_LOG_DISCONNECTED),
+		`matches ${CACHE_LOG_CACHED}.text with "0..*"`,
+		waitId(IDS.MONITOR.LOG_STREAM),
 
 		scenario({ scenario: "The page reads from the server again when the server responds" }),
 
@@ -312,39 +316,35 @@ export const features: TKirejiExport = {
 		`requests matching "${RPC_GLOB}" are "allowed"`,
 		`requests matching "${STREAM_GLOB}" are "allowed"`,
 		reloadPage({}),
-		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
-		`save text from ${IDS.CLIENT_CACHE.SERVER} to onlineServer`,
-		'matches onlineServer with "last responded at *"',
-		`save text from ${IDS.CLIENT_CACHE.REGISTRY} to onlineRegistry`,
-		'matches onlineRegistry with "from the server*"',
-		waitFor({ target: CACHE_LOG_LOADED }),
+		waitId(IDS.CLIENT_CACHE.ROOT),
+		...textMatches(IDS.CLIENT_CACHE.SERVER, "last responded at *"),
+		...textMatches(IDS.CLIENT_CACHE.REGISTRY, "from the server*"),
+		waitId(CACHE_LOG_LOADED),
 
 		scenario({ scenario: "A server that accepts a request without responding is reported unreachable" }),
 
 		"A refused request fails immediately. A read then falls back to the device store. A request that the server accepts without a response is harder to detect. That request doesn't fail, so a read that awaits it doesn't return a result or report an error. Every request the page awaits carries a timeout. A server that doesn't respond within the timeout is reported unreachable. The page then reads its declarations from the device store, as it does when the network drops. This deployment sets a short timeout. A short timeout suits a deployment whose storage responds quickly. The timeout is a deployment option and not a path for tests.",
 		`requests matching "${RPC_GLOB}" are "unanswered"`,
 		reloadPage({}),
-		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
-		`save text from ${IDS.CLIENT_CACHE.SERVER} to unansweredServer`,
-		'variable unansweredServer is "has not responded to this page"',
-		`save text from ${IDS.CLIENT_CACHE.REGISTRY} to unansweredRegistry`,
-		'matches unansweredRegistry with "from the device*"',
+		waitId(IDS.CLIENT_CACHE.ROOT),
+		...textIs(IDS.CLIENT_CACHE.SERVER, "has not responded to this page"),
+		...textMatches(IDS.CLIENT_CACHE.REGISTRY, "from the device*"),
 
 		"The page sends one request for each read. A page with several views open sends many requests at once. The page doesn't send a read within the retry interval of a timed-out read. That read fails at once and reports the server unreachable. The page then falls back without running each read to the timeout. An earlier scenario blocks the requests and checks what the page then reads of actuality.",
-		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
+		waitId(IDS.MONITOR.LOG_STREAM),
 
 		"The server responds again, so the page queries it again.",
 		`requests matching "${RPC_GLOB}" are "allowed"`,
 		reloadPage({}),
-		waitFor({ target: CACHE_LOG_LOADED }),
+		waitId(CACHE_LOG_LOADED),
 
 		scenario({ scenario: "A page without a stream reads actuality and doesn't receive events" }),
 
 		"The stream sends events. The page reads actuality from records. A page that reloads with the stream blocked reads the actuality it holds. It doesn't receive an event after that. That state matches a dropped stream connection with the server still reachable. Every other call still works. This page was offline in the scenarios above and holds all of actuality on the device. The reading holds what it read during the reload and doesn't read further. The reading reports this state. A source disconnected from the stream doesn't report itself loaded. The client cache shows it as disconnected.",
 		`requests matching "${STREAM_GLOB}" are "blocked"`,
 		reloadPage({}),
-		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
-		waitFor({ target: CACHE_LOG_DISCONNECTED }),
+		waitId(IDS.CLIENT_CACHE.ROOT),
+		waitId(CACHE_LOG_DISCONNECTED),
 		"A press on the monitor rail's bottom glyph moves the monitor to actuality's newest row, so the monitor follows the newest rows.",
 		`in "${MONITOR_CONTAINER}", click ${IDS.SCROLLBAR.POS_BOTTOM}`,
 
@@ -356,35 +356,34 @@ export const features: TKirejiExport = {
 		"The monitor doesn't show the rows of these steps while the page doesn't receive events.",
 		setAs({ what: "firstUnheard", domain: "page-locator", value: `"${MONITOR_CONTAINER} .log-row:has-text('set unheard-1 ')"` }),
 		setAs({ what: "lastUnheard", domain: "page-locator", value: `"${MONITOR_CONTAINER} .log-row:has-text('set unheard-4 ')"` }),
-		waitUntilGone({ target: "firstUnheard" }),
-		waitUntilGone({ target: "lastUnheard" }),
+		`wait until firstUnheard is gone`,
+		`wait until lastUnheard is gone`,
 
 		scenario({ scenario: "A view catches up when the stream returns" }),
 
 		"The feature allows the stream. It doesn't reload the page or click it. The page reads again when the stream reconnects. The reading's state is behind from that moment until a read that began after it finishes. Its state is loaded after that read. The page uses one path to follow the stream and to catch up. The feature waits for the loaded state. It doesn't wait for a length of time, because the page reconnects and reads on its own schedule. The reading then holds what actuality recorded while the page didn't read the stream.",
 		`requests matching "${STREAM_GLOB}" are "allowed"`,
-		waitFor({ target: CACHE_LOG_LOADED }),
+		waitId(CACHE_LOG_LOADED),
 		"The monitor then shows the row of the first and of the last step that ran while the page didn't receive events, each by its step's text.",
-		waitFor({ target: "firstUnheard" }),
-		waitFor({ target: "lastUnheard" }),
+		`wait for firstUnheard`,
+		`wait for lastUnheard`,
 
 		scenario({ scenario: "A page without a layout of its own starts on the views actuality showed" }),
 
 		"An address that names views holds a person's own arrangement. Two addresses can therefore show different views of one actuality. An address that doesn't name a view doesn't hold an arrangement. The page then reads actuality's records and shows the views that actuality's steps showed. Actuality doesn't replay events to the page. The page reads actuality's records as it reads everything else. The page's address then names every view that a step of actuality showed, in the order the site declares them. Those views include the monitor, the graph, the document, the client cache and the affordances panel. Only the records state which views those are. An address that names them was built from the records.",
 		gotoPage({ name: `"${host}/haibun"` }),
-		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
-		waitFor({ target: IDS.DOCUMENT.ROOT }),
-		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
-		waitFor({ target: CACHE_LOG_CACHED }),
-		"save URI to freshUri",
-		`matches freshUri with "*col=${SHU_TAG.MONITOR_COLUMN}*"`,
-		`matches freshUri with "*col=${SHU_TAG.POLYMORPHIC_GRAPH_VIEW}*"`,
-		`matches freshUri with "*col=${SHU_TAG.DOCUMENT_COLUMN}*"`,
-		`matches freshUri with "*col=${SHU_TAG.CLIENT_CACHE_COLUMN}*"`,
-		`matches freshUri with "*col=${SHU_TAG.AFFORDANCES_PANEL}*"`,
+		waitId(IDS.MONITOR.LOG_STREAM),
+		waitId(IDS.DOCUMENT.ROOT),
+		waitId(IDS.CLIENT_CACHE.ROOT),
+		waitId(CACHE_LOG_CACHED),
+		`matches BrowserPage:0.uri with "*col=${SHU_TAG.MONITOR_COLUMN}*"`,
+		`matches BrowserPage:0.uri with "*col=${SHU_TAG.POLYMORPHIC_GRAPH_VIEW}*"`,
+		`matches BrowserPage:0.uri with "*col=${SHU_TAG.DOCUMENT_COLUMN}*"`,
+		`matches BrowserPage:0.uri with "*col=${SHU_TAG.CLIENT_CACHE_COLUMN}*"`,
+		`matches BrowserPage:0.uri with "*col=${SHU_TAG.AFFORDANCES_PANEL}*"`,
 
 		"The address doesn't name a view that actuality's steps didn't show. This deployment declares the thread column. Actuality's steps didn't open it. An address that named the thread column wouldn't match the records.",
-		`didn't matches freshUri with "*${SHU_TAG.THREAD_COLUMN}*"`,
+		`didn't matches BrowserPage:0.uri with "*${SHU_TAG.THREAD_COLUMN}*"`,
 
 		scenario({ scenario: "The views on offer are read from what the deployment declares" }),
 
@@ -392,8 +391,8 @@ export const features: TKirejiExport = {
 		gotoPage({ name: `"${host}/haibun?#?col=${SHU_TAG.VIEWS_PICKER}"` }),
 		setAs({ what: VIEWS_PICKER, domain: "page-test-id", value: `"${VIEWS_PICKER}"` }),
 		setAs({ what: VIEWS_PICKER_MONITOR, domain: "page-test-id", value: `"${VIEWS_PICKER_MONITOR}"` }),
-		waitFor({ target: VIEWS_PICKER }),
-		waitFor({ target: VIEWS_PICKER_MONITOR }),
+		waitId(VIEWS_PICKER),
+		waitId(VIEWS_PICKER_MONITOR),
 
 		"Each row's test id matches one element of this page. The document records what a step showed and doesn't mount the view. The document therefore doesn't hold a second copy of a row. The views picker's unit tests state what pressing a row does.",
 	],

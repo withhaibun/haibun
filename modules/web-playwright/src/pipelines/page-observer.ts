@@ -1,22 +1,18 @@
 /**
  * What actuality records of a page's traffic: an HTTP trace artifact for each request and response it records, an
- * observation of each response, and for each navigation of the page's main frame the page's address, the count of its
- * navigations, and a VisitedPage record.
+ * observation of each response, and a VisitedPage record for each navigation of the page's main frame.
  */
-import { DOMAIN_LINK, DOMAIN_NUMBER } from "@haibun/core/lib/domains/domains.js";
 import { registeredPaths, type IRouteRegistry } from "@haibun/core/lib/actuality.js";
 import { trackHttpRequest } from "@haibun/core/lib/pipelines/http-observations.js";
 import { recordTime } from "@haibun/core/lib/actuality/domains/record-time.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import { HttpTraceArtifact, Origin } from "@haibun/core/lib/domains/protocol.js";
+import { HttpTraceArtifact } from "@haibun/core/lib/domains/protocol.js";
 import { WEBSERVER } from "@haibun/web-server-hono/domains/web-server.js";
-import { WEB_PLAYWRIGHT } from "../domains/actions.js";
 import { VISITED_PAGE_LABEL } from "../domains/web-playwright.js";
 import { isRecorded } from "../derivations/http-exchange.js";
 import type { TPageObserver, TPageRequest } from "../ports.js";
 
-const PROVENANCE = { in: "PlaywrightEvents.framenavigated", seq: [] as number[], when: "framenavigated" };
 const ID_RADIX = 36;
 
 /** The trace of an exchange: the frame that made it where it isn't the page, the page, and the exchange's own fields. */
@@ -56,10 +52,6 @@ export function pageObserver(world: TWorld, pageKey: string): TPageObserver {
 		},
 		navigated(url) {
 			// A page event's listener doesn't wait, so each record is written in the background.
-			void world.shared.setForStepper(WEB_PLAYWRIGHT, { term: "currentURI", value: url, domain: DOMAIN_LINK, origin: Origin.var }, PROVENANCE).catch(failed("the address"));
-			void world.shared
-				.setForStepper(WEB_PLAYWRIGHT, { term: "navigateCount", value: navigateCount, domain: DOMAIN_NUMBER, origin: Origin.var }, PROVENANCE)
-				.catch(failed("the navigation count"));
 			// One VisitedPage per navigation, identified by its page, its ordinal and its time rather than its address, so the record
 			// never shares an id with shu's address-keyed columns; its name is the address without the view's hash, which names the
 			// page itself.

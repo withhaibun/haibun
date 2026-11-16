@@ -31,6 +31,9 @@ export class BrowserSession {
 	tab = 0;
 	/** The container `in {container}, {what}` scopes its statement's finds to, while it runs. */
 	inContainer: Locator | undefined;
+	/** The locator expression of `inContainer`, so a re-entry of the same `in` step keeps the scope rather than resolving the
+	 *  container again inside the document the first resolution already entered. */
+	inContainerSource: string | undefined;
 	/** The uncaught errors the page threw since the feature started. A step during which one is thrown fails. */
 	browserErrors: string[] = [];
 	/** How many errors were thrown before the current step. */

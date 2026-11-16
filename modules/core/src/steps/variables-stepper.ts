@@ -16,6 +16,8 @@ import {
 } from "../lib/steps/domains/stepper.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getStepTerm, errorDetail } from "../lib/domains/util.js";
 import { itemAt } from "../lib/domains/item-at.js";
+import { parseDotPath } from "../lib/domains/dot-path.js";
+import { evaluateSourceProperty, sourcePropertyOf, type TPropertyOperator, type TPropertyVerdict } from "../lib/domains/source-properties.js";
 import { proveStatements, stepperContext } from "../lib/actuality/pipelines/step-dispatch.js";
 import { FeatureVariables, statedValue } from "../lib/actuality/pipelines/feature-variables.js";
 import { OBSCURED_VALUE } from "../lib/steps/domains/secrets.js";
@@ -25,6 +27,7 @@ import {
 	DOMAIN_GLOB,
 	DOMAIN_STATEMENT,
 	DOMAIN_STRING,
+	DOMAIN_TEXT,
 	DOMAIN_VARIABLE_NAME,
 	DOMAIN_VARIABLE_VALUE,
 	DOMAIN_TEMPLATE,
@@ -306,6 +309,9 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: `variable {what: ${DOMAIN_VARIABLE_NAME}} is {value: ${DOMAIN_VARIABLE_VALUE}}`,
 			description: "Holds where the variable's value equals the value, comparing them by the variable's domain. It refuses where the variable isn't set or the values differ.",
 			action: async ({ what: term, value }, featureStep) => {
+				const inPlace = await this.inPlace(featureStep, term, "is", String(value.value));
+				if (inPlace !== undefined)
+					return inPlace.matches ? OK : actionNotOK(`the value of ${term} isn't ${JSON.stringify(String(value.value))}, read ${inPlace.byteLength} bytes in place`);
 				const resolved = await this.getWorld().shared.resolveVariable({ term, origin: Origin.defined }, featureStep, undefined, { secure: true });
 				if (resolved.value === undefined || (resolved.origin !== Origin.var && resolved.origin !== Origin.env)) {
 					return actionNotOK(await this.getWorld().shared.unsetReason(term));
@@ -324,7 +330,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: `variable {what: ${DOMAIN_VARIABLE_NAME}} is less than {value: ${DOMAIN_VARIABLE_VALUE}}`,
 			precludes: ["VariablesStepper.is"],
 			description: "Holds where the order of the variable's domain puts its value before the value, precedes(D, x, v): an ordered set's order, a number's or a date's.",
-			action: ({ what, value }, featureStep) => this.ordered(featureStep, what, value, (order) => order < 0),
+			action: ({ what, value }, featureStep) => this.ordered(featureStep, what, value, "isLessThan", (order) => order < 0),
 		},
 		isMoreThan: {
 			readsAt: Access.private,
@@ -332,7 +338,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: `variable {what: ${DOMAIN_VARIABLE_NAME}} is more than {value: ${DOMAIN_VARIABLE_VALUE}}`,
 			precludes: ["VariablesStepper.is"],
 			description: "Holds where the order of the variable's domain puts the value before its value, precedes(D, v, x): an ordered set's order, a number's or a date's.",
-			action: ({ what, value }, featureStep) => this.ordered(featureStep, what, value, (order) => order > 0),
+			action: ({ what, value }, featureStep) => this.ordered(featureStep, what, value, "isMoreThan", (order) => order > 0),
 		},
 		exists: {
 			readsAt: Access.private,
@@ -340,6 +346,8 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: `variable {what: ${DOMAIN_VARIABLE_NAME}} exists`,
 			description: "Holds where the variable is set, or the environment holds a variable of the same name, and refuses otherwise.",
 			action: async ({ what: term }, featureStep) => {
+				const inPlace = await this.inPlace(featureStep, term, "exists", undefined);
+				if (inPlace !== undefined) return inPlace.matches ? OK : actionNotOK(`${term} isn't there, read ${inPlace.byteLength} bytes in place`);
 				// Dot-path aware: matches the resolution used by `matches`, `show var`, and
 				// every other variable-consuming step. Without this, `variable
 				// foo.bar exists` fails even when `foo` is a JSON-stored object whose
@@ -347,6 +355,21 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const resolved = await this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep);
 				if (resolved.value !== undefined) return OK;
 				return runEnvVariable(this.getWorld(), term) !== undefined ? OK : actionNotOK(`the variable ${term} isn't set, and the environment doesn't hold it`);
+			},
+		},
+		contains: {
+			readsAt: Access.private,
+			contract: { read: true },
+			gwta: `variable {what: ${DOMAIN_VARIABLE_NAME}} contains {text: ${DOMAIN_TEXT}}`,
+			description:
+				"Holds where the variable's text holds the text. Where the variable names a value too large to carry, such as a file path, its domain's reader supplies the text from the source. It refuses where the variable isn't set or its text doesn't hold the text.",
+			action: async ({ what: term, text }, featureStep) => {
+				const inPlace = await this.inPlace(featureStep, term, "contains", text);
+				if (inPlace !== undefined) return inPlace.matches ? OK : actionNotOK(`the value of ${term} doesn't hold "${text}", read ${inPlace.byteLength} bytes in place`);
+				const resolved = await this.getWorld().shared.resolveVariable({ term, origin: Origin.defined }, featureStep, undefined, { secure: true });
+				if (resolved.value === undefined || (resolved.origin !== Origin.var && resolved.origin !== Origin.env)) return actionNotOK(await this.getWorld().shared.unsetReason(term));
+				const haystack = typeof resolved.value === "string" ? resolved.value : JSON.stringify(resolved.value);
+				return haystack.includes(text) ? OK : actionNotOK(`the value of ${term} doesn't hold "${text}"`);
 			},
 		},
 		showVar: {
@@ -398,6 +421,14 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				if ("error" in interpolated) return actionNotOK(interpolated.error);
 				const actualPattern = interpolated.value;
 				const glob = new RegExp(globSource(actualPattern), "s");
+				// Where the value names a source property that evaluates the match in place, the value isn't read into Node.
+				if (typeof value.term === "string") {
+					const inPlace = await this.inPlace(featureStep, value.term, "matches", actualPattern);
+					if (inPlace !== undefined)
+						return inPlace.matches
+							? OK
+							: actionNotOK(`the value of ${value.term} doesn't match "${String(statedValue(actualPattern, interpolated.secret))}", read ${inPlace.byteLength} bytes in place`);
+				}
 				// value/pattern are text being compared: an unresolved {X} is literal data (e.g. a captured reply echoing
 				// "{StepperName}"), not a variable reference, so interpolate leniently and leave unknown braces in place.
 				const textOf = (item: unknown) => this.getWorld().shared.interpolate(typeof item === "string" ? item : JSON.stringify(item), featureStep, { lenient: true });
@@ -422,7 +453,10 @@ class VariablesStepper extends AStepper implements IHasCycles {
 
 	/** Holds where `holds` reads the order of the variable's domain between its value and the value: below zero where the order
 	 *  puts the variable's value first. Refuses a variable whose domain doesn't order its values. */
-	private async ordered(featureStep: TFeatureStep, term: string, value: TStepValue, holds: (order: number) => boolean): Promise<TActionResult> {
+	private async ordered(featureStep: TFeatureStep, term: string, value: TStepValue, operator: TPropertyOperator, holds: (order: number) => boolean): Promise<TActionResult> {
+		const inPlace = await this.inPlace(featureStep, term, operator, String(value.value));
+		if (inPlace !== undefined)
+			return inPlace.matches ? OK : actionNotOK(`the order of ${term} and ${JSON.stringify(String(value.value))} differs, read ${inPlace.byteLength} bytes in place`);
 		const stored = await this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep, this.steppers, { secure: true });
 		if (stored.value === undefined) return actionNotOK(await this.getWorld().shared.unsetReason(term));
 		const domainKey = normalizeDomainKey(stored.domain);
@@ -432,6 +466,25 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		const left = domain.coerce({ ...stored, domain: domainKey }, coercionSite(featureStep, this.steppers));
 		const right = domain.coerce({ term: `${term}__comparison`, value: String(value.value), domain: domainKey, origin: Origin.quoted }, coercionSite(featureStep, this.steppers));
 		return holds(domain.comparator(left, right)) ? OK : actionNotOK(mismatch(term, { ...stored, value: left }, right, value));
+	}
+
+	/** Checks a comparison of a variable's source property in place, where the property's domain declares an evaluator for
+	 *  the operator and the term paths into the value; undefined where it doesn't, so the caller reads the value. */
+	private async inPlace(featureStep: TFeatureStep, term: string, operator: TPropertyOperator, expected: unknown): Promise<TPropertyVerdict | undefined> {
+		const { baseName, pathSegments } = parseDotPath(term);
+		if (pathSegments.length === 0) return undefined;
+		const base = await this.getWorld().shared.resolveVariable({ term: baseName, origin: Origin.defined }, featureStep, undefined, { secure: true });
+		if (base.value === undefined) return undefined;
+		const verdict = await evaluateSourceProperty(
+			this.getWorld(),
+			base.value,
+			sourcePropertyOf(this.getWorld().domains, base.domain, pathSegments[0]),
+			operator,
+			expected,
+			pathSegments.slice(1),
+		);
+		if (verdict !== undefined) this.getWorld().eventLogger.info(`variable ${term} ${operator}: ${verdict.matches}, read ${verdict.byteLength} bytes in place`);
+		return verdict;
 	}
 
 	private registerSubdomainFromStatement(domain: string, superdomains: TFeatureStep[] | undefined, featureStep: TFeatureStep) {

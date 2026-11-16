@@ -262,3 +262,26 @@ describe("what a variable step writes", () => {
 		await failWithDefaults([{ path: "/features/v.feature", content: `${set}\nvariable a is {c}` }], steppers);
 	});
 });
+
+describe("a source domain's readable properties", () => {
+	const withCeiling = (maxBytes: number | undefined) =>
+		toRegisteredDomain({
+			selectors: ["doc"],
+			schema: z.string(),
+			description: "A document's location.",
+			properties: { text: { domain: "text", maxBytes: maxBytes as number, read: async () => "" } },
+		});
+
+	it("refuses a property that omits maxBytes, naming the property", () => {
+		expect(() => withCeiling(undefined)).toThrow(/the source property doc\.text omits maxBytes or states/);
+	});
+
+	it("refuses a ceiling that isn't a whole count of bytes above zero, stating it", () => {
+		expect(() => withCeiling(0)).toThrow(/states 0; state a whole count of bytes above zero/);
+		expect(() => withCeiling(1.5)).toThrow(/states 1.5; state a whole count of bytes above zero/);
+	});
+
+	it("holds a property whose ceiling is a whole count above zero", () => {
+		expect(withCeiling(1024).properties?.text?.maxBytes).toBe(1024);
+	});
+});

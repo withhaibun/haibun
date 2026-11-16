@@ -10,7 +10,7 @@ import { createStepUI, registerTestIds } from "@haibun/shu/test/step-ui.js";
 const wp = new WebPlaywright();
 const { serveShuApp } = withAction(new ShuStepper());
 const { serveTestComponent } = withAction(new VoiceUITestStepper());
-const { gotoPage, waitFor } = withAction(wp);
+const { gotoPage } = withAction(wp);
 const { setAs } = withAction(new VariablesStepper());
 const { feature, scenario } = withAction(new Haibun());
 const { enterStepMode } = createStepUI(wp);
@@ -40,6 +40,6 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "ui-extension custom element renders inside the actions bar chat row" }),
 		"The test component, declared as a ui extension on the test domain, travels through the concern catalog to the SPA, which auto-loads it and renders it in the actions bar's chat-row slot. That slot is carried by the `step` and `ask` input modes, so the component's mic button appears once step mode is open.",
-		waitFor({ target: "voice-ui-test-mic" }),
+		`wait for [data-testid='voice-ui-test-mic']`,
 	],
 };

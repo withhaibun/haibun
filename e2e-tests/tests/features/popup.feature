@@ -8,7 +8,6 @@ Scenario: Handle popup window
     go to the test webpage
     click "Open popup"
 
-    until current tab is 1 within "5s"
-    wait until URI matches popped up
+    until matches BrowserPage:1.uri with "*poppedup*" within "5s"
     see "Congratulations"
 

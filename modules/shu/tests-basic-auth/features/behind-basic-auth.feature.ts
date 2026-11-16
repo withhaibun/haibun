@@ -10,7 +10,7 @@ import { configuredServiceHost, createStepUI, signedInAddress, registerTestIds }
 const webPlaywright = new WebPlaywright();
 const { serveShuApp } = withAction(new ShuStepper());
 const { asksToSignIn: everyVisitorSignsIn } = withAction(new WebServerStepper());
-const { gotoPage, waitFor } = withAction(webPlaywright);
+const { gotoPage } = withAction(webPlaywright);
 const { feature, scenario } = withAction(new Haibun());
 const { chooseGraphLabel } = createStepUI(webPlaywright);
 
@@ -37,8 +37,8 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "A person signs in, and the page opens and reads actuality's steps" }),
 		"The browser keeps the sign-in for the site's other requests, so each call the page makes carries it, and the page lists the records of actuality's steps.",
 		gotoPage({ name: `"${signedInAddress(host)}${APP}"` }),
-		waitFor({ target: IDS.APP.ROOT }),
+		`wait for [data-testid='\${IDS.APP.ROOT}']`,
 		...chooseGraphLabel(SEQ_PATH_LABEL),
-		waitFor({ target: IDS.QUERY.FIRST_ROW }),
+		`wait for [data-testid='\${IDS.QUERY.FIRST_ROW}']`,
 	],
 };

@@ -192,9 +192,13 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 		if (!pane) return;
 		const read = (): void => {
 			const collapsed = pane.hasAttribute(SHU_ATTR.COLLAPSED);
-			if (collapsed === this.#collapsedColumn) return;
-			this.#collapsedColumn = collapsed;
-			this.requestUpdate();
+			if (collapsed !== this.#collapsedColumn) {
+				this.#collapsedColumn = collapsed;
+				// The view takes its column's closing here, before any render: a collapsed pane may unassign the view's slot,
+				// so the unassigned spine view's render may come only late, which would otherwise eat the change of state.
+				this.onColumnCollapse(collapsed);
+				this.requestUpdate();
+			}
 		};
 		read();
 		const observer = new MutationObserver(read);
@@ -207,6 +211,12 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 	 *  conversation) doesn't state one, so activating it doesn't move the reader. */
 	paneSubject(): TContextPattern[] | null {
 		return null;
+	}
+
+	/** A view that acts on its column collapsing takes it here, at the moment the pane's attribute changes, before any
+	 *  render: the actions bar closes its scope of the active record this way, which a later render may otherwise drop. */
+	protected onColumnCollapse(_collapsed: boolean): void {
+		// Default: an empty body. The actions bar overrides.
 	}
 
 	/** Whether this view is the strip's active pane: its containing column-pane's key equals the global `activePane`

@@ -29,6 +29,7 @@ import {
 	stepCount,
 	unlistedChanges,
 	ownProducts,
+	actualityContracts,
 	steppersUnder,
 	undeclaredLists,
 	unexercised,
@@ -211,7 +212,12 @@ export function describeRepositoryRules(rules: TRepositoryRules): void {
 				const steps = declaredSteps(steppers);
 				const fix =
 					"declare contract.changes on the step: the field of each record type it writes beyond its products, or an empty list where it writes only its products; and declare contract.written where the step returns its stored products for dispatch to write";
-				await expectWithinBaseline({ baselineFile: baseline("contracts"), found: [...unlistedChanges(steps), ...ownProducts(steppers, steps)], testFile, fix });
+				await expectWithinBaseline({
+					baselineFile: baseline("contracts"),
+					found: [...unlistedChanges(steps), ...ownProducts(steppers, steps), ...actualityContracts(steppers, steps)],
+					testFile,
+					fix,
+				});
 			});
 		},
 		REPOSITORY_SCAN_MS,

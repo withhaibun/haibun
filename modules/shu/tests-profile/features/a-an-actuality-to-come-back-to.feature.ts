@@ -7,7 +7,7 @@ import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
 import { registerTestIds } from "@haibun/shu/test/step-ui.js";
 
 const wp = new WebPlaywright();
-const { waitFor, gotoPage } = withAction(wp);
+const { gotoPage } = withAction(wp);
 const { serveShuApp } = withAction(new ShuStepper());
 const { setAs } = withAction(new VariablesStepper());
 const { feature, scenario } = withAction(new Haibun());
@@ -29,13 +29,13 @@ export const features: TKirejiExport = {
 		'webserver is listening for "an actuality to come back to"',
 		gotoPage({ name: `"${host}/spa"` }),
 		"show monitor",
-		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
+		`wait for [data-testid='\${IDS.MONITOR.LOG_STREAM}']`,
 		...earlierEvents,
-		waitFor({ target: IDS.SCROLLBAR.CURSOR }),
+		`wait for [data-testid='\${IDS.SCROLLBAR.CURSOR}']`,
 
 		"What the page read of this actuality is written to the device after the read, so the actuality ends only once the device lists it among the actualities it holds. An actuality that ended earlier wouldn't leave its records on the device. The feature waits for the list of actualities the device holds.",
 		"show client cache",
-		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
-		waitFor({ target: IDS.CLIENT_CACHE.HELD }),
+		`wait for [data-testid='\${IDS.CLIENT_CACHE.ROOT}']`,
+		`wait for [data-testid='\${IDS.CLIENT_CACHE.HELD}']`,
 	],
 };

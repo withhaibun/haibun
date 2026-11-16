@@ -14,11 +14,13 @@ Scenario: All visited pages start with allowed prefix
     
     compose page 1 with {Web Server}/static/page1.html
     go to the page 1 webpage
-    wait for "Page 1"
+    see "Page 1"
     click "Go to Page 2"
-    wait for "Page 2"
+    page has settled
+    see "Page 2"
     click "Go to Page 3"
-    wait for "Page 3"
+    page has settled
+    see "Page 3"
     
     every page in visited pages is some pattern in Allowed patterns is matches {page} with {pattern}
     

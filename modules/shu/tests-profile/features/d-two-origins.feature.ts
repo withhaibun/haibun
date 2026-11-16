@@ -6,7 +6,7 @@ import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
 import { registerTestIds } from "@haibun/shu/test/step-ui.js";
 
 const wp = new WebPlaywright();
-const { waitFor, gotoPage } = withAction(wp);
+const { gotoPage } = withAction(wp);
 const { serveShuApp } = withAction(new ShuStepper());
 const { feature, scenario } = withAction(new Haibun());
 
@@ -29,9 +29,9 @@ export const features: TKirejiExport = {
 		'webserver is listening for "what a reader holds is held per address"',
 		gotoPage({ name: `"${firstAddress}/spa"` }),
 		"show client cache",
-		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
+		`wait for [data-testid='\${IDS.CLIENT_CACHE.ROOT}']`,
 		"The device is read after the view opens, so the row of the actuality being read is what shows the list is there to be read.",
-		waitFor({ target: IDS.CLIENT_CACHE.HELD }),
+		`wait for [data-testid='\${IDS.CLIENT_CACHE.HELD}']`,
 		`save text from ${IDS.CLIENT_CACHE.ROOT} to atFirstAddress`,
 		'matches atFirstAddress with "*An actuality to come back to*"',
 
@@ -40,9 +40,9 @@ export const features: TKirejiExport = {
 		"The same server, reached at another of its own addresses, is another address to the browser: what was read at the first is not there to be read. The reader is not shown an earlier actuality, because they haven't read one on this address. The test didn't move or hide anything to arrange that.",
 		gotoPage({ name: `"${otherAddress}/spa"` }),
 		"show monitor",
-		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
+		`wait for [data-testid='\${IDS.MONITOR.LOG_STREAM}']`,
 		"show client cache",
-		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
+		`wait for [data-testid='\${IDS.CLIENT_CACHE.ROOT}']`,
 		`save text from ${IDS.CLIENT_CACHE.ROOT} to atOtherAddress`,
 		"The reader is reading here, and holds this actuality: what is absent is the earlier one, not the view.",
 		'matches atOtherAddress with "*What a reader holds is held per address*"',

@@ -1,6 +1,6 @@
 /**
  * HTTP requests a feature makes: a JSON payload sent as the request's body without opening a browser page, a binary
- * response saved to storage on disk with only its link held in HTTP response, and an Activity that submits a JSON
+ * response saved to storage on disk with only its link held in the response's product, and an Activity that submits a JSON
  * generation request and fetches the resulting image.
  */
 import { createServer } from "node:http";
@@ -39,11 +39,11 @@ describe("HTTP requests without a browser", () => {
 		await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 		const { port } = server.address() as AddressInfo;
 		const lines = [
-			`make an HTTP POST to "http://127.0.0.1:${port}/echo" with {"name": "Ada"}`,
-			"HTTP status is 200",
-			'variable HTTP response.json.method is "POST"',
-			'variable HTTP response.json.type is "application/json"',
-			'variable HTTP response.json.body is "{\\"name\\":\\"Ada\\"}"',
+			`set response from make an HTTP POST to "http://127.0.0.1:${port}/echo" with {"name": "Ada"}`,
+			"variable response.status is 200",
+			'variable response.json.method is "POST"',
+			'variable response.json.type is "application/json"',
+			'variable response.json.body is "{\\"name\\":\\"Ada\\"}"',
 		];
 		try {
 			const result = await passWithDefaults([{ path: "/features/request.feature", content: lines.join("\n") }], [WebPlaywright, VariablesStepper, StorageMem, LogicStepper], {
@@ -56,7 +56,7 @@ describe("HTTP requests without a browser", () => {
 		}
 	});
 
-	it("saves binary image and document responses to storage and keeps only links in HTTP response", { timeout: 20_000 }, async () => {
+	it("saves binary image and document responses to storage and keeps only their links in the responses", { timeout: 20_000 }, async () => {
 		const server = createServer((request, response) => {
 			if (request.url?.startsWith("/prompt") && request.method === "POST") {
 				const chunks: Buffer[] = [];
@@ -85,23 +85,22 @@ describe("HTTP requests without a browser", () => {
 		const { port } = server.address() as AddressInfo;
 		const lines = [
 			"Activity: Generate workflow image",
-			`make an HTTP POST to "http://127.0.0.1:${port}/prompt" with {"prompt": {"3": {"class_type": "KSampler", "inputs": {"seed": 7}}, "9": {"class_type": "SaveImage", "inputs": {"filename_prefix": "out"}}}}`,
-			"HTTP status is 200",
-			'variable HTTP response.json.prompt_id is "job-42"',
-			`accept "image/png" using HTTP GET to "http://127.0.0.1:${port}/view?filename=out.png" as "saved-image.png"`,
-			"HTTP status is 200",
-			'storage entry "saved-image.png" exists',
-			"set generated image url to HTTP response.contentUrl",
-			'waypoint Workflow image is generated with storage entry "saved-image.png" exists',
+			`set prompt response from make an HTTP POST to "http://127.0.0.1:${port}/prompt" with {"prompt": {"3": {"class_type": "KSampler", "inputs": {"seed": 7}}, "9": {"class_type": "SaveImage", "inputs": {"filename_prefix": "out"}}}}`,
+			"variable prompt response.status is 200",
+			'variable prompt response.json.prompt_id is "job-42"',
+			`set image response from accept "image/png" using HTTP GET to "http://127.0.0.1:${port}/view?filename=out.png" as "saved-image.png"`,
+			"variable image response.status is 200",
+			"set generated image url to image response.contentUrl",
+			"waypoint Workflow image is generated with variable image response.contentUrl exists",
 			"",
 			"ensure Workflow image is generated",
-			'variable HTTP response.encodingFormat is "image/png"',
-			'variable HTTP response.text is ""',
-			`make an HTTP GET to "http://127.0.0.1:${port}/manual.pdf"`,
-			"HTTP status is 200",
-			'variable HTTP response.encodingFormat is "application/pdf"',
-			"variable HTTP response.contentUrl exists",
-			'variable HTTP response.text is ""',
+			'variable image response.encodingFormat is "image/png"',
+			'variable image response.text is ""',
+			`set pdf response from make an HTTP GET to "http://127.0.0.1:${port}/manual.pdf"`,
+			"variable pdf response.status is 200",
+			'variable pdf response.encodingFormat is "application/pdf"',
+			"variable pdf response.contentUrl exists",
+			'variable pdf response.text is ""',
 		];
 		try {
 			const result = await passWithDefaults(

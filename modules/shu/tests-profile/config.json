@@ -1,6 +1,10 @@
 {
 	"description": "The reader's first actuality, on a browser profile it starts empty, which the features of config-reopened.json read again as a second actuality on the same profile.",
-	"group": { "bases": [".", "@haibun/shu/waypoints"], "filter": ["a-an-actuality-to-come-back-to"], "clears": ["capture/reader-profile"] },
+	"group": {
+		"bases": [".", "@haibun/web-playwright/waypoints", "@haibun/shu/waypoints"],
+		"filter": ["a-an-actuality-to-come-back-to"],
+		"clears": ["capture/reader-profile"]
+	},
 	"extends": "@haibun/cli/config.base.json",
 	"steppers": [
 		"activities-stepper",

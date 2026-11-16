@@ -121,10 +121,15 @@ export class ShuPage extends ShuElement<typeof EmptyStateSchema> {
 	 *  a change of columns updates the entry to the active pane's subject. A pane that doesn't show a subject doesn't activate
 	 *  one, so a move to a log beside a conversation keeps the active record. */
 	#raiseActivePaneSubject(type: "activate" | "update"): void {
-		const patterns = (this.#viewOf(this.#activePaneElement()) as { paneSubject?(): TContextPattern[] | null } | null)?.paneSubject?.() ?? null;
+		const subjectOf = (pane: Element | null | undefined): TContextPattern[] | null =>
+			(this.#viewOf(pane) as { paneSubject?(): TContextPattern[] | null } | null)?.paneSubject?.() ?? null;
+		const patterns = subjectOf(this.#activePaneElement());
 		if (patterns === null) {
-			// A change of columns to a pane that doesn't show a subject empties the page scope's entry.
-			if (type === "update") dispatchSubjectEvent({ type, scope: SCOPE.page, entry: entryOf([], appAccessLevel()) });
+			// A change of columns to a pane that doesn't show a subject empties the page scope's entry only when every other
+			// open pane lacks one: the record pane closing ends its entry, and the actions bar collapsing to its strip
+			// leaves the entry of the pane that stands beside it.
+			if (type === "update" && !this.#strip().panes.some((pane) => subjectOf(pane) !== null))
+				dispatchSubjectEvent({ type, scope: SCOPE.page, entry: entryOf([], appAccessLevel()) });
 			return;
 		}
 		dispatchSubjectEvent({ type, scope: SCOPE.page, entry: entryOf(patterns, appAccessLevel()) });

@@ -14,9 +14,12 @@ export function parseDotPath(term: string): { baseName: string; pathSegments: st
 /** Where a dot path stopped: the segments it read, the one the value there doesn't have, and the fields that value has. */
 type TDotPathMiss = { at: string[]; missing: string; has: string[] };
 
+/** What navigating a value by its path segments returned: the value at the path, or where the path stopped. */
+export type TNavigateResult = { value: unknown; found: true } | { value: undefined; found: false; miss: TDotPathMiss };
+
 /** Navigate into a runtime value using path segments. A path that names a field the value doesn't have states where it
  *  stopped. */
-export function navigateValue(value: unknown, segments: string[]): { value: unknown; found: true } | { value: undefined; found: false; miss: TDotPathMiss } {
+export function navigateValue(value: unknown, segments: string[]): TNavigateResult {
 	let current = value;
 	for (const [i, seg] of segments.entries()) {
 		const fields = current !== null && typeof current === "object" ? current : undefined;

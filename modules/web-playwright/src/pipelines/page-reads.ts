@@ -1,9 +1,8 @@
-/** What a step reads of the page: its accessibility snapshot, its text, its elements, its address, its cookies, a canvas, and an element's screenshot. */
+/** What a step reads of the page through the browser session: its accessibility snapshot, a canvas, and an element's
+ *  screenshot. What a page shows, holds and waits for is read through the locator domains' and the `browser-page`
+ *  domain's properties, over the port in `browser-pages.ts`. */
 import { HYPERMEDIA, OK, type TActionResult, type TStepValue } from "@haibun/core/lib/domains/protocol.js";
-import { globSource } from "@haibun/core/lib/domains/domains.js";
 import { actionNotOK, errorDetail } from "@haibun/core/lib/domains/util.js";
-import { DOMAIN_PAGE_TEST_ID } from "../domains/web-playwright.js";
-import { locatorOf } from "../derivations/locators.js";
 import type { BrowserSession } from "./browser-session.js";
 import { locateByDomain } from "./locate.js";
 
@@ -19,80 +18,6 @@ export async function readThePage(session: BrowserSession, links: Record<string,
 		return { url: page.url(), title: await page.title(), snapshot: await scope.ariaSnapshot({ mode: "ai" }) };
 	});
 	return { ...read, [HYPERMEDIA.LINKS]: links };
-}
-
-/** Whether an element with the test id is on the page, in its document or within a shadow root. `getByTestId` returns a
- *  locator whether or not an element matches, so the page is searched. */
-export async function hasTestId(session: BrowserSession, testId: string): Promise<TActionResult> {
-	const found = await session.withPage((page) =>
-		page.evaluate((id) => {
-			const walk = (root: Document | ShadowRoot): boolean =>
-				root.querySelector(`[data-testid="${id}"]`) !== null || [...root.querySelectorAll("*")].some((child) => child.shadowRoot !== null && walk(child.shadowRoot));
-			return walk(document);
-		}, testId),
-	);
-	return found ? OK : actionNotOK(`Did not find test id ${testId}`);
-}
-
-/** Whether the first element a selector finds holds the text, read once in the page, waiting for the element as long as a
- *  step waits. The page returns whether the element's text contains the text and its length, rather than the text. */
-export async function sees(session: BrowserSession, text: string, selector: string): Promise<TActionResult> {
-	const read = await session.withPage((page) =>
-		page
-			.locator(selector)
-			.first()
-			.evaluate((element, sought) => (element.textContent === null ? null : { holds: element.textContent.includes(sought), length: element.textContent.length }), text),
-	);
-	if (read === null) return actionNotOK(`Did not find text "${text}" in ${selector}: its text is empty`);
-	return read.holds ? OK : actionNotOK(`Did not find text "${text}" in ${selector} (${read.length} characters)`);
-}
-
-/** Waits for a target: a test id until its first element attaches to the document, any other locator until its first element is visible. */
-export async function waitForTarget(session: BrowserSession, target: TStepValue): Promise<TActionResult> {
-	try {
-		const state = locatorOf(target).domain === DOMAIN_PAGE_TEST_ID ? "attached" : "visible";
-		await session.withScope((scope) => locateByDomain(scope, target).first().waitFor({ state }));
-		return OK;
-	} catch (e) {
-		return actionNotOK(`Did not find ${String(target.value)}: ${errorDetail(e)}`);
-	}
-}
-
-/** Waits until a target is gone: its first element is detached from the document or hidden. */
-export async function waitUntilGone(session: BrowserSession, target: TStepValue): Promise<TActionResult> {
-	try {
-		await session.withScope((scope) => locateByDomain(scope, target).first().waitFor({ state: "hidden" }));
-		return OK;
-	} catch (e) {
-		return actionNotOK(`${String(target.value)} is still shown: ${errorDetail(e)}`);
-	}
-}
-
-/** Whether the feature's context holds the cookie with the value. */
-export async function cookieIs(session: BrowserSession, featureNum: number, name: string, value: string): Promise<TActionResult> {
-	const context = session.pages?.context(featureNum);
-	const cookies = context === undefined ? [] : await context.cookies();
-	return cookies.some((cookie) => cookie.name === name && cookie.value === value)
-		? OK
-		: actionNotOK(`did not find cookie ${name} with value ${value} from ${JSON.stringify(cookies)}`);
-}
-
-/** The page's address. */
-export const pageAddress = (session: BrowserSession): Promise<string> => session.withPage((page) => page.url());
-
-/** A parameter of the page's address query, or null where the address lacks it. */
-export const queryParameter = async (session: BrowserSession, name: string): Promise<string | null> => new URL(await pageAddress(session)).searchParams.get(name);
-
-/** Waits for an address that matches the glob: the browser reports the address of each navigation, a change within the
- *  document included, so a page that draws without frames is awaited as one in view. */
-export async function waitForAddress(session: BrowserSession, pattern: string): Promise<TActionResult> {
-	const page = await session.page();
-	try {
-		await page.waitForURL(new RegExp(globSource(pattern), "s"), { waitUntil: "commit" });
-		return OK;
-	} catch (e) {
-		return actionNotOK(`the page's address didn't match "${pattern}": it is ${page.url()} (${errorDetail(e)})`);
-	}
 }
 
 /** Whether a canvas is blank: one that doesn't attach in time, or lacks a 2D context, is blank. */
@@ -129,12 +54,3 @@ export async function screenshotOf(session: BrowserSession, what: TStepValue, wh
 		return actionNotOK(`the screenshot of ${String(what.value)} wasn't saved to ${where}: ${errorDetail(e)}`);
 	}
 }
-
-/** The text of an element: its text, trimmed, or a form field's value where the element lacks a text node, as a void
- *  element or a custom element without light-DOM text does. An empty element's text is empty rather than absent. */
-export const textOf = (session: BrowserSession, element: TStepValue): Promise<string> =>
-	session.withPage(async (page) => {
-		const locator = locateByDomain(page, element);
-		const content = await locator.textContent();
-		return content === null ? await locator.inputValue() : content.trim();
-	});

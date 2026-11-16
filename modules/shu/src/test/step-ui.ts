@@ -109,7 +109,7 @@ export const paneOfComponent = (tag: string): string => `${SHU_TAG.COLUMN_PANE}[
 export const ACTIONS_PANE = paneOfComponent(SHU_TAG.ACTIONS_BAR);
 
 export function createStepUI(wp: WebPlaywright) {
-	const { waitFor, click, setValue, selectionOption, press, shouldSeeTestId, type: typeText } = withAction(wp);
+	const { waitFor, click, setValue, selectionOption, press, type: typeText } = withAction(wp);
 
 	/** Wait for the bar's pane to attach. The bar opens its pane from the address as the pane attaches, so once the pane's
 	 *  header is on the page, whether the bar is open is settled, and a check of it doesn't race the address. */
@@ -118,18 +118,24 @@ export function createStepUI(wp: WebPlaywright) {
 		waitFor({ target: ACTIONS_PANE_CONTROL }),
 	];
 
-	/** Ensure the actions bar is open: its pane's header or tap action opens a pane standing at its strip. Uses MODE_SELECT (always present when the bar is open, regardless of Ask availability) so this works without an LLM provider. The `where … , …` form is idempotent: the click is skipped when MODE_SELECT is already on the page. */
-	const expandActionsBar: TKirejiStep[] = [
-		...actionsPaneAttached,
-		`where didn't has test id ${IDS.APP.MODE_SELECT}, click ${ACTIONS_PANE_CONTROL}`,
-		waitFor({ target: IDS.APP.MODE_SELECT }),
-	];
+	/** Ensure the actions bar is open: its pane's header or tap action opens a pane standing at its strip, and a click
+	 *  on an open pane leaves the pane as it stands. Uses MODE_SELECT (always present when the bar is open, regardless of Ask
+	 *  availability) so this works without an LLM provider. */
+	const expandActionsBar: TKirejiStep[] = [...actionsPaneAttached, `click ${ACTIONS_PANE_CONTROL}`, waitFor({ target: IDS.APP.MODE_SELECT })];
 
-	/** Close the actions bar if it is open: the inverse of expandActionsBar (MODE_SELECT present ⇒ minimize tap action closes it to its strip). Idempotent: skipped when already closed. The open docked bar floats over lower content (e.g. a graph), so close it before interacting with the content beneath it. */
+	/** Close the actions bar: the minimize tap action, primed at the toolbar and applied by a press on the bar's own
+	 *  output area. The press lands while the page swallows it (the tap-action capture), so the messages under it stay
+	 *  untaken; the bar's view doesn't take minimize, so the pane does, and a docked pane's minimize closes it to its
+	 *  strip. The gone-wait on MODE_SELECT is the proof of closing: the collapsed bar doesn't render the mode picker or
+	 *  any other expanded child. Idempotent like expandActionsBar's mirror: each press is taken only where the bar stands
+	 *  open. The open docked bar floats over lower content (e.g. a graph), so close it before interacting with the content
+	 *  beneath it. */
 	const collapseActionsBar: TKirejiStep[] = [
 		...actionsPaneAttached,
-		`where has test id ${IDS.APP.MODE_SELECT}, click "${IDS.TAP_ACTIONS.MINIMIZE}" by test id`,
-		`where has test id ${IDS.APP.MODE_SELECT}, click ${ACTIONS_PANE_CONTROL}`,
+		`set mode_select as page-test-id to "${IDS.APP.MODE_SELECT}"`,
+		`where has test id "${IDS.APP.MODE_SELECT}", click "${IDS.TAP_ACTIONS.MINIMIZE}" by test id`,
+		`where has test id "${IDS.APP.MODE_SELECT}", click "${IDS.APP.CHAT_OUTPUT}" by test id`,
+		"wait until {mode_select} is gone",
 	];
 
 	const enterStepMode: TKirejiStep[] = [...expandActionsBar, selectionOption({ option: '"Step"', field: IDS.APP.MODE_SELECT }), waitFor({ target: IDS.APP.STEP_SELECT })];
@@ -139,12 +145,13 @@ export function createStepUI(wp: WebPlaywright) {
 	 *  is already here. */
 	const enterSearchMode: TKirejiStep[] = [...expandActionsBar, selectionOption({ option: '"Search"', field: IDS.APP.MODE_SELECT }), waitFor({ target: IDS.APP.TEXT_SEARCH })];
 
-	/** Show the settings of the view in the actions pane, which the settings tap action holds. `marker` is a control
-	 *  those settings hold, which states whether they are shown: the press is skipped where it is already on the page. */
+	/** Show the settings of the view in the actions pane, which the settings tap action holds: the primed press lands on
+	 *  the pane's header, where its messages don't cover it. `marker` is a control those settings hold, which states whether
+	 *  they are shown. Idempotent: the priming is skipped where the marker is already on the page. */
 	const showPaneSettings = (marker: string): TKirejiStep[] => [
-		setAs({ what: ACTIONS_BAR_VIEW, domain: "page-locator", value: `"${ACTIONS_PANE} ${SHU_TAG.ACTIONS_BAR}"` }),
-		`where didn't has test id ${marker}, click "${IDS.TAP_ACTIONS.SETTINGS}" by test id`,
-		`where didn't has test id ${marker}, click ${ACTIONS_BAR_VIEW}`,
+		setAs({ what: ACTIONS_BAR_VIEW, domain: "page-locator", value: `"${ACTIONS_PANE} .pane-header"` }),
+		`where didn't has test id "${marker}", click "${IDS.TAP_ACTIONS.SETTINGS}" by test id`,
+		`where didn't has test id "${marker}", click ${ACTIONS_BAR_VIEW}`,
 		waitFor({ target: marker }),
 	];
 
@@ -262,7 +269,7 @@ export function createStepUI(wp: WebPlaywright) {
 				: [waitFor({ target: runTarget })]),
 			click({ target: runTarget }),
 			waitFor({ target: doneTarget }),
-			shouldSeeTestId({ testId: branchTarget }),
+			`has test id ${JSON.stringify(branchTarget)}`,
 		];
 		return body;
 	}

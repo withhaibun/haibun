@@ -253,6 +253,22 @@ describe("the page's panes", () => {
 		expect(cols).toEqual(["shu-monitor-column", "shu-polymorphic-graph-view"]);
 	});
 
+	it("an arrival naming panes keeps them where the saved layout names others (regression)", async () => {
+		// The last page left a layout naming the graph and the monitor. This arrival names a pane of its own: a shared
+		// link, not a recreated frame. The boot must not queue the saved layout over the panes the address names.
+		pagePreferences().write(SHU_TAG.COLUMN_PANE, LAYOUT_KEY, () => ({ hash: "#?col=shu-polymorphic-graph-view&col=shu-monitor-column" }));
+		ShuElement.pushHash("#?col=shu-affordances-panel");
+		const arrived = document.createElement("shu-column-strip");
+		document.body.appendChild(arrived);
+		// biome-ignore lint/suspicious/noExplicitAny: test-only, strip facade is narrower than real ShuColumnStrip.
+		openStrip(arrived as any, IMPORTED_VIEWS, []);
+		restorePanes();
+		await flush();
+		const cols = new URLSearchParams(ShuElement.getHash().slice(2)).getAll("col");
+		expect(cols).toEqual(["shu-affordances-panel"]);
+		expect(document.querySelector("shu-column-pane > shu-affordances-panel")).not.toBeNull();
+	});
+
 	it("a boot column activation BEFORE fromHash must not strip the restored col= views (regression)", async () => {
 		// A reloaded URL carries two restored views and a remembered active pane.
 		ShuElement.pushHash("#?col=shu-polymorphic-graph-view&col=shu-affordances-panel&active=shu-affordances-panel");

@@ -9,6 +9,7 @@ import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../../domains/elements.js";
 import { defineElement } from "../../controllers/element-controller.js";
 import { acts } from "../../domains/links.js";
 import { conduit } from "../../controllers/conduit-controller.js";
+import { SubjectController } from "../../controllers/subject-controller.js";
 import type { TPresenterNodeClick } from "../../ports.js";
 import { applyScene, captureScene, listScenes, readScene, saveScene } from "../controllers/scenes-controller.js";
 import { sceneType, type TSceneState } from "../derivations/scenes.js";
@@ -181,6 +182,14 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	protected override get usesExternalData(): boolean {
 		return this.hasAttribute("data-external");
 	}
+
+	/** What the reader is on: the main graph marks its node as the active one. An external host states its own selection
+	 *  instead, and the machine's scopes reach here: when the scope a reader was on ends, the machine returns to the
+	 *  record the page opened, and the graph marks that one again. */
+	#subject = new SubjectController(this, (record) => {
+		if (this.usesExternalData) return;
+		this.selectNode(record?.id ?? null);
+	});
 
 	/** The scope that holds its settings and filter choices: its host's (`data-persist-scope`), apart from the main
 	 *  graph's, or the main graph's own. */

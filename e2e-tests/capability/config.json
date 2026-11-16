@@ -1,5 +1,7 @@
 {
-	"group": {},
+	"group": {
+		"bases": ["@haibun/web-playwright/waypoints"]
+	},
 	"extends": "@haibun/e2e-tests/tests/config.json",
 	"description": "The tests group's steppers on a server that serves RPC, apart from the tests group's pages, which run scripts that the artifact policy of a server serving RPC refuses.",
 	"steppers": [],

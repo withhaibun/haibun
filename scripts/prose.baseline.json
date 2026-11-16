@@ -8,7 +8,7 @@
 	},
 	"modules/shu/src/page/controllers/pane-controller.ts": {
 		"anthropomorphic": 1,
-		"em-dash": 4,
+		"em-dash": 2,
 		"negated-noun": 3
 	},
 	"modules/shu/src/page/domains/view-script.ts": {

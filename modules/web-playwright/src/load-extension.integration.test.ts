@@ -43,7 +43,8 @@ describe("load the browser extension at {where}", () => {
 			`set extension from load the browser extension at "${EXTENSION}"`,
 			'compose page with "{extension.origin}/page.html"',
 			"go to the page webpage",
-			'see "a page of the test extension"',
+			'set web page target as page-locator to "body"',
+			'variable web page target.text contains "a page of the test extension"',
 			"show the browser extension",
 		].join("\n");
 		const result = await passWithDefaults([{ path: "/features/load.feature", content: feature }], steppers, options);

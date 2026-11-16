@@ -13,12 +13,15 @@ export const NumberSchema = z.coerce.number({ error: "invalid number" }).refine(
 /** A Date, from an ISO timestamp, epoch milliseconds or a Date. */
 export const DateSchema = z.coerce.date({ error: "invalid date" });
 /** Reads a length of time in milliseconds from seconds or milliseconds, such as `2s` or `30 ms`, or from a number of milliseconds. */
-export const DurationSchema = z.preprocess((value, ctx) => {
-	if (typeof value !== "string") return value;
-	const match = DURATION_TERM.exec(value.trim());
-	if (!match) ctx.addIssue({ code: "custom", message: `${JSON.stringify(value)} isn't a length of time: give seconds or milliseconds, such as 2s or 30 ms` });
-	return match ? Number(match[1]) * (match[2] === "s" ? 1000 : 1) : value;
-}, z.number().nonnegative());
+export const DurationSchema = z.preprocess(
+	(value, ctx) => {
+		if (typeof value !== "string") return value;
+		const match = DURATION_TERM.exec(value.trim());
+		if (!match) ctx.addIssue({ code: "custom", message: `${JSON.stringify(value)} isn't a length of time: give seconds or milliseconds, such as 2s or 30 ms` });
+		return match ? Number(match[1]) * (match[2] === "s" ? 1000 : 1) : value;
+	},
+	z.number().nonnegative().max(300_000, { message: "a length of time for one call reaches at most 5 minutes; a longer span is held as a retention window, not a duration" }),
+);
 
 /** Reads a step's place from its dot-joined sequence path, or from an id that begins with one. */
 export const StepPathSchema = z.preprocess((value, ctx) => {

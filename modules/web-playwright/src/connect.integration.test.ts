@@ -50,7 +50,7 @@ afterAll(async () => {
 
 describe("connect to the browser at {endpoint}", () => {
 	it("acts on the one page the connected browser holds open, doesn't record its browsing, and leaves it open", { timeout: 30_000 }, async () => {
-		const feature = `connect to the browser at "${endpoint}"\ngo to the "${siteUrl}" webpage\nclick "press me"\nsee "pressed"\ntake an accessibility snapshot\n`;
+		const feature = `connect to the browser at "${endpoint}"\ngo to the "${siteUrl}" webpage\nclick "press me"\nset web page target as page-locator to "body"\nvariable web page target.text contains "pressed"\ntake an accessibility snapshot\n`;
 		const res = await passWithDefaults([{ path: "/features/connect.feature", content: feature }], steppers, { options: { DEST: DEFAULT_DEST }, moduleOptions });
 		expect(res.ok).toBe(true);
 

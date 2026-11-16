@@ -8,6 +8,5 @@ Scenario: Not seeing the text
     webserver is listening for "not"
     compose page with {Web Server}/static/page.html
     go to the page webpage
-    wait for "Test Page"
-    using timeout of 100ms
-    didn't wait for "Upload form"
+    see "Test Page"
+    didn't see "Upload form"

@@ -2,8 +2,8 @@
 import type { Dialog } from "playwright";
 import type { TActionResult, TStepValue } from "@haibun/core/lib/domains/protocol.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
-import { REQUEST_STATE, type TFindWay } from "../domains/web-playwright.js";
-import { wayLocator } from "../derivations/locators.js";
+import { REQUEST_STATE, DOMAIN_PAGE_TEST_ID, type TFindWay } from "../domains/web-playwright.js";
+import { locatorOf, wayLocator } from "../derivations/locators.js";
 import type { BrowserSession } from "./browser-session.js";
 import { attempted, locateByDomain, locateWith } from "./locate.js";
 
@@ -38,6 +38,20 @@ export const click = (session: BrowserSession, target: TStepValue): Promise<TAct
 /** Moves the pointer over the element a target locates, as a reader pointing at it does; the pointer leaves it for the next target. */
 export const hoverOver = (session: BrowserSession, target: TStepValue): Promise<TActionResult> =>
 	attempted(`hover over ${String(target.value)}`, () => session.withScope((scope) => locateByDomain(scope, target).first().hover()));
+
+/** Waits for the first element a target locates: a test id until it is attached to the DOM, since a panel that shows the key
+ *  states it before a reader takes it, and every other locator until it is visible. */
+export const waitFor = (session: BrowserSession, target: TStepValue): Promise<TActionResult> =>
+	attempted(`wait for ${String(target.value)}`, () =>
+		session.withScope(async (scope) => {
+			const state = locatorOf(target).domain === DOMAIN_PAGE_TEST_ID ? "attached" : "visible";
+			await locateByDomain(scope, target).first().waitFor({ state });
+		}),
+	);
+
+/** Waits until the first element a target locates is gone: detached or hidden, so a page that took it away is proved at once. */
+export const waitGone = (session: BrowserSession, target: TStepValue): Promise<TActionResult> =>
+	attempted(`wait until ${String(target.value)} is gone`, () => session.withScope((scope) => locateByDomain(scope, target).first().waitFor({ state: "hidden" })));
 
 /** Turns the mouse wheel over the element a target locates, up by the element's own height, as a reader reading back does. */
 export const scrollUpAScreen = (session: BrowserSession, target: TStepValue): Promise<TActionResult> =>
@@ -91,12 +105,18 @@ export const acceptDialogs = (session: BrowserSession, keep: (said: TDialogSays)
  *  of a running instance shares the container scope, so the scope ends however `run` ends. */
 export const withinContainer = <T>(session: BrowserSession, container: string, run: () => Promise<T>): Promise<T> =>
 	session.withScope(async (scope) => {
+		// A step nested in the statement re-runs this context: the same container already holds the scope, so it isn't looked
+		// for again, which would search it inside the document the first look entered.
+		if (session.inContainerSource === container) return await run();
 		// A CSS locator reaches into shadow roots, and a container nested in another is found within it.
 		const located = scope.locator(container);
+		const outside = { scope: session.inContainer, source: session.inContainerSource };
 		session.inContainer = (await located.evaluate((element) => element.tagName)) === "IFRAME" ? located.contentFrame().locator(":root") : located;
+		session.inContainerSource = container;
 		try {
 			return await run();
 		} finally {
-			session.inContainer = undefined;
+			session.inContainer = outside.scope;
+			session.inContainerSource = outside.source;
 		}
 	});

@@ -67,15 +67,14 @@ const scope = (): Panes.TPanesScope => ({
 /** Opens the panes on `strip`, with the panes the page always holds, and restores them at each arrival at an address. */
 export function openStrip(strip: TStripElement, hooks: Panes.TPaneHooks, pagePanes: ReadonlyArray<TPagePane>): void {
 	const paneStrip = pagePaneStrip(strip, MARKS);
-	// Decide now, before the page writes its defaults: an arrival that names no panes — the app's frame recreated by the site
-	// it is embedded in, which doesn't carry the address the app wrote — gets the persisted layout restored. A named arrival (a
-	// shared link, or the browser keeping the frame's own address) is left as it is.
-	// The persisted layout names the panes the reader last had. Where it names a pane the arrival's address doesn't — the
-	// columns a frame the site recreated dropped, while the app still arrives showing only its default panes — restore it.
+	// Decide now, before the page writes its defaults: an arrival that names no panes — the app's frame recreated by the
+	// site it is embedded in, which doesn't carry the address the app wrote — gets the persisted layout restored, the
+	// columns the reader last had. A named arrival (a shared link, or the browser keeping the frame's own address) is
+	// left as it is: it states the panes the reader asked for, and restoring would replace them with the last page's.
 	const arrived = new Set((Address.hashParams(PageHash.getHash(pageHashScope())).getAll(Address.COLUMN_PARAM) as unknown[]).map(String));
 	const persisted = pagePreferences().read(SHU_TAG.COLUMN_PANE, LAYOUT_KEY)?.hash;
 	const savedCols = typeof persisted === "string" ? (Address.hashParams(persisted).getAll(Address.COLUMN_PARAM) as unknown[]).map(String) : [];
-	if (typeof persisted === "string" && savedCols.some((col) => !arrived.has(col))) panesHeld().restoreFrom = persisted;
+	if (typeof persisted === "string" && savedCols.length > 0 && arrived.size === 0) panesHeld().restoreFrom = persisted;
 	Panes.openStrip(scope(), paneStrip, hooks, pagePanes);
 	// Each control and each arrival reads the page's panes as they are then.
 	paneStrip.onControl((id, change) => Panes.control(scope(), id, change));

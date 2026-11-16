@@ -4,22 +4,24 @@
  */
 import { isAbsolute, resolve, relative, sep } from "path";
 import { z } from "zod";
-import { CAPTURE, ImageArtifact, OK } from "@haibun/core/lib/domains/protocol.js";
+import { CAPTURE, OK } from "@haibun/core/lib/domains/protocol.js";
 import { captureLocator } from "@haibun/core/lib/domains/capture-locator.js";
-import { isImageFormat } from "@haibun/core/lib/domains/media-types.js";
-import { mediaTypeForPath } from "@haibun/core/lib/domains/media-type-extensions.js";
 import type { TModuleOptions, TBaseOptions } from "@haibun/core/lib/world.js";
 import type { TTag } from "@haibun/core/lib/domains/ttag.js";
 import type { IFile, TStorageFiles } from "../ports.js";
 import { AStepper, StepperKinds, type IHasCycles, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
-import { DOMAIN_NUMBER, DOMAIN_FILE_PATH, DOMAIN_TEXT } from "@haibun/core/lib/domains/domains.js";
+import { STORAGE_FILES } from "@haibun/core/lib/domains/storage-port.js";
+import { DOMAIN_FILE_PATH, DOMAIN_NUMBER } from "@haibun/core/lib/domains/domains.js";
 import { listOf } from "@haibun/core/lib/domains/lists.js";
 import { Access } from "@haibun/core/lib/domains/resources.js";
 import { CountedFields, counted } from "@haibun/core/lib/domains/hypermedia.js";
 import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 
 const FileContentsSchema = z.object({ contents: z.string() });
+/** The most bytes a property read of a file's text may copy into Node. A larger text is checked at the file, or read in
+ *  parts, never carried whole. */
+const _TEXT_MAX_BYTES = 4 * 1024 * 1024;
 /** The domain of a file's contents, as a storage read them. */
 const DOMAIN_FILE_CONTENTS = "file-contents";
 /** The files a directory holds, by name, as a counted list. */
@@ -60,6 +62,10 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 				{ selectors: [DOMAIN_FILE_LIST], schema: FileListSchema, list: listOf(FileListSchema, "files"), description: "The files a directory holds, by name" },
 			],
 		}),
+		// The FilePath domain's property readers read through this storage's files, held on the runtime for the feature.
+		startFeature: () => {
+			this.getWorld().runtime[STORAGE_FILES] = this.files;
+		},
 	};
 	description = "Create files, directories, and manage test artifacts";
 
@@ -98,24 +104,6 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 	mkdir = (dir: string): void => this.files.mkdir(dir);
 	mkdirp = (dir: string): void => this.files.mkdirp(dir);
 	exists = (path: string): boolean => this.files.exists(path);
-
-	/** The path of a storage entry: its file path where it exists, or its path in the artifact directory where an artifact was saved there. */
-	entryPath(what: string): string | undefined {
-		if (this.exists(what)) return what;
-		try {
-			const loc = this.locator(this.getWorld().options, this.getWorld().tag, "image");
-			const imagePath = resolve(loc, what);
-			if (this.exists(imagePath)) return imagePath;
-			const baseLoc = this.locator(this.getWorld().options, this.getWorld().tag);
-			const basePath = resolve(baseLoc, what);
-			if (this.exists(basePath)) return basePath;
-			const rootPath = resolve(this.getArtifactRoot(), what);
-			if (this.exists(rootPath)) return rootPath;
-		} catch {
-			// options or tag might not be initialized
-		}
-		return undefined;
-	}
 
 	locator = captureLocator;
 
@@ -205,27 +193,6 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 				return OK;
 			},
 		},
-		testIs: {
-			gwta: `text at {where: ${DOMAIN_FILE_PATH}} is {what: ${DOMAIN_TEXT}}`,
-			description: "Reads the file at the path as text and passes when the file's text is the given text. Fails, stating the text the file holds, when the file's text differs.",
-			readsAt: Access.public,
-			contract: { read: true },
-			action: ({ where, what }) => {
-				const text = this.readFile(where, "utf-8");
-				return text === what ? OK : actionNotOK(`text at ${where} is not ${what}; it's ${text.toString()}`);
-			},
-		},
-		testContains: {
-			gwta: `text at {where: ${DOMAIN_FILE_PATH}} contains {what: ${DOMAIN_TEXT}}`,
-			description:
-				"Reads the file at the path as text and passes when the file's text contains the given text. Fails, stating the text the file holds, when the file's text doesn't contain it.",
-			readsAt: Access.public,
-			contract: { read: true },
-			action: ({ where, what }) => {
-				const text = this.readFile(where, "utf-8");
-				return text.toString().indexOf(what) > -1 ? OK : actionNotOK(`text at ${where} does not contain ${what}; it's ${text.toString()}`);
-			},
-		},
 		listFiles: {
 			gwta: `list files from {where: ${DOMAIN_FILE_PATH}}`,
 			description: 'Lists the files a directory holds, by name. Count them with `exactly` or `at least`, as in `exactly 2, list files from "tmp"`.',
@@ -234,34 +201,6 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 			action: async ({ where }) => {
 				const files = await this.readdir(where);
 				return actionOKWithProducts({ files: files.map((name) => ({ name })), ...counted(files.length) });
-			},
-		},
-		fileExists: {
-			gwta: `storage entry {what: ${DOMAIN_FILE_PATH}} exists`,
-			description: "Checks that a storage entry exists at the path. Fails, stating the path, when the entry doesn't exist.",
-			// The image branch emits an artifact event, which the hub delivers to subscribers and the sink; it doesn't write a record.
-			readsAt: Access.public,
-			contract: { read: true },
-			action: ({ what }, featureStep) => {
-				const found = this.entryPath(what);
-				if (found === undefined) return Promise.resolve(actionNotOK(`file ${what} does not exist`));
-				const mediaType = mediaTypeForPath(what);
-				if (mediaType !== undefined && isImageFormat(mediaType)) {
-					const world = this.getWorld();
-					const basePath = this.getArtifactBasePath();
-					const baseRelativePath = relative(resolve(basePath), resolve(found));
-					const artifact = ImageArtifact.parse({
-						id: `${featureStep.seqPath.join(".")}.artifact.0`,
-						timestamp: Date.now(),
-						kind: "artifact",
-						artifactType: "image",
-						path: baseRelativePath,
-						featureRelativePath: `./image/${what}`,
-						mimetype: mediaType,
-					});
-					world.eventLogger.artifact(artifact);
-				}
-				return Promise.resolve(OK);
 			},
 		},
 		isTheSame: {

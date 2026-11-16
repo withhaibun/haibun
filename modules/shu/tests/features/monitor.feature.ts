@@ -16,7 +16,7 @@ import { VERDICT } from "@haibun/core/lib/domains/protocol.js";
 
 const wp = new WebPlaywright();
 const { serveShuApp } = withAction(new ShuStepper());
-const { click, waitFor, gotoPage, takeScreenshot } = withAction(wp);
+const { click, gotoPage, takeScreenshot } = withAction(wp);
 const { setAs } = withAction(new VariablesStepper());
 const { watchBlips } = withAction(new BlipsStepper());
 const { feature, scenario } = withAction(new Haibun());
@@ -104,7 +104,7 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "Open monitor column via step" }),
 		"The show monitor step triggers the SPA to open a monitor log stream column.",
 		...passesStepForm("MonitorStepper-showMonitor", {}),
-		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
+		`wait for [data-testid='\${IDS.MONITOR.LOG_STREAM}']`,
 		"The docked actions pane stands over the foot of the columns while it is open, so the reader closes it to reach the whole of the monitor's column.",
 		click({ target: IDS.APP.DOCK_TOGGLE }),
 

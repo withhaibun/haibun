@@ -1,7 +1,8 @@
 /**
- * HTTP requests made with the headers and user agent a step sets, and the last response, which actuality keeps as JSON
- * text in the variable HTTP_RESPONSE, whose status, json, text and contentUrl a feature reads as any variable's fields.
- * A binary response's bytes are saved to storage on disk, and HTTP_RESPONSE holds only the link to that artifact.
+ * HTTP requests made with the headers and user agent a step sets. Each request step returns the response it received as
+ * its product: the response's status, status text, headers, url and text, the body read as JSON where it is JSON, and,
+ * for a binary body, the link to the artifact holding its saved bytes. A feature reads a field as the dot-path of a
+ * variable the request step set, as `set status from {what} from {statement}`.
  */
 import { isImageFormat, MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { extensionForMediaType } from "@haibun/core/lib/domains/media-type-extensions.js";
@@ -11,17 +12,15 @@ import type { TFeatureStep } from "@haibun/core/lib/astepper.js";
 import { fromJsonText, RecordsSchema } from "@haibun/core/lib/domains/json-text.js";
 import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import { OK, Origin, type TActionResult } from "@haibun/core/lib/domains/protocol.js";
+import type { TActionResult, TStepValue } from "@haibun/core/lib/domains/protocol.js";
 import { basicAuthorization, basicAuthUsers } from "@haibun/core/lib/domains/basic-auth.js";
 import { counted } from "@haibun/core/lib/domains/hypermedia.js";
 import type { AStorage } from "@haibun/domain-storage/domains/storage.js";
 import { saveImageArtifact } from "@haibun/domain-storage/pipelines/image-artifact.js";
-import { AUTHORIZATION_SCHEMES, CapturedResponseSchema, HTTP_METHODS_WITH_BODY, type TAuthorizationScheme, type TCapturedResponse } from "../domains/web-playwright.js";
+import { AUTHORIZATION_SCHEMES, HTTP_METHODS_WITH_BODY, type TAuthorizationScheme, type TCapturedResponse } from "../domains/web-playwright.js";
 import type { TFetchedResponse, TPageFetch } from "../ports.js";
 import type { BrowserSession } from "./browser-session.js";
 
-/** The variable that holds the last response a step captured. */
-export const HTTP_RESPONSE = "HTTP response";
 export const AUTHORIZATION = "Authorization";
 const ACCESS_TOKEN = "access_token";
 const USER_AGENT = "User-Agent";
@@ -60,18 +59,15 @@ export async function fetchInPage(
 	return fetched;
 }
 
-/** The response a step captured last, where one did. */
-export async function lastResponse(world: TWorld): Promise<TCapturedResponse | undefined> {
-	const resolved = await world.shared.resolveVariable({ term: HTTP_RESPONSE, origin: Origin.var }, undefined, undefined, { secure: true });
-	return resolved.value === undefined ? undefined : fromJsonText(CapturedResponseSchema).parse(resolved.value);
+/** The response a step returns as its product: what it received and, for a binary body, the link to the artifact holding
+ *  its bytes. */
+function responseProduct(captured: TCapturedResponse, binary?: { contentUrl: string; encodingFormat: string }): TCapturedResponse {
+	return binary === undefined ? captured : { ...captured, contentUrl: binary.contentUrl, encodingFormat: binary.encodingFormat };
 }
 
-export const keepResponse = (world: TWorld, response: TCapturedResponse, featureStep: TFeatureStep): Promise<void> =>
-	world.shared.setJSON(HTTP_RESPONSE, response, Origin.var, featureStep);
-
-/** Makes an HTTP request and keeps its response as the last one. A method that sends a body sends `postData`, or an
- *  empty JSON body where the step omits it. When the response body is binary, saves the bytes to storage on disk and
- *  keeps only the artifact's link in HTTP_RESPONSE. */
+/** Makes an HTTP request and returns its response as the step's product. A method that sends a body sends `postData`, or
+ *  an empty JSON body where the step omits it. When the response body is binary, saves the bytes to storage on disk and
+ *  returns only the link to that artifact. */
 export async function request(
 	context: TRestContext,
 	featureStep: TFeatureStep,
@@ -96,43 +92,36 @@ export async function request(
 				)
 			: await context.storage.saveArtifact(filename, fetched.bytes, "file");
 		const contentUrl = artifactAddress(saved.baseRelativePath);
-		await keepResponse(context.world, { ...fetched.captured, contentUrl, encodingFormat: fetched.mediaType }, featureStep);
-		return OK;
+		return actionOKWithProducts(responseProduct(fetched.captured, { contentUrl, encodingFormat: fetched.mediaType }));
 	}
-	await keepResponse(context.world, fetched.captured, featureStep);
-	return OK;
+	return actionOKWithProducts(responseProduct(fetched.captured));
 }
 
-/** Requests an OAuth 2.0 access token, and sends it as the bearer of every later request. */
+/** Requests an OAuth 2.0 access token, sends it as the bearer of every later request, and returns the token endpoint's
+ *  response as the step's product. */
 export async function requestToken(context: TRestContext, featureStep: TFeatureStep, endpoint: string): Promise<TActionResult> {
 	const { captured: response } = await fetchInPage(context, endpoint, "GET", {});
 	const token = response.json !== undefined && !Array.isArray(response.json) ? response.json[ACCESS_TOKEN] : undefined;
 	if (typeof token !== "string")
 		return actionNotOK(`${endpoint} returned ${response.status} without an ${ACCESS_TOKEN}. Check the token request's credentials and the endpoint's address.`);
 	await setExtraHTTPHeaders(context.session, { [AUTHORIZATION]: authorization(AUTHORIZATION_SCHEMES.bearer, token) });
-	await keepResponse(context.world, response, featureStep);
-	return OK;
+	return actionOKWithProducts(responseProduct(response));
 }
 
-/** Logs out of OAuth 2.0: later requests drop the extra headers. */
+/** Logs out of OAuth 2.0: later requests drop the extra headers. Returns the logout endpoint's response as the step's product. */
 export async function logout(context: TRestContext, featureStep: TFeatureStep, endpoint: string): Promise<TActionResult> {
 	await setExtraHTTPHeaders(context.session, {});
 	const { captured } = await fetchInPage(context, endpoint, "GET", {});
-	await keepResponse(context.world, captured, featureStep);
-	return OK;
+	return actionOKWithProducts(responseProduct(captured));
 }
 
-/** The members of the last JSON response, as a counted list. Refuses a response that isn't a JSON list of members. */
-export async function jsonResponse(world: TWorld): Promise<TActionResult> {
-	const json = (await lastResponse(world))?.json;
-	const members = RecordsSchema.safeParse(json);
+/** The members of a JSON response, as a counted list, read from the response's `json` value. Refuses a response that isn't
+ *  a JSON list of members. */
+export function jsonResponse(response: TStepValue): TActionResult {
+	const members = fromJsonText(RecordsSchema).safeParse(response.value);
 	if (!members.success)
-		return actionNotOK(`the last response isn't a JSON list of members: a step that makes a request to an endpoint that lists them receives one. It holds ${JSON.stringify(json)}`);
+		return actionNotOK(
+			`the response isn't a JSON list of members: a step that makes a request to an endpoint that lists them receives one. It holds ${JSON.stringify(response.value)}`,
+		);
 	return actionOKWithProducts({ members: members.data, ...counted(members.data.length) });
-}
-
-export async function statusIs(world: TWorld, status: number): Promise<TActionResult> {
-	const last = await lastResponse(world);
-	if (last === undefined) return actionNotOK(`Expected status ${status}, and a response wasn't received`);
-	return last.status === status ? OK : actionNotOK(`Expected status ${status}, got ${last.status}`);
 }

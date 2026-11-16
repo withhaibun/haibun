@@ -9,10 +9,9 @@
  * `describeStorage` with its own factory and a writable directory.
  */
 import { describe, it, expect } from "vitest";
-import { CAPTURE, DEFAULT_DEST, OK } from "@haibun/core/lib/domains/protocol.js";
+import { CAPTURE, DEFAULT_DEST } from "@haibun/core/lib/domains/protocol.js";
 import { getDefaultWorld, getTestWorldWithOptions } from "@haibun/core/lib/test/lib.js";
 import { relative, resolve } from "path";
-import type { TFeatureStep } from "@haibun/core/lib/astepper.js";
 import type { AStorage } from "../domains/storage.js";
 
 /**
@@ -76,8 +75,7 @@ export function describeStorage(name: string, make: () => AStorage, root: string
 			storage.mkdirp(at("counted"));
 			storage.writeFileBuffer(at("counted/one.txt"), Buffer.from("the whole text"));
 			expect(await storage.steps.listFiles.action({ where: at("counted") })).toEqual({ ok: true, products: { files: [{ name: "one.txt" }], total: 1, saturated: false } });
-			expect(storage.steps.testIs.action({ where: at("counted/one.txt"), what: "the whole text" })).toEqual(OK);
-			expect(storage.steps.testIs.action({ where: at("counted/one.txt"), what: "the whole" })).toMatchObject({ ok: false });
+			expect(await storage.steps.readFile.action({ where: at("counted/one.txt") })).toEqual({ ok: true, products: { contents: "the whole text" } });
 		});
 
 		it("lists what a directory holds", async () => {
@@ -117,26 +115,14 @@ export function describeStorage(name: string, make: () => AStorage, root: string
 			expect(storage.exists(outsideFile)).toBe(true);
 		});
 
-		it("verifies a storage entry exists and emits an artifact for image files", async () => {
+		it("reports which storage entries exist at their paths", () => {
 			const storage = withWorld(make());
-			const events: unknown[] = [];
-			storage.getWorld().eventLogger.artifact = (artifact: unknown) => events.push(artifact);
 			storage.mkdirp(at("checked"));
 			storage.writeFileBuffer(at("checked/photo.png"), Buffer.from("png data"));
 			storage.writeFileBuffer(at("checked/notes.txt"), Buffer.from("text data"));
-
-			const mockStep = { seqPath: ["test", "step"] } as unknown as TFeatureStep;
-			const missing = await storage.steps.fileExists.action({ what: at("checked/missing.png") }, mockStep);
-			expect(missing).toMatchObject({ ok: false });
-
-			const textResult = await storage.steps.fileExists.action({ what: at("checked/notes.txt") }, mockStep);
-			expect(textResult).toEqual(OK);
-			expect(events.length).toBe(0);
-
-			const imgResult = await storage.steps.fileExists.action({ what: at("checked/photo.png") }, mockStep);
-			expect(imgResult).toEqual(OK);
-			expect(events.length).toBe(1);
-			expect((events[0] as { mimetype: string }).mimetype).toBe("image/png");
+			expect(storage.exists(at("checked/missing.png"))).toBe(false);
+			expect(storage.exists(at("checked/notes.txt"))).toBe(true);
+			expect(storage.exists(at("checked/photo.png"))).toBe(true);
 		});
 	});
 }

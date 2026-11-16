@@ -36,54 +36,54 @@ Feature: Auth-bearer Authentication
     A resource is deleted at the address its id names under the resource route, whose response is empty.
     Activity: Delete the resource
     compose Deleted Resource with {Resource API}/{resource.id}
-    make an HTTP DELETE to Deleted Resource
-    HTTP status is 204
+    set deleted response from make an HTTP DELETE to Deleted Resource
+    variable deleted response.status is 204
     waypoint the resource is deleted
     Scenario: Fail authentication without an auth header
         go to the REST Home webpage
-        make an HTTP GET to Profile API
         # RFC 6750: missing Authorization header -> 401 Unauthorized
-        HTTP status is Unauthorized
+        set profile response from make an HTTP GET to Profile API
+        variable profile response.status is Unauthorized
 
     Scenario: Fail authentication with browser user agent
         API user agent is "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-        make an HTTP GET to Profile API
-        HTTP status is Unauthorized
+        set profile response from make an HTTP GET to Profile API
+        variable profile response.status is Unauthorized
 
     Scenario: Check pre-existing authentication token
         API user agent is "curl/8.5.0"
         set testtoken to "test-token"
         change server auth token to testtoken
         use Authorization Bearer header with testtoken
-        make an HTTP GET to Profile API
-        HTTP status is OK
+        set profile response from make an HTTP GET to Profile API
+        variable profile response.status is OK
 
     Scenario: Create authentication token
-        request OAuth 2.0 access token from Authorization Server
-        HTTP status is OK
-        variable HTTP response.json.access_token is "newToken"
-        make an HTTP GET to Profile API
-        HTTP status is OK
+        set token response from request OAuth 2.0 access token from Authorization Server
+        variable token response.status is OK
+        variable token response.json.access_token is "newToken"
+        set profile response from make an HTTP GET to Profile API
+        variable profile response.status is OK
 
     Scenario: Logout authentication token
         perform OAuth 2.0 logout from Logout
-        make an HTTP GET to Profile API
-        HTTP status is Unauthorized
+        set profile response from make an HTTP GET to Profile API
+        variable profile response.status is Unauthorized
 
     Scenario: Resources only accept application/json
-        request OAuth 2.0 access token from Authorization Server
-        HTTP status is OK
-        make an HTTP GET to Resources API
-        HTTP status is Unauthorized
-        variable HTTP response.text is "Must use application/json, not */*"
+        set token response from request OAuth 2.0 access token from Authorization Server
+        variable token response.status is OK
+        set resources response from accept "application/json" using HTTP GET to Resources API
+        variable resources response.status is Unauthorized
+        variable resources response.text is "Must use application/json, not */*"
 
     Scenario: filter list of resources
-        request OAuth 2.0 access token from Authorization Server
-        HTTP status is OK
-        accept "application/json" using HTTP GET to Resources API
-        HTTP status is OK
-        exactly 3, show JSON response
-        exactly 2, whose "name" matches "Include", show JSON response
-        for each resource of whose "name" matches "Include", show JSON response: the resource is deleted
-        accept "application/json" using HTTP GET to Resources API
-        exactly 1, show JSON response
+        set token response from request OAuth 2.0 access token from Authorization Server
+        variable token response.status is OK
+        set list response from accept "application/json" using HTTP GET to Resources API
+        variable list response.status is OK
+        exactly 3, show JSON response of list response.json
+        exactly 2, whose "name" matches "Include", show JSON response of list response.json
+        for each resource of whose "name" matches "Include", show JSON response of list response.json: the resource is deleted
+        set second response from accept "application/json" using HTTP GET to Resources API
+        exactly 1, show JSON response of second response.json

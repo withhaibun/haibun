@@ -6,9 +6,10 @@ import { TFeatureStep } from "../../steps/domains/stepper.js";
 import { LOG_LEVEL_INFO, Origin, RECORDED_STATUS, TStepValue } from "../../domains/protocol.js";
 import { getDefaultWorld } from "../../test/lib.js";
 import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STRING, registerDomains } from "../../domains/domains.js";
-import { Access, DOMAIN_PERSISTED_TYPE, SEQ_PATH_LABEL } from "../../domains/resources.js";
+import { Access, DOMAIN_PERSISTED_TYPE, LinkRelations, SEQ_PATH_LABEL } from "../../domains/resources.js";
 import { STEP_LEVEL, actualityFeatureOf, formatRecordName } from "../domains/seq-path.js";
 import { QuadStore, newStoreChain } from "../../steps/pipelines/quad-store.js";
+import type { IQuadStore } from "../../steps/ports.js";
 import { TEST_STEP } from "../../test/test-step.js";
 import { whoseItems, whoseQuery, type TListQuery, type TListStage } from "../../domains/lists.js";
 import type { TDomainMembers } from "../../domains/resources.js";
@@ -471,6 +472,37 @@ describe("FeatureVariables", () => {
 		it("are a domain's values, each an item of its id, where the domain doesn't read members", async () => {
 			registerDomains(world, [[{ selectors: ["citrus"], schema: z.string(), values: ["lemon", "lime"], description: "citrus" }]]);
 			expect(await variables.getDomainMembers("citrus", 0, [])).toEqual([{ id: "lemon" }, { id: "lime" }]);
+		});
+
+		it("are the store's records of a domain whose topology persists a type, read through the store that holds them", async () => {
+			registerDomains(world, [
+				[
+					{
+						selectors: ["persisted-note"],
+						schema: z.object({ id: z.string(), kind: z.string().optional() }),
+						description: "a persisted note",
+						topology: { persistedAs: "PersistedNote", accessLevel: Access.public, id: "id", properties: { kind: LinkRelations.NAME.rel } },
+					},
+				],
+			]);
+			const held = [
+				{ "@id": "PersistedNote/n1", id: "n1", kind: "x" },
+				{ "@id": "PersistedNote/n2", id: "n2", kind: "y" },
+			];
+			const queries: unknown[] = [];
+			const backing = {
+				merge: () => Promise.resolve(),
+				readRecords: (query: unknown) => {
+					queries.push(query);
+					return Promise.resolve({ vertices: held, total: held.length, saturated: false, order: [] });
+				},
+			};
+			const store = variables.getStore();
+			if (!(store instanceof QuadStore)) throw new Error("the variables' store isn't a QuadStore");
+			await store.registerStore(backing as unknown as IQuadStore, ["PersistedNote"]);
+			const items = await variables.getDomainMembers("persisted-note", 0, []);
+			expect(items).toEqual(held);
+			expect(queries, "the read names the persisted type").toEqual([{ label: "PersistedNote", skipCount: true }]);
 		});
 	});
 

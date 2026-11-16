@@ -1,6 +1,6 @@
 {
 	".": {
-		"declares steps": 213
+		"declares steps": 202
 	},
 	"modules/cli/src/instance-stepper.ts": {
 		"has at most one call site: InstanceStepper.reachInstance": 1,
@@ -83,9 +83,7 @@
 	},
 	"modules/storage-fs/src/storage-fs-stepper.ts": {
 		"has at most one call site: AStorage.createDirectory": 1,
-		"has at most one call site: AStorage.fileExists": 1,
-		"has at most one call site: AStorage.fileIsRecent": 1,
-		"has at most one call site: AStorage.testIs": 1
+		"has at most one call site: AStorage.fileIsRecent": 1
 	},
 	"modules/web-playwright/src/web-playwright-stepper.ts": {
 		"has at most one call site: WebPlaywright.captureDialog": 1,
@@ -96,8 +94,8 @@
 		"has at most one call site: WebPlaywright.hoverOver": 1,
 		"has at most one call site: WebPlaywright.listBrowserTabs": 1,
 		"has at most one call site: WebPlaywright.loadBrowserExtension": 1,
+		"has at most one call site: WebPlaywright.makePageCurrent": 1,
 		"has at most one call site: WebPlaywright.onNewTab": 1,
-		"has at most one call site: WebPlaywright.onTabX": 1,
 		"has at most one call site: WebPlaywright.openBrowserTab": 1,
 		"has at most one call site: WebPlaywright.readBrowserTab": 1,
 		"has at most one call site: WebPlaywright.receiveDownload": 1,
@@ -106,12 +104,11 @@
 		"has at most one call site: WebPlaywright.restTokenLogout": 1,
 		"has at most one call site: WebPlaywright.scrollUpAScreen": 1,
 		"has at most one call site: WebPlaywright.selectionOption": 1,
-		"has at most one call site: WebPlaywright.shouldSeeTestId": 1,
 		"has at most one call site: WebPlaywright.showBrowserExtension": 1,
 		"has at most one call site: WebPlaywright.showBrowserRelay": 1,
 		"has at most one call site: WebPlaywright.takeScreenshotOf": 1,
 		"has at most one call site: WebPlaywright.uploadFile": 1,
-		"has at most one call site: WebPlaywright.waitForURIMatch": 1,
+		"has at most one call site: WebPlaywright.usingTimeout": 1,
 		"returns a list of records or a count its domain doesn't declare as a list: WebPlaywright.showBrowserRelay (relay-attachment)": 1
 	},
 	"modules/web-server-hono/src/web-server-stepper.ts": {

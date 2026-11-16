@@ -9,7 +9,7 @@ import { SHU_TAG } from "@haibun/shu/domains/elements.js";
 import { views } from "@haibun/shu/waypoints/backgrounds/views.feature.ts";
 
 const wp = new WebPlaywright();
-const { waitFor, gotoPage } = withAction(wp);
+const { gotoPage } = withAction(wp);
 const { serveShuApp } = withAction(new ShuStepper());
 const { setAs } = withAction(new VariablesStepper());
 const { feature, scenario } = withAction(new Haibun());
@@ -32,18 +32,18 @@ export const features: TKirejiExport = {
 		'webserver is listening for "reading a report of this actuality"',
 		gotoPage({ name: `"${host}/spa"` }),
 		"show monitor",
-		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
+		`wait for [data-testid='\${IDS.MONITOR.LOG_STREAM}']`,
 		"show client cache",
-		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
+		`wait for [data-testid='\${IDS.CLIENT_CACHE.ROOT}']`,
 		...reportedEvents,
 		views.showsRowContaining(`"${SHU_TAG.MONITOR_COLUMN}"`, '"reportedEvent7"'),
 		`saves shu to "${REPORT}"`,
 
 		"The same page, opened as a file: a site doesn't serve any of its requests, and actuality is still there to read. The views it had open come back with it, and what the page carries is what they read.",
 		gotoPage({ name: `"file://${REPORT}"` }),
-		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
+		`wait for [data-testid='\${IDS.MONITOR.LOG_STREAM}']`,
 		views.showsRowContaining(`"${SHU_TAG.MONITOR_COLUMN}"`, '"reportedEvent7"'),
-		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
+		`wait for [data-testid='\${IDS.CLIENT_CACHE.ROOT}']`,
 		`save text from ${IDS.CLIENT_CACHE.ROOT} to reportCache`,
 		'matches reportCache with "*Actualities this device holds*"',
 	],

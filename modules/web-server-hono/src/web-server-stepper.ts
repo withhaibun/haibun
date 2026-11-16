@@ -8,10 +8,9 @@ import { Access } from "@haibun/core/lib/domains/resources.js";
 import { DOMAIN_TEXT, DOMAIN_FILE_PATH, DOMAIN_ROUTE, DOMAIN_LINK } from "@haibun/core/lib/domains/domains.js";
 import { STORE_METHOD_PREFIX, storeMethods } from "@haibun/core/lib/domains/store-protocol.js";
 import { basicAuthUsers } from "@haibun/core/lib/domains/basic-auth.js";
-import { recordChange } from "@haibun/core/lib/steps/domains/contract.js";
 import type { IWebServer, MiddlewareHandler, TRoutePurpose } from "./ports.js";
 import { TRANSPORT, type ITransport } from "./domains/transport.js";
-import { DEFAULT_PORT, endpointDomainDefinition, EndpointLabels, originList, WEB_SERVER_CAPABILITIES } from "./domains/web-server.js";
+import { DEFAULT_PORT, endpointDomainDefinition, originList, WEB_SERVER_CAPABILITIES } from "./domains/web-server.js";
 import { FOLLOWER_WRITES_IN_FLIGHT } from "./machines/follower.js";
 import { capabilityVerifier } from "./pipelines/capability-verifier.js";
 import { SSETransport } from "./pipelines/event-stream.js";
@@ -166,8 +165,9 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			gwta: `serve files at {where: ${DOMAIN_ROUTE}} from {loc: ${DOMAIN_FILE_PATH}}`,
 			description:
 				"Serves the files of the directory on the feature's web server under the route, with the read each file requires and the artifact policy while the server dispatches `/rpc` calls, as the RPC option states. Fails, stating why the files weren't served, where the mount is refused.",
-			// A mount is the server's in-memory state; the step records each route it mounts as its Endpoint.
-			contract: { changes: [recordChange(EndpointLabels.Endpoint)] },
+			// A mount is the server's in-memory state, and the Endpoint recording it is actuality's own
+			// bookkeeping, which a type holding `observesActuality` states, so the contract's list stays empty.
+			contract: { changes: [] },
 			action: ({ where, loc }) =>
 				this.mounting(`the files of ${loc} at ${where}`, (server) => server.checkAddStaticFolder(loc, where, filesFrom(loc), ...this.servedFolderGates(server))),
 		},
@@ -175,8 +175,9 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			gwta: `index files from {loc: ${DOMAIN_FILE_PATH}}`,
 			description:
 				"Serves an index of the files in the directory on the feature's web server at the root, with the read each file requires and the artifact policy while the server dispatches `/rpc` calls, as the RPC option states. Fails, stating why the index wasn't served, where the mount is refused.",
-			// A mount is the server's in-memory state; the step records the route it mounts as its Endpoint.
-			contract: { changes: [recordChange(EndpointLabels.Endpoint)] },
+			// A mount is the server's in-memory state, and the Endpoint recording it is actuality's own
+			// bookkeeping, which the type's `observesActuality` states, so the contract's list stays empty.
+			contract: { changes: [] },
 			action: ({ loc }) =>
 				this.mounting(`an index of ${loc}`, (server) =>
 					server.checkAddIndexFolder(loc, "/", { description: `An index of the files in ${loc}` }, ...this.servedFolderGates(server)),

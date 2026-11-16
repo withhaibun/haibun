@@ -5,6 +5,8 @@ import { RecordSchema, RecordsSchema } from "@haibun/core/lib/domains/json-text.
 import { listOf } from "@haibun/core/lib/domains/lists.js";
 import { CountedFields } from "@haibun/core/lib/domains/hypermedia.js";
 import { z } from "zod";
+import { DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_STRING, DOMAIN_TEXT, createEnumDomainDefinition, globSource, NameSchema, unionDomainKey } from "@haibun/core/lib/domains/domains.js";
+import type { TWorld } from "@haibun/core/lib/world.js";
 import {
 	Access,
 	ENDPOINT_LABEL,
@@ -15,8 +17,8 @@ import {
 	PersistedVertexSchema,
 	TDomainDefinition,
 	ENDPOINT_CLASS,
+	type TSourceProperty,
 } from "@haibun/core/lib/domains/resources.js";
-import { createEnumDomainDefinition, NameSchema, unionDomainKey } from "@haibun/core/lib/domains/domains.js";
 import {
 	BrowserTabSchema,
 	BrowserTabTextSchema,
@@ -67,16 +69,208 @@ export type TFindWay = TWayLocator["way"];
 export const isDomainLocator = (row: TPageLocator): row is TDomainLocator => row.domain !== undefined;
 const isWayLocator = (row: TPageLocator): row is TWayLocator => row.way !== undefined;
 const PAGE_LOCATOR_DOMAINS = PAGE_LOCATORS.filter(isDomainLocator).map(({ domain }) => domain);
+/** The row of `PAGE_LOCATORS` whose domain the key names. Every locator domain has one. */
+function locateRow(domain: string): TDomainLocator {
+	const found = PAGE_LOCATORS.filter(isDomainLocator).find((row) => row.domain === domain);
+	if (found === undefined) throw new Error(`web-playwright doesn't locate values of ${domain}: the rows of PAGE_LOCATORS don't name its domain`);
+	return found;
+}
 /** The ways to find what a click presses, each a way to read the page. */
 export const WAY_LOCATORS = PAGE_LOCATORS.filter(isWayLocator);
 /** An element on a page, identified by a value of any locator domain. A literal is page text. */
 export const DOMAIN_PAGE_TARGET = unionDomainKey(PAGE_LOCATOR_DOMAINS);
+/** A page of the browser actuality drives, addressed by the number of its tab: `BrowserPage:0.uri`, `BrowserPage:0.cookie.session`. */
+export const DOMAIN_BROWSER_PAGE = "browser-page";
+
+/** The most bytes a property read of a page's or an element's text may copy into Node. A larger text is checked at the page. */
+const TEXT_MAX_BYTES = 4 * 1024 * 1024;
+/** The most bytes an element's attribute value may hold for a read into Node. */
+const ATTRIBUTE_MAX_BYTES = 4 * 1024;
+
+/** The way a row of `PAGE_LOCATORS` locates, held structurally so the property readers don't name Playwright to this module. */
+export type TLocatorMode = { method: string; prefix: string; exact: boolean };
+/** What a text comparison checked in the page returned: whether the expected value holds, and the text's length in bytes. Only these cross to Node. */
+export type TTextVerdict = { holds: boolean; byteLength: number };
+/** The browser actuality drives, as the property readers of the locator domains and of `browser-page` reach it: located by the
+ *  way a row names, within the container `in {container}, {what}` scopes a statement to, and by tab for a page a feature names
+ *  with a CURIE. The web stepper publishes it on the world's runtime under `WEB_PAGES` as each feature starts. */
+export type TBrowserPages = {
+	/** How many elements the target locates, right now, where a step finds elements. */
+	matches(mode: TLocatorMode, target: string): Promise<number>;
+	/** Whether the first element the target locates shows, right now: false where it is detached, hidden, or not there. */
+	isVisible(mode: TLocatorMode, target: string): Promise<boolean>;
+	/** The first element's text, or undefined where the element isn't there or its text is empty. */
+	textOf(mode: TLocatorMode, target: string): Promise<string | undefined>;
+	/** Checks the first element's text against the expected value at the page: `operator` is one of is, contains,
+	 *  matches, the pattern given as its glob. Returns undefined where the element isn't there. */
+	checkText(mode: TLocatorMode, target: string, operator: string, expected: string): Promise<TTextVerdict | undefined>;
+	/** The first element's form value, or undefined where the element isn't there or its value is absent. */
+	valueOf(mode: TLocatorMode, target: string): Promise<string | undefined>;
+	/** The first element's attribute named `name`, or undefined where the element isn't there or lacks the attribute. */
+	attributeOf(mode: TLocatorMode, target: string, name: string): Promise<string | undefined>;
+	/** The address of the page of the tab, or undefined where the tab doesn't hold a page. */
+	uri(tab: number): Promise<string | undefined>;
+	/** The title of the page of the tab, read at the page. */
+	title(tab: number): Promise<string | undefined>;
+	/** The value of the feature's context cookie named `name`, or undefined where the context doesn't hold it. */
+	cookie(tab: number, name: string): Promise<string | undefined>;
+	/** The value of the page's address query parameter named `name`, or undefined where the address lacks it or the tab doesn't hold a page. */
+	query(tab: number, name: string): Promise<string | undefined>;
+};
+
+/** The runtime key of the browser pages port. */
+export const WEB_PAGES = "web-playwright-pages";
+
+/** The browser pages of the actuality that loaded a web stepper. Throws naming what to run where a feature read a page
+ *  before the web stepper started it, the way the FilePath readers refuse a feature that didn't load a storage. */
+function webPagesOf(world: TWorld, subject: unknown): TBrowserPages {
+	const pages = (world.runtime as Record<string, unknown>)[WEB_PAGES] as TBrowserPages | undefined;
+	if (pages === undefined) throw new Error(`${String(subject)} can't be read: actuality doesn't hold a browser; run a feature whose steppers include WebPlaywright.`);
+	return pages;
+}
+
+const tabOf = (subject: unknown): number => Number(subject);
+
+/** The way a property reads the elements of a row of `PAGE_LOCATORS`. */
+const modeOf = ({ method, prefix, exact }: TDomainLocator): TLocatorMode => ({ method, prefix, exact });
+/** The properties of a locator domain, reading the elements located by the mode the subject selects. */
+function locatorProperties(modeFor: (subject: unknown) => TLocatorMode): Record<string, TSourceProperty> {
+	const text = async (subject: unknown, world: TWorld): Promise<{ text: string; byteLength: number } | undefined> => {
+		const value = await webPagesOf(world, subject).textOf(modeFor(subject), String(subject));
+		return value === undefined ? undefined : { text: value, byteLength: new TextEncoder().encode(value).length };
+	};
+	return {
+		text: {
+			domain: DOMAIN_TEXT,
+			maxBytes: TEXT_MAX_BYTES,
+			read: async (subject, world) => {
+				const read = await text(subject, world);
+				if (read === undefined) throw new Error(`the element ${String(subject)} doesn't hold text to read`);
+				return read.text;
+			},
+			evaluate: async (subject, operator, expected, world) => {
+				if (operator === "exists") return { matches: (await webPagesOf(world, subject).matches(modeFor(subject), String(subject))) > 0, byteLength: 0 };
+				const verdict = await webPagesOf(world, subject).checkText(modeFor(subject), String(subject), operator, String(expected));
+				// An element that isn't there holds empty text: the comparison fails without waiting out the step's timeout.
+				return verdict === undefined ? { matches: false, byteLength: 0 } : { matches: verdict.holds, byteLength: verdict.byteLength };
+			},
+		},
+		value: { domain: DOMAIN_STRING, maxBytes: TEXT_MAX_BYTES, read: async (subject, world) => (await webPagesOf(world, subject).valueOf(modeFor(subject), String(subject))) ?? "" },
+		visible: {
+			domain: "boolean",
+			maxBytes: 8,
+			read: (subject, world) => webPagesOf(world, subject).isVisible(modeFor(subject), String(subject)),
+			evaluate: async (subject, operator, expected, world) => {
+				const count = await webPagesOf(world, subject).matches(modeFor(subject), String(subject));
+				if (operator === "exists") return { matches: count > 0, byteLength: 0 };
+				if (operator === "is" && count === 0) return { matches: String(expected) === "false", byteLength: 5 };
+				if (operator === "is") return { matches: (await webPagesOf(world, subject).isVisible(modeFor(subject), String(subject))) === (String(expected) === "true"), byteLength: 5 };
+				return undefined;
+			},
+		},
+		count: {
+			domain: DOMAIN_NUMBER,
+			maxBytes: 32,
+			read: (subject, world) => webPagesOf(world, subject).matches(modeFor(subject), String(subject)),
+			evaluate: async (subject, operator, expected, world) => {
+				const count = await webPagesOf(world, subject).matches(modeFor(subject), String(subject));
+				const byteLength = String(count).length;
+				if (operator === "exists") return { matches: count > 0, byteLength };
+				if (operator === "is") return { matches: count === Number(expected), byteLength };
+				if (operator === "isLessThan") return { matches: count < Number(expected), byteLength };
+				if (operator === "isMoreThan") return { matches: count > Number(expected), byteLength };
+				return undefined;
+			},
+		},
+		attribute: {
+			domain: DOMAIN_STRING,
+			keyed: true,
+			maxBytes: ATTRIBUTE_MAX_BYTES,
+			read: async (subject, world, subpath) => (await webPagesOf(world, subject).attributeOf(modeFor(subject), String(subject), String(subpath?.[0] ?? ""))) ?? "",
+			evaluate: async (subject, operator, _expected, world, subpath) => {
+				if (operator !== "exists") return undefined;
+				const value = await webPagesOf(world, subject).attributeOf(modeFor(subject), String(subject), String(subpath?.[0] ?? ""));
+				return { matches: value !== undefined, byteLength: value === undefined ? 0 : new TextEncoder().encode(value).length };
+			},
+		},
+	};
+}
+
+/** The properties of the values of one locator domain, read by the row of `PAGE_LOCATORS` that locates them. */
+const locatorRowProperties = (domain: string) => {
+	const mode = modeOf(locateRow(domain));
+	return locatorProperties(() => mode);
+};
+/** The row a subject of the page-target union locates: a bare word names a test id, a value Playwright reads as a
+ *  selector locates by css, and anything else names the text the page shows. */
+function unionLocatorRow(subject: unknown): TDomainLocator {
+	const value = String(subject);
+	if (/^[\p{L}_][\p{L}\p{N}-]*$/u.test(value)) return locateRow(DOMAIN_PAGE_TEST_ID);
+	if (/^[#.[:*>~|]/.test(value)) return locateRow(DOMAIN_PAGE_LOCATOR);
+	return locateRow(DOMAIN_PAGE_TEXT);
+}
+
+/** The readable properties of the `browser-page` domain: the page of the tab the subject numbers. Comparisons evaluate at
+ *  the page, so only the verdict and the byte length cross to Node. */
+const browserPageProperties: Record<string, TSourceProperty> = {
+	uri: {
+		domain: DOMAIN_LINK,
+		maxBytes: 8 * 1024,
+		read: (subject, world) => webPagesOf(world, subject).uri(tabOf(subject)),
+		evaluate: async (subject, operator, expected, world) => {
+			const uri = await webPagesOf(world, subject).uri(tabOf(subject));
+			const byteLength = uri === undefined ? 0 : new TextEncoder().encode(uri).length;
+			if (operator === "exists") return { matches: uri !== undefined, byteLength };
+			if (operator === "is") return { matches: uri === String(expected), byteLength };
+			if (operator === "matches") return { matches: uri !== undefined && new RegExp(globSource(String(expected)), "s").test(uri), byteLength };
+			return undefined;
+		},
+	},
+	title: {
+		domain: DOMAIN_TEXT,
+		maxBytes: 4 * 1024,
+		read: (subject, world) => webPagesOf(world, subject).title(tabOf(subject)),
+		evaluate: async (subject, operator, expected, world) => {
+			const title = await webPagesOf(world, subject).title(tabOf(subject));
+			const byteLength = title === undefined ? 0 : new TextEncoder().encode(title).length;
+			if (operator === "exists") return { matches: title !== undefined, byteLength };
+			if (operator === "is") return { matches: title === String(expected), byteLength };
+			if (operator === "contains") return { matches: title !== undefined && title.includes(String(expected)), byteLength };
+			if (operator === "matches") return { matches: title !== undefined && new RegExp(globSource(String(expected)), "s").test(title), byteLength };
+			return undefined;
+		},
+	},
+	cookie: {
+		domain: DOMAIN_STRING,
+		keyed: true,
+		maxBytes: 8 * 1024,
+		read: (subject, world, subpath) => webPagesOf(world, subject).cookie(tabOf(subject), String(subpath?.[0] ?? "")),
+		evaluate: async (subject, operator, expected, world, subpath) => {
+			const value = await webPagesOf(world, subject).cookie(tabOf(subject), String(subpath?.[0] ?? ""));
+			const byteLength = value === undefined ? 0 : new TextEncoder().encode(value).length;
+			if (operator === "exists") return { matches: value !== undefined, byteLength };
+			if (operator === "is") return { matches: value === String(expected), byteLength };
+			if (operator === "contains") return { matches: value !== undefined && value.includes(String(expected)), byteLength };
+			return undefined;
+		},
+	},
+	query: {
+		domain: DOMAIN_STRING,
+		keyed: true,
+		maxBytes: 8 * 1024,
+		read: (subject, world, subpath) => webPagesOf(world, subject).query(tabOf(subject), String(subpath?.[0] ?? "")),
+		evaluate: async (subject, operator, expected, world, subpath) => {
+			const value = await webPagesOf(world, subject).query(tabOf(subject), String(subpath?.[0] ?? ""));
+			const byteLength = value === undefined ? 0 : new TextEncoder().encode(value).length;
+			if (operator === "exists") return { matches: value !== undefined, byteLength };
+			if (operator === "is") return { matches: value === String(expected), byteLength };
+			if (operator === "contains") return { matches: value !== undefined && value.includes(String(expected)), byteLength };
+			return undefined;
+		},
+	},
+};
 /** A key as Playwright names it, such as Enter or Control+A. */
 export const DOMAIN_KEYBOARD_KEY = "keyboard-key";
-/** The name of a cookie a page holds. */
-export const DOMAIN_COOKIE_NAME = "cookie-name";
-/** The name of a parameter of a page's address query, as the line writes it. */
-export const DOMAIN_QUERY_PARAMETER = "query-parameter";
 /** A media type, such as application/json. */
 export const DOMAIN_MEDIA_TYPE = "media-type";
 /** A property of a JSON response's members, by name. */
@@ -93,6 +287,8 @@ const JsonResponseListSchema = z.object({ members: RecordsSchema, ...CountedFiel
 /** The domains of what reading a page and a JSON response return. */
 export const DOMAIN_ACCESSIBILITY_SNAPSHOT = "accessibility-snapshot";
 export const DOMAIN_JSON_RESPONSE = "json-response";
+/** A response an HTTP step returns as its product. */
+export const DOMAIN_HTTP_RESPONSE = "http-response";
 /** The domain of an extension loaded into the browser actuality launches: its id and the origin of its pages. */
 export const DOMAIN_BROWSER_EXTENSION = "browser-extension";
 const BrowserExtensionSchema = z.object({ id: z.string(), origin: z.string() });
@@ -173,12 +369,11 @@ declare module "@haibun/core/lib/domains/domains.js" {
 		[DOMAIN_FIND_WAY]: TFindWay;
 		[DOMAIN_REQUEST_STATE]: (typeof REQUEST_STATE)[keyof typeof REQUEST_STATE];
 		[DOMAIN_BROWSER_TYPE]: TBrowserTypes;
+		[DOMAIN_BROWSER_PAGE]: number;
 		[DOMAIN_AUTHORIZATION_SCHEME]: TAuthorizationScheme;
 		[DOMAIN_AUTHORIZATION_CREDENTIALS]: z.output<typeof NameSchema>;
 		[DOMAIN_URL_GLOB]: z.output<typeof NameSchema>;
 		[DOMAIN_KEYBOARD_KEY]: z.output<typeof NameSchema>;
-		[DOMAIN_COOKIE_NAME]: z.output<typeof NameSchema>;
-		[DOMAIN_QUERY_PARAMETER]: z.output<typeof NameSchema>;
 		[DOMAIN_MEDIA_TYPE]: z.output<typeof MediaTypeSchema>;
 		[DOMAIN_PAGE_LOCATOR]: z.output<typeof locatorSchema>;
 		[DOMAIN_PAGE_TEXT]: z.output<typeof locatorSchema>;
@@ -312,17 +507,52 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 			displayLabel: "name",
 		},
 	},
-	{ selectors: [DOMAIN_PAGE_LOCATOR], schema: locatorSchema, description: "Playwright selector such as css= or text=" },
-	{ selectors: [DOMAIN_PAGE_TEXT], schema: locatorSchema, description: "Text a page shows, located by getByText with an exact match" },
-	{ selectors: [...PAGE_LOCATOR_DOMAINS], schema: locatorSchema, description: "An element on a page, identified by a value of any locator domain; a literal is page text" },
+	{ selectors: [DOMAIN_PAGE_LOCATOR], schema: locatorSchema, properties: locatorRowProperties(DOMAIN_PAGE_LOCATOR), description: "Playwright selector such as css= or text=" },
+	{
+		selectors: [DOMAIN_PAGE_TEXT],
+		schema: locatorSchema,
+		properties: locatorRowProperties(DOMAIN_PAGE_TEXT),
+		description: "Text a page shows, located by getByText with an exact match",
+	},
+	{
+		selectors: [...PAGE_LOCATOR_DOMAINS],
+		schema: locatorSchema,
+		properties: locatorProperties((subject) => modeOf(unionLocatorRow(subject))),
+		description:
+			"An element on a page, identified by a value of any locator domain; a bare word names a test id, a selector locates by css, and other text names what the page shows",
+	},
 	{ selectors: [DOMAIN_KEYBOARD_KEY], schema: NameSchema, description: "A key as Playwright names it, such as Enter or Control+A" },
-	{ selectors: [DOMAIN_COOKIE_NAME], schema: NameSchema, description: "The name of a cookie a page holds" },
-	{ selectors: [DOMAIN_QUERY_PARAMETER], schema: NameSchema, written: true, description: "The name of a parameter of a page's address query, as the line writes it" },
 	{ selectors: [DOMAIN_MEDIA_TYPE], schema: MediaTypeSchema, description: "A media type, such as application/json" },
-	{ selectors: [DOMAIN_PAGE_TEST_ID], schema: locatorSchema, description: "Playwright getByTestId selector (data-testid attribute)" },
-	{ selectors: [DOMAIN_PAGE_LABEL], schema: locatorSchema, description: "Playwright getByLabel selector (label text)" },
-	{ selectors: [DOMAIN_PAGE_PLACEHOLDER], schema: locatorSchema, description: "Playwright getByPlaceholder selector (placeholder text)" },
-	{ selectors: [DOMAIN_PAGE_ROLE], schema: locatorSchema, description: "Playwright getByRole selector (ARIA role)" },
-	{ selectors: [DOMAIN_PAGE_TITLE], schema: locatorSchema, description: "Playwright getByTitle selector (title attribute)" },
-	{ selectors: [DOMAIN_PAGE_ALT_TEXT], schema: locatorSchema, description: "Playwright getByAltText selector (alt attribute)" },
+	{
+		selectors: [DOMAIN_PAGE_TEST_ID],
+		schema: locatorSchema,
+		properties: locatorRowProperties(DOMAIN_PAGE_TEST_ID),
+		description: "Playwright getByTestId selector (data-testid attribute)",
+	},
+	{ selectors: [DOMAIN_PAGE_LABEL], schema: locatorSchema, properties: locatorRowProperties(DOMAIN_PAGE_LABEL), description: "Playwright getByLabel selector (label text)" },
+	{
+		selectors: [DOMAIN_PAGE_PLACEHOLDER],
+		schema: locatorSchema,
+		properties: locatorRowProperties(DOMAIN_PAGE_PLACEHOLDER),
+		description: "Playwright getByPlaceholder selector (placeholder text)",
+	},
+	{ selectors: [DOMAIN_PAGE_ROLE], schema: locatorSchema, properties: locatorRowProperties(DOMAIN_PAGE_ROLE), description: "Playwright getByRole selector (ARIA role)" },
+	{ selectors: [DOMAIN_PAGE_TITLE], schema: locatorSchema, properties: locatorRowProperties(DOMAIN_PAGE_TITLE), description: "Playwright getByTitle selector (title attribute)" },
+	{
+		selectors: [DOMAIN_PAGE_ALT_TEXT],
+		schema: locatorSchema,
+		properties: locatorRowProperties(DOMAIN_PAGE_ALT_TEXT),
+		description: "Playwright getByAltText selector (alt attribute)",
+	},
+	{
+		selectors: [DOMAIN_BROWSER_PAGE],
+		schema: z.coerce.number().int().nonnegative(),
+		description: "A page of the browser actuality drives, by the number of its tab: its address, title, cookies, and query",
+		properties: browserPageProperties,
+	},
+	{
+		selectors: [DOMAIN_HTTP_RESPONSE],
+		schema: CapturedResponseSchema,
+		description: "A response an HTTP step received, as the step's product: its status, headers, text and json, and the link to the artifact holding a binary body's bytes",
+	},
 ];

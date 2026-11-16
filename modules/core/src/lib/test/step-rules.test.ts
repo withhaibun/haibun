@@ -10,6 +10,8 @@ import { Access, LinkRelations } from "../domains/resources.js";
 import { WRITE_VERB } from "../records/domains/unit.js";
 import type { TList } from "../domains/lists.js";
 import {
+	ACTUALITY_CONTRACT,
+	actualityContracts,
 	DECLARED_STEPS,
 	declaredSteps,
 	FIXED_STATEMENT,
@@ -36,6 +38,7 @@ import {
 } from "./step-rules.js";
 import { gitEnv } from "../adapters/listed-files.js";
 import { TEST_STEP } from "./test-step.js";
+import { recordChange, relationChange } from "../steps/domains/contract.js";
 import { declareSteps } from "../steps/domains/stepper.js";
 
 /** What each demo step needs: an action, which a test doesn't gate. */
@@ -251,6 +254,51 @@ describe("the products a step writes", () => {
 	it("flag a step that returns records of a stored type without contract.written, apart from a read and a type that isn't stored", () => {
 		const stepper = new StoringStepper();
 		expect(keysOf(ownProducts([{ stepper }], declaredSteps([{ file: STEPPER_FILE, stepper }])), OWN_PRODUCTS)).toEqual(["StoringStepper.writtenItself"]);
+	});
+});
+
+/** A step holding a contract line about each kind of type. */
+class ContractingStepper extends AStepper {
+	description = "Steps with contract lines about types";
+	cycles = {
+		getConcerns: () => ({
+			domains: [
+				{
+					selectors: ["event"],
+					schema: z.object({ id: z.string() }),
+					description: "A record of what actuality did",
+					topology: {
+						persistedAs: "Event",
+						accessLevel: Access.private,
+						observesActuality: true,
+						id: "id",
+						properties: { id: LinkRelations.IDENTIFIER.rel },
+						edges: { isPartOf: { rel: LinkRelations.PART_OF.rel, range: "note", observesActuality: true } },
+					},
+				},
+				{
+					selectors: ["note"],
+					schema: z.object({ id: z.string() }),
+					description: "A stored note",
+					topology: { persistedAs: "Note", accessLevel: Access.private, id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } },
+				},
+			],
+		}),
+	};
+	steps = declareSteps({
+		aboutActuality: { gwta: "log {id: string}", contract: { products: "note", changes: [recordChange("Event")] }, ...ACTS },
+		aboutEdge: { gwta: "log {id: string} beside", contract: { products: "note", changes: [relationChange(LinkRelations.PART_OF.rel)] }, ...ACTS },
+		aboutNote: { gwta: "note {id: string} whole", contract: { products: "note", changes: [recordChange("Note")] }, ...ACTS },
+	});
+}
+
+describe("the contract lines about types of actuality", () => {
+	it("flag a step holding a line about a type that observes actuality, apart from a line about a type that doesn't", () => {
+		const stepper = new ContractingStepper();
+		expect(keysOf(actualityContracts([{ stepper }], declaredSteps([{ file: STEPPER_FILE, stepper }])), ACTUALITY_CONTRACT)).toEqual([
+			"ContractingStepper.aboutActuality",
+			"ContractingStepper.aboutEdge",
+		]);
 	});
 });
 

@@ -207,6 +207,12 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.#raiseScope();
 	}
 
+	/** The bar's column closing is the bar closing: the scope ends at once, not at a later render (a collapsed pane may
+	 *  unassign the bar's slot, so the view's next render may come only late). */
+	protected override onColumnCollapse(): void {
+		this.#raiseScope();
+	}
+
 	/** The bar opens or closes with its pane, which renders the bar again. */
 	protected updated(): void {
 		this.#raiseScope();

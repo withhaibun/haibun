@@ -15,9 +15,9 @@ Scenario: A form and counter
     When I enter username into user name
     And I click Submit
 
-    Then save URI query parameter "username" to "username parameter"
+    Then set "username parameter" to BrowserPage:0.query.username
     And variable "username parameter" is username
-    Then matches WebPlaywright.currentURI with "{counter URI}*"
-    And I should see username
-    And the cookie "userid" is username
+    Then matches BrowserPage:0.uri with "{counter URI}*"
+    And see username
+    And variable BrowserPage:0.cookie.userid is username
 

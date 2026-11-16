@@ -9,6 +9,8 @@ import { variableDomainDefinition } from "../records/domains/variables.js";
 import { classDomainDefinition, propertyDomainDefinition } from "../records/domains/ontology.js";
 import { DOMAIN_FIELD, DOMAIN_LABEL, DOMAIN_RECORD_DOMAIN, DomainRecordSchema } from "../records/domains/domain-record.js";
 import { MEDIA_TYPE } from "../domains/media-types.js";
+import { mediaTypeForPath } from "../domains/media-type-extensions.js";
+import { storageFilesOf } from "../domains/storage-port.js";
 import { RDFS_DATATYPE } from "../domains/vocabularies.js";
 import { Access, DOMAIN_PERSISTED_TYPE, HELD_BY, LinkRelations, type TCoercionSite, type TDomainDefinition } from "../domains/resources.js";
 import type { TWorld } from "../actuality/domains/world.js";
@@ -27,8 +29,8 @@ import {
 	DOMAIN_TEXT,
 	DOMAIN_VARIABLE_NAME,
 	DOMAIN_DOMAIN_NAME,
-	DOMAIN_GLOB,
 	DOMAIN_FILE_PATH,
+	DOMAIN_GLOB,
 	DOMAIN_ROUTE,
 	DOMAIN_BEARER_TOKEN,
 	DOMAIN_PERSISTED_TYPES,
@@ -52,6 +54,7 @@ import {
 	setValuesSchema,
 	DOMAIN_TITLE,
 	deriveNamingDomains,
+	globSource,
 	mapDefinitionsToDomains,
 	recordIdInputSchema,
 	NameSchema,
@@ -109,6 +112,15 @@ const domainRecordDefinition: TDomainDefinition = {
 	},
 };
 
+/** The most bytes a property read of a file's text may copy into Node. */
+const TEXT_MAX_BYTES = 4 * 1024 * 1024;
+
+/** A file's text as the loaded storage reads it. */
+function storageText(world: TWorld, subject: unknown): string {
+	const read = storageFilesOf(world, subject).readFile(String(subject), "utf8");
+	return typeof read === "string" ? read : read.toString("utf8");
+}
+
 const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	// The types of the records core writes or derives: each step's record, the facts and variables actuality holds, the ontology,
 	// and the registered domains.
@@ -136,7 +148,41 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	},
 	{ selectors: [DOMAIN_DOMAIN_NAME], schema: NameSchema, written: true, description: "The name a declaration gives a new domain, as written in the line." },
 	{ selectors: [DOMAIN_GLOB], schema: NameSchema, description: "A pattern in which * matches any sequence of characters." },
-	{ selectors: [DOMAIN_FILE_PATH], schema: NameSchema, description: "A file or directory's path, as a storage or the file system reads it." },
+	// The FilePath domain's readers take their files from the storage actuality loaded, which a storage publishes on the
+	// world's runtime; a property read taken before any storage loaded refuses the step, naming what to run.
+	{
+		selectors: [DOMAIN_FILE_PATH],
+		schema: NameSchema,
+		description: "A file or directory's path, as a storage or the file system reads it.",
+		properties: {
+			// A file's text is copied within the ceiling, and checked at the file where a statement only checks whether it
+			// holds, is, or contains a value, so a large file never enters a variable whole.
+			text: {
+				domain: DOMAIN_TEXT,
+				maxBytes: TEXT_MAX_BYTES,
+				read: (subject, world) => Promise.resolve(storageText(world, subject)),
+				evaluate: (subject, operator, expected, world) => {
+					const text = storageText(world, subject);
+					const byteLength = new TextEncoder().encode(text).length;
+					if (operator === "exists") return Promise.resolve({ matches: true, byteLength });
+					if (operator === "is") return Promise.resolve({ matches: text === String(expected), byteLength });
+					if (operator === "contains") return Promise.resolve({ matches: text.includes(String(expected)), byteLength });
+					if (operator === "matches") return Promise.resolve({ matches: new RegExp(globSource(String(expected)), "s").test(text), byteLength });
+					return Promise.resolve(undefined);
+				},
+			},
+			size: {
+				domain: DOMAIN_NUMBER,
+				maxBytes: 32,
+				read: (subject, world) =>
+					storageFilesOf(world, subject)
+						.lstatToIFile(String(subject))
+						.then((file) => file.size),
+			},
+			exists: { domain: "boolean", maxBytes: 8, read: (subject, world) => Promise.resolve(storageFilesOf(world, subject).exists(String(subject))) },
+			mediaType: { domain: DOMAIN_STRING, maxBytes: 256, read: (subject) => Promise.resolve(mediaTypeForPath(String(subject))) },
+		},
+	},
 	{ selectors: [DOMAIN_TITLE], schema: NameSchema, written: true, description: "The title of a feature, scenario, activity or waypoint, as written in the line." },
 	{
 		selectors: [DOMAIN_WAYPOINT_ARGUMENT],

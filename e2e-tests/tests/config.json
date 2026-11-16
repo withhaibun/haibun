@@ -1,5 +1,7 @@
 {
-	"group": { "bases": [".", "@haibun/cli/waypoints", "@haibun/web-server-hono/waypoints"] },
+	"group": {
+		"bases": [".", "@haibun/web-playwright/waypoints", "@haibun/cli/waypoints", "@haibun/web-server-hono/waypoints"]
+	},
 	"extends": "@haibun/cli/config.base.json",
 	"steppers": [
 		"@haibun/web-playwright/web-playwright",

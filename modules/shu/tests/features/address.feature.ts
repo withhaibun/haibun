@@ -10,7 +10,7 @@ import { registerTestIds } from "@haibun/shu/test/step-ui.js";
 
 const wp = new WebPlaywright();
 const { serveShuApp } = withAction(new ShuStepper());
-const { gotoPage, waitFor, click } = withAction(wp);
+const { gotoPage, click } = withAction(wp);
 const { setAs } = withAction(new VariablesStepper());
 const { feature, scenario } = withAction(new Haibun());
 
@@ -40,10 +40,9 @@ export const features: TKirejiExport = {
 			domain: "page-locator",
 			value: `"[data-testid='${SHU_TEST_IDS.REFUSAL.CAUSE}']:has-text('${typeNotHeld(NOT_HELD, []).error.replaceAll("'", "\\'")}')"`,
 		}),
-		waitFor({ target: "notHeld" }),
+		`wait for notHeld`,
 		setAs({ what: HELD_STEPS, domain: "page-test-id", value: `"${HELD_STEPS}"` }),
 		click({ target: HELD_STEPS }),
-		"save URI to chosenAddress",
-		`matches chosenAddress with "*label=${SEQ_PATH_LABEL}*"`,
+		`matches BrowserPage:0.uri with "*label=${SEQ_PATH_LABEL}*"`,
 	],
 };

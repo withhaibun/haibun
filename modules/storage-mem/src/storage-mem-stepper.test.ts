@@ -74,10 +74,7 @@ describe("AStorage steppers", () => {
 
 		storageMem.volume.writeFileSync("/test.txt", "hello world");
 
-		let res = await storageMem.steps.testContains?.action({ where: "/test.txt", what: "hello" });
-		expect(res).toEqual(OK);
-
-		res = await storageMem.steps.testContains?.action({ where: "/test.txt", what: "missing" });
-		expect(res.ok).toBe(false);
+		const res = await storageMem.steps.readFile.action({ where: "/test.txt" });
+		expect(res).toEqual({ ok: true, products: { contents: "hello world" } });
 	});
 });

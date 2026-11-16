@@ -9,13 +9,11 @@ Scenario: Elements
   set dialog as page-locator to [role="alertdialog"]
   in dialog, click "Hello"
 
-Scenario: The window, its tabs and a picture of an element
-  A feature moves focus away from an element, sizes the window, keeps a picture of one element, and works in a second tab before it returns to the first.
+Scenario: The window, its size, a picture of an element, and a second tab
+  A feature moves focus away from an element, sizes the window, keeps a picture of one element, and opens a second tab whose page it reads by its tab.
   blur dialog
   resize window to 800x600
   take a screenshot of dialog to "/tmp/haibun-elements-dialog.png"
   on a new tab
   go to the elements page webpage
-  current tab is 1
-  on tab 0
-  current tab is 0
+  matches BrowserPage:0.uri with "*elements.html*"

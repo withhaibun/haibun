@@ -219,6 +219,11 @@ export const registerDomains = (world: TWorld, results: TDomainDefinition[][]) =
 				throw new Error(
 					`The type ${topology.persistedAs} persists records, and its topology doesn't state accessLevel as one level or a list of distinct levels. State accessLevel as one of ${AccessLevelSchema.options.join(", ")}, or as a list of two or more of them.`,
 				);
+			for (const [name, property] of Object.entries(definition.properties ?? {}))
+				if (!Number.isInteger(property.maxBytes) || property.maxBytes <= 0)
+					throw new Error(
+						`The domain ${domainKey} declares the property ${name} without a byte ceiling. State maxBytes as a positive count of bytes a read of it may copy to Node.`,
+					);
 			world.domains[domainKey] = toRegisteredDomain(definition);
 		}
 	}
@@ -377,6 +382,11 @@ export const toRegisteredDomain = (definition: TDomainDefinition): TRegisteredDo
 		throw new Error(`the domain ${definition.selectors.map((selector) => `"${selector}"`).join(" | ")} has an empty description. State what its values are in its description.`);
 	// A key is one kind of property: an edge, whose field names its target by id, or a property that holds literals.
 	const { topology } = definition;
+	for (const [name, property] of Object.entries(definition.properties === undefined ? {} : definition.properties)) {
+		if (!Number.isInteger(property.maxBytes) || property.maxBytes <= 0)
+			throw new Error(`the source property ${definition.selectors[0]}.${name} omits maxBytes or states ${property.maxBytes}; state a whole count of bytes above zero`);
+		if (property.domain.trim() === "") throw new Error(`the source property ${definition.selectors[0]}.${name} omits its value domain`);
+	}
 	if (isPersisted(topology)) {
 		const punned = Object.keys(topology.edges === undefined ? {} : topology.edges).filter((key) => key in topology.properties);
 		if (punned.length > 0)

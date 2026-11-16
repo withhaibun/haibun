@@ -145,6 +145,9 @@ export const endpointDomainDefinition: TDomainDefinition = {
 		accessLevel: Access.private,
 		type: "as:Service",
 		instrumentation: true,
+		// Serving and observing requests register routes while any step is in progress, so an endpoint's fields aren't
+		// changes a step's contract lists.
+		observesActuality: true,
 		id: "url",
 		properties: {
 			url: LinkRelations.IDENTIFIER.rel,
