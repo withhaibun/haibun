@@ -947,9 +947,37 @@ type TDomainCoercer = (proto: import("./protocol.js").TStepValue, site?: TCoerci
 /** Comparator between two coerced domain values. */
 type TDomainComparator = (value: import("./protocol.js").TStepValueValue, baseline: import("./protocol.js").TStepValueValue) => number;
 
+/** The comparisons an in-place property evaluator takes, named as the comparison steps name them. */
+export type TPropertyOperator = "is" | "isLessThan" | "isMoreThan" | "matches" | "contains" | "exists";
+
+/** What evaluating a property in place returned: the verdict, and the byte length of the value behind it. */
+export type TPropertyVerdict = { matches: boolean; byteLength: number };
+
+/** A property of a source domain that a statement reads or checks: a page's text, a file's text. `read` copies the value,
+ *  within `maxBytes` bytes; the declarations check refuses a property that omits `maxBytes`. `evaluate` checks a
+ *  comparison without copying; a comparison of an operator it doesn't state goes through `read`. */
+export type TSourceProperty = {
+	/** The value domain of the property: a registered domain key, or one of `string`, `number`, `boolean`, `json`. */
+	domain: string;
+	/** The schema checking the property value or the arguments of a keyed access, where it isn't just its domain's. */
+	schema?: z.ZodType;
+	/** Whether the property takes a subkey, as `x.map.key` reads it. */
+	keyed?: boolean;
+	/** The largest payload a read into Node may copy. */
+	maxBytes: number;
+	/** Reads the property value of `subject`, the domain's value, within `maxBytes`, refusing where it holds more. */
+	read: (subject: unknown, world: TWorld, subpath?: readonly string[]) => Promise<unknown>;
+	/** Checks a comparison of the property without copying its value, returning the verdict and the byte length. Returns
+	 *  undefined for an operator it doesn't state, so the step reads the value and compares it, within `maxBytes`. */
+	evaluate?: (subject: unknown, operator: TPropertyOperator, expected: unknown, world: TWorld, subpath?: readonly string[]) => Promise<TPropertyVerdict | undefined>;
+};
+
 export type TDomainDefinition = {
 	selectors: string[];
 	schema: z.ZodType;
+	/** The readable properties of a source domain, by the name a path into the domain's value takes them. A record type
+	 *  doesn't declare these: its fields the store reads directly are its properties. */
+	properties?: Record<string, TSourceProperty>;
 	coerce?: TDomainCoercer;
 	comparator?: TDomainComparator;
 	values?: string[];
@@ -1354,13 +1382,26 @@ export async function anchorPart(
 export const EVIDENCE_EDGE = { rel: LinkRelations.CITES_AS_EVIDENCE.rel, range: SPECIFIC_RESOURCE_LABEL };
 
 /** Anchors each value that `text` quotes in a passage of `source`, the record that holds the text, and returns the edge from a
- *  record to those passages, which it cites as evidence. A value the text doesn't quote isn't anchored. */
+ *  record to those passages, which it cites as evidence. A value the text doesn't quote isn't anchored. Each anchor states what
+ *  is around the passage, up to its length, so a repeated value resolves to one occurrence, and names the step in progress as
+ *  what generated it, the store's own provenance stamp, so each extracted passage names the call that extracted it. */
 export async function quotedEvidence(store: TAnchorStore, source: TRecordName, text: string | undefined, values: readonly (string | undefined)[]) {
 	const passages: string[] = [];
-	for (const exact of values)
-		if (exact !== undefined && text !== undefined && locateQuoteOffsets(text, exact) !== null) passages.push((await anchorPart(store, source, { exact })).specificResourceId);
+	for (const exact of values) {
+		if (exact === undefined || text === undefined) continue;
+		const at = locateQuoteOffsets(text, exact);
+		if (at === null) continue;
+		passages.push((await anchorPart(store, source, { exact, ...surround(text, at) })).specificResourceId);
+	}
 	return passages.length === 0 ? {} : { [EVIDENCE_EDGE.rel]: passages.map((id) => referenceTo(SPECIFIC_RESOURCE_LABEL, id)) };
 }
+
+/** The text around a located passage, up to this length on each side, as the selector's prefix and suffix. */
+const AROUND_LENGTH = 32;
+const surround = (text: string, at: { start: number; end: number }): { prefix?: string; suffix?: string } => ({
+	...(at.start > 0 ? { prefix: text.slice(Math.max(0, at.start - AROUND_LENGTH), at.start) } : {}),
+	...(at.end < text.length ? { suffix: text.slice(at.end, at.end + AROUND_LENGTH) } : {}),
+});
 
 /** Rels that ground a Comment in its subject: an oa:hasTarget subject or an attachment. Reply-family rels also ground
  *  it. They are inReplyTo and its sub-properties, such as narrate, and isReplyEdge checks them. */
