@@ -157,7 +157,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 		},
 		getClusteredQuads: {
 			readsAt: Access.public,
-			gwta: `get clustered quads of {perTypeLimit: ${DOMAIN_NUMBER}} per type at {accessLevel: ${DOMAIN_ACCESS_QUERY_LEVEL}}( of {types: ${DOMAIN_TYPE_NAMES}})?( over {scope: ${DOMAIN_READ_SCOPE}})?`,
+			gwta: `get clustered quads of {perTypeLimit: ${DOMAIN_NUMBER}} of each type at {accessLevel: ${DOMAIN_ACCESS_QUERY_LEVEL}}( of {types: ${DOMAIN_TYPE_NAMES}})?( over {scope: ${DOMAIN_READ_SCOPE}})?`,
 			description:
 				"Returns the clustered sample a graph view draws, of at most the count of records of each type at the access level: the quads, and per type what was sampled and what was left out, with the site that serves each sampled subject. Reads only the types named where the line names them, and only what the instance serves to a peer where the scope is own. Fails, stating why the read failed, where the read throws.",
 			contract: { read: true, products: DOMAIN_CLUSTERED_QUADS },
