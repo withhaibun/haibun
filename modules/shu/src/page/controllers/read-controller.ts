@@ -3,7 +3,17 @@
  * (`page/pipelines/read-records.ts`), as a view and a read take them: a read calls the site, and reads the graph the page
  * holds where the site doesn't respond.
  */
-import type { TDensityResult, TGraphQueryResult, TIncomingEdges, TIndividualWithEdges, TQuad } from "@haibun/core/lib/quad-types.js";
+import { z } from "zod";
+import {
+	ClusteredQuadsSchema,
+	type TClusteredQuads,
+	type TDensityResult,
+	type TGraphQueryResult,
+	type TIncomingEdges,
+	type TIndividualWithEdges,
+} from "@haibun/core/lib/quad-types.js";
+import { RecordSchema } from "@haibun/core/lib/domains/json-text.js";
+import { RelatedRecordsSchema } from "../domains/related-records.js";
 import { pageConduit, pageHydration, pageRegistry, registryScope } from "../root.js";
 import { readSteps } from "../pipelines/read-steps.js";
 import { heldCatalog } from "../pipelines/held-catalog.js";
@@ -27,25 +37,26 @@ const scope = (): Reads.TReadScope => ({
 /** What a call reads: actuality's steps, the conduit, and what a carried record of actuality's step produced. */
 const callScope = (): CallStep.TCallScope => ({ steps: () => readSteps(registryScope()), conduit: pageConduit, carried: (method) => pageHydration().carriedProducts(method) });
 
-/** Calls the step `step` names with `params`, and returns what the step returned, or the refusal. */
-export const callStep = <T>(step: string, params: Record<string, unknown>, why: string): Promise<CallStep.TCallOutcome<T>> => CallStep.callStep<T>(callScope(), step, params, why);
+/** Calls the step `step` names with `params`, and returns what the step returned, parsed by `schema`, or the refusal. */
+export const callStep = <S extends z.ZodType>(step: string, params: Record<string, unknown>, why: string, schema: S): Promise<CallStep.TCallOutcome<z.output<S>>> =>
+	CallStep.callStep(callScope(), step, params, why, schema);
 
-/** Follows a call a record links, and returns what the call returned. Throws the call's failure. */
-export const followCall = <T>(link: TCallLink, why: string): Promise<T> => CallStep.followCall<T>(callScope(), link, why);
+/** Follows a call a record links, and returns what the call returned, parsed by `schema`. Throws the call's failure. */
+export const followCall = <S extends z.ZodType>(link: TCallLink, why: string, schema: S): Promise<z.output<S>> => CallStep.followCall(callScope(), link, why, schema);
 
 /** Returns the applicable steps, as a read: at the moment `asOf` names, or now. */
 export const applicableSteps = (asOf: string | undefined): Promise<CallStep.TCallOutcome<Record<string, unknown>>> =>
 	asOf === undefined
-		? callStep(RPC_METHOD.APPLICABLE_STEPS, {}, "the applicable steps")
-		: callStep(RPC_METHOD.AS_OF, { asOf, statement: { method: RPC_METHOD.APPLICABLE_STEPS, params: {} } }, `the applicable steps as of ${asOf}`);
+		? callStep(RPC_METHOD.APPLICABLE_STEPS, {}, "the applicable steps", RecordSchema)
+		: callStep(RPC_METHOD.AS_OF, { asOf, statement: { method: RPC_METHOD.APPLICABLE_STEPS, params: {} } }, `the applicable steps as of ${asOf}`, RecordSchema);
 
 /** Returns the records related to a record, `depth` edges away, and the root record of their thread. */
-export const relatedRecords = <V>(label: string, id: string, depth: number): Promise<CallStep.TCallOutcome<{ items: V[]; contextRoot: string }>> =>
-	callStep(RELATED_STEP, { label, id, depth }, `the records related to ${label}:${id}`);
+export const relatedRecords = (label: string, id: string, depth: number): Promise<CallStep.TCallOutcome<z.output<typeof RelatedRecordsSchema>>> =>
+	callStep(RELATED_STEP, { label, id, depth }, `the records related to ${label}:${id}`, RelatedRecordsSchema);
 
 /** Returns a sample of the quads of each type, `perTypeLimit` of each, at the page's access level. */
-export const clusteredQuads = (perTypeLimit: number): Promise<CallStep.TCallOutcome<{ quads: TQuad[] }>> =>
-	callStep(RPC_METHOD.CLUSTERED_QUADS, { perTypeLimit, accessLevel: appAccessLevel() }, `a sample of ${perTypeLimit} quads of each type`);
+export const clusteredQuads = (perTypeLimit: number): Promise<CallStep.TCallOutcome<TClusteredQuads>> =>
+	callStep(RPC_METHOD.CLUSTERED_QUADS, { perTypeLimit, accessLevel: appAccessLevel() }, `a sample of ${perTypeLimit} quads of each type`, ClusteredQuadsSchema);
 
 /** The step that reads the records related to a record. */
 const RELATED_STEP = "getRelated";

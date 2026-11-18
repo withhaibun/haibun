@@ -34,7 +34,7 @@ async function readSession(scope: TConversationScope, session: string): Promise<
 	await scope.readSteps();
 	const read = scope.steps()?.session;
 	if (read === undefined) throw new Error(`actuality doesn't declare a step that returns ${CONVERSATION_DOMAIN.SESSION}, which reads a conversation's session back`);
-	return SessionReadSchema.parse(await scope.conduit().follow(reads(read.method, { [SESSION_PARAM]: session }), "conversation: read a session back")).turns;
+	return (await scope.conduit().follow(reads(read.method, { [SESSION_PARAM]: session }), "conversation: read a session back", SessionReadSchema)).turns;
 }
 
 /**

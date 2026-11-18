@@ -69,17 +69,21 @@ class ShuGraphSource extends ShuElement<typeof GraphSourceStateSchema> {
 	readonly #axioms: LoadController<TPaneAxioms> = new LoadController<TPaneAxioms>(this, async (): Promise<TCallOutcome<TPaneAxioms>> => {
 		const step = this.#step;
 		if (step !== undefined) {
-			const derived = await callStep<unknown>(RPC_METHOD.RECORDED_DERIVATION, { step: { persistedAs: typeShownIn(SHU_TAG.STEP_DETAIL), id: step } }, `the derivation of ${step}`);
+			const derived = await callStep(
+				RPC_METHOD.RECORDED_DERIVATION,
+				{ step: { persistedAs: typeShownIn(SHU_TAG.STEP_DETAIL), id: step } },
+				`the derivation of ${step}`,
+				GivenAxiomsSchema,
+			);
 			if (!derived.ok) return derived;
-			const proof = this.opened(GivenAxiomsSchema.parse(derived.value));
+			const proof = this.opened(derived.value);
 			this.dispatchEvent(new CustomEvent(SHU_EVENT.PROOF_READ, { detail: proof.frames, bubbles: true, composed: true }));
 			return { ok: true, value: proof };
 		}
 		const view = this.#axioms.page?.graphView;
 		if (view === undefined) throw new Error("the axioms pane reads again the view it was given, and wasn't given one");
 		const format = sourceFormat(this.state.format);
-		const outcome = await callStep<unknown>(format.step, { view }, `the graph as ${format.label}`);
-		return outcome.ok ? { ok: true, value: ViewAxiomsProductsSchema.parse(outcome.value) } : outcome;
+		return await callStep(format.step, { view }, `the graph as ${format.label}`, ViewAxiomsProductsSchema);
 	});
 	/** The step whose derivation the pane reads, where it was given one. */
 	#step: string | undefined = undefined;

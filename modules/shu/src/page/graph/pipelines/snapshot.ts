@@ -5,7 +5,7 @@
  */
 import type { QuadGraphModel } from "@haibun/core/lib/derivations/quad-graph-model.js";
 import type { AccessLevel } from "@haibun/core/lib/domains/resources.js";
-import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
+import { ClusteredQuadsSchema, type TClusteredQuads } from "@haibun/core/lib/quad-types.js";
 import { methodOf } from "../../derivations/steps.js";
 import { reads } from "../../domains/links.js";
 import type { TStepList } from "../../machines/registry.js";
@@ -48,16 +48,16 @@ async function read(scope: TSnapshotScope, store: SnapshotStore, ask: TSnapshotA
 	const priorPinned = store.pinned(ask.scope);
 	const model = scope.model(ask.perTypeLimit);
 	const types = ask.types === undefined ? undefined : [...ask.types];
-	let clustered: { quads: TQuad[]; clusters: TCluster[]; site?: string };
+	let clustered: TClusteredQuads;
 	try {
 		const list = await scope.steps();
 		clustered = await scope
 			.conduit()
-			.follow<{ quads: TQuad[]; clusters: TCluster[]; site?: string }>(
+			.follow(
 				reads(methodOf(list, "getClusteredQuads"), { perTypeLimit: ask.perTypeLimit, types, accessLevel: scope.accessLevel }),
 				"the graph's clustered sample",
+				ClusteredQuadsSchema,
 			);
-		if (!Array.isArray(clustered.quads)) throw new Error("getClusteredQuads returned quads that aren't a list");
 		void scope.served().setMany(clustered.quads); // the page keeps what the site returned, for a later read without the site
 	} catch (err) {
 		clustered = await scope.held().getClusteredQuads({ perTypeLimit: ask.perTypeLimit, types, accessLevel: scope.accessLevel });

@@ -1,6 +1,7 @@
 import { answeringTheHandshake } from "../../test/rpc-answer.js";
 import { notFromActuality } from "../domains/rpc-wire.js";
 import { describe, it, expect } from "vitest";
+import { z } from "zod";
 import { RpcCallFailed, RpcClient } from "./rpc-client.js";
 import type { TOutgoingRequest, TRequestSigner } from "../../domains/authority-types.js";
 import { itemAt } from "../../domains/item-at.js";
@@ -40,8 +41,8 @@ describe("RpcClient.call", () => {
 	it("posts a JSON-RPC 2.0 body with the method, its params and the path of the step it acts under", async () => {
 		const { fetchImpl, calls } = makeFakeFetch([{ ok: true, bodyText: JSON.stringify({ result: 42 }) }]);
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl });
-		const out = await client.call<{ result: number }>("Stepper-echo", { message: "hi" }, [0, 1, 2, 3]);
-		expect((out as { result: number }).result).toBe(42);
+		const out = await client.call("Stepper-echo", { message: "hi" }, z.object({ result: z.number() }), [0, 1, 2, 3]);
+		expect(out.result).toBe(42);
 		const body = JSON.parse(String(itemAt(calls, 0).init?.body));
 		expect(body.jsonrpc).toBe("2.0");
 		expect(body.method).toBe("Stepper-echo");
@@ -57,7 +58,7 @@ describe("RpcClient.call", () => {
 			return Promise.resolve({ ...request.headers, "capability-invocation": `signed action="${action}"` });
 		};
 		const client = new RpcClient({ baseUrl: "http://host", sign, fetchImpl });
-		await client.call("m", {}, [0], { action: "Stepper:act" });
+		await client.call("m", {}, z.unknown(), [0], { action: "Stepper:act" });
 		expect(signed).toEqual([
 			{
 				request: { method: "POST", url: "http://host/rpc/m", headers: { "content-type": "application/json", host: "host" }, body: itemAt(calls, 0).init?.body },
@@ -71,14 +72,16 @@ describe("RpcClient.call", () => {
 		const { fetchImpl, calls } = makeFakeFetch([{ ok: true, bodyText: "{}" }]);
 		const sign: TRequestSigner = () => Promise.reject(new Error("a call that doesn't invoke an action isn't signed"));
 		const client = new RpcClient({ baseUrl: "http://host", sign, fetchImpl });
-		await client.call("m", {}, [0]);
+		await client.call("m", {}, z.unknown(), [0]);
 		expect(itemAt(calls, 0).init?.headers).toEqual({ "content-type": "application/json", host: "host" });
 	});
 
 	it("refuses a call invoking an action when it doesn't hold a signer, before sending a request", async () => {
 		const { fetchImpl, calls } = makeFakeFetch([{ ok: true, bodyText: "{}" }]);
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl });
-		await expect(client.call("m", {}, [0], { action: "Stepper:act" })).rejects.toThrow("a call invoking Stepper:act must be signed, and this client doesn't hold a signer");
+		await expect(client.call("m", {}, z.unknown(), [0], { action: "Stepper:act" })).rejects.toThrow(
+			"a call invoking Stepper:act must be signed, and this client doesn't hold a signer",
+		);
 		expect(calls).toEqual([]);
 	});
 
@@ -90,14 +93,14 @@ describe("RpcClient.call", () => {
 			return Promise.reject(new Error("the signer doesn't hold a delegation that allows Stepper:act"));
 		};
 		const client = new RpcClient({ baseUrl: "http://host", sign, fetchImpl, retry: { maxAttempts: 3, baseDelayMs: 0 } });
-		await expect(client.call("m", {}, [0], { action: "Stepper:act" })).rejects.toThrow("the signer doesn't hold a delegation that allows Stepper:act");
+		await expect(client.call("m", {}, z.unknown(), [0], { action: "Stepper:act" })).rejects.toThrow("the signer doesn't hold a delegation that allows Stepper:act");
 		expect([asked, calls.length]).toEqual([1, 0]);
 	});
 
 	it("refuses the text response a server returns for a path it doesn't serve and names its status and body", async () => {
 		const fetchImpl: typeof fetch = () => Promise.resolve(new Response("404 Not Found", { status: 404, headers: { "Content-Type": "text/plain" } }));
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl: answeringTheHandshake(fetchImpl) });
-		await expect(client.call("Stepper-echo", {}, [0])).rejects.toThrow(
+		await expect(client.call("Stepper-echo", {}, z.unknown(), [0])).rejects.toThrow(
 			new RpcCallFailed("Stepper-echo", "http://host", notFromActuality("Stepper-echo", 404, "text/plain", "404 Not Found").error, true),
 		);
 	});
@@ -105,7 +108,7 @@ describe("RpcClient.call", () => {
 	it("throws an application error (HTTP 422 with an error body) unchanged", async () => {
 		const { fetchImpl } = makeFakeFetch([{ ok: false, status: 422, bodyText: JSON.stringify({ error: "capability Foo required" }) }]);
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl, retry: { maxAttempts: 1 } });
-		const refused = client.call("m", {}, [0]);
+		const refused = client.call("m", {}, z.unknown(), [0]);
 		await expect(refused).rejects.toThrow(new RpcCallFailed("m", "http://host", "capability Foo required", true));
 		await expect(refused, "the host responded with the refusal").rejects.toMatchObject({ answered: true });
 	});
@@ -113,15 +116,15 @@ describe("RpcClient.call", () => {
 	it("retries on network error and succeeds on a later attempt", async () => {
 		const { fetchImpl, calls } = makeFakeFetch([{ throwError: new Error("ECONNREFUSED") }, { ok: true, bodyText: JSON.stringify({ ok: true }) }]);
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl, retry: { maxAttempts: 3, baseDelayMs: 0 } });
-		const out = await client.call<{ ok: boolean }>("m", {}, [0]);
-		expect((out as { ok: boolean }).ok).toBe(true);
+		const out = await client.call("m", {}, z.object({ ok: z.boolean() }), [0]);
+		expect(out.ok).toBe(true);
 		expect(calls.length).toBe(2);
 	});
 
 	it("throws an RpcCallFailed that names the attempt count once every retry fails", async () => {
 		const { fetchImpl, calls } = makeFakeFetch([{ throwError: new Error("boom") }, { throwError: new Error("boom") }]);
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl, retry: { maxAttempts: 2, baseDelayMs: 0 } });
-		const failed = client.call("m", {}, [0]);
+		const failed = client.call("m", {}, z.unknown(), [0]);
 		await expect(failed).rejects.toThrow(/m at http:\/\/host: rpc failed after 2 attempts/);
 		await expect(failed, "the host didn't respond, so the message names the call and the host").rejects.toMatchObject({ answered: false });
 		expect(calls.length).toBe(2);
@@ -130,14 +133,22 @@ describe("RpcClient.call", () => {
 	it("URL-encodes the method name", async () => {
 		const { fetchImpl, calls } = makeFakeFetch([{ ok: true, bodyText: "{}" }]);
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl });
-		await client.call("Stepper/odd name", {}, [0]);
+		await client.call("Stepper/odd name", {}, z.unknown(), [0]);
 		expect(itemAt(calls, 0).url).toMatch(/Stepper%2Fodd%20name/);
+	});
+
+	it("refuses a value its caller's schema doesn't read, naming the method, the site and the field", async () => {
+		const { fetchImpl } = makeFakeFetch([{ ok: true, bodyText: JSON.stringify({ result: "forty-two" }) }]);
+		const client = new RpcClient({ baseUrl: "http://host", fetchImpl });
+		await expect(client.call("Stepper-echo", {}, z.object({ result: z.number() }), [0])).rejects.toThrow(
+			/Stepper-echo at http:\/\/host returned a value its caller's schema refuses:[\s\S]*result/,
+		);
 	});
 
 	it("removes a trailing slash from baseUrl", async () => {
 		const { fetchImpl, calls } = makeFakeFetch([{ ok: true, bodyText: "{}" }]);
 		const client = new RpcClient({ baseUrl: "http://host/", fetchImpl });
-		await client.call("m", {}, [0]);
+		await client.call("m", {}, z.unknown(), [0]);
 		expect(itemAt(calls, 0).url).toBe("http://host/rpc/m");
 	});
 });

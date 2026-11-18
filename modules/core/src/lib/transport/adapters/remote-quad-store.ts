@@ -10,11 +10,12 @@ import { RemoteInstance } from "./rpc-client.js";
 import { STORE_METHOD_PREFIX, appliedWrite, requiredStoreCapability, sentWrites, UnitsRemovedSchema, UnitsWrittenSchema, WrittenIdSchema } from "../../domains/store-protocol.js";
 import { writesInFlight } from "../../domains/capability-context.js";
 import type { TRequestSigner } from "../../domains/authority-types.js";
-import type { z } from "zod";
+import { z } from "zod";
 import type { AccessQueryLevel } from "../../domains/resources.js";
-import { typedRecord } from "../../steps/domains/quad-types.js";
+import { ClusteredQuadsSchema, DensityResultSchema, DistinctValuesSchema, QuadSchema, RecordsPageSchema, typedRecord } from "../../steps/domains/quad-types.js";
 import type { IQuadStore } from "../../steps/ports.js";
 import {
+	ReadVersionSchema,
 	WRITE_VERB,
 	type TNode,
 	type TReadVersion,
@@ -61,9 +62,15 @@ export class RemoteQuadStore implements IQuadStore {
 		return this.config.graphs;
 	}
 
-	private async call<T>(method: string, params: Record<string, unknown>): Promise<T> {
+	/** Calls a store method at the serving instance, and returns its result parsed with `result`, the schema of what it returns. */
+	private async call<S extends z.ZodType>(method: string, params: Record<string, unknown>, result: S): Promise<z.output<S>> {
 		const storeMethod = `${STORE_METHOD_PREFIX}${method}`;
-		return (await this.remote.rpc.call<{ result: T }>(storeMethod, params, undefined, { action: requiredStoreCapability(storeMethod) })).result;
+		// A method without a result serializes its envelope without `result`, so the method's own schema reads its absence.
+		const answer = z
+			.object({ result: z.unknown().optional() })
+			.transform((envelope) => envelope.result)
+			.pipe(result);
+		return await this.remote.rpc.call(storeMethod, params, answer, undefined, { action: requiredStoreCapability(storeMethod) });
 	}
 
 	create(node: TNode): Promise<string> {
@@ -84,35 +91,36 @@ export class RemoteQuadStore implements IQuadStore {
 	}
 
 	/** Makes the removals at the serving instance in one call, and returns how each ended. */
-	async removeMany(removals: readonly TRemoval[]): Promise<TUnitRemoved[]> {
-		return UnitsRemovedSchema.parse(await this.call("removeMany", { removals }));
+	removeMany(removals: readonly TRemoval[]): Promise<TUnitRemoved[]> {
+		return this.call("removeMany", { removals }, UnitsRemovedSchema);
 	}
 
 	/** Writes at the serving instance within the writes of the step in progress, and returns the write's value. The step's writes
 	 *  list each record the serving store wrote and each change it refused, and a refusal of a unit is thrown as that store threw it. */
 	private async write<V extends z.ZodType>(method: TWriteVerb | "writeMany", value: V, params: Record<string, unknown>): Promise<z.output<V>> {
 		const writes = writesInFlight();
-		return appliedWrite(value, await this.call(method, { ...params, ...sentWrites(writes) }), writes);
+		// The result holds the write's value beside the writes the serving store made, which `appliedWrite` parses.
+		return appliedWrite(value, await this.call(method, { ...params, ...sentWrites(writes) }, z.unknown()), writes);
 	}
 
 	get(subject: string, predicate: string, namedGraph?: string): Promise<unknown | undefined> {
-		return this.call("get", { subject, predicate, namedGraph });
+		return this.call("get", { subject, predicate, namedGraph }, z.unknown());
 	}
 
 	query(pattern: TQuadPattern): Promise<TQuad[]> {
-		return this.call("query", { pattern });
+		return this.call("query", { pattern }, z.array(QuadSchema));
 	}
 
 	clear(namedGraph?: string): Promise<void> {
-		return this.call("clear", { namedGraph });
+		return this.call("clear", { namedGraph }, z.undefined());
 	}
 
 	remove(removal: TRemoval): Promise<void> {
-		return this.call("remove", { removal });
+		return this.call("remove", { removal }, z.undefined());
 	}
 
 	versionOf(name: TRecordName): Promise<TReadVersion> {
-		return this.call("versionOf", { name });
+		return this.call("versionOf", { name }, ReadVersionSchema);
 	}
 
 	/** Mount-scoped: the mounted graphs' quads, not the peer's whole store: one bounded query per mounted graph. */
@@ -122,7 +130,7 @@ export class RemoteQuadStore implements IQuadStore {
 	}
 
 	readRecords(query: TGraphQuery): Promise<TRecordsPage> {
-		return this.call("readRecords", { query });
+		return this.call("readRecords", { query }, RecordsPageSchema);
 	}
 
 	/** The far side reads the record by its label, and this side parses what it returns with the type's schema. */
@@ -131,11 +139,11 @@ export class RemoteQuadStore implements IQuadStore {
 	}
 
 	distinctPropertyValues(label: string, property: string): Promise<TDistinctValues> {
-		return this.call("distinctPropertyValues", { label, property });
+		return this.call("distinctPropertyValues", { label, property }, DistinctValuesSchema);
 	}
 
 	density(query: TDensityQuery): Promise<TDensityResult> {
-		return this.call("density", { query });
+		return this.call("density", { query }, DensityResultSchema);
 	}
 
 	/**
@@ -148,7 +156,7 @@ export class RemoteQuadStore implements IQuadStore {
 		const types = opts.types ? opts.types.filter((t) => this.config.graphs.includes(t)) : [...this.config.graphs];
 		if (types.length === 0) return { quads: [], clusters: [] };
 		const site = this.site;
-		const r = await this.call<TClusteredQuads>("getClusteredQuads", { perTypeLimit: opts.perTypeLimit, types, accessLevel: opts.accessLevel, scope: opts.scope });
+		const r = await this.call("getClusteredQuads", { perTypeLimit: opts.perTypeLimit, types, accessLevel: opts.accessLevel, scope: opts.scope }, ClusteredQuadsSchema);
 		const defaultSite = r.site ?? site;
 		const clusters = r.clusters.map((c) => ({ ...c, sites: Object.fromEntries(c.sampledSubjects.map((s) => [s, c.sites?.[s] ?? defaultSite])) }));
 		return { quads: r.quads, clusters, site };

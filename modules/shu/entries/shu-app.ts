@@ -29,7 +29,7 @@ import "../src/page/components/shu-theme-switch.js";
 import { setPageBundleUrl } from "../src/page/domains/view-script.js";
 import { readAction } from "@haibun/core/lib/domains/actions.js";
 import { Access } from "@haibun/core/lib/domains/resources.js";
-import { DELEGATIONS_READ_METHOD, type TDelegations } from "@haibun/core/lib/domains/authority-types.js";
+import { DELEGATIONS_READ_METHOD, DelegationsSchema } from "@haibun/core/lib/domains/authority-types.js";
 import { SHU_TAG } from "../src/domains/elements.js";
 import {
 	embeddedPageView,
@@ -138,7 +138,7 @@ async function start(): Promise<void> {
 		arrivedWithAddress,
 		openAuthority: () =>
 			openPageAuthority(
-				deploymentVerifiesDelegations() ? () => conduit().follow<TDelegations>(reads(DELEGATIONS_READ_METHOD), "read what was delegated to this page") : undefined,
+				deploymentVerifiesDelegations() ? () => conduit().follow(reads(DELEGATIONS_READ_METHOD), "read what was delegated to this page", DelegationsSchema) : undefined,
 				deploymentAllowedWithoutDelegation(),
 			),
 		mayRead: () => pageMay(readAction(Access.public)),

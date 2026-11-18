@@ -7,10 +7,14 @@ import { RemoteInstance } from "@haibun/core/lib/rpc-client.js";
 import type { TRequestSigner } from "@haibun/core/lib/domains/authority-types.js";
 import { readAction } from "@haibun/core/lib/domains/actions.js";
 import type { AccessLevel } from "@haibun/core/lib/domains/resources.js";
-import type { TCluster, TClusteredQuads } from "@haibun/core/lib/quad-types.js";
+import { z } from "zod";
+import { ClusteredQuadsSchema, type TCluster, type TClusteredQuads } from "@haibun/core/lib/quad-types.js";
 import type { TPeerCalls, TPeerGraphSource } from "../ports.js";
 
 type TRemoteGraphSourceConfig = { url: string; sign: TRequestSigner; calls: TPeerCalls; fetchImpl?: typeof fetch };
+
+/** The principal a peer assigns this instance, as the step that names a connecting site returns it. */
+const NamedSiteSchema = z.object({ site: z.string().min(1) });
 
 export class RemoteGraphSource implements TPeerGraphSource {
 	private remote: RemoteInstance;
@@ -31,9 +35,7 @@ export class RemoteGraphSource implements TPeerGraphSource {
 	/** The site principal the peer assigns this instance, under a delegation the peer gave this instance for naming it. */
 	async requestName(): Promise<string> {
 		const { method, action } = this.config.calls.nameSite;
-		const { site } = await this.remote.rpc.call<{ site?: string }>(method, {}, undefined, { action });
-		if (typeof site !== "string" || site.length === 0) throw new Error(`the peer at ${this.config.url} didn't return a site principal for this instance`);
-		return site;
+		return (await this.remote.rpc.call(method, {}, NamedSiteSchema, undefined, { action })).site;
 	}
 
 	/** The peer's clustered sample, each sampled subject stamped with the site that served it. The read's scope is the
@@ -48,7 +50,7 @@ export class RemoteGraphSource implements TPeerGraphSource {
 			...(opts.types ? { types: JSON.stringify(opts.types) } : {}),
 		};
 		// A read at a level is invoked as one, under a delegation from the peer that allows reading at it.
-		const r = await this.remote.rpc.call<TClusteredQuads>(this.config.calls.clustered, params, undefined, { action: readAction(opts.accessLevel) });
+		const r = await this.remote.rpc.call(this.config.calls.clustered, params, ClusteredQuadsSchema, undefined, { action: readAction(opts.accessLevel) });
 		const servedBy = r.site ?? remote;
 		// Every sampled subject is stamped, so merged into another instance's sample it keeps the site that served it, and a
 		// peer that stamped its subjects keeps its stamps.

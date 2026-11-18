@@ -185,7 +185,9 @@ describe("a statement typed in step mode", () => {
 				if (method === SHOW_STEP_DEFINITIONS_METHOD) return stepsShown(offered, CHAT_DOMAINS);
 				if (method !== VALIDATE_STEP_METHOD) throw new Error(`unexpected ${method}`);
 				if (params.text === CLAIMED) return { valid: true, method: SHOW.method, values: { name: "claim" }, readings: {}, entailment: ENTAILMENT };
-				return params.text === STATED ? { valid: true, method: SHOW.method, values: { name: "all" } } : { valid: false, error: `"${String(params.text)}" doesn't match a step` };
+				return params.text === STATED
+					? { valid: true, method: SHOW.method, values: { name: "all" }, readings: {} }
+					: { valid: false, error: `"${String(params.text)}" doesn't match a step`, completions: [] };
 			},
 		});
 	});

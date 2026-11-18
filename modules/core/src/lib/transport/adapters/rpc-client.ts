@@ -1,7 +1,8 @@
+import { z } from "zod";
 import { stripTrailingSlash } from "../../domains/local-origin.js";
 import { errorDetail } from "../../domains/util.js";
 import { readingAt } from "../../domains/capability-context.js";
-import { provesNothing, readNdjson, readRpcAnswer, type TActualityId, type THandshake } from "../domains/rpc-wire.js";
+import { parsedAnswer, provesNothing, readNdjson, readRpcAnswer, type TActualityId, type THandshake } from "../domains/rpc-wire.js";
 import type { TProveRequest } from "../ports.js";
 import { buildRpcCall, handshakeAt } from "./rpc-call.js";
 import type { TRequestSigner } from "../../domains/authority-types.js";
@@ -90,19 +91,19 @@ export class RpcClient {
 
 	/** Sends a non-streaming JSON-RPC call and returns the instance's result. A call that the instance refuses or that
 	 *  doesn't reach it after every attempt throws `RpcCallFailed`. */
-	async call<T = unknown>(method: string, params: Record<string, unknown>, under: number[] | undefined, opts?: RpcCallOptions): Promise<T> {
+	async call<S extends z.ZodType>(method: string, params: Record<string, unknown>, schema: S, under: number[] | undefined, opts?: RpcCallOptions): Promise<z.output<S>> {
 		// The envelope carries this caller's read ceiling (`readingAt`), so the host doesn't respond wider than the reader may
 		// see. The host reads at the narrower of this ceiling and its own. The call is signed once before the first send. A
 		// signing refusal comes from this process and isn't a network fault, so only the send is retried.
 		const envelope = { id: `rpc-${Date.now()}`, method, params, under, readingAt: readingAt(), actualityId: await this.actualityId() };
 		const call = await buildRpcCall(this.baseUrl, envelope, this.proving(opts?.action));
-		const outcome = await this.withRetry(async (signal): Promise<{ answered: T } | RpcError> => {
+		const outcome = await this.withRetry(async (signal): Promise<{ answered: unknown } | RpcError> => {
 			const res = await this.send(call.url, { ...call.init, signal });
 			const answer = await readRpcAnswer(method, res);
-			return answer.kind === "answered" ? { answered: answer.body as T } : { error: answer.error, answered: true };
+			return answer.kind === "answered" ? { answered: answer.body } : { error: answer.error, answered: true };
 		}, opts?.signal);
 		if ("error" in outcome) throw new RpcCallFailed(method, this.baseUrl, outcome.error, outcome.answered);
-		return outcome.answered;
+		return parsedAnswer(method, this.baseUrl, schema, outcome.answered);
 	}
 
 	/** Performs the instance's handshake and returns its hostId, site principal and actualityId. Every later call states that actualityId. */

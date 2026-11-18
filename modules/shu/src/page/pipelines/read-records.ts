@@ -8,7 +8,11 @@
 import { z } from "zod";
 import {
 	DensityQuerySchema,
+	DensityResultSchema,
+	GraphQueryResultSchema,
 	GraphQuerySchema,
+	IncomingEdgesSchema,
+	IndividualWithEdgesSchema,
 	type TRecordQuery,
 	type TDensityRequest,
 	type TDensityResult,
@@ -40,6 +44,9 @@ const SELECT_VALUES_STEP = "getSelectValues";
 
 /** The select values a site returns, by field. */
 const SelectValuesSchema = z.object({ values: z.record(z.string(), z.array(z.string())) });
+/** The products of the reads a page renders as representations. Each keeps the hypermedia fields its step adds, such as `_links`
+ *  and `_type`, beside the fields its schema checks. */
+const PRODUCTS_OF = { rows: GraphQueryResultSchema.loose(), individual: IndividualWithEdgesSchema.loose(), incoming: IncomingEdgesSchema.loose() } as const;
 
 /** Returns what the site returns through `ask`, and where the site doesn't respond, what the page holds through `held`.
  *  `held` returns undefined where the page doesn't hold the records, and the site's failure is then thrown. */
@@ -93,7 +100,7 @@ export function queryGraph(scope: TReadScope, query: TPageQuery): Promise<TGraph
 		scope,
 		(list) => {
 			const read = expression === undefined ? stated : { ...stated, expression: writtenFor(expression) };
-			return scope.conduit().follow<TGraphQueryResult>(reads(Steps.methodOf(list, "graphQuery"), { query: read }), `query: ${label === undefined ? "(any)" : label}`);
+			return scope.conduit().follow(reads(Steps.methodOf(list, "graphQuery"), { query: read }), `query: ${label === undefined ? "(any)" : label}`, PRODUCTS_OF.rows);
 		},
 		async () => {
 			if (typeof expression === "string") return undefined;
@@ -111,7 +118,7 @@ export function queryGraph(scope: TReadScope, query: TPageQuery): Promise<TGraph
 export const readIndividual = (scope: TReadScope, label: string, id: string, accessLevel: string): Promise<TIndividualWithEdges> =>
 	askElseHeld(
 		scope,
-		(list) => scope.conduit().follow<TIndividualWithEdges>(reads(Steps.methodOf(list, "getIndividualWithEdges"), { label, id, accessLevel }), `read ${label}:${id}`),
+		(list) => scope.conduit().follow(reads(Steps.methodOf(list, "getIndividualWithEdges"), { label, id, accessLevel }), `read ${label}:${id}`, PRODUCTS_OF.individual),
 		() => recordWithEdges(scope.held(), label, id),
 	);
 
@@ -123,7 +130,7 @@ export const incomingEdges = (scope: TReadScope, label: string, id: string, acce
 		(list) => {
 			const read = { method: Steps.methodOf(list, "getIncomingEdges"), params: { label, id, accessLevel } };
 			const windowed = { count: window.limit, statement: { method: SKIPPING_METHOD, params: { count: window.offset, statement: read } } };
-			return scope.conduit().follow<TIncomingEdges>(reads(LIMITED_TO_METHOD, windowed), `what points at ${label}:${id}`);
+			return scope.conduit().follow(reads(LIMITED_TO_METHOD, windowed), `what points at ${label}:${id}`, PRODUCTS_OF.incoming);
 		},
 		async () => (declares(scope, label) ? await incomingEdgesHeld(scope.held(), label, id, window) : undefined),
 	);
@@ -137,7 +144,7 @@ export const selectValuesFor = (scope: TReadScope, label: string): Promise<Recor
 		async (list) =>
 			Steps.stepNamed(list, SELECT_VALUES_STEP) === undefined
 				? {}
-				: SelectValuesSchema.parse(await scope.conduit().follow<unknown>(reads(Steps.methodOf(list, SELECT_VALUES_STEP), { label }), `select values for ${label}`)).values,
+				: (await scope.conduit().follow(reads(Steps.methodOf(list, SELECT_VALUES_STEP), { label }), `select values for ${label}`, SelectValuesSchema)).values,
 		async () => {
 			if (!declares(scope, label)) return undefined;
 			const values: Record<string, string[]> = {};
@@ -154,7 +161,7 @@ export function densityOf(scope: TReadScope, query: TPageDensity): Promise<TDens
 		scope,
 		(list) => {
 			const count = expression === undefined ? stated : { ...stated, expression: writtenFor(expression) };
-			return scope.conduit().follow<TDensityResult>(reads(Steps.methodOf(list, "density"), { query: count }), `the shape of ${query.label}`);
+			return scope.conduit().follow(reads(Steps.methodOf(list, "density"), { query: count }), `the shape of ${query.label}`, DensityResultSchema);
 		},
 		async () => {
 			if (!declares(scope, query.label)) return undefined;

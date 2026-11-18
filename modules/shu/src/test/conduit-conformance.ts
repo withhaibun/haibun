@@ -8,12 +8,16 @@
  * order in which a stream arrives, that a stream starts before its first chunk, and what a grouped call returns. Each
  * implementation arranges its own results, which `TConduitUnderTest` supplies.
  */
+import { z } from "zod";
 import { describe, it, expect, beforeEach } from "vitest";
 import type { TConduit } from "../page/ports.js";
 import type { TStreamChunk } from "../page/domains/links.js";
 import { reads } from "../page/domains/links.js";
 
 /** A conduit ready to call, with the results a case arranges for it. */
+/** The products of the rows the conformance cases read. */
+const ROWS = z.object({ rows: z.array(z.number()) });
+
 export type TConduitUnderTest = {
 	conduit: TConduit;
 	/** A call to `method` returns `value`. */
@@ -44,18 +48,25 @@ export function describeConduit(name: string, make: () => TConduitUnderTest | Pr
 
 		it("gives a follow what the step returned", async () => {
 			held.answers(METHOD, { rows: [1, 2] });
-			expect(await conduit.follow(reads(METHOD, {}), "read the rows")).toEqual({ rows: [1, 2] });
+			expect(await conduit.follow(reads(METHOD, {}), "read the rows", ROWS)).toEqual({ rows: [1, 2] });
+		});
+
+		it("refuses a follow whose products its caller's schema doesn't read, naming the method and the field", async () => {
+			held.answers(METHOD, { rows: ["one"] });
+			await expect(conduit.follow(reads(METHOD, {}), "read the rows", ROWS)).rejects.toThrow(
+				new RegExp(`${METHOD} at .* returned a value its caller's schema refuses:[\\s\\S]*rows`),
+			);
 		});
 
 		it("calls the step the link named, with the parameters the link carried", async () => {
 			held.answers(METHOD, { ok: true });
-			await conduit.follow(reads(METHOD, { label: "Email", id: "a" }), "read one");
+			await conduit.follow(reads(METHOD, { label: "Email", id: "a" }), "read one", z.unknown());
 			expect(held.asked().filter((call) => call.method === METHOD)).toEqual([{ method: METHOD, params: { label: "Email", id: "a" } }]);
 		});
 
 		it("fails a follow the step refused, and gives the reason the step returned", async () => {
 			held.fails(METHOD, "the step refused the call");
-			await expect(conduit.follow(reads(METHOD, {}), "read the rows")).rejects.toThrow(/the step refused the call/);
+			await expect(conduit.follow(reads(METHOD, {}), "read the rows", ROWS)).rejects.toThrow(/the step refused the call/);
 		});
 
 		it("starts a stream once, before a chunk arrives", async () => {
@@ -78,7 +89,7 @@ export function describeConduit(name: string, make: () => TConduitUnderTest | Pr
 		it("gives a group what its own function returned, and serves a follow made through the conduit it passes", async () => {
 			held.answers(METHOD, { rows: [7] });
 			const got = await conduit.group("read a few", async (g) => {
-				const one = await g.follow<{ rows: number[] }>(reads(METHOD, {}), "read the rows");
+				const one = await g.follow(reads(METHOD, {}), "read the rows", ROWS);
 				return one.rows.length;
 			});
 			expect(got).toBe(1);

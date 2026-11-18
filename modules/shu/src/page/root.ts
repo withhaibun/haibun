@@ -2,6 +2,7 @@
  * The page's composition root. It installs each of the page's ports once per page, and every bundle on the page reads the
  * installed port, since a bundle that loads this module holds its own copy of it.
  */
+import { z } from "zod";
 import { pagePinned } from "./adapters/page-held.js";
 
 /** A load made at its first use: a view loads a module it rarely needs with it. */
@@ -415,7 +416,7 @@ export function reportToRun(level: TClientLogLevel, source: string, message: str
 	if (!pageAuthorityPort().may(CLIENT_LOG_ACTION))
 		return console.warn(`[${source}] not reported to actuality, since the page doesn't hold ${CLIENT_LOG_ACTION}: ${message}`, attributes);
 	void pageConduit()
-		.follow(acts(CLIENT_LOG_METHOD, { event: { level, source, message, attributes } }), `${source}: ${level}`)
+		.follow(acts(CLIENT_LOG_METHOD, { event: { level, source, message, attributes } }), `${source}: ${level}`, z.unknown())
 		.catch((err: unknown) => {
 			if (isServerUnreachable(err)) return console.warn(`[${source}] not reported to actuality: ${errorDetail(err)}`, { level, message });
 			// The conduit discards a revoked or expired page authority (forgetPageAuthority), so this report and later reports are

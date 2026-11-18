@@ -5,9 +5,10 @@
  * before running the last caller replaces that caller rather than adding a second, and each caller is numbered among
  * the callers of its method, so its test ids stay unique across repeated calls.
  */
+import { StepValidationSchema } from "@haibun/core/lib/step-discovery.js";
 import { html, nothing, type ReactiveController, type TemplateResult } from "lit";
 import { RPC_METHOD, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
-import { prettifyGwta, VALIDATE_STEP_METHOD, waypointMark, type TPredicate, type TStepDefinition, type TStepValidation } from "@haibun/core/lib/step-discovery.js";
+import { prettifyGwta, VALIDATE_STEP_METHOD, waypointMark, type TPredicate, type TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { contractLines, contractProducts } from "@haibun/core/lib/contract.js";
 import type { TEntailment } from "@haibun/core/lib/records/domains/claim.js";
 import { callStep } from "../controllers/read-controller.js";
@@ -169,7 +170,7 @@ export class ActionsBarSteps implements ReactiveController {
 	/** Resolves a statement a reader typed to the step it states, and opens that step's caller with the statement's values,
 	 *  which the reader checks before the call. A statement that doesn't resolve to one step states why in the history. */
 	async #openStatement(text: string): Promise<void> {
-		const resolved = await callStep<TStepValidation>(VALIDATE_STEP_METHOD, { text }, "resolve a typed statement");
+		const resolved = await callStep(VALIDATE_STEP_METHOD, { text }, "resolve a typed statement", StepValidationSchema);
 		if (!resolved.ok) return this.#refuse(resolved.refusal);
 		const validation = resolved.value;
 		if (!validation.valid) return this.#refuse({ error: validation.error });

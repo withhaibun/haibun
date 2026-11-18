@@ -53,13 +53,14 @@ describe("the notes anchored in a record", () => {
 
 	it("parses the site's notes, and returns the site's refusal", async () => {
 		const note = { commentId: "c-1", specificResourceId: "sr-1", exact: "a passage" };
-		const site: TAnnotationScope["call"] = <T>() => Promise.resolve({ ok: true as const, value: { annotations: [note], total: 1 } as T });
+		const site: TAnnotationScope["call"] = (_step, _params, _why, schema) => Promise.resolve({ ok: true as const, value: schema.parse({ annotations: [note], total: 1 }) });
 		expect(await annotationsOnSite(holding([], site), "Email", "m-1")).toEqual({ ok: true, value: [note] });
 		expect(await annotationsOnSite(holding([], refusing), "Email", "m-1")).toEqual({ ok: false, refusal: { error: "the site refuses" } });
 	});
 
 	it("refuses a site's notes that don't match the annotations step's products", async () => {
-		const malformed: TAnnotationScope["call"] = <T>() => Promise.resolve({ ok: true as const, value: { annotations: [{ exact: "a passage" }] } as T });
+		const malformed: TAnnotationScope["call"] = (_step, _params, _why, schema) =>
+			Promise.resolve({ ok: true as const, value: schema.parse({ annotations: [{ exact: "a passage" }] }) });
 		await expect(annotationsOnSite(holding([], malformed), "Email", "m-1")).rejects.toThrow();
 	});
 });

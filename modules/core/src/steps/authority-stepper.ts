@@ -8,12 +8,12 @@ import { actionNotOK, actionOKWithProducts } from "../lib/domains/util.js";
 import { counted, CountedFields } from "../lib/domains/hypermedia.js";
 import { SessionAuthority } from "../lib/pipelines/session-authority.js";
 import { AUTHORITY_KEY } from "../lib/domains/session-authority.js";
-import { DELEGATIONS_READ_ACTION, DOMAIN_HELD_CALLS, HeldCallsSchema, type IAuthority } from "../lib/domains/authority-types.js";
+import { DELEGATIONS_READ_ACTION, DelegationsSchema, DOMAIN_HELD_CALLS, HeldCallsSchema, type IAuthority } from "../lib/domains/authority-types.js";
 import { DOMAIN_ACTIONS, DOMAIN_JSON, DOMAIN_LINK, DOMAIN_PRINCIPAL_REF } from "../lib/domains/domains.js";
 import { actingFor, inCall, runAuthorizedWith, runInCall } from "../lib/domains/capability-context.js";
 import { AUTHORITY_CAPABILITIES, delegatedActions, permissionOf, readAction, witnessOf } from "../lib/domains/actions.js";
 import { activeSitePrincipal, SITE_DID_PREFIX } from "../lib/domains/host-id.js";
-import { Access, AccessLevelSchema, PRINCIPAL_LABEL } from "../lib/domains/resources.js";
+import { Access, PRINCIPAL_LABEL } from "../lib/domains/resources.js";
 import { principalDomainDefinition } from "../lib/domains/resource-domains.js";
 import { recordChange } from "../lib/steps/domains/contract.js";
 
@@ -26,11 +26,7 @@ const authorityActionSchema = z
 
 /** The domain of the delegations this instance recorded to a key. */
 const DOMAIN_DELEGATIONS = "delegations";
-const delegationsSchema = z.object({
-	delegations: z.array(z.record(z.string(), z.unknown())),
-	records: z.record(z.string(), z.object({ persistedAs: z.string(), accessLevel: AccessLevelSchema })).optional(),
-	...CountedFields,
-});
+const delegationsSchema = DelegationsSchema.extend(CountedFields);
 /** The list of the delegations to a key, with the records of the delegations a combinator keeps, by each document's id. */
 const DELEGATIONS_LIST = listOf(delegationsSchema, "delegations", {
 	narrows: {

@@ -1,12 +1,11 @@
 import type { ReactiveController, ReactiveControllerHost } from "lit";
-import type { TCallLink } from "@haibun/core/lib/domains/hypermedia.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/steps/derivations/quad-events.js";
 import * as OpenRecord from "../pipelines/open-record.js";
 import type { TWritten } from "../pipelines/call-step.js";
 import { unreadView, type TAnnotationDraft, type TEntityView } from "../domains/entity.js";
 import { LOAD_STATUS } from "../domains/load.js";
 import { hasEventStream, pageRecords } from "../root.js";
-import { callStep, followCall, recordRead, recordReadAt } from "./read-controller.js";
+import { callStep, recordRead, recordReadAt } from "./read-controller.js";
 import { subscribeBatchedEvents } from "./event-stream-controller.js";
 import { isOffline } from "./hydration-controller.js";
 import { reportToRun } from "./client-log-controller.js";
@@ -86,11 +85,6 @@ export class EntityController implements ReactiveController {
 	annotate(draft: TAnnotationDraft): Promise<TWritten> {
 		if (!this.id) return Promise.resolve({ ok: false as const, refusal: { error: "a record isn't open to annotate" } });
 		return OpenRecord.annotateRecord(scope(), this.label, this.id, draft);
-	}
-
-	/** Follows a call the open record links, and returns what the call returned. */
-	follow<T>(link: TCallLink): Promise<T> {
-		return followCall<T>(link, `${this.label} ${this.id}: ${link.summary ?? link.method}`);
 	}
 
 	/** Stops following the open record. A host that shows a step's products in place of a record then keeps them, where a

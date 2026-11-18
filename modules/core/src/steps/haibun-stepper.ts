@@ -51,7 +51,7 @@ import {
 	SHOW_STEPS_LINE,
 	StepDefinitionsSchema,
 	StepSummariesSchema,
-	type TStepValidation,
+	StepValidationSchema,
 } from "../lib/steps/domains/step-discovery.js";
 import {
 	atLeastItems,
@@ -73,19 +73,6 @@ import {
 import { inCall, runInCall, shownTo } from "../lib/domains/capability-context.js";
 import { validateStep } from "../lib/pipelines/step-validation.js";
 import { Access } from "../lib/domains/resources.js";
-import { EntailmentSchema } from "../lib/records/domains/claim.js";
-
-/** Whether a line resolves to one step, as `TStepValidation` states it. The page reads that type only, so the schema stays here. */
-const StepValidationSchema = z.discriminatedUnion("valid", [
-	z.object({
-		valid: z.literal(true),
-		method: z.string(),
-		values: z.record(z.string(), z.string()),
-		readings: z.record(z.string(), z.string()),
-		entailment: EntailmentSchema.optional(),
-	}),
-	z.object({ valid: z.literal(false), error: z.string(), completions: z.array(z.string()) }),
-]) satisfies z.ZodType<TStepValidation>;
 
 /** The store `use store at` mounts: the site that serves it, and the types routed to it. */
 const StoreInUseSchema = z.object({ site: z.string(), types: z.array(z.string()) });

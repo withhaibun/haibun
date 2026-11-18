@@ -9,13 +9,14 @@ export type TFrameWindow = Pick<Window, "parent" | "addEventListener" | "removeE
 export function embedderChannel(frame: TFrameWindow, origin: string): TEmbedderChannel {
 	return {
 		receive: (fn, refused) => {
-			const onMessage = (e: MessageEvent): void => {
+			const onMessage = (e: Event): void => {
+				if (!(e instanceof MessageEvent)) throw new Error(`the frame's message listener received a ${e.constructor.name}, where a window dispatches a MessageEvent`);
 				if (e.source !== frame.parent) return;
 				if (e.origin !== origin) return refused(e.origin);
 				fn(e.data);
 			};
-			frame.addEventListener("message", onMessage as EventListener);
-			return () => frame.removeEventListener("message", onMessage as EventListener);
+			frame.addEventListener("message", onMessage);
+			return () => frame.removeEventListener("message", onMessage);
 		},
 		post: (message) => frame.parent.postMessage(message, origin),
 	};

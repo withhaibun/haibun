@@ -4,6 +4,7 @@
  * held record in place, an observed edge of a held record reads the record again, and a note anchored in a held record from
  * any page reads its notes again.
  */
+import { z } from "zod";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import type { TIndividualWithEdges, TQuad } from "@haibun/core/lib/quad-types.js";
@@ -145,7 +146,8 @@ export async function openRecord(scope: TOpenScope, label: string, id: string, a
 /** Writes a note anchored in a passage of a held record through the annotate step, then reads the record's notes again so
  *  the note reads back anchored. Returns the refusal, so the caller can remove its placeholder and show the cause. */
 export async function annotateRecord(scope: TOpenScope, label: string, id: string, draft: TAnnotationDraft): Promise<TWritten> {
-	const written = await scope.annotations.call("annotate", { label, id, ...draft }, `a note on ${label}:${id}`);
+	// The note's write returns the note, which the read of the record's notes reads back anchored.
+	const written = await scope.annotations.call("annotate", { label, id, ...draft }, `a note on ${label}:${id}`, z.unknown());
 	if (!written.ok) return written;
 	await refreshAnnotations(scope, label, id);
 	return { ok: true };

@@ -10,7 +10,7 @@ import { RpcClient } from "@haibun/core/lib/rpc-client.js";
 import { localOrigin } from "@haibun/core/lib/domains/local-origin.js";
 import { Access, SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { actualityFeatureOf } from "@haibun/core/lib/seq-path.js";
-import type { TClusteredQuads } from "@haibun/core/lib/quad-types.js";
+import { ClusteredQuadsSchema, type TClusteredQuads } from "@haibun/core/lib/quad-types.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import ResourcesStepper from "@haibun/core/steps/resources-stepper.js";
@@ -48,7 +48,7 @@ class ReadsTheMonitorStepper extends AStepper {
 				const response = await fetch(`${MONITOR}${MONITOR_PATH}`);
 				page = { status: response.status, body: await response.text() };
 				const reader = new RpcClient({ baseUrl: MONITOR, timeoutMs: 5_000, retry: { maxAttempts: 1 } });
-				read = await reader.call<TClusteredQuads>(RPC_METHOD.CLUSTERED_QUADS, { perTypeLimit: 100, accessLevel: Access.private }, undefined);
+				read = await reader.call(RPC_METHOD.CLUSTERED_QUADS, { perTypeLimit: 100, accessLevel: Access.private }, ClusteredQuadsSchema, undefined);
 				const saved = await findStepper<StorageFS>(this.steppers, "StorageFS").saveArtifact("saved.html", "<script>document.title = 'ran'</script>");
 				artifactPolicy = (await fetch(`${MONITOR}${artifactAddress(saved.baseRelativePath)}`)).headers.get("Content-Security-Policy");
 				return OK;

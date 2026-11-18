@@ -26,20 +26,16 @@ export function showFile(content: Blob, name: string, fragment: string | undefin
 /** Reads the file a record's content step provides, and saves it through the browser. */
 export async function downloadStep(step: TRecordStep): Promise<void> {
 	const params = step.params === undefined ? {} : step.params;
-	const result = await followCall(reads(step.method, params), step.summary);
-	const parsed = SentFileSchema.safeParse(result);
-	if (!parsed.success) return;
-	saveFile(fileDataBlob(parsed.data.file), parsed.data.name);
+	const { file, name } = await followCall(reads(step.method, params), step.summary, SentFileSchema);
+	saveFile(fileDataBlob(file), name);
 }
 
 /** Reads the file a record's content step provides, and returns an object URL where it is an image. */
 export async function loadStepImage(step: TRecordStep): Promise<string | undefined> {
 	try {
 		const params = step.params === undefined ? {} : step.params;
-		const result = await followCall(reads(step.method, params), step.summary);
-		const parsed = SentFileSchema.safeParse(result);
-		if (!parsed.success) return undefined;
-		const blob = fileDataBlob(parsed.data.file);
+		const { file } = await followCall(reads(step.method, params), step.summary, SentFileSchema);
+		const blob = fileDataBlob(file);
 		if (!isImageFormat(blob.type)) return undefined;
 		return URL.createObjectURL(blob);
 	} catch {

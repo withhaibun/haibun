@@ -6,6 +6,7 @@
  * holds, `update` refuses a record that changed since the version its caller read, and `merge` applies the node's fields without
  * depending on a read. `remove` removes a record with what it owns.
  */
+import { z } from "zod";
 
 /** The JSON-LD keywords a node states: the type of its record, and the id of a record a reference names. */
 export const NODE_KEY = { type: "@type", id: "@id" } as const;
@@ -21,7 +22,8 @@ export const WRITE_VERB = { create: "create", update: "update", merge: "merge" }
 export type TWriteVerb = (typeof WRITE_VERB)[keyof typeof WRITE_VERB];
 
 /** The version of a record that a caller read: the version a store returned for it, or null where the store didn't hold it. */
-export type TReadVersion = string | null;
+export const ReadVersionSchema = z.string().nullable();
+export type TReadVersion = z.infer<typeof ReadVersionSchema>;
 
 /** A record a caller read with its version, which an update of the record states. */
 export type TVersionedRead<T> = { readonly record: T | undefined; readonly version: TReadVersion };

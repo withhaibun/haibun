@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { AccessLevel } from "./resources.js";
+import { AccessLevelSchema } from "./resources.js";
 import type { TRpcRefusal } from "../transport/domains/rpc-wire.js";
 
 /**
@@ -26,14 +26,16 @@ export type TAuthorityEvidence =
 
 /** How a deployment records a delegation: the record's type and its access level. A view opens the record only for a
  *  reader who may read that level. */
-export type TDelegationRecord = { persistedAs: string; accessLevel: AccessLevel };
+export const DelegationRecordSchema = z.object({ persistedAs: z.string(), accessLevel: AccessLevelSchema });
+export type TDelegationRecord = z.infer<typeof DelegationRecordSchema>;
 
 /**
  * The delegations to a key. `delegations` holds the signed documents the key presents, in the specification's form.
  * `records` maps each document's `id` to the record the deployment keeps of it, so a holder can open the record of a
  * delegation it acts under where it may read that record.
  */
-export type TDelegations = { delegations: Record<string, unknown>[]; records?: Record<string, TDelegationRecord> };
+export const DelegationsSchema = z.object({ delegations: z.array(z.record(z.string(), z.unknown())), records: z.record(z.string(), DelegationRecordSchema).optional() });
+export type TDelegations = z.infer<typeof DelegationsSchema>;
 
 /** The RPC method a key calls to read the delegations to it. It is the `delegationsTo` step of core's AuthorityStepper.
  *  The step returns the delegations to the key that signs the call. */

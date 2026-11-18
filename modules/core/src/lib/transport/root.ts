@@ -11,7 +11,7 @@ import { refusalCarried, refusalSaid } from "./domains/rpc-wire.js";
  *  or one that didn't reach the host after every attempt, is the failure of its step; every other failure throws. */
 export function remoteSteps(baseUrl: string, sign: TRequestSigner): TRemoteSteps {
 	const rpc = new RpcClient({ baseUrl, sign });
-	const failed = (e: unknown): TRemoteCall => {
+	const failed = (e: unknown): TRemoteCall<never> => {
 		if (e instanceof RpcCallFailed) return { served: false, reason: e.answered ? e.reason : e.message };
 		const refused = refusalCarried(e);
 		if (refused !== undefined) return { served: false, reason: refusalSaid(refused) };
@@ -19,6 +19,6 @@ export function remoteSteps(baseUrl: string, sign: TRequestSigner): TRemoteSteps
 	};
 	return {
 		handshake: () => rpc.handshake(),
-		call: (method, params, under, action) => rpc.call(method, params, under, { action }).then((result): TRemoteCall => ({ served: true, result }), failed),
+		call: (method, params, schema, under, action) => rpc.call(method, params, schema, under, { action }).then((result) => ({ served: true as const, result }), failed),
 	};
 }

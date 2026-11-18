@@ -2,6 +2,7 @@
  * The ports of the transport: what proves a call, a method of an `/rpc` method family, and a remote host's steps as a
  * proxy calls them.
  */
+import type { z } from "zod";
 import type { TAction } from "../domains/actions.js";
 import type { THandshake, TRemoteCall } from "./domains/rpc-wire.js";
 
@@ -12,8 +13,8 @@ export type TProveRequest = (request: { url: string; method: string; headers: Re
 export type TRpcMethod = { action: TAction; handle: (params: Record<string, unknown>) => Promise<unknown> };
 
 /** A remote host's steps as a proxy calls them: the handshake that begins the surface, and each step's call, signed for
- *  the action it invokes where it invokes one. */
+ *  the action it invokes where it invokes one, with its result parsed by `schema`. */
 export type TRemoteSteps = {
 	handshake(): Promise<THandshake>;
-	call(method: string, params: Record<string, unknown>, under: number[] | undefined, action: string | undefined): Promise<TRemoteCall>;
+	call<S extends z.ZodType>(method: string, params: Record<string, unknown>, schema: S, under: number[] | undefined, action: string | undefined): Promise<TRemoteCall<z.output<S>>>;
 };

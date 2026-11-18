@@ -291,7 +291,7 @@ export class ShuAsk extends ShuElement<typeof ChatSchema> {
 		const list = conversationSteps()?.sessions;
 		if (list === undefined) return [];
 		// A response that doesn't carry a list is a failed read, not an empty one: the schema states what came back instead.
-		return SessionListSchema.parse(await conduit().follow(reads(list.method), "ask: list the sessions")).sessions;
+		return (await conduit().follow(reads(list.method), "ask: list the sessions", SessionListSchema)).sessions;
 	}
 
 	/** Refresh the selector's sessions. A failed read leaves the selector as it was and is reported: which sessions exist
@@ -349,8 +349,10 @@ export class ShuAsk extends ShuElement<typeof ChatSchema> {
 		if (type === undefined || !findStep(READS_A_TYPE)) return;
 		const models: TConversationModel[] = [];
 		for (;;) {
-			const page = CatalogPageSchema.parse(
-				await conduit().follow(reads(requireStep(READS_A_TYPE), { query: { label: type, offset: models.length, limit: CATALOG_PAGE } }), "ask: read the models"),
+			const page = await conduit().follow(
+				reads(requireStep(READS_A_TYPE), { query: { label: type, offset: models.length, limit: CATALOG_PAGE } }),
+				"ask: read the models",
+				CatalogPageSchema,
 			);
 			models.push(...page.vertices);
 			if (page.vertices.length === 0 || (!page.saturated && models.length >= page.total)) break;
@@ -367,8 +369,10 @@ export class ShuAsk extends ShuElement<typeof ChatSchema> {
 	private async readProvidersWithout(models: string): Promise<{ type: string; providers: TConversationProvider[] } | undefined> {
 		const type = providerType(models);
 		if (!type || !findStep(READS_A_TYPE)) return undefined;
-		const page = ProviderPageSchema.parse(
-			await conduit().follow(reads(requireStep(READS_A_TYPE), { query: { label: type, offset: 0, limit: CATALOG_PAGE } }), "ask: read the providers"),
+		const page = await conduit().follow(
+			reads(requireStep(READS_A_TYPE), { query: { label: type, offset: 0, limit: CATALOG_PAGE } }),
+			"ask: read the providers",
+			ProviderPageSchema,
 		);
 		return { type, providers: page.vertices.filter((provider) => provider.models === 0) };
 	}
@@ -661,9 +665,8 @@ export class ShuAsk extends ShuElement<typeof ChatSchema> {
 				const keep = conversationSteps()?.file;
 				if (keep === undefined) throw new Error(`actuality doesn't declare a step that returns ${CONVERSATION_DOMAIN.FILE}, which keeps a question's file`);
 				const params = { [FILE_PARAM.file]: await readAsDataUrl(file), [FILE_PARAM.name]: file.name };
-				const kept = await conduit().follow(acts(keep.method, params), "ask: keep the question's file");
+				const { persistedAs, id } = await conduit().follow(acts(keep.method, params), "ask: keep the question's file", IndividualAddressSchema);
 				const shown = isImageFormat(file.type) ? URL.createObjectURL(file) : undefined;
-				const { persistedAs, id } = IndividualAddressSchema.parse(kept);
 				this.#files = [...this.#files, { name: file.name, record: anIndividual(persistedAs, id), shown }];
 			}
 		} catch (err) {

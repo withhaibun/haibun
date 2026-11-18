@@ -5,6 +5,7 @@
  * ring holds an occurrence. Actuality takes each occurrence into the channel a recording on its side reaches, and doesn't
  * retain it.
  */
+import { z } from "zod";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { reads } from "../domains/links.js";
 import { RECORD_BLIPS_ACTION, RECORD_BLIPS_METHOD } from "../domains/page-calls.js";
@@ -43,6 +44,6 @@ export async function flushClientBlips({ ring, may, conduit, log }: TBlipChannel
 	// A read: actuality doesn't retain a blip, so it doesn't record the batch as a step, whose events would reach the page
 	// and draw a scene that then records what it drew.
 	await conduit
-		.follow(reads(RECORD_BLIPS_METHOD, { batch: { blips: batch, recorded: ring.recorded() } }), `blips: ${batch.length} occurrence(s)`)
+		.follow(reads(RECORD_BLIPS_METHOD, { batch: { blips: batch, recorded: ring.recorded() } }), `blips: ${batch.length} occurrence(s)`, z.unknown())
 		.catch((e: unknown) => log.report("warn", "client-blips", `a batch holding ${batch.length} of the page's occurrences wasn't delivered: ${errorDetail(e)}`));
 }

@@ -60,7 +60,7 @@ describe("shu-step-detail", () => {
 		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
 			if (url.endsWith(HANDSHAKE_PATH)) return Promise.resolve(rpcAnswer({ seqPath: [0, -1, 1] }, 200));
-			if (url.includes("getClusteredQuads")) return Promise.resolve(rpcAnswer({ quads: SET_BY_STEP }, 200));
+			if (url.includes("getClusteredQuads")) return Promise.resolve(rpcAnswer({ quads: SET_BY_STEP, clusters: [] }, 200));
 			// The page reads the step's record from what it holds, as it does where the site doesn't respond.
 			return Promise.reject(new TypeError("the step's record is read from the page"));
 		};

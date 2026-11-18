@@ -5,6 +5,7 @@
  * dispatch is honoured, emit reaches eventStream subscribers, and teardown
  * un-installs.
  */
+import { z } from "zod";
 import { describe, it, expect, beforeEach } from "vitest";
 import { acts } from "./page/domains/links.js";
 import { conduit } from "./page/controllers/conduit-controller.js";
@@ -24,12 +25,12 @@ describe("setupShuTest", () => {
 
 	it("default dispatch throws with the missing method name when a test doesn't configure `dispatch`", async () => {
 		setupShuTest();
-		await expect(conduit().follow(acts("Nothing-configured"), "test")).rejects.toThrow(/a dispatch for "Nothing-configured" isn't configured/);
+		await expect(conduit().follow(acts("Nothing-configured"), "test", z.unknown())).rejects.toThrow(/a dispatch for "Nothing-configured" isn't configured/);
 	});
 
 	it("custom dispatch returns wire results to follow()", async () => {
 		setupShuTest({ dispatch: (method) => ({ _type: method }) });
-		const rep = await conduit().follow<{ _type: string }>(acts("X"), "test");
+		const rep = await conduit().follow(acts("X"), "test", z.object({ _type: z.string() }));
 		expect(rep._type).toBe("X");
 	});
 

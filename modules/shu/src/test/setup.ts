@@ -23,7 +23,8 @@ import { RESPONSE_TIMEOUT_MS, type TDeploymentSettings } from "../domains/hydrat
 import { installAuthority, installConduit, installHydration, installCarriedEventStream, pagePreferences } from "../page/root.js";
 import { readHydration } from "../page/pipelines/hydrate.js";
 import type { TConduit, TEvent, TClientLogLevel, TClock } from "../page/ports.js";
-import type { TLink, TRepresentation, TStreamChunk } from "../page/domains/links.js";
+import type { TLink, TStreamChunk } from "../page/domains/links.js";
+import { parsedAnswer } from "@haibun/core/lib/rpc-wire.js";
 
 // ─── The conduit a test installs ─────────────────────────────────────────────
 
@@ -39,13 +40,15 @@ export class DrivenStream {
 	constructor(readonly run: (send: (chunk: TStreamChunk) => void, signal?: AbortSignal) => Promise<void>) {}
 }
 
+/** The site a test conduit names in a refusal: the dispatch the test supplies. */
+const TEST_DISPATCH = "the test's dispatch";
+
 /** A `TConduit` that responds from a function a test supplies, so the code under test doesn't detect that it isn't calling a server. */
 export class TestConduit implements TConduit {
 	constructor(private readonly dispatch: TDispatch) {}
 
-	async follow<T = TRepresentation>(link: TLink, _why: string): Promise<T> {
-		const result = await this.dispatch(link.method, link.params ?? {}, link);
-		return result as T;
+	async follow<S extends z.ZodType>(link: TLink, _why: string, schema: S): Promise<z.output<S>> {
+		return parsedAnswer(link.method, TEST_DISPATCH, schema, await this.dispatch(link.method, link.params ?? {}, link));
 	}
 
 	/** A plain response is the chunk, or the chunks, the stream sends in order; a `DrivenStream` is sent as its case drives it.

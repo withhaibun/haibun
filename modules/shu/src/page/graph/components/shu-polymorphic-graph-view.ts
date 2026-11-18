@@ -160,8 +160,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	readonly #clock = new ClockController(this);
 	/** The axioms of what the graph shows, which the DL view maps onto the scene and the ¶ control opens in a pane. */
 	readonly #axioms = new LoadController<TViewAxioms>(this, async () => {
-		const outcome = await callStep<unknown>(AXIOMS_FORMAT.step, { view: this.shownView() }, `the graph as ${AXIOMS_FORMAT.label}`);
-		return outcome.ok ? { ok: true, value: ViewAxiomsProductsSchema.parse(outcome.value) } : outcome;
+		return await callStep(AXIOMS_FORMAT.step, { view: this.shownView() }, `the graph as ${AXIOMS_FORMAT.label}`, ViewAxiomsProductsSchema);
 	});
 	/** The axioms the DL view maps onto the nodes and edges the scene draws; null outside the DL view. */
 	#overlay: TAxiomOverlay | null = null;
@@ -636,7 +635,11 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	private async applyReschedule(updates: RescheduleUpdate[]): Promise<void> {
 		// Fail-fast: a reschedule that didn't persist must not pass silently as a moved-but-unsaved bar, surface it.
 		for (const u of updates) {
-			await conduit().follow(acts("GraphStepper-updateVertex", { label: u.label, id: u.id, data: u.data }), "polymorphic: drag gantt bar → reschedule task and its dependents");
+			await conduit().follow(
+				acts("GraphStepper-updateVertex", { label: u.label, id: u.id, data: u.data }),
+				"polymorphic: drag gantt bar → reschedule task and its dependents",
+				z.unknown(),
+			);
 		}
 		await this.refetchSnapshot({ perTypeLimit: this.cgState.perTypeLimit });
 		this.scene?.flushRepaint();

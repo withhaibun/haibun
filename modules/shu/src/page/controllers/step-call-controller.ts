@@ -2,6 +2,7 @@
  * A call of a step from its form, held in the step call machine (`page/machines/step-call.ts`): the step the form calls,
  * the values the form refused, and what the call returned or its refusal. The view draws again at each move.
  */
+import { z } from "zod";
 import type { ReactiveControllerHost } from "lit";
 import { machine, type Machine } from "@haibun/core/lib/machines/machine.js";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
@@ -68,7 +69,8 @@ export class StepCallController {
 	/** Calls the step `method` names with `params`, and resolves once the call ends. */
 	async call(method: string, params: Record<string, unknown>): Promise<void> {
 		this.#machine.dispatch({ type: STEP_CALL_EVENT.CALL });
-		const outcome = await outcomeOf(() => followCall({ method, params }, `a call of ${method} from its form`));
+		// A form calls any step, so the call keeps what it returns, which the result's view reads by its shape.
+		const outcome = await outcomeOf(() => followCall({ method, params }, `a call of ${method} from its form`, z.unknown()));
 		this.#machine.dispatch(outcome.ok ? { type: STEP_CALL_EVENT.RETURN, result: outcome.value } : { type: STEP_CALL_EVENT.FAIL, refusal: outcome.refusal });
 	}
 }

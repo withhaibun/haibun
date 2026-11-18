@@ -5,11 +5,21 @@
  * place. A group begins with `action.begin`, which allocates the group's place, and each of its calls acts under it.
  */
 import { z } from "zod";
-import { ACTION_BEGIN, readNdjson, type TActualityId, type TRpcEnvelope, ServerUnreachable, answerBody, authorityFailed, refusalCarried } from "@haibun/core/lib/rpc-wire.js";
+import {
+	ACTION_BEGIN,
+	readNdjson,
+	type TActualityId,
+	type TRpcEnvelope,
+	ServerUnreachable,
+	answerBody,
+	authorityFailed,
+	parsedAnswer,
+	refusalCarried,
+} from "@haibun/core/lib/rpc-wire.js";
 import type { TProveRequest } from "@haibun/core/lib/transport/ports.js";
 import { buildRpcCall } from "@haibun/core/lib/transport/adapters/rpc-call.js";
 import type { TConduit } from "../ports.js";
-import type { TLink, TRepresentation, TStreamChunk } from "../domains/links.js";
+import type { TLink, TStreamChunk } from "../domains/links.js";
 
 /** What the conduit reads of the page: the proof of a call of a method, the actuality the page reads, how long it waits
  *  for a response, and how it lets go of authority actuality refused. */
@@ -42,9 +52,9 @@ export class LiveConduit implements TConduit {
 		private readonly under: readonly number[] | undefined,
 	) {}
 
-	async follow<T = TRepresentation>(link: TLink, _why: string): Promise<T> {
+	async follow<S extends z.ZodType>(link: TLink, _why: string, schema: S): Promise<z.output<S>> {
 		const res = await this.post(link.method, { method: link.method, params: argumentsOf(link), under: this.underOf(link), asks: link.asks });
-		return (await this.answerOf(link.method, res)) as T;
+		return parsedAnswer(link.method, res.url, schema, await this.answerOf(link.method, res));
 	}
 
 	async followStream(link: TLink, onChunk: (chunk: TStreamChunk) => void, opts: { why: string; signal?: AbortSignal; onStart?: () => void }): Promise<void> {

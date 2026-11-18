@@ -3,6 +3,7 @@
  * every remote surface, and the step descriptors through the host's show steps step. Each proxy StepTool forwards its call
  * through the remote steps port. A call is signed for the capability the remote step declares where the step declares one.
  */
+import { z } from "zod";
 import { RecordSchema } from "../../domains/json-text.js";
 import { runSteppers } from "../../actuality/domains/world.js";
 import type { TActionResult } from "../../domains/protocol.js";
@@ -10,7 +11,7 @@ import { actionNotOK } from "../../domains/util.js";
 import type { StepTool } from "../../steps/pipelines/step-registry.js";
 import { hostScopedMethodName } from "../../steps/domains/step-method.js";
 import { callInput } from "../../steps/pipelines/populate-action-args.js";
-import { readStepDefinitions, SHOW_STEP_DEFINITIONS_METHOD, SHOW_STEPS_ACTION, type TStepDescriptor } from "../../steps/domains/step-discovery.js";
+import { ShownStepDefinitionsSchema, SHOW_STEP_DEFINITIONS_METHOD, SHOW_STEPS_ACTION, type TStepDescriptor } from "../../steps/domains/step-discovery.js";
 import { NO_INPUT } from "../../steps/pipelines/call-step.js";
 import type { TRemoteSteps } from "../ports.js";
 import { contractProducts } from "../../steps/domains/contract.js";
@@ -23,10 +24,10 @@ export type TRemoteHost = { hostId: number; descriptors: TStepDescriptor[] };
  *  its steps this process may call there, and only those are registered. */
 export async function readRemoteHost(rpc: TRemoteSteps, remoteUrl: string): Promise<TRemoteHost> {
 	const { hostId } = await rpc.handshake();
-	const shown = await rpc.call(SHOW_STEP_DEFINITIONS_METHOD, NO_INPUT, undefined, SHOW_STEPS_ACTION);
+	const shown = await rpc.call(SHOW_STEP_DEFINITIONS_METHOD, NO_INPUT, ShownStepDefinitionsSchema, undefined, SHOW_STEPS_ACTION);
 	if (!shown.served)
 		throw new Error(`the steps of ${remoteUrl} weren't read: ${shown.reason}. Check that the host is serving and that this process holds ${SHOW_STEPS_ACTION} there.`);
-	const callable = readStepDefinitions(shown.result).steps.filter((step) => step.callable);
+	const callable = shown.result.steps.filter((step) => step.callable);
 	return { hostId, descriptors: callable.map(({ _links, callable: _callable, ...descriptor }) => descriptor) };
 }
 
@@ -61,8 +62,11 @@ export function remoteTools(rpc: TRemoteSteps, remoteUrl: string, { hostId, desc
  *  whatever the host's response carries in their place. */
 async function callRemote(rpc: TRemoteSteps, descriptor: TStepDescriptor, params: Record<string, unknown>, under: number[]): Promise<TActionResult> {
 	const { method, capability } = descriptor;
-	const called = await rpc.call(method, params, under, capability);
-	if (!called.served) return actionNotOK(called.reason);
 	const answersWithProducts = descriptor.outputSchema !== undefined || contractProducts(descriptor).of !== undefined;
-	return answersWithProducts ? { ok: true, products: RecordSchema.parse(called.result) } : { ok: true };
+	if (!answersWithProducts) {
+		const called = await rpc.call(method, params, z.unknown(), under, capability);
+		return called.served ? { ok: true } : actionNotOK(called.reason);
+	}
+	const called = await rpc.call(method, params, RecordSchema, under, capability);
+	return called.served ? { ok: true, products: called.result } : actionNotOK(called.reason);
 }

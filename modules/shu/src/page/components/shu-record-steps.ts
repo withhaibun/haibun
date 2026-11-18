@@ -4,6 +4,7 @@
  * lock mark. Reads whose inputs are all bound run immediately in place; any act or step with remaining inputs expands
  * into <shu-step-caller> in place. Outcomes remain beside the record until dismissed or replaced.
  */
+import { z } from "zod";
 import { html, css, nothing, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { assertFragmentReads, type TFragment } from "@haibun/core/lib/domains/media-fragments.js";
@@ -192,7 +193,8 @@ export class ShuRecordSteps extends ShuElement<typeof RecordStepsStateSchema> {
 		if (step.asks === "read" && step.unboundCount === 0) {
 			try {
 				const params = step.params === undefined ? {} : step.params;
-				const result = await conduit().follow(reads(step.method, params), step.summary);
+				// The record's step is any step, so the read keeps what it returns, which the result's handler reads by its shape.
+				const result = await conduit().follow(reads(step.method, params), step.summary, z.unknown());
 				this.#handleReadResult(step, result);
 			} catch (err: unknown) {
 				const message = err instanceof Error ? err.message : String(err);

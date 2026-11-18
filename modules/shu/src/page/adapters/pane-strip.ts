@@ -1,5 +1,13 @@
 /** The strip's pane elements: creates, updates and removes them, and follows the controls each pane carries. */
+import { z } from "zod";
 import type { TPaneControl, TPaneElement, TPaneMarks, TPaneSpec, TPaneStrip, TStripElement } from "../ports.js";
+import { isPaneElement } from "../domains/element-shapes.js";
+
+/** The detail of a pane's control event: the state its control set. An expand doesn't state a detail. */
+const PaneControlDetailSchema = z
+	.record(z.string(), z.unknown())
+	.nullish()
+	.transform((detail) => (detail === undefined ? null : detail));
 
 /** Returns the pane strip over `strip`, which makes its elements in `doc` and defines its views through `elements`. */
 export function browserPaneStrip(doc: Document, elements: CustomElementRegistry, strip: TStripElement, marks: TPaneMarks): TPaneStrip {
@@ -54,7 +62,8 @@ export function browserPaneStrip(doc: Document, elements: CustomElementRegistry,
 			// One pane for each id. A request during the view's load can open the same id, and two panes of one id are panes
 			// the pipeline can't distinguish.
 			if (strip.panes.some((pane) => pane.dataset.columnKey === spec.id)) return undefined;
-			const pane = doc.createElement(marks.paneTag) as TPaneElement;
+			const pane = doc.createElement(marks.paneTag);
+			if (!isPaneElement(pane)) throw new Error(`<${marks.paneTag}> doesn't offer a pane's methods; the page's bundle defines it before the strip opens a pane`);
 			pane.setAttribute("label", spec.label);
 			pane.setAttribute(marks.columnType, spec.columnType);
 			// The id is also the pane's stored identity, so its width and minimize return when it attaches.
@@ -103,14 +112,17 @@ export function browserPaneStrip(doc: Document, elements: CustomElementRegistry,
 		},
 		onControl: (handler) => {
 			/** Follows the event `name` of a pane's control, as the change `control` reads from its event. */
-			const follow = (name: string, control: (e: CustomEvent<Record<string, unknown> | null>) => TPaneControl): void =>
+			const follow = (name: string, control: (detail: Record<string, unknown> | null) => TPaneControl): void =>
 				strip.addEventListener(name, (e: Event) => {
-					const id = (e.target as HTMLElement).dataset.columnKey;
-					if (id !== undefined) handler(id, control(e as CustomEvent<Record<string, unknown> | null>));
+					if (!(e instanceof CustomEvent) || !(e.target instanceof HTMLElement))
+						throw new Error(`the strip's ${name} event isn't a CustomEvent its pane dispatched, so its control can't be read`);
+					const id = e.target.dataset.columnKey;
+					const detail = PaneControlDetailSchema.parse(e.detail);
+					if (id !== undefined) handler(id, control(detail));
 				});
-			follow(marks.events.minimize, (e) => ({ flag: e.detail?.minimized === true ? "min" : undefined }));
-			follow(marks.events.maximize, (e) => ({ flag: e.detail?.maximized === true ? "max" : undefined }));
-			follow(marks.events.dock, (e) => ({ docked: e.detail?.docked === true }));
+			follow(marks.events.minimize, (detail) => ({ flag: detail?.minimized === true ? "min" : undefined }));
+			follow(marks.events.maximize, (detail) => ({ flag: detail?.maximized === true ? "max" : undefined }));
+			follow(marks.events.dock, (detail) => ({ docked: detail?.docked === true }));
 			follow(marks.events.expand, () => ({ flag: undefined }));
 		},
 	};

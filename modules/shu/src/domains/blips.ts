@@ -80,12 +80,16 @@ const BLIPS: TBlipDeclaration[] = [
 // declarations exist before a batch of blips arrives.
 declareBlips(...BLIPS);
 
+/** The fields of a long animation frame the page reads, beside those of every performance entry. */
+const LongFrameFieldsSchema = z.object({
+	blockingDuration: z.number(),
+	renderStart: z.number(),
+	scripts: z.array(z.object({ duration: z.number(), invoker: z.string(), sourceFunctionName: z.string(), sourceURL: z.string() })),
+});
 /** A long animation frame as the browser reports it: the fields the page reads. */
-export type TLongFrame = PerformanceEntry & {
-	blockingDuration: number;
-	renderStart: number;
-	scripts: Array<{ duration: number; invoker: string; sourceFunctionName: string; sourceURL: string }>;
-};
+export type TLongFrame = PerformanceEntry & z.infer<typeof LongFrameFieldsSchema>;
+/** Whether a performance entry is a long animation frame that states each field the page reads. */
+export const isLongFrame = (entry: PerformanceEntry): entry is TLongFrame => LongFrameFieldsSchema.safeParse(entry).success;
 
 /** Returns the script a frame is attributed to: its longest, by its function's name where the browser states one and by
  *  its invoker otherwise, then by its file where the browser states one. */

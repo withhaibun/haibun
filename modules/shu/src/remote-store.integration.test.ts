@@ -8,7 +8,8 @@ import { RpcCallFailed, RpcClient } from "@haibun/core/lib/rpc-client.js";
 import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import { refusalSaid } from "@haibun/core/lib/rpc-wire.js";
 import { PRINCIPAL_LABEL } from "@haibun/core/lib/domains/resources.js";
-import type { TRecordsPage } from "@haibun/core/lib/quad-types.js";
+import { z } from "zod";
+import { RecordsPageSchema, type TRecordsPage } from "@haibun/core/lib/quad-types.js";
 import { recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
@@ -57,13 +58,17 @@ class StoreDelegationProbeStepper extends AStepper {
 			action: async () => {
 				readBack = await recordOf(this.getWorld().shared.getStore(), PRINCIPAL_LABEL, "did:site:0.1");
 				const asDelegate = new RpcClient({ baseUrl: `http://localhost:${PEER_PORT}`, sign: new FakeInvoker(SATELLITE).sign, timeoutMs: 2_000, retry: { maxAttempts: 1 } });
-				const held = await asDelegate.call<{ result: TRecordsPage }>("store.readRecords", { query: { label: PRINCIPAL_LABEL, named: ["did:site:0.1"], limit: 1 } }, undefined, {
-					action: "store.read",
-				});
+				const held = await asDelegate.call(
+					"store.readRecords",
+					{ query: { label: PRINCIPAL_LABEL, named: ["did:site:0.1"], limit: 1 } },
+					z.object({ result: RecordsPageSchema }),
+					undefined,
+					{ action: "store.read" },
+				);
 				heldByMain = held.result.vertices;
 				const stranger = new RpcClient({ baseUrl: `http://localhost:${PEER_PORT}`, timeoutMs: 2_000, retry: { maxAttempts: 1 } });
-				deniedRead = await reasonRefused(stranger.call("store.readRecords", { query: { label: PRINCIPAL_LABEL } }, undefined));
-				deniedWrite = await reasonRefused(stranger.call("store.write", { unit: { label: PRINCIPAL_LABEL, record: { id: "intruder" } } }, undefined));
+				deniedRead = await reasonRefused(stranger.call("store.readRecords", { query: { label: PRINCIPAL_LABEL } }, z.unknown(), undefined));
+				deniedWrite = await reasonRefused(stranger.call("store.write", { unit: { label: PRINCIPAL_LABEL, record: { id: "intruder" } } }, z.unknown(), undefined));
 				return OK;
 			},
 		},

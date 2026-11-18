@@ -30,6 +30,18 @@ describe("dispatchAffordanceFromResponse", () => {
 					setMaximized(m: boolean) {
 						this.toggleAttribute("data-maximized", m);
 					}
+					get docked(): boolean {
+						return this.hasAttribute("data-docked");
+					}
+					setDocked(d: boolean) {
+						this.toggleAttribute("data-docked", d);
+					}
+					setPinned(p: boolean) {
+						this.toggleAttribute("data-pinned", p);
+					}
+					close() {
+						this.remove();
+					}
 				},
 			);
 		if (!customElements.get("shu-column-strip")) {

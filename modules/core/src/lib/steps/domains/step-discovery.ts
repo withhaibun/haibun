@@ -13,7 +13,7 @@ import { ActionSchema, isRead, readAction } from "../../domains/actions.js";
 import { StepMethodSchema, type TStepMethod } from "./step-method.js";
 import { DomainKeySchema } from "../../domains/domains.js";
 import { Access, AccessLevelSchema } from "../../domains/resources.js";
-import type { TEntailment } from "../../records/domains/claim.js";
+import { EntailmentSchema } from "../../records/domains/claim.js";
 import { contractLines, StepContractSchema } from "./contract.js";
 
 /** The lines and the methods of the steps that show actuality's declarations: the steps a caller may call, their
@@ -39,9 +39,17 @@ export const VALIDATE_STEP_METHOD = "Haibun-validateStep" as TStepMethod;
 
 /** Whether a line resolves to one step: the method of that step, each of its parameters' terms as the line states them, the
  *  reading of each term whose domain states one and, for a claim, what it checks; or why the line doesn't resolve to exactly one. */
-export type TStepValidation =
-	| { valid: true; method: string; values: Record<string, string>; readings: Record<string, string>; entailment?: TEntailment }
-	| { valid: false; error: string; completions: string[] };
+export const StepValidationSchema = z.discriminatedUnion("valid", [
+	z.object({
+		valid: z.literal(true),
+		method: z.string(),
+		values: z.record(z.string(), z.string()),
+		readings: z.record(z.string(), z.string()),
+		entailment: EntailmentSchema.optional(),
+	}),
+	z.object({ valid: z.literal(false), error: z.string(), completions: z.array(z.string()) }),
+]);
+export type TStepValidation = z.infer<typeof StepValidationSchema>;
 
 /** The product domains of the reads of actuality's declarations. Each holds a list, which the list combinators read. */
 export const DOMAIN_STEP_SUMMARIES = "step-summaries";
@@ -215,16 +223,17 @@ export const domainSummary = (domain: string, description: string | undefined): 
 /** A step as a definition states it, with whether its caller may call it. */
 export const stepDefinition = (step: TStepDescriptor, callable: boolean): TStepDefinition => ({ ...step, callable, [HYPERMEDIA.LINKS]: { call: { method: step.method } } });
 
-/** The products of a read of actuality's declarations as `schema` parses them. A dispatched step's products carry its seqPath
- *  and its domain's hypermedia markers. These fields aren't actuality's declarations, so productData drops them. */
-const shownIn =
-	<T>(schema: z.ZodType<T>) =>
-	(products: unknown): T =>
-		schema.parse(productData(z.record(z.string(), z.unknown()).parse(products)));
+/** The products of a read of actuality's declarations, parsed by `schema`. A dispatched step's products carry its seqPath and its
+ *  domain's hypermedia markers. These fields aren't actuality's declarations, so productData drops them before `schema` parses. */
+const shownIn = <S extends z.ZodType<unknown, Record<string, unknown>>>(schema: S) => z.record(z.string(), z.unknown()).transform(productData).pipe(schema);
+/** The products of a read of the step summaries. */
+export const ShownStepSummariesSchema = shownIn(StepSummariesSchema);
+/** The products of a read of the step definitions, which a caller passes to the call that reads them. */
+export const ShownStepDefinitionsSchema = shownIn(StepDefinitionsSchema);
 /** Parses the products of a read of the step summaries. */
-export const readStepSummaries = shownIn(StepSummariesSchema);
+export const readStepSummaries = (products: unknown): TStepSummaries => ShownStepSummariesSchema.parse(products);
 /** Parses the products of a read of the step definitions. */
-export const readStepDefinitions = shownIn(StepDefinitionsSchema);
+export const readStepDefinitions = (products: unknown): z.output<typeof StepDefinitionsSchema> => ShownStepDefinitionsSchema.parse(products);
 
 /** A step as a tool: its method as the name, its pattern with its description, its contract's sentences, the capability it
  *  requires, the origin of the instance that runs it, the schema of its arguments, and the schema of its products where they

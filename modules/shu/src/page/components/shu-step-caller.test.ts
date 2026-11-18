@@ -210,7 +210,10 @@ describe("shu-step-caller", () => {
 		const sent: unknown[] = [];
 		restore = siteAnswering((method, params) => {
 			if (method === QUERY.method)
-				return rpcAnswer({ vertices: [{ "@type": NOTE, id: "note-1", title: "Shopping list", generatedAtTime: "2026-11-06T00:00:00Z" }], edges: [] }, 200);
+				return rpcAnswer(
+					{ vertices: [{ "@type": NOTE, id: "note-1", title: "Shopping list", generatedAtTime: "2026-11-06T00:00:00Z" }], edges: [], total: 1, saturated: false },
+					200,
+				);
 			if (method === CHECK.method) sent.push(params);
 			return rpcAnswer({}, 200);
 		});

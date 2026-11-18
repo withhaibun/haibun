@@ -250,7 +250,8 @@ export const GraphQueryResultSchema = z.object({
 export type TGraphQueryResult = z.infer<typeof GraphQueryResultSchema>;
 
 /** A page that `readRecords` returns. It states its order. */
-export type TRecordsPage = TGraphQueryResult & { order: TOrderKey[] };
+export const RecordsPageSchema = GraphQueryResultSchema.extend({ order: z.array(OrderKeySchema) });
+export type TRecordsPage = z.infer<typeof RecordsPageSchema>;
 
 /** One edge of an individual: what it is, which way it points, and the record it names. */
 export const QuadEdgeSchema = z.object({ type: z.string(), direction: z.enum(["out", "in"]), target: z.record(z.string(), z.unknown()) });
@@ -322,43 +323,36 @@ export function matchesQuadPattern(q: TQuad, p: TQuadPattern): boolean {
  */
 export type TClusteredQuadsOpts = { perTypeLimit: number; types?: string[]; accessLevel: AccessLevel; scope?: "own" | "federated" };
 
-export interface TCluster {
+/** A type's part of a clustered read: how many individuals it holds, which the sample includes, and how each is titled and served. */
+export const ClusterSchema = z.object({
 	/** Persisted label this cluster represents. */
-	type: string;
+	type: z.string(),
 	/** Total individuals of this type in the store. */
-	totalCount: number;
+	totalCount: z.number().int().nonnegative(),
 	/** Individuals included in `quads` (≤ perTypeLimit). */
-	sampledCount: number;
+	sampledCount: z.number().int().nonnegative(),
 	/** Individuals not represented in `quads` (totalCount − sampledCount). */
-	omittedCount: number;
+	omittedCount: z.number().int().nonnegative(),
 	/** True where the store's count stopped at its ceiling. The type then holds at least `totalCount` individuals. */
-	saturated?: boolean;
+	saturated: z.boolean().optional(),
 	/** Subjects for which quads are present, in sample order. */
-	sampledSubjects: string[];
+	sampledSubjects: z.array(z.string()),
 	/** The count of the individuals the sample leaves out under each sampled subject that contains them, by that subject.
 	 *  The sample doesn't hold a subject that contains the rest of `omittedCount`. */
-	omittedUnder?: Record<string, number>;
-	/**
-	 * Display label for every sampled subject: the single source of a node's title.
-	 * Required and total: each producer fills one entry per `sampledSubjects` via the
-	 * shared `composeDisplayLabel` (name/content rel → shortest linked-body preview →
-	 * id), so views render straight from it and never compute their own label.
-	 */
-	displayLabels: Record<string, string>;
-	/**
-	 * Site principal (did:site DID) per sampled subject, for subjects served by a FEDERATED peer. A read-time
-	 * store fact, never persisted on the data: which site's store served the subject. Absent for a subject
-	 * served by the responding site itself: the response-level `TClusteredQuads.site` is its principal.
-	 */
-	sites?: Record<string, string>;
-}
+	omittedUnder: z.record(z.string(), z.number().int().nonnegative()).optional(),
+	/** Display label for every sampled subject: the single source of a node's title. Each producer fills one entry per
+	 *  `sampledSubjects` through the shared `composeDisplayLabel`, so views render straight from it. */
+	displayLabels: z.record(z.string(), z.string()),
+	/** Site principal (did:site DID) per sampled subject that a federated peer served. A read-time store fact, never persisted
+	 *  on the data. A subject served by the responding site itself doesn't have an entry: the response-level `site` is its principal. */
+	sites: z.record(z.string(), z.string()).optional(),
+});
+export type TCluster = z.infer<typeof ClusterSchema>;
 
-export interface TClusteredQuads {
-	quads: TQuad[];
-	clusters: TCluster[];
-	/** Site principal of the responding instance: the serving site of every sampled subject not overridden in `TCluster.sites`. */
-	site?: string;
-}
+/** A clustered read: the sampled quads, each type's cluster, and the site principal of the responding instance, which serves
+ *  every sampled subject that `TCluster.sites` doesn't name. */
+export const ClusteredQuadsSchema = z.object({ quads: z.array(QuadSchema), clusters: z.array(ClusterSchema), site: z.string().optional() });
+export type TClusteredQuads = z.infer<typeof ClusteredQuadsSchema>;
 
 /** The most of a string value a quad observation carries. Events carry references and previews, never payloads:
  *  an emitted body would otherwise ride into every event buffer and SSE frame (a first-time index of a large

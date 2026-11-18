@@ -6,6 +6,7 @@
  * persists across a reload; this module carries scenes to and from the graph through the ordinary step RPC, the same
  * gate that carries every other write.
  */
+import { z } from "zod";
 import { AccessLevelSchema } from "@haibun/core/lib/domains/resources.js";
 import { sceneRecord, sceneType, scenesOf, type TScene, type TSceneState } from "../derivations/scenes.js";
 import { fromActorEdgeLabels, getEdgeRanges, getPropertyDefinition, getRels, getTypes, toActorEdgeLabels } from "../../controllers/catalog-controller.js";
@@ -47,7 +48,7 @@ const CREATE_A_RECORD = "createTyped";
 /** Save a scene under `name`, replacing one of that name. Writes through the step RPC, as every write does. */
 export function saveScene(name: string, state: TSceneState, why: string): Promise<TCallOutcome<unknown>> {
 	const accessLevel = storedAccessLevel(appAccessLevel());
-	return callStep(CREATE_A_RECORD, sceneRecord(name, state, accessLevel, new Date().toISOString()), why);
+	return callStep(CREATE_A_RECORD, sceneRecord(name, state, accessLevel, new Date().toISOString()), why, z.unknown());
 }
 
 /** The scene every deployment has: what it exchanged with what, and under what authority. */

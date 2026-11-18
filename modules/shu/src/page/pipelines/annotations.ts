@@ -2,6 +2,7 @@
  * The notes anchored in a record (`page/derivations/annotations.ts`): what the site's annotations step returns, or, for a
  * page that carries a record of actuality, the reverse walk over the quads the page holds.
  */
+import type { z } from "zod";
 import {
 	AnnotationListSchema,
 	BODY_LABEL,
@@ -18,7 +19,7 @@ import type { TCallOutcome } from "./call-step.js";
 
 /** What a read of the notes reads: a call of a step of actuality, and the quads the page holds that match a pattern. */
 export type TAnnotationScope = {
-	call: <T>(step: string, params: Record<string, unknown>, why: string) => Promise<TCallOutcome<T>>;
+	call: <S extends z.ZodType>(step: string, params: Record<string, unknown>, why: string, schema: S) => Promise<TCallOutcome<z.output<S>>>;
 	quads: (pattern: TQuadPattern) => Promise<TQuad[]>;
 };
 
@@ -27,8 +28,8 @@ const ANNOTATIONS_STEP = "annotations";
 
 /** Returns the notes anchored in the record `label` and `id` name, as the site's annotations step returns them, or the refusal. */
 export async function annotationsOnSite(scope: TAnnotationScope, label: string, id: string): Promise<TCallOutcome<TAnnotationView[]>> {
-	const read = await scope.call<unknown>(ANNOTATIONS_STEP, { label, id }, `the notes anchored in ${label}:${id}`);
-	return read.ok ? { ok: true, value: AnnotationListSchema.parse(read.value).annotations } : read;
+	const read = await scope.call(ANNOTATIONS_STEP, { label, id }, `the notes anchored in ${label}:${id}`, AnnotationListSchema);
+	return read.ok ? { ok: true, value: read.value.annotations } : read;
 }
 
 /** The quads of each subject of one type the page holds, by the subject. */

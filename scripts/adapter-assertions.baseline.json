@@ -1,29 +1,8 @@
 {
-	"modules/core/src/lib/transport/adapters/rpc-client.ts": {
-		"asserts a type with `as` where a schema parses the value": 1
-	},
-	"modules/shu/src/page/adapters/embedder-channel.ts": {
-		"asserts a type with `as` where a schema parses the value": 2
-	},
-	"modules/shu/src/page/adapters/live-conduit.ts": {
-		"asserts a type with `as` where a schema parses the value": 1
-	},
 	"modules/shu/src/page/adapters/page-held.ts": {
 		"asserts a type with `as` where a schema parses the value": 2
 	},
-	"modules/shu/src/page/adapters/page-observers.ts": {
-		"asserts a type with `as` where a schema parses the value": 1
-	},
-	"modules/shu/src/page/adapters/pane-strip.ts": {
-		"asserts a type with `as` where a schema parses the value": 3
-	},
-	"modules/shu/src/page/adapters/presenter-mount.ts": {
-		"asserts a type with `as` where a schema parses the value": 1
-	},
 	"modules/shu/src/page/adapters/shared-cell.ts": {
 		"asserts a type with `as` where a schema parses the value": 2
-	},
-	"modules/shu/src/page/graph/adapters/context-document.ts": {
-		"asserts a type with `as` where a schema parses the value": 1
 	}
 }

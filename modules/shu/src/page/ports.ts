@@ -3,12 +3,13 @@
  * page reads the installed one.
  */
 import type { TAction } from "@haibun/core/lib/domains/actions.js";
-import type { TLink, TRepresentation, TStreamChunk } from "./domains/links.js";
+import type { TLink, TStreamChunk } from "./domains/links.js";
 import type { TLongFrame } from "../domains/blips.js";
 import type { TFrameMessage } from "../domains/embedding.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import type { TLinkedData } from "@haibun/core/lib/domains/hypermedia.js";
 import type { TDelegation } from "@haibun/core/lib/domains/actions.js";
+import type { z } from "zod";
 import type { TActualityId } from "@haibun/core/lib/rpc-wire.js";
 import type { TProveRequest } from "@haibun/core/lib/transport/ports.js";
 import type { TPageAuthority } from "./authority/pipelines/page-authority.js";
@@ -224,8 +225,9 @@ export type TEventStream = {
 
 /** The page's calls of actuality's steps. A served page calls its site, and a test installs a conduit over a map of responses. */
 export type TConduit = {
-	/** Calls the step `link` names and returns its products. `why` states the reader's intent. Throws where the site doesn't respond, refuses the call, or returns a malformed response. */
-	follow<T = TRepresentation>(link: TLink, why: string): Promise<T>;
+	/** Calls the step `link` names and returns its products, parsed by `schema`. `why` states the reader's intent. Throws where the
+	 *  site doesn't respond, refuses the call, or returns products `schema` doesn't parse, naming the method and each field. */
+	follow<S extends z.ZodType>(link: TLink, why: string, schema: S): Promise<z.output<S>>;
 	/** Calls the step `link` names and passes each chunk it streams to `onChunk`. `opts.onStart` is called as the stream starts,
 	 *  before the first chunk, and `opts.signal` stops the stream. */
 	followStream(link: TLink, onChunk: (chunk: TStreamChunk) => void, opts: { why: string; signal?: AbortSignal; onStart?: () => void }): Promise<void>;

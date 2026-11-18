@@ -35,7 +35,7 @@ async function turnDelegation(scope: TTurnScope): Promise<Record<string, unknown
 	const open = scope.steps()?.turnKey;
 	if (open === undefined)
 		throw new Error(`this deployment verifies delegations, and actuality doesn't declare a step that returns ${CONVERSATION_DOMAIN.TURN_KEY}, which opens a turn's key`);
-	const turn = TurnKeySchema.parse(await scope.conduit().follow(acts(open.method), "start-turn: open the turn's key"));
+	const turn = await scope.conduit().follow(acts(open.method), "start-turn: open the turn's key", TurnKeySchema);
 	const ceiling = readCeilingOf([...scope.holds()]);
 	if (ceiling === undefined)
 		throw new Error(

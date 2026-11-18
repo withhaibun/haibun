@@ -25,6 +25,7 @@ import { extractBodyLiterals, idOf, instanceLabel, titleFields } from "../contro
 import { isProjectionKey } from "@haibun/core/lib/quad-types.js";
 import { persistedTypeOf } from "../derivations/record-fields.js";
 import { addsToSelection } from "../derivations/pane-kinds.js";
+import type { TThreadEdge, TThreadVertex } from "../domains/related-records.js";
 import { relatedRecords } from "../controllers/read-controller.js";
 import { LoadController } from "../controllers/load-controller.js";
 import { loadRenders } from "./load-renders.js";
@@ -35,17 +36,14 @@ const THREAD_GRAPH = { slot: "thread-graph", scope: "thread" } as const;
 
 const ThreadColumnSchema = z.object({ label: z.string(), individualId: z.string(), mode: z.enum(["tree", "graph"]), depth: z.number(), showControls: z.boolean() });
 
-type ThreadEdge = { type: string; targetId: string };
-type ThreadVertex = Record<string, unknown> & { _edges?: ThreadEdge[] };
-
 /** A related record carries its linked text in this key. The card renders that text as its preview. */
 const CARRIED_TEXT = "body";
 
 /** Merge a product item's `_links` affordances into `_edges` so the tree/graph render reply structure. */
-function normalizeItem(item: Record<string, unknown>): ThreadVertex {
-	const existingEdges = (item._edges ?? []) as ThreadEdge[];
+function normalizeItem(item: Record<string, unknown>): TThreadVertex {
+	const existingEdges = (item._edges ?? []) as TThreadEdge[];
 	const links = item._links as Record<string, { params?: Record<string, unknown> }> | undefined;
-	const linkEdges: ThreadEdge[] = [];
+	const linkEdges: TThreadEdge[] = [];
 	if (links)
 		for (const [rel, link] of Object.entries(links)) {
 			if (link.params) {
@@ -108,14 +106,14 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 	];
 
 	/** The thread the column shows: the records related to the record it opened at, or the items it was given. */
-	readonly #thread = new LoadController<ThreadVertex[]>(this, async () => {
+	readonly #thread = new LoadController<TThreadVertex[]>(this, async () => {
 		const { label, individualId, depth } = this.state;
-		const related = await relatedRecords<ThreadVertex>(label, individualId, depth);
+		const related = await relatedRecords(label, individualId, depth);
 		return related.ok ? { ok: true, value: related.value.items } : related;
 	});
 
 	/** The records of the thread, or an empty list before its read completes. */
-	private get thread(): ThreadVertex[] {
+	private get thread(): TThreadVertex[] {
 		const page = this.#thread.page;
 		return page === undefined ? [] : page;
 	}
@@ -137,7 +135,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 	}
 
 	/** Render items directly without RPC fetch. Items are JSON-LD nodes (`@id`/`@type`), optionally with `_edges`. */
-	openItems(items: ThreadVertex[], label: string): void {
+	openItems(items: TThreadVertex[], label: string): void {
 		this.setState({ label, individualId: "" });
 		this.#thread.hold(items);
 	}
@@ -226,8 +224,8 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 	}
 
 	private renderTreeTemplate(): TemplateResult {
-		const childMap = new Map<string, ThreadVertex[]>();
-		const roots: ThreadVertex[] = [];
+		const childMap = new Map<string, TThreadVertex[]>();
+		const roots: TThreadVertex[] = [];
 		const idSet = new Set(this.thread.map((t) => idOf(t)));
 		for (const v of this.thread) {
 			const parentId = (v._edges ?? []).find((e) => isReplyEdge(e.type))?.targetId ?? "";
@@ -237,7 +235,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 				childMap.set(parentId, children);
 			} else roots.push(v);
 		}
-		const renderBranch = (vertices: ThreadVertex[]): TemplateResult =>
+		const renderBranch = (vertices: TThreadVertex[]): TemplateResult =>
 			html`${vertices.map((v) => {
 				const children = childMap.get(idOf(v)) ?? [];
 				return html`${this.renderCardTemplate(v)}${children.length > 0 ? html`<div class="indent">${renderBranch(children)}</div>` : ""}`;
@@ -245,7 +243,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		return renderBranch(roots);
 	}
 
-	private renderCardTemplate(v: ThreadVertex): TemplateResult {
+	private renderCardTemplate(v: TThreadVertex): TemplateResult {
 		const id = idOf(v);
 		const isCurrent = id === this.state.individualId;
 		const label = persistedTypeOf(v) || this.state.label;

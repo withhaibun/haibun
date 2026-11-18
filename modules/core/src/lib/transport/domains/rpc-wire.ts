@@ -229,6 +229,16 @@ export async function readRpcAnswer(method: string, res: Response): Promise<TRpc
 	return res.ok ? { kind: "answered", body } : { kind: "refused", ...RpcRefusalSchema.parse(body) };
 }
 
+/** Returns the value a call returned, parsed with the schema its caller states. Throws where the value doesn't parse, naming the
+ *  method, the site that returned it and each field the schema refuses, so a caller fails at the boundary and not where it reads a field. */
+export function parsedAnswer<S extends z.ZodType>(method: string, site: string, schema: S, body: unknown): z.output<S> {
+	const parsed = schema.safeParse(body);
+	if (parsed.success) return parsed.data;
+	throw new Error(
+		`${method} at ${site} returned a value its caller's schema refuses:\n${z.prettifyError(parsed.error)}\nCorrect the step's products, or the schema the caller passes for them.`,
+	);
+}
+
 /** Returns the body of a host's response to a call. Throws a RefusedCall where the response is a refusal. */
 export async function answerBody(method: string, res: Response): Promise<unknown> {
 	const answer = await readRpcAnswer(method, res);
@@ -349,4 +359,4 @@ export function isServerUnreachable(err: unknown): boolean {
 
 /** A call to a remote host's step: its result where the host served it, or the reason it failed, which names the step and
  *  the host. */
-export type TRemoteCall = { served: true; result: unknown } | { served: false; reason: string };
+export type TRemoteCall<T> = { served: true; result: T } | { served: false; reason: string };
