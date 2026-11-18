@@ -34,6 +34,22 @@
 		}
 	},
 	"linux-x64-20x-12th-gen-intel-core-i7-12700k": {
+		"1c898c9ac690ca0d": {
+			"filter": "",
+			"actuality": {
+				"text": "e2e-tests/once",
+				"status": "passed",
+				"tookMs": 0
+			},
+			"features": {
+				"/features/once.feature": {
+					"text": "/features/once",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 1
+				}
+			}
+		},
 		"2a037a2351cd0c2b": {
 			"filter": "",
 			"actuality": {

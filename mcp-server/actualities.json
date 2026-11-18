@@ -25,6 +25,32 @@
 					"steps": 9
 				}
 			}
+		},
+		"a42bb51e5f32904b": {
+			"filter": "mcp-client",
+			"actuality": {
+				"text": "mcp-server",
+				"status": "passed",
+				"tookMs": 500,
+				"digest": {
+					"mcp-server": "665e6ad3b46769658127cf8801f90c23a5d88d0058e58be5d44a6de72cf561a5",
+					"modules/core/src": "436fa9115847db0975450f6416d79ae577202545ebd007020ac99bfcffed66b0",
+					"modules/domain-storage/src": "0ab0a8dac4c0b4ee05ffe2aeda20e68c6e45bff57631b1844768a740f38955f6",
+					"modules/logic/src": "9e6230824d7a49549ba86d4414aac4812e7c8fa05ff36ff6fea727dd3720a8ff",
+					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
+					"modules/storage-mem/src": "2cf235f8aef1f1e405a81ecb956b8bd129d661f00492bb55dff85870a7851ed2",
+					"modules/web-playwright/src": "a24485e7871695810aa3f7cc37e47f5b111c7effd4db12942ca5192cc8660fc9",
+					"modules/web-server-hono/src": "ca8163e455dff67f2e43b509e274006ffd86c2a5dadd9f829532341979be6dcc"
+				}
+			},
+			"features": {
+				"/features/mcp-client.feature": {
+					"text": "/features/mcp-client",
+					"status": "passed",
+					"tookMs": 400,
+					"steps": 10
+				}
+			}
 		}
 	},
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
