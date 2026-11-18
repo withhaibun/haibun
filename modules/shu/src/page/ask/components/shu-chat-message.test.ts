@@ -5,7 +5,7 @@
  */
 import { declareSpec } from "../../../test/catalog-fixture.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { anIndividual, aType } from "@haibun/core/lib/conversation/domains/conversation.js";
+import { anIndividual, aType } from "@haibun/core/lib/conversation/domains/context-patterns.js";
 import { INITIAL_SUBJECT } from "../../machines/current-subject.js";
 import { currentSubjectState } from "../../controllers/subject-controller.js";
 import { scopeEntry } from "../../derivations/current-subject.js";

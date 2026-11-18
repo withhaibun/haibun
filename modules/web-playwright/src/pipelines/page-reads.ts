@@ -5,10 +5,10 @@ import { HYPERMEDIA, OK, type TActionResult, type TStepValue } from "@haibun/cor
 import { actionNotOK, errorDetail } from "@haibun/core/lib/domains/util.js";
 import type { BrowserSession } from "./browser-session.js";
 import { locateByDomain } from "./locate.js";
+import { timedOut } from "./browser-pages.js";
 
 /** How long a canvas has to attach before a step reads it as empty. */
 const CANVAS_ATTACH_MS = 1000;
-const TIMEOUT_ERROR = "TimeoutError";
 
 /** The page as a snapshot reads it: its address, its title, and its aria snapshot in Playwright's AI mode, which names each
  *  element with the reference `click … by "reference"` takes, with `links` to the steps that act on it. */
@@ -27,7 +27,7 @@ export async function canvasIsEmpty(session: BrowserSession, what: string): Prom
 		const attached = await locator.waitFor({ state: "attached", timeout: CANVAS_ATTACH_MS }).then(
 			() => true,
 			(error: unknown) => {
-				if (error instanceof Error && error.name === TIMEOUT_ERROR) return false;
+				if (timedOut(error)) return false;
 				throw error;
 			},
 		);

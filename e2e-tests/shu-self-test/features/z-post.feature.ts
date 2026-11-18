@@ -5,7 +5,7 @@ import { SECRETS } from "./shu-self-test.feature.ts";
 export const features: TKirejiExport = {
 	"Verify Shu Standalone Output Doesn't Hold Secrets": [
 		`Scenario: Check the standalone output obscures secrets
-    variable FilePath:"/tmp/shu-audit.html".exists
+    variable FilePath:"/tmp/shu-audit.html" exists
 
     The file's age shows that the current test run wrote it. A file that an earlier test run left fails the check. The window spans a test run, not a moment. The self-test writes this copy part way through its steps and runs for minutes afterwards. A window measured in seconds would report this file as stale while the feature continues.
     file "/tmp/shu-audit.html" is recent within 10 minutes

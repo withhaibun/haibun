@@ -40,6 +40,7 @@ import {
 import { DOMAIN_DERIVATION, DOMAIN_DOMAIN_GOAL, DOMAIN_LINE_TERM, RESOLVE_STATEMENT, logicDomainDefinitions } from "./domains/logic.js";
 import { DOMAIN_ALTERNATIVES, DOMAIN_REFUSAL, DOMAIN_STATUS, readingDomainDefinitions } from "./domains/readings.js";
 import { NEGATION_GWTA } from "@haibun/core/lib/steps/domains/contract.js";
+import { PLAN_CHANGES } from "./domains/plan.js";
 
 /** The feature's step records, as the members of the steps domain. */
 const steps: TDomainDefinition = {
@@ -210,14 +211,14 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 			gwta: `plan {goal: ${DOMAIN_DOMAIN_KEY}}`,
 			description:
 				"Writes a plan toward a goal that isn't proved, the steps that would make it hold, held as facts of the plan's graph under the principal that begins it. Returns the step its next advance calls and the parameters that step takes.",
-			contract: { products: DOMAIN_PLAN_PROGRESS, changes: [] },
+			contract: { products: DOMAIN_PLAN_PROGRESS, changes: PLAN_CHANGES },
 			action: ({ goal }, featureStep) => planBegun(this.goalScope(), featureStep, goal),
 		},
 		advancePlan: {
 			gwta: `advance plan {plan: ${DOMAIN_PLAN_ID}} with {args: ${DOMAIN_JSON_OBJECT}}`,
 			description:
 				"Calls the next step of a plan, as it holds now, under this step with the values given, and holds the fact it asserted. Only the principal that began the plan advances it, since the values are that principal's.",
-			contract: { products: DOMAIN_PLAN_PROGRESS, changes: [] },
+			contract: { products: DOMAIN_PLAN_PROGRESS, changes: PLAN_CHANGES },
 			action: ({ plan, args }, featureStep) => planAdvanced(this.goalScope(), featureStep, plan, args),
 		},
 		showApplicableSteps: {

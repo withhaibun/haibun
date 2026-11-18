@@ -1,7 +1,7 @@
 /** Shared constants for custom events and data attributes across shu components. */
 import { z } from "zod";
 import { ChatRoleSchema } from "./schemas.js";
-import { ChatStatusSchema } from "@haibun/core/lib/conversation/domains/conversation.js";
+import { ChatStatusSchema } from "@haibun/core/lib/conversation/domains/turn-status.js";
 
 /** How many occurrences the browser holds between batches, and so the most a batch of them holds. The size is fixed, so
  *  the buffer doesn't grow while a batch is in flight. */

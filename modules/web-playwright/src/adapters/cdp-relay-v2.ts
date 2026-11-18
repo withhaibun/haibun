@@ -16,12 +16,14 @@
  * Derived from Playwright 7b4b3b0828, packages/playwright-core/src/tools/mcp/cdpRelayV2.ts. Changed: formatted to
  * haibun's style; its comments rewritten; `ManualPromise` replaced by `Promise.withResolvers` and a flag for whether it
  * settled; `any` typed as `unknown`; an unhandled error reaches the `onError` the protocol takes, in place of
- * `logUnhandledError`.
+ * `logUnhandledError`; the `Browser.*` commands of `CDPRelayServer._handleCDPCommand` join this file's table, and the
+ * forwarding methods to `BrowserModel` are replaced by its `model`.
  */
 
 /**
  * The second version of the extension's protocol, between its wire and CDP's: the tab model is `BrowserModel`'s, and this
- * file sends the extension's events and Playwright's commands to it.
+ * file sends the extension's events and Playwright's commands to it. `handleCDPCommand` is the one table of the commands the
+ * relay handles, and it carries every other command to the extension.
  *
  * The extension reports `chrome.tabs.onCreated` for each tab it starts with, then `extension.initialized`. The relay holds
  * Playwright's CDP until `ready()` resolves, so `Target.setAutoAttach` reads a full model.
@@ -30,9 +32,8 @@
 import { z } from "zod";
 import { BrowserModel } from "./browser-model.js";
 
-import type { SendCommand, SendToCDPClient } from "./browser-model.js";
-import type { Tab } from "../ports.js";
-import { TabSchema, type TRelayAttachment } from "../domains/relay.js";
+import type { SendCommand } from "./browser-model.js";
+import { TabSchema } from "../domains/relay.js";
 
 const DebuggeeSchema = z.object({ tabId: z.number().optional(), extensionId: z.string().optional(), targetId: z.string().optional() });
 const DebuggerSessionSchema = DebuggeeSchema.extend({ sessionId: z.string().optional() });
@@ -43,37 +44,20 @@ const TabsOnRemovedParamsSchema = z.tuple([z.number(), z.unknown().optional()]);
 const TargetParamsSchema = z.object({ url: z.string().optional(), targetId: z.string().optional() });
 
 export class ExtensionProtocolV2 {
-	readonly #model: BrowserModel;
+	/** The tab model: the tabs the extension reported, and Playwright's connection to them. */
+	readonly model: BrowserModel;
 	/** Resolved by `extension.initialized`: a signal to the relay alone, which the model leaves out of account. */
 	readonly #ready = Promise.withResolvers<void>();
 	#readySettled = false;
 
 	constructor(sendCommand: SendCommand, onError: (error: unknown) => void) {
-		this.#model = new BrowserModel(sendCommand, onError);
+		this.model = new BrowserModel(sendCommand, onError);
 		void this.#ready.promise.catch(onError);
 	}
 
 	/** Resolves once the extension's first report is done, and the relay may handle Playwright's CDP. */
 	ready(): Promise<void> {
 		return this.#ready.promise;
-	}
-
-	/** The tabs the extension reported, each with whether the relay drives it. */
-	tabs(): TRelayAttachment["tabs"] {
-		return this.#model.tabs();
-	}
-
-	connectOverCDP(sendToCDPClient: SendToCDPClient): void {
-		this.#model.connectOverCDP(sendToCDPClient);
-	}
-
-	/** A tab the relay opened, which the relay may drive from now. */
-	rememberTab(tab: Tab): void {
-		this.#model.onTabCreated(tab);
-	}
-
-	disconnectOverCDP(): Promise<void> {
-		return this.#model.disconnectOverCDP();
 	}
 
 	/** The extension's attachment ended: a `ready()` that is still pending is refused, so a command that waits on it fails. */
@@ -87,22 +71,22 @@ export class ExtensionProtocolV2 {
 		switch (method) {
 			case "chrome.debugger.onEvent": {
 				const [source, cdpMethod, cdpParams] = DebuggerOnEventParamsSchema.parse(params);
-				this.#model.onDebuggerEvent(source, cdpMethod, cdpParams);
+				this.model.onDebuggerEvent(source, cdpMethod, cdpParams);
 				break;
 			}
 			case "chrome.debugger.onDetach": {
 				const [source] = DebuggerOnDetachParamsSchema.parse(params);
-				this.#model.onDebuggerDetach(source);
+				this.model.onDebuggerDetach(source);
 				break;
 			}
 			case "chrome.tabs.onCreated": {
 				const [tab] = TabsOnCreatedParamsSchema.parse(params);
-				this.#model.onTabCreated(tab);
+				this.model.onTabCreated(tab);
 				break;
 			}
 			case "chrome.tabs.onRemoved": {
 				const [tabId] = TabsOnRemovedParamsSchema.parse(params);
-				this.#model.onTabRemoved(tabId);
+				this.model.onTabRemoved(tabId);
 				break;
 			}
 			case "extension.initialized": {
@@ -113,28 +97,31 @@ export class ExtensionProtocolV2 {
 		}
 	}
 
-	/** A CDP command the protocol handles itself, with its result, or undefined for one the extension carries out. */
-	async handleCDPCommand(method: string, params: unknown, sessionId: string | undefined): Promise<{ result: unknown } | undefined> {
-		const named = TargetParamsSchema.optional().parse(params);
+	/** Returns the result of a CDP command: the relay handles the browser's and the targets' commands, and the extension
+	 *  carries out each other command. */
+	async handleCDPCommand(method: string, params: unknown, sessionId: string | undefined): Promise<unknown> {
 		switch (method) {
-			case "Target.setAutoAttach": {
-				if (sessionId) return undefined;
-				await this.#model.enableAutoAttach();
-				return { result: {} };
-			}
+			case "Browser.getVersion":
+				return { protocolVersion: "1.3", product: "Chrome/Extension-Bridge", userAgent: "CDP-Bridge-Server/1.0.0" };
+			// The person's browser keeps its own downloads, and closing the connected browser ends Playwright's client, never
+			// the person's browser.
+			case "Browser.setDownloadBehavior":
+			case "Browser.close":
+				return {};
+			case "Target.setAutoAttach":
+				// A session's own auto-attach is the extension's to carry out.
+				if (sessionId) break;
+				await this.model.enableAutoAttach();
+				return {};
 			case "Target.createTarget":
-				return { result: await this.#model.createTarget(named?.url) };
+				return await this.model.createTarget(TargetParamsSchema.optional().parse(params)?.url);
 			case "Target.closeTarget":
-				return { result: await this.#model.closeTarget(named?.targetId) };
+				return await this.model.closeTarget(TargetParamsSchema.optional().parse(params)?.targetId);
 			case "Target.getTargetInfo":
-				return { result: this.#model.getTargetInfo(sessionId) };
+				return this.model.getTargetInfo(sessionId);
 		}
-		return undefined;
-	}
-
-	async forwardToExtension(method: string, params: unknown, sessionId: string | undefined): Promise<unknown> {
 		// A browser-wide command (`Storage.*`, `Browser.*`) comes without a session.
-		if (sessionId === undefined) return await this.#model.sendBrowserCommand(method, params);
-		return await this.#model.sendCommand(sessionId, method, params);
+		if (sessionId === undefined) return await this.model.sendBrowserCommand(method, params);
+		return await this.model.sendCommand(sessionId, method, params);
 	}
 }

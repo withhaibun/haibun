@@ -39,6 +39,7 @@ import type { StepRegistry } from "@haibun/core/lib/steps/pipelines/step-registr
 import type { TGoalProof } from "../domains/logic.js";
 import type { TReasoner } from "../ports.js";
 import { readerOf, writeFacts } from "./reads.js";
+import { PLAN_FIELD, PLAN_LABEL, PlanRecordSchema, type TPlanRecord } from "../domains/plan.js";
 
 /** What a goal's proof reads: the context whose steps and domains state the rules and whose store holds the facts, the reasoner,
  *  what the caller holds, and the name of the logic engine's stepper, whose steps a proof calls. */
@@ -157,26 +158,21 @@ export async function ensured(scope: TGoalScope, parent: TFeatureStep, goal: str
 	return actionNotOK(`The steps of the plan for \`${parent.in}\` passed, and a fact of ${goal} still doesn't hold. Declare ${goal} as the products of the plan's last step.`);
 }
 
-/** The graph that holds each plan's facts. */
-const PLAN_GRAPH = "plan";
-const PLAN = { goal: "goal", owner: "owner", factIds: "factIds" } as const;
-
-/** A plan's facts: its goal, the principal that began it, where one did, and the facts its calls asserted. */
-type TPlanRecord = { goal: string; owner?: string; factIds: string[] };
-
-/** Writes a plan's facts in place of the facts it held, at the read level of its caller, so its owner reads them back. */
-async function writePlan(store: IQuadStore, plan: string, { goal, owner, factIds }: TPlanRecord): Promise<void> {
-	await store.remove({ label: PLAN_GRAPH, id: plan });
-	await writeFacts(store, plan, PLAN_GRAPH, { [PLAN.goal]: goal, [PLAN.factIds]: factIds, [PLAN.owner]: owner });
+/** Writes a plan's record in place of the record it held, at the read level of its caller, so its owner reads it back. The
+ *  record states the time of its write. */
+async function writePlan(scope: TGoalScope, plan: string, { goal, owner, factIds }: TPlanRecord): Promise<void> {
+	const store = storeOf(scope);
+	const generatedAtTime = new Date(scope.ctx.world.clock.now()).toISOString();
+	await store.remove({ label: PLAN_LABEL, id: plan });
+	await writeFacts(store, plan, PLAN_LABEL, { [PLAN_FIELD.goal]: goal, [PLAN_FIELD.factIds]: factIds, [PLAN_FIELD.owner]: owner, [PLAN_FIELD.generatedAtTime]: generatedAtTime });
 }
 
-/** Reads a plan's facts. Refuses a plan the store doesn't hold. */
+/** Reads a plan's record. Refuses a plan the store doesn't hold. */
 async function readPlan(store: IQuadStore, plan: string): Promise<TPlanRecord> {
-	const held = new Map((await readerOf(store).facts({ subject: plan, namedGraph: PLAN_GRAPH })).map(({ predicate, object }) => [predicate, object]));
-	const [goal, owner, factIds] = [PLAN.goal, PLAN.owner, PLAN.factIds].map((predicate) => held.get(predicate));
-	if (typeof goal !== "string" || !Array.isArray(factIds))
-		throw new Error(`The store doesn't hold the plan ${plan}. Begin a plan with \`plan\` and its goal, and advance the plan it returns.`);
-	return { goal, factIds: factIds.map(String), ...(typeof owner === "string" ? { owner } : {}) };
+	const held = Object.fromEntries((await readerOf(store).facts({ subject: plan, namedGraph: PLAN_LABEL })).map(({ predicate, object }) => [predicate, object]));
+	const read = PlanRecordSchema.pick({ goal: true, owner: true, factIds: true }).safeParse(held);
+	if (!read.success) throw new Error(`The store doesn't hold the plan ${plan}. Begin a plan with \`plan\` and its goal, and advance the plan it returns.`);
+	return read.data;
 }
 
 /** A plan's products: the step its next advance calls and the parameters that step takes, from its goal's plan as it holds now. */
@@ -196,7 +192,7 @@ export async function planBegun(scope: TGoalScope, parent: TFeatureStep, goal: s
 		return actionNotOK(`\`${parent.in}\` doesn't need a plan: a fact of ${goal} already holds. Read it with \`resolve "${goal}"\`.`);
 	const plan = stepRecordOf(scope.ctx.world.tag, parent.seqPath);
 	const owner = inCall()?.principal;
-	await writePlan(storeOf(scope), plan, { goal, factIds: [], ...(owner === undefined ? {} : { owner }) });
+	await writePlan(scope, plan, { goal, factIds: [], ...(owner === undefined ? {} : { owner }) });
 	return await planProducts(scope, parent.in, plan, goal, []);
 }
 
@@ -215,7 +211,7 @@ export async function planAdvanced(scope: TGoalScope, parent: TFeatureStep, plan
 	const { result, fact } = await proveUnder(scope.ctx, parent, stepMethodName(next.stepperName, next.stepName), args);
 	if (!result.ok) return actionNotOK(`\`${parent.in}\` stopped at \`${result.in}\`, which failed: ${result.errorMessage}`);
 	const factIds = [...held.factIds, fact];
-	await writePlan(store, plan, { ...held, factIds });
+	await writePlan(scope, plan, { ...held, factIds });
 	return await planProducts(scope, parent.in, plan, held.goal, factIds);
 }
 

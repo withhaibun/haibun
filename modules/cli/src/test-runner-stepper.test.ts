@@ -8,6 +8,7 @@
  * The store is an in-memory QuadStore. The tests assert the agent's own bookkeeping and the Principal it writes. The
  * supervisor's tests assert the records of a test run's levels. They don't test a graph engine. A consumer's agent feature tests the agent loop against a live model.
  */
+import { counted } from "@haibun/core/lib/domains/hypermedia.js";
 import { testTempDir } from "@haibun/core/lib/test/temp-dir.js";
 import { describe, expect, it, beforeEach } from "vitest";
 import TestRunnerStepper, { RUNNER_DEFAULTS, TEST_RUNNER_AUTHOR } from "./test-runner-stepper.js";
@@ -120,6 +121,7 @@ class InstanceStepper extends AStepper implements IHasCycles {
 				actuality: actuality.status,
 				steps: actuality.steps,
 				failures: actuality.failures,
+				...counted(actuality.failures.length),
 				...(report === undefined ? {} : { report }),
 			}),
 		);

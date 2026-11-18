@@ -37,8 +37,8 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "A person signs in, and the page opens and reads actuality's steps" }),
 		"The browser keeps the sign-in for the site's other requests, so each call the page makes carries it, and the page lists the records of actuality's steps.",
 		gotoPage({ name: `"${signedInAddress(host)}${APP}"` }),
-		`wait for [data-testid='\${IDS.APP.ROOT}']`,
+		`wait for ${IDS.APP.ROOT}`,
 		...chooseGraphLabel(SEQ_PATH_LABEL),
-		`wait for [data-testid='\${IDS.QUERY.FIRST_ROW}']`,
+		`wait for ${IDS.QUERY.FIRST_ROW}`,
 	],
 };

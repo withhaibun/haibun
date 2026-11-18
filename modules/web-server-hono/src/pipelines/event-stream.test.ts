@@ -22,8 +22,8 @@ const SETTLE_MS = 50;
 
 /** A verifier that allows every request to follow at the public level. */
 const following: TCapabilityVerifier = {
-	authorityOf: () => Promise.resolve({ granted: [FOLLOWS_THE_RUN], held: [FOLLOWS_THE_RUN] }),
-	allowing: () => Promise.resolve({ granted: [FOLLOWS_THE_RUN], held: [FOLLOWS_THE_RUN] }),
+	authorityOf: () => Promise.resolve({ allowedAction: [FOLLOWS_THE_RUN], held: [FOLLOWS_THE_RUN] }),
+	allowing: () => Promise.resolve({ allowedAction: [FOLLOWS_THE_RUN], held: [FOLLOWS_THE_RUN] }),
 	delegateOf: () => undefined,
 	endWhenLapsed: () => undefined,
 };

@@ -15,7 +15,7 @@ import { openRef, paneHref } from "./ref-navigation.js";
 import type { DesiredPane } from "../derivations/pane-kinds.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { FilterColumnSchema } from "../../domains/schemas.js";
-import { aType, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
+import { aType, type TContextPattern } from "@haibun/core/lib/conversation/domains/context-patterns.js";
 import { getIdField, getQueryableFields, firstDeclaredType } from "../controllers/catalog-controller.js";
 import type { ShuResultTable } from "./shu-result-table.js";
 import { readWindowedSource, unmarked, type WindowedSource } from "../derivations/windowed-source.js";

@@ -12,8 +12,8 @@ import { basicAuthUsers, type TBasicAuthUser } from "@haibun/core/lib/domains/ba
 import { isDev } from "@haibun/core/lib/domains/dev-mode.js";
 import { DEFAULT_PORT, isLoopback, ORIGINS_REQUIRED, originList, WEB_SERVER_STEPPER } from "../domains/web-server.js";
 
-/** What a server serves: the origins it is reached at, what every caller may do without a delegation, who its routes
- * admit, and the secret a trusted proxy attests a request's original address with, undefined where no proxy attests. */
+/** What a server serves: the origins through which it is reached, what every caller may do without a delegation, the callers
+ * its routes admit, and the shared secret verifying a trusted proxy's original-address header, or undefined when unset. */
 export type TServing = { origins: string[]; allowedWithoutDelegation: string[]; admitted: TBasicAuthUser[]; originalUrlSecret: string | undefined };
 
 /** Where a server listens, what it serves, and whether it serves RPC. An absent hostname listens on this machine's loopback interface. */

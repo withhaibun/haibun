@@ -5,7 +5,7 @@
 import type { AccessQueryLevel } from "@haibun/core/lib/domains/resources.js";
 import { DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import type { TBundle, TPageContext } from "../../domains/schemas.js";
-import type { TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
+import type { TContextPattern } from "@haibun/core/lib/conversation/domains/context-patterns.js";
 
 /** A record: what a pane shows, or a comment of a conversation. */
 export type TRecord = { id: string; label: string };

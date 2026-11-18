@@ -12,7 +12,9 @@
 import type { TAction } from "@haibun/core/lib/domains/actions.js";
 import type { TRefusedCall } from "@haibun/core/lib/step-stream-context.js";
 import type { TCalled } from "@haibun/core/lib/domains/called.js";
-import { TURN_STATUS, type TChatStatus, type TContextPattern, type TSessionTurn } from "@haibun/core/lib/conversation/domains/conversation.js";
+import { type TSessionTurn } from "@haibun/core/lib/conversation/domains/conversation.js";
+import { TURN_STATUS, type TChatStatus } from "@haibun/core/lib/conversation/domains/turn-status.js";
+import { type TContextPattern } from "@haibun/core/lib/conversation/domains/context-patterns.js";
 import { STATUS } from "@haibun/core/lib/domains/protocol.js";
 import type { TRecord } from "../../domains/current-subject.js";
 

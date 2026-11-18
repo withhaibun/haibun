@@ -28,6 +28,10 @@ export const listOf = <S extends z.ZodType<Record<string, unknown>>>(
 	more?: { time?: string; narrows?: Partial<Record<keyof z.infer<S> & string, TNarrowing>> },
 ): TListDeclaration => ({ items, ...more });
 
+/** The entries of a record whose keys are in `kept`. A companion field keyed by its items' ids narrows with it. */
+export const keptEntries = <T>(record: Record<string, T>, kept: ReadonlySet<string>): Record<string, T> =>
+	Object.fromEntries(Object.entries(record).filter(([key]) => kept.has(key)));
+
 /** A list as a listing reads it: its items, how many there are, whether that count is a floor, and the field of each item
  *  that states its time, where its domain declares one. */
 export type TList = { items: TListItem[]; total: number; saturated: boolean; time?: string };

@@ -2,7 +2,7 @@
  * What the actions bar works out before it draws anything: what to call the current context, read here without a browser.
  */
 import { describe, it, expect } from "vitest";
-import { anIndividual, aType } from "@haibun/core/lib/conversation/domains/conversation.js";
+import { anIndividual, aType } from "@haibun/core/lib/conversation/domains/context-patterns.js";
 import { contextLabel, isEntitySelection } from "./layout.js";
 import { counted, countedTo, statedTotal } from "@haibun/core/lib/domains/hypermedia.js";
 

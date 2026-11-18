@@ -66,7 +66,7 @@ import { subscribeBatchedEvents } from "../controllers/event-stream-controller.j
 import { type TEvent, type TEventFilter } from "../ports.js";
 import { PreferencesController } from "../controllers/preferences-controller.js";
 import { recordClientBlip } from "../controllers/blip-controller.js";
-import type { TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
+import type { TContextPattern } from "@haibun/core/lib/conversation/domains/context-patterns.js";
 
 export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(LitElement) {
 	/** Get the current view hash, from URL when a live `window.location` is present, from stored state when running in an offline standalone HTML file. */

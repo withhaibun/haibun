@@ -500,7 +500,11 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			gwta: "show the browser relay",
 			description: "Whether a person's browser is attached through the relay, the key that attached it, and its tabs, each with whether actuality drives it.",
 			contract: { read: true, products: DOMAIN_RELAY_ATTACHMENT },
-			action: () => this.#withRelay((relay) => Promise.resolve(actionOKWithProducts(relay.attachment()))),
+			action: () =>
+				this.#withRelay((relay) => {
+					const attachment = relay.attachment();
+					return Promise.resolve(actionOKWithProducts({ ...attachment, ...counted(attachment.tabs.length) }));
+				}),
 		},
 		listBrowserTabs: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.listTabs,

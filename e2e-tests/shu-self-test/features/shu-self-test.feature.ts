@@ -26,8 +26,9 @@ const { enterStepMode, passesStepForm, chooseGraphLabel, collapseActionsBar } = 
 const host = "http://localhost:8239";
 const IDS = SHU_TEST_IDS;
 const q = (text: string): string => `"${text}"`;
-/** A line that waits for the element with the test id to attach: the attribute selector locates it exactly. */
-const waitId = (id: string): string => `wait for [data-testid='${id}']`;
+/** A line that waits for the element with the test id to attach. A bare test id locates by test id, which waits until it is
+ *  attached; a selector would wait until it is visible. */
+const waitId = (id: string): string => page.waitFor(id);
 /** A line that waits until the element with the test id is detached or hidden. */
 const goneId = (id: string): string => page.waitForGone(`[data-testid='${id}']`);
 /** A line that waits until the element the locator finds is detached or hidden. */
@@ -198,7 +199,7 @@ export const features: TKirejiExport = {
 		`wait for ${CHAIN_GRAPH_CANVAS}`,
 		"The graph view draws the domain chain, so the chain holds the graph view's controls. The layout group opens in the chain as it does on the main graph. It offers each view type, including the layered top-down and left-right views.",
 		inElement({ container: `"${CHAIN_PANE}"`, what: `click ${IDS.POLYMORPHIC_VIEW.SETTINGS.layout}` }),
-		inElement({ container: `"${CHAIN_PANE}"`, what: `wait for [data-testid='${IDS.POLYMORPHIC_VIEW.VIEW_TYPE}']` }),
+		inElement({ container: `"${CHAIN_PANE}"`, what: waitId(IDS.POLYMORPHIC_VIEW.VIEW_TYPE) }),
 
 		scenario({ scenario: "Goal resolution: `resolve` leaves a registered domain that a step doesn't return unknown" }),
 
@@ -282,7 +283,7 @@ export const features: TKirejiExport = {
 
 		"The graph view holds its options in named groups. Each group opens from its own head icon. The layout group holds every control that determines how the graph is placed. Opening it shows the orientation, the view type, the grouping and the depth together. The page doesn't split them across separate toolbars.",
 		inElement({ container: `"${MAIN_GRAPH_PANE}"`, what: `click ${IDS.POLYMORPHIC_VIEW.SETTINGS.layout}` }),
-		inElement({ container: `"${MAIN_GRAPH_PANE}"`, what: `wait for [data-testid='${IDS.POLYMORPHIC_VIEW.VIEW_TYPE}']` }),
+		inElement({ container: `"${MAIN_GRAPH_PANE}"`, what: waitId(IDS.POLYMORPHIC_VIEW.VIEW_TYPE) }),
 
 		scenario({ scenario: "Write the standalone HTML report mid-feature" }),
 

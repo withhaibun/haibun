@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  * Derived from Playwright 7b4b3b0828, packages/playwright-core/src/tools/mcp/cdpRelay.ts: the dispatch of
- * `CDPRelayServer` (`_handlePlaywrightMessage`, `_handleCDPCommand`, `_sendToCDPClient`) and of `ExtensionConnection`
+ * `CDPRelayServer` (`_handlePlaywrightMessage`, `_sendToCDPClient`, with `_handleCDPCommand` in the protocol's table) and of `ExtensionConnection`
  * (its commands and their results). Changed: formatted to haibun's style; its comments rewritten; the WebSocket server,
  * its two endpoints, the spawn of a local Chrome, the connect page, the browser registry, the connection timeout and
  * `debug` are dropped. Playwright's side is a `ConnectOverCDPTransport` in the instance's process, and the extension's side
@@ -60,7 +60,7 @@ export class BrowserRelay implements TBrowserRelay {
 	attachment(): TRelayAttachment {
 		const extension = this.extension;
 		if (!extension) return { attached: false, tabs: [] };
-		return { attached: true, ...(extension.holder ? { holder: extension.holder } : {}), tabs: extension.protocol.tabs() };
+		return { attached: true, ...(extension.holder ? { holder: extension.holder } : {}), tabs: extension.protocol.model.tabs() };
 	}
 
 	/** Holds one extension, attached by `holder`, until `signal` aborts or the extension ends it: `emit` sends each command
@@ -118,11 +118,11 @@ export class BrowserRelay implements TBrowserRelay {
 				if (this.cdpClient !== client) return;
 				this.cdpClient = undefined;
 				client.onclose?.("Playwright's client closed");
-				void extension.protocol.disconnectOverCDP();
+				void extension.protocol.model.disconnectOverCDP();
 			},
 		};
 		this.cdpClient = client;
-		extension.protocol.connectOverCDP((message) => client.onmessage?.(message));
+		extension.protocol.model.connectOverCDP((message) => client.onmessage?.(message));
 		return client;
 	}
 
@@ -139,7 +139,7 @@ export class BrowserRelay implements TBrowserRelay {
 	/** Opens a tab at `url`, which the relay may then drive as it drives a tab it creates. */
 	async openTab(url: string): Promise<Tab> {
 		const tab = TabSchema.parse(await this.command("chrome.tabs.create", [{ url }]));
-		this.extension?.protocol.rememberTab(tab);
+		this.extension?.protocol.model.onTabCreated(tab);
 		return tab;
 	}
 
@@ -177,27 +177,11 @@ export class BrowserRelay implements TBrowserRelay {
 		try {
 			// The relay holds a CDP command until the extension's first report of its tabs ends.
 			await extension.protocol.ready();
-			const result = await this.handleCDPCommand(extension, method, params, sessionId);
+			const result = await extension.protocol.handleCDPCommand(method, params, sessionId);
 			this.sendToCDPClient({ id, sessionId, result });
 		} catch (e) {
 			this.sendToCDPClient({ id, sessionId, error: { message: errorDetail(e) } });
 		}
-	}
-
-	private async handleCDPCommand(extension: TExtension, method: string, params: unknown, sessionId: string | undefined): Promise<unknown> {
-		switch (method) {
-			case "Browser.getVersion": {
-				return { protocolVersion: "1.3", product: "Chrome/Extension-Bridge", userAgent: "CDP-Bridge-Server/1.0.0" };
-			}
-			// The person's browser keeps its own downloads, and closing the connected browser ends Playwright's client, never
-			// the person's browser.
-			case "Browser.setDownloadBehavior":
-			case "Browser.close":
-				return {};
-		}
-		const handled = await extension.protocol.handleCDPCommand(method, params, sessionId);
-		if (handled) return handled.result;
-		return await extension.protocol.forwardToExtension(method, params, sessionId);
 	}
 
 	private sendToCDPClient(message: CDPMessage): void {

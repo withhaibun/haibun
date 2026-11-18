@@ -19,7 +19,7 @@ import { defineElement } from "../controllers/element-controller.js";
 import { shuBaseStyles } from "./styles.js";
 import { subscribeBatchedEvents } from "../controllers/event-stream-controller.js";
 import { variablesSetBy, type TVariableSet } from "../derivations/step-variables.js";
-import { anIndividual, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
+import { anIndividual, type TContextPattern } from "@haibun/core/lib/conversation/domains/context-patterns.js";
 import { CONTRACT_STATE, formatSeqPath, parseRecordName, stepLine, type TStepLine } from "@haibun/core/lib/seq-path.js";
 import { VERDICT_MARK } from "@haibun/core/lib/domains/protocol.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";

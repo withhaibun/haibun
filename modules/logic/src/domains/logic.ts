@@ -9,6 +9,7 @@ import { DOMAIN_DOMAIN_KEY } from "@haibun/core/lib/domains/domains.js";
 import { listOf } from "@haibun/core/lib/domains/lists.js";
 import { AXIOMS_COMPONENT, GraphAxiomsSchema } from "@haibun/core/lib/records/domains/axioms.js";
 import type { TQuad } from "@haibun/core/lib/steps/domains/quad-types.js";
+import { planDomainDefinition } from "./plan.js";
 
 /** The statement of a goal, which the resolve step's pattern parses and a goal's proof and conjecture render. */
 export const RESOLVE_STATEMENT = `resolve {goal: ${DOMAIN_DOMAIN_KEY}}`;
@@ -115,6 +116,7 @@ export const DOMAIN_LINE_TERM = "line-term";
 export const LineTermSchema = z.object({ line: z.string(), term: z.string(), rendered: z.string() });
 
 export const logicDomainDefinitions: TDomainDefinition[] = [
+	planDomainDefinition,
 	{
 		selectors: [DOMAIN_DERIVATION],
 		schema: DerivationSchema,

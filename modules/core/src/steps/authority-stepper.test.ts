@@ -3,6 +3,8 @@
  * its caller holds. The step narrows what a caller holds and never widens it, so a feature can state a caller that holds
  * some actions and not others. The file also tests `show held calls` and `delegations to the caller`.
  */
+import { counted } from "../lib/domains/hypermedia.js";
+import { listedProducts, matchingItems } from "../lib/domains/lists.js";
 import { describe, expect, it } from "vitest";
 import { getDefaultWorld, passWithDefaults } from "../lib/test/lib.js";
 import { LogicStepper } from "../lib/test/logic-stepper.js";
@@ -123,10 +125,19 @@ describe("delegations to the caller", () => {
 
 	it("returns the registered verifier's delegations to the key the call proved, and an empty list where a verifier isn't registered", async () => {
 		const { world, readAs } = await opened();
-		expect((await readAs(delegation.controller)).products, "a delegation isn't returned without a registered verifier").toEqual({ delegations: [] });
+		expect((await readAs(delegation.controller)).products, "a delegation isn't returned without a registered verifier").toEqual({ delegations: [], ...counted(0) });
 		getAuthority(world.runtime)?.registerVerifier(verifier);
-		expect((await readAs(delegation.controller)).products).toEqual({ delegations: [delegation], records });
-		expect((await readAs("did:key:zStranger")).products, "another key's own delegations are returned").toEqual({ delegations: [], records });
+		expect((await readAs(delegation.controller)).products).toEqual({ delegations: [delegation], records, ...counted(1) });
+		expect((await readAs("did:key:zStranger")).products, "another key's own delegations are returned").toEqual({ delegations: [], records, ...counted(0) });
+	});
+
+	it("keeps the records of the delegations a combinator keeps, by each document's id", () => {
+		const declared = new AuthorityStepper().cycles.getConcerns?.().domains?.find(({ selectors }) => selectors.includes("delegations"))?.list;
+		if (declared === undefined) throw new Error("the delegations domain doesn't declare its list");
+		const other = { id: "urn:uuid:gym", controller: delegation.controller, allowedAction: ["Gym:enter"] };
+		const both = { ...records, [other.id]: { persistedAs: "Capability", accessLevel: "private" as const } };
+		const listed = listedProducts({ delegations: [delegation, other], records: both, ...counted(2) }, declared, [{ listing: matchingItems("Pool") }]);
+		expect(listed).toEqual({ products: { delegations: [delegation], records, ...counted(1) } });
 	});
 
 	it("refuses a call that doesn't prove a key, since the read returns only the delegations to the calling key", async () => {

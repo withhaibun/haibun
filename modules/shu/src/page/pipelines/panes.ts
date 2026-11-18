@@ -29,7 +29,7 @@ export type TPanesHeld = {
 	hooks: TPaneHooks | undefined;
 	lastWritten: string | undefined;
 	reconciling: boolean;
-	requested: boolean /** The layout the first restore applies: the persisted one, set at boot only when the arrival named no panes. */;
+	requested: boolean /** The layout the first restore applies: the persisted one, set at boot only when the arrival didn't name a pane. */;
 	restoreFrom?: string;
 };
 
@@ -43,8 +43,8 @@ export type TPanesScope = {
 	active: TSharedCell<string | null>;
 	/** Whether the reader minimized the pane `id` when it was last shown. */
 	minimizedBefore(id: string): boolean;
-	/** Persists the address the page writes, so an arrival that names no panes — such as the app's frame recreated by the site
-	 *  it is embedded in — can still restore the reader's columns from the boot snapshot. */
+	/** Persists the address the page writes, so an arrival without panes (such as the app's frame recreated by the site
+	 *  embedding it) can still restore the reader's columns from the boot snapshot. */
 	layout?: { write(hash: string): void };
 	kinds: Kinds.TPaneContext;
 };
@@ -91,8 +91,8 @@ export function control(scope: TPanesScope, id: string, change: TPaneControl): v
 /** Reads the address into the panes it names, at an arrival at an address the page didn't write. The page's own write already
  *  matches the machine, and a read of it during an open removes the pane being opened. */
 export function restoreFromAddress(scope: TPanesScope): void {
-	// A frame the site recreates arrives without the address the app wrote, so at boot, before any write, the page decides
-	// whether the arrival named no panes and records the persisted layout to restore. The first restore applies it, puts it
+	// A frame the site recreates arrives without the address the app wrote, so at boot, before any write, this checks
+	// whether the arrival didn't name a pane and records the persisted layout to restore. The first restore applies it, puts it
 	// back in the address, and consumes it, so a later pane-less arrival the reader made isn't refilled.
 	const live = scope.address.get();
 	let hash = live;

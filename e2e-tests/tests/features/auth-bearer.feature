@@ -73,7 +73,7 @@ Feature: Auth-bearer Authentication
     Scenario: Resources only accept application/json
         set token response from request OAuth 2.0 access token from Authorization Server
         variable token response.status is OK
-        set resources response from accept "application/json" using HTTP GET to Resources API
+        set resources response from make an HTTP GET to Resources API
         variable resources response.status is Unauthorized
         variable resources response.text is "Must use application/json, not */*"
 

@@ -10,7 +10,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { COMMENT_LABEL } from "@haibun/core/lib/domains/resources.js";
-import { anIndividual, aType } from "@haibun/core/lib/conversation/domains/conversation.js";
+import { anIndividual, aType } from "@haibun/core/lib/conversation/domains/context-patterns.js";
 import { pickWith, runSequences } from "@haibun/core/lib/test/machine-table.js";
 import { INITIAL_SUBJECT, SUBJECT_EVENTS, transition, type TSubjectEvent, type TSubjectState } from "./current-subject.js";
 import { SCOPE, entryOf, type TEntry } from "../domains/current-subject.js";

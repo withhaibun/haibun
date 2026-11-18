@@ -6,7 +6,9 @@
  */
 import { COMMENT_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
-import { CONVERSATION_DOMAIN, SESSION_PARAM, SessionReadSchema, type TContextPattern, type TSessionTurn } from "@haibun/core/lib/conversation/domains/conversation.js";
+import { CONVERSATION_DOMAIN, SESSION_PARAM } from "@haibun/core/lib/conversation/domains/conversation-names.js";
+import { SessionReadSchema, type TSessionTurn } from "@haibun/core/lib/conversation/domains/conversation.js";
+import { type TContextPattern } from "@haibun/core/lib/conversation/domains/context-patterns.js";
 import type { TEvent } from "../../ports.js";
 import { reads } from "../../domains/links.js";
 import { SCOPE, recordOf, type TEntry, type TRecord } from "../../domains/current-subject.js";

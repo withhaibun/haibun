@@ -21,7 +21,7 @@ import { patternRef, recordRef } from "../../components/shu-ref.js";
 import { CalledSchema } from "@haibun/core/lib/domains/called.js";
 import { ICON_STEP_COMPLETED, RETURNED_TO_CALLER } from "@haibun/core/lib/domains/protocol.js";
 import { BundleSchema, ChatRoleSchema, type TBundle, type TChatRole, type TQuestionFork } from "../../../domains/schemas.js";
-import { ChatStatusSchema, UNVERIFIED_TURN } from "@haibun/core/lib/conversation/domains/conversation.js";
+import { ChatStatusSchema, UNVERIFIED_TURN } from "@haibun/core/lib/conversation/domains/turn-status.js";
 
 /** Styles for a light-DOM chat message, exported for the shadow scope that hosts the activity history: the message
  *  renders in light DOM, so the scope that contains it declares the rules. */

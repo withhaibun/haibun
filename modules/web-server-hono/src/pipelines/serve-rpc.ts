@@ -59,18 +59,18 @@ export function serveRpc({ world, steppers, webserver, transport, verifier }: TS
 		}
 
 		const authority = await verifier.authorityOf(request);
-		const { granted, held, principal, refused, restsOn } = authority;
+		const { allowedAction, held, principal, refused, restsOn } = authority;
 		if (refused) return authorityRefusal(`${method}: ${refused}`);
 		// A streamed call is held open only while the authority it was allowed under holds.
 		const stream = streamContext.getStore();
 		if (stream) verifier.endWhenLapsed(restsOn, stream.signal, stream.end);
-		const caller: TCaller = { capabilityAction: granted, held, principal, restsOn, delegate: verifier.delegateOf(authority) };
+		const caller: TCaller = { capabilityAction: allowedAction, held, principal, restsOn, delegate: verifier.delegateOf(authority) };
 
 		// A method of a served family is gated by the action it declares, verified as a step's capability is, without an
 		// ungated default.
 		const served = webserver.rpcMethod(method);
 		if (served) {
-			if (!mayCall(granted, { capability: served.action })) return refusal(method, served.action, caller.delegate);
+			if (!mayCall(allowedAction, { capability: served.action })) return refusal(method, served.action, caller.delegate);
 			if (msg.asks === "read") return { error: notARead(method) };
 			try {
 				// Whoever proved themselves at this boundary acts inside it, holding what it presented and reading within the

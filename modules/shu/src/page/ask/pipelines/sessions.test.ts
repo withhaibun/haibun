@@ -4,6 +4,7 @@
  * conversation's session again when the stream reports a turn's step starting or ending. That read returns each turn that
  * a reader asks on another page.
  */
+import { counted } from "@haibun/core/lib/domains/hypermedia.js";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { CHAT_STEP, answer, chatDispatch, question, readBack as aReadBack } from "../components/chat-pane.test-fake.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/domains/resources.js";
@@ -36,7 +37,7 @@ describe("the page follows actuality's turns in the open conversation", () => {
 			dispatch: chatDispatch((step) => {
 				if (step !== CHAT_STEP.session) throw new Error(`the test dispatch doesn't serve ${step}`);
 				read.reads += 1;
-				return { turns: read.turns };
+				return { turns: read.turns, ...counted(read.turns.length) };
 			}),
 		});
 		carryAnActuality();

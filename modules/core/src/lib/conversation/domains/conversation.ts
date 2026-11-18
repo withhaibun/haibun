@@ -1,42 +1,15 @@
 /**
- * conversation: the contract of a conversation with a model, beside taiwa's. A conversation stepper declares its steps with
- * these domains, so a client finds each step by what it takes and returns rather than by the stepper's method names: the
- * step that takes a question and returns a response sends a turn, and the steps that return a session, the sessions, a
- * turn's key and a question's file read and keep them. The step that sends a turn names its parameters by `ASK_PARAM`.
- * The type of a stepper's models states itself a kind of `CONVERSATION_MODEL_CLASS`, and each of its records offers a
- * client what `ConversationModelSchema` reads.
+ * conversation: the schemas of the contract of a conversation with a model, beside taiwa's. A conversation stepper declares
+ * its steps with the domains `conversation-names.ts` names, so a client finds each step by what it takes and returns rather
+ * than by the stepper's method names: the step that takes a question and returns a response sends a turn, and the steps that
+ * return a session, the sessions, a turn's key and a question's file read and keep them. Each record of a stepper's models
+ * offers a client what `ConversationModelSchema` reads.
  */
 import { z } from "zod";
 import { CountedFields } from "../../domains/hypermedia.js";
-import { DENOTES, IndividualAddressSchema } from "../../domains/typed-links.js";
-import { STATUS } from "../../domains/protocol.js";
+import { ChatStatusSchema } from "./turn-status.js";
+import { ContextQuerySchema } from "./context-patterns.js";
 import { CalledSchema } from "../../domains/called.js";
-
-/** The domains of a conversation's steps. */
-export const CONVERSATION_DOMAIN = {
-	/** What a turn sends beside its words: the envelope of its records, view, session and delegation. */
-	QUESTION: "conversation-question",
-	/** A model's response, which a turn streams. */
-	RESPONSE: "conversation-response",
-	/** A session's turns, read back. */
-	SESSION: "conversation-session",
-	/** The sessions a store holds. */
-	SESSIONS: "conversation-sessions",
-	/** A key made for one turn, and what a turn takes beyond its read. */
-	TURN_KEY: "conversation-turn-key",
-	/** The record a file a person adds to a question is kept as. */
-	FILE: "conversation-file",
-} as const;
-
-/** The parameters of the step that sends a turn: the model, the read level of its records, the words, and the question. */
-export const ASK_PARAM = { model: "target", readLevel: "accessLevel", prompt: "prompt", question: "context" } as const;
-/** The parameter of the step that reads a session: the session, named by its first question's record. */
-export const SESSION_PARAM = "session";
-/** The parameters of the step that keeps a question's file: its bytes as a data: URL, and its name. */
-export const FILE_PARAM = { file: "file", name: "name" } as const;
-
-/** The class that the type of a conversation stepper's models states itself a kind of: a client finds that type by it. */
-export const CONVERSATION_MODEL_CLASS = "hbn:ConversationModel";
 
 /** Who reads a turn's records: actuality, which sends them, or the model, which is sent the calls that read them. */
 export const ContextReadBySchema = z.enum(["run", "model"]);
@@ -57,38 +30,6 @@ export type TConversationModel = z.infer<typeof ConversationModelSchema>;
  *  listed, and why it didn't respond. */
 export const ConversationProviderSchema = z.looseObject({ id: z.string(), answered: z.boolean(), models: z.number(), why: z.string().optional() });
 export type TConversationProvider = z.infer<typeof ConversationProviderSchema>;
-
-/** What a reader reads of a turn whose response states records the turn was not sent, before the handles it names. */
-export const UNVERIFIED_TURN = "the turn stated records it was not sent";
-/** The words a turn holds beside the status vocabulary. `asking` marks a turn whose question the page sent before actuality
- *  recorded it, and `unverified` a turn that completed with a response stating handles its records don't hold. Each is a
- *  turn's own state that the vocabulary's words don't name, and the transcript writes it on `data-status`. */
-export const TURN_STATUS = { asking: "asking", unverified: "unverified" } as const;
-/** The status of an asked turn: the vocabulary's running and ended words, with the turn's own words. */
-export const ChatStatusSchema = z.enum([TURN_STATUS.asking, STATUS.running, STATUS.completed, STATUS.failed, STATUS.stopped, TURN_STATUS.unverified]);
-export type TChatStatus = z.infer<typeof ChatStatusSchema>;
-
-/**
- * An individual is named by the type it is persisted as and its own id, the pair every surface names one by, so
- * whoever resolves it reads it directly. A type names its members, narrowed by the conditions given. `kind` separates
- * the two in the words core already names them by, so a surface holding only a type can't state more.
- */
-const ContextIndividualSchema = IndividualAddressSchema.extend({ kind: z.literal(DENOTES.individual) });
-const ContextTypeSchema = z.object({
-	kind: z.literal(DENOTES.type),
-	persistedAs: z.string().describe("The type whose members the question concerns."),
-	expression: z.string().min(1).optional().describe("The class expression its members are members of, in Manchester syntax."),
-});
-export const ContextPatternSchema = z.discriminatedUnion("kind", [ContextIndividualSchema, ContextTypeSchema]);
-export type TContextIndividual = z.infer<typeof ContextIndividualSchema>;
-export type TContextPattern = z.infer<typeof ContextPatternSchema>;
-export const ContextQuerySchema = z.array(ContextPatternSchema);
-
-/** The ask is about one individual. */
-export const anIndividual = (persistedAs: string, id: string): TContextIndividual => ({ kind: DENOTES.individual, persistedAs, id });
-
-/** The ask is about a type: its members, narrowed by the class expression given, where one is given. */
-export const aType = (persistedAs: string, expression?: string): TContextPattern => ({ kind: DENOTES.type, persistedAs, ...(expression === undefined ? {} : { expression }) });
 
 /**
  * A turn of a session as the store reads it back. A turn is named by its question's record, which is what a page reads
@@ -114,7 +55,7 @@ const SessionTurnSchema = z
 export type TSessionTurn = z.infer<typeof SessionTurnSchema>;
 /** A session's turns as the store reads them back, in the order they were sent, so the last is the latest. A step's
  *  products carry the step that produced them beside what the step declares, so the read is not strict; each turn is. */
-export const SessionReadSchema = z.object({ turns: z.array(SessionTurnSchema) });
+export const SessionReadSchema = z.object({ turns: z.array(SessionTurnSchema), ...CountedFields });
 /** The sessions the store holds, each named by its first question's record, newest first, with the count of sessions to
  *  the ceiling. */
 export const SessionListSchema = z.object({

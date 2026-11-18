@@ -14,7 +14,7 @@ import { defineElement, loadedOnFirstUse } from "../controllers/element-controll
 import { MarkdownRendererController } from "../controllers/markdown-renderer-controller.js";
 import { LinkRelations, isReplyEdge, type TAnnotationView, type TPart, type TQuoteAnchor } from "@haibun/core/lib/domains/resources.js";
 import { EntityColumnSchema } from "../../domains/schemas.js";
-import { anIndividual, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
+import { anIndividual, type TContextPattern } from "@haibun/core/lib/conversation/domains/context-patterns.js";
 import { EntityController } from "../controllers/entity-controller.js";
 import { unread, type TEntityResult, type TEntityView, type TAnnotationDraft } from "../domains/entity.js";
 import { LOAD_STATUS } from "../domains/load.js";

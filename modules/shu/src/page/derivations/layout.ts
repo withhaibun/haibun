@@ -3,7 +3,7 @@
  * name of the actions bar's selection. Each reads values the view holds, so a test reads them without a browser.
  */
 import { NOTHING_SELECTED_LABEL } from "../../domains/schemas.js";
-import type { TContextPattern, TContextIndividual } from "@haibun/core/lib/conversation/domains/conversation.js";
+import type { TContextPattern, TContextIndividual } from "@haibun/core/lib/conversation/domains/context-patterns.js";
 import { DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { statedTotal, type TCounted } from "@haibun/core/lib/domains/hypermedia.js";

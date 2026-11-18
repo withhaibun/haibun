@@ -191,7 +191,8 @@ export class FeatureVariables {
 	private async lookupVariable(term: string, featureStep: TFeatureStep | undefined): Promise<Partial<TStepValue> | undefined> {
 		const entry = await this.getStoredEntry(term);
 		if (entry) return { value: entry.value, domain: entry.domain, origin: Origin.var, secret: entry.secret };
-		if (term.includes(".")) {
+		// A path follows the term's base, which for a CURIE ends at its quoted id's closing quote: `FilePath:"a.txt"` names a file.
+		if (parseDotPath(term).pathSegments.length > 0) {
 			const dot = await this.resolveDotPath(term, featureStep);
 			if (dot.found) return { value: dot.value, domain: jsonValueDomain(dot.value), origin: Origin.var, secret: dot.secret };
 			return undefined;
@@ -462,7 +463,7 @@ export class FeatureVariables {
 	/** The store's records of the type a domain persists, each as an item of its fields. The query's filters and order reach the
 	 *  store; where the read's page leaves records out, the quantifier holds the page it read. */
 	private async recordItems(persistedAs: string, query?: TGraphQuery): Promise<TListItem[]> {
-		const page = await this.world.shared.getStore().readRecords({ label: persistedAs, ...(query ?? {}), skipCount: true });
+		const page = await this.world.shared.getStore().readRecords({ label: persistedAs, ...(query === undefined ? {} : query), skipCount: true });
 		return page.vertices;
 	}
 

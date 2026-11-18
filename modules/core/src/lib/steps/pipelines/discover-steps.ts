@@ -5,7 +5,7 @@
  */
 import { z } from "zod";
 import { jsonSchemaFor } from "../../domains/json-schema-of.js";
-import { listOf, type TListItem } from "../../domains/lists.js";
+import { keptEntries, listOf, type TListItem } from "../../domains/lists.js";
 import { phraseParts } from "../domains/phrase.js";
 import type { TWorld } from "../../actuality/domains/world.js";
 import { ConcernCatalogSchema, buildConcernCatalog, counted } from "../../domains/hypermedia.js";
@@ -124,8 +124,6 @@ const namedDomains = (items: readonly TListItem[]): Set<string> =>
 			...productDomains(step),
 		]),
 	);
-/** The entries of a record whose keys are in `kept`. */
-const keptEntries = <T>(record: Record<string, T>, kept: ReadonlySet<string>): Record<string, T> => Object.fromEntries(Object.entries(record).filter(([key]) => kept.has(key)));
 
 /** Each stepper of the kept steps, with how many of them it declares. */
 const keptSteppers = (items: readonly TListItem[], products: Readonly<Record<string, unknown>>): TStepperSummary[] => {

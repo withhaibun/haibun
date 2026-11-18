@@ -556,6 +556,12 @@ describe("a source property compared at the source", () => {
 		expect(JSON.stringify(miss.featureResults), "the refusal states the in-place read").toMatch(/read 10 bytes in place/);
 	});
 
+	it("checks a property of a CURIE through the domain's evaluator, without copying it", async () => {
+		expect((await passWithDefaults('variable FilePath:"a.txt".text contains "ααα"', withStorage)).ok).toBe(true);
+		const miss = await failWithDefaults('variable FilePath:"a.txt".text contains "β"', withStorage);
+		expect(JSON.stringify(miss.featureResults), "the refusal states the in-place read").toMatch(/read 10 bytes in place/);
+	});
+
 	it("reads a source property named by a CURIE, whose capitalized label matches through the kebab-case domain", async () => {
 		const res = await passWithDefaults('set t to FilePath:"a.txt".text\nvariable t contains "ααα"\nvariable FilePath:"a.txt".exists is "true"', withStorage);
 		const failed = res.featureResults?.[0]?.stepResults.find((step) => !step.ok);

@@ -1,4 +1,4 @@
-import { listOf } from "../lib/domains/lists.js";
+import { keptEntries, listOf } from "../lib/domains/lists.js";
 import { z } from "zod";
 import { fromJsonText } from "../lib/domains/json-text.js";
 import { persistPrincipalIndividual } from "../lib/domains/principal-individual.js";
@@ -29,6 +29,16 @@ const DOMAIN_DELEGATIONS = "delegations";
 const delegationsSchema = z.object({
 	delegations: z.array(z.record(z.string(), z.unknown())),
 	records: z.record(z.string(), z.object({ persistedAs: z.string(), accessLevel: AccessLevelSchema })).optional(),
+	...CountedFields,
+});
+/** The list of the delegations to a key, with the records of the delegations a combinator keeps, by each document's id. */
+const DELEGATIONS_LIST = listOf(delegationsSchema, "delegations", {
+	narrows: {
+		records: (items, products) => {
+			const records = delegationsSchema.shape.records.parse(products.records);
+			return records === undefined ? undefined : keptEntries(records, new Set(items.map(({ id }) => String(id))));
+		},
+	},
 });
 
 /** The inline signed-capability document that `holding capability …` takes. The schema requires a controller and a Data Integrity proof. The registered IAuthorityVerifier verifies the document. */
@@ -71,7 +81,12 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 				},
 				// Naming a connecting site writes a Principal record, so the type it writes is declared here.
 				principalDomainDefinition,
-				{ selectors: [DOMAIN_DELEGATIONS], schema: delegationsSchema, description: "The delegations an instance recorded to a key, as a holder presents them" },
+				{
+					selectors: [DOMAIN_DELEGATIONS],
+					schema: delegationsSchema,
+					list: DELEGATIONS_LIST,
+					description: "The delegations an instance recorded to a key, as a holder presents them",
+				},
 			],
 		}),
 		endFeature: (endFeature?: TEndFeature) => {
@@ -123,7 +138,8 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			action: async () => {
 				const controller = inCall()?.principal;
 				if (!controller) return actionNotOK("the call doesn't prove a key, and the delegation read returns only the signing key's delegations. Sign the call.");
-				return actionOKWithProducts(await this.getAuthority().delegationsTo(controller));
+				const held = await this.getAuthority().delegationsTo(controller);
+				return actionOKWithProducts({ ...held, ...counted(held.delegations.length) });
 			},
 		},
 		showHeldCalls: {

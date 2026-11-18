@@ -493,6 +493,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			actuality: actuality.status,
 			steps: actuality.steps,
 			failures: actuality.failures,
+			...counted(actuality.failures.length),
 			...(report === undefined ? {} : { report }),
 		});
 	}

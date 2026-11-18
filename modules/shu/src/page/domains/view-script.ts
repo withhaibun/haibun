@@ -13,11 +13,11 @@ export function setPageBundleUrl(url: string): void {
 	pageBundleUrl = url;
 }
 
-/** The address the page imports a view's script `ref` from. A ref the concern already addresses — a path below the page's
- *  folder (`./`), an absolute path (`/`), or a URL with a scheme — is imported as it stands. A bare name (no scheme, no path
- *  prefix) and a path leading up (`../`) name a bundle beside or above-beside the page's own bundle, so they resolve against
- *  the page bundle's folder, under whatever prefix serves the page. Where the entry hasn't recorded its URL, such a ref is
- *  returned as it stands. */
+/** The address from which the page imports a view's script `ref`. A ref the concern already addresses (a path below the
+ *  page's folder (`./`), an absolute path (`/`), or a URL with a scheme) is imported as it stands. A bare name (without a
+ *  scheme or path prefix) and a path leading up (`../`) name a bundle beside or above the page's own bundle, so they resolve
+ *  against the page bundle's folder, under whatever prefix serves the page. Where the entry hasn't recorded its URL, that
+ *  ref is returned as it stands. */
 export function resolveViewScript(ref: string): string {
 	if (/^[a-z][a-z\d+\-.]*:/i.test(ref) || ref.startsWith("/") || ref.startsWith("./")) return ref;
 	// A report inlines the whole bundle as an iife, where the entry can't record a bundle URL, so such a ref is left to

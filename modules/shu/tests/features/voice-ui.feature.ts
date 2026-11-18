@@ -40,6 +40,6 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "ui-extension custom element renders inside the actions bar chat row" }),
 		"The test component, declared as a ui extension on the test domain, travels through the concern catalog to the SPA, which auto-loads it and renders it in the actions bar's chat-row slot. That slot is carried by the `step` and `ask` input modes, so the component's mic button appears once step mode is open.",
-		`wait for [data-testid='voice-ui-test-mic']`,
+		"wait for voice-ui-test-mic",
 	],
 };

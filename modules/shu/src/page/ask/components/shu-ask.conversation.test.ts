@@ -14,7 +14,7 @@ import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import type { TChatMessage } from "./shu-chat-message.js";
-import { anIndividual } from "@haibun/core/lib/conversation/domains/conversation.js";
+import { anIndividual } from "@haibun/core/lib/conversation/domains/context-patterns.js";
 import { A_CATALOG, CHAT_STEP, answer, chatDispatch, question, readBack } from "./chat-pane.test-fake.js";
 import type { TDriven as Driven } from "../../../test/driven-ask.js";
 import { DrivenStream, STREAM_ABORTED, setupShuTest, type TShuTestHandle } from "../../../test/setup.js";
@@ -122,7 +122,7 @@ function respond(step: string, params: Record<string, unknown>): unknown {
 	// A read held open, resolved when a case reports what the store returned to the page.
 	if (step === CHAT_STEP.session)
 		return new Promise((resolve, reject) => {
-			sessionReads.push((failure) => (failure ? reject(new Error(failure)) : resolve({ turns: sessionTurns })));
+			sessionReads.push((failure) => (failure ? reject(new Error(failure)) : resolve({ turns: sessionTurns, ...counted(sessionTurns.length) })));
 		});
 	if (step === CHAT_STEP.ask) return aTurn(params);
 	return {};

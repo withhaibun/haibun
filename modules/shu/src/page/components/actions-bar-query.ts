@@ -15,7 +15,7 @@ import { domainOptions, StepsChangedController } from "../controllers/registry-c
 import type { TDomainOption } from "../derivations/steps.js";
 import { pageTypes } from "../controllers/page-cell-controller.js";
 import { NOTHING_SELECTED_LABEL, type TComboboxOption } from "../../domains/schemas.js";
-import type { TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
+import type { TContextPattern } from "@haibun/core/lib/conversation/domains/context-patterns.js";
 import { getHash } from "../controllers/hash-controller.js";
 import { typeNotHeld, viewQuery, appAccessLevel } from "../controllers/view-query-controller.js";
 import { parseViewQuery, serializeViewQuery } from "../derivations/view-query.js";

@@ -13,7 +13,7 @@ import { RUN_AUTHORITY, runAuthorizedWith } from "@haibun/core/lib/domains/capab
 import { FACT_FIELD } from "@haibun/core/lib/records/domains/facts.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import type { TDensityQuery, TQuad } from "@haibun/core/lib/quad-types.js";
-import { MAX_PAGE_ROWS } from "@haibun/core/lib/domains/hypermedia.js";
+import { MAX_PAGE_ROWS, counted } from "@haibun/core/lib/domains/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { distinctOf } from "@haibun/core/lib/records/derivations/read-records.js";
@@ -266,7 +266,7 @@ describe("the counts a shape reads, and the rows of a graph query a time bounds"
 		const buckets = [{ start: 0, end: 10, count: 2 }];
 		stepper.getWorld().shared.getStore = vi.fn(() => mockQuadStore({ density: vi.fn(async () => ({ buckets })) }));
 		const query: TDensityQuery = { label: SEQ_PATH_LABEL, timeField: SEQ_PATH_FIELD.generatedAtTime, from: "2026-01-01", to: "2026-02-01", buckets: 1, groupBy: "status" };
-		expect(await stepper.steps.density.action({ query })).toEqual({ ok: true, products: { buckets } });
+		expect(await stepper.steps.density.action({ query })).toEqual({ ok: true, products: { buckets, ...counted(buckets.length) } });
 	});
 
 	it("keeps the rows of a graph query written at or after a time, or before it", async () => {

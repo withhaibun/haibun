@@ -23,7 +23,7 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "A reader opens the monitor's address" }),
 		"A monitor that is given a port serves shu for the features being run, on a server of its own, so a feature doesn't serve shu to be read. A reader who opens the monitor's address without naming a view is shown the monitor, beside the list of the actualities this device holds.",
 		gotoPage({ name: `"${MONITOR}"` }),
-		`wait for [data-testid='\${IDS.MONITOR.LOG_STREAM}']`,
-		`wait for [data-testid='\${IDS.CLIENT_CACHE.ROOT}']`,
+		`wait for ${IDS.MONITOR.LOG_STREAM}`,
+		`wait for ${IDS.CLIENT_CACHE.ROOT}`,
 	],
 };

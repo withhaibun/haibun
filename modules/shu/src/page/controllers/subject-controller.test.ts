@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { ReactiveController, ReactiveControllerHost } from "lit";
-import { anIndividual } from "@haibun/core/lib/conversation/domains/conversation.js";
+import { anIndividual } from "@haibun/core/lib/conversation/domains/context-patterns.js";
 import { INITIAL_SUBJECT } from "../machines/current-subject.js";
 import { currentSubjectState, dispatchSubjectEvent, SubjectController } from "./subject-controller.js";
 import { SCOPE, entryOf, type TRecord } from "../domains/current-subject.js";

@@ -11,7 +11,9 @@
 import { describe, expect, it } from "vitest";
 import { COMMENT_LABEL } from "@haibun/core/lib/domains/resources.js";
 import type { TTurnStatus } from "../../../domains/schemas.js";
-import { anIndividual, type TChatStatus, type TSessionTurn } from "@haibun/core/lib/conversation/domains/conversation.js";
+import { type TSessionTurn } from "@haibun/core/lib/conversation/domains/conversation.js";
+import { type TChatStatus } from "@haibun/core/lib/conversation/domains/turn-status.js";
+import { anIndividual } from "@haibun/core/lib/conversation/domains/context-patterns.js";
 import type { TRecord } from "../../domains/current-subject.js";
 import { question, answer, readBack as aReadBack } from "../components/chat-pane.test-fake.js";
 import {

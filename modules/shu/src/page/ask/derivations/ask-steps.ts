@@ -4,7 +4,7 @@
  * each other step is the one that returns its domain. The models are the records of the type that states itself a
  * conversation model.
  */
-import { CONVERSATION_DOMAIN, CONVERSATION_MODEL_CLASS } from "@haibun/core/lib/conversation/domains/conversation.js";
+import { CONVERSATION_DOMAIN, CONVERSATION_MODEL_CLASS } from "@haibun/core/lib/conversation/domains/conversation-names.js";
 import type { TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import type { TStepList } from "../../machines/registry.js";

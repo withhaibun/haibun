@@ -13,7 +13,7 @@ import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { CountedSchema, MAX_PAGE_ROWS, counted, viewCollection, type TCounted } from "@haibun/core/lib/domains/hypermedia.js";
 import { QueryViewSchema } from "../../domains/schemas.js";
-import { anIndividual, aType, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
+import { anIndividual, aType, type TContextPattern } from "@haibun/core/lib/conversation/domains/context-patterns.js";
 import { typeNotHeld, viewQuery } from "../controllers/view-query-controller.js";
 import type { TAccessQueryLevel, THeldTypeLink, TViewQuery } from "../domains/view-query.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";

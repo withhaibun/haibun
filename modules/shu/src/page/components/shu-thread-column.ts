@@ -11,7 +11,7 @@ import { PRODUCTS_LABEL, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { openRef } from "./ref-navigation.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
-import { anIndividual, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
+import { anIndividual, type TContextPattern } from "@haibun/core/lib/conversation/domains/context-patterns.js";
 import { ellipsize } from "@haibun/core/lib/domains/util.js";
 import { getFieldRel, getValidTimeField } from "../controllers/catalog-controller.js";
 import { fieldRef, recordRef, typeRef } from "./shu-ref.js";

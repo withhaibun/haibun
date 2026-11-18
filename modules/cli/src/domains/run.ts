@@ -10,6 +10,8 @@ import { StepFailureSchema } from "@haibun/core/lib/actuality/domains/step-failu
 import { HAIBUN_HOST_ID_ENV } from "@haibun/core/lib/domains/host-id.js";
 import { NameSchema } from "@haibun/core/lib/domains/domains.js";
 import type { TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
+import { CountedFields } from "@haibun/core/lib/domains/hypermedia.js";
+import { listOf } from "@haibun/core/lib/domains/lists.js";
 
 /** Environment names of the per-process options that core owns: whether a process stays up, and whether it skips a group
  *  that passed. NDJSON_ENV selects NDJSON events on a child's output. `HAIBUN_HOST_ID_ENV` holds a process's host id.
@@ -74,6 +76,7 @@ export const runReadSchema = z.object({
 	failures: z.array(StepFailureSchema),
 	/** Where a run wrote its report, where it wrote one. */
 	report: z.string().optional(),
+	...CountedFields,
 });
 
 /**
@@ -176,6 +179,11 @@ export const runDomainDefinitions: TDomainDefinition[] = [
 	{ selectors: [RUN_DOMAIN.name], schema: NameSchema, description: "The name of a started run. Reading, waiting for and stopping a run take this name" },
 	featureFilterDomainDefinition,
 	{ selectors: [RUN_DOMAIN.started], schema: runStartedSchema, description: "A run a process started: its directory, its feature filter, and the id of its actuality's record" },
-	{ selectors: [RUN_DOMAIN.read], schema: runReadSchema, description: "A run's output since a cursor, its status, and the outcome accrued from its events" },
+	{
+		selectors: [RUN_DOMAIN.read],
+		schema: runReadSchema,
+		list: listOf(runReadSchema, "failures"),
+		description: "A run's output since a cursor, its status, and the outcome accrued from its events",
+	},
 	{ selectors: [RUN_DOMAIN.stopped], schema: z.object({ run: z.string() }), description: "A run a process ended" },
 ];

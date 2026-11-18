@@ -23,7 +23,7 @@ import { followPaneLink } from "./ref-navigation.js";
 import { dispatchSubjectEvent } from "../controllers/subject-controller.js";
 import { SCOPE, entryOf, entryOfContext } from "../domains/current-subject.js";
 import { PageContextSchema } from "../../domains/schemas.js";
-import type { TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
+import type { TContextPattern } from "@haibun/core/lib/conversation/domains/context-patterns.js";
 import { setActiveViewId } from "../graph/controllers/graph-data-controller.js";
 import { readActualityAt } from "../client-cache/controllers/actuality-controller.js";
 import { reportFailure } from "../controllers/client-log-controller.js";

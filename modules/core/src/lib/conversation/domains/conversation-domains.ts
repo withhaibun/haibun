@@ -6,7 +6,8 @@ import { z } from "zod";
 import { listOf } from "../../domains/lists.js";
 import { IndividualAddressSchema } from "../../domains/typed-links.js";
 import type { TDomainDefinition } from "../../domains/resources.js";
-import { CONVERSATION_DOMAIN, SessionListSchema, SessionReadSchema, TurnKeySchema } from "./conversation.js";
+import { CONVERSATION_DOMAIN } from "./conversation-names.js";
+import { SessionListSchema, SessionReadSchema, TurnKeySchema } from "./conversation.js";
 
 /** A model's response: the whole text, which a streaming caller also receives as a sequence of chunks. */
 const ResponseSchema = z.object({ text: z.string().describe("The whole text the model produced.") });
@@ -22,7 +23,12 @@ export const questionFileDomainDefinition: TDomainDefinition = {
  *  question from the line that sends the turn. */
 export const conversationDomainDefinitions: TDomainDefinition[] = [
 	{ selectors: [CONVERSATION_DOMAIN.RESPONSE], schema: ResponseSchema, description: "A model's response" },
-	{ selectors: [CONVERSATION_DOMAIN.SESSION], schema: SessionReadSchema, description: "The turns of a conversation's session" },
+	{
+		selectors: [CONVERSATION_DOMAIN.SESSION],
+		schema: SessionReadSchema,
+		list: listOf(SessionReadSchema, "turns", { time: "generatedAtTime" }),
+		description: "The turns of a conversation's session",
+	},
 	{
 		selectors: [CONVERSATION_DOMAIN.SESSIONS],
 		schema: SessionListSchema,

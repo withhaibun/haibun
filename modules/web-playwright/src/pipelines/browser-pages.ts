@@ -12,7 +12,7 @@ import type { BrowserSession, TPageScope } from "./browser-session.js";
 const TIMEOUT_ERROR = "TimeoutError";
 
 /** Returns whether the error is a wait that reached its bound, which reads of absent elements treat as an absent element. */
-const timedOut = (error: unknown): boolean => error instanceof Error && error.name === TIMEOUT_ERROR;
+export const timedOut = (error: unknown): boolean => error instanceof Error && error.name === TIMEOUT_ERROR;
 
 /** The locator of the target, found the way the domain's row of `PAGE_LOCATORS` locates. */
 function locate(scope: TPageScope, mode: TLocatorMode, target: string): Locator {
@@ -52,7 +52,7 @@ export function browserPages(session: BrowserSession, world: TWorld): TBrowserPa
 						.first()
 						.evaluate(
 							(element, stated) => {
-								const text = element.textContent ?? "";
+								const text = element.textContent === null ? "" : element.textContent;
 								const holds =
 									stated.operator === "is"
 										? text === stated.expected

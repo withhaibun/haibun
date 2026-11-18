@@ -11,7 +11,7 @@ const capability = (id: string, allowedAction: string[], more: Record<string, st
 	JSON.stringify({ id, controller: "ranger", invocationTarget: ORIGIN, allowedAction, ...more, proof: { type: "stand-in" } });
 const CAPABILITY = capability("urn:capability:ranger-sets", ["VariablesStepper:set", "Read:private"]);
 const NESTING = capability("urn:capability:ranger-nests", ["AuthorityStepper:holdingCapability", "VariablesStepper:set", "Read:private"]);
-const SETS_ONLY = capability("urn:capability:ranger-sets-only", ["VariablesStepper:set", "Read:private"]);
+const SETS_ONLY = capability("urn:capability:ranger-sets-only", ["VariablesStepper:set", "Read:public"]);
 const ELSEWHERE = capability("urn:capability:ranger-elsewhere", ["VariablesStepper:set", "Read:private"], { invocationTarget: "https://elsewhere.example" });
 const EXPIRED = capability("urn:capability:ranger-expired", ["VariablesStepper:set", "Read:private"], { expires: "2020-01-01T00:00:00.000Z" });
 const AT = `at "${ORIGIN}"`;
@@ -23,10 +23,10 @@ export const features: TKirejiExport = {
 		Accidental, and replaced by the one gate inside a built-in call: the second gate in dispatch-call.ts:125, the dispatch depth of 50 and the halt of every later call after it (step-dispatch.ts:27, step-dispatch.ts:118).`,
 
 		scenario({ scenario: "A statement holds less than its caller, and never more" }),
-		"Essential, for every surface. A step that reads a variable needs a read action besides its own. Source: authority-stepper.ts:127 and capability-context.ts:160.",
+		"Essential, for every surface. A step that reads a variable requires the read action at its level, so a statement that holds only a write action is refused the read. Source: requiredAction in actions.ts and mayRun in capability-context.ts.",
 		'holding only "VariablesStepper:set,Read:private", set narrowed to "yes"',
-		'set narrowedRefusal from maybe holding only "VariablesStepper:set,Read:private", variable narrowed is "yes"',
-		'variable narrowedRefusal.lacksAction is "VariablesStepper:is"',
+		'set narrowedRefusal from maybe holding only "VariablesStepper:set", variable narrowed is "yes"',
+		'variable narrowedRefusal.lacksAction is "Read:private"',
 
 		scenario({ scenario: "A signed call holds only what its proof grants, and a refusal names the action to request" }),
 		"Essential, for RPC and MCP. Source: gate.ts:153 and identity-and-capability.feature.ts.",
@@ -41,8 +41,8 @@ export const features: TKirejiExport = {
 		'accept authority from "ranger" for "VariablesStepper:set,Read:private"',
 		`holding capability ${CAPABILITY} ${AT}, set presented to "yes"`,
 		'variable presented is "yes"',
-		`set presentedRefusal from maybe holding capability ${CAPABILITY} ${AT}, variable presented is "yes"`,
-		'variable presentedRefusal.lacksAction is "VariablesStepper:is"',
+		`set presentedRefusal from maybe holding capability ${SETS_ONLY} ${AT}, variable presented is "yes"`,
+		'variable presentedRefusal.lacksAction is "Read:private"',
 
 		scenario({ scenario: "A presented capability covers only its target, until it expires" }),
 		"Essential, for a page and another instance that present a capability. The reasoner proves the use at its target and time contained in the capability, as ODRL reads it, and a refusal names what exceeds it. Source: authority-stepper.ts, holdingCapability, and logic's containment.ts.",
@@ -58,7 +58,7 @@ export const features: TKirejiExport = {
 		`holding capability ${NESTING} ${AT}, holding capability ${SETS_ONLY} ${AT}, set nested to "yes"`,
 		'variable nested is "yes"',
 		`set nestedRefusal from maybe holding capability ${NESTING} ${AT}, holding capability ${SETS_ONLY} ${AT}, variable nested is "yes"`,
-		'variable nestedRefusal.lacksAction is "VariablesStepper:is"',
+		'variable nestedRefusal.lacksAction is "Read:private"',
 
 		scenario({ scenario: "A source read above the held capability is refused with the read to request" }),
 		"Essential, for every surface. A quantifier reads its observation source under what its statement holds, and a statement that doesn't hold a read action doesn't read records. Source: prove.ts, members, and capability-context.ts, WITHOUT_READ.",

@@ -219,11 +219,6 @@ export const registerDomains = (world: TWorld, results: TDomainDefinition[][]) =
 				throw new Error(
 					`The type ${topology.persistedAs} persists records, and its topology doesn't state accessLevel as one level or a list of distinct levels. State accessLevel as one of ${AccessLevelSchema.options.join(", ")}, or as a list of two or more of them.`,
 				);
-			for (const [name, property] of Object.entries(definition.properties ?? {}))
-				if (!Number.isInteger(property.maxBytes) || property.maxBytes <= 0)
-					throw new Error(
-						`The domain ${domainKey} declares the property ${name} without a byte ceiling. State maxBytes as a positive count of bytes a read of it may copy to Node.`,
-					);
 			world.domains[domainKey] = toRegisteredDomain(definition);
 		}
 	}

@@ -290,14 +290,11 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 	#spans(source: ActualitySource, id: string): TemplateResult {
 		const ranges = source.cachedRanges();
 		if (ranges.length === 0) return html`<td data-testid=${id}>none</td>`;
-		return html`<td data-testid=${id}>
-			${ranges.map(
-				(r, i) =>
-					html`${i > 0 ? ", " : ""}<button class="link" title="scrub to the first row this span caches" @click=${() => this.#cursorTo(Number(source.rowAt(r.from)?.timestamp) || undefined)}>
-							${r.from}..${r.to - 1}
-						</button>`,
-			)}
-		</td>`;
+		// The cell holds the spans' text alone, so a read of its text reads `0..41, 60..99` and not the template's whitespace.
+		return html`<td data-testid=${id}>${ranges.map(
+			(r, i) =>
+				html`${i > 0 ? ", " : ""}<button class="link" title="scrub to the first row this span caches" @click=${() => this.#cursorTo(Number(source.rowAt(r.from)?.timestamp) || undefined)}>${r.from}..${r.to - 1}</button>`,
+		)}</td>`;
 	}
 
 	render(): TemplateResult {
@@ -326,9 +323,13 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 		const cell = (id: string, value: unknown): TemplateResult => html`<td data-testid=${id}>${value}</td>`;
 		return html`<div data-testid=${IDS.ROOT}>
 			<h4>Registry</h4>
-			<div data-testid=${IDS.REGISTRY}>
-				${registry === undefined ? "pending" : registry.from === "site" ? `from the server${cached ? `, cached on the device at ${at(cached.savedAt)}` : ""}` : `from the device, cached at ${at(registry.savedAt)} (the server did not respond)`}
-			</div>
+			<div data-testid=${IDS.REGISTRY}>${
+				registry === undefined
+					? "pending"
+					: registry.from === "site"
+						? `from the server${cached ? `, cached on the device at ${at(cached.savedAt)}` : ""}`
+						: `from the device, cached at ${at(registry.savedAt)} (the server did not respond)`
+			}</div>
 			<h4>Server</h4>
 			<div data-testid=${IDS.SERVER}>${respondedAt === undefined ? "has not responded to this page" : `last responded at ${at(respondedAt)}`}</div>
 			<h4>Cursor</h4>

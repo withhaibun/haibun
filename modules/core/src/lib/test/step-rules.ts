@@ -438,18 +438,22 @@ function heldSchema(schema: z.ZodType): z.ZodType {
 	return schema instanceof z.ZodOptional || schema instanceof z.ZodNullable ? heldSchema(schema.unwrap() as z.ZodType) : schema;
 }
 
-/** Whether a domain's products hold a list of records or a count: an array of objects or records, or a total with whether it is a floor. */
+/** Whether a schema is an object that states a total with whether it is a floor. */
+const statesCount = (schema: z.ZodType): boolean => schema instanceof z.ZodObject && "total" in schema.shape && "saturated" in schema.shape;
+
+/** Whether a domain's products hold a list: exactly one array field, whose items are objects or records or whose products state a
+ *  total with whether it is a floor. Products with several array fields are a report, a count without an array doesn't hold items,
+ *  and a field that states its own count marks a record whose relations are counted. */
 function holdsList(schema: z.ZodType): boolean {
 	const held = heldSchema(schema);
 	if (!(held instanceof z.ZodObject)) return false;
 	const shape: Record<string, z.ZodType> = held.shape;
-	if ("total" in shape && "saturated" in shape) return true;
-	return Object.values(shape).some((field) => {
-		const array = heldSchema(field);
-		if (!(array instanceof z.ZodArray)) return false;
-		const element = heldSchema(array.element as z.ZodType);
-		return element instanceof z.ZodObject || element instanceof z.ZodRecord;
-	});
+	const fields = Object.values(shape).map((field) => heldSchema(field));
+	const [array, ...more] = fields.flatMap((field) => (field instanceof z.ZodArray ? [field] : []));
+	if (array === undefined || more.length > 0 || fields.some(statesCount)) return false;
+	if (statesCount(held)) return true;
+	const element = heldSchema(array.element as z.ZodType);
+	return element instanceof z.ZodObject || element instanceof z.ZodRecord;
 }
 
 /** The domains the steppers' concerns declare, by each of their selectors. */

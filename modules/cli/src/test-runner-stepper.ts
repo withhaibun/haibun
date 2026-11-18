@@ -23,6 +23,8 @@
 import type { TInputSchema, TStepDescriptor } from "@haibun/core/lib/step-discovery.js";
 import { z } from "zod";
 import { fromJsonText, JsonObjectTextSchema } from "@haibun/core/lib/domains/json-text.js";
+import { CountedFields } from "@haibun/core/lib/domains/hypermedia.js";
+import { listOf } from "@haibun/core/lib/domains/lists.js";
 import { AStepper, type IHasCycles, type IHasOptions, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts, boolOrError, getStepperOption, intOrError } from "@haibun/core/lib/domains/util.js";
 import { callStepFrom } from "@haibun/core/lib/call-step.js";
@@ -183,6 +185,7 @@ const TestRunExaminedSchema = z.object({
 	report: z.string().optional(),
 	steps: z.number().optional(),
 	features: z.number().optional(),
+	...CountedFields,
 });
 /** The products of askTestRun: `text` holds the summary a model receives, and `answer` holds the full response. */
 const TestRunAnswerSchema = z.object({ run: z.string(), host: z.string(), method: z.string(), text: z.string(), answer: z.string() });
@@ -201,7 +204,12 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			domains: [
 				...runDomainDefinitions,
 				{ selectors: [DOMAIN_TEST_RUN_READ], schema: TestRunReadSchema, description: "A test run's output since the last read, and its status" },
-				{ selectors: [DOMAIN_TEST_RUN_EXAMINED], schema: TestRunExaminedSchema, description: "A test run's outcome: its summary, its failed steps and its report path" },
+				{
+					selectors: [DOMAIN_TEST_RUN_EXAMINED],
+					schema: TestRunExaminedSchema,
+					list: listOf(TestRunExaminedSchema, "failures"),
+					description: "A test run's outcome: its summary, its failed steps and its report path",
+				},
 				{ selectors: [DOMAIN_TEST_RUN_ANSWER], schema: TestRunAnswerSchema, description: "A standing test run's response to a call of one of its own steps" },
 				{ selectors: [DOMAIN_ASKED_STEP], schema: AskedStepSchema, description: "A step to call on a test run, by its host-scoped method name or the step part of that name" },
 				{
@@ -336,8 +344,8 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 				if (!tracked) return actionNotOK(this.nothingToRead("examine"));
 				const read = await this.callSupervisor(runReadSchema, SUPERVISOR.read, { run: tracked.id, cursor: tracked.cursor });
 				if (read.ok === false) return actionNotOK(read.why);
-				const { failures, report, steps, features } = read.products;
-				return actionOKWithProducts({ run: tracked.id, status: outcomeOf(read.products), failures, report, steps, features });
+				const { failures, report, steps, features, total, saturated } = read.products;
+				return actionOKWithProducts({ run: tracked.id, status: outcomeOf(read.products), failures, report, steps, features, total, saturated });
 			},
 		},
 		askTestRun: {

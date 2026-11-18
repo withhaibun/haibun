@@ -177,7 +177,26 @@ class ListingStepper extends AStepper {
 		getConcerns: () => ({
 			domains: [
 				{ selectors: ["rows"], schema: z.object({ rows: z.array(z.object({ id: z.string() })) }), description: "Rows without a declared list" },
-				{ selectors: ["counted"], schema: z.object({ total: z.number(), saturated: z.boolean() }), description: "A count without a declared list" },
+				{
+					selectors: ["counted"],
+					schema: z.object({ names: z.array(z.string()), total: z.number(), saturated: z.boolean() }),
+					description: "Counted names without a declared list",
+				},
+				{ selectors: ["tally"], schema: z.object({ total: z.number(), saturated: z.boolean() }), description: "A count without items" },
+				{
+					selectors: ["individual"],
+					schema: z.object({
+						vertex: z.record(z.string(), z.unknown()),
+						edges: z.array(z.object({ type: z.string() })),
+						incoming: z.object({ total: z.number(), saturated: z.boolean() }),
+					}),
+					description: "A record with its edges and their count",
+				},
+				{
+					selectors: ["report"],
+					schema: z.object({ rows: z.array(z.object({ id: z.string() })), notes: z.array(z.object({ text: z.string() })) }),
+					description: "A report of rows and notes",
+				},
 				{ selectors: ["listed"], schema: z.object({ rows: z.array(z.object({ id: z.string() })) }), list: { items: "rows" }, description: "Rows with their list" },
 				{ selectors: ["names"], schema: z.object({ names: z.array(z.string()) }), description: "Names, which aren't records" },
 			],
@@ -194,6 +213,9 @@ class ListingStepper extends AStepper {
 			contract: { read: true, products: "names" },
 			action: () => OK,
 		},
+		showTally: { description: TEST_STEP, gwta: "show the tally", readsAt: Access.public, contract: { read: true, products: "tally" }, action: () => OK },
+		showIndividual: { description: TEST_STEP, gwta: "show the individual", readsAt: Access.public, contract: { read: true, products: "individual" }, action: () => OK },
+		showReport: { description: TEST_STEP, gwta: "show the report", readsAt: Access.public, contract: { read: true, products: "report" }, action: () => OK },
 		resize: { gwta: "resize to {width: number}", ...ACTS },
 		delegate: { gwta: "delegate reading until {expires: date}", ...ACTS },
 		combine: { gwta: "limited to {count: number}, {statement: statement}", transformsList: () => (list: TList) => list, ...ACTS },
@@ -218,7 +240,7 @@ describe("the lists steps read", () => {
 		]);
 	});
 
-	it("flag a domain of records or of a count that doesn't declare its list, apart from a list of values that aren't records", () => {
+	it("flag a domain of records or of a counted list that doesn't declare its list, apart from values that aren't records, a count without items, a record with counted edges and a report", () => {
 		expect(keysOf(undeclaredLists([{ stepper: new ListingStepper() }], listing()), UNDECLARED_LIST)).toEqual([
 			"ListingStepper.firstRows (rows)",
 			"ListingStepper.rowsMatching (counted)",

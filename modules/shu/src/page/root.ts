@@ -316,7 +316,7 @@ export const installCarriedConduit = (): TConduit => installConduit(carriedCondu
  *  stream of a page a site serves, whose calls are signed under the action `required` returns for each method and which the
  *  site serves under `routeBase`, or of a page that carries a record of actuality. `routeBase` is the path prefix below the
  *  site's origin the app's routes are served under: the empty string where the site serves them at its origin, and the prefix
- *  of a reverse proxy where the page is addressed under it, so the page's calls to the site go through the proxy. */
+ *  of a reverse proxy where the page is addressed under it, so the page's calls to the site pass through the proxy. */
 export function startPage(authority: TAuthority, required: (method: string) => string | undefined, routeBase: string): void {
 	installAuthority(authority);
 	if (pageHydration().carried() !== undefined) {

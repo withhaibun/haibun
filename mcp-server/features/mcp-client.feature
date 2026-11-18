@@ -5,6 +5,6 @@ serve mcp tools at "/mcp"
 serve files at "/client" from "mcp-client"
 webserver is listening for "an MCP client"
 go to the "http://localhost:8129/client/index.html" webpage
-make an HTTP POST to "http://localhost:8129/mcp" with {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"mcp-client","version":"1.0"}}}
-HTTP status is 200
-variable HTTP response.json.result.serverInfo.name is "haibun-mcp"
+set initialized from make an HTTP POST to "http://localhost:8129/mcp" with {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"mcp-client","version":"1.0"}}}
+variable initialized.status is 200
+variable initialized.json.result.serverInfo.name is "haibun-mcp"

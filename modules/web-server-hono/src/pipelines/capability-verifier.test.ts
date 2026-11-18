@@ -4,6 +4,7 @@
  * that a failed or unverifiable proof refuses the request, that a proof states who acted, and that a request not presenting
  * authority holds what the deployment allows without a delegation, which is empty unless it states otherwise.
  */
+import { createHmac } from "node:crypto";
 import { describe, it, expect } from "vitest";
 import { Hono } from "hono";
 import { grantedCapabilityForRequest, requiring } from "./capability-verifier.js";
@@ -54,7 +55,7 @@ describe("what a request carries to a boundary", () => {
 		const authority = new SessionAuthority(actualityClock());
 		authority.registerVerifier(readerVerifier());
 		const carried = await grantedCapabilityForRequest(signedRequest(ACTION), runtimeWith(authority), NOBODY);
-		expect(carried.granted, "the action the request invoked, and not another its delegation allows").toEqual([ACTION]);
+		expect(carried.allowedAction, "the action the request invoked, and not another its delegation allows").toEqual([ACTION]);
 		expect(carried.held, "what the delegation the request proved allows, which bounds the call").toEqual([ACTION, "comment.deny"]);
 		expect(carried.principal, "and who proved it, which is who acted").toBe(READER);
 	});
@@ -62,7 +63,7 @@ describe("what a request carries to a boundary", () => {
 	it("grants what the deployment allows without a delegation beside what a proof invokes", async () => {
 		const authority = new SessionAuthority(actualityClock());
 		authority.registerVerifier(readerVerifier());
-		expect((await grantedCapabilityForRequest(signedRequest(ACTION), runtimeWith(authority), PUBLIC_SITE)).granted).toEqual([READ_PUBLIC, ACTION]);
+		expect((await grantedCapabilityForRequest(signedRequest(ACTION), runtimeWith(authority), PUBLIC_SITE)).allowedAction).toEqual([READ_PUBLIC, ACTION]);
 	});
 
 	it("refuses a request whose proof fails, without granting an action or naming a principal", async () => {
@@ -70,7 +71,7 @@ describe("what a request carries to a boundary", () => {
 		authority.registerVerifier(readerVerifier());
 		const carried = await grantedCapabilityForRequest(signedRequest("comment.revoke"), runtimeWith(authority), PUBLIC_SITE);
 		expect(carried.refused, "the request is refused, with the verifier's reason").toBe("the presented authority failed verification: not this one");
-		expect(carried.granted, "a refused proof doesn't allow an action, even one that doesn't need a delegation").toEqual([]);
+		expect(carried.allowedAction, "a refused proof doesn't allow an action, even one that doesn't need a delegation").toEqual([]);
 		expect(carried.principal, "and a refusal doesn't name an acting principal").toBeUndefined();
 	});
 
@@ -83,9 +84,9 @@ describe("what a request carries to a boundary", () => {
 		const authority = new SessionAuthority(actualityClock());
 		authority.registerVerifier(readerVerifier());
 		const presentingNothing = { method: "POST", url: "http://site.test:8123/rpc/x", headers: { authorization: "Bearer tkn" } };
-		expect(await grantedCapabilityForRequest(presentingNothing, runtimeWith(authority), NOBODY), "a secret it carries isn't authority").toEqual({ granted: [], held: [] });
+		expect(await grantedCapabilityForRequest(presentingNothing, runtimeWith(authority), NOBODY), "a secret it carries isn't authority").toEqual({ allowedAction: [], held: [] });
 		expect(await grantedCapabilityForRequest(presentingNothing, runtimeWith(authority), PUBLIC_SITE), "and anyone may read a public site").toEqual({
-			granted: [READ_PUBLIC],
+			allowedAction: [READ_PUBLIC],
 			held: [READ_PUBLIC],
 		});
 	});
@@ -95,11 +96,72 @@ describe("what a request carries to a boundary", () => {
 		authority.registerVerifier(readerVerifier());
 		const fromAnotherSite = { host: "site.test:8123", origin: "https://elsewhere.example" };
 		const unproven = { method: "POST", url: "http://site.test:8123/rpc/x", headers: fromAnotherSite };
-		expect(await grantedCapabilityForRequest(unproven, runtimeWith(authority), PUBLIC_SITE), "another site's page isn't the caller").toEqual({ granted: [], held: [] });
+		expect(await grantedCapabilityForRequest(unproven, runtimeWith(authority), PUBLIC_SITE), "another site's page isn't the caller").toEqual({ allowedAction: [], held: [] });
 		const ofThisSite = { ...unproven, headers: { host: "site.test:8123", origin: "http://site.test:8123" } };
-		expect((await grantedCapabilityForRequest(ofThisSite, runtimeWith(authority), PUBLIC_SITE)).granted, "a page of this site is").toEqual([READ_PUBLIC]);
+		expect((await grantedCapabilityForRequest(ofThisSite, runtimeWith(authority), PUBLIC_SITE)).allowedAction, "a page of this site is").toEqual([READ_PUBLIC]);
 		const proven = { ...signedRequest(ACTION), headers: { ...signedRequest(ACTION).headers, ...fromAnotherSite } };
-		expect((await grantedCapabilityForRequest(proven, runtimeWith(authority), PUBLIC_SITE)).granted, "a page can't sign, so a proof is its caller's").toContain(READ_PUBLIC);
+		expect((await grantedCapabilityForRequest(proven, runtimeWith(authority), PUBLIC_SITE)).allowedAction, "a page can't sign, so a proof is its caller's").toContain(READ_PUBLIC);
+	});
+});
+
+/** The signature a proxy would state for `url` under `secret`. */
+const attested = (url: string, secret: string): string => createHmac("sha256", secret).update(url).digest("hex");
+const PROXY_URL = "https://site.test/rpc/ApprovalStepper-grant";
+/** The addresses the verifier below checked a proof against, in the order the requests reached it. */
+const covered: string[] = [];
+/** `readerVerifier`, which records the address each proof was covered by before its verdict. */
+const trackingVerifier = (): IAuthorityVerifier => {
+	const reader = readerVerifier();
+	return stubVerifier({
+		verify: (evidence: TAuthorityEvidence): Promise<TVerdict> => {
+			covered.push(evidence.kind === "request" ? evidence.url : "unproven");
+			return reader.verify(evidence);
+		},
+	});
+};
+const runtimeTracking = (): TRuntime => {
+	const authority = new SessionAuthority(actualityClock());
+	authority.registerVerifier(trackingVerifier());
+	return runtimeWith(authority);
+};
+const SHARED = { allowedWithoutDelegation: [], origins: [], originalUrlSecret: "shared" };
+const attestation = (url: string, sig: string) => ({ ...signedRequest(ACTION), headers: { ...signedRequest(ACTION).headers, "x-original-url": url, "x-original-url-sig": sig } });
+
+describe("the address a proof covers", () => {
+	it("verifies the proof against the attested address where the signature matches the deployment's secret", async () => {
+		const carried = await grantedCapabilityForRequest(attestation(PROXY_URL, attested(PROXY_URL, "shared")), runtimeTracking(), SHARED);
+		expect(covered.at(-1), "the proof is covered by the address the caller used, not the one the proxy forwarded").toBe(PROXY_URL);
+		expect(carried.held).toEqual([ACTION, "comment.deny"]);
+		expect(carried.principal).toBe(READER);
+	});
+
+	it("refuses an attestation made under another secret, and one whose signature is malformed, or stated without the address it signs", async () => {
+		const forged = await grantedCapabilityForRequest(attestation(PROXY_URL, attested(PROXY_URL, "another-secret")), runtimeTracking(), SHARED);
+		expect(forged.refused).toBe("the original-URL attestation didn't verify under the deployment's secret");
+		const malformed = await grantedCapabilityForRequest(attestation(PROXY_URL, "zzzz"), runtimeTracking(), SHARED);
+		expect(malformed.refused, "non-hex text can't truncate into a partial digest").toBe("the original-URL signature isn't the hexadecimal digest of an HMAC");
+		const truncated = await grantedCapabilityForRequest(attestation(PROXY_URL, attested(PROXY_URL, "shared").slice(0, 62)), runtimeTracking(), SHARED);
+		expect(truncated.refused, "a short hex string isn't a digest either").toBe("the original-URL signature isn't the hexadecimal digest of an HMAC");
+		const withoutUrl = await grantedCapabilityForRequest(
+			{ ...signedRequest(ACTION), headers: { ...signedRequest(ACTION).headers, "x-original-url-sig": attested(PROXY_URL, "shared") } },
+			runtimeTracking(),
+			SHARED,
+		);
+		expect(withoutUrl.refused).toBe("the request states an original-URL signature without the address it signs");
+	});
+
+	it("refuses a request whose proxy attestation arrives at a server without a secret", async () => {
+		const carried = await grantedCapabilityForRequest(attestation(PROXY_URL, attested(PROXY_URL, "other-deployment")), runtimeTracking(), NOBODY);
+		expect(carried.refused, "a server that can't check the attestation refuses the request rather than ignoring it").toBe(
+			"the request states an original-URL header, and this server doesn't configure an original-URL secret",
+		);
+	});
+
+	it("serves the forwarded address where both attestation headers are absent", async () => {
+		const forwarded = signedRequest(ACTION);
+		const carried = await grantedCapabilityForRequest(forwarded, runtimeTracking(), SHARED);
+		expect(covered.at(-1), "without an attestation, what the proxy forwarded is what the proof covers").toBe(forwarded.url);
+		expect(carried.held).toEqual([ACTION, "comment.deny"]);
 	});
 });
 

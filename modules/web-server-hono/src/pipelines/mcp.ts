@@ -138,7 +138,7 @@ function verifiedRequests({ world, verifier, webserver }: TMcpParts) {
 		// started inside a step of actuality, and a caller doesn't hold what that step held.
 		const body = c.req.method === "POST" ? await c.req.raw.clone().text() : undefined;
 		const authority = await verifier.authorityOf({ method: c.req.method, url: c.req.url, headers: c.req.header(), body });
-		const { granted, held, principal, refused, restsOn } = authority;
+		const { allowedAction, held, principal, refused, restsOn } = authority;
 		if (refused) return refuseInvocation(c, refused);
 		// A call that states the actuality it reads is held to it, as a follower of the event stream is; one that doesn't
 		// state it is served, so a client whose configuration names its headers isn't refused after a restart.
@@ -146,7 +146,7 @@ function verifiedRequests({ world, verifier, webserver }: TMcpParts) {
 		if (otherActuality) return c.json(otherActuality, 400);
 		// An event stream is sent uncompressed.
 		c.header("Cache-Control", "no-transform");
-		await runInCall(callerAt({ capabilityAction: granted, held, principal, restsOn }), next);
+		await runInCall(callerAt({ capabilityAction: allowedAction, held, principal, restsOn }), next);
 	};
 }
 

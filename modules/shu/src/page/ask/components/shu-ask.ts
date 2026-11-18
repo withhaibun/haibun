@@ -26,19 +26,16 @@ import {
 	getFieldRel,
 } from "../../controllers/catalog-controller.js";
 import type { TComboboxOption, TQuestionFork } from "../../../domains/schemas.js";
+import { CONVERSATION_DOMAIN, FILE_PARAM } from "@haibun/core/lib/conversation/domains/conversation-names.js";
 import {
-	anIndividual,
 	ContextReadBySchema,
-	CONVERSATION_DOMAIN,
 	ConversationModelSchema,
 	ConversationProviderSchema,
-	FILE_PARAM,
 	SessionListSchema,
-	type TContextIndividual,
-	type TContextPattern,
 	type TConversationModel,
 	type TConversationProvider,
 } from "@haibun/core/lib/conversation/domains/conversation.js";
+import { anIndividual, type TContextIndividual, type TContextPattern } from "@haibun/core/lib/conversation/domains/context-patterns.js";
 import { GraphQueryResultSchema } from "@haibun/core/lib/quad-types.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/steps/derivations/quad-events.js";
 import { LinkRelations } from "@haibun/core/lib/domains/resources.js";

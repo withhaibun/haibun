@@ -32,6 +32,8 @@ import {
 
 /** Every tab open in the attached browser, as a counted list. */
 export const BrowserTabsListSchema = BrowserTabsSchema.extend(CountedFields);
+/** What the relay holds, with the count of its tabs. */
+const RelayAttachmentListSchema = RelayAttachmentSchema.extend(CountedFields);
 
 /** A page the browser opened by navigation. */
 export const VISITED_PAGE_LABEL = "VisitedPage";
@@ -133,6 +135,12 @@ const tabOf = (subject: unknown): number => Number(subject);
 
 /** The way a property reads the elements of a row of `PAGE_LOCATORS`. */
 const modeOf = ({ method, prefix, exact }: TDomainLocator): TLocatorMode => ({ method, prefix, exact });
+/** Returns `value` as a string, or an empty string when absent. */
+const emptyOr = (value: string | null | undefined): string => (value === undefined || value === null ? "" : value);
+
+/** Returns the first subpath key, or an empty string when omitted. */
+const subkeyOf = (subpath?: readonly unknown[]): string => (subpath?.[0] === undefined || subpath[0] === null ? "" : String(subpath[0]));
+
 /** The properties of a locator domain, reading the elements located by the mode the subject selects. */
 function locatorProperties(modeFor: (subject: unknown) => TLocatorMode): Record<string, TSourceProperty> {
 	const text = async (subject: unknown, world: TWorld): Promise<{ text: string; byteLength: number } | undefined> => {
@@ -155,7 +163,11 @@ function locatorProperties(modeFor: (subject: unknown) => TLocatorMode): Record<
 				return verdict === undefined ? { matches: false, byteLength: 0 } : { matches: verdict.holds, byteLength: verdict.byteLength };
 			},
 		},
-		value: { domain: DOMAIN_STRING, maxBytes: TEXT_MAX_BYTES, read: async (subject, world) => (await webPagesOf(world, subject).valueOf(modeFor(subject), String(subject))) ?? "" },
+		value: {
+			domain: DOMAIN_STRING,
+			maxBytes: TEXT_MAX_BYTES,
+			read: async (subject, world) => emptyOr(await webPagesOf(world, subject).valueOf(modeFor(subject), String(subject))),
+		},
 		visible: {
 			domain: "boolean",
 			maxBytes: 8,
@@ -186,10 +198,10 @@ function locatorProperties(modeFor: (subject: unknown) => TLocatorMode): Record<
 			domain: DOMAIN_STRING,
 			keyed: true,
 			maxBytes: ATTRIBUTE_MAX_BYTES,
-			read: async (subject, world, subpath) => (await webPagesOf(world, subject).attributeOf(modeFor(subject), String(subject), String(subpath?.[0] ?? ""))) ?? "",
+			read: async (subject, world, subpath) => emptyOr(await webPagesOf(world, subject).attributeOf(modeFor(subject), String(subject), subkeyOf(subpath))),
 			evaluate: async (subject, operator, _expected, world, subpath) => {
 				if (operator !== "exists") return undefined;
-				const value = await webPagesOf(world, subject).attributeOf(modeFor(subject), String(subject), String(subpath?.[0] ?? ""));
+				const value = await webPagesOf(world, subject).attributeOf(modeFor(subject), String(subject), subkeyOf(subpath));
 				return { matches: value !== undefined, byteLength: value === undefined ? 0 : new TextEncoder().encode(value).length };
 			},
 		},
@@ -244,9 +256,9 @@ const browserPageProperties: Record<string, TSourceProperty> = {
 		domain: DOMAIN_STRING,
 		keyed: true,
 		maxBytes: 8 * 1024,
-		read: (subject, world, subpath) => webPagesOf(world, subject).cookie(tabOf(subject), String(subpath?.[0] ?? "")),
+		read: (subject, world, subpath) => webPagesOf(world, subject).cookie(tabOf(subject), subkeyOf(subpath)),
 		evaluate: async (subject, operator, expected, world, subpath) => {
-			const value = await webPagesOf(world, subject).cookie(tabOf(subject), String(subpath?.[0] ?? ""));
+			const value = await webPagesOf(world, subject).cookie(tabOf(subject), subkeyOf(subpath));
 			const byteLength = value === undefined ? 0 : new TextEncoder().encode(value).length;
 			if (operator === "exists") return { matches: value !== undefined, byteLength };
 			if (operator === "is") return { matches: value === String(expected), byteLength };
@@ -258,9 +270,9 @@ const browserPageProperties: Record<string, TSourceProperty> = {
 		domain: DOMAIN_STRING,
 		keyed: true,
 		maxBytes: 8 * 1024,
-		read: (subject, world, subpath) => webPagesOf(world, subject).query(tabOf(subject), String(subpath?.[0] ?? "")),
+		read: (subject, world, subpath) => webPagesOf(world, subject).query(tabOf(subject), subkeyOf(subpath)),
 		evaluate: async (subject, operator, expected, world, subpath) => {
-			const value = await webPagesOf(world, subject).query(tabOf(subject), String(subpath?.[0] ?? ""));
+			const value = await webPagesOf(world, subject).query(tabOf(subject), subkeyOf(subpath));
 			const byteLength = value === undefined ? 0 : new TextEncoder().encode(value).length;
 			if (operator === "exists") return { matches: value !== undefined, byteLength };
 			if (operator === "is") return { matches: value === String(expected), byteLength };
@@ -427,7 +439,12 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 		schema: RunningBrowserExtensionSchema,
 		description: "An extension the browser runs: its worker, and the side panel its toolbar button opens",
 	},
-	{ selectors: [DOMAIN_RELAY_ATTACHMENT], schema: RelayAttachmentSchema, description: "What the browser relay holds: a person's attached browser, its holder and its tabs" },
+	{
+		selectors: [DOMAIN_RELAY_ATTACHMENT],
+		schema: RelayAttachmentListSchema,
+		list: listOf(RelayAttachmentListSchema, "tabs"),
+		description: "What the browser relay holds: a person's attached browser, its holder and its tabs",
+	},
 	{ selectors: [DOMAIN_BROWSER_TAB], schema: BrowserTabSchema, description: "A tab open in the attached browser: its id, title and address" },
 	{ selectors: [DOMAIN_BROWSER_TABS], schema: BrowserTabsListSchema, list: listOf(BrowserTabsListSchema, "tabs"), description: "Every tab open in the attached browser" },
 	{ selectors: [DOMAIN_BROWSER_TAB_TEXT], schema: BrowserTabTextSchema, description: "A tab of the attached browser and the text its page shows" },

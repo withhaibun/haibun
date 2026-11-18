@@ -29,13 +29,13 @@ export const features: TKirejiExport = {
 		'webserver is listening for "an actuality to come back to"',
 		gotoPage({ name: `"${host}/spa"` }),
 		"show monitor",
-		`wait for [data-testid='\${IDS.MONITOR.LOG_STREAM}']`,
+		`wait for ${IDS.MONITOR.LOG_STREAM}`,
 		...earlierEvents,
-		`wait for [data-testid='\${IDS.SCROLLBAR.CURSOR}']`,
+		`wait for ${IDS.SCROLLBAR.CURSOR}`,
 
 		"What the page read of this actuality is written to the device after the read, so the actuality ends only once the device lists it among the actualities it holds. An actuality that ended earlier wouldn't leave its records on the device. The feature waits for the list of actualities the device holds.",
 		"show client cache",
-		`wait for [data-testid='\${IDS.CLIENT_CACHE.ROOT}']`,
-		`wait for [data-testid='\${IDS.CLIENT_CACHE.HELD}']`,
+		`wait for ${IDS.CLIENT_CACHE.ROOT}`,
+		`wait for ${IDS.CLIENT_CACHE.HELD}`,
 	],
 };

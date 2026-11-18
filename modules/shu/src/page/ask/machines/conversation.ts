@@ -15,7 +15,7 @@ import {
 	type TTurn,
 } from "../domains/conversation.js";
 import { STATUS } from "@haibun/core/lib/domains/protocol.js";
-import { TURN_STATUS } from "@haibun/core/lib/conversation/domains/conversation.js";
+import { TURN_STATUS } from "@haibun/core/lib/conversation/domains/turn-status.js";
 
 /** The conversation before a reader opens one, and after the reader closes it: the machine's initial state. */
 export const CLOSED_CONVERSATION: TConversationState = { status: "closed", session: null, turns: [], asked: null };

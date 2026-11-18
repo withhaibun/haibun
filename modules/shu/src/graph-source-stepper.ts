@@ -11,6 +11,7 @@
 import { z } from "zod";
 import { fromJsonText } from "@haibun/core/lib/domains/json-text.js";
 import { listOf, type TListQuery } from "@haibun/core/lib/domains/lists.js";
+import { CountedFields, counted } from "@haibun/core/lib/domains/hypermedia.js";
 import { AStepper, type IHasCycles, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { Access, AccessQueryLevelSchema, DOMAIN_PERSISTED_TYPE, LinkRelations, PRINCIPAL_LABEL, type TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import { recordChange } from "@haibun/core/lib/steps/domains/contract.js";
@@ -80,6 +81,8 @@ declare module "@haibun/core/lib/domains/domains.js" {
 const SubjectServedSchema = z.object({ subject: z.string(), site: z.string() });
 /** The site from which a peer's reads were federated. */
 const SiteFederatedSchema = z.object({ site: z.string() });
+/** How many records fall in each division of a span, with the count of the divisions. */
+const DensityListSchema = DensityResultSchema.extend(CountedFields);
 const GRAPH_SOURCE_DOMAINS: TDomainDefinition[] = [
 	{
 		selectors: [DOMAIN_INDIVIDUAL_WITH_EDGES],
@@ -90,7 +93,7 @@ const GRAPH_SOURCE_DOMAINS: TDomainDefinition[] = [
 	{ selectors: [DOMAIN_CLUSTERED_QUADS], schema: ClusteredQuadsSchema, description: "The clustered sample a graph view draws" },
 	{ selectors: [DOMAIN_SUBJECT_SERVED], schema: SubjectServedSchema, description: "A subject the merged graph holds, and the site that serves it" },
 	{ selectors: [DOMAIN_SITE_FEDERATED], schema: SiteFederatedSchema, description: "The site a peer's reads were federated from" },
-	{ selectors: [DOMAIN_DENSITY], schema: DensityResultSchema, description: "How many records fall in each division of a span" },
+	{ selectors: [DOMAIN_DENSITY], schema: DensityListSchema, list: listOf(DensityListSchema, "buckets"), description: "How many records fall in each division of a span" },
 	{ selectors: [DOMAIN_ACCESS_QUERY_LEVEL], schema: AccessQueryLevelSchema, description: "The access level a read requests, or all of them" },
 	{ selectors: [DOMAIN_TYPE_NAMES], schema: fromJsonText(TypeNamesSchema), description: "The names of the types a read reads" },
 	{
@@ -227,7 +230,9 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			// The same counts a page computes over its own copy of the graph, so the two never drift.
 			action: async ({ query }) => {
 				const compiled = compiledDensity(this.getWorld(), query);
-				return "refused" in compiled ? actionNotOK(compiled.refused) : actionOKWithProducts(await this.getWorld().shared.getStore().density(compiled));
+				if ("refused" in compiled) return actionNotOK(compiled.refused);
+				const { buckets } = await this.getWorld().shared.getStore().density(compiled);
+				return actionOKWithProducts({ buckets, ...counted(buckets.length) });
 			},
 		},
 

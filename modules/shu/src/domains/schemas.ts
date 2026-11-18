@@ -5,7 +5,8 @@ import { z } from "zod";
 import { SortOrderSchema } from "@haibun/core/lib/quad-types.js";
 import { AccessQueryLevelSchema } from "@haibun/core/lib/domains/resources.js";
 import { CountedSchema } from "@haibun/core/lib/domains/hypermedia.js";
-import { ChatStatusSchema, ContextQuerySchema } from "@haibun/core/lib/conversation/domains/conversation.js";
+import { ChatStatusSchema } from "@haibun/core/lib/conversation/domains/turn-status.js";
+import { ContextQuerySchema } from "@haibun/core/lib/conversation/domains/context-patterns.js";
 
 // --- Combobox ---
 
