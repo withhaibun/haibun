@@ -132,11 +132,11 @@
 				"status": "passed",
 				"tookMs": 2100,
 				"digest": {
-					"modules/core/src": "436fa9115847db0975450f6416d79ae577202545ebd007020ac99bfcffed66b0",
+					"modules/core/src": "690be0e8bc2d4ffa6a5ae0d8485273272634c3b7db1b4ab30dc0a61a747e3682",
 					"modules/domain-storage/src": "0ab0a8dac4c0b4ee05ffe2aeda20e68c6e45bff57631b1844768a740f38955f6",
 					"modules/logic/src": "9e6230824d7a49549ba86d4414aac4812e7c8fa05ff36ff6fea727dd3720a8ff",
 					"modules/monitor-tui/src": "0c89537d075907370635162846b32d9d3b03f1c17df2f0483ab2eaefb06d8fcb",
-					"modules/shu/src": "915ac00cf9e9e1bed48b84f65883f89f9719621e08d35d7142835ca74f514862",
+					"modules/shu/src": "7ce671aa55fc46c7e723205dba829d2f8e4234931d4884bd3106776709ac341d",
 					"modules/shu/tests-profile": "86546173e9429cbbea19ef13413c7a844fde4405096473d1c2f7a60bf8424c47",
 					"modules/shu/waypoints": "7dc9c4a47d546a40d28e609997d2236967c01ebb925e55511322e4abc6772a86",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
@@ -160,13 +160,13 @@
 			"actuality": {
 				"text": "modules/shu/tests-profile, node_modules/@haibun/web-playwright/waypoints, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 9200,
+				"tookMs": 9100,
 				"digest": {
-					"modules/core/src": "436fa9115847db0975450f6416d79ae577202545ebd007020ac99bfcffed66b0",
+					"modules/core/src": "690be0e8bc2d4ffa6a5ae0d8485273272634c3b7db1b4ab30dc0a61a747e3682",
 					"modules/domain-storage/src": "0ab0a8dac4c0b4ee05ffe2aeda20e68c6e45bff57631b1844768a740f38955f6",
 					"modules/logic/src": "9e6230824d7a49549ba86d4414aac4812e7c8fa05ff36ff6fea727dd3720a8ff",
 					"modules/monitor-tui/src": "0c89537d075907370635162846b32d9d3b03f1c17df2f0483ab2eaefb06d8fcb",
-					"modules/shu/src": "915ac00cf9e9e1bed48b84f65883f89f9719621e08d35d7142835ca74f514862",
+					"modules/shu/src": "7ce671aa55fc46c7e723205dba829d2f8e4234931d4884bd3106776709ac341d",
 					"modules/shu/tests-profile": "86546173e9429cbbea19ef13413c7a844fde4405096473d1c2f7a60bf8424c47",
 					"modules/shu/waypoints": "7dc9c4a47d546a40d28e609997d2236967c01ebb925e55511322e4abc6772a86",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
@@ -180,7 +180,7 @@
 				"/features/b-reading-a-cached-actuality.feature.ts": {
 					"text": "Reading an actuality this device holds",
 					"status": "passed",
-					"tookMs": 2200,
+					"tookMs": 2300,
 					"steps": 223
 				},
 				"/features/c-reading-a-report.feature.ts": {
@@ -192,7 +192,7 @@
 				"/features/d-two-origins.feature.ts": {
 					"text": "What a reader holds is held per address",
 					"status": "passed",
-					"tookMs": 1600,
+					"tookMs": 1500,
 					"steps": 218
 				},
 				"/features/e-deleting-an-actuality.feature.ts": {
