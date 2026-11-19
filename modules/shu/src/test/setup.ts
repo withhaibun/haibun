@@ -15,6 +15,9 @@
  * what was missed.
  */
 
+import { EARL_ASSERTION_EDGE, EARL_LABEL, OUTCOME_OF_VERDICT } from "@haibun/core/lib/domains/earl.js";
+import { LIMITED_TO_METHOD } from "@haibun/core/lib/step-discovery.js";
+import type { TRecordClaim } from "../page/domains/claims.js";
 import { vi } from "vitest";
 import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { actualityAt } from "@haibun/core/lib/transport/adapters/rpc-call.js";
@@ -263,16 +266,49 @@ export const declaringSteps =
 export const ENTITY_STEP_LIST = stepsShown([
 	{ method: "GraphStepper-getIndividualWithEdges", stepperName: "GraphStepper", stepName: "getIndividualWithEdges", pattern: "get vertex {label} {id}" },
 	{ method: "ResourcesStepper-annotations", stepperName: "ResourcesStepper", stepName: "annotations", pattern: "get annotations for {label} {id}" },
+	{ method: "GraphStepper-getIncomingEdges", stepperName: "GraphStepper", stepName: "getIncomingEdges", pattern: "get incoming edges of {label} {id}" },
 ]);
+
+/** A windowed read of the edges that reach a record, as the page sends it: the read inside a skip inside a limit. */
+const WindowedReadSchema = z.object({ statement: z.object({ params: z.object({ statement: z.object({ params: z.record(z.string(), z.unknown()) }) }) }) });
 
 /** A dispatch over the entity surface: the read of the step definitions returns {@link ENTITY_STEP_LIST}, the two entity steps route
  *  to the given responders (annotations defaults to an empty list), and anything else throws: the loud-failure signal. */
 /** The notes anchored in a record, as the annotations step returns them. */
 export const annotationList = (annotations: TAnnotationView[]): { annotations: TAnnotationView[]; total: number } => ({ annotations, total: annotations.length });
 
-export function makeEntityDispatch(over: { entity: (params: Record<string, unknown>) => unknown; annotations?: () => unknown }): TDispatch {
+export function makeEntityDispatch(over: {
+	entity: (params: Record<string, unknown>) => unknown;
+	annotations?: () => unknown;
+	claims?: (subject: string) => readonly TRecordClaim[];
+}): TDispatch {
+	const claimsOf = (subject: string) => (over.claims === undefined ? [] : over.claims(subject));
 	return (method, params) => {
 		if (method === SHOW_STEP_DEFINITIONS_METHOD) return ENTITY_STEP_LIST;
+		// The claims about a record are the EARL assertions whose subject is the record, read as the edges that reach its test subject.
+		if (method === LIMITED_TO_METHOD) {
+			const { label, id } = z.object({ label: z.string(), id: z.string() }).parse(WindowedReadSchema.parse(params).statement.params.statement.params);
+			const asserted = label === EARL_LABEL.testSubject ? claimsOf(id).map((_, at) => ({ type: EARL_ASSERTION_EDGE.subject, direction: "in", target: { id: `${id} ${at}` } })) : [];
+			return { edges: asserted, ...counted(asserted.length) };
+		}
+		if (method === "GraphStepper-getIndividualWithEdges" && params.label === EARL_LABEL.assertion) {
+			const [subject, at] = String(params.id).split(" ");
+			const claim = subject === undefined ? undefined : claimsOf(subject)[Number(at)];
+			if (claim === undefined) throw new Error(`the test site doesn't hold the assertion ${String(params.id)}`);
+			const { test, field, verdict, proof } = claim;
+			return {
+				vertex: { id: params.id },
+				edges: [
+					{ type: EARL_ASSERTION_EDGE.test, direction: "out", target: { name: test } },
+					{
+						type: EARL_ASSERTION_EDGE.result,
+						direction: "out",
+						target: { outcome: OUTCOME_OF_VERDICT[verdict], info: proof, ...(field === undefined ? {} : { pointers: [field] }) },
+					},
+				],
+				incomingCount: counted(0),
+			};
+		}
 		if (method === "GraphStepper-getIndividualWithEdges") return over.entity(params);
 		if (method === "ResourcesStepper-annotations") return over.annotations ? over.annotations() : annotationList([]);
 		throw new Error(`unexpected ${method}`);

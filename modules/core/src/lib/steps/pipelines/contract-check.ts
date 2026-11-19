@@ -91,7 +91,7 @@ export async function assumedChecked(world: TWorld): Promise<TAssumedChecked | u
 	const fields = required.map(({ name, key }, at): TAssumedClaim => {
 		const held = checked?.verdicts[at];
 		if (held === undefined || held.verdict === VERDICT.contradiction) throw new Error(`the check of the ${name.label} ${name.id}'s ${key} doesn't state a claim's verdict`);
-		return { subject: name, test: `the ${name.label} has its ${key}`, verdict: held.verdict, proof: held.decidedBy };
+		return { subject: name, test: `the ${name.label} has its ${key}`, field: key, verdict: held.verdict, proof: held.decidedBy };
 	});
 	return { checks: checked === undefined ? undefined : checkN3(ASSUMED_CHECK, checked.facts), claims: [...fields, ...(await prover.assumedClaims(world, [...records.values()]))] };
 }

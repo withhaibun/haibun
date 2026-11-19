@@ -17,9 +17,9 @@ export const REASONING_TASK = { instance: "instance check", subsumption: "subsum
 export const CLAIM_VERDICT = { [VERDICT.proved]: "holds", [VERDICT.refuted]: "refuted", [VERDICT.unknown]: "unknown" } as const;
 export type TClaimVerdict = keyof typeof CLAIM_VERDICT;
 
-/** A claim about a record a step whose products are assumed wrote: the record, the test it states, how the claim ended, and its
- *  proof. */
-export type TAssumedClaim = { readonly subject: TRecordName; readonly test: string; readonly verdict: TClaimVerdict; readonly proof: string };
+/** A claim about a record a step whose products are assumed wrote: the record, the test it states, the field it is of where it is
+ *  of one, how the claim ended, and its proof. */
+export type TAssumedClaim = { readonly subject: TRecordName; readonly test: string; readonly field?: string; readonly verdict: TClaimVerdict; readonly proof: string };
 
 /** What a claim checks: its reasoning task, its axiom in OWL 2 functional syntax and in Manchester syntax where a frame states
  *  it, the entailment K ⊨ axiom, and the entailment in DL notation. A retrieval doesn't check an axiom. A feature claim states

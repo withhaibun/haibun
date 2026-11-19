@@ -48,6 +48,9 @@ import { HYPERMEDIA, productData } from "@haibun/core/lib/domains/protocol.js";
 import { ClockController } from "../controllers/clock-controller.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
 import { appAccessLevel } from "../controllers/view-query-controller.js";
+import { recordClaimsRead } from "../controllers/read-controller.js";
+import type { TRecordClaim } from "../domains/claims.js";
+import { verdictStatusHtml } from "../derivations/verdict-status.js";
 import { esc, escAttr, utf8ToBase64, renderRef, refsInContent } from "../derivations/markdown.js";
 import { buildBodyIframeDoc } from "../derivations/body-frame.js";
 import { idOf, instanceLabel, isVisibleKey, extractFieldEntries, extractBodyLiterals, governanceFields } from "../controllers/record-controller.js";
@@ -270,6 +273,25 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		this.setState({ loading: unread(view), fromStore: view.provenance === "cache" || view.provenance === "offline" ? view.provenance : undefined });
 	}
 
+	/** The claims the reasoner made about the record the column shows, read once for each record, and why they weren't read
+	 *  where their read was refused. */
+	#claims: readonly TRecordClaim[] = [];
+	#claimsRefusal: TPageRefusal | undefined = undefined;
+	#claimsOf: string | undefined = undefined;
+
+	/** Reads the claims about the record `label` `id` once, and holds them where the column still shows that record. */
+	private async readClaims(label: string, id: string): Promise<void> {
+		const curie = `${label}:${id}`;
+		if (this.#claimsOf === curie) return;
+		this.#claimsOf = curie;
+		[this.#claims, this.#claimsRefusal] = [[], undefined];
+		const read = await recordClaimsRead(label, id);
+		if (this.#claimsOf !== curie) return;
+		if (read.ok) this.#claims = read.value;
+		else this.#claimsRefusal = read.refusal;
+		this.requestUpdate();
+	}
+
 	/** Apply one entity result (from the shared store or a fresh fetch) to the render fields. */
 	private applyEntity(result: TEntityResult): void {
 		this.vertex = result.vertex;
@@ -280,6 +302,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		this.#statedError = this.statedError();
 		// The pane is titled by the record's title once the record is read, rather than by its id.
 		titlePane(this, () => this.recordTitle());
+		const { persistedAs, individualId } = this.state;
+		if (persistedAs !== "" && individualId !== "" && persistedAs !== PRODUCTS_LABEL) void this.readClaims(persistedAs, individualId);
 	}
 
 	/** The reason the open record states for its failure, as a refused verification does, shown first as the page shows a
@@ -385,7 +409,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		let contentHtml: string;
 		if (isStub) {
 			const id = idOf(this.vertex);
-			contentHtml = `<div class="entity-header" data-testid="entity-stub"><span class="entity-type">${esc(persistedAs)}</span><span class="entity-id">${esc(id)}</span></div>${typeLine}${this.renderRoles()}${this.renderReferences()}`;
+			contentHtml = `<div class="entity-header" data-testid="entity-stub"><span class="entity-type">${esc(persistedAs)}</span><span class="entity-id">${esc(id)}</span></div>${typeLine}${this.renderRoles()}${this.renderClaims()}${this.renderReferences()}`;
 		} else {
 			const summaryFields = getSummaryFields(persistedAs);
 			// Every non-summary, non-edge scalar field, shown in full between the type line and the body. Object
@@ -395,7 +419,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 				.map(([k, v]) => {
 					if (this.isTypeField(k)) return this.typeRow(k, v);
 					const valueHtml = Array.isArray(v) ? v.map((item) => this.formatFieldValue(item, k)).join(", ") : this.formatFieldValue(v, k);
-					return `<tr><td class="field-name">${this.predicateLink(k)}${this.vocabBadge(k)}</td><td data-testid="entity-field-${escAttr(k)}" data-copy="${escAttr(k)}">${valueHtml}</td></tr>`;
+					return `<tr><td class="field-name">${this.predicateLink(k)}${this.vocabBadge(k)}</td><td data-testid="entity-field-${escAttr(k)}" data-copy="${escAttr(k)}">${valueHtml}${this.fieldStatus(k)}</td></tr>`;
 				})
 				.join("");
 			const detailTable = detailRows ? `<table class="detail-table fields-table" data-testid="entity-fields">${detailRows}</table>` : "";
@@ -412,14 +436,14 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 								if (!v || (Array.isArray(v) && v.length === 0)) return [];
 								const valueHtml = Array.isArray(v) ? v.map((item) => this.fieldValueHtml(item, k)).join(", ") : this.fieldValueHtml(v, k);
 								return [
-									`<span class="summary-field" data-testid="entity-field-${escAttr(k)}" data-copy="${escAttr(k)}">${this.predicateLink(k)}${this.vocabBadge(k)} ${valueHtml}</span>`,
+									`<span class="summary-field" data-testid="entity-field-${escAttr(k)}" data-copy="${escAttr(k)}">${this.predicateLink(k)}${this.vocabBadge(k)} ${valueHtml}${this.fieldStatus(k)}</span>`,
 								];
 							})
 							.join(" ")}</div>`
 					: "";
 			// The body area (iframe or inline-annotated) is rendered as a lit sub-template after this string, so annotations
 			// reach shu-annotated-body as a real property rather than an attribute, hence contentIframe is NOT embedded here.
-			contentHtml = `${typeLine}${summaryHtml}${this.renderRoles()}${fieldsHtml}${this.renderItemsTable()}${this.renderReferences()}${governance}${bodyLiterals}`;
+			contentHtml = `${typeLine}${summaryHtml}${this.renderRoles()}${fieldsHtml}${this.renderClaims()}${this.renderItemsTable()}${this.renderReferences()}${governance}${bodyLiterals}`;
 		}
 
 		const recordStepsBar =
@@ -783,6 +807,28 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		if (!iri) return "";
 		const v = propertyVocabulary(iri);
 		return `<sup class="vocab vocab-${v.source}" data-testid="vocab-${escAttr(propertyName)}" title="${escAttr(v.source === "haibun" ? "haibun vocabulary" : `${v.prefix} vocabulary`)}">${esc(v.prefix)}</sup>`;
+	}
+
+	/** The status of the claim the reasoner made of a field, beside the field's value, described by the claim's sentence. Empty
+	 *  where the reasoner didn't make a claim of the field. */
+	private fieldStatus(field: string): string {
+		const claim = this.#claims.find((held) => held.field === field);
+		return claim === undefined ? "" : ` ${verdictStatusHtml(`${SHU_TEST_IDS.CLAIMS.FIELD_STATUS}-${field}`, claim.test, claim.verdict)}`;
+	}
+
+	/** The claims the reasoner made about the record, each with its status, its sentence and its proof: a claim of a field the record
+	 *  doesn't hold, such as an Email's missing subject, reads here as unknown, since the open world doesn't read it as false. */
+	private renderClaims(): string {
+		if (this.#claimsRefusal !== undefined)
+			return `<section class="claims" data-testid="${SHU_TEST_IDS.CLAIMS.LIST}"><h3>Claims</h3><p>the claims about the record weren't read: ${esc(this.#claimsRefusal.error)}</p></section>`;
+		if (this.#claims.length === 0) return "";
+		const claims = this.#claims
+			.map(
+				({ test, verdict, proof }) =>
+					`<li data-testid="${SHU_TEST_IDS.CLAIMS.CLAIM}">${verdictStatusHtml(SHU_TEST_IDS.CLAIMS.STATUS, test, verdict)} ${esc(test)}<details><summary>proof</summary>${esc(proof)}</details></li>`,
+			)
+			.join("");
+		return `<section class="claims" data-testid="${SHU_TEST_IDS.CLAIMS.LIST}"><h3>Claims</h3><ul>${claims}</ul></section>`;
 	}
 
 	/** True when the served @context aliases this field to the JSON-LD `@type` keyword, whose values are the entity's

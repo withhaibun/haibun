@@ -8,6 +8,7 @@
  * so actuality writes an assertion while any step is in progress, and a step's contract doesn't list it.
  */
 import { PROV_AGENT } from "./vocabularies.js";
+import { VERDICT } from "./protocol.js";
 import { z } from "zod";
 import { Access, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "./resources.js";
 
@@ -17,6 +18,10 @@ export const EARL_LABEL = { assertion: "Assertion", assertor: "Assertor", testSu
 /** The outcomes EARL defines (earl:OutcomeValue). */
 export const EARL_OUTCOME = { passed: "passed", failed: "failed", cantTell: "cantTell", inapplicable: "inapplicable", untested: "untested" } as const;
 
+/** The EARL outcome of each verdict of a claim, and the verdict each outcome states. */
+export const OUTCOME_OF_VERDICT = { [VERDICT.proved]: EARL_OUTCOME.passed, [VERDICT.refuted]: EARL_OUTCOME.failed, [VERDICT.unknown]: EARL_OUTCOME.cantTell } as const;
+export const VERDICT_OF_OUTCOME = { [EARL_OUTCOME.passed]: VERDICT.proved, [EARL_OUTCOME.failed]: VERDICT.refuted, [EARL_OUTCOME.cantTell]: VERDICT.unknown } as const;
+
 /** How a test was carried out (earl:TestMode). */
 export const EARL_MODE = { automatic: "automatic", manual: "manual", semiAuto: "semiAuto", undisclosed: "undisclosed", unknownMode: "unknownMode" } as const;
 
@@ -25,7 +30,7 @@ export const EARL_ASSERTION_EDGE = { assertedBy: "assertedBy", subject: "subject
 
 const AssertorSchema = PersistedVertexSchema.extend({ id: z.string(), name: z.string(), generatedAtTime: z.string() });
 const TestSubjectSchema = PersistedVertexSchema.extend({ id: z.string(), url: z.string().optional(), generatedAtTime: z.string() });
-const TestCaseSchema = PersistedVertexSchema.extend({
+export const TestCaseSchema = PersistedVertexSchema.extend({
 	id: z.string(),
 	name: z.string(),
 	description: z.string().optional(),
@@ -35,7 +40,7 @@ const TestCaseSchema = PersistedVertexSchema.extend({
 	tags: z.array(z.string()).optional(),
 	generatedAtTime: z.string(),
 });
-const TestResultSchema = PersistedVertexSchema.extend({
+export const TestResultSchema = PersistedVertexSchema.extend({
 	id: z.string(),
 	outcome: z.enum(EARL_OUTCOME),
 	/** What the assertor states about the result. */

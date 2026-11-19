@@ -4,13 +4,14 @@
  * the action to request with a control that copies it, or a link to what a reference names. The page performs a reload through
  * its remedies port.
  */
+import { unsafeHTML } from "lit/directives/unsafe-html.js";
+import { verdictStatusHtml } from "../derivations/verdict-status.js";
 import { html, css, nothing, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { SHU_TAG } from "../../domains/elements.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import type { TPageRefusal, TPageRemedy } from "../domains/refusal.js";
 import type { TStatementRefusal } from "@haibun/core/lib/rpc-wire.js";
-import { VERDICT_MARK } from "@haibun/core/lib/domains/protocol.js";
 import { refLabel, refOf } from "../derivations/markdown.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { reloadFor } from "../controllers/remedy-controller.js";
@@ -67,7 +68,7 @@ export class ShuRefusal extends ShuElement<typeof EmptyStateSchema> {
 
 	/** The status of the statement that refused the call, as its word and its mark, described by the statement's sentence. */
 	private statusTpl({ statement, verdict }: TStatementRefusal): TemplateResult {
-		return html`<span data-testid=${SHU_TEST_IDS.REFUSAL.STATUS} aria-description=${statement}><span aria-hidden="true">${VERDICT_MARK[verdict]}</span> ${verdict}</span>`;
+		return html`${unsafeHTML(verdictStatusHtml(SHU_TEST_IDS.REFUSAL.STATUS, statement, verdict))}`;
 	}
 
 	render(): TemplateResult {

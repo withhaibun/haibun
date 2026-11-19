@@ -14,6 +14,10 @@ import {
 } from "@haibun/core/lib/quad-types.js";
 import { ShownApplicableStepsSchema, type TApplicableSteps } from "@haibun/core/lib/domains/goal-resolution.js";
 import { RelatedRecordsSchema } from "../domains/related-records.js";
+import type { TRecordClaim } from "../domains/claims.js";
+import { EARL_ASSERTION_EDGE, EARL_LABEL, EARL_OUTCOME, TestCaseSchema, TestResultSchema, VERDICT_OF_OUTCOME } from "@haibun/core/lib/domains/earl.js";
+import { curieOf } from "@haibun/core/lib/records/domains/unit.js";
+import { MAX_PAGE_ROWS } from "@haibun/core/lib/domains/hypermedia.js";
 import { pageConduit, pageHydration, pageRegistry, registryScope } from "../root.js";
 import { readSteps } from "../pipelines/read-steps.js";
 import { heldCatalog } from "../pipelines/held-catalog.js";
@@ -86,6 +90,33 @@ export const incomingRead = (label: string, id: string, window: Reads.TEdgeWindo
 
 /** Returns the edges that reach a record, in `window`, at the page's access level. */
 export const incomingEdges = (label: string, id: string, window: Reads.TEdgeWindow): Promise<TIncomingEdges> => Reads.incomingEdges(scope(), label, id, appAccessLevel(), window);
+
+/** The records an EARL assertion's edges reach that the page reads of a claim: its test case's sentence, and its result. */
+const ClaimTestSchema = TestCaseSchema.pick({ name: true });
+const ClaimResultSchema = TestResultSchema.pick({ outcome: true, info: true, pointers: true });
+const AssertedSchema = z.looseObject({ id: z.string() });
+
+/** Returns the claims the reasoner made about the record `label` `id`: each EARL assertion whose subject is the record's typed
+ *  CURIE, with the sentence of its test case, the field its result applies at, the verdict its outcome states and its proof. */
+export async function recordClaims(label: string, id: string): Promise<TRecordClaim[]> {
+	const { edges } = await incomingEdges(EARL_LABEL.testSubject, curieOf({ label, id }), { offset: 0, limit: MAX_PAGE_ROWS });
+	const asserted = edges.filter(({ type, direction }) => type === EARL_ASSERTION_EDGE.subject && direction === "in").map(({ target }) => AssertedSchema.parse(target).id);
+	return Promise.all(
+		asserted.map(async (assertion): Promise<TRecordClaim> => {
+			const { edges: parts } = await readIndividual(EARL_LABEL.assertion, assertion, appAccessLevel());
+			const reached = (edge: string) => parts.find(({ type, direction }) => type === edge && direction === "out")?.target;
+			const { name } = ClaimTestSchema.parse(reached(EARL_ASSERTION_EDGE.test));
+			const { outcome, info, pointers } = ClaimResultSchema.parse(reached(EARL_ASSERTION_EDGE.result));
+			if (outcome !== EARL_OUTCOME.passed && outcome !== EARL_OUTCOME.failed && outcome !== EARL_OUTCOME.cantTell)
+				throw new Error(`the assertion ${assertion} states the outcome ${outcome}, which a claim's verdict doesn't state`);
+			if (info === undefined) throw new Error(`the assertion ${assertion} doesn't state the proof of its claim`);
+			return { test: name, ...(pointers?.[0] === undefined ? {} : { field: pointers[0] }), verdict: VERDICT_OF_OUTCOME[outcome], proof: info };
+		}),
+	);
+}
+
+/** Returns the claims the reasoner made about the record `label` `id`, or the refusal. */
+export const recordClaimsRead = (label: string, id: string): Promise<CallStep.TCallOutcome<TRecordClaim[]>> => CallStep.outcomeOf(() => recordClaims(label, id));
 
 /** Returns a type's select values, by field. */
 export const selectValuesFor = (label: string): Promise<Record<string, string[]>> => Reads.selectValuesFor(scope(), label);
