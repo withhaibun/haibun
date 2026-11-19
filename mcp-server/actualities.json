@@ -5,10 +5,10 @@
 			"actuality": {
 				"text": "mcp-server",
 				"status": "passed",
-				"tookMs": 500,
+				"tookMs": 400,
 				"digest": {
 					"mcp-server": "665e6ad3b46769658127cf8801f90c23a5d88d0058e58be5d44a6de72cf561a5",
-					"modules/core/src": "b4433a64326d74114fc5e7035870f2e39bb89c58393d3fd00235b4d6a8395c54",
+					"modules/core/src": "25cd4e06f32ccbc158ee6c23b232d34860864602d48cdf7b2eeb0d4190bc4ba2",
 					"modules/domain-storage/src": "d21fde6c12a84c8fb246318488d49df330d1c5a5ca02818ce5bcc85d01c120ca",
 					"modules/logic/src": "47b9d3500f039feb024a5d574bfd0d8315f5c9f3dfa03cf739ae38946b3003c6",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
