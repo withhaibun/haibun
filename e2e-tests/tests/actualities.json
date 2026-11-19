@@ -373,15 +373,15 @@
 			"actuality": {
 				"text": "e2e-tests/tests, node_modules/@haibun/web-playwright/waypoints, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
 				"status": "passed",
-				"tookMs": 26500,
+				"tookMs": 19200,
 				"digest": {
 					"e2e-tests/src": "260a250979e4596eb9a66444ac92d5a11114308f7484cc99662f8392171c2864",
 					"e2e-tests/tests": "3db5565890f295ad4bb171d8cd3d713dcea147a54655be4e06d2e7c704c1ee49",
 					"modules/cli/src": "257e7df11cab87dbfa47e3f2b62a731babca0ef31c02921c4fd211361cb3c976",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "751d81b3af33a9d45c2cf54999c187856afe413854526311299b9ea2847b5854",
+					"modules/core/src": "3e2ddee980fdf47fe78e45dfaf4ef0aef8e59bfb8a1cd53f3cc4675767900e0f",
 					"modules/domain-storage/src": "d21fde6c12a84c8fb246318488d49df330d1c5a5ca02818ce5bcc85d01c120ca",
-					"modules/logic/src": "b40b08c48bba7cff51cddad1dd89184f92990c9c0443961d17c2b0f3dcbeffd7",
+					"modules/logic/src": "d23592299c9402ac1535cdabbfa51d4fcaa19409adfdc3c286ca94e3e23ede1c",
 					"modules/monitor-otel/src": "126543b2148fce1111165488855c8522d4e0875fcce2bada2f6215aa60a48d9a",
 					"modules/monitor-tui/src": "0c89537d075907370635162846b32d9d3b03f1c17df2f0483ab2eaefb06d8fcb",
 					"modules/out-junit/src": "9da006ef45f24c87e9a9be65535eb5b0d07a5b8e7bcd6fe0d00d0aea5d18efc7",
@@ -393,7 +393,7 @@
 					"modules/web-accessibility-axe/src": "45b362d89668bf291ede6fad2018cb2299716ba49e6ff82f9fca03950eff01a4",
 					"modules/web-playwright/src": "2c517fb477b2cbe6646e2c15a960bbefc998fe19991676af14bc2368740bfea0",
 					"modules/web-playwright/waypoints": "5d04edf9b96958109b9bd925701ffa32235aefe86bb0bdd1eeb42dad6aaefbd5",
-					"modules/web-server-hono/src": "b5d3db2eeb4f18900a46b9c795360568fbef7eb11891b87b68b26bf843aa0d5a",
+					"modules/web-server-hono/src": "dfa559ed0aab39db2b51340d3bf709be2294028e3e2fb788c069bede03692b56",
 					"modules/web-server-hono/waypoints": "fa5853749829db27d77867eb4c13e1860184beafed284ebff8f0672c617affe3"
 				}
 			},
@@ -401,13 +401,13 @@
 				"/features/a11y-fail.feature": {
 					"text": "/features/a11y-fail",
 					"status": "passed",
-					"tookMs": 1000,
+					"tookMs": 600,
 					"steps": 13
 				},
 				"/features/a11y-pass.feature": {
 					"text": "/features/a11y-pass",
 					"status": "passed",
-					"tookMs": 800,
+					"tookMs": 500,
 					"steps": 13
 				},
 				"/features/after-every.feature": {
@@ -419,61 +419,61 @@
 				"/features/auth-basic.feature": {
 					"text": "/features/auth-basic",
 					"status": "passed",
-					"tookMs": 800,
+					"tookMs": 600,
 					"steps": 63
 				},
 				"/features/auth-bearer.feature": {
 					"text": "/features/auth-bearer",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 400,
 					"steps": 91
 				},
 				"/features/auth-form.feature": {
 					"text": "/features/auth-form",
 					"status": "passed",
-					"tookMs": 1200,
+					"tookMs": 800,
 					"steps": 30
 				},
 				"/features/claims.feature": {
 					"text": "/features/claims",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 300,
 					"steps": 4
 				},
 				"/features/counter.feature": {
 					"text": "/features/counter",
 					"status": "passed",
-					"tookMs": 2200,
+					"tookMs": 2500,
 					"steps": 24
 				},
 				"/features/counter.feature.ts": {
 					"text": "Counts feature",
 					"status": "passed",
-					"tookMs": 900,
+					"tookMs": 1200,
 					"steps": 24
 				},
 				"/features/counts.feature.ts": {
 					"text": "Counts feature",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 500,
 					"steps": 22
 				},
 				"/features/elements.feature": {
 					"text": "/features/elements",
 					"status": "passed",
-					"tookMs": 900,
+					"tookMs": 700,
 					"steps": 15
 				},
 				"/features/executor-rpc.feature.ts": {
 					"text": "Executor RPC dispatch",
 					"status": "passed",
-					"tookMs": 100,
+					"tookMs": 0,
 					"steps": 8
 				},
 				"/features/feature-variables.feature": {
 					"text": "/features/feature-variables",
 					"status": "passed",
-					"tookMs": 100,
+					"tookMs": 0,
 					"steps": 19
 				},
 				"/features/if-set.feature": {
@@ -485,31 +485,31 @@
 				"/features/not.feature": {
 					"text": "/features/not",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 400,
 					"steps": 14
 				},
 				"/features/once.feature.ts": {
 					"text": "A group of features runs once per state of what it depends on",
 					"status": "passed",
-					"tookMs": 2500,
+					"tookMs": 1400,
 					"steps": 20
 				},
 				"/features/page-visits.feature.ts": {
 					"text": "Visit pages",
 					"status": "passed",
-					"tookMs": 2100,
+					"tookMs": 1200,
 					"steps": 65
 				},
 				"/features/popup.feature": {
 					"text": "/features/popup",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 600,
 					"steps": 16
 				},
 				"/features/qrcode.feature": {
 					"text": "/features/qrcode",
 					"status": "passed",
-					"tookMs": 2700,
+					"tookMs": 2500,
 					"steps": 22
 				},
 				"/features/recurse.feature": {
@@ -521,37 +521,37 @@
 				"/features/run-policy-refusals.feature.ts": {
 					"text": "A run refuses a run policy its config doesn't allow",
 					"status": "passed",
-					"tookMs": 2500,
+					"tookMs": 1300,
 					"steps": 16
 				},
 				"/features/trauma_center.feature": {
 					"text": "/features/trauma_center",
 					"status": "passed",
-					"tookMs": 900,
+					"tookMs": 500,
 					"steps": 93
 				},
 				"/features/upload-verify.feature": {
 					"text": "/features/upload-verify",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 500,
 					"steps": 23
 				},
 				"/features/visited-pages.feature": {
 					"text": "/features/visited-pages",
 					"status": "passed",
-					"tookMs": 1200,
+					"tookMs": 900,
 					"steps": 42
 				},
 				"/features/workflow.feature.ts": {
 					"text": "workflow",
 					"status": "passed",
-					"tookMs": 300,
+					"tookMs": 200,
 					"steps": 64
 				},
 				"/features/xss.feature": {
 					"text": "/features/xss",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 600,
 					"steps": 13
 				}
 			}

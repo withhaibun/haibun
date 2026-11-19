@@ -5,23 +5,23 @@
 			"actuality": {
 				"text": "mcp-server",
 				"status": "passed",
-				"tookMs": 600,
+				"tookMs": 500,
 				"digest": {
 					"mcp-server": "665e6ad3b46769658127cf8801f90c23a5d88d0058e58be5d44a6de72cf561a5",
-					"modules/core/src": "751d81b3af33a9d45c2cf54999c187856afe413854526311299b9ea2847b5854",
+					"modules/core/src": "3e2ddee980fdf47fe78e45dfaf4ef0aef8e59bfb8a1cd53f3cc4675767900e0f",
 					"modules/domain-storage/src": "d21fde6c12a84c8fb246318488d49df330d1c5a5ca02818ce5bcc85d01c120ca",
-					"modules/logic/src": "b40b08c48bba7cff51cddad1dd89184f92990c9c0443961d17c2b0f3dcbeffd7",
+					"modules/logic/src": "d23592299c9402ac1535cdabbfa51d4fcaa19409adfdc3c286ca94e3e23ede1c",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "2cf235f8aef1f1e405a81ecb956b8bd129d661f00492bb55dff85870a7851ed2",
 					"modules/web-playwright/src": "2c517fb477b2cbe6646e2c15a960bbefc998fe19991676af14bc2368740bfea0",
-					"modules/web-server-hono/src": "b5d3db2eeb4f18900a46b9c795360568fbef7eb11891b87b68b26bf843aa0d5a"
+					"modules/web-server-hono/src": "dfa559ed0aab39db2b51340d3bf709be2294028e3e2fb788c069bede03692b56"
 				}
 			},
 			"features": {
 				"/features/mcp-client.feature": {
 					"text": "/features/mcp-client",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 400,
 					"steps": 10
 				}
 			}
