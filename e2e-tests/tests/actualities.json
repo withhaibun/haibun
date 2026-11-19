@@ -373,7 +373,7 @@
 			"actuality": {
 				"text": "e2e-tests/tests, node_modules/@haibun/web-playwright/waypoints, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
 				"status": "passed",
-				"tookMs": 19800,
+				"tookMs": 19000,
 				"digest": {
 					"e2e-tests/src": "260a250979e4596eb9a66444ac92d5a11114308f7484cc99662f8392171c2864",
 					"e2e-tests/tests": "3db5565890f295ad4bb171d8cd3d713dcea147a54655be4e06d2e7c704c1ee49",
@@ -386,7 +386,7 @@
 					"modules/monitor-tui/src": "0c89537d075907370635162846b32d9d3b03f1c17df2f0483ab2eaefb06d8fcb",
 					"modules/out-junit/src": "9da006ef45f24c87e9a9be65535eb5b0d07a5b8e7bcd6fe0d00d0aea5d18efc7",
 					"modules/recorder/src": "3e8da166177b6ddfc78ca035e362db49f3ff50424de066bf22bd42f2b8717605",
-					"modules/shu/src": "7ac7bda720a2fb3bdeb0c0036328c1bf8a4cbabde946307481749c9968a0c2b7",
+					"modules/shu/src": "6edad52e9256453037a198e12cb0eed723e7af2ddb261c7d53930a4df0f33b92",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "2cf235f8aef1f1e405a81ecb956b8bd129d661f00492bb55dff85870a7851ed2",
 					"modules/utils/src": "9858723462d1d5207467f4a105b09a266cf73882b379aae28f9be457dad643e5",
@@ -425,7 +425,7 @@
 				"/features/auth-bearer.feature": {
 					"text": "/features/auth-bearer",
 					"status": "passed",
-					"tookMs": 400,
+					"tookMs": 500,
 					"steps": 91
 				},
 				"/features/auth-form.feature": {
@@ -443,13 +443,13 @@
 				"/features/counter.feature": {
 					"text": "/features/counter",
 					"status": "passed",
-					"tookMs": 1900,
+					"tookMs": 2300,
 					"steps": 24
 				},
 				"/features/counter.feature.ts": {
 					"text": "Counts feature",
 					"status": "passed",
-					"tookMs": 2100,
+					"tookMs": 1300,
 					"steps": 24
 				},
 				"/features/counts.feature.ts": {
@@ -473,7 +473,7 @@
 				"/features/feature-variables.feature": {
 					"text": "/features/feature-variables",
 					"status": "passed",
-					"tookMs": 0,
+					"tookMs": 100,
 					"steps": 19
 				},
 				"/features/if-set.feature": {
@@ -521,7 +521,7 @@
 				"/features/run-policy-refusals.feature.ts": {
 					"text": "A run refuses a run policy its config doesn't allow",
 					"status": "passed",
-					"tookMs": 1300,
+					"tookMs": 1200,
 					"steps": 16
 				},
 				"/features/trauma_center.feature": {
