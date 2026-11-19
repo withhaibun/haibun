@@ -46,16 +46,16 @@
 				"digest": {
 					"e2e-tests/capability": "826ef887c3fcd4ede73b4a071151bafe7f7ed4a70cf0fbe79605524e75ed462d",
 					"e2e-tests/src": "260a250979e4596eb9a66444ac92d5a11114308f7484cc99662f8392171c2864",
-					"modules/cli/src": "458533a39a480bc1f3b5747daecaa420bba0011c6925d18c666ca3d67cc831fd",
+					"modules/cli/src": "c927bda473cf7c847efa4d954d2da495dd97f4f77e9c7de285a9394340543eb1",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "ac82945e30f5e339cb63045cba4ff6f1b8f4144ca700945fdae3d57912f6ce18",
+					"modules/core/src": "fd6858f4df4e0aa60391d47cfb50c5ae218a421a83adc76c6e770649e77279b4",
 					"modules/domain-storage/src": "0ab0a8dac4c0b4ee05ffe2aeda20e68c6e45bff57631b1844768a740f38955f6",
 					"modules/logic/src": "9e6230824d7a49549ba86d4414aac4812e7c8fa05ff36ff6fea727dd3720a8ff",
 					"modules/monitor-otel/src": "126543b2148fce1111165488855c8522d4e0875fcce2bada2f6215aa60a48d9a",
 					"modules/monitor-tui/src": "0c89537d075907370635162846b32d9d3b03f1c17df2f0483ab2eaefb06d8fcb",
 					"modules/out-junit/src": "9da006ef45f24c87e9a9be65535eb5b0d07a5b8e7bcd6fe0d00d0aea5d18efc7",
 					"modules/recorder/src": "3e8da166177b6ddfc78ca035e362db49f3ff50424de066bf22bd42f2b8717605",
-					"modules/shu/src": "85bcc3fe439f19982b3c8a2e6b494431bab06f1b3cdec6a8604c93d961d35e8d",
+					"modules/shu/src": "054c152b50253942793522649fdf68da4ef7826220923610dd3a366bf5722d34",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "2cf235f8aef1f1e405a81ecb956b8bd129d661f00492bb55dff85870a7851ed2",
 					"modules/utils/src": "9858723462d1d5207467f4a105b09a266cf73882b379aae28f9be457dad643e5",
@@ -70,7 +70,7 @@
 				"/features/identity-and-capability.feature.ts": {
 					"text": "Identity and capability authorization",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 400,
 					"steps": 30
 				}
 			}
