@@ -13,18 +13,6 @@ export type Debuggee = { tabId?: number; extensionId?: string; targetId?: string
 /** A debugger's target with the CDP session of a message. */
 export type DebuggerSession = Debuggee & { sessionId?: string };
 export type Tab = { id?: number; index: number; windowId: number; openerTabId?: number; url?: string; title?: string; active: boolean; pinned: boolean };
-export type TabRemoveInfo = { windowId: number; isWindowClosing: boolean };
-
-/** The chrome events the extension forwards to the relay, each with the positional parameters of its listener. */
-export type TChromeEvents = {
-	"chrome.debugger.onEvent": { params: [source: DebuggerSession, method: string, eventParams?: object] };
-	"chrome.debugger.onDetach": { params: [source: Debuggee, reason: string] };
-	"chrome.tabs.onCreated": { params: [tab: Tab] };
-	"chrome.tabs.onRemoved": { params: [tabId: number, removeInfo: TabRemoveInfo] };
-	/** The end of the extension's first report of its tabs: the relay holds Playwright's CDP until it arrives, so
-	 *  `Target.setAutoAttach` reads a full tab model. */
-	"extension.initialized": { params: [] };
-};
 
 /** How actuality obtains its browser: the context options, the profile a persistent context keeps (empty for one Playwright
  *  makes and removes), the browser to launch and its launch options, each step's timeout where it isn't Playwright's, the

@@ -49,7 +49,6 @@ export const StepValidationSchema = z.discriminatedUnion("valid", [
 	}),
 	z.object({ valid: z.literal(false), error: z.string(), completions: z.array(z.string()) }),
 ]);
-export type TStepValidation = z.infer<typeof StepValidationSchema>;
 
 /** The product domains of the reads of actuality's declarations. Each holds a list, which the list combinators read. */
 export const DOMAIN_STEP_SUMMARIES = "step-summaries";
