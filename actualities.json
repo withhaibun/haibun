@@ -31,7 +31,7 @@
 			"actuality": {
 				"text": "AGENTS.md",
 				"status": "passed",
-				"tookMs": 1400,
+				"tookMs": 1300,
 				"digest": {
 					"AGENTS.md": "d503d6b49f2f3e2496297cd66def0dc9db3746f6786e9d6c5246fec04e19e223",
 					"modules/core/src": "ca14ab83d6b43166ddd8740496e3c632a363b61ca286cbd673c5d0d681e47bc9",

@@ -295,7 +295,7 @@
 				"tookMs": 100,
 				"digest": {
 					"e2e-tests/policy-test": "926b6ca236fb5c169cbd325b1a019947d5e11622ce559212af1fad0aaa6146d6",
-					"modules/core/src": "ca14ab83d6b43166ddd8740496e3c632a363b61ca286cbd673c5d0d681e47bc9",
+					"modules/core/src": "e52b5d40e216aa7c817aa6161124e22a7a6850a47af66bb7c50e282370711ee4",
 					"modules/logic/src": "9e6230824d7a49549ba86d4414aac4812e7c8fa05ff36ff6fea727dd3720a8ff"
 				}
 			},
@@ -338,7 +338,7 @@
 			"actuality": {
 				"text": "e2e-tests/policy-test",
 				"status": "passed",
-				"tookMs": 200,
+				"tookMs": 100,
 				"digest": {
 					"e2e-tests/policy-test": "926b6ca236fb5c169cbd325b1a019947d5e11622ce559212af1fad0aaa6146d6",
 					"modules/core/src": "ca14ab83d6b43166ddd8740496e3c632a363b61ca286cbd673c5d0d681e47bc9",

@@ -42,7 +42,7 @@
 			"actuality": {
 				"text": "e2e-tests/capability, node_modules/@haibun/web-playwright/waypoints, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
 				"status": "passed",
-				"tookMs": 1000,
+				"tookMs": 600,
 				"digest": {
 					"e2e-tests/capability": "826ef887c3fcd4ede73b4a071151bafe7f7ed4a70cf0fbe79605524e75ed462d",
 					"e2e-tests/src": "260a250979e4596eb9a66444ac92d5a11114308f7484cc99662f8392171c2864",
@@ -55,7 +55,7 @@
 					"modules/monitor-tui/src": "0c89537d075907370635162846b32d9d3b03f1c17df2f0483ab2eaefb06d8fcb",
 					"modules/out-junit/src": "9da006ef45f24c87e9a9be65535eb5b0d07a5b8e7bcd6fe0d00d0aea5d18efc7",
 					"modules/recorder/src": "3e8da166177b6ddfc78ca035e362db49f3ff50424de066bf22bd42f2b8717605",
-					"modules/shu/src": "60b5785563d7756656e5c086d071bc7388f8864dcd7f2eb4707baba47a124558",
+					"modules/shu/src": "2c639e258d2aaa15d4d56bba66423804c29cd368bce9c799f299d1ff1ffeb76a",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "2cf235f8aef1f1e405a81ecb956b8bd129d661f00492bb55dff85870a7851ed2",
 					"modules/utils/src": "9858723462d1d5207467f4a105b09a266cf73882b379aae28f9be457dad643e5",
@@ -70,7 +70,7 @@
 				"/features/identity-and-capability.feature.ts": {
 					"text": "Identity and capability authorization",
 					"status": "passed",
-					"tookMs": 900,
+					"tookMs": 600,
 					"steps": 30
 				}
 			}
