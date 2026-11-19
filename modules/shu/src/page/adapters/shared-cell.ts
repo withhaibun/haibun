@@ -5,7 +5,7 @@
  * cell under its key, across its bundles.
  */
 import { Signal } from "@lit-labs/signals";
-import type { TSharedCell } from "../ports.js";
+import type { ICell } from "@haibun/core/lib/machines/cell.js";
 
 /** A cell's signal and its subscribers. */
 type THeldCell<T> = { signal: Signal.State<T>; subs: Set<(v: T, before: T) => void> };
@@ -36,7 +36,7 @@ function held<K extends keyof TShuPageCells>(page: { [P in K]?: THeldCell<TShuPa
 }
 
 /** A cell the page holds under its key, read and followed in every bundle. */
-export class SharedCell<K extends keyof TShuPageCells> implements TSharedCell<TShuPageCells[K]> {
+export class SharedCell<K extends keyof TShuPageCells> implements ICell<TShuPageCells[K]> {
 	readonly #held: THeldCell<TShuPageCells[K]>;
 	constructor(key: K, initial: TShuPageCells[K]) {
 		const page = cells();

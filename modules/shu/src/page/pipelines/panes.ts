@@ -12,7 +12,8 @@ import { INDEX_PANE_KEY } from "../../domains/elements.js";
 import * as Address from "../derivations/address.js";
 import * as Kinds from "../derivations/pane-kinds.js";
 import { PANES_EVENT, type TPagePane, type TPanesEvent, type TPanesState } from "../machines/panes.js";
-import type { TPaneControl, TPaneStrip, TSharedCell } from "../ports.js";
+import type { TPaneControl, TPaneStrip } from "../ports.js";
+import type { ICell } from "@haibun/core/lib/machines/cell.js";
 
 type DesiredPane = Kinds.DesiredPane;
 
@@ -40,7 +41,7 @@ export type TPanesScope = {
 	/** The page's address. */
 	address: { get(): string; push(hash: string): void };
 	/** The pane the reader acts from, which every view reads. */
-	active: TSharedCell<string | null>;
+	active: ICell<string | null>;
 	/** Whether the reader minimized the pane `id` when it was last shown. */
 	minimizedBefore(id: string): boolean;
 	/** Persists the address the page writes, so an arrival without panes (such as the app's frame recreated by the site

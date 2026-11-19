@@ -33,15 +33,6 @@ export type TPreferences = {
 	watch(tag: string, key: string, fn: (fields: Record<string, unknown> | undefined) => void): () => void;
 };
 
-/** A value the page holds under a key, which every bundle reads and follows. */
-export type TSharedCell<T> = {
-	get(): T;
-	/** Sets the value, and calls each subscriber where it changed. */
-	set(v: T): void;
-	/** Calls `cb` with each new value and the value it replaced. Returns the call that stops it. */
-	subscribe(cb: (v: T, before: T) => void): () => void;
-};
-
 /** The page's time: the instant now, a call after a delay, and a call on the next frame the browser draws. */
 export type TClock = {
 	/** Returns the instant now, in epoch milliseconds. */

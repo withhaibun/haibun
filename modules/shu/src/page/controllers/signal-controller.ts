@@ -1,5 +1,5 @@
 import type { ReactiveController, ReactiveControllerHost } from "lit";
-import type { TSharedCell } from "../ports.js";
+import type { ICell } from "@haibun/core/lib/machines/cell.js";
 
 /**
  * SignalController: a view's handle to one cell the page holds, such as a machine's state. The view holds one per machine it
@@ -9,7 +9,7 @@ import type { TSharedCell } from "../ports.js";
  */
 export class SignalController<T> implements ReactiveController {
 	private readonly host: ReactiveControllerHost;
-	private readonly signal: TSharedCell<T>;
+	private readonly signal: ICell<T>;
 	private readonly onChange: (state: T, before: T | undefined) => void;
 	private readonly reads: ((state: T) => unknown) | undefined;
 	private unsubscribe: (() => void) | null = null;
@@ -18,7 +18,7 @@ export class SignalController<T> implements ReactiveController {
 
 	/** `reads` is what the view shows of the state. Without it the view shows the whole state, and every new state is a
 	 *  change, since the signal holds a new state only for an event that changed it. */
-	constructor(host: ReactiveControllerHost, signal: TSharedCell<T>, onChange: (state: T, before: T | undefined) => void, reads?: (state: T) => unknown) {
+	constructor(host: ReactiveControllerHost, signal: ICell<T>, onChange: (state: T, before: T | undefined) => void, reads?: (state: T) => unknown) {
 		this.host = host;
 		this.signal = signal;
 		this.onChange = onChange;

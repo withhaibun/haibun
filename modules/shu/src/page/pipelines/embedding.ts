@@ -7,7 +7,8 @@ import { z } from "zod";
 import type { TDelegation } from "@haibun/core/lib/domains/actions.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { EMBED_MESSAGE, EmbedderMessageSchema, type TEmbeddedPageView } from "../../domains/embedding.js";
-import type { TAuthority, TClientLog, TClock, TEmbedderChannel, TSharedCell } from "../ports.js";
+import type { TAuthority, TClientLog, TClock, TEmbedderChannel } from "../ports.js";
+import type { ICell } from "@haibun/core/lib/machines/cell.js";
 
 /** The source each report of this pipeline names. */
 const EMBEDDER_SOURCE = "embedder";
@@ -16,8 +17,8 @@ const EMBEDDER_SOURCE = "embedder";
  *  the embedding page last posted, the reader's authority, which holds the delegation, and the page's clock. */
 export type TEmbedding = {
 	channel: TEmbedderChannel;
-	pageView: TSharedCell<TEmbeddedPageView | null>;
-	given: TSharedCell<TDelegation | null>;
+	pageView: ICell<TEmbeddedPageView | null>;
+	given: ICell<TDelegation | null>;
 	authority: TAuthority;
 	clock: TClock;
 	log: TClientLog;
