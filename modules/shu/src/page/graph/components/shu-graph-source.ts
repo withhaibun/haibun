@@ -109,7 +109,7 @@ class ShuGraphSource extends ShuElement<typeof GraphSourceStateSchema> {
 
 	/** The axioms a pane request carries, and the frame it opens at first. */
 	set products(data: Record<string, unknown>) {
-		this.show(GraphSourcePaneSchema.parse(data));
+		this.show(this.productsAs(GraphSourcePaneSchema, data));
 	}
 
 	/** The axioms a step's products carry, as an embedded product view gives them. */

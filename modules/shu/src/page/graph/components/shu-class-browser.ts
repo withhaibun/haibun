@@ -41,6 +41,9 @@ import { listRecords } from "../../controllers/read-controller.js";
 import "./shu-graph-filter.js";
 import "./scene.js";
 
+/** The product an embedding view hands the class browser: the type it fits the schema around, where it names one. */
+const FocusProductsSchema = z.looseObject({ focusType: z.string().optional() });
+
 const MODES = ["type", "connected", "all", "context", "individuals"] as const;
 type ViewMode = (typeof MODES)[number];
 
@@ -129,7 +132,8 @@ class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 	 *  the ontology a read returns, which doesn't name a focus type, around the whole schema. The scene stages it: it emits
 	 *  graph-scope-revealed once it holds the clusters (showing only the schema chips), then fits. */
 	openProducts(products: Record<string, unknown>): void {
-		if (typeof products.focusType === "string") this.focusType = products.focusType;
+		const { focusType } = this.productsAs(FocusProductsSchema, products);
+		if (focusType !== undefined) this.focusType = focusType;
 		void this.scopeWhenReady();
 	}
 

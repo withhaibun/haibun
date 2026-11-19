@@ -5,6 +5,7 @@
 import { RecordsSchema } from "@haibun/core/lib/domains/json-text.js";
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
+import { HYPERMEDIA } from "@haibun/core/lib/domains/protocol.js";
 import { shuBaseStyles } from "./styles.js";
 import { SHOW_CONTROLS_FIELD, ShuElement, type TLinkedData } from "./shu-element.js";
 import { PRODUCTS_LABEL, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
@@ -30,6 +31,9 @@ import { relatedRecords } from "../controllers/read-controller.js";
 import { LoadController } from "../controllers/load-controller.js";
 import { loadRenders } from "./load-renders.js";
 import { emptyState } from "./empty-state.js";
+
+/** A collection product: its records, where it holds them, and the type it names. */
+const CollectionProductsSchema = z.looseObject({ items: RecordsSchema.optional(), [HYPERMEDIA.TYPE]: z.string().optional() });
 
 /** Where the thread's graph is placed in the column, and the scope it keeps its settings under, apart from the main graph's. */
 const THREAD_GRAPH = { slot: "thread-graph", scope: "thread" } as const;
@@ -142,8 +146,8 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 
 	/** Render a collection product: its `items` become thread vertices (links merged into edges), without an RPC fetch. */
 	openProducts(products: Record<string, unknown>): void {
-		const items = Array.isArray(products.items) ? RecordsSchema.parse(products.items) : [];
-		this.openItems(items.map(normalizeItem), String(products._type || PRODUCTS_LABEL));
+		const { items, [HYPERMEDIA.TYPE]: type } = this.productsAs(CollectionProductsSchema, products);
+		this.openItems(items === undefined ? [] : items.map(normalizeItem), type === undefined ? PRODUCTS_LABEL : type);
 	}
 
 	async open(label: string, id: string, depth?: number): Promise<void> {

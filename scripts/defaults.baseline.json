@@ -204,7 +204,6 @@
 		"fills an absent value with a constant through ??": 5
 	},
 	"modules/shu/src/page/components/shu-thread-column.ts": {
-		"fills a falsy value with a constant through ||": 1,
 		"fills an absent value with a constant through ??": 11
 	},
 	"modules/shu/src/page/components/shu-virtual-column.ts": {
