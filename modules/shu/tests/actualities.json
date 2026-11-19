@@ -218,6 +218,67 @@
 					"steps": 210
 				}
 			}
+		},
+		"eeb37656b678893d": {
+			"filter": "",
+			"actuality": {
+				"text": "modules/shu/tests, node_modules/@haibun/web-playwright/waypoints, modules/shu/waypoints",
+				"status": "passed",
+				"tookMs": 26800,
+				"digest": {
+					"modules/cli/src": "458533a39a480bc1f3b5747daecaa420bba0011c6925d18c666ca3d67cc831fd",
+					"modules/core/src": "ac82945e30f5e339cb63045cba4ff6f1b8f4144ca700945fdae3d57912f6ce18",
+					"modules/domain-storage/src": "0ab0a8dac4c0b4ee05ffe2aeda20e68c6e45bff57631b1844768a740f38955f6",
+					"modules/logic/src": "9e6230824d7a49549ba86d4414aac4812e7c8fa05ff36ff6fea727dd3720a8ff",
+					"modules/monitor-tui/src": "0c89537d075907370635162846b32d9d3b03f1c17df2f0483ab2eaefb06d8fcb",
+					"modules/shu/src": "85bcc3fe439f19982b3c8a2e6b494431bab06f1b3cdec6a8604c93d961d35e8d",
+					"modules/shu/tests": "0836c5800ed8dab3a9e7402bd0df4903f185246627000360e2ad186db7aafb1a",
+					"modules/shu/waypoints": "7dc9c4a47d546a40d28e609997d2236967c01ebb925e55511322e4abc6772a86",
+					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
+					"modules/storage-mem/src": "2cf235f8aef1f1e405a81ecb956b8bd129d661f00492bb55dff85870a7851ed2",
+					"modules/web-playwright/src": "a24485e7871695810aa3f7cc37e47f5b111c7effd4db12942ca5192cc8660fc9",
+					"modules/web-playwright/waypoints": "5d04edf9b96958109b9bd925701ffa32235aefe86bb0bdd1eeb42dad6aaefbd5",
+					"modules/web-server-hono/src": "ca8163e455dff67f2e43b509e274006ffd86c2a5dadd9f829532341979be6dcc"
+				}
+			},
+			"features": {
+				"/features/address.feature.ts": {
+					"text": "An address names a type",
+					"status": "passed",
+					"tookMs": 800,
+					"steps": 208
+				},
+				"/features/federate.feature.ts": {
+					"text": "Federated graph reads from a sibling instance",
+					"status": "passed",
+					"tookMs": 1000,
+					"steps": 6
+				},
+				"/features/monitor-serves.feature.ts": {
+					"text": "The monitor serves shu on a port of its own",
+					"status": "passed",
+					"tookMs": 900,
+					"steps": 200
+				},
+				"/features/monitor.feature.ts": {
+					"text": "Monitor view collects and displays actuality's events",
+					"status": "passed",
+					"tookMs": 19500,
+					"steps": 766
+				},
+				"/features/remote-store.feature.ts": {
+					"text": "A satellite instance keeps its records in the main instance's store",
+					"status": "passed",
+					"tookMs": 1000,
+					"steps": 8
+				},
+				"/features/voice-ui.feature.ts": {
+					"text": "UI extension propagation: domain ui → concern catalog → SPA actions bar",
+					"status": "passed",
+					"tookMs": 1300,
+					"steps": 210
+				}
+			}
 		}
 	},
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {

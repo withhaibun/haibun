@@ -29,6 +29,34 @@
 		}
 	},
 	"linux-x64-20x-12th-gen-intel-core-i7-12700k": {
+		"4418ae5622186df5": {
+			"filter": "",
+			"actuality": {
+				"text": "modules/shu/tests-basic-auth, node_modules/@haibun/web-playwright/waypoints",
+				"status": "passed",
+				"tookMs": 1800,
+				"digest": {
+					"modules/core/src": "ac82945e30f5e339cb63045cba4ff6f1b8f4144ca700945fdae3d57912f6ce18",
+					"modules/domain-storage/src": "0ab0a8dac4c0b4ee05ffe2aeda20e68c6e45bff57631b1844768a740f38955f6",
+					"modules/logic/src": "9e6230824d7a49549ba86d4414aac4812e7c8fa05ff36ff6fea727dd3720a8ff",
+					"modules/shu/src": "85bcc3fe439f19982b3c8a2e6b494431bab06f1b3cdec6a8604c93d961d35e8d",
+					"modules/shu/tests-basic-auth": "a2a07c303272a1ddf576b33fe956100e685c5f754f73ca5c00be3746b1af0f55",
+					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
+					"modules/storage-mem/src": "2cf235f8aef1f1e405a81ecb956b8bd129d661f00492bb55dff85870a7851ed2",
+					"modules/web-playwright/src": "a24485e7871695810aa3f7cc37e47f5b111c7effd4db12942ca5192cc8660fc9",
+					"modules/web-playwright/waypoints": "5d04edf9b96958109b9bd925701ffa32235aefe86bb0bdd1eeb42dad6aaefbd5",
+					"modules/web-server-hono/src": "ca8163e455dff67f2e43b509e274006ffd86c2a5dadd9f829532341979be6dcc"
+				}
+			},
+			"features": {
+				"/features/behind-basic-auth.feature.ts": {
+					"text": "A page behind basic auth",
+					"status": "passed",
+					"tookMs": 1100,
+					"steps": 216
+				}
+			}
+		},
 		"4b964f2b82a9ef57": {
 			"filter": "",
 			"actuality": {

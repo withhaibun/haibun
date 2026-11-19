@@ -376,6 +376,134 @@
 					"steps": 93
 				}
 			}
+		},
+		"ee283a2830434bf5": {
+			"filter": "",
+			"actuality": {
+				"text": "e2e-tests/requirements, node_modules/@haibun/cli/waypoints, node_modules/@haibun/logic/waypoints, node_modules/@haibun/core/waypoints",
+				"status": "passed",
+				"tookMs": 29200,
+				"digest": {
+					"e2e-tests/requirements": "ddef58f69db8f6519151ff381b293959661019ebebec80b1fb21e976c250050e",
+					"e2e-tests/src": "260a250979e4596eb9a66444ac92d5a11114308f7484cc99662f8392171c2864",
+					"modules/cli/src": "458533a39a480bc1f3b5747daecaa420bba0011c6925d18c666ca3d67cc831fd",
+					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
+					"modules/core/src": "ac82945e30f5e339cb63045cba4ff6f1b8f4144ca700945fdae3d57912f6ce18",
+					"modules/core/waypoints": "f573c51de6e8154e49adbb5d98a25b3fd1872742dfdab0f3d6ec8f6164759860",
+					"modules/domain-storage/src": "0ab0a8dac4c0b4ee05ffe2aeda20e68c6e45bff57631b1844768a740f38955f6",
+					"modules/logic/src": "9e6230824d7a49549ba86d4414aac4812e7c8fa05ff36ff6fea727dd3720a8ff",
+					"modules/logic/waypoints": "156399b8cca79a483d951d021c5c5ecab8aba6ae2fa90c56b054b3e31601801b",
+					"modules/monitor-otel/src": "126543b2148fce1111165488855c8522d4e0875fcce2bada2f6215aa60a48d9a",
+					"modules/monitor-tui/src": "0c89537d075907370635162846b32d9d3b03f1c17df2f0483ab2eaefb06d8fcb",
+					"modules/out-junit/src": "9da006ef45f24c87e9a9be65535eb5b0d07a5b8e7bcd6fe0d00d0aea5d18efc7",
+					"modules/recorder/src": "3e8da166177b6ddfc78ca035e362db49f3ff50424de066bf22bd42f2b8717605",
+					"modules/shu/src": "85bcc3fe439f19982b3c8a2e6b494431bab06f1b3cdec6a8604c93d961d35e8d",
+					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
+					"modules/storage-mem/src": "2cf235f8aef1f1e405a81ecb956b8bd129d661f00492bb55dff85870a7851ed2",
+					"modules/utils/src": "9858723462d1d5207467f4a105b09a266cf73882b379aae28f9be457dad643e5",
+					"modules/web-accessibility-axe/src": "67378d140ebbbb27696ed1400986930c24899f68905df9b10bc78715c92c4abb",
+					"modules/web-playwright/src": "a24485e7871695810aa3f7cc37e47f5b111c7effd4db12942ca5192cc8660fc9",
+					"modules/web-server-hono/src": "ca8163e455dff67f2e43b509e274006ffd86c2a5dadd9f829532341979be6dcc"
+				}
+			},
+			"features": {
+				"/features/01-prose-and-steps.feature.ts": {
+					"text": "Prose and steps",
+					"status": "passed",
+					"tookMs": 400,
+					"steps": 26
+				},
+				"/features/02-authority.feature.ts": {
+					"text": "Capabilities authorize every call",
+					"status": "passed",
+					"tookMs": 300,
+					"steps": 59
+				},
+				"/features/03-activities.feature.ts": {
+					"text": "Waypoints and ensure",
+					"status": "passed",
+					"tookMs": 200,
+					"steps": 69
+				},
+				"/features/04-combinators.feature.ts": {
+					"text": "Combinators and quantifiers",
+					"status": "passed",
+					"tookMs": 100,
+					"steps": 58
+				},
+				"/features/05-goals.feature.ts": {
+					"text": "Goals over producer rules",
+					"status": "passed",
+					"tookMs": 1100,
+					"steps": 41
+				},
+				"/features/06-world-and-products.feature.ts": {
+					"text": "The world's data and a step's products",
+					"status": "passed",
+					"tookMs": 300,
+					"steps": 21
+				},
+				"/features/07-records.feature.ts": {
+					"text": "Records, events and actualities",
+					"status": "passed",
+					"tookMs": 1200,
+					"steps": 33
+				},
+				"/features/08-timing.feature.ts": {
+					"text": "Time and concurrent callers",
+					"status": "passed",
+					"tookMs": 500,
+					"steps": 19
+				},
+				"/features/09-surfaces.feature.ts": {
+					"text": "One path for every surface",
+					"status": "passed",
+					"tookMs": 400,
+					"steps": 77
+				},
+				"/features/10-cli.feature.ts": {
+					"text": "The command line",
+					"status": "passed",
+					"tookMs": 700,
+					"steps": 11
+				},
+				"/features/11-performance.feature.ts": {
+					"text": "Performance",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 7
+				},
+				"/features/12-conversations.feature.ts": {
+					"text": "Conversations as features",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 6
+				},
+				"/features/13-conjunctions.feature.ts": {
+					"text": "Conjunctions",
+					"status": "passed",
+					"tookMs": 100,
+					"steps": 18
+				},
+				"/features/14-model-loop.feature.ts": {
+					"text": "A model proposes lines and the engine proves them",
+					"status": "passed",
+					"tookMs": 100,
+					"steps": 10
+				},
+				"/features/15-combined-statements.feature.ts": {
+					"text": "Combined statements",
+					"status": "passed",
+					"tookMs": 300,
+					"steps": 44
+				},
+				"/features/16-class-expressions.feature.ts": {
+					"text": "Class expressions",
+					"status": "passed",
+					"tookMs": 23400,
+					"steps": 93
+				}
+			}
 		}
 	},
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
