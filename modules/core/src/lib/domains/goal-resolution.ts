@@ -6,7 +6,7 @@
 import { z } from "zod";
 import type { TFeatureStep } from "../steps/domains/stepper.js";
 import type { TDomainDefinition } from "./resources.js";
-import { VERDICT } from "./protocol.js";
+import { VERDICT, shownIn } from "./protocol.js";
 import { DomainKeySchema, NameSchema, type TDomainKey } from "./domains.js";
 import { ActionSchema } from "./actions.js";
 import { StepMethodSchema } from "../steps/domains/step-method.js";
@@ -150,6 +150,10 @@ export const lintFindingLine = (finding: TLintFinding): string =>
 /** The affordances: the snapshot, the waypoints, and the step graph's lint findings, the ways the steps' chain is incomplete. */
 export const ApplicableStepsSchema = z.object({ ...snapshot, waypoints: z.array(WaypointEntrySchema), findings: z.array(LintFindingSchema) }).strict();
 export type TApplicableSteps = z.infer<typeof ApplicableStepsSchema>;
+/** The affordances as a reader reads them from the products of the step that shows them. Dispatch adds the `id` and `view` of
+ *  the pane that shows them beside its markers, which the reader doesn't read, so the reader strips what the step's schema
+ *  doesn't declare. */
+export const ShownApplicableStepsSchema = shownIn(ApplicableStepsSchema.strip());
 
 export const goalDomainDefinitions: TDomainDefinition[] = [
 	{ selectors: [DOMAIN_PLAN_ID], schema: NameSchema, description: "The id of a plan toward a goal. Each advance of the plan names this id." },

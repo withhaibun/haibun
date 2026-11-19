@@ -17,6 +17,7 @@ import { declareFakeGraphPresenter, mountedPresenter } from "../../graph-present
 import { reportedErrors, setupShuTest, type TShuTestHandle } from "../../test/setup.js";
 import { NODE_KIND, type TGraphNode } from "../domains/graph.js";
 import { followPaneRequests } from "../../test/pane-requests.js";
+import { offeredStep, offeredSteps, unknownGoal, type TOffered } from "../../test/applicable-steps-fixture.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 
 /** The actuality from which a snapshot records its facts. */
@@ -26,14 +27,11 @@ const GRAPH = SHU_TEST_IDS.DOMAIN_CHAIN.GRAPH;
 const deepLink = (name: string): string | undefined => PageHash.hashParam(name);
 const clearDeepLink = (): void => PageHash.mergeHashParams({ [AFFORDANCE_PARAM.GOAL]: undefined, [AFFORDANCE_PARAM.WAYPOINT]: undefined });
 
+/** A snapshot of the actuality, empty except what `offered` states. */
+const snapshot = (offered: Partial<TOffered> = {}): TOffered => offeredSteps(ACTUALITY_FEATURE, offered);
+
 /** A snapshot with N forward entries, as a step's products or a read of them give it. */
-const mkSnap = (n: number): Record<string, unknown> => ({
-	actuality: ACTUALITY_FEATURE,
-	satisfiedDomains: [],
-	forward: Array.from({ length: n }, (_, i) => ({ stepperName: "S", stepName: `s${i}`, inputDomains: [], outputDomains: [`d${i}`], readyToRun: true })),
-	goals: [],
-	findings: [],
-});
+const mkSnap = (n: number): TOffered => snapshot({ forward: Array.from({ length: n }, (_, i) => offeredStep("S", `s${i}`, [`d${i}`])) });
 
 const mount = (): ShuDomainChainView => {
 	const view = document.body.appendChild(new ShuDomainChainView());
@@ -72,13 +70,7 @@ describe("shu-domain-chain-view", () => {
 
 	it("draws the chain in the site's graph presenter, a light-DOM child shown through its slot, with settings of its own", async () => {
 		const view = mount();
-		view.products = {
-			actuality: ACTUALITY_FEATURE,
-			satisfiedDomains: [],
-			forward: [{ stepperName: "S", stepName: "s", inputDomains: [], outputDomains: ["vc"], readyToRun: true }],
-			goals: [{ domain: "vc", resolution: { verdict: "unknown" } }],
-			findings: [],
-		};
+		view.products = snapshot({ forward: [offeredStep("S", "s", ["vc"])], goals: [unknownGoal("vc")] });
 		await view.updateComplete;
 		const presenter = await mountedPresenter(view, GRAPH);
 		expect(presenter.parentElement).toBe(view);
@@ -91,13 +83,7 @@ describe("shu-domain-chain-view", () => {
 
 	it("opens the affordances panel at a domain a reader opens in the graph", async () => {
 		const view = mount();
-		view.products = {
-			actuality: ACTUALITY_FEATURE,
-			satisfiedDomains: [],
-			forward: [{ stepperName: "S", stepName: "s", inputDomains: [], outputDomains: ["vc"], readyToRun: true }],
-			goals: [{ domain: "vc", resolution: { verdict: "unknown" } }],
-			findings: [],
-		};
+		view.products = snapshot({ forward: [offeredStep("S", "s", ["vc"])], goals: [unknownGoal("vc")] });
 		await view.updateComplete;
 		const presenter = await mountedPresenter(view, GRAPH);
 		const opened = followPaneRequests();
@@ -138,7 +124,7 @@ describe("shu-domain-chain-view", () => {
 		expect(readingActualityFeature()).toBe(ACTUALITY_FEATURE);
 		expect(() => {
 			view.products = { satisfiedDomains: [], forward: [], goals: [] };
-		}).toThrow(/the `actuality` that holds them/);
+		}).toThrow(/refuses the products its host gave[\s\S]*at actuality/);
 	});
 
 	it("marks the goal or waypoint the address names as the graph's active node", async () => {
@@ -156,16 +142,12 @@ describe("shu-domain-chain-view", () => {
 
 	it("lists the affordances' lint findings, each step and domain a link to its view", async () => {
 		const view = mount();
-		view.products = {
-			actuality: ACTUALITY_FEATURE,
-			satisfiedDomains: [],
-			forward: [],
-			goals: [],
+		view.products = snapshot({
 			findings: [
 				{ kind: LINT_FINDING.UNSUPPLIED_STEP, stepperName: "S", stepName: "s", inputDomain: "order" },
 				{ kind: LINT_FINDING.UNREACHABLE_DOMAIN, domain: "dead" },
 			],
-		};
+		});
 		await view.updateComplete;
 		const refs = [...(view.shadowRoot?.querySelectorAll(`[data-testid="${SHU_TEST_IDS.DOMAIN_CHAIN.FINDING}"] shu-ref`) ?? [])].map((ref) => [
 			ref.getAttribute("kind"),

@@ -334,8 +334,8 @@ export const HYPERMEDIA = {
 	UNDO: "_undo",
 } as const;
 
-/** Returns a product's own data. The result omits the `_seqPath` trace and the `_type`, `_summary`, `_description` and
- *  `_links` markers that dispatch adds to a product of a named domain. A reader parses the result with the product's own
+/** Returns a product's own data. The result omits the `_seqPath` trace and the `_type`, `_summary`, `_description`,
+ *  `_component` and `_links` markers that dispatch adds to a product of a named domain. A reader parses the result with the product's own
  *  schema. */
 export function productData(products: Record<string, unknown>): Record<string, unknown> {
 	const {
@@ -343,11 +343,16 @@ export function productData(products: Record<string, unknown>): Record<string, u
 		[HYPERMEDIA.TYPE]: _type,
 		[HYPERMEDIA.SUMMARY]: _summary,
 		[HYPERMEDIA.DESCRIPTION]: _description,
+		[HYPERMEDIA.COMPONENT]: _component,
 		[HYPERMEDIA.LINKS]: _links,
 		...data
 	} = products;
 	return data;
 }
+
+/** The schema of a step's products as a reader reads them: `schema` parses them after productData drops the markers that
+ *  dispatch adds. */
+export const shownIn = <S extends z.ZodType<unknown, Record<string, unknown>>>(schema: S) => z.record(z.string(), z.unknown()).transform(productData).pipe(schema);
 
 export type THypermediaProducts = {
 	[TRACE_SEQ_PATH]?: TSeqPath;

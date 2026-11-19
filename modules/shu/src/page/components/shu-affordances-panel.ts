@@ -13,16 +13,7 @@ import { hasConduit } from "../controllers/conduit-controller.js";
 import { applicableSteps } from "../controllers/read-controller.js";
 import { LoadController } from "../controllers/load-controller.js";
 import { loadRenders } from "./load-renders.js";
-import {
-	LintFindingSchema,
-	type TLintFinding,
-	type TApplicableSteps as TOffered,
-	type TBinding,
-	type TFieldBinding,
-	type TForwardAffordance,
-	type TPlan,
-	type TWaypointEntry,
-} from "@haibun/core/lib/domains/goal-resolution.js";
+import { ShownApplicableStepsSchema, type TApplicableSteps, type TBinding, type TFieldBinding, type TPlan, type TWaypointEntry } from "@haibun/core/lib/domains/goal-resolution.js";
 import { VERDICT, isStepEnd } from "@haibun/core/lib/domains/protocol.js";
 import type { TDomainKey } from "@haibun/core/lib/domains/domains.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
@@ -53,36 +44,7 @@ import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 /** The name of the delay before the panel reads its affordances again. */
 const REFRESH = "refresh";
 
-type TGoalAffordance = TOffered["goals"][number];
-
-/** The panel's read-projection of the affordances wire blob: forward steps + goal verdicts (+ optional waypoints). forward/goals reuse the core element types; the panel ignores composites/satisfied* that the chain view consumes. */
-type TApplicableSteps = {
-	/** The actuality whose facts these are, which is where a fact's step is: a fact's id is that step's seqPath. */
-	actuality: string;
-	forward: TForwardAffordance[];
-	goals: TGoalAffordance[];
-	waypoints?: TWaypointEntry[];
-	/** The ways the steps' chain is incomplete, which the domain chain lists. */
-	findings: TLintFinding[];
-	/** The affordances as given, which the domain chain projects. */
-	offered: Record<string, unknown>;
-};
-
-/** A snapshot of actuality's affordances, as a step's products or a read of them give it; refused where the forward
- *  steps, the goals or the actuality they are of is missing. */
-function snapshotOf(p: Record<string, unknown>): TApplicableSteps {
-	if (!Array.isArray(p.forward) || !Array.isArray(p.goals) || typeof p.actuality !== "string") {
-		throw new Error(`shu-affordances-panel takes \`forward\` and \`goals\` arrays and the \`actuality\` that holds them. Received keys: [${Object.keys(p).join(", ")}].`);
-	}
-	return {
-		actuality: p.actuality,
-		forward: p.forward as TForwardAffordance[],
-		goals: p.goals as TGoalAffordance[],
-		waypoints: Array.isArray(p.waypoints) ? (p.waypoints as TWaypointEntry[]) : undefined,
-		findings: z.array(LintFindingSchema).parse(p.findings),
-		offered: p,
-	};
-}
+type TGoalAffordance = TApplicableSteps["goals"][number];
 
 const ShuAffordancesPanelSchema = z.object({ openGoal: z.string().optional(), openWaypoint: z.string().optional() });
 
@@ -130,7 +92,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	readonly #affordances = new LoadController<TApplicableSteps>(this, async () => {
 		const asOf = this.getAttribute("as-of");
 		const read = await applicableSteps(asOf === null ? undefined : asOf);
-		return read.ok ? { ok: true, value: this.merged(snapshotOf(read.value)) } : read;
+		return read.ok ? { ok: true, value: this.noted(read.value) } : read;
 	});
 
 	/** The affordances the panel shows, or null before they are read. */
@@ -208,7 +170,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	set products(p: Record<string, unknown>) {
 		// <shu-page> coalesces the connect-time replay (one pane request per pane per frame), so a burst never reaches
 		// here: apply the latest synchronously. The products carry the whole snapshot, waypoints included.
-		this.#affordances.hold(this.merged(snapshotOf(p)));
+		this.#affordances.hold(this.noted(this.productsAs(ShownApplicableStepsSchema, p)));
 	}
 
 	/** A step on a path opens in the actions bar to be run; a fact opens the step that produced it. */
@@ -226,14 +188,11 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		if (step !== undefined) openRef(e, { kind: REF_DENOTES.individual, target: { persistedAs: typeShownIn(SHU_TAG.STEP_DETAIL), id: step } }, false);
 	}
 
-	/** Returns a snapshot with the waypoints the panel shows where the snapshot doesn't carry them, as a live update after a
-	 *  step doesn't, so the section doesn't leave between reads. Notes the actuality feature the snapshot is of, whose facts it shows,
-	 *  so a fact's step opens there, and the goals it satisfies. */
-	private merged(a: TApplicableSteps): TApplicableSteps {
-		const held = this.affordances;
-		const waypoints = a.waypoints !== undefined ? a.waypoints : held === null ? undefined : held.waypoints;
+	/** Notes the actuality feature the affordances are of, whose facts the panel shows, so a fact's step opens there, and
+	 *  returns them. */
+	private noted(a: TApplicableSteps): TApplicableSteps {
 		noteActualityFeature(a.actuality);
-		return { ...a, waypoints };
+		return a;
 	}
 
 	/** Reads the applicable steps, or where the panel shows them, reads them again without leaving what it shows. A page
@@ -522,8 +481,8 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 
 	/** Gives the domain chain the affordances the panel holds, once for each read of them. */
 	private feedChain(): void {
-		const [chain, offered] = [this.chainView(), this.affordances?.offered];
-		if (chain !== null && offered !== undefined && chain.products !== offered) chain.products = offered;
+		const [chain, offered] = [this.chainView(), this.affordances];
+		if (chain !== null && offered !== null && chain.products !== offered) chain.products = offered;
 	}
 
 	private renderGoalTpl(g: TGoalAffordance, idx: number, openGoal: string | undefined): TemplateResult {

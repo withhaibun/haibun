@@ -8,7 +8,7 @@
  */
 import { z } from "zod";
 import { ConcernCatalogSchema, CountedFields } from "../../domains/hypermedia.js";
-import { HYPERMEDIA, productData } from "../../domains/protocol.js";
+import { HYPERMEDIA, shownIn } from "../../domains/protocol.js";
 import { ActionSchema, isRead, readAction } from "../../domains/actions.js";
 import { StepMethodSchema, type TStepMethod } from "./step-method.js";
 import { DomainKeySchema } from "../../domains/domains.js";
@@ -223,9 +223,6 @@ export const domainSummary = (domain: string, description: string | undefined): 
 /** A step as a definition states it, with whether its caller may call it. */
 export const stepDefinition = (step: TStepDescriptor, callable: boolean): TStepDefinition => ({ ...step, callable, [HYPERMEDIA.LINKS]: { call: { method: step.method } } });
 
-/** The products of a read of actuality's declarations, parsed by `schema`. A dispatched step's products carry its seqPath and its
- *  domain's hypermedia markers. These fields aren't actuality's declarations, so productData drops them before `schema` parses. */
-const shownIn = <S extends z.ZodType<unknown, Record<string, unknown>>>(schema: S) => z.record(z.string(), z.unknown()).transform(productData).pipe(schema);
 /** The products of a read of the step summaries. */
 export const ShownStepSummariesSchema = shownIn(StepSummariesSchema);
 /** The products of a read of the step definitions, which a caller passes to the call that reads them. */

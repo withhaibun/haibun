@@ -264,6 +264,14 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 		return this.state;
 	}
 
+	/** Returns the products a host gives the element, parsed by `schema`. Throws a refusal that names the element and each
+	 *  field `schema` refuses, so a host that gives products of another shape fails where it gives them. */
+	protected productsAs<S extends z.ZodType>(schema: S, products: unknown): z.output<S> {
+		const parsed = schema.safeParse(products);
+		if (parsed.success) return parsed.data;
+		throw new Error(`<${this.tagName.toLowerCase()}> refuses the products its host gave:\n${z.prettifyError(parsed.error)}`);
+	}
+
 	/** Shallow-merge a partial into state, validate against the schema, and assign it. The `@property accessor state` setter schedules the re-render off the new (Zod-parsed) reference; this also emits `SHU_EVENT.STATE_CHANGE` so external listeners (e.g. test harnesses) observe transitions. Throws if the merged shape fails schema validation, by contract a caller error. Merge is shallow by design (state is treated as a whole-object replacement so `===` change detection fires); pass the full sub-object to update a nested field. */
 	protected setState(partial: Partial<z.infer<T>>): void {
 		try {

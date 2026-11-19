@@ -12,7 +12,7 @@ import {
 	type TIncomingEdges,
 	type TIndividualWithEdges,
 } from "@haibun/core/lib/quad-types.js";
-import { RecordSchema } from "@haibun/core/lib/domains/json-text.js";
+import { ShownApplicableStepsSchema, type TApplicableSteps } from "@haibun/core/lib/domains/goal-resolution.js";
 import { RelatedRecordsSchema } from "../domains/related-records.js";
 import { pageConduit, pageHydration, pageRegistry, registryScope } from "../root.js";
 import { readSteps } from "../pipelines/read-steps.js";
@@ -45,10 +45,10 @@ export const callStep = <S extends z.ZodType>(step: string, params: Record<strin
 export const followCall = <S extends z.ZodType>(link: TCallLink, why: string, schema: S): Promise<z.output<S>> => CallStep.followCall(callScope(), link, why, schema);
 
 /** Returns the applicable steps, as a read: at the moment `asOf` names, or now. */
-export const applicableSteps = (asOf: string | undefined): Promise<CallStep.TCallOutcome<Record<string, unknown>>> =>
+export const applicableSteps = (asOf: string | undefined): Promise<CallStep.TCallOutcome<TApplicableSteps>> =>
 	asOf === undefined
-		? callStep(RPC_METHOD.APPLICABLE_STEPS, {}, "the applicable steps", RecordSchema)
-		: callStep(RPC_METHOD.AS_OF, { asOf, statement: { method: RPC_METHOD.APPLICABLE_STEPS, params: {} } }, `the applicable steps as of ${asOf}`, RecordSchema);
+		? callStep(RPC_METHOD.APPLICABLE_STEPS, {}, "the applicable steps", ShownApplicableStepsSchema)
+		: callStep(RPC_METHOD.AS_OF, { asOf, statement: { method: RPC_METHOD.APPLICABLE_STEPS, params: {} } }, `the applicable steps as of ${asOf}`, ShownApplicableStepsSchema);
 
 /** Returns the records related to a record, `depth` edges away, and the root record of their thread. */
 export const relatedRecords = (label: string, id: string, depth: number): Promise<CallStep.TCallOutcome<z.output<typeof RelatedRecordsSchema>>> =>

@@ -7,7 +7,8 @@ import { installCarriedEventStream } from "../root.js";
 import { type TEvent } from "../ports.js";
 import * as PageHash from "../controllers/hash-controller.js";
 import { AFFORDANCE_PARAM, SHU_TAG } from "../../domains/elements.js";
-import { LINT_FINDING } from "@haibun/core/lib/domains/goal-resolution.js";
+import { DOMAIN_APPLICABLE_STEPS, LINT_FINDING } from "@haibun/core/lib/domains/goal-resolution.js";
+import { dispatchMarkers, offeredStep, offeredSteps, unknownGoal, type TOffered, type TOfferedPlan } from "../../test/applicable-steps-fixture.js";
 import type { ShuDomainChainView } from "./shu-domain-chain-view.js";
 import { RPC_METHOD } from "../../domains/elements.js";
 import { readingActualityFeature } from "../client-cache/controllers/device-controller.js";
@@ -42,18 +43,11 @@ const applied = async (panel: { updateComplete: Promise<unknown> }): Promise<voi
 	await panel.updateComplete;
 };
 
-/** An affordances snapshot of the actuality, without findings, satisfied domains, forward steps or goals but those `offered` states. */
-const snapshot = (offered: Record<string, unknown>): Record<string, unknown> => ({
-	actuality: ACTUALITY_FEATURE,
-	findings: [],
-	satisfiedDomains: [],
-	forward: [],
-	goals: [],
-	...offered,
-});
+/** An affordances snapshot of the actuality, empty except what `offered` states. */
+const snapshot = (offered: Partial<TOffered>): TOffered => offeredSteps(ACTUALITY_FEATURE, offered);
 
 /** A mounted panel once it applied the snapshot `offered` states. */
-const offeredPanel = async (offered: Record<string, unknown>): Promise<ShuAffordancesPanel> => {
+const offeredPanel = async (offered: Partial<TOffered>): Promise<ShuAffordancesPanel> => {
 	const panel = document.body.appendChild(new ShuAffordancesPanel());
 	panel.products = snapshot(offered);
 	await applied(panel);
@@ -90,7 +84,7 @@ describe("shu-affordances-panel", () => {
 
 	it("renders the goals section when products are assigned", async () => {
 		const panel = await offeredPanel({
-			forward: [{ method: "X-y", stepperName: "X", stepName: "y", inputDomains: [], outputDomains: ["g"], readyToRun: true }],
+			forward: [offeredStep("X", "y", ["g"])],
 			goals: [{ domain: "g", description: "Goal g", resolution: { verdict: "proved", goal: "g", factIds: ["fact-1"], plans: [] } }],
 		});
 		const root = panel.shadowRoot;
@@ -112,7 +106,7 @@ describe("shu-affordances-panel", () => {
 		section.open = true;
 		section.dispatchEvent(new Event("toggle"));
 		const chain = panel.querySelector<ShuDomainChainView>(SHU_TAG.DOMAIN_CHAIN_VIEW);
-		expect(chain?.products, "the chain draws the affordances the panel read").toBe(offered);
+		expect(chain?.products, "the chain draws the affordances the panel read").toEqual(offered);
 		section.open = false;
 		section.dispatchEvent(new Event("toggle"));
 		expect(panel.querySelector(SHU_TAG.DOMAIN_CHAIN_VIEW)).toBeNull();
@@ -143,8 +137,8 @@ describe("shu-affordances-panel", () => {
 						goal: "report",
 						factIds: [],
 						plans: [
-							{ steps: [{ stepperName: "Issue", stepName: "issueReport", gwta: "issue report" }], bindings: [{ kind: "argument", domain: "issuer" }] },
-							{ steps: [{ stepperName: "Issue", stepName: "issueReport", gwta: "issue a report" }], bindings: [] },
+							{ steps: [{ stepperName: "Issue", stepName: "issueReport", gwta: "issue report", produces: "report" }], bindings: [{ kind: "argument", domain: "issuer" }] },
+							{ steps: [{ stepperName: "Issue", stepName: "issueReport", gwta: "issue a report", produces: "report" }], bindings: [] },
 						],
 					},
 				},
@@ -164,7 +158,7 @@ describe("shu-affordances-panel", () => {
 		const ISSUE = { method: "Issue-issueReport", stepperName: "Issue", stepName: "issueReport", pattern: "issue report" };
 		handle.teardown();
 		handle = setupShuTest({ dispatch: (method) => (method === SHOW_STEP_DEFINITIONS_METHOD ? stepsShown([ISSUE]) : undefined) });
-		const plan = { steps: [{ stepperName: ISSUE.stepperName, stepName: ISSUE.stepName, gwta: ISSUE.pattern }], bindings: [] };
+		const plan: TOfferedPlan = { steps: [{ stepperName: ISSUE.stepperName, stepName: ISSUE.stepName, gwta: ISSUE.pattern, produces: "report" }], bindings: [] };
 		const panel = await offeredPanel({
 			goals: [{ domain: "report", description: "Audit report", resolution: { verdict: "unknown", goal: "report", factIds: [], plans: [plan] } }],
 		});
@@ -183,7 +177,7 @@ describe("shu-affordances-panel", () => {
 	});
 
 	it("clicking 'Start this path' opens the path's first step in the actions bar without auto-dispatch", async () => {
-		const path = { steps: [{ stepperName: "Issue", stepName: "issueReport" }], bindings: [{ kind: "argument", domain: "issuer" }] };
+		const path: TOfferedPlan = { steps: [{ stepperName: "Issue", stepName: "issueReport", produces: "report" }], bindings: [{ kind: "argument", domain: "issuer" }] };
 		const panel = await offeredPanel({
 			goals: [{ domain: "report", description: "Audit report", resolution: { verdict: "unknown", goal: "report", factIds: [], plans: [path] } }],
 		});
@@ -212,7 +206,7 @@ describe("shu-affordances-panel", () => {
 						verdict: "unknown",
 						goal: "report",
 						factIds: [],
-						plans: [{ steps: [{ stepperName: "Issue", stepName: "issueReport", gwta: "issue" }], bindings: [{ kind: "argument", domain: "issuer" }] }],
+						plans: [{ steps: [{ stepperName: "Issue", stepName: "issueReport", gwta: "issue", produces: "report" }], bindings: [{ kind: "argument", domain: "issuer" }] }],
 					},
 				},
 			],
@@ -267,8 +261,8 @@ describe("shu-affordances-panel", () => {
 	});
 
 	it("re-rendering preserves open state on a composite-binding tree", async () => {
-		const compositePlan = {
-			steps: [{ stepperName: "Report", stepName: "issue" }],
+		const compositePlan: TOfferedPlan = {
+			steps: [{ stepperName: "Report", stepName: "issue", produces: "report" }],
 			bindings: [
 				{
 					kind: "composite",
@@ -307,7 +301,7 @@ describe("shu-affordances-panel", () => {
 						verdict: "proved",
 						goal: "permit",
 						factIds: ["fact-1"],
-						plans: [{ steps: [{ stepperName: "Issue", stepName: "issuePermit", gwta: "issue" }], bindings: [{ kind: "argument", domain: "issuer" }] }],
+						plans: [{ steps: [{ stepperName: "Issue", stepName: "issuePermit", gwta: "issue", produces: "report" }], bindings: [{ kind: "argument", domain: "issuer" }] }],
 					},
 				},
 			],
@@ -338,12 +332,13 @@ describe("shu-affordances-panel", () => {
 		const wp = {
 			outcome: "deliver-report",
 			description: "Deliver the report",
-			kind: "declarative",
 			ensured: false,
 			method: "Acts-ensure",
-			resolvesDomain: "report",
+			args: {},
 			paramSlots: [],
 			proofStatements: [],
+			source: { path: "acts.feature.ts" },
+			isBackground: false,
 		};
 		installConduit(new TestConduit(async () => ({})));
 		const panel = new ShuAffordancesPanel();
@@ -375,12 +370,20 @@ describe("shu-affordances-panel", () => {
 		expect(snapshotCalls).toBe(1);
 	});
 
+	it("reads the affordances from the products dispatch returns, beside the markers and pane it adds", async () => {
+		const products = { ...snapshot({ goals: [unknownGoal("g")] }), ...dispatchMarkers(DOMAIN_APPLICABLE_STEPS, SHU_TAG.AFFORDANCES_PANEL) };
+		const panel = document.body.appendChild(new ShuAffordancesPanel());
+		panel.products = products;
+		await applied(panel);
+		expect(panel.shadowRoot?.querySelector('[data-testid="affordances-goals"]')).toBeTruthy();
+	});
+
 	it("takes the actuality its snapshot names as the actuality the page reads, where a fact's step opens, and refuses one that doesn't name an actuality", () => {
 		const panel = document.body.appendChild(new ShuAffordancesPanel());
 		panel.products = snapshot({});
 		expect(readingActualityFeature()).toBe(ACTUALITY_FEATURE);
 		expect(() => {
 			panel.products = { satisfiedDomains: [], forward: [], goals: [] };
-		}).toThrow(/the `actuality` that holds them/);
+		}).toThrow(/refuses the products its host gave[\s\S]*at actuality/);
 	});
 });

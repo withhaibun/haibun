@@ -10,15 +10,14 @@
  */
 import { html, css, type TemplateResult } from "lit";
 import { shuBaseStyles } from "./styles.js";
-import { z } from "zod";
-import { producingStepOf, projectDomainChain, waypointNodeId, type TAffordancesSnapshot, type TWaypointSnapshot } from "../derivations/project-domain-chain.js";
+import { producingStepOf, projectDomainChain, waypointNodeId, type TAffordancesSnapshot } from "../derivations/project-domain-chain.js";
 import { graphToQuads } from "../derivations/graph-quads.js";
 import { SHU_EVENT, AFFORDANCE_PARAM, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import * as PageHash from "../controllers/hash-controller.js";
 import { deepLinkOf, followDeepLink, openRef, paneHref } from "./ref-navigation.js";
 import { domainRef, stepRef } from "./shu-ref.js";
-import { LINT_FINDING, LintFindingSchema, type TLintFinding } from "@haibun/core/lib/domains/goal-resolution.js";
+import { LINT_FINDING, ShownApplicableStepsSchema, type TLintFinding } from "@haibun/core/lib/domains/goal-resolution.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { noteActualityFeature } from "../client-cache/controllers/device-controller.js";
@@ -34,27 +33,6 @@ import { emptyState } from "./empty-state.js";
 /** Where the chain's graph is placed in the view, which is also the test id it is found by, and the scope it keeps its
  *  settings under. */
 const CHAIN_GRAPH = { slot: SHU_TEST_IDS.DOMAIN_CHAIN.GRAPH, scope: "domain-chain" } as const;
-
-/** Returns a snapshot of actuality's affordances, as a step's products or a read of them give it, and notes the actuality feature it
- *  is of: its facts are that actuality feature's, so the page reads that actuality feature, and a fact's step opens there. Throws for products
- *  that don't carry the snapshot. */
-function snapshotOf(p: Record<string, unknown>): TAffordancesSnapshot {
-	if (!Array.isArray(p.forward) || !Array.isArray(p.goals) || !Array.isArray(p.satisfiedDomains) || typeof p.actuality !== "string") {
-		throw new Error(
-			`shu-domain-chain-view takes \`forward\`, \`goals\` and \`satisfiedDomains\` arrays and the \`actuality\` that holds them. Received keys: [${Object.keys(p).join(", ")}].`,
-		);
-	}
-	const snapshot: TAffordancesSnapshot = {
-		forward: p.forward as TAffordancesSnapshot["forward"],
-		goals: p.goals as TAffordancesSnapshot["goals"],
-		composites: p.composites as TAffordancesSnapshot["composites"],
-		waypoints: Array.isArray(p.waypoints) ? (p.waypoints as TWaypointSnapshot[]) : undefined,
-		satisfiedDomains: p.satisfiedDomains as string[],
-		satisfiedFacts: typeof p.satisfiedFacts === "object" && p.satisfiedFacts !== null ? (p.satisfiedFacts as Record<string, string[]>) : undefined,
-	};
-	noteActualityFeature(p.actuality);
-	return snapshot;
-}
 
 export class ShuDomainChainView extends ShuElement<typeof EmptyStateSchema> {
 	/** What the embedded graph shows of the chain. */
@@ -102,8 +80,9 @@ export class ShuDomainChainView extends ShuElement<typeof EmptyStateSchema> {
 
 	/** The affordances its host reads, with their lint findings. */
 	set products(p: Record<string, unknown>) {
-		const snapshot = snapshotOf(p);
-		this.findings = z.array(LintFindingSchema).parse(p.findings);
+		const snapshot = this.productsAs(ShownApplicableStepsSchema, p);
+		noteActualityFeature(snapshot.actuality);
+		this.findings = snapshot.findings;
 		this.#given = { offered: p, snapshot };
 		this.requestUpdate();
 	}
