@@ -382,16 +382,16 @@
 			"actuality": {
 				"text": "e2e-tests/requirements, node_modules/@haibun/cli/waypoints, node_modules/@haibun/logic/waypoints, node_modules/@haibun/core/waypoints",
 				"status": "passed",
-				"tookMs": 30200,
+				"tookMs": 35800,
 				"digest": {
 					"e2e-tests/requirements": "ddef58f69db8f6519151ff381b293959661019ebebec80b1fb21e976c250050e",
 					"e2e-tests/src": "260a250979e4596eb9a66444ac92d5a11114308f7484cc99662f8392171c2864",
 					"modules/cli/src": "257e7df11cab87dbfa47e3f2b62a731babca0ef31c02921c4fd211361cb3c976",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "cfa5411b2ce2dc5f94ff097eb366ee0acfa5ae483ae76f01ed8effd404d1a027",
+					"modules/core/src": "094516709d7b911a073607200cccbe00b95a8b9da45975bc6c921ee9dff10b51",
 					"modules/core/waypoints": "f573c51de6e8154e49adbb5d98a25b3fd1872742dfdab0f3d6ec8f6164759860",
 					"modules/domain-storage/src": "d21fde6c12a84c8fb246318488d49df330d1c5a5ca02818ce5bcc85d01c120ca",
-					"modules/logic/src": "d23592299c9402ac1535cdabbfa51d4fcaa19409adfdc3c286ca94e3e23ede1c",
+					"modules/logic/src": "fdace30c2e139321475362f8c3ee658827c0801d35eff2db735e90c9466ed996",
 					"modules/logic/waypoints": "156399b8cca79a483d951d021c5c5ecab8aba6ae2fa90c56b054b3e31601801b",
 					"modules/monitor-otel/src": "126543b2148fce1111165488855c8522d4e0875fcce2bada2f6215aa60a48d9a",
 					"modules/monitor-tui/src": "0c89537d075907370635162846b32d9d3b03f1c17df2f0483ab2eaefb06d8fcb",
@@ -416,7 +416,7 @@
 				"/features/02-authority.feature.ts": {
 					"text": "Capabilities authorize every call",
 					"status": "passed",
-					"tookMs": 300,
+					"tookMs": 400,
 					"steps": 59
 				},
 				"/features/03-activities.feature.ts": {
@@ -500,7 +500,7 @@
 				"/features/16-class-expressions.feature.ts": {
 					"text": "Class expressions",
 					"status": "passed",
-					"tookMs": 24400,
+					"tookMs": 29800,
 					"steps": 93
 				}
 			}
