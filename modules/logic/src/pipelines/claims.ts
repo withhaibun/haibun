@@ -39,7 +39,7 @@ const UNKNOWN_REMEDY = "Add the fact, or read a complete graph.";
 const ENTAILED_BY = "the reasoner entails it under the rules of OWL 2 RL from the ontology and the records it read under the caller's authority";
 
 /** The proof of a claim K contradicts, before the axioms the reasoner's proof of the contradiction read. */
-const REFUTED_BY = "the reasoner entails its contradiction under the rules of OWL 2 RL, since a member is entailed a member of two disjoint classes (the rule cax-dw), from";
+export const REFUTED_BY = "the reasoner entails its contradiction under the rules of OWL 2 RL, since a member is entailed a member of two disjoint classes (the rule cax-dw), from";
 
 /** Returns what a claim checks, its class expressions checked against the ontology. */
 export function claimEntailment(terms: TClaimTerms, domains: Record<string, TRegisteredDomain>): TEntailment {

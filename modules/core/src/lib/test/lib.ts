@@ -109,6 +109,7 @@ function testProver(): TProver {
 		exceeding: async (candidate, bound) => (await prover()).exceeding(candidate, bound),
 		entailed: async (world, expression) => (await prover()).entailed(world, expression),
 		checkContract: async (world, checking, call) => (await prover()).checkContract(world, checking, call),
+		assumedClaims: async (world, written) => (await prover()).assumedClaims(world, written),
 	};
 }
 

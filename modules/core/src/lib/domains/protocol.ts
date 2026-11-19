@@ -2,6 +2,7 @@ import { MEDIA_TYPE } from "./media-types.js";
 import { z } from "zod";
 import { AccessLevelSchema } from "./resources.js";
 import type { TRemedy, TStatementRefusal } from "../transport/domains/rpc-wire.js";
+import type { TAssumedClaim } from "../records/domains/claim.js";
 import type { TActuality } from "../actuality/machines/actuality.js";
 
 // ============================================================================
@@ -402,8 +403,8 @@ export const LOGIC_STEPPER = "@haibun/logic/logic-stepper";
  */
 type TActionResultCarries = { products?: THypermediaProducts; controlSignal?: TDebugSignal; artifact?: TArtifactEvent; verdict?: TVerdict };
 /** The checks of a step's contract a call ran, as the N3 facts each check read, which the step's record holds and from which a
- *  why view requests the check's proof. */
-type TContractChecks = { checks: string };
+ *  why view requests the check's proof, and, for a step whose products are assumed, the claims about each record it wrote. */
+type TContractChecks = { checks: string; assumed?: readonly TAssumedClaim[] };
 /** The statement of a step's contract that refused a call, and the checks the call ran. */
 export type TContractRefusal = TContractChecks & { statement: TStatementRefusal };
 /** A step passed or failed. A failure carries an `errorMessage` that states the reason, the remedy a caller can act on where one

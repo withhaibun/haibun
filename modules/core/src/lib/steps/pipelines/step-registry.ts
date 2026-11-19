@@ -266,10 +266,12 @@ export function createStepHandler(stepperName: string, stepName: string, stepDef
 			if (!result.ok) return result;
 			const stated = result.products === undefined ? undefined : await contractChecked(world, stepDef, CONTRACT_CHECK.states, { ...checked, products: result.products });
 			const assumed = stepDef.contract?.assumed === true ? await assumedChecked(world) : undefined;
-			const checks = [...[required, stated].flatMap((outcome) => (outcome === undefined ? [] : [outcome.checked])), ...(assumed === undefined ? [] : [assumed])];
+			const checks = [...[required, stated].flatMap((outcome) => (outcome === undefined ? [] : [outcome.checked])), ...(assumed?.checks === undefined ? [] : [assumed.checks])];
 			if (stated?.refused !== undefined) return contractRefusal(stated.refused, checks);
 			if (result.products !== undefined) await writeProducts(world, stepDef, `${stepperName}.${stepName}`, result.products);
-			return checks.length === 0 ? result : { ...result, contract: { checks: checks.join("\n") } };
+			const claims = assumed === undefined || assumed.claims.length === 0 ? undefined : assumed.claims;
+			if (checks.length === 0 && claims === undefined) return result;
+			return { ...result, contract: { checks: checks.join("\n"), ...(claims === undefined ? {} : { assumed: claims }) } };
 		} catch (caught) {
 			// A thrown error becomes a failed result that states the step threw and carries the error's message, and the remedy
 			// where a refused call carries one. The code that presents the failure names the step, as an RPC response names

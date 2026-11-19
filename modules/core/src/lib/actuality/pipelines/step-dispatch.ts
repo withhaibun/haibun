@@ -3,6 +3,7 @@
  * actuality machine, its record, its facts and its result. Every surface proves a step through `proveStep`, and the logic
  * engine's prover dispatches each call and each node of the proof here.
  */
+import { claimAssertions, writeEarlAssertions } from "../../records/pipelines/earl-assertions.js";
 import type { AStepper, TStepperStep, TFeatureStep, TBeforeStep, TAfterStep, TAfterStepResult } from "../../steps/domains/stepper.js";
 import { proverOf, type TWorld } from "../domains/world.js";
 import { recordTime } from "../domains/record-time.js";
@@ -20,7 +21,7 @@ import { inCall, isNested, nestedOf, runInCall, writtenLevel, type TCallContext 
 import { heldAuthority } from "../../domains/session-authority.js";
 import { authorityRefusal, RefusedCall } from "../../transport/domains/rpc-wire.js";
 import { SEQ_PATH_LABEL } from "../../domains/resources.js";
-import { SEQ_PATH_LEVELS, actualityFeatureOf, type TRecordName } from "../domains/seq-path.js";
+import { SEQ_PATH_LEVELS, actualityFeatureOf, formatRecordName, type TRecordName } from "../domains/seq-path.js";
 import { listedStatement, runRegistry, type StepRegistry } from "../../steps/pipelines/step-registry.js";
 import type { TList } from "../../domains/lists.js";
 import { stepMethodName, hostScopedMethodName } from "../../steps/domains/step-method.js";
@@ -274,6 +275,11 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		...shown(viewShown(actionResult.products)),
 		...result,
 	});
+	// The claims about the records an assumed step wrote are actuality's EARL assertions, written beside the step's record.
+	const claims = actionResult.ok ? actionResult.contract?.assumed : undefined;
+	if (claims !== undefined)
+		for (const assertions of claimAssertions(formatRecordName({ actuality: actualityFeatureOf(world.tag), path: featureStep.seqPath }), claims))
+			await writeEarlAssertions(world.shared.getStore(), assertions);
 	return lastStepResult;
 }
 

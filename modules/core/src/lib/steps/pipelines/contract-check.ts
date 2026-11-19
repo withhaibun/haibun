@@ -7,6 +7,7 @@
  * verdict and the triple that determined it, then the remedy the verdict determines. The step's record holds the facts each check
  * read, as N3, from which a why view requests EYE's proof of the check.
  */
+import type { TAssumedClaim } from "../../records/domains/claim.js";
 import { declaredFieldIri } from "../../domains/hypermedia.js";
 import { proverOf, type TWorld } from "../../actuality/domains/world.js";
 import { VERDICT, type TActionResult } from "../../domains/protocol.js";
@@ -65,25 +66,34 @@ export async function contractChecked(world: TWorld, step: TStepperStep, check: 
 	return { checked, refused: { reason: `${REFUSED_AT[check]} that ${sentence}, which is ${verdict}: ${decidedBy}. ${statement.remedy}`, statement } };
 }
 
-/** Returns the check of the records an assumed step's call wrote against the fields each one's type states every member has
- *  (`required`): a field the record holds is proved, and a field the extraction didn't produce is unknown. The check doesn't
- *  refuse the call, since the open world doesn't read an absent field as false. Undefined where the call didn't write a record of a
- *  type that states one. */
-export async function assumedChecked(world: TWorld): Promise<string | undefined> {
+/** The claims about the records an assumed step's call wrote, and the facts its check of their required fields read. */
+export type TAssumedChecked = { readonly checks: string | undefined; readonly claims: readonly TAssumedClaim[] };
+
+/** Returns the claims about the records an assumed step's call wrote: each field its type states every member has (`required`),
+ *  proved where the record holds it and unknown where the extraction didn't produce it, since the open world doesn't read an
+ *  absent field as false; and the prover's claims of each record's consistency with the ontology and its identity with a record
+ *  the store holds. Each claim is recorded, and the call runs whatever it concludes. Undefined where the call didn't write a record. */
+export async function assumedChecked(world: TWorld): Promise<TAssumedChecked | undefined> {
 	const written = inCall()?.step?.writes?.written;
+	if (written === undefined || written.length === 0) return undefined;
 	const typed = new Map(Object.values(world.domains).flatMap(({ topology }) => (isPersisted(topology) && topology.required ? [[topology.persistedAs, topology] as const] : [])));
-	const records = new Map((written === undefined ? [] : written).map((name) => [curieOf(name), name]));
+	const records = new Map(written.map((name) => [curieOf(name), name]));
 	const parameters = Object.fromEntries([...records].map(([curie, { label, id }]) => [curie, referenceTo(label, id)]));
-	const statements = [...records].flatMap(([curie, { label }]) => {
-		const topology = typed.get(label);
+	const required = [...records].flatMap(([curie, name]) => {
+		const topology = typed.get(name.label);
 		const keys = topology?.required;
 		return topology === undefined || keys === undefined
 			? []
-			: keys.map((key) => holds(requiredRelation({ persistedAs: label, key }, declaredFieldIri(topology, key)), parameter(curie)));
+			: keys.map((key) => ({ name, key, statement: holds(requiredRelation({ persistedAs: name.label, key }, declaredFieldIri(topology, key)), parameter(curie)) }));
 	});
-	if (statements.length === 0) return undefined;
-	const { facts } = await proverOf(world).checkContract(world, { statements, complete: [] }, { parameters });
-	return checkN3(ASSUMED_CHECK, facts);
+	const prover = proverOf(world);
+	const checked = required.length === 0 ? undefined : await prover.checkContract(world, { statements: required.map(({ statement }) => statement), complete: [] }, { parameters });
+	const fields = required.map(({ name, key }, at): TAssumedClaim => {
+		const held = checked?.verdicts[at];
+		if (held === undefined || held.verdict === VERDICT.contradiction) throw new Error(`the check of the ${name.label} ${name.id}'s ${key} doesn't state a claim's verdict`);
+		return { subject: name, test: `the ${name.label} has its ${key}`, verdict: held.verdict, proof: held.decidedBy };
+	});
+	return { checks: checked === undefined ? undefined : checkN3(ASSUMED_CHECK, checked.facts), claims: [...fields, ...(await prover.assumedClaims(world, [...records.values()]))] };
 }
 
 /** Returns the result of a call its contract's check refused, with the checks the call ran. */

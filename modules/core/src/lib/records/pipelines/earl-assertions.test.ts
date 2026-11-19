@@ -14,11 +14,13 @@ const EARL_TYPES = Object.fromEntries(earlDomainDefinitions.map(declaredTypeOf))
 const registered = Object.fromEntries(earlDomainDefinitions.map((definition) => [definition.selectors[0], toRegisteredDomain(definition)]));
 
 const STEP = "1791034142780-1.0.1.2";
+/** The page the checker tested. */
+const PAGE = "https://example.com/page";
 const IMAGE_ALT = { id: "https://example.com/rules/image-alt", name: "Images must have alternative text", tags: ["wcag2a", "wcag111"] };
 const TITLE = { id: "https://example.com/rules/document-title", name: "Documents must have a title" };
 const assertions = (step: string): TEarlAssertions => ({
 	assertor: { id: "https://example.com/checker/1.0", name: "checker 1.0" },
-	subject: { id: "https://example.com/page", url: "https://example.com/page" },
+	subject: { id: PAGE, url: PAGE },
 	mode: EARL_MODE.automatic,
 	step,
 	results: [
@@ -71,11 +73,11 @@ describe("writeEarlAssertions", () => {
 	it("records each result as an assertion the step made, linked to the assertor, the subject, the test case and the result", async () => {
 		const store = storeDeclaring(EARL_TYPES, TEST_LEVELS);
 		const ids = await writeEarlAssertions(store, assertions(STEP));
-		expect(ids).toEqual([`${STEP} ${IMAGE_ALT.id}`, `${STEP} ${TITLE.id}`]);
+		expect(ids).toEqual([`${STEP} ${PAGE} ${IMAGE_ALT.id}`, `${STEP} ${PAGE} ${TITLE.id}`]);
 		const edges = await store.query({ subject: itemAt(ids, 0), namedGraph: EARL_LABEL.assertion });
 		const target = (edge: string) => edges.find((quad) => quad.predicate === edge);
 		expect(target(EARL_ASSERTION_EDGE.assertedBy)).toMatchObject({ object: "https://example.com/checker/1.0", objectType: EARL_LABEL.assertor });
-		expect(target(EARL_ASSERTION_EDGE.subject)).toMatchObject({ object: "https://example.com/page", objectType: EARL_LABEL.testSubject });
+		expect(target(EARL_ASSERTION_EDGE.subject)).toMatchObject({ object: PAGE, objectType: EARL_LABEL.testSubject });
 		expect(target(EARL_ASSERTION_EDGE.test)).toMatchObject({ object: IMAGE_ALT.id, objectType: EARL_LABEL.testCase });
 		expect(target(EARL_ASSERTION_EDGE.wasGeneratedBy)).toMatchObject({ object: STEP, objectType: SEQ_PATH_LABEL });
 		const resultId = String(target(EARL_ASSERTION_EDGE.result)?.object);

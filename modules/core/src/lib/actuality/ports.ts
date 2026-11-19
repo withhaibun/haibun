@@ -10,6 +10,8 @@ import type { TFeatureStep } from "../steps/domains/stepper.js";
 import type { TActionResult, TStepResult } from "../domains/protocol.js";
 import type { TExceeding, TPermission } from "../domains/actions.js";
 import type { TIndividualAddress } from "../domains/typed-links.js";
+import type { TRecordName } from "../records/domains/unit.js";
+import type { TAssumedClaim } from "../records/domains/claim.js";
 import type { TContractCall, TContractChecked, TContractChecking } from "../steps/domains/contract.js";
 
 /** The time of an event or a record in milliseconds since the epoch, a wait of a number of milliseconds, and a task after a
@@ -40,6 +42,10 @@ export type TProver = {
 	checkContract: (world: TWorld, checking: TContractChecking, call: TContractCall) => Promise<TContractChecked>;
 	/** Returns the records the ontology entails as members of a class expression, read from the world's store. */
 	entailed: (world: TWorld, expression: string) => Promise<TEntailed>;
+	/** Returns the claims about the records `written` names, which a step whose products are assumed wrote: whether each record's
+	 *  facts contradict a disjointness the ontology states, and each record of the store the ontology entails is the same
+	 *  individual, with each proof. */
+	assumedClaims: (world: TWorld, written: readonly TRecordName[]) => Promise<TAssumedClaim[]>;
 };
 
 /** The members a class expression entails, and the types whose reads stopped at the reasoning's ceiling, whose further

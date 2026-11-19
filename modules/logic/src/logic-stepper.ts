@@ -1,3 +1,4 @@
+import { earlDomainDefinitions } from "@haibun/core/lib/domains/earl.js";
 import { AStepper, READING, type IHasCycles, type IHasOptions, type IStepperCycles, declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 import type { TWorld } from "@haibun/core/lib/actuality/domains/world.js";
 import {
@@ -91,6 +92,8 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 				...readingDomainDefinitions,
 				...goalDomainDefinitions,
 				...reasoningDomainDefinitions,
+				// The EARL assertions of the claims about the records an assumed step wrote, which dispatch writes.
+				...earlDomainDefinitions,
 				this.classExpressionDomain,
 				this.domainGoalDomain,
 			],

@@ -8,6 +8,7 @@
  */
 import { z } from "zod";
 import { VERDICT } from "../../domains/protocol.js";
+import type { TRecordName } from "./unit.js";
 
 /** The OWL 2 reasoning task of each claim. */
 export const REASONING_TASK = { instance: "instance check", subsumption: "subsumption check", retrieval: "instance retrieval", feature: "feature entailment" } as const;
@@ -15,6 +16,10 @@ export const REASONING_TASK = { instance: "instance check", subsumption: "subsum
 /** A claim's verdict as its result states it, by the verdict of its proof. A claim's proof doesn't end as a contradiction. */
 export const CLAIM_VERDICT = { [VERDICT.proved]: "holds", [VERDICT.refuted]: "refuted", [VERDICT.unknown]: "unknown" } as const;
 export type TClaimVerdict = keyof typeof CLAIM_VERDICT;
+
+/** A claim about a record a step whose products are assumed wrote: the record, the test it states, how the claim ended, and its
+ *  proof. */
+export type TAssumedClaim = { readonly subject: TRecordName; readonly test: string; readonly verdict: TClaimVerdict; readonly proof: string };
 
 /** What a claim checks: its reasoning task, its axiom in OWL 2 functional syntax and in Manchester syntax where a frame states
  *  it, the entailment K ⊨ axiom, and the entailment in DL notation. A retrieval doesn't check an axiom. A feature claim states

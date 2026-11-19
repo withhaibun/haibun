@@ -23,6 +23,7 @@ import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { refusalCarried, type TRemedy } from "@haibun/core/lib/rpc-wire.js";
 import { checkedRelations } from "../derivations/contract-declarations.js";
 import { contractChecks } from "./contract-checks.js";
+import { assumedClaims } from "./assumed-claims.js";
 import { READING, UNTIL_DURATION, untilWithoutDuration, type AStepper, type TStepContext, type TFeatureStep, type TWaypointRule } from "@haibun/core/lib/steps/domains/stepper.js";
 import { formatSeqPath } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import {
@@ -658,6 +659,7 @@ export function proverOf(engine: TLogicEngine, reasoner: TReasoner, steppers: re
 		checkContract: contractChecks(checkedRelations(steppers), reasoner, engine),
 		exceeding: async (candidate, bound) => (await containment(reasoner, candidate, bound)).exceeds,
 		entailed: (world, expression) => entailedMembers(reasoner, world.shared.getStore(), world.domains, world.runtime.records, expression),
+		assumedClaims: (world, written) => assumedClaims({ reasoner, store: world.shared.getStore(), domains: world.domains, records: world.runtime.records }, written),
 		prove: async (ctx, line) => {
 			const proof = new Proof(ctx, reasoner, line);
 			let term: string;

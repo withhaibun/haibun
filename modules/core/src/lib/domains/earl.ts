@@ -4,7 +4,8 @@
  * An assertion states that an assertor tested a subject against a test case, and links the result: its outcome, where in
  * the subject it applies, and what the assertor states about it. Each is a record of its own, as EARL defines each as a
  * class, so a test case or a subject that several assertions name is one record they share. An assertion links to the
- * step that made it, so what a step found is read the same way as what a step produced.
+ * step that made it, so what a step found is read the same way as what a step produced. Each type records a check actuality made,
+ * so actuality writes an assertion while any step is in progress, and a step's contract doesn't list it.
  */
 import { PROV_AGENT } from "./vocabularies.js";
 import { z } from "zod";
@@ -59,6 +60,7 @@ export const earlDomainDefinitions: TDomainDefinition[] = [
 		description: "A tool or person that tests something and states the results, such as an accessibility checker at a version.",
 		topology: {
 			persistedAs: EARL_LABEL.assertor,
+			observesActuality: true,
 			type: "earl:Assertor",
 			subClassOf: PROV_AGENT,
 			id: "id",
@@ -73,6 +75,7 @@ export const earlDomainDefinitions: TDomainDefinition[] = [
 		description: "What was tested, such as a web page by its address.",
 		topology: {
 			persistedAs: EARL_LABEL.testSubject,
+			observesActuality: true,
 			accessLevel: Access.private,
 			type: "earl:TestSubject",
 			id: "id",
@@ -86,6 +89,7 @@ export const earlDomainDefinitions: TDomainDefinition[] = [
 		description: "A test a subject is checked against, such as an accessibility rule, with the criteria it checks and where its guidance is read.",
 		topology: {
 			persistedAs: EARL_LABEL.testCase,
+			observesActuality: true,
 			type: "earl:TestCase",
 			id: "id",
 			accessLevel: Access.public,
@@ -105,6 +109,7 @@ export const earlDomainDefinitions: TDomainDefinition[] = [
 		description: "The result of a test: its outcome, where in the subject it applies, and what the assertor states about it.",
 		topology: {
 			persistedAs: EARL_LABEL.testResult,
+			observesActuality: true,
 			accessLevel: Access.private,
 			type: "earl:TestResult",
 			id: "id",
@@ -126,6 +131,7 @@ export const earlDomainDefinitions: TDomainDefinition[] = [
 		description: "A statement that an assertor tested a subject against a test case, with the result, made by a step.",
 		topology: {
 			persistedAs: EARL_LABEL.assertion,
+			observesActuality: true,
 			accessLevel: Access.private,
 			type: "earl:Assertion",
 			id: "id",
