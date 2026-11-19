@@ -196,9 +196,12 @@ const DEVELOPMENT = "development";
  *  so a bundle selects production or development as the process that builds it does, in place of esbuild's choice by minification. */
 export const nodeEnvDefine = (): Record<string, string> => ({ "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV === undefined ? DEVELOPMENT : process.env.NODE_ENV) });
 
-/** The options that build a bundle of the repository at `root` for a browser. */
+/** The options that build a bundle of the repository at `root` for a browser. The build reads the root's tsconfig for each file it
+ *  compiles: esbuild's lookup of each file's own tsconfig resolves it apart from one build to the next, and a module states "use
+ *  strict" where the tsconfig read for it is strict, so two builds of the same inputs would differ. */
 const bundleOptions = (root: string, bundle: TBundle): BuildOptions & { metafile: true; plugins: Plugin[] } => ({
 	absWorkingDir: root,
+	tsconfig: join(root, "tsconfig.json"),
 	entryPoints: bundle.entryPoints,
 	outdir: bundle.outdir,
 	format: bundle.format,
