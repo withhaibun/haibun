@@ -83,11 +83,11 @@
 			"actuality": {
 				"text": "modules/shu/tests-profile, node_modules/@haibun/web-playwright/waypoints, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 2200,
+				"tookMs": 2100,
 				"digest": {
-					"modules/core/src": "094516709d7b911a073607200cccbe00b95a8b9da45975bc6c921ee9dff10b51",
+					"modules/core/src": "b4433a64326d74114fc5e7035870f2e39bb89c58393d3fd00235b4d6a8395c54",
 					"modules/domain-storage/src": "d21fde6c12a84c8fb246318488d49df330d1c5a5ca02818ce5bcc85d01c120ca",
-					"modules/logic/src": "fdace30c2e139321475362f8c3ee658827c0801d35eff2db735e90c9466ed996",
+					"modules/logic/src": "47b9d3500f039feb024a5d574bfd0d8315f5c9f3dfa03cf739ae38946b3003c6",
 					"modules/monitor-tui/src": "0c89537d075907370635162846b32d9d3b03f1c17df2f0483ab2eaefb06d8fcb",
 					"modules/shu/src": "fcf4bd81b0798aaeb44f3e389b3f6beda744e7fd486a7a1051cfcb95101c4fbf",
 					"modules/shu/tests-profile": "86546173e9429cbbea19ef13413c7a844fde4405096473d1c2f7a60bf8424c47",
@@ -113,11 +113,11 @@
 			"actuality": {
 				"text": "modules/shu/tests-profile, node_modules/@haibun/web-playwright/waypoints, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 9200,
+				"tookMs": 8800,
 				"digest": {
-					"modules/core/src": "094516709d7b911a073607200cccbe00b95a8b9da45975bc6c921ee9dff10b51",
+					"modules/core/src": "b4433a64326d74114fc5e7035870f2e39bb89c58393d3fd00235b4d6a8395c54",
 					"modules/domain-storage/src": "d21fde6c12a84c8fb246318488d49df330d1c5a5ca02818ce5bcc85d01c120ca",
-					"modules/logic/src": "fdace30c2e139321475362f8c3ee658827c0801d35eff2db735e90c9466ed996",
+					"modules/logic/src": "47b9d3500f039feb024a5d574bfd0d8315f5c9f3dfa03cf739ae38946b3003c6",
 					"modules/monitor-tui/src": "0c89537d075907370635162846b32d9d3b03f1c17df2f0483ab2eaefb06d8fcb",
 					"modules/shu/src": "fcf4bd81b0798aaeb44f3e389b3f6beda744e7fd486a7a1051cfcb95101c4fbf",
 					"modules/shu/tests-profile": "86546173e9429cbbea19ef13413c7a844fde4405096473d1c2f7a60bf8424c47",
@@ -133,7 +133,7 @@
 				"/features/b-reading-a-cached-actuality.feature.ts": {
 					"text": "Reading an actuality this device holds",
 					"status": "passed",
-					"tookMs": 2300,
+					"tookMs": 1900,
 					"steps": 223
 				},
 				"/features/c-reading-a-report.feature.ts": {
