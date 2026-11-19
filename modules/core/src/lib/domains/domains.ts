@@ -368,7 +368,15 @@ export const createEnumDomainDefinition = ({ name, values, description, ordered 
  */
 function withRecordProperties(topology: TDomainTopology | undefined): TDomainTopology | undefined {
 	if (!isPersisted(topology)) return topology;
-	return { ...topology, properties: { ...topology.properties, accessLevel: LinkRelations.ACCESS_LEVEL.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel } };
+	return {
+		...topology,
+		properties: {
+			...topology.properties,
+			...(topology.edges?.sameAs === undefined ? { sameAs: LinkRelations.SAME_AS.rel } : {}),
+			accessLevel: LinkRelations.ACCESS_LEVEL.rel,
+			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
+		},
+	};
 }
 
 export const toRegisteredDomain = (definition: TDomainDefinition): TRegisteredDomain => {

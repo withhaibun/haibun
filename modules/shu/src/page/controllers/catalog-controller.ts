@@ -4,6 +4,7 @@
  * values each type offers are held in the root, across the page's bundles.
  */
 import type { TConcernCatalog, TTitledBy } from "@haibun/core/lib/domains/hypermedia.js";
+import { isSubPropertyOf, LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { pageRegistry, selectValues } from "../root.js";
 import * as Catalog from "../derivations/catalog.js";
 import { modelType } from "../ask/derivations/ask-steps.js";
@@ -174,3 +175,13 @@ export const refContext: TRefContext = { isType: isKnownType, propertyDefinition
 
 /** Returns the component a product renders in, and the slot its type's UI names. */
 export const resolveUi = (product: Record<string, unknown>): Catalog.TResolvedUi => Catalog.resolveUi(catalog("the component of a product"), product);
+
+/** Returns the field names on `label` that map to `ganttStart` and `ganttEnd`, falling back to `startedAtTime` and `endedAtTime`. */
+export function ganttTimeFieldsFor(label: string): { startField: string; endField?: string } {
+	const rels = catalog(`the gantt fields of ${label}`).fieldRels[label];
+	if (rels === undefined) return { startField: LinkRelations.STARTED_AT_TIME.rel, endField: LinkRelations.ENDED_AT_TIME.rel };
+	const entries = Object.entries(rels);
+	const startField = entries.find(([, rel]) => isSubPropertyOf(rel, LinkRelations.GANTT_START.rel))?.[0];
+	const endField = entries.find(([, rel]) => isSubPropertyOf(rel, LinkRelations.GANTT_END.rel))?.[0];
+	return { startField: startField === undefined ? LinkRelations.STARTED_AT_TIME.rel : startField, ...(endField === undefined ? {} : { endField }) };
+}

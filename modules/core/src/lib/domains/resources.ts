@@ -107,8 +107,11 @@ export const AccessQuery = AccessQueryLevelSchema.enum;
  * doesn't declare the property can't classify its records. A store's registration guard enforces the declaration, and
  * this base schema supplies it.
  */
+export const SameAsSchema = z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]);
+
 export const PersistedVertexSchema = z.object({
 	accessLevel: AccessLevelSchema.optional().describe("How widely the record is shared. A record that doesn't state a level is classified by its type at write time."),
+	sameAs: SameAsSchema.optional().describe("IRIs that identify the same resource, such as a file:// address of its JSON-LD document."),
 });
 /** Returns a type's stored schema and the fields every record of the type has, from the schema its declaration states and those
  *  fields' keys: the stored schema doesn't require them, so the topology's `required` and the schema's optionality are one list. */
@@ -466,6 +469,10 @@ export const LinkRelations = {
 	// The direct object of an act, such as an edit's file. audience holds the act's addressee and target holds its
 	// destination.
 	AS_OBJECT: { rel: "object", uri: "as:object", range: "iri", subPropertyOf: "toActor", rolePriority: 50 },
+	SAME_AS: { rel: "sameAs", uri: "schema:sameAs", range: "iri" },
+	REQUIRES: { rel: "requires", uri: "dcterms:requires", range: "iri", subPropertyOf: "ganttDepends" },
+	REPLACES: { rel: "replaces", uri: "dcterms:replaces", range: "iri" },
+	IS_RELATED_TO: { rel: "isRelatedTo", uri: "schema:isRelatedTo", range: "iri" },
 } as const;
 
 /** Every declared relation, keyed by its rel. It is built once because every projected property of every record looks
@@ -517,6 +524,10 @@ export const EdgePredicates = {
 	used: { rel: LinkRelations.USED.rel },
 	wasGeneratedBy: { rel: LinkRelations.WAS_GENERATED_BY.rel },
 	wasDerivedFrom: { rel: LinkRelations.WAS_DERIVED_FROM.rel },
+	sameAs: { rel: LinkRelations.SAME_AS.rel },
+	requires: { rel: LinkRelations.REQUIRES.rel },
+	replaces: { rel: LinkRelations.REPLACES.rel },
+	isRelatedTo: { rel: LinkRelations.IS_RELATED_TO.rel },
 } as const;
 
 type TEdgePredicate = keyof typeof EdgePredicates;

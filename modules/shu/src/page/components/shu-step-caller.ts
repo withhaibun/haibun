@@ -52,6 +52,7 @@ type TInputProperty = {
 	format?: string;
 	description?: string;
 	enum?: string[];
+	anyOf?: TInputProperty[];
 	properties?: Record<string, TInputProperty>;
 	required?: string[];
 	[key: string]: unknown;
@@ -427,7 +428,11 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 		const required = new Set(prop.required ?? []);
 		const fields = Object.entries(prop.properties).map(([subName, subProp]) => {
 			// A test id joins with `-`, so haibun's variable resolver doesn't read `foo.bar` as a path.
-			const typeLabel = subProp.format ?? subProp.type;
+			const unionLabel = subProp.anyOf
+				?.map((p) => p.format ?? p.type)
+				.filter((t): t is string => t !== undefined)
+				.join(" | ");
+			const typeLabel = subProp.format ?? subProp.type ?? (unionLabel !== undefined && unionLabel !== "" ? unionLabel : undefined);
 			if (typeLabel === undefined) throw new Error(`<shu-step-caller>: the composite field "${paramName}.${subName}" doesn't declare a type or a format in its JSON Schema`);
 			return this.#textInput(
 				`${paramName}.${subName}`,

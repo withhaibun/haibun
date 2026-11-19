@@ -37,7 +37,7 @@ function namesIn(view: string): [string, number | undefined][] {
 describe("the names a catalog supplies", () => {
 	it("are each persisted type's label and each field named by a compound term", () => {
 		expect([...names.types]).toEqual([NOTE]);
-		expect([...names.fields].sort()).toEqual(["accessLevel", "attributedTo", "generatedAtTime"]);
+		expect([...names.fields].sort()).toEqual(["accessLevel", "attributedTo", "generatedAtTime", "sameAs"]);
 	});
 });
 

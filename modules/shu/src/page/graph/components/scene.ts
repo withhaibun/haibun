@@ -43,7 +43,16 @@ import { SceneController } from "../controllers/scene-controller.js";
 import { type RenderType, type TViewForces, buildRenderTypeRegistry } from "./render-type.js";
 import { type ViewType, FRAME, VIEW, isLaneView, viewChangeRebuildsNodes } from "../domains/views.js";
 import { SCHEMA_TERM, holdsSchema, isSchemaType, schemaHoverText, schemaTermOf, schemaTypes } from "../../../derivations/ontology-projection.js";
-import { actorTypesFor, fromActorEdgeLabels, relationOfPredicate, roleEdgeLabels, roleNounFor, toActorEdgeLabels, validTimeFieldOf } from "../../controllers/catalog-controller.js";
+import {
+	actorTypesFor,
+	fromActorEdgeLabels,
+	ganttTimeFieldsFor,
+	relationOfPredicate,
+	roleEdgeLabels,
+	roleNounFor,
+	toActorEdgeLabels,
+	validTimeFieldOf,
+} from "../../controllers/catalog-controller.js";
 import { compositeRenderer, threeRenderer } from "./renderer.js";
 import { A11yRenderer } from "./a11y-renderer.js";
 import type { TFenceGl } from "../adapters/frame-time.js";
@@ -125,7 +134,7 @@ export interface GraphSceneConfig {
 export interface RescheduleUpdate {
 	label: string;
 	id: string;
-	data: { startedAtTime: string; endedAtTime: string };
+	data: Record<string, string>;
 }
 
 /** The graph-scene-changed payload: the control-bar inputs the host renders. */
@@ -1243,11 +1252,12 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const newStartMs = ganttBarSpan(node.z, target.zLen, scale).start;
 		// Dragging a bar reschedules it AND slides every task that depends on it by the same delta.
 		const shifted = cascadeReschedule(node.id, newStartMs - dragged.start, tasks);
-		const updates: RescheduleUpdate[] = [...shifted].map(([id, { start, end }]) => ({
-			label: node.type,
-			id,
-			data: { startedAtTime: new Date(start).toISOString(), endedAtTime: new Date(end).toISOString() },
-		}));
+		const updates: RescheduleUpdate[] = [...shifted].map(([id, { start, end }]) => {
+			const found = this.nodeMap.get(id);
+			const taskType = found === undefined ? node.type : found.type;
+			const { startField, endField } = ganttTimeFieldsFor(taskType);
+			return { label: taskType, id, data: { [startField]: new Date(start).toISOString(), ...(endField === undefined ? {} : { [endField]: new Date(end).toISOString() }) } };
+		});
 		if (updates.length === 0) return;
 		// The host persists each vertex + refetches, then calls flushRepaint() so the rescheduled bars redraw at once.
 		this.dispatchEvent(new CustomEvent(GRAPH_SCENE_EVENT.RESCHEDULE_REQUEST, { detail: { updates }, bubbles: true, composed: true }));
