@@ -31,10 +31,10 @@
 			"actuality": {
 				"text": "AGENTS.md",
 				"status": "passed",
-				"tookMs": 1000,
+				"tookMs": 1400,
 				"digest": {
 					"AGENTS.md": "d503d6b49f2f3e2496297cd66def0dc9db3746f6786e9d6c5246fec04e19e223",
-					"modules/core/src": "fd6858f4df4e0aa60391d47cfb50c5ae218a421a83adc76c6e770649e77279b4",
+					"modules/core/src": "ca14ab83d6b43166ddd8740496e3c632a363b61ca286cbd673c5d0d681e47bc9",
 					"modules/domain-storage/src": "0ab0a8dac4c0b4ee05ffe2aeda20e68c6e45bff57631b1844768a740f38955f6",
 					"modules/logic/src": "9e6230824d7a49549ba86d4414aac4812e7c8fa05ff36ff6fea727dd3720a8ff",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
@@ -47,7 +47,7 @@
 				"/AGENTS.md": {
 					"text": "/AGENTS",
 					"status": "passed",
-					"tookMs": 1000,
+					"tookMs": 1300,
 					"steps": 385
 				}
 			}
