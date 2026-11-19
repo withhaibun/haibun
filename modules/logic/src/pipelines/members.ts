@@ -177,7 +177,7 @@ export async function entailedMembers(
 	const basis = queryBasis(domains);
 	const terms = basis.termsOf(records);
 	const expression = checkedExpression(text, basis);
-	const { sources, truncated } = await sourcesOf(store, basis, terms, expression);
+	const { sources, truncated } = await sourcesOf(store, basis, terms, expression, []);
 	const { rules, query } = expressionRules(expression, QUERY_NAMESPACE, irisOf(basis, terms));
 	const derived = await reason(reasoner, store, domains, records, { ruleSets: CLASS_RULE_SETS, rules: [sources, rules].join("\n"), query, closedOver: [] });
 	const members = [...new Map(derived.map(({ subject }) => [subject, terms.addressOf(subject)])).values()];
@@ -185,11 +185,18 @@ export async function entailedMembers(
 }
 
 /** What a query of an expression's members reasons over: the ontology as OWL 2, its closure under the registered vocabularies and
- *  the facts of each type the expression reaches, read under the caller's authority; and the types whose reads stopped at the
- *  reasoning's ceiling. */
-async function sourcesOf(store: IQuadStore, basis: TQueryBasis, terms: TRecordTerms, expression: TClassExpression): Promise<{ sources: string; truncated: string[] }> {
+ *  the facts of each type the expression reaches and each type of `checked`, read under the caller's authority; and the types whose
+ *  reads stopped at the reasoning's ceiling. */
+async function sourcesOf(
+	store: IQuadStore,
+	basis: TQueryBasis,
+	terms: TRecordTerms,
+	expression: TClassExpression,
+	checked: readonly string[],
+): Promise<{ sources: string; truncated: string[] }> {
 	const reader = readerOf(store);
-	const reads = await Promise.all(basis.typesReached(expression).map(async (label) => ({ label, ...(await reader.records(label)) })));
+	const labels = [...new Set([...basis.typesReached(expression), ...checked])];
+	const reads = await Promise.all(labels.map(async (label) => ({ label, ...(await reader.records(label)) })));
 	const facts = reads.map(({ label, facts: read }) => quadsText(terms.statements(label, read)));
 	return { sources: [basis.axioms, basis.closure, ...facts].join("\n"), truncated: reads.flatMap(({ label, truncated }) => (truncated ? [label] : [])) };
 }
@@ -208,7 +215,8 @@ export async function membershipProof(
 	const basis = queryBasis(domains);
 	const terms = basis.termsOf(records);
 	const expression = checkedExpression(text, basis);
-	const { sources, truncated } = await sourcesOf(store, basis, terms, expression);
+	// The checked record's type is read with the types the expression reaches, so the facts that make the record a member are stated.
+	const { sources, truncated } = await sourcesOf(store, basis, terms, expression, [address.persistedAs]);
 	const { rules, membership } = expressionRules(expression, QUERY_NAMESPACE, irisOf(basis, terms));
 	const query = membership(terms.individualAt(addressText(address)));
 	const { proof } = await explain(reasoner, store, domains, records, { ruleSets: CLASS_RULE_SETS, rules: [sources, rules].join("\n"), query, closedOver: [] });

@@ -57,6 +57,8 @@ export function ontologyOwl(ontology: TClusteredQuads, context: Record<string, u
 		if (range !== undefined) axiom(property(subject), RDFS.range, unionOf(range));
 	}
 	for (const q of stated(PROPERTY_LABEL, ONTOLOGY_FIELD.subPropertyOf)) axiom(property(q.subject), RDFS.subPropertyOf, property(String(q.object)));
+	// A field a key names as one its records don't share: two individuals holding one of its values are one individual.
+	for (const q of stated(PROPERTY_LABEL, ONTOLOGY_FIELD.inverseFunctional)) if (q.object === true) axiom(property(q.subject), RDF.type, namedNode(OWL.InverseFunctionalProperty));
 	// A disjointness a type's declaration states, annotated (OWL 2, axiom annotations) with where the declaration was made, so a
 	// reader tells it from a standard vocabulary's.
 	const declaredIn = new Map(stated(CLASS_LABEL, ONTOLOGY_FIELD.disjointnessDeclaredIn).map((q) => [q.subject, String(q.object)]));

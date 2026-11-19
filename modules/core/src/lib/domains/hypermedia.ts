@@ -381,6 +381,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 		const shape = unwrapToShape(domain.schema);
 		if (!shape) throw new Error(`persisted domain "${label}" (${domainKey}) has a schema that isn't an object: a persisted type's value is an object of its fields`);
 		assertFieldsNamed(label, domainKey, topology, Object.keys(shape));
+		assertFieldsApartFromPrefixes(label, domainKey, topology, Object.keys(shape));
 		assertTagUnclaimed(label, domainKey, topology);
 		const fieldSchema = shape[generatedField];
 		if (!fieldSchema) throw new Error(`persisted domain "${label}" (${domainKey}) maps generatedAtTime rel to "${generatedField}" but the schema doesn't have that field`);
@@ -1070,6 +1071,17 @@ function assertFieldsNamed(label: string, domainKey: string, topology: THypermed
 	if (unnamed.length > 0)
 		throw new Error(
 			`persisted domain "${label}" (${domainKey}) has schema fields that its topology doesn't name: ${unnamed.join(", ")}. Map each field to its relation in topology.properties or topology.edges, or remove it from the schema`,
+		);
+}
+
+/** Refuses a field named as a prefix the served context binds for the type, since the field's term would replace the prefix's
+ *  namespace and every term of the prefix would then expand wrongly. */
+function assertFieldsApartFromPrefixes(label: string, domainKey: string, topology: THypermediaTopology, fields: string[]): void {
+	const prefixes = namespacesOfType(topology);
+	const named = fields.filter((field) => prefixes[field] !== undefined);
+	if (named.length > 0)
+		throw new Error(
+			`persisted domain "${label}" (${domainKey}) names its fields ${named.join(", ")} as prefixes the served context binds, so each field's term would replace its prefix's namespace. Rename each field`,
 		);
 }
 

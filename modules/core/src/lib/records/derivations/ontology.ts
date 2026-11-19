@@ -176,6 +176,10 @@ export function ontologyToQuads(domains: Record<string, TRegisteredDomain>): TCl
 				return rel === undefined ? [] : [{ field: edge, rel, iri: fieldIri(topology, edge, rel, def.iri), ranges: edgeRanges(def) }];
 			}),
 		];
+		// A field a key names as one its records don't share is inverse functional, on the property that holds its term.
+		const keyed = new Set((topology.keys === undefined ? [] : topology.keys).flatMap((key) => ("inverseFunctional" in key ? [key.inverseFunctional] : [])));
+		for (const { field, rel, iri } of fields.filter(({ field }) => keyed.has(field)))
+			quads.push(quadOf(iri === REL_CONTEXT[rel] ? rel : fieldPropertyId(persistedAs, field), ONTOLOGY_FIELD.inverseFunctional, true, PROPERTY_LABEL));
 		// A field named for its rel carries the rel's own term, so the rel's property is the field's.
 		for (const { field, rel, iri, ranges } of fields.filter(({ rel, iri }) => iri !== REL_CONTEXT[rel])) {
 			const id = fieldPropertyId(persistedAs, field);

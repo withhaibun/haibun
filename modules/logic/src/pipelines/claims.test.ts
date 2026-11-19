@@ -8,7 +8,9 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { VERDICT, type TActionResult } from "@haibun/core/lib/domains/protocol.js";
-import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
+import { Access, GeneratedAtTimeSchema, HAIBUN_RECORD_NAMESPACE, LinkRelations } from "@haibun/core/lib/domains/resources.js";
+import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
+import { storeOfDomains } from "@haibun/core/lib/test/declared-types.js";
 import { ClaimProductsSchema } from "@haibun/core/lib/records/domains/claim.js";
 import { ClaimWitnessSchema, DisjointnessWitnessSchema } from "@haibun/core/lib/records/domains/axioms.js";
 import { reasoner } from "../root.js";
@@ -16,6 +18,31 @@ import { instanceChecked, subsumptionChecked } from "./claims.js";
 import { NOTE, PERSON, SHARED_MAILBOX, STEP, scopeWith } from "../test/claim-scope.js";
 
 const outcomeOf = (result: TActionResult) => ClaimProductsSchema.parse(result.products).claim;
+
+/** The property two types' keys name, under one IRI, and the value a record of each holds. */
+const DID_IRI = "https://example.org/ns#did";
+const SHARED_DID = "did:key:z6MkShared";
+const [MEMBER, HOLDER] = ["Member", "Holder"];
+/** A type whose records its DID identifies, under the one IRI each such type declares for it. */
+const keyedType = (persistedAs: string) => ({
+	selectors: [persistedAs.toLowerCase()],
+	schema: z.object({ id: z.string(), holderDid: z.string(), generatedAtTime: GeneratedAtTimeSchema }),
+	description: persistedAs,
+	topology: {
+		persistedAs,
+		id: "id",
+		accessLevel: Access.private,
+		keys: [{ inverseFunctional: "holderDid" }],
+		properties: { id: LinkRelations.IDENTIFIER.rel, holderDid: { rel: LinkRelations.IDENTIFIER.rel, iri: DID_IRI } },
+	},
+});
+/** Returns the claim scope of a Member and a Holder, each recorded with the one DID. */
+async function keyedScope() {
+	const definitions = [keyedType(MEMBER), keyedType(HOLDER)];
+	const store = storeOfDomains(definitions);
+	for (const label of [MEMBER, HOLDER]) await store.merge({ "@type": label, holderDid: SHARED_DID, accessLevel: Access.private });
+	return { reasoner: reasoner(), store, domains: mapDefinitionsToDomains(definitions), records: HAIBUN_RECORD_NAMESPACE };
+}
 /** The axioms that refute a Note's membership of Step: PROV-O's disjointness, and the superclass each type declares. */
 const DISJOINT = "DisjointClasses(prov:Activity prov:Entity) (PROV-O W3C Recommendation 2013-04-30), SubClassOf(Note prov:Entity), SubClassOf(Step prov:Activity)";
 
@@ -35,6 +62,13 @@ describe("claims K entails", () => {
 		const { verdict, proof } = outcomeOf(result);
 		expect(verdict).toBe(VERDICT.proved);
 		expect(proof).toContain("ObjectPropertyAssertion(prov:wasGeneratedBy Note:n1 Step:s1)");
+	});
+
+	it("proves two records of different types one individual where each type's key names one property and they share its value", { timeout: 60_000 }, async () => {
+		const scope = await keyedScope();
+		const { verdict, proof } = outcomeOf(await instanceChecked(scope, { persistedAs: MEMBER, id: SHARED_DID }, `{${HOLDER}:${SHARED_DID}}`));
+		expect(verdict).toBe(VERDICT.proved);
+		expect(proof, "the key is the property's inverse functionality").toContain(`InverseFunctionalObjectProperty(<${DID_IRI}>)`);
 	});
 
 	it("leaves unknown a nominal's membership where the two individuals don't share a value of an inverse functional property", { timeout: 60_000 }, async () => {

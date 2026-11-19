@@ -34,6 +34,9 @@ export const ONTOLOGY_FIELD = {
 	field: "field",
 	/** Whether a type's data holds a property. A term of a standard vocabulary that a type doesn't model states false. */
 	inData: "inData",
+	/** Whether two individuals that hold one value of a property are one individual: the field a type's key names as one its
+	 *  records don't share, which OWL states as an inverse functional property. */
+	inverseFunctional: "inverseFunctional",
 	/** A class's designation: agent, activity, observation or artifact, from its subClassOf chain to a PROV or SOSA class. */
 	category: "category",
 	/** What a declared type's records are, from the declaration that states the type. */
@@ -61,6 +64,7 @@ const PropertySchema = PersistedVertexSchema.extend({
 	[ONTOLOGY_FIELD.abstract]: z.boolean().optional(),
 	[ONTOLOGY_FIELD.field]: z.string().optional(),
 	[ONTOLOGY_FIELD.inData]: z.boolean(),
+	[ONTOLOGY_FIELD.inverseFunctional]: z.boolean().optional(),
 	[ONTOLOGY_FIELD.generatedAtTime]: z.string(),
 });
 
@@ -112,6 +116,7 @@ export const propertyDomainDefinition: TDomainDefinition = {
 			[ONTOLOGY_FIELD.abstract]: LinkRelations.TAG.rel,
 			[ONTOLOGY_FIELD.field]: LinkRelations.TAG.rel,
 			[ONTOLOGY_FIELD.inData]: LinkRelations.TAG.rel,
+			[ONTOLOGY_FIELD.inverseFunctional]: LinkRelations.TAG.rel,
 			[ONTOLOGY_FIELD.generatedAtTime]: LinkRelations.GENERATED_AT_TIME.rel,
 			[ONTOLOGY_FIELD.accessLevel]: LinkRelations.ACCESS_LEVEL.rel,
 		},

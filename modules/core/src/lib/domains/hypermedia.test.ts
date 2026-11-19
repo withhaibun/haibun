@@ -263,6 +263,12 @@ describe("buildConcernCatalog field declarations", () => {
 		);
 	});
 
+	it("rejects a field named as a prefix the served context binds, which its term would replace, and names the field", () => {
+		expect(() => buildConcernCatalog(domain("did", { properties: { did: LinkRelations.IDENTIFIER.rel } }))).toThrow(
+			"names its fields did as prefixes the served context binds, so each field's term would replace its prefix's namespace. Rename each field",
+		);
+	});
+
 	it("accepts a schema field that an edge names", () => {
 		expect(() => buildConcernCatalog(domain(ADDRESS, { properties: {}, edges: { [ADDRESS]: { rel: LinkRelations.MENTIONS.rel, range: "Thing" } } }))).not.toThrow();
 	});
