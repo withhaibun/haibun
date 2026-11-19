@@ -6,14 +6,13 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
-import { buildConcernCatalog, getJsonLdContext } from "@haibun/core/lib/domains/hypermedia.js";
+import { buildConcernCatalog, getJsonLdContext, iriIn } from "@haibun/core/lib/domains/hypermedia.js";
 import { Access, LinkRelations } from "@haibun/core/lib/domains/resources.js";
-import { iriIn } from "@haibun/core/lib/records/derivations/owl.js";
 import { recordIri } from "@haibun/core/lib/records/derivations/record-iri.js";
 import { DataFactory } from "n3";
 import { LOG } from "@haibun/core/lib/domains/vocabularies.js";
 import { reasoner } from "../root.js";
-import { listItems, pattern, patternText, quadsOf, quadsText, recordTerms, ruleText } from "./n3.js";
+import { listItems, pattern, patternText, quadsOf, quadsText, recordTerms, recordTermsOf, ruleText } from "./n3.js";
 
 const typeOf = (persistedAs: string) => ({
 	selectors: [persistedAs],
@@ -40,6 +39,18 @@ describe("recordTerms", () => {
 		const domains = mapDefinitionsToDomains([typeOf("Mailbox"), typeOf("MailBox")]);
 		expect(() => recordTerms(buildConcernCatalog(domains), getJsonLdContext(domains)["@context"], RECORDS)).toThrow(/doesn't bind the records' prefix record/);
 		expect(() => recordTerms(buildConcernCatalog(domains), getJsonLdContext(domains, undefined, RECORDS)["@context"], RECORDS)).toThrow(/share a label in lower case/);
+	});
+});
+
+describe("recordTermsOf", () => {
+	it("holds the terms of a set of domains, and makes them again once a feature declares a type after a read of them", () => {
+		const domains = mapDefinitionsToDomains([typeOf("Mailbox")]);
+		const before = recordTermsOf(domains, RECORDS);
+		expect(recordTermsOf(domains, RECORDS), "a second read of the same domains reads the terms it made").toBe(before);
+		// A feature declares a type into the world's domains as it runs.
+		Object.assign(domains, mapDefinitionsToDomains([typeOf("Ticket")]));
+		expect(() => before.classIri("Ticket")).toThrow(/Ticket isn't a persisted type/);
+		expect(recordTermsOf(domains, RECORDS).classIri("Ticket").value.endsWith("Ticket")).toBe(true);
 	});
 });
 

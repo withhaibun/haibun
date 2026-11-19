@@ -9,7 +9,8 @@ import { RPC_PROTOCOL, RpcRefusalSchema, type TRpcRefusal } from "@haibun/core/l
 import { actualityAt } from "@haibun/core/lib/transport/adapters/rpc-call.js";
 import { DEF_PROTO_OPTIONS, freePort, passWithDefaults } from "@haibun/core/lib/test/lib.js";
 import { AStepper, type IHasCycles, type IStepperCycles, declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
-import { doesntHold, parameter, type TRelation } from "@haibun/core/lib/steps/domains/contract.js";
+import { doesntHold, parameter } from "@haibun/core/lib/steps/domains/contract.js";
+import { GRANT, GrantSchema, REVOKED_GRANT } from "@haibun/core/lib/test/contract-grants.js";
 import { actionNotOK, actionOKWithProducts, getStepperOptionName } from "@haibun/core/lib/domains/util.js";
 import { OK, VERDICT } from "@haibun/core/lib/domains/protocol.js";
 import { DOMAIN_LINK } from "@haibun/core/lib/domains/domains.js";
@@ -17,12 +18,8 @@ import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
 import LogicStepper from "@haibun/logic/logic-stepper.js";
 import WebServerStepper from "./web-server-stepper.js";
 
-const REVOKED: TRelation = {
-	name: "revoked_grant",
-	phrase: "{grant} is revoked",
-	rules: "@prefix h: <https://withhaibun.github.io/ns/> .\n{ ?g h:revoked ?at } => { (?g) <urn:haibun:relation:revoked_grant> true } .",
-};
-const GrantSchema = z.object({ id: z.string(), revoked: z.string().optional() });
+/** A delegation from a grant: its id. */
+const DelegationSchema = z.object({ id: z.string() });
 const GRANT_DOMAIN = "rpc-contract-grant";
 declare module "@haibun/core/lib/domains/domains.js" {
 	interface DomainTypes {
@@ -31,7 +28,7 @@ declare module "@haibun/core/lib/domains/domains.js" {
 }
 const DELEGATION_DOMAIN = "rpc-contract-delegation";
 /** The grants a call states, by name. */
-const GRANTS: Record<string, z.infer<typeof GrantSchema>> = { revoked: { id: "urn:grant:revoked", revoked: "2026-11-01T00:00:00Z" } };
+const GRANTS: Record<string, z.input<typeof GrantSchema>> = { revoked: { id: "urn:grant:revoked", revoked: "2026-11-01T00:00:00Z" } };
 const METHOD = "Delegating-delegate";
 
 /** Delegates from a grant under a contract that requires the grant isn't revoked. */
@@ -40,17 +37,17 @@ class Delegating extends AStepper implements IHasCycles {
 	cycles: IStepperCycles = {
 		getConcerns: () => ({
 			domains: [
-				{ selectors: [GRANT_DOMAIN], schema: GrantSchema, description: "A grant a call states" },
-				{ selectors: [DELEGATION_DOMAIN], schema: GrantSchema, description: "A delegation from a grant" },
+				{ selectors: [GRANT_DOMAIN], ...GRANT, description: "A grant a call states" },
+				{ selectors: [DELEGATION_DOMAIN], schema: DelegationSchema, description: "A delegation from a grant" },
 			],
-			relations: [REVOKED],
+			relations: [REVOKED_GRANT],
 		}),
 	};
 	steps = declareSteps({
 		delegate: {
 			description: TEST_STEP,
 			gwta: `delegate from {grant: ${GRANT_DOMAIN}}`,
-			contract: { products: DELEGATION_DOMAIN, requires: [doesntHold(REVOKED, parameter("grant"))] },
+			contract: { products: DELEGATION_DOMAIN, requires: [doesntHold(REVOKED_GRANT, parameter("grant"))] },
 			action: ({ grant }) => Promise.resolve(actionOKWithProducts({ id: `${grant.id}:delegated` })),
 		},
 	});

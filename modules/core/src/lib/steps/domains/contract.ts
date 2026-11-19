@@ -11,7 +11,7 @@ import { DOMAIN_STATEMENT, DomainKeySchema, normalizeDomainKey } from "../../dom
 import type { TVerdict } from "../../domains/protocol.js";
 import type { TRecordName, WRITE_VERB } from "../../records/domains/unit.js";
 import { isRead } from "../../domains/actions.js";
-import { HAIBUN_NS, isPersisted, levelsOf, type AccessLevel, type TDomainTopology } from "../../domains/resources.js";
+import { isPersisted, levelsOf, type AccessLevel, type TDomainTopology } from "../../domains/resources.js";
 
 /** The key of the form that names the statement parameter whose products a step returns as its own. */
 const OF = "of";
@@ -262,11 +262,12 @@ export const CHECK_READ = `${CHECK_NAMESPACE}read`;
 /** The check of the records an assumed step's call wrote, against the fields each one's type states every member has. */
 export const ASSUMED_CHECK = "assumed";
 
-/** Returns the relation that a record holds a value of the field `key`, which a type states every member has (`required`). */
-export const requiredRelation = (key: string): TRelation => ({
-	name: `has_${key}`,
+/** Returns the relation that a record holds a value of the field `field`, which its type states every member has (`required`),
+ *  derived over `iri`, the field's IRI. */
+export const requiredRelation = ({ persistedAs, key }: TField, iri: string): TRelation => ({
+	name: `${persistedAs}_has_${key}`,
 	phrase: `{record} has its ${key}`,
-	rules: `{ ?record <${HAIBUN_NS}${key}> ?value } => { (?record) <${RELATION_NAMESPACE}has_${key}> true } .`,
+	rules: `{ ?record <${iri}> ?value } => { (?record) <${RELATION_NAMESPACE}${persistedAs}_has_${key}> true } .`,
 });
 
 /** Returns a check's facts as N3: the check's IRI related by `CHECK_READ` to the formula of the facts it read. */

@@ -14,7 +14,7 @@ import { DataFactory } from "n3";
 import { CHECK_READ, type TRelation, type TStatement, type TStatementVerdict } from "@haibun/core/lib/steps/domains/contract.js";
 import { statementSentence } from "@haibun/core/lib/steps/derivations/predicate-registry.js";
 import { callFacts, callTriple, fieldPredicate, referencedRecords, relationPredicate, relationReads, relationsQuery, tripleKey } from "../derivations/contract-terms.js";
-import { patternText, quadsOf, quadsText } from "../derivations/n3.js";
+import { patternText, quadsOf, quadsText, recordTermsOf } from "../derivations/n3.js";
 import { proofOf } from "../derivations/proof.js";
 import type { TProof } from "../domains/reasoning.js";
 import type { TLogicEngine, TReasoner } from "../ports.js";
@@ -37,10 +37,11 @@ export function contractChecks(relations: readonly TRelation[], reasoner: TReaso
 	const predicates = new Set(relations.map((relation) => relationPredicate(relation).value));
 	const reads = relationReads(relations);
 	return async (world, { statements, complete }, call) => {
-		const triples = statements.map((statement) => ({ statement, triple: callTriple(call, statement) }));
-		const held = new Set(complete.map(fieldPredicate));
+		const terms = recordTermsOf(world.domains, world.runtime.records);
+		const triples = statements.map((statement) => ({ statement, triple: callTriple(call, statement, terms) }));
+		const held = new Set(complete.map((field) => fieldPredicate(world.domains, field)));
 		const read = await namedRecords(world.shared.getStore(), world.domains, referencedRecords(call, statements), complete);
-		const facts = callFacts(call, read);
+		const facts = callFacts(call, read, terms);
 		const derived = await check(rules, query, facts);
 		// The quads of a list state its items through rdf:first and rdf:rest; a relation's triple is a quad of its predicate.
 		const selected = new Set(derived.filter(({ predicate }) => predicates.has(predicate.value)).map(({ subject, predicate }) => tripleKey(subject, predicate, derived)));

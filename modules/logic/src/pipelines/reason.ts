@@ -10,14 +10,13 @@
  * graphs that stayed open to the reader, so a verdict carries how it was reached and why a claim stayed unknown.
  */
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
-import { buildConcernCatalog, getJsonLdContext } from "@haibun/core/lib/domains/hypermedia.js";
 import { broadestOf, levelsOf, withinAccess, type TRecordNamespace, type TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
 import { persistedDomainOf } from "@haibun/core/lib/domains/domains.js";
 import { readingAt } from "@haibun/core/lib/domains/capability-context.js";
 import type { NamedNode, Quad } from "@rdfjs/types";
 import { DataFactory } from "n3";
 import { COMPLETE_GRAPH, neededBy, REASONING_READ_CEILING, type TExplained, type TOpenGraph, type TReasoning, type TReasonerValue } from "../domains/reasoning.js";
-import { patternText, quadsOf, recordTerms } from "../derivations/n3.js";
+import { patternText, quadsOf, recordTermsOf } from "../derivations/n3.js";
 import { proofOf } from "../derivations/proof.js";
 import type { TReasoner } from "../ports.js";
 import { readerOf } from "./reads.js";
@@ -86,7 +85,7 @@ async function reasoned(
 		const accessLevel = broadestOf(levelsOf(topology));
 		return { graph: label, accessLevel, complete: ceiling === undefined || withinAccess(accessLevel, ceiling) };
 	});
-	const terms = recordTerms(buildConcernCatalog(domains), getJsonLdContext(domains, undefined, records)["@context"], records);
+	const terms = recordTermsOf(domains, records);
 	const reader = readerOf(store);
 	// A graph complete to the reader is read up to the ceiling; one whose read stopped there is open, and isn't stated.
 	const reads = await Promise.all(closing.filter(({ complete }) => complete).map(async ({ graph }) => ({ graph, ...(await reader.records(graph)) })));

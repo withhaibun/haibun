@@ -14,10 +14,9 @@ import { DataFactory, Parser, Store, Writer } from "n3";
 import type { Literal, NamedNode, Quad, Quad_Object, Quad_Predicate, Quad_Subject, Term, Variable } from "@rdfjs/types";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
-import { REL_CONTEXT, type TRecordNamespace, type TRel } from "@haibun/core/lib/domains/resources.js";
-import { isVocabularyEdge, type TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
+import { REL_CONTEXT, type TRecordNamespace, type TRegisteredDomain, type TRel } from "@haibun/core/lib/domains/resources.js";
+import { buildConcernCatalog, getJsonLdContext, isVocabularyEdge, type TConcernCatalog, iriIn } from "@haibun/core/lib/domains/hypermedia.js";
 import { LOG, RDF, XSD } from "@haibun/core/lib/domains/vocabularies.js";
-import { iriIn } from "@haibun/core/lib/records/derivations/owl.js";
 import { recordIri, recordOfIri } from "@haibun/core/lib/records/derivations/record-iri.js";
 import { referencedName } from "@haibun/core/lib/records/domains/unit.js";
 import type { TFact } from "../domains/logic.js";
@@ -152,6 +151,25 @@ export type TRecordTerms = {
 	/** The individual that is the record at an address, `Type:id`. */
 	individualAt: (address: string) => NamedNode;
 };
+
+/** The terms of each set of declared domains: the domains they were made of, and the terms by the prefix and namespace of the
+ *  records they name. */
+const termsHeld = new WeakMap<Readonly<Record<string, TRegisteredDomain>>, { declared: string; byNamespace: Map<string, TRecordTerms> }>();
+
+/** Returns the N3 terms of the records of the types `domains` declares, under the served context: made once for the domains the
+ *  set holds and its records' namespace, and made again where a feature declared a type since. */
+export function recordTermsOf(domains: Readonly<Record<string, TRegisteredDomain>>, records: TRecordNamespace): TRecordTerms {
+	const declared = Object.keys(domains).join("\n");
+	const held = termsHeld.get(domains);
+	const byNamespace = held !== undefined && held.declared === declared ? held.byNamespace : new Map<string, TRecordTerms>();
+	if (held === undefined || held.byNamespace !== byNamespace) termsHeld.set(domains, { declared, byNamespace });
+	const key = `${records.prefix} ${records.namespace}`;
+	const made = byNamespace.get(key);
+	if (made !== undefined) return made;
+	const terms = recordTerms(buildConcernCatalog(domains), getJsonLdContext(domains, undefined, records)["@context"], records);
+	byNamespace.set(key, terms);
+	return terms;
+}
 
 /** Returns the N3 terms of the records of the types a concern catalog states, with each IRI from the served context, which
  *  binds the records' prefix. */

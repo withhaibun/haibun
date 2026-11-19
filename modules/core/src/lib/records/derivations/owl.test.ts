@@ -5,10 +5,10 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { mapDefinitionsToDomains } from "../../domains/domains.js";
-import { getJsonLdContext } from "../../domains/hypermedia.js";
+import { getJsonLdContext, iriIn } from "../../domains/hypermedia.js";
 import { Access, LinkRelations } from "../../domains/resources.js";
 import { ontologyToQuads } from "./ontology.js";
-import { iriIn, ontologyOwl } from "./owl.js";
+import { ontologyOwl } from "./owl.js";
 import { DataFactory, Parser, Store } from "n3";
 import type { NamedNode, Quad_Object, Term } from "@rdfjs/types";
 import { OWL, RDF, RDFS } from "../../domains/vocabularies.js";

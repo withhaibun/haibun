@@ -3,11 +3,10 @@
  * IRI expanded through a context whatever scheme its namespace has, so an HTTP origin round-trips as a URN does.
  */
 import { describe, expect, it } from "vitest";
-import { getJsonLdContext } from "../../domains/hypermedia.js";
+import { getJsonLdContext, iriIn } from "../../domains/hypermedia.js";
 import { z } from "zod";
 import { mapDefinitionsToDomains } from "../../domains/domains.js";
 import { Access, HAIBUN_RECORD_NAMESPACE, LinkRelations } from "../../domains/resources.js";
-import { iriIn } from "./owl.js";
 import { recordIri, recordOfIri } from "./record-iri.js";
 
 const PREFIX = "record";

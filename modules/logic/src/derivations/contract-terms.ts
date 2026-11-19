@@ -1,15 +1,17 @@
 /**
  * The terms of a call's check against its step's contract. A statement asserts the list of its arguments related to true by its
  * relation's predicate; in a call's check each argument is the call's value of it: a parameter's value, the products, the
- * principal, a field, or the record a derivation names by the call's values of its arguments. A value that names a record by its `id`, or a reference to a record by its typed CURIE, is that record's
- * IRI. The call's facts state each field of a value that names a record and of each record the check read, under haibun's
- * vocabulary, so a relation's rules read them. The query selects each relation's triples.
+ * principal, a field, or the record a derivation names by the call's values of its arguments. A node that states a record's type and
+ * id, or a reference to a record by its typed CURIE, is that record's IRI. The call's facts state each record a node of the call states
+ * and each record the check read, as the records' terms state them: each field under the IRI its type declares, so a relation's
+ * rules and the ontology's axioms read one vocabulary. The query selects each relation's triples.
  */
 import { DataFactory } from "n3";
 import type { NamedNode, Quad, Term } from "@rdfjs/types";
-import { HAIBUN_NS } from "@haibun/core/lib/domains/resources.js";
 import { LOG, RDF } from "@haibun/core/lib/domains/vocabularies.js";
-import { NODE_KEY, recordOfCurie, referenceTo, type TRecordName } from "@haibun/core/lib/records/domains/unit.js";
+import { curieOf, NODE_KEY, recordOfCurie, referenceTo, type TRecordName } from "@haibun/core/lib/records/domains/unit.js";
+import { declaredFieldIri } from "@haibun/core/lib/domains/hypermedia.js";
+import type { TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
 import {
 	FIELD_NAMESPACE,
 	RELATION_NAMESPACE,
@@ -21,7 +23,9 @@ import {
 	type TStatement,
 } from "@haibun/core/lib/steps/domains/contract.js";
 import type { TNamedRecord } from "../pipelines/reads.js";
-import { dateTimeOf, listItems, pattern, patternText, quadsOf, ruleText, termOf, type TN3List, type TN3Part, type TN3Pattern } from "./n3.js";
+import { persistedDomainOf } from "@haibun/core/lib/domains/domains.js";
+import type { TFact } from "../domains/logic.js";
+import { dateTimeOf, listItems, pattern, quadsOf, quadsText, ruleText, termOf, type TN3List, type TN3Part, type TN3Pattern, type TRecordTerms } from "./n3.js";
 
 const { namedNode } = DataFactory;
 
@@ -35,18 +39,29 @@ export const relationPredicate = ({ name }: Pick<TRelation, "name">): NamedNode 
 const referenceOf = (value: unknown): TRecordName | undefined =>
 	typeof value === "object" && value !== null && NODE_KEY.id in value ? recordOfCurie((value as Record<string, unknown>)[NODE_KEY.id]) : undefined;
 
-/** Returns the id a value names a record by: the id it states, or the id its reference names. */
-function recordIdOf(value: unknown): string | undefined {
-	if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
-	if ("id" in value && typeof value.id === "string") return value.id;
-	return referenceOf(value)?.id;
+/** Returns the IRI of the record a name names. */
+export type TIndividualOf = (name: TRecordName) => NamedNode;
+
+/** Returns the record a node of a call states by its type and id, where the value is such a node. */
+function statedName(value: unknown): TRecordName | undefined {
+	if (typeof value !== "object" || value === null || Array.isArray(value) || referenceOf(value) !== undefined) return undefined;
+	const { [NODE_KEY.type]: label, id } = value as Record<string, unknown>;
+	if (typeof id !== "string") return undefined;
+	if (typeof label !== "string")
+		throw new Error(
+			`a call's value names the record ${id} without its type, so its check doesn't have the record's IRI. State the value's domain as a stored type, or reference the record by its typed CURIE`,
+		);
+	return { label, id };
 }
 
+/** Returns the record a value of a call names: a node that states it, or a reference. */
+const namedBy = (value: unknown): TRecordName | undefined => referenceOf(value) ?? statedName(value);
+
 /** Returns a value of a call as a term: a record by its IRI, a list by its items, a time as an xsd:dateTime, else the value's term. */
-function callTermOf(value: unknown): TCallTerm {
-	const id = recordIdOf(value);
-	if (id !== undefined) return termOf(id);
-	if (Array.isArray(value)) return { list: value.map(callTermOf) };
+function callTermOf(value: unknown, individualOf: TIndividualOf): TCallTerm {
+	const named = namedBy(value);
+	if (named !== undefined) return individualOf(named);
+	if (Array.isArray(value)) return { list: value.map((item) => callTermOf(item, individualOf)) };
 	if (value instanceof Date) return dateTimeOf(value.toISOString());
 	return termOf(value);
 }
@@ -79,14 +94,17 @@ function argumentValueOf(call: TContractCall, argument: TContractArgument, deriv
 }
 
 /** Returns the term of a statement's argument in a call: the term of the call's value of it, or the field's IRI. */
-const argumentTermOf = (call: TContractCall, argument: TContractArgument, derive: TDerive): TCallTerm =>
-	"key" in argument ? namedNode(`${FIELD_NAMESPACE}${argument.persistedAs}.${argument.key}`) : callTermOf(argumentValueOf(call, argument, derive));
+const argumentTermOf = (call: TContractCall, argument: TContractArgument, derive: TDerive, individualOf: TIndividualOf): TCallTerm =>
+	"key" in argument ? namedNode(`${FIELD_NAMESPACE}${argument.persistedAs}.${argument.key}`) : callTermOf(argumentValueOf(call, argument, derive), individualOf);
 
-/** Returns the triple a statement asserts in a call, each derived argument's value as `derive` returns it. */
-export const statementTriple = (call: TContractCall, { relation, args }: TStatement, derive: TDerive): TN3Pattern =>
-	pattern({ list: args.map((argument) => argumentTermOf(call, argument, derive)) }, relationPredicate(relation), termOf(true));
-/** Returns the triple a statement asserts in a dispatch check, each derived argument the reference to its record. */
-export const callTriple = (call: TContractCall, statement: TStatement): TN3Pattern => statementTriple(call, statement, derivedRecord);
+/** Returns the triple a statement asserts in a call, each derived argument's value as `derive` returns it, and each record as
+ *  `individualOf` names it. */
+export const statementTriple = (call: TContractCall, { relation, args }: TStatement, derive: TDerive, individualOf: TIndividualOf): TN3Pattern =>
+	pattern({ list: args.map((argument) => argumentTermOf(call, argument, derive, individualOf)) }, relationPredicate(relation), termOf(true));
+/** Returns the triple a statement asserts in a dispatch check, each derived argument the reference to its record, and each record
+ *  its IRI in `terms`. */
+export const callTriple = (call: TContractCall, statement: TStatement, terms: TRecordTerms): TN3Pattern =>
+	statementTriple(call, statement, derivedRecord, (name) => terms.individualAt(curieOf(name)));
 
 /** Returns the records a call's values and the derived arguments of `statements` refer to by their typed CURIEs, which its check reads. */
 export function referencedRecords(call: TContractCall, statements: readonly TStatement[]): TRecordName[] {
@@ -98,31 +116,46 @@ export function referencedRecords(call: TContractCall, statements: readonly TSta
 	});
 }
 
-/** Returns the facts of a record's fields about its id, a list field as one fact of each item. A field that holds a record or
- *  isn't stated doesn't state a fact. */
-const recordFacts = (id: string, fields: Readonly<Record<string, unknown>>): TN3Pattern[] =>
+/** Returns the facts of a record's fields, a list field as one fact of each item. An `@` key, the id, and a field that isn't
+ *  stated, or that holds a value other than a reference or a time, don't state a fact. */
+const factsOf = ({ label, id }: TRecordName, fields: Readonly<Record<string, unknown>>): TFact[] =>
 	Object.entries(fields).flatMap(([key, held]) =>
-		(Array.isArray(held) ? held : [held]).flatMap((item: unknown) =>
-			key === "id" || key.startsWith("@") || item === undefined || item === null || (typeof item === "object" && !(item instanceof Date))
+		(Array.isArray(held) ? held : [held]).flatMap((object: unknown): TFact[] =>
+			key === "id" ||
+			key.startsWith("@") ||
+			object === undefined ||
+			object === null ||
+			(typeof object === "object" && !(object instanceof Date) && referenceOf(object) === undefined)
 				? []
-				: [pattern(termOf(id) as NamedNode, namedNode(`${HAIBUN_NS}${key}`), termOf(item))],
+				: [{ subject: id, predicate: key, object, namedGraph: label }],
 		),
 	);
 
-/** Returns the facts of a call: each field of each value that states a record, and of each record `read` holds. */
-export function callFacts(call: TContractCall, read: readonly TNamedRecord[]): string {
+/** Returns the facts of a call as `terms` states them: each record a node of the call states, and each record `read` holds. */
+export function callFacts(call: TContractCall, read: readonly TNamedRecord[], terms: TRecordTerms): string {
 	const values = [...Object.values(call.parameters), ...(call.products === undefined ? [] : [call.products])];
-	const stated = values.flatMap((value) => {
-		const id = recordIdOf(value);
-		return id === undefined || referenceOf(value) !== undefined ? [] : [{ id, fields: value as Record<string, unknown> }];
+	const stated = values.flatMap((value): TNamedRecord[] => {
+		const name = statedName(value);
+		return name === undefined ? [] : [{ name, fields: value as Record<string, unknown> }];
 	});
-	return [...stated, ...read].flatMap(({ id, fields }) => recordFacts(id, fields).map(patternText)).join("\n");
+	return quadsText([...stated, ...read].flatMap(({ name, fields }) => terms.statements(name.label, factsOf(name, fields))));
 }
 
-/** The predicate a field states as a fact. */
-export const fieldPredicate = ({ key }: Pick<TField, "key">): string => `${HAIBUN_NS}${key}`;
+/** The IRI a field states as a fact: the IRI its type declares for it. Throws where the steppers don't declare the type. */
+export function fieldPredicate(domains: Record<string, TRegisteredDomain>, { persistedAs, key }: TField): string {
+	const domain = persistedDomainOf(domains, persistedAs);
+	if (domain === undefined) throw new Error(`a contract states the field ${persistedAs}.${key} complete, and the loaded steppers don't declare ${persistedAs}`);
+	return declaredFieldIri(domain.topology, key);
+}
 
-/** Returns the predicates of haibun's vocabulary each relation's rules read, with those of each relation its rules read. */
+/** The namespace of N3's built-ins, such as `log:notIncludes`, which a rule reads and a record doesn't state. */
+const N3_BUILT_INS = "http://www.w3.org/2000/10/swap/";
+/** The predicates that state a list's structure, as a rule states the list of a relation's arguments, which a record doesn't state. */
+const LIST_STRUCTURE: ReadonlySet<string> = new Set([RDF.first, RDF.rest]);
+/** Whether a premise of a rule reads a record's field: it isn't a built-in or a list's structure. */
+const readsField = (predicate: string): boolean => !predicate.startsWith(N3_BUILT_INS) && !LIST_STRUCTURE.has(predicate);
+
+/** Returns the fields each relation's rules read, by their IRIs, with those of each relation its rules read. */
 export function relationReads(relations: readonly TRelation[]): Map<string, ReadonlySet<string>> {
 	const direct = new Map(
 		relations.map((relation) => {
@@ -136,7 +169,7 @@ export function relationReads(relations: readonly TRelation[]): Map<string, Read
 		const premises = direct.get(predicate);
 		if (premises === undefined || seen.has(predicate)) return [];
 		const within = new Set([...seen, predicate]);
-		return premises.flatMap((read) => (read.startsWith(HAIBUN_NS) ? [read] : readsOf(read, within)));
+		return premises.flatMap((read) => (read.startsWith(RELATION_NAMESPACE) ? readsOf(read, within) : readsField(read) ? [read] : []));
 	};
 	return new Map(relations.map(({ name }) => [name, new Set(readsOf(relationPredicate({ name }).value, new Set()))]));
 }

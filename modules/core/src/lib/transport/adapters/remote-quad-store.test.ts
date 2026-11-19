@@ -11,7 +11,7 @@ import { RemoteQuadStore } from "./remote-quad-store.js";
 import { FakeInvoker } from "../../test/fake-authority.js";
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles } from "../../steps/domains/stepper.js";
-import { Access, LinkRelations, openWorld } from "../../domains/resources.js";
+import { Access, GeneratedAtTimeTextSchema, LinkRelations, openWorld } from "../../domains/resources.js";
 import { ASSUMED_CHECK, CHECK_NAMESPACE, field } from "../../steps/domains/contract.js";
 import { actionOK } from "../../domains/util.js";
 import { passWithDefaults } from "../../test/lib.js";
@@ -28,12 +28,12 @@ const sign = new FakeInvoker("satellite").sign;
 const WIDGETS = { Widget: { filters: ["id"] } };
 /** A Widget's stored type, whose every record has a name, which the store doesn't require. */
 const WIDGET = {
-	...openWorld(z.object({ id: z.string(), name: z.string(), colour: z.string().optional() }), ["name"]),
+	...openWorld(z.object({ id: z.string(), generatedAtTime: GeneratedAtTimeTextSchema, name: z.string(), colour: z.string().optional() }), ["name"]),
 	topology: {
 		persistedAs: "Widget",
 		accessLevel: Access.private,
 		id: "id",
-		properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, colour: LinkRelations.TAG.rel },
+		properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel, name: LinkRelations.NAME.rel, colour: LinkRelations.TAG.rel },
 	},
 };
 const WIDGET_ONE = { "@id": heldRecordIri("Widget", "w-1"), "@type": "Widget", id: "w-1", name: "One" };

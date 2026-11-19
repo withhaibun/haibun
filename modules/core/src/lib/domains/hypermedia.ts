@@ -256,6 +256,7 @@ import {
 	topologyEdges,
 	GeneratedAtTimeTextSchema,
 	HAIBUN_NS,
+	HAIBUN_PREFIX,
 	fieldIri,
 	type TRecordNamespace,
 	type TRegisteredDomain,
@@ -391,7 +392,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 		for (const [field, propDef] of Object.entries(topology.properties)) {
 			const rel = relOf(propDef);
 			if (!REL_CONTEXT[rel]) throw new Error(`persisted domain "${label}" property "${field}" has unknown rel "${rel}"`);
-			properties[field] = { term: fieldIri(topology, field, rel, propertyIriOf(propDef)), rel };
+			properties[field] = { term: fieldTermOf(topology, field), rel };
 		}
 
 		const edges: Record<string, TEdgeConcern> = {};
@@ -400,7 +401,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 			if (!rel) throw new Error(`persisted domain "${label}" edge "${edgeField}" doesn't have a rel: add it to EdgePredicates or give an explicit rel`);
 			if (!REL_CONTEXT[rel]) throw new Error(`persisted domain "${label}" edge "${edgeField}" has unknown rel "${rel}"`);
 			edges[edgeField] = {
-				term: fieldIri(topology, edgeField, rel, edgeDef.iri),
+				term: fieldTermOf(topology, edgeField),
 				rel,
 				targets: edgeRanges(edgeDef),
 				...(edgeDef.rolePriority !== undefined ? { rolePriority: edgeDef.rolePriority } : {}),
@@ -1136,6 +1137,50 @@ const namespacesOf = (prefixes: readonly (keyof typeof NAMESPACE)[]): Record<str
 // A pure call, so a page that doesn't serve a context leaves the namespaces out of its bundle.
 const STANDARD_NAMESPACES = /* @__PURE__ */ namespacesOf(SERVED_PREFIXES);
 
+/** Returns the term of a type's field or edge, as the served context names it: the standard term the field declares, or the
+ *  term `fieldIri` gives it. Throws where the type doesn't declare the field. */
+export function fieldTermOf(topology: THypermediaTopology, field: string): string {
+	const property = topology.properties[field];
+	if (property !== undefined) return fieldIri(topology, field, relOf(property), propertyIriOf(property));
+	const edge = topologyEdges(topology)[field];
+	if (edge === undefined) throw new Error(`${topology.persistedAs} doesn't declare the field ${field}. Name a field its topology declares.`);
+	return fieldIri(topology, field, edge.rel ?? edgeRel(field), edge.iri);
+}
+
+/** Returns the namespaces the terms of a type expand through, as the served context binds them: the standards core binds,
+ *  haibun's own, and the type's. */
+export const namespacesOfType = (topology: Pick<THypermediaTopology, "namespaces">): Record<string, string> => ({
+	...STANDARD_NAMESPACES,
+	[HAIBUN_PREFIX]: HAIBUN_NS,
+	...topology.namespaces,
+});
+
+const CURIE = /^([A-Za-z][\w-]*):(?!\/\/)(.+)$/;
+const ABSOLUTE_IRI = /^[a-z][a-z\d+.-]*:\/\//i;
+
+/** Returns the IRI a term names: an absolute IRI as itself, a CURIE through the context's prefixes, and a bare name in the
+ *  haibun namespace. Throws where a CURIE's prefix isn't bound in the context. */
+export function iriIn(context: Record<string, unknown>, term: string): string {
+	if (ABSOLUTE_IRI.test(term)) return term;
+	const curie = CURIE.exec(term);
+	const [prefix, local] = curie === null ? [HAIBUN_PREFIX, term] : [curie[1], curie[2]];
+	const namespace = prefix === undefined ? undefined : context[prefix];
+	if (typeof namespace !== "string") throw new Error(`the prefix ${prefix} of ${term} isn't bound in the served @context. Declare it in the type's \`namespaces\`.`);
+	return `${namespace}${local}`;
+}
+
+/** Returns the IRI of a type's field or edge: its term, expanded through the namespaces the served context binds for the type. */
+export const declaredFieldIri = (topology: THypermediaTopology, field: string): string => iriIn(namespacesOfType(topology), fieldTermOf(topology, field));
+
+/** Returns the name an IRI has in the context, the inverse of `iriIn`: a term of the haibun namespace by its bare name, a term of a
+ *  namespace a prefix binds as a CURIE of the longest such namespace, and any other IRI as itself. */
+export function nameIn(context: Record<string, unknown>, iri: string): string {
+	const namespaces = Object.entries(context).filter((bound): bound is [string, string] => typeof bound[1] === "string" && /[#/]$/.test(bound[1]) && iri.startsWith(bound[1]));
+	const [prefix, namespace] = namespaces.reduce<[string, string] | [undefined, ""]>((longest, bound) => (bound[1].length > longest[1].length ? bound : longest), [undefined, ""]);
+	if (prefix === undefined || iri.length === namespace.length) return iri;
+	return prefix === HAIBUN_PREFIX ? iri.slice(namespace.length) : `${prefix}:${iri.slice(namespace.length)}`;
+}
+
 /** A JSON-LD context document: its term map, and the class and property nodes it states. */
 type TJsonLdContextDocument = { "@context": Record<string, unknown>; "@graph": Record<string, unknown>[] };
 
@@ -1209,7 +1254,7 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, hai
 			const rel = relOf(def);
 			// A field carries the standard term it declares, or else its own term, a subproperty of its rel, so two fields that
 			// share a rel stay apart.
-			const uri = fieldIri(topology, prop, rel, propertyIriOf(def));
+			const uri = fieldTermOf(topology, prop);
 			const linkRel = linkRelFromSemantic(rel);
 			const node: Record<string, string> = { "@id": uri };
 			if (linkRel === "item") node["@type"] = "@id";
@@ -1218,7 +1263,7 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, hai
 		}
 		for (const [edge, edgeDef] of topology.edges === undefined ? [] : Object.entries(topology.edges)) {
 			const rel = edgeDef.rel ?? edgeRel(edge);
-			const uri = fieldIri(topology, edge, rel, edgeDef.iri);
+			const uri = fieldTermOf(topology, edge);
 			put(edge, { "@id": uri, "@type": "@id" });
 			// The edge's subPropertyOf: the topology may declare it per-edge (the discourse rels do, subPropertyOf inReplyTo),
 			// else an edge's own term is a subproperty of its rel, and a rel's own term states the rel's axiom in LinkRelations.

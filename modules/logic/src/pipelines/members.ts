@@ -6,12 +6,12 @@
  * of the first expression is entailed a member of the second.
  */
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
-import { buildConcernCatalog, getJsonLdContext } from "@haibun/core/lib/domains/hypermedia.js";
+import { getJsonLdContext, iriIn, nameIn } from "@haibun/core/lib/domains/hypermedia.js";
 import { CLASS_LABEL, PROPERTY_LABEL, isPersisted, type TRecordNamespace, type TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
 import type { TEntailed } from "@haibun/core/lib/actuality/ports.js";
 import type { TIndividualAddress } from "@haibun/core/lib/domains/typed-links.js";
 import { ancestorsWith, ontologyToQuads } from "@haibun/core/lib/records/derivations/ontology.js";
-import { iriIn, nameIn, ontologyOwl } from "@haibun/core/lib/records/derivations/owl.js";
+import { ontologyOwl } from "@haibun/core/lib/records/derivations/owl.js";
 import { ONTOLOGY_FIELD } from "@haibun/core/lib/records/domains/ontology.js";
 import { DL_SYMBOL, type TClaimWitness } from "@haibun/core/lib/records/domains/axioms.js";
 import { manchesterName } from "@haibun/core/lib/records/derivations/axioms.js";
@@ -24,7 +24,7 @@ import { registeredVocabularies, vocabularyName, vocabularyOf } from "@haibun/co
 import { dlOf, nameRefusal, namesOf, parseClassExpression, readingOf, resolvedExpression, type TVocabulary } from "@haibun/core/lib/records/derivations/class-expression.js";
 import type { TClassExpression } from "@haibun/core/lib/records/domains/class-expression.js";
 import { expressionRules, frozenMembers, type TExpressionIris } from "../derivations/class-expression.js";
-import { patternText, quadsText, recordTerms, type TRecordTerms } from "../derivations/n3.js";
+import { patternText, quadsText, recordTermsOf, type TRecordTerms } from "../derivations/n3.js";
 import type { TReasoner } from "../ports.js";
 import { extractedBy, functionalAxiom } from "../derivations/proof.js";
 import { vocabularyClosure } from "../derivations/vocabulary.js";
@@ -72,7 +72,6 @@ export function queryBasis(domains: Record<string, TRegisteredDomain>): TQueryBa
 function derivedBasis(domains: Record<string, TRegisteredDomain>): TQueryBasis {
 	const context = getJsonLdContext(domains)["@context"];
 	const ontology = ontologyToQuads(domains);
-	const catalog = buildConcernCatalog(domains);
 	const stated = (label: string, field: string) => ontology.quads.filter((q) => q.namedGraph === label && q.predicate === field);
 	const declared = (field: string, name: string): string[] =>
 		stated(PROPERTY_LABEL, field)
@@ -113,7 +112,7 @@ function derivedBasis(domains: Record<string, TRegisteredDomain>): TQueryBasis {
 	};
 	return {
 		iris: { classIri: (name) => DataFactory.namedNode(iriIn(context, name)), propertyIri },
-		termsOf: (records) => recordTerms(catalog, getJsonLdContext(domains, undefined, records)["@context"], records),
+		termsOf: (records) => recordTermsOf(domains, records),
 		axioms: ontologyOwl(ontology, context),
 		closure: vocabularyClosure(
 			classes.map((name) => iriIn(context, name)),

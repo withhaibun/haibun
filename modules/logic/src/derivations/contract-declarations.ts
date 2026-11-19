@@ -6,6 +6,7 @@
  * and a relation `changes` lists that statements don't name.
  * A relation's phrases render each statement as a sentence, and a finding is a relation whose sentence doesn't parse back to its statement's term.
  */
+import { declaredFieldIri } from "@haibun/core/lib/domains/hypermedia.js";
 import { unwrapToShape } from "@haibun/core/lib/domains/zod-unwrap.js";
 import { hasCycles, type AStepper } from "@haibun/core/lib/steps/domains/stepper.js";
 import { isPersisted } from "@haibun/core/lib/domains/resources.js";
@@ -75,11 +76,14 @@ function declaredFields(steppers: readonly AStepper[]): { schemas: Map<string, R
 
 /** The relation of each field a record type the steppers declare states every member has (`required`), once for each key. */
 function requiredRelations(steppers: readonly AStepper[]): TRelation[] {
-	const keys = steppers.flatMap((stepper) => {
+	return steppers.flatMap((stepper) => {
 		const domains = hasCycles(stepper) ? stepper.cycles.getConcerns?.().domains : undefined;
-		return (domains === undefined ? [] : domains).flatMap(({ topology }) => (isPersisted(topology) && topology.required !== undefined ? topology.required : []));
+		return (domains === undefined ? [] : domains).flatMap(({ topology }) =>
+			isPersisted(topology) && topology.required !== undefined
+				? topology.required.map((key) => requiredRelation({ persistedAs: topology.persistedAs, key }, declaredFieldIri(topology, key)))
+				: [],
+		);
 	});
-	return [...new Set(keys)].map(requiredRelation);
 }
 
 /** The relations a contract's check reads: those the steppers declare, and the relation of each field their types require. */

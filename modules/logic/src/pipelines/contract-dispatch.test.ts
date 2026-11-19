@@ -10,7 +10,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
-import { CHECK_NAMESPACE, CONTRACT_CHECK, derived, doesntHold, field, holds, parameter, PRODUCTS, type TRelation } from "@haibun/core/lib/steps/domains/contract.js";
+import { CHECK_NAMESPACE, CONTRACT_CHECK, derived, doesntHold, field, holds, parameter, PRODUCTS } from "@haibun/core/lib/steps/domains/contract.js";
 import { refDomainKey } from "@haibun/core/lib/domains/domains.js";
 import { DEF_PROTO_OPTIONS, failWithDefaults } from "@haibun/core/lib/test/lib.js";
 import { actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
@@ -21,38 +21,22 @@ import { CONTRACT_STATE, SEQ_PATH_FIELD, stepLine } from "@haibun/core/lib/actua
 import { readUpTo } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { MAX_PAGE_ROWS } from "@haibun/core/lib/domains/hypermedia.js";
 import { TEST_STEP } from "@haibun/core/lib/test/test-step.js";
+import { ALLOWS_ACTION, GRANT, GrantSchema, REVOKED_GRANT } from "@haibun/core/lib/test/contract-grants.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import LogicStepper from "../logic-stepper.js";
 import { reasoner } from "../root.js";
 import { derivationOfRecord } from "./registry-reads.js";
-
-const RULES = "@prefix h: <https://withhaibun.github.io/ns/> .";
-const REVOKED: TRelation = { name: "revoked_grant", phrase: "{grant} is revoked", rules: `${RULES}\n{ ?g h:revoked ?at } => { (?g) <urn:haibun:relation:revoked_grant> true } .` };
-const ALLOWS: TRelation = {
-	name: "allows_action",
-	phrase: "{grant} allows {action}",
-	rules: `${RULES}\n{ ?g h:allowedAction ?a } => { (?g ?a) <urn:haibun:relation:allows_action> true } .`,
-};
 
 /** The grants a line names, by name. */
 const GRANTS: Record<string, Record<string, string>> = {
 	held: { id: "urn:grant:held", allowedAction: "read" },
 	revoked: { id: "urn:grant:revoked", allowedAction: "read", revoked: "2026-11-01T00:00:00Z" },
 };
-const GrantSchema = z.object({ id: z.string(), allowedAction: z.string(), revoked: z.string().optional() });
 const GRANT_DOMAIN = "contract-grant";
-/** The stored type of a grant, which a line holds before a delegation names it. */
-const GRANT = {
-	schema: GrantSchema,
-	topology: {
-		persistedAs: "ContractGrant",
-		accessLevel: Access.private,
-		id: "id",
-		properties: { id: LinkRelations.IDENTIFIER.rel, allowedAction: LinkRelations.TAG.rel, revoked: LinkRelations.REVOKED.rel },
-	},
-};
 const HELD_GRANT_DOMAIN = "contract-held-grant";
 const DELEGATION_DOMAIN = "contract-delegation";
+/** A delegation's fields: when it was made, and the action it allows. */
+const DelegationSchema = GrantSchema.pick({ id: true, generatedAtTime: true, allowedAction: true });
 /** The stored type of a delegation, which dispatch writes. */
 const DELEGATION_LABEL = "ContractDelegation";
 const ACTIONS = ["read", "write"];
@@ -79,19 +63,19 @@ class Delegating extends AStepper implements IHasCycles {
 				{ selectors: [HELD_GRANT_DOMAIN], ...GRANT, description: "A grant the store holds" },
 				{
 					selectors: [DELEGATION_DOMAIN],
-					schema: GrantSchema,
+					schema: DelegationSchema,
 					description: "A delegation from a grant",
 					topology: {
 						persistedAs: DELEGATION_LABEL,
 						accessLevel: Access.private,
 						id: "id",
-						properties: { id: LinkRelations.IDENTIFIER.rel, allowedAction: LinkRelations.TAG.rel },
+						properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel, allowedAction: LinkRelations.ALLOWED_ACTION.rel },
 					},
 				},
 				{ selectors: [ACTION_DOMAIN], schema: z.enum(ACTIONS), values: ACTIONS, description: "An action a delegation allows" },
 				{ selectors: [GRANT_NAME_DOMAIN], schema: z.enum(Object.keys(GRANTS)), values: Object.keys(GRANTS), description: "The name of a grant" },
 			],
-			relations: [REVOKED, ALLOWS],
+			relations: [REVOKED_GRANT, ALLOWS_ACTION],
 		}),
 	};
 	steps = declareSteps({
@@ -107,8 +91,8 @@ class Delegating extends AStepper implements IHasCycles {
 			contract: {
 				products: DELEGATION_DOMAIN,
 				written: WRITE_VERB.create,
-				requires: [doesntHold(REVOKED, parameter("grant"))],
-				states: [holds(ALLOWS, PRODUCTS, parameter("action"))],
+				requires: [doesntHold(REVOKED_GRANT, parameter("grant"))],
+				states: [holds(ALLOWS_ACTION, PRODUCTS, parameter("action"))],
 				complete: [field(GRANT, "revoked")],
 			},
 			action: ({ action }) => {
@@ -122,7 +106,7 @@ class Delegating extends AStepper implements IHasCycles {
 			contract: {
 				products: DELEGATION_DOMAIN,
 				written: WRITE_VERB.create,
-				requires: [doesntHold(REVOKED, derived(GRANT, grantNamed, parameter("name")))],
+				requires: [doesntHold(REVOKED_GRANT, derived(GRANT, grantNamed, parameter("name")))],
 				complete: [field(GRANT, "revoked")],
 			},
 			action: ({ action }) => {
@@ -176,7 +160,7 @@ describe("dispatch's check of a call against its step's contract", () => {
 		expect(refutedBy, "EYE's proof of the refused check concludes the revocation").toContain("revoked_grant(urn:grant:revoked)");
 		expect(refutedBy.join("\n"), "and lists the held grant's revocation among its assumptions").toContain("2026-11-01T00:00:00Z");
 		expect(record(fromNamedRevoked)?.[SEQ_PATH_FIELD.error], "the check reads the held grant a derivation of the line's name names").toContain(
-			"its contract requires that didn't ContractGrant:grantNamed(name) is revoked, which is refuted",
+			"its contract requires that didn't TestGrant:grantNamed(name) is revoked, which is refuted",
 		);
 		const stated = record(writeFromHeld);
 		expect(stated?.[SEQ_PATH_FIELD.error]).toContain("The call's products are refused and aren't kept: its contract states that products allows action, which is unknown");

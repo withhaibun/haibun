@@ -9,9 +9,8 @@ import { Access, fieldIri, GeneratedAtTimeSchema, HAIBUN_RECORD_NAMESPACE, LinkR
 import { runReadingAt } from "@haibun/core/lib/domains/capability-context.js";
 import { heldRecordIri, storeOfDomains } from "@haibun/core/lib/test/declared-types.js";
 import type { TGraphQuery } from "@haibun/core/lib/steps/domains/quad-types.js";
-import { iriIn } from "@haibun/core/lib/records/derivations/owl.js";
 import { recordIri } from "@haibun/core/lib/records/derivations/record-iri.js";
-import { getJsonLdContext } from "@haibun/core/lib/domains/hypermedia.js";
+import { getJsonLdContext, iriIn } from "@haibun/core/lib/domains/hypermedia.js";
 import { COMPLETE_GRAPH, REASONER_BUILTIN, REASONING_READ_CEILING, type TProofStep } from "../domains/reasoning.js";
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import type { Quad, Term } from "@rdfjs/types";

@@ -2,8 +2,8 @@
  * The frames of EYE's proof of a contract's check, in the order a reader traverses a proof: the facts the check read are its
  * assumptions, the statements the relations' rules derived from them follow, and the relations' triples the check selected are
  * its conclusion. A relation's triple renders as the relation's assertion over its arguments, and any other fact as a property
- * assertion of the individual it states. Each frame names the individuals it states, which the graph view highlights, and the
- * step's record whose check it proves.
+ * assertion of the individual it states. Each frame names the individuals it states as the graph draws them, which the graph view
+ * highlights, and the step's record whose check it proves.
  */
 import type { Quad, Term } from "@rdfjs/types";
 import { RDF } from "@haibun/core/lib/domains/vocabularies.js";
@@ -12,6 +12,7 @@ import { individualAxioms } from "@haibun/core/lib/records/derivations/axioms.js
 import { RELATION_NAMESPACE } from "@haibun/core/lib/steps/domains/contract.js";
 import { PROOF_KIND, type TProof } from "../domains/reasoning.js";
 import { extractedBy } from "./proof.js";
+import type { TRecordTerms } from "./n3.js";
 
 /** The parts of a proof, in the order a reader traverses them. */
 const PROOF_PART = { assumption: "assumption", derived: "derived", conclusion: "conclusion" } as const;
@@ -23,20 +24,32 @@ export type TProofFrames = { readonly assumptions: readonly TFrame[]; readonly d
 /** The predicates that state a list's structure, which a frame reads as its relation's arguments. */
 const LIST_PREDICATES: ReadonlySet<string> = new Set([RDF.first, RDF.rest]);
 
-const named = (terms: readonly Term[]): string[] => terms.flatMap((term) => (term.termType === "NamedNode" ? [term.value] : []));
+/** Returns the name of a term as the graph draws it: a record by its id, and any other term by its value. */
+export type TNameOf = (term: Term) => string;
+
+/** Returns the names `terms` gives the graph: a record's IRI as the record's id, and any other term as its value. */
+export const drawnNames =
+	(terms: Pick<TRecordTerms, "recordAt">): TNameOf =>
+	(term) => {
+		const record = terms.recordAt(term);
+		return record === undefined ? term.value : record.id;
+	};
+
+const named = (terms: readonly Term[], nameOf: TNameOf): string[] => terms.flatMap((term) => (term.termType === "NamedNode" ? [nameOf(term)] : []));
 
 /** A statement of a proof: its quad, its arguments, and the part of the proof that holds it. A relation's arguments are the items
  *  of the list its subject heads, and another fact's argument is its subject. */
 type TStated = { quad: Quad; args: readonly Term[]; part: TProofPart };
 
 /** Returns the frame of a statement, the `at`th of the proofs. */
-function frameOf({ quad, args, part }: TStated, at: number, step: NonNullable<TFrame["assertedBy"]>): TFrame {
+function frameOf({ quad, args, part }: TStated, at: number, step: NonNullable<TFrame["assertedBy"]>, nameOf: TNameOf): TFrame {
 	const { subject, predicate, object } = quad;
 	const relation = predicate.value.startsWith(RELATION_NAMESPACE) ? predicate.value.slice(RELATION_NAMESPACE.length) : undefined;
-	const assertion = `${relation}(${args.map(({ value }) => value).join(", ")})`;
+	const assertion = `${relation}(${args.map((arg) => (arg.termType === "NamedNode" ? nameOf(arg) : arg.value)).join(", ")})`;
+	const individual = object.termType === "NamedNode";
 	const axioms =
 		relation === undefined
-			? individualAxioms(subject.value, [], [{ property: predicate.value, value: object.value, individual: object.termType === "NamedNode" }])
+			? individualAxioms(nameOf(subject), [], [{ property: predicate.value, value: individual ? nameOf(object) : object.value, individual }])
 			: { manchester: assertion, dl: assertion };
 	return {
 		name: `${part} ${at}`,
@@ -44,7 +57,7 @@ function frameOf({ quad, args, part }: TStated, at: number, step: NonNullable<TF
 		...axioms,
 		statement: `${part}: ${axioms.dl}`,
 		assertedBy: step,
-		nodes: relation === undefined ? named([subject, object]) : named(args),
+		nodes: relation === undefined ? named([subject, object], nameOf) : named(args, nameOf),
 		edges: [],
 	};
 }
@@ -69,9 +82,10 @@ function statedIn(proof: TProof): TStated[] {
 	return all.filter((one, at) => all.findLastIndex((other) => keyOf(other) === keyOf(one)) === at);
 }
 
-/** Returns the frames of each proof of `proofs`, in their order, as the proofs of the checks of the step whose record `step` names. */
-export function proofFrames(proofs: readonly TProof[], step: NonNullable<TFrame["assertedBy"]>): TProofFrames {
+/** Returns the frames of each proof of `proofs`, in their order, as the proofs of the checks of the step whose record `step` names,
+ *  each term named as `nameOf` names it. */
+export function proofFrames(proofs: readonly TProof[], step: NonNullable<TFrame["assertedBy"]>, nameOf: TNameOf): TProofFrames {
 	const stated = proofs.flatMap(statedIn);
-	const framesOf = (assumed: boolean): TFrame[] => stated.flatMap((one, at) => ((one.part === PROOF_PART.assumption) === assumed ? [frameOf(one, at + 1, step)] : []));
+	const framesOf = (assumed: boolean): TFrame[] => stated.flatMap((one, at) => ((one.part === PROOF_PART.assumption) === assumed ? [frameOf(one, at + 1, step, nameOf)] : []));
 	return { assumptions: framesOf(true), derived: framesOf(false) };
 }

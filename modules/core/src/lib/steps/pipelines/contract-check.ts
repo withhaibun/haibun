@@ -7,12 +7,13 @@
  * verdict and the triple that determined it, then the remedy the verdict determines. The step's record holds the facts each check
  * read, as N3, from which a why view requests EYE's proof of the check.
  */
+import { declaredFieldIri } from "../../domains/hypermedia.js";
 import { proverOf, type TWorld } from "../../actuality/domains/world.js";
 import { VERDICT, type TActionResult } from "../../domains/protocol.js";
 import { actionNotOK } from "../../domains/util.js";
 import { isPersisted } from "../../domains/resources.js";
 import { normalizeDomainKey, refTargetOf } from "../../domains/domains.js";
-import { curieOf, referenceTo } from "../../records/domains/unit.js";
+import { curieOf, NODE_KEY, referenceTo } from "../../records/domains/unit.js";
 import { actingFor, inCall } from "../../domains/capability-context.js";
 import {
 	ACTUALITY_PRINCIPAL,
@@ -70,14 +71,15 @@ export async function contractChecked(world: TWorld, step: TStepperStep, check: 
  *  type that states one. */
 export async function assumedChecked(world: TWorld): Promise<string | undefined> {
 	const written = inCall()?.step?.writes?.written;
-	const requiredOf = new Map(
-		Object.values(world.domains).flatMap(({ topology }) => (isPersisted(topology) && topology.required ? [[topology.persistedAs, topology.required]] : [])),
-	);
+	const typed = new Map(Object.values(world.domains).flatMap(({ topology }) => (isPersisted(topology) && topology.required ? [[topology.persistedAs, topology] as const] : [])));
 	const records = new Map((written === undefined ? [] : written).map((name) => [curieOf(name), name]));
 	const parameters = Object.fromEntries([...records].map(([curie, { label, id }]) => [curie, referenceTo(label, id)]));
 	const statements = [...records].flatMap(([curie, { label }]) => {
-		const keys = requiredOf.get(label);
-		return keys === undefined ? [] : keys.map((key) => holds(requiredRelation(key), parameter(curie)));
+		const topology = typed.get(label);
+		const keys = topology?.required;
+		return topology === undefined || keys === undefined
+			? []
+			: keys.map((key) => holds(requiredRelation({ persistedAs: label, key }, declaredFieldIri(topology, key)), parameter(curie)));
 	});
 	if (statements.length === 0) return undefined;
 	const { facts } = await proverOf(world).checkContract(world, { statements, complete: [] }, { parameters });
@@ -88,10 +90,12 @@ export async function assumedChecked(world: TWorld): Promise<string | undefined>
 export const contractRefusal = ({ reason, statement }: NonNullable<TContractOutcome["refused"]>, checks: readonly string[]): TActionResult =>
 	actionNotOK(reason, { contract: { statement, checks: checks.join("\n") } });
 
-/** Returns a call's value as its check reads it: the reference to the record a value names by its id, where the value's domain
- *  refers to a stored type, else the value. */
+/** Returns a call's value as its check reads it: a record of a stored type as the node that states its type, the reference to
+ *  the record a value names by its id where the value's domain refers to a stored type, else the value. */
 function checkedValue(world: TWorld, domain: string | undefined, value: unknown): unknown {
 	const registered = domain === undefined ? undefined : world.domains[normalizeDomainKey(domain)];
+	if (isPersisted(registered?.topology) && typeof value === "object" && value !== null && !Array.isArray(value))
+		return { [NODE_KEY.type]: registered.topology.persistedAs, ...value };
 	const target = registered === undefined ? undefined : refTargetOf(registered, world.domains);
 	const topology = target === undefined ? undefined : world.domains[target]?.topology;
 	const id = typeof value === "object" && value !== null && "id" in value && typeof value.id === "string" ? value.id : undefined;

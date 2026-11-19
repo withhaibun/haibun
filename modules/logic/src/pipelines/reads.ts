@@ -94,8 +94,8 @@ export async function writeFacts(store: IQuadStore, subject: string, namedGraph:
 	await store.merge({ "@type": namedGraph, id: subject, ...facts, accessLevel });
 }
 
-/** A record a contract's check read: its id and its fields. */
-export type TNamedRecord = { readonly id: string; readonly fields: Readonly<Record<string, unknown>> };
+/** A record a contract's check read: its name and its fields. */
+export type TNamedRecord = { readonly name: TRecordName; readonly fields: Readonly<Record<string, unknown>> };
 
 /** Reads the records a contract's check names: each record of `names`, and each record that an edge among the fields `follows`
  *  lists reaches from a record read, transitively. Where the store doesn't hold a named record, the read skips it. Throws where a name's type isn't declared,
@@ -122,7 +122,7 @@ export async function namedRecords(
 		);
 		const reached = reads.flatMap(({ name, domain, record }) => {
 			if (record === undefined) return [];
-			read.push({ id: name.id, fields: record });
+			read.push({ name, fields: record });
 			return follows
 				.filter(({ persistedAs }) => persistedAs === name.label)
 				.flatMap(({ key }) => {
