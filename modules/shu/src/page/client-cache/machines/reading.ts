@@ -5,7 +5,7 @@
  * Numbers rather than clocks, so an announcement and a read in the same instant are still ordered.
  */
 export const READING_STATUS = { CURRENT: "current", BEHIND: "behind", CUT_OFF: "cut-off" } as const;
-export type TReadingStatus = (typeof READING_STATUS)[keyof typeof READING_STATUS];
+type TReadingStatus = (typeof READING_STATUS)[keyof typeof READING_STATUS];
 
 export type TReadingState = { announced: number; settled: number; disconnected: boolean };
 

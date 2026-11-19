@@ -30,7 +30,7 @@ import type { LabelVisual, NodeVisual, Obj3D } from "../domains/graph-types.js";
  *  that font lacks at `fallbacks`, an absolute address, since troika reads it in a worker. A page that carries a record of
  *  actuality opens from a file, where the two addresses don't resolve, so it holds the font as a data URL with the pattern
  *  of the characters the font lacks. */
-export type TLabelFonts = { font: string; fallbacks: string } | TCarriedLabelFont;
+type TLabelFonts = { font: string; fallbacks: string } | TCarriedLabelFont;
 
 /** The pattern of the characters the carried font lacks, or undefined on a served page, whose site serves troika's lookup
  *  of each such character. */

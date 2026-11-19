@@ -45,7 +45,7 @@ const BindingSchema = z.discriminatedUnion("kind", [
 export type TBinding = z.infer<typeof BindingSchema>;
 
 /** A plan: the steps a proof of a goal leaves to call, in the order their products are taken, and how each input holds. */
-export const PlanSchema = z
+const PlanSchema = z
 	.object({
 		steps: z.array(z.object({ stepperName: z.string(), stepName: z.string(), gwta: z.string().optional(), produces: z.string() }).strict()),
 		bindings: z.array(BindingSchema),

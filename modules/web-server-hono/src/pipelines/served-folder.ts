@@ -15,7 +15,7 @@ import { requiringElse } from "./capability-verifier.js";
 const POLICY_HEADER = "Content-Security-Policy";
 
 /** A response's middleware that gives the response the artifact policy as it leaves, while `holds` returns true. */
-export const sandboxedWhile =
+const sandboxedWhile =
 	(holds: () => boolean): MiddlewareHandler =>
 	async (c, next) => {
 		await next();
@@ -34,7 +34,7 @@ export const servedFileRefusal = (path: string, allowingOption: string): TRpcRef
 
 /** What a served folder's routes read: actuality's runtime, the server's callers, the option that allows a read without a
  *  delegation, and whether the server dispatches `/rpc` calls, read for each response since RPC can be enabled later. */
-export type TServedFolderParts = { runtime: TRuntime; served: TServed; allowingOption: string; dispatchesRpc: () => boolean };
+type TServedFolderParts = { runtime: TRuntime; served: TServed; allowingOption: string; dispatchesRpc: () => boolean };
 
 /** The middleware each request for a served folder's file passes: the read the file requires, then the artifact policy
  *  where the server dispatches `/rpc` calls. */

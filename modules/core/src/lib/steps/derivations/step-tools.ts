@@ -28,7 +28,7 @@ function contractSentences({ products, ...contract }: TStepContract): TContractS
 }
 
 /** A step's descriptor and the domain key of each of its parameters, by parameter name. */
-export type TStepDeclaration = { descriptor: TStepDescriptor; paramDomainKeys: Map<string, string> };
+type TStepDeclaration = { descriptor: TStepDescriptor; paramDomainKeys: Map<string, string> };
 
 /** The domains of a parameter that names a record's type. */
 const TYPE_NAMING_DOMAINS: readonly string[] = [DOMAIN_PERSISTED_TYPE, DOMAIN_DOMAIN_KEY];

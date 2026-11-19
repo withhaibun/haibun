@@ -47,7 +47,7 @@ export async function explain(
 
 /** How a session's needs are performed: a read of the store's facts of a subject and a predicate, and an effect of a proof. A
  *  need its caller doesn't perform is refused, naming the need. */
-export type TSessionNeeds = {
+type TSessionNeeds = {
 	read?: (subject: NamedNode, predicate: NamedNode) => Promise<readonly TReasonerValue[]>;
 	effect?: (request: readonly TReasonerValue[]) => Promise<readonly TReasonerValue[]>;
 };

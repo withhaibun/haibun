@@ -21,7 +21,7 @@ const browserKey = ({ cdp, browserType }: TBrowserOptions): string => (cdp === u
 const pageKey = (featureNum: number, tab: number) => `${featureNum}-${tab}`;
 
 /** What a factory makes beside the browser: a holding for each context and page, and the observer of each page actuality opens. */
-export type TFactoryMakes = { holding: () => THolding; observer: (pageKey: string) => TPageObserver; log: TBrowserLog };
+type TFactoryMakes = { holding: () => THolding; observer: (pageKey: string) => TPageObserver; log: TBrowserLog };
 
 export class BrowserFactory implements TBrowserPages {
 	/** The browsers of every factory, by name, so a feature's factory reuses the browser an earlier one obtained. */

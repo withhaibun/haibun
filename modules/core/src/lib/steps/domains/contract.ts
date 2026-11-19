@@ -19,20 +19,20 @@ const OF = "of";
 /** The products a step's call returns, in one of three forms: the domain of its products; a map of each product field to its
  *  domain; or `{ of: <statement parameter> }`, for a step that returns the products of the statement it runs, which take the
  *  domain that the statement's last step names. */
-export type TContractProducts<D extends string = string> = D | { readonly [OF]: string } | Readonly<Record<string, D>>;
+type TContractProducts<D extends string = string> = D | { readonly [OF]: string } | Readonly<Record<string, D>>;
 
 /** A field of a record type: the type's stored label and a key of its schema, so a renamed field fails to compile. */
 export type TField = { readonly persistedAs: string; readonly key: string };
 
 /** An edge of a relation that statements name, which a record of any type holds, such as `mentions`. */
-export type TRelationChange = { readonly relation: string };
+type TRelationChange = { readonly relation: string };
 /** Every field and edge of a record type whose records a step writes whole. */
-export type TRecordChange = { readonly persistedAs: string; readonly key?: never };
+type TRecordChange = { readonly persistedAs: string; readonly key?: never };
 /** Every field and edge of a record of the type the step's parameter `typeOf` names, as a step that takes the type it writes does. */
-export type TTypeOfChange = { readonly typeOf: string };
+type TTypeOfChange = { readonly typeOf: string };
 /** Every field and edge of a record of each type the units a step gives the store name, as a step that writes the records its
  *  input holds does. */
-export type TUnitsGivenChange = { readonly unitsGiven: true };
+type TUnitsGivenChange = { readonly unitsGiven: true };
 /** A write beyond a step's products: a field of a record type, an edge of a relation that a record of any type holds, every field
  *  and edge of a record type, of the type a parameter names, or of the types of the units the step gives the store. */
 export type TChange = TField | TRelationChange | TRecordChange | TTypeOfChange | TUnitsGivenChange;
@@ -162,7 +162,7 @@ export const describedWithContract = ({ description, contract }: { readonly desc
 
 /** The products a contract declares, in the one form it states: the domain, the domain of each field, or the statement
  *  parameter. A step without a contract has an empty form. */
-export type TDeclaredProducts<D extends string = string> = { readonly domain?: D; readonly fields?: Readonly<Record<string, D>>; readonly of?: string };
+type TDeclaredProducts<D extends string = string> = { readonly domain?: D; readonly fields?: Readonly<Record<string, D>>; readonly of?: string };
 
 const isStatementProducts = (products: object): products is { readonly [OF]: string } => {
 	const keys = Object.keys(products);

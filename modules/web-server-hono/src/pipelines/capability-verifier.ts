@@ -97,7 +97,7 @@ export function delegateOf({ held, principal }: Pick<TRequestAuthority, "held" |
 export const refuseInvocation = (c: Context, error: string): Response => c.json(authorityRefusal(error), REFUSED_INVOCATION);
 
 /** The refusal of a request at `path` whose authority doesn't allow the route's action. */
-export type TLacking = (path: string, authority: TRequestAuthority) => TRpcRefusal;
+type TLacking = (path: string, authority: TRequestAuthority) => TRpcRefusal;
 
 /** The refusal of a route that requires `action`, which names the action to a caller whose proof holds a delegation. */
 const lackingAction =

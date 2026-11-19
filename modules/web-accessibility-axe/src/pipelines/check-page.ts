@@ -34,7 +34,7 @@ export async function writeEarlAssertions({ store }: TEarlPorts, { assertor, sub
 }
 
 /** A check's outcome: the page's violations against the counts accepted, and the report a reviewer reads. */
-export type TPageCheck = { evaluation: ReturnType<typeof evalSeverity>; report: string };
+type TPageCheck = { evaluation: ReturnType<typeof evalSeverity>; report: string };
 
 /** Check `page` with axe, record each rule's result as an assertion the step whose record is `step` made, and evaluate the
  *  page's violations against `accepted`. */

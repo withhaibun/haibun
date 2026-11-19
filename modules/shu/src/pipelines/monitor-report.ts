@@ -34,7 +34,7 @@ export const MONITOR_OPENS_AT = hashWithColumns([SHU_TAG.MONITOR_COLUMN, SHU_TAG
 
 /** Returns the hash the report opens at: the query of the type a graph query read, or undefined where actuality didn't run
  *  a graph query. */
-export const reportOpensAt = (queriedLabel: string | undefined): string | undefined =>
+const reportOpensAt = (queriedLabel: string | undefined): string | undefined =>
 	queriedLabel === undefined ? undefined : hashOf(new URLSearchParams({ [LABEL_PARAM]: queriedLabel }));
 
 /** A step's action as the report runs it: without arguments, returning the products it read. */
@@ -42,7 +42,7 @@ type TReadStep = () => Promise<unknown> | unknown;
 
 /** What a report is built from: actuality's world, the monitor's view steps by name, the type a graph query read last,
  *  the built bundles, which hold the report bundle and the label font, and whether the payload is compressed. */
-export type TReportScope = { world: TWorld; viewSteps: [string, TReadStep][]; queriedLabel: string | undefined; bundles: TBundleFile; gzip: TGzipText; compressed: boolean };
+type TReportScope = { world: TWorld; viewSteps: [string, TReadStep][]; queriedLabel: string | undefined; bundles: TBundleFile; gzip: TGzipText; compressed: boolean };
 
 /** The steps whose products the report refreshes at its end, under the name through which the affordances panel reads them. */
 const REFRESHED_AT_THE_END = ["applicableSteps"];

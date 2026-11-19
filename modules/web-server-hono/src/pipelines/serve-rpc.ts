@@ -34,7 +34,7 @@ import { calledStep, dispatchCall, recordedRefusal, type TCaller } from "./dispa
 
 /** What serving `/rpc` reads: actuality's world and steppers, the server and its transport, and the verifier of each
  *  request's authority. */
-export type TServeRpcParts = { world: TWorld; steppers: AStepper[]; webserver: IWebServer; transport: ITransport & Partial<IStepTransport>; verifier: TCapabilityVerifier };
+type TServeRpcParts = { world: TWorld; steppers: AStepper[]; webserver: IWebServer; transport: ITransport & Partial<IStepTransport>; verifier: TCapabilityVerifier };
 
 /**
  * Serves `/rpc` calls to actuality's steps on a server's transport, and returns the registry that dispatches the calls.

@@ -5,7 +5,7 @@
 import { MEDIA_TYPE } from "./media-types.js";
 
 /** Extension to media type mapping; when a media type has multiple extensions, its canonical extension comes first. */
-export const EXTENSION_MEDIA_TYPES: Readonly<Record<string, string>> = {
+const EXTENSION_MEDIA_TYPES: Readonly<Record<string, string>> = {
 	".png": MEDIA_TYPE.png,
 	".jpg": MEDIA_TYPE.jpeg,
 	".jpeg": MEDIA_TYPE.jpeg,

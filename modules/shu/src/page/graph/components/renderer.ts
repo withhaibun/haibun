@@ -9,7 +9,7 @@ import type { TDrawn, TGraphRenderer } from "../ports.js";
 type TPlacement = Map<string, string>;
 
 /** The nodes of a draw, each placed: the scene places every node before it draws, so `medium` refuses one it didn't place. */
-export function placedNodes(nodes: FGNode[], medium: string): Array<FGNode & XYZ> {
+function placedNodes(nodes: FGNode[], medium: string): Array<FGNode & XYZ> {
 	return nodes.map((n) => {
 		if (!isPlaced(n)) throw new Error(`${medium}: node ${n.id} isn't placed; the scene's layout places every node before it draws`);
 		return n;

@@ -31,7 +31,7 @@ import {
 export type TClaimScope = { reasoner: TReasoner; store: IQuadStore; domains: Record<string, TRegisteredDomain>; records: TRecordNamespace };
 
 /** A claim by the terms its line states: an individual and a class expression, two class expressions, or one. */
-export type TClaimTerms = { individual: string; expression: string } | { sub: string; sup: string } | { some: string };
+type TClaimTerms = { individual: string; expression: string } | { sub: string; sup: string } | { some: string };
 
 /** What a claim the records don't prove leads a reader to do: state the fact, or read a graph that is complete. */
 const UNKNOWN_REMEDY = "Add the fact, or read a complete graph.";

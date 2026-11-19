@@ -36,7 +36,7 @@ export type TPickObject = {
 /** The node side: the engine's position of the node, and its resting size. */
 type TPickNode = { x: number; y: number; z: number; baseScale?: { x: number; y: number } };
 /** A scale to put back after the raycast: the live magnify, replaced by the resting size while picking. */
-export type TScaleRestore = { x: number; y: number };
+type TScaleRestore = { x: number; y: number };
 
 /**
  * Point `object` at the node's engine coordinates and its resting size, then re-derive its matrix. Returns the scale the
@@ -69,7 +69,7 @@ export function restorePickTarget(object: TPickObject, scale: TScaleRestore): vo
 /** The a-scene slice a pick reads: its raycasting entities, the camera A-Frame makes active, and the events it emits. */
 export type TPickScene = HTMLElement & { camera?: unknown; emit(name: string, detail?: unknown, bubbles?: boolean): void };
 
-export type TPickControllerDeps = {
+type TPickControllerDeps = {
 	world: RenderContext<FGNode, FGLink>;
 	three: () => TPickThree | undefined;
 	/** The drag's hooks into the scene: the engine, the gantt reschedule, and the pins a drop leaves. */

@@ -44,7 +44,7 @@ const REMEDY_OF = {
 } as const;
 
 /** A check of a call: the check's facts as N3, and the refusal of the call where a statement doesn't hold. */
-export type TContractOutcome = { readonly checked: string; readonly refused?: { readonly reason: string; readonly statement: TStatementRefusal } };
+type TContractOutcome = { readonly checked: string; readonly refused?: { readonly reason: string; readonly statement: TStatementRefusal } };
 
 /** Returns the check of a call against its contract's `check` statements, or undefined where the contract doesn't state one. */
 export async function contractChecked(world: TWorld, step: TStepperStep, check: TContractCheck, call: TContractCall): Promise<TContractOutcome | undefined> {

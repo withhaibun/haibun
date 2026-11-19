@@ -8,7 +8,7 @@ const WORKSPACE_INFO = "haibun/workspaceInfo";
 const EXECUTE_TOOL = "haibun/executeTool";
 
 /** The connection over `connection`, which the root makes over the process's standard input and output. */
-export function lspConnection(connection: Connection): TLspConnection {
+function lspConnection(connection: Connection): TLspConnection {
 	const documents = new TextDocuments(TextDocument);
 	return {
 		listen(handlers) {

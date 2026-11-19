@@ -8,7 +8,7 @@ import type { TWorld } from "../actuality/domains/world.js";
 export const STORAGE_FILES = "storage-files";
 
 /** What the FilePath property readers need of a storage's files. A storage's port satisfies it structurally. */
-export type TStorageFilesPort = { readFile(path: string, coding?: string): string | Buffer; lstatToIFile(file: string): Promise<{ size: number }>; exists(path: string): boolean };
+type TStorageFilesPort = { readFile(path: string, coding?: string): string | Buffer; lstatToIFile(file: string): Promise<{ size: number }>; exists(path: string): boolean };
 
 /** The files of the storage actuality loaded. Throws naming what to run where actuality loaded a feature without one. */
 export function storageFilesOf(world: TWorld, path: unknown): TStorageFilesPort {

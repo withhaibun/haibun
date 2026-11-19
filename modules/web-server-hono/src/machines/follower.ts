@@ -6,13 +6,13 @@
  */
 /** A follower as the stream's writer counts it: each write sent, and each write the follower read. `sent` states whether
  *  the follower is kept, or the reason it ends. */
-export type TFollower = { sent(): { kept: true } | { kept: false; reason: string }; written(): void };
+type TFollower = { sent(): { kept: true } | { kept: false; reason: string }; written(): void };
 
 /** How many writes may be in flight to one follower before the stream ends it. */
 export const FOLLOWER_WRITES_IN_FLIGHT = 1024;
 
 /** A follower's writes in flight, and the reason it ended where it did. */
-export type TFollowerState = { inFlight: number; ended?: string };
+type TFollowerState = { inFlight: number; ended?: string };
 
 /** A follower that just connected. */
 export const connected = (): TFollowerState => ({ inFlight: 0 });

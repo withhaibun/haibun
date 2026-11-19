@@ -8,7 +8,7 @@
  */
 import { isPlaced, linkEndId, type FGLink, type FGNode, type XYZ } from "../domains/graph-types.js";
 
-export type TEgoNeighbour = { node: FGNode & XYZ; link: FGLink; direction: "out" | "in" };
+type TEgoNeighbour = { node: FGNode & XYZ; link: FGLink; direction: "out" | "in" };
 
 /** A hovered node, the neighbours the overlay reads, and how many neighbours the node has. */
 export type TEgoGraph = { center: FGNode & XYZ; neighbours: TEgoNeighbour[]; totalNeighbours: number };
@@ -17,7 +17,7 @@ export type TEgoGraph = { center: FGNode & XYZ; neighbours: TEgoNeighbour[]; tot
 export type TEgoPlaced = TEgoNeighbour & { pos: XYZ; predicatePos: XYZ; spokePoints: XYZ[] };
 
 /** A point in normalized device coordinates, and whether it is in front of the camera. */
-export type TNdcPoint = { x: number; y: number; inFront: boolean };
+type TNdcPoint = { x: number; y: number; inFront: boolean };
 
 /** The camera as the layout reads it: its right and up directions, its projection, and the margin's half extents in world
  *  units at the hovered node. */
@@ -50,7 +50,7 @@ const within = ({ x, y, inFront }: TNdcPoint, margin: number): boolean => inFron
 
 /** Returns the point at share `u` of the curved link from `center` (u = 0) to `neighbour` (u = 1), on the quadratic Bézier
  *  curve three-forcegraph draws for a link of `GRAPH_LINK_CURVATURE` from its source to its target. */
-export function pointAlongLink(center: XYZ, neighbour: XYZ, direction: "out" | "in", u: number): XYZ {
+function pointAlongLink(center: XYZ, neighbour: XYZ, direction: "out" | "in", u: number): XYZ {
 	const [source, target, t] = direction === "out" ? [center, neighbour, u] : [neighbour, center, 1 - u];
 	const d = minus(target, source);
 	const offset = d.x !== 0 || d.y !== 0 ? { x: d.y, y: -d.x, z: 0 } : { x: -d.z, y: 0, z: 0 };

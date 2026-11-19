@@ -13,7 +13,7 @@ export type TEgoCorridorHit =
 type TPixel = { x: number; y: number };
 
 /** A box by its centre and its size, in client pixels. */
-export type TPixelBox = TPixel & { width: number; height: number };
+type TPixelBox = TPixel & { width: number; height: number };
 
 /** An off-screen neighbour as the hit test reads it: its chip's box and its spoke's points, in client pixels. */
 export type TEgoNeighbourTarget = { id: string; box: TPixelBox; spokePoints: TPixel[] };

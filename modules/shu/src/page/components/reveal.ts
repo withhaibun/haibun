@@ -3,7 +3,7 @@
  * what is under the person's pointer there: a click aimed at a control of the embedding page lands in shu's frame.
  */
 
-export type TReveal = { block: ScrollLogicalPosition; inline: ScrollLogicalPosition; behavior: ScrollBehavior };
+type TReveal = { block: ScrollLogicalPosition; inline: ScrollLogicalPosition; behavior: ScrollBehavior };
 
 /** How far a view scrolls to place the span [from, to] at `align` in the view [start, end], as `scrollIntoView` places it. */
 export function alignedBy(from: number, to: number, start: number, end: number, align: ScrollLogicalPosition): number {

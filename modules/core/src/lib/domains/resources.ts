@@ -56,7 +56,7 @@ export const HAIBUN_PREFIXES = [HAIBUN_PREFIX] as const;
 /** The namespace of the records' IRIs: the @context prefix a record's `@id` states, and the namespace the prefix stands for in
  *  the served context. An application serves its records under its own prefix and namespace, which its context states, and haibun serves
  *  its records under haibun's namespace. */
-export const RecordNamespaceSchema = z.object({ prefix: z.string().min(1), namespace: z.string().min(1) });
+const RecordNamespaceSchema = z.object({ prefix: z.string().min(1), namespace: z.string().min(1) });
 export type TRecordNamespace = z.infer<typeof RecordNamespaceSchema>;
 /** The namespace of haibun's records, which an application's runtime replaces with the application's namespace. */
 export const HAIBUN_RECORD_NAMESPACE: TRecordNamespace = { prefix: HAIBUN_PREFIX, namespace: HAIBUN_NS };
@@ -649,7 +649,7 @@ export type TTermPropertyDef = { rel: TRel; iri: string };
 
 export type TPropertyDef = TRel | TContentPropertyDef | TTermPropertyDef;
 
-export function isContentPropertyDef(def: TPropertyDef | undefined): def is TContentPropertyDef {
+function isContentPropertyDef(def: TPropertyDef | undefined): def is TContentPropertyDef {
 	return typeof def === "object" && def !== null && def.rel === "content" && "mediaType" in def;
 }
 
@@ -1246,7 +1246,7 @@ export type TQuoteAnchor = z.infer<typeof QuoteAnchorSchema>;
 
 /** A note anchored in a record, as the annotations step returns it: the quote that locates it, its body, its provenance,
  *  and the quotes of the sections a linking note links. */
-export const AnnotationViewSchema = z.object({
+const AnnotationViewSchema = z.object({
 	commentId: z.string(),
 	author: z.string().optional(),
 	generatedAtTime: z.string().optional(),

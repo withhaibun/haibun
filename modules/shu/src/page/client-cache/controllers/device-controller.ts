@@ -18,7 +18,7 @@ export type { TGraphSaturation, TStoredRegistry } from "../ports.js";
 export type { TIdbDatabaseSummary } from "../adapters/idb-summary.js";
 
 /** Returns the read declarations of the types the page's concern catalog lists. */
-export const pageReadDeclarations = (): TReadDeclarations => readDeclarationsOfCatalog(getConcernCatalog());
+const pageReadDeclarations = (): TReadDeclarations => readDeclarationsOfCatalog(getConcernCatalog());
 
 /** The device's graph of the actuality `database` names. */
 export const deviceGraph = (database: string): TDeviceGraph => new DeviceGraph(deviceQuads(database), pageReadDeclarations);
@@ -53,7 +53,7 @@ export const cachedGraph = (): TCachedGraph => {
 };
 
 /** The device's graph of each actuality it holds. A report holds only what it carries, in memory, so the list is empty. */
-export async function deviceGraphs(): Promise<TDeviceGraph[]> {
+async function deviceGraphs(): Promise<TDeviceGraph[]> {
 	if (graphSlot().installed !== undefined) return [];
 	return (await heldDatabases()).map(deviceGraph);
 }

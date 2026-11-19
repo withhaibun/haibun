@@ -6,7 +6,7 @@ import ts from "typescript";
 import { KIREJI_TYPE_NAMES } from "../domains/lsp.js";
 
 /** A step line of a kireji document: its text and the offset in the document where the text starts. */
-export type TKirejiLine = { text: string; offset: number };
+type TKirejiLine = { text: string; offset: number };
 
 const [STEP_TYPE, EXPORT_TYPE] = KIREJI_TYPE_NAMES;
 const COMMENT = "#";

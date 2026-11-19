@@ -24,7 +24,7 @@ import type { TField } from "@haibun/core/lib/steps/domains/contract.js";
 
 /** A proof's reads: the facts that hold a pattern, a type's records as facts up to the reasoning's ceiling, and the products of
  *  steps as typed records, the latest first. */
-export type TReader = { facts: (pattern: TQuadPattern) => Promise<TFact[]>; records: (label: string) => Promise<TTypeRead>; products: (feature: string) => Promise<THeldFact[]> };
+type TReader = { facts: (pattern: TQuadPattern) => Promise<TFact[]>; records: (label: string) => Promise<TTypeRead>; products: (feature: string) => Promise<THeldFact[]> };
 
 /** A record a read returns as the facts of its fields, each value of a list its own fact, about the id its record IRI states. */
 function factsOfRecord(namedGraph: string, record: Record<string, unknown>): TFact[] {

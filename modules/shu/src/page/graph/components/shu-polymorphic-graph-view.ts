@@ -143,7 +143,7 @@ const POLYMORPHIC_INITIAL_STATE: z.input<typeof PolymorphicStateSchema> = {
  * Light DOM (createRenderRoot returns this): the scene resolves its A-Frame camera through document.querySelector, and
  * the child scene chrome is positioned against this host; a shadow root would hide both.
  */
-export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof PolymorphicStateSchema> {
+class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof PolymorphicStateSchema> {
 	static attributeFields = SHOW_CONTROLS_FIELD;
 	/** Layout choices persist across reloads (ShuElement.persistFields; singleton key). */
 	static persistFields = ["viewType", "flatten", "grouped", "groupBy", "zBasis", "labelAsZ", "pins", "follow", "prune", "readAsDocument", "dl", "showControls"] as const;

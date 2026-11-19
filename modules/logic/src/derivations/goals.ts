@@ -27,7 +27,7 @@ type TDomains = Record<string, TRegisteredDomain>;
 export type THeldFact = Pick<TFact, "id" | "domain">;
 
 /** A step's signature: its method, the domains it takes other than primitives, the domains it returns, and the action it requires. */
-export type TStepSignature = Omit<TForwardAffordance, "readyToRun">;
+type TStepSignature = Omit<TForwardAffordance, "readyToRun">;
 
 function signaturesOf(steppers: readonly AStepper[]): TStepSignature[] {
 	return declaredSteps(steppers).map(({ stepperName, actionName: stepName, step }) => {

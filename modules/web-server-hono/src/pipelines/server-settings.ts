@@ -17,7 +17,7 @@ import { DEFAULT_PORT, isLoopback, ORIGINS_REQUIRED, originList, WEB_SERVER_STEP
 export type TServing = { origins: string[]; allowedWithoutDelegation: string[]; admitted: TBasicAuthUser[]; originalUrlSecret: string | undefined };
 
 /** Where a server listens, what it serves, and whether it serves RPC. An absent hostname listens on this machine's loopback interface. */
-export type TServerSettings = { port: number; hostname: string | undefined; serving: TServing; rpc: boolean };
+type TServerSettings = { port: number; hostname: string | undefined; serving: TServing; rpc: boolean };
 
 /** The settings a web server's stepper states in `moduleOptions`. Throws where its PORT isn't a positive whole number, where
  *  it runs in production without naming its origins, and where it would give every action to other hosts that don't sign in. */

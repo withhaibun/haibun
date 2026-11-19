@@ -49,7 +49,7 @@ export type TGoalScope = { ctx: DispatchContext; reasoner: TReasoner; held: stri
 const MAX_HELD_DERIVATIONS = 64;
 /** What the goals and lint sessions of a registry derived, by the text each read, for the registry's version: the declarations
  *  are fixed between changes of its steps, which STEPS_CHANGED marks, so a session over the same facts derives the same again. */
-export type THeldDerivations = Map<string, Promise<Quad[]>>;
+type THeldDerivations = Map<string, Promise<Quad[]>>;
 const heldByRegistry = new WeakMap<Pick<StepRegistry, "version">, { version: number; derived: THeldDerivations }>();
 
 /** The derivations a registry holds for its current version, emptied as its version changes. */

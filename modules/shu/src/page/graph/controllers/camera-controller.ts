@@ -26,11 +26,11 @@ const ORBIT_DOLLY = 1;
 const ORBIT_PAN = 2;
 
 /** The a-scene slice the controls attach to: its camera, its renderer's canvas, and the camera and rig entities. */
-export type TControlsScene = HTMLElement & { camera?: TSceneCamera; renderer?: { domElement: HTMLCanvasElement } };
+type TControlsScene = HTMLElement & { camera?: TSceneCamera; renderer?: { domElement: HTMLCanvasElement } };
 /** An A-Frame entity, which sets one property of a component it carries. */
 type TAframeEntity = HTMLElement & { setAttribute(component: string, prop: string, value: unknown): void };
 
-export type TCameraControllerDeps = {
+type TCameraControllerDeps = {
 	world: RenderContext<FGNode, FGLink>;
 	/** What fit means for the active view, and where it aims. */
 	fitMove: () => FrameMove;

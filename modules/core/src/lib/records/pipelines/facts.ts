@@ -10,7 +10,7 @@ import { FACT_FIELD } from "../domains/facts.js";
 import { referenceTo } from "../domains/unit.js";
 
 /** One product of a step: its domain, its value, and the field of the product where the step declares a domain for each field. */
-export type TProduct = { domain: string; value: unknown; field?: string };
+type TProduct = { domain: string; value: unknown; field?: string };
 
 /** Writes the fact of one product of a step with its edge to the step's record, in one unit, and returns the fact's id. The fact
  *  is actuality's record of the step, and the store states when it was produced. */

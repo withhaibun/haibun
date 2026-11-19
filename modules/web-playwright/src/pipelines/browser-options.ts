@@ -21,7 +21,7 @@ const ManifestSchema = z.object({ key: z.string().optional(), background: z.obje
 export type TLoadedExtension = { id: string; origin: string; worker: boolean; sidePanel: boolean };
 
 /** The options a connected browser ignores, each set or unset: each configures a browser actuality launches. */
-export type TLaunchOnly = { CAPTURE_VIDEO: boolean; TWIN: boolean; PERSISTENT_DIRECTORY: boolean };
+type TLaunchOnly = { CAPTURE_VIDEO: boolean; TWIN: boolean; PERSISTENT_DIRECTORY: boolean };
 
 /** The options that drive a running browser from the next page: the one at a CDP endpoint, or the one attached through the
  *  relay, reached through the transport it makes. */

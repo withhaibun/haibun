@@ -295,7 +295,7 @@ export const asDomainKey = (domains: string[]) => domains?.sort().join(DOMAIN_UN
 
 /** The key of a union of two or more domains: its parts joined by DOMAIN_UNION. A step's parameter of a union domain receives
  *  the resolved TStepValue, and `declareSteps` reads that from this type. */
-export type TUnionDomainKey = `${string}${typeof DOMAIN_UNION}${string}`;
+type TUnionDomainKey = `${string}${typeof DOMAIN_UNION}${string}`;
 
 /** The key of the union of the domains, in the order `asDomainKey` states them. Throws where fewer than two domains are given,
  *  since one domain's key is the domain's own. */
@@ -420,7 +420,7 @@ export const mapDefinitionsToDomains = (definitions: TDomainDefinition[]) => {
  */
 const individualRefSchema = z.object({ id: z.string() }).strict();
 
-export type TIndividualRef = z.infer<typeof individualRefSchema>;
+type TIndividualRef = z.infer<typeof individualRefSchema>;
 
 /**
  * A reference to an individual whose id `id` checks, as a feature line or a call gives it: its id, a reference or its JSON
@@ -436,7 +436,7 @@ const refInputSchema = (id: z.ZodType<string>) =>
 	}, z.object({ id }).strict());
 
 /** A reference to an individual of any type, whose id is any text. */
-export const individualRefInputSchema = refInputSchema(z.string());
+const individualRefInputSchema = refInputSchema(z.string());
 
 /** A list as a caller gives it: an array, its JSON text, or text separated by commas, each member read by `member`. An
  *  empty list is refused. */
@@ -521,7 +521,7 @@ export function linkVocabularyFromDomains(domains: Record<string, TRegisteredDom
 }
 
 /** Get all persisted domains (those whose topology marks them as persisted) as an array. */
-export function getPersistedDomains(domains: Record<string, TRegisteredDomain>): Array<TRegisteredDomain & { topology: THypermediaTopology }> {
+function getPersistedDomains(domains: Record<string, TRegisteredDomain>): Array<TRegisteredDomain & { topology: THypermediaTopology }> {
 	return Object.values(domains).filter((d): d is TRegisteredDomain & { topology: THypermediaTopology } => isPersisted(d.topology));
 }
 

@@ -10,7 +10,7 @@ import { DL_SYMBOL } from "@haibun/core/lib/records/domains/axioms.js";
 
 /** The fonts the resolver names: the label font, where an index leaves a character uncovered, and the math font. */
 export const FALLBACK_FONT = { label: "latin", math: "math" } as const;
-export type TFallbackFont = (typeof FALLBACK_FONT)[keyof typeof FALLBACK_FONT];
+type TFallbackFont = (typeof FALLBACK_FONT)[keyof typeof FALLBACK_FONT];
 
 /** The resolver's data schema version, which it checks on every response. */
 const SCHEMA_VERSION = 1;
@@ -32,7 +32,7 @@ export const MATH_CODE_POINTS: readonly number[] = Object.values(DL_SYMBOL).map(
 
 /** The coverage of `points` within the index that starts at `start`, as the resolver reads it: a character for each six code
  *  points, each bit a code point. Empty where the index doesn't hold one of them. */
-export function indexCoverage(points: readonly number[], start: number): string {
+function indexCoverage(points: readonly number[], start: number): string {
 	const held = points.filter((point) => point >= start && point < start + INDEX_SIZE).map((point) => point - start);
 	if (held.length === 0) return "";
 	const cells = Array.from({ length: Math.ceil(INDEX_SIZE / COVERAGE.bits) }, (_, cell) =>
@@ -45,7 +45,7 @@ export function indexCoverage(points: readonly number[], start: number): string 
 const unicodeRange = (points: readonly number[]): string => points.map((point) => `U+${point.toString(16).toUpperCase()}`).join(",");
 
 /** What a request under the fallback address is: a code point index, a fallback font's metadata, or its file. */
-export type TLabelFontFallback = { kind: "json"; body: unknown } | { kind: "font"; font: TFallbackFont };
+type TLabelFontFallback = { kind: "json"; body: unknown } | { kind: "font"; font: TFallbackFont };
 
 const INDEX = /^codepoint-index\/plane(\d+)\/([0-9a-f]+)-[0-9a-f]+\.json$/;
 const META = /^font-meta\/(\w+)\.json$/;

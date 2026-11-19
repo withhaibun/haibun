@@ -54,7 +54,7 @@ export type TListStage = { listing: TListing; query?: TListQuery };
 const ItemsSchema = z.array(z.record(z.string(), z.unknown()));
 
 /** Returns whether any of the texts contains the given text in a case-insensitive comparison. */
-export function containsText(texts: Array<string | undefined>, text: string): boolean {
+function containsText(texts: Array<string | undefined>, text: string): boolean {
 	const sought = text.toLowerCase();
 	return texts.some((candidate) => candidate !== undefined && candidate.toLowerCase().includes(sought));
 }
@@ -137,11 +137,11 @@ const unheldField = (list: TList, field: string, combinator: string): { refused:
 /** The comparisons `whose` keeps an item by, as a line states them, each with the store's operator it compares by: matches holds
  *  the text without regard to case, is equals it, and is more than and is less than order by it, numbers by size and any other
  *  value by its text. The longer comparisons come before is, which begins them. */
-export const FIELD_COMPARISONS = { matches: "contains", "is more than": "gt", "is less than": "lt", is: "eq" } as const;
+const FIELD_COMPARISONS = { matches: "contains", "is more than": "gt", "is less than": "lt", is: "eq" } as const;
 const COMPARED_BY = new RegExp(`^(${Object.keys(FIELD_COMPARISONS).join("|")}) (.+)$`);
 const QUOTED = /^"(.*)"$/;
 /** A field's comparison with a value: the store's operator and the value. */
-export const FieldComparisonSchema = z.object({ operator: z.enum(Object.values(FIELD_COMPARISONS)), value: z.string() });
+const FieldComparisonSchema = z.object({ operator: z.enum(Object.values(FIELD_COMPARISONS)), value: z.string() });
 export type TFieldComparison = z.infer<typeof FieldComparisonSchema>;
 /** Reads a comparison as a line states it, such as `is more than 3` or `matches "Ada"`, into its operator and value. */
 export const fieldComparisonSchema = z.preprocess((written, ctx) => {

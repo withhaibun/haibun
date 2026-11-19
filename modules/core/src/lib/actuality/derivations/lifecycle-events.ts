@@ -19,7 +19,7 @@ const statusAt = (at: TAtStage): { stage: TStage; status: typeof STATUS.running 
 const ACTUALITY_EVENT_ID = "actuality";
 
 /** The id of a feature's events, by its number in the actuality. */
-export const featureEventId = (featureNum: number): string => `feat-${featureNum}`;
+const featureEventId = (featureNum: number): string => `feat-${featureNum}`;
 
 /** The id of a scenario's events, by its feature's number and its own. */
 export const scenarioEventId = (featureNum: number, scenarioNum: number): string => `${featureEventId(featureNum)}.scen-${scenarioNum}`;
@@ -37,7 +37,7 @@ export const scenarioEvent = (featureNum: number, scenarioNum: number, scenarioN
 	LifecycleEvent.parse({ id: scenarioEventId(featureNum, scenarioNum), timestamp, kind: "lifecycle", type: "scenario", scenarioName, ...statusAt(at) });
 
 /** What a step's events state of what ran it: the stepper and its action, and the step's values. */
-export type TStepCalled = { stepperName: string; actionName: string; stepValuesMap: Record<string, unknown> | undefined };
+type TStepCalled = { stepperName: string; actionName: string; stepValuesMap: Record<string, unknown> | undefined };
 
 /** A step's values with each secret variable's value obscured, by the variable's name. */
 const safeValues = (stepValuesMap: Record<string, unknown> | undefined): Record<string, unknown> | undefined =>

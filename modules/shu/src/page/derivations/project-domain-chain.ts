@@ -29,7 +29,7 @@ const applicableStepsAt = (param: (typeof AFFORDANCE_PARAM)[keyof typeof AFFORDA
 	hashWithColumns([SHU_TAG.AFFORDANCES_PANEL], { [param]: value });
 
 /** The chain projection consumes the waypoint fields it renders: a subset of the core panel entry. */
-export type TWaypointSnapshot = Pick<TWaypointEntry, "outcome" | "method" | "ensured">;
+type TWaypointSnapshot = Pick<TWaypointEntry, "outcome" | "method" | "ensured">;
 
 /** A forward step as the chain reads it: its name, its pattern, the domains it takes and returns, and whether it is ready. */
 type TForwardEdge = Pick<TForwardAffordance, "stepperName" | "stepName" | "gwta" | "inputDomains" | "outputDomains" | "readyToRun">;

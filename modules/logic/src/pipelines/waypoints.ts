@@ -48,10 +48,10 @@ export const SESSION_MODE = { prove: "prove", judge: "judge", check: "check" } a
 export type TSessionMode = (typeof SESSION_MODE)[keyof typeof SESSION_MODE];
 /** A session's request: what it proves, the head's node, head and bindings, the position its lines start after, the group they take
  *  in the line's proof, and the application the line opened where it opened one. */
-export type TWaypointRequest = { mode: TSessionMode; node: string; head: string; bindings: readonly TBinding[]; base: number; group: string; opened?: TApplied };
+type TWaypointRequest = { mode: TSessionMode; node: string; head: string; bindings: readonly TBinding[]; base: number; group: string; opened?: TApplied };
 /** A session's outcome: the verdict, why, how many positions under the head its lines took, and the parts of the proof, each a call
  *  or an application by its position and group, as the line's proof asserts them. */
-export type TSessionOutcome = { verdict: TVerdict; why: TWhy; used: number; parts: string[] };
+type TSessionOutcome = { verdict: TVerdict; why: TWhy; used: number; parts: string[] };
 
 /** An application of the session: its record's position, node, head and key, the bindings its lines read, its arguments first,
  *  the position its lines start after, the group they take, and the application above it. */

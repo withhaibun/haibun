@@ -373,7 +373,7 @@ type TDeclaredAction<P, Q> = {
 /** A step as `declareSteps` takes it: its pattern `P`, as a gwta or an exact line, and an action typed by that pattern, or a reading. */
 export type TDeclaredStep<P, Q = unknown> = Omit<TStepperStepBase, "takesListQuery"> & { gwta?: P; exact?: P } & (TDeclaredAction<P, Q> | TReadingStep);
 /** A stepper's steps as `declareSteps` returns them, each by its name with its pattern `T[K]` and its list arguments `Q[K]`. */
-export type TDeclaredSteps<T extends Record<string, unknown>, Q = Record<never, never>> = { [K in keyof T]: TDeclaredStep<T[K], K extends keyof Q ? Q[K] : unknown> };
+type TDeclaredSteps<T extends Record<string, unknown>, Q = Record<never, never>> = { [K in keyof T]: TDeclaredStep<T[K], K extends keyof Q ? Q[K] : unknown> };
 /** The list arguments each step's `takesListQuery` returns, by the step's name. */
 type TListArgsOf<Q> = { [K in keyof Q]: { takesListQuery?: (args: never, query: TListQuery) => Q[K] } };
 
@@ -431,7 +431,7 @@ export interface IStepperCycles {
 	onEvent?(event: THaibunEvent): Promise<void> | void;
 }
 
-export type TStartActuality = TResolvedFeature[];
+type TStartActuality = TResolvedFeature[];
 export type TEndFeature = { featurePath: string; shouldClose: boolean; isLast: boolean; okSoFar: boolean; continueAfterError: boolean; thisFeatureOK: boolean };
 /** Actuality's result when its features end. `stays` is true where actuality keeps serving after them.
  *  `staysAfterActuality` computes it from `HAIBUN_STAY`. */

@@ -29,7 +29,7 @@ import {
 } from "../domains/class-expression.js";
 
 /** A property of the vocabulary: a relation, or a type's field, named by its type and its field, with the field it names. */
-export type TVocabularyProperty = { name: string; domain: readonly string[]; range: readonly string[]; field?: string };
+type TVocabularyProperty = { name: string; domain: readonly string[]; range: readonly string[]; field?: string };
 /** The terms an expression's names are checked against: each class, and each property with the classes it connects, and the
  *  classes that subsume a class. */
 export type TVocabulary = { classes: readonly string[]; properties: readonly TVocabularyProperty[]; ancestors: (cls: string) => ReadonlySet<string> };

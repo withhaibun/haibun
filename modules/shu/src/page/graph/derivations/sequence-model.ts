@@ -30,7 +30,7 @@ export type SeqNode = { id: string; type: string; displayLabel?: string; propert
 export type SeqEdge = { from: string; to: string; predicate: string };
 
 /** The edge labels whose target is an artifact's source agent (`from`) and its destination agent (`to`), from the catalog. */
-export type TActorEdges = { from: ReadonlySet<string>; to: ReadonlySet<string> };
+type TActorEdges = { from: ReadonlySet<string>; to: ReadonlySet<string> };
 
 /** What the host passes: the display label for a participant id, so the live view resolves a DID → "Coastal Fisheries
  *  Authority", and the actor edges. A message is labelled by its mediating artifact's @type, never an edge predicate. */
@@ -42,7 +42,7 @@ export const seqNodesOf = (nodes: GraphModel["nodes"], times: ReadonlyMap<string
 	nodes.map((n) => ({ id: n.id, type: n.type, displayLabel: n.displayLabel, properties: n.properties, __t: times.get(n.id)?.ms }));
 
 /** The party a participant id names, as its node shows it. */
-export type TSeqParty = { name: string; type: string; properties?: Record<string, unknown> };
+type TSeqParty = { name: string; type: string; properties?: Record<string, unknown> };
 
 /** A participant's display name: the party's name prefixed by the noun of the role it holds, which `roleNoun` reads from the
  *  role rel by which nodes attribute to it, else the party's own type. An id the graph lacks shows as itself. */

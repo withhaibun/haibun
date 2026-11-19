@@ -6,7 +6,7 @@ import type { TFeatureStep } from "@haibun/core/lib/astepper.js";
 
 /** The token types, in the order of the editor's legend. Each token encodes its type as its index in this order. */
 export const TOKEN_TYPES = ["keyword", "function", "parameter", "string", "number", "comment"] as const;
-export type TTokenType = (typeof TOKEN_TYPES)[number];
+type TTokenType = (typeof TOKEN_TYPES)[number];
 
 /** One painted span: its line, where it starts, how long it is, and what it is. */
 export type TToken = { line: number; char: number; length: number; type: TTokenType };

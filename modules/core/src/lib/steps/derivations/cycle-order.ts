@@ -6,7 +6,7 @@ import { CycleWhen, hasCycles, type AStepper, type IHasCycles, type IStepperCycl
 import { heldPerEntries } from "./held-per-entries.js";
 
 /** A stepper that implements cycles. */
-export type TCycling = AStepper & IHasCycles;
+type TCycling = AStepper & IHasCycles;
 
 /** The position a stepper states for a method, or the unstated position where it doesn't state one. */
 function positionOf(stepper: TCycling, method: keyof IStepperCycles): number {

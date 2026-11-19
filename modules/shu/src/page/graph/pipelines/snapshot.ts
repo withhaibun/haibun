@@ -16,7 +16,7 @@ import type { TGraphSnapshot, TSnapshotKey } from "../domains/snapshot.js";
 
 /** What a snapshot read reads: actuality's steps, the conduit, the graph the page serves from (which keeps what the site
  *  returns), the graph the page reads where the site doesn't respond, a fresh model for a limit, and the visibility ceiling. */
-export type TSnapshotScope = {
+type TSnapshotScope = {
 	steps: () => Promise<TStepList>;
 	conduit: () => TConduit;
 	served: () => TCachedGraph;
@@ -26,7 +26,7 @@ export type TSnapshotScope = {
 };
 
 /** What a view reads of a snapshot: its scope, the per-type limit, the types it shows, and whether it reads again what it holds. */
-export type TSnapshotAsk = { scope: string; perTypeLimit: number; types: readonly string[] | undefined; again: boolean };
+type TSnapshotAsk = { scope: string; perTypeLimit: number; types: readonly string[] | undefined; again: boolean };
 
 /** The key a snapshot is held under: its limit, its types in one order, and its ceiling. */
 export const snapshotKey = (ask: TSnapshotAsk, accessLevel: string): TSnapshotKey => ({

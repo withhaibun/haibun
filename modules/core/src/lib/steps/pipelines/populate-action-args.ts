@@ -13,7 +13,7 @@ type TParam = { name: string; takes: string; read: TStepValue };
 /** What a read of a step's parameters returns: each parameter, or the refusal of the first that doesn't read. */
 type TParamsRead = { params: TParam[] } | { refused: string };
 /** What a read of a step's arguments returns: the arguments, or the refusal of the first parameter that doesn't read. */
-export type TArgumentsRead = { args: TStepArgs } | { refused: string };
+type TArgumentsRead = { args: TStepArgs } | { refused: string };
 
 /** Resolves a term's value, or states why it doesn't resolve. */
 async function resolvedOf(inStep: string, actionVal: TStepValue, featureStep: TFeatureStep, world: TWorld, steppers: AStepper[]): Promise<TStepValue | { refused: string }> {

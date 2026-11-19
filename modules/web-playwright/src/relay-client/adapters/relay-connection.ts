@@ -63,7 +63,7 @@ const REATTACH_VERIFY_MS = 2500;
 const REATTACH_COOLDOWN_MS = 3000;
 
 /** What a connection takes beside its channel, its chrome.* API and its log: the clock and its tabs' statuses. */
-export type TRelayConnectionMakes = { clock: TClock; tabs: TRelayTabs };
+type TRelayConnectionMakes = { clock: TClock; tabs: TRelayTabs };
 
 export class ChromeRelayConnection {
 	readonly #channel: TRelayChannel;

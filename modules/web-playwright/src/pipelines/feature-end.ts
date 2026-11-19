@@ -9,7 +9,7 @@ import { relative, resolve } from "node:path";
 import type { TFiles } from "../ports.js";
 import type { BrowserSession } from "./browser-session.js";
 
-export type TFeatureEnd = { session: BrowserSession; world: TWorld; storage: AStorage; files: TFiles; captureVideo: boolean };
+type TFeatureEnd = { session: BrowserSession; world: TWorld; storage: AStorage; files: TFiles; captureVideo: boolean };
 
 /** Writes the feature as it resolved, as a JSON artifact of the feature's position. */
 export async function writeFeatureArtifact(storage: AStorage, index: number, feature: TResolvedFeature): Promise<void> {

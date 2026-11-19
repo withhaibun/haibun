@@ -62,7 +62,7 @@ function asWritten(value: unknown): string {
 }
 
 /** Returns each field a schema refused, with the value written for it. */
-export function refusedFields(error: z.ZodError, input: unknown): string {
+function refusedFields(error: z.ZodError, input: unknown): string {
 	return error.issues
 		.map((issue) => {
 			const at = issue.path.map(String).join(".");

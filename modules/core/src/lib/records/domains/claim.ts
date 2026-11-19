@@ -34,7 +34,7 @@ export type TEntailment = z.infer<typeof EntailmentSchema>;
 
 /** How a claim ended: what it checks, its verdict, and the proof of a claim that holds or why one doesn't, with its witness
  *  where it names one. */
-export const ClaimOutcomeSchema = EntailmentSchema.extend({ verdict: z.enum([VERDICT.proved, VERDICT.refuted, VERDICT.unknown]), proof: z.string() }).strict();
+const ClaimOutcomeSchema = EntailmentSchema.extend({ verdict: z.enum([VERDICT.proved, VERDICT.refuted, VERDICT.unknown]), proof: z.string() }).strict();
 export type TClaimOutcome = z.infer<typeof ClaimOutcomeSchema>;
 
 /** The products of a claim's step, which hold how it ended beside its own products. */

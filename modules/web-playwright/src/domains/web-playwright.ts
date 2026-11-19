@@ -31,7 +31,7 @@ import {
 } from "./relay.js";
 
 /** Every tab open in the attached browser, as a counted list. */
-export const BrowserTabsListSchema = BrowserTabsSchema.extend(CountedFields);
+const BrowserTabsListSchema = BrowserTabsSchema.extend(CountedFields);
 /** What the relay holds, with the count of its tabs. */
 const RelayAttachmentListSchema = RelayAttachmentSchema.extend(CountedFields);
 
@@ -40,11 +40,11 @@ export const VISITED_PAGE_LABEL = "VisitedPage";
 
 export const DOMAIN_PAGE_LOCATOR = "page-locator";
 export const DOMAIN_PAGE_TEST_ID = "page-test-id";
-export const DOMAIN_PAGE_LABEL = "page-label";
+const DOMAIN_PAGE_LABEL = "page-label";
 export const DOMAIN_PAGE_PLACEHOLDER = "page-placeholder";
-export const DOMAIN_PAGE_ROLE = "page-role";
-export const DOMAIN_PAGE_TITLE = "page-title";
-export const DOMAIN_PAGE_ALT_TEXT = "page-alt-text";
+const DOMAIN_PAGE_ROLE = "page-role";
+const DOMAIN_PAGE_TITLE = "page-title";
+const DOMAIN_PAGE_ALT_TEXT = "page-alt-text";
 /** Text a page shows, located by `getByText` with an exact match. */
 export const DOMAIN_PAGE_TEXT = "page-text";
 /** The ways a step locates an element on a page, in the order a union of locator domains selects one. Each row holds the
@@ -339,7 +339,7 @@ export const DOMAIN_FIND_WAY = "page-find-way";
 export const REQUEST_STATE = { blocked: "blocked", unanswered: "unanswered", allowed: "allowed" } as const;
 export const DOMAIN_REQUEST_STATE = "request-state";
 /** The browsers actuality drives. */
-export const BROWSER_TYPES = ["firefox", "chromium", "webkit"] as const;
+const BROWSER_TYPES = ["firefox", "chromium", "webkit"] as const;
 export type TBrowserTypes = (typeof BROWSER_TYPES)[number];
 export const DOMAIN_BROWSER_TYPE = "browser-type";
 /** A URL pattern as a page routes requests by it: `*` within a path segment, `**` across segments. */

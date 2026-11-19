@@ -95,7 +95,7 @@ export const deviceQuads = (database: string): TDeviceQuads => new IndexedDbQuad
 
 /** The graph a report installs, which holds what it carries; the device's graph of the actuality the page serves; and the
  *  graph of another actuality the device holds, while a reader reads it. */
-export type TGraphSlot = { installed?: TCachedGraph; served?: TCachedGraph; reading?: TCachedGraph };
+type TGraphSlot = { installed?: TCachedGraph; served?: TCachedGraph; reading?: TCachedGraph };
 
 /** The graphs the page reads. */
 export const graphSlot = (): TGraphSlot => pagePinned(GRAPH_SLOT_KEY, () => ({}));

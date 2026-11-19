@@ -19,7 +19,7 @@ export const isSchemaType = (type: string): boolean => SCHEMA_TYPES.includes(typ
 
 /** The schema terms a node can be: a class, which opens its own type, or a property, which opens the records that use it. */
 export const SCHEMA_TERM = { class: "class", property: "property" } as const;
-export type TSchemaTerm = (typeof SCHEMA_TERM)[keyof typeof SCHEMA_TERM];
+type TSchemaTerm = (typeof SCHEMA_TERM)[keyof typeof SCHEMA_TERM];
 
 /** The schema term a type names, or undefined for a type of records. */
 export function schemaTermOf(type: string): TSchemaTerm | undefined {

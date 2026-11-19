@@ -23,7 +23,7 @@ import type { TLink, TStreamChunk } from "../domains/links.js";
 
 /** What the conduit reads of the page: the proof of a call of a method, the actuality the page reads, how long it waits
  *  for a response, and how it lets go of authority actuality refused. */
-export type TConduitSource = { prove(method: string): TProveRequest; actualityId(): TActualityId; responseTimeoutMs(): number; forgetAuthority(): void };
+type TConduitSource = { prove(method: string): TProveRequest; actualityId(): TActualityId; responseTimeoutMs(): number; forgetAuthority(): void };
 
 /** What the page holds of its calls, across its bundles: how many calls it numbered, so two calls on the page don't share
  *  an id, when the site last responded, and until when a read fails at once after a timeout. */

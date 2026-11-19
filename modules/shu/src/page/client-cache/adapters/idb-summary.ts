@@ -3,7 +3,7 @@
  * how many records are in it. Read-only, and empty where IndexedDB doesn't exist (a test, a context without it). Each
  * database's counts are one transaction, which commits as it issues them, so it doesn't wait on the page to take each count.
  */
-export type TIdbStoreSummary = { name: string; count: number };
+type TIdbStoreSummary = { name: string; count: number };
 export type TIdbDatabaseSummary = { name: string; version: number; stores: TIdbStoreSummary[] };
 
 const request = <T>(req: IDBRequest<T>): Promise<T> =>

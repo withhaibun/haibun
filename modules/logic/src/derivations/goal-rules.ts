@@ -43,7 +43,7 @@ export const stepIri = (method: string): NamedNode => namedNode(`${STEP_PREFIX}$
 const list = (...items: TN3List["list"]): TN3List => ({ list: items });
 
 /** A producer rule as a goal's facts state it: a step, by its method, the domain it returns and the domains it takes. */
-export type TProducer = { method: string; output: string; inputs: readonly string[] };
+type TProducer = { method: string; output: string; inputs: readonly string[] };
 /** A composite domain's field: its name, the domain it ranges over where it names one, its schema's type, and whether it is optional. */
 export type TCompositeField = { name: string; range?: string; type: string; optional: boolean };
 /** What a proof of goals reads: the steps the caller may call, each domain any step returns, each composite's fields, the domains a

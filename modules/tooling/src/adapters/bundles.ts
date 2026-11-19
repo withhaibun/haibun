@@ -197,7 +197,7 @@ const DEVELOPMENT = "development";
 export const nodeEnvDefine = (): Record<string, string> => ({ "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV === undefined ? DEVELOPMENT : process.env.NODE_ENV) });
 
 /** The options that build a bundle of the repository at `root` for a browser. */
-export const bundleOptions = (root: string, bundle: TBundle): BuildOptions & { metafile: true; plugins: Plugin[] } => ({
+const bundleOptions = (root: string, bundle: TBundle): BuildOptions & { metafile: true; plugins: Plugin[] } => ({
 	absWorkingDir: root,
 	entryPoints: bundle.entryPoints,
 	outdir: bundle.outdir,
@@ -240,7 +240,7 @@ export function besideFiles(root: string, bundle: TBundle): Record<string, strin
 }
 
 /** Builds each bundle and writes its files and its metafile, or, with `watch`, rebuilds each as its sources change. */
-export async function buildBundles(root: string, bundles: readonly TBundle[], watch: boolean): Promise<void> {
+async function buildBundles(root: string, bundles: readonly TBundle[], watch: boolean): Promise<void> {
 	const optionsOf = (bundle: TBundle): BuildOptions => {
 		const options = bundleOptions(root, bundle);
 		const writesBeside: Plugin = {

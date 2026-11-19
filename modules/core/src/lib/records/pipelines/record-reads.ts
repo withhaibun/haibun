@@ -35,7 +35,7 @@ type TPatternRead = (pattern: TQuadPattern) => Promise<TQuad[]>;
 
 /** The most records one read of a record's outgoing edges returns. The page states its count, so a record with more edges
  *  states `saturated`. */
-export const OUTGOING_EDGE_LIMIT = 200;
+const OUTGOING_EDGE_LIMIT = 200;
 
 /** A record, its outgoing edges, the count of its outgoing edges and the count of the records that reference it. */
 export type TRecordWithEdges = TIndividualWithEdges & { outgoingCount: TCounted };
@@ -196,7 +196,7 @@ export function recordMembers(
 /** Reads every record of a type that ended at or before `at`, an epoch time in milliseconds, under the read's conditions. An
  *  observation source reads these for a step that started at `at`, so the step doesn't read its own record, its parts or a later
  *  step. Throws for a type that doesn't persist its records. */
-export function readEndedBy(store: TRecordReader, type: TDomainDefinition, at: number, read: Omit<TGraphQueryInput, "label">, bound: number): Promise<Record<string, unknown>[]> {
+function readEndedBy(store: TRecordReader, type: TDomainDefinition, at: number, read: Omit<TGraphQueryInput, "label">, bound: number): Promise<Record<string, unknown>[]> {
 	const { topology } = type;
 	if (!isPersisted(topology)) throw new Error(`${type.selectors.join(", ")} doesn't persist its records, so a read can't bound them by when they ended`);
 	const ended: TSearchCondition = { predicate: endFieldOf(topology), operator: "lte", value: new Date(at).toISOString() };

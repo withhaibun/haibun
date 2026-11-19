@@ -25,7 +25,7 @@ import { actualityExtent } from "./actuality-window.js";
  *  the same for an actuality of an hour and an actuality of a year. */
 export const ACTUALITY_DIVISIONS = 200;
 
-export type TActualityShape = {
+type TActualityShape = {
 	/** One mark per division that holds anything, as the counts stand. */
 	readonly marks: TActualityMark[];
 	/** The instant a division begins, which is the moment a mark of it carries. */
@@ -56,7 +56,7 @@ const uncounted = (divisions: number): Record<string, number>[] => Array.from({ 
 /** How many records of each counted type fall in each division of a span, by how each turned out: one array per type,
  *  in the order the types are counted, each holding one set of counts per division. What a division holds and what it
  *  looks like are two rules, so this function doesn't choose a mark. */
-export function actualityCounts(
+function actualityCounts(
 	graph: TActualityGraph,
 	{ from, to, divisions, minLevel }: { from: number; to: number; divisions: number; minLevel: THaibunLogLevel },
 ): Promise<Record<string, number>[][]> {

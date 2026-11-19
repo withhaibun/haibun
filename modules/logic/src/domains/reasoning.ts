@@ -42,8 +42,8 @@ export const COMPLETE_GRAPH = `${REASONER_NAMESPACE}complete`;
 export type TReasonerValue = Term | string | number | readonly TReasonerValue[];
 /** The effect a session needs: a read of the facts of a subject and a predicate, each an IRI, or one of haibun's effects of a
  *  proof, whose request is a list that names its kind first. */
-export type TReasonerRead = { need: "read"; subject: NamedNode; predicate: NamedNode };
-export type TReasonerEffect = { need: "effect"; request: readonly TReasonerValue[] };
+type TReasonerRead = { need: "read"; subject: NamedNode; predicate: NamedNode };
+type TReasonerEffect = { need: "effect"; request: readonly TReasonerValue[] };
 /** How a session step ended: the effect it needs, or the N3 text of what the query derived. */
 export type TReasonerState = TReasonerRead | TReasonerEffect | { derived: string };
 /** What a session needs, as a refusal names it: the predicate and the subject of a read, or the kind of an effect. */
@@ -82,7 +82,7 @@ export const DOMAIN_ENTAILED_MEMBERS = "entailed-members";
 /** The domain of a claim's products: how it ended, and the witness of a subsumption the ontology doesn't entail. */
 export const DOMAIN_CLAIM = "claim";
 /** The members a class expression entails, each by its address, and how many there are. A member the records don't entail may exist. */
-export const EntailedMembersSchema = z.object({ members: z.array(IndividualAddressSchema), ...CountedFields });
+const EntailedMembersSchema = z.object({ members: z.array(IndividualAddressSchema), ...CountedFields });
 
 /** A class expression's domain without the refusal its stepper adds, which reads the expression against the ontology. */
 export const classExpressionDomainDefinition: TDomainDefinition = {

@@ -33,9 +33,9 @@ const L = LINT_TERM;
 const yes = termOf(true);
 
 /** A step as the lint reads it: its stepper, its name, its method, and the domains it takes and returns. */
-export type TLintStep = { stepperName: string; stepName: string; method: string; inputs: readonly string[]; outputs: readonly string[] };
+type TLintStep = { stepperName: string; stepName: string; method: string; inputs: readonly string[]; outputs: readonly string[] };
 /** A domain as the lint reads it: whether it is a node of the graph, written by its caller, read beyond its steps and persisted. */
-export type TLintDomain = { key: string; node: boolean; written: boolean; beyond: boolean; persisted: boolean };
+type TLintDomain = { key: string; node: boolean; written: boolean; beyond: boolean; persisted: boolean };
 /** The step graph the lint reads: its steps, its domains, each reference, each union's parts, each composite's field ranges, and
  *  the domain of an individual's address. */
 export type TLintGraph = {

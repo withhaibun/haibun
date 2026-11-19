@@ -13,7 +13,7 @@ import type { BrowserSession } from "./browser-session.js";
 const SCREENSHOT_FORMAT = MEDIA_TYPE.png;
 
 /** The step a screenshot shows, whose position names its artifact. */
-export type TScreenshotStep = Pick<TStepResult, "seqPath" | "in" | "path">;
+type TScreenshotStep = Pick<TStepResult, "seqPath" | "in" | "path">;
 
 /** Screenshots the page into actuality's storage, and returns the address actuality serves it at, logging where it was saved. */
 export async function captureScreenshot(session: BrowserSession, world: TWorld, storage: AStorage, event: string, step: TScreenshotStep): Promise<TImageReference> {

@@ -20,7 +20,7 @@ import type { TRecord } from "../../domains/current-subject.js";
 
 /** What a turn emitted while it ran that its records don't hold. `progress` holds its latest status line, and its spinner
  *  shows that line. `context` holds the lines it sent. */
-export type TTurnStated = { progress: string; context: string[] };
+type TTurnStated = { progress: string; context: string[] };
 export const NOTHING_STATED: TTurnStated = { progress: "", context: [] };
 
 /** A turn as the store reads it back or as this page sends it, with what it emitted while it ran. Its question's record

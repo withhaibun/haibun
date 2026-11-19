@@ -46,7 +46,7 @@ export const statedValue = (value: unknown, secret: boolean | undefined): unknow
 const jsonValueDomain = (value: unknown): string => (typeof value === "number" ? DOMAIN_NUMBER : typeof value === "string" ? DOMAIN_STRING : DOMAIN_JSON);
 
 /** A variable that starts a next scope, with the record names of the steps that set it. */
-export type TCarriedVariable = TStepValue & { generatedBy: string[] };
+type TCarriedVariable = TStepValue & { generatedBy: string[] };
 
 const isOrigin = (value: unknown): value is TOrigin => typeof value === "string" && value in Origin;
 

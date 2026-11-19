@@ -15,7 +15,7 @@ import { MemoryQuads } from "./memory-quads.js";
 
 /** What reading a carried actuality installs: a device store held in memory, the graph the page reads, and the actuality feature it
  *  reads; and the declarations of the types whose records the graph reads. */
-export type TCarriedScope = {
+type TCarriedScope = {
 	installDeviceStore: () => TDeviceStore;
 	installGraph: (graph: TCachedGraph) => void;
 	readActuality: (actualityFeature: string) => void;

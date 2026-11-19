@@ -6,7 +6,7 @@
 import { directionOf, type TGraph } from "../../domains/graph.js";
 import { itemAt, valueAt } from "@haibun/core/lib/domains/item-at.js";
 
-export type NodeBox = { x: number; y: number; w: number; h: number };
+type NodeBox = { x: number; y: number; w: number; h: number };
 export type GroupBox = { id: string; label: string; depth: number; x: number; y: number; w: number; h: number };
 export type LaidOutGraph = { nodes: Map<string, NodeBox>; groups: GroupBox[]; width: number; height: number };
 

@@ -16,7 +16,7 @@ export type GanttThree = EnclosureThree & {
 	Float32BufferAttribute: new (array: number[], itemSize: number) => unknown;
 };
 
-export type TGanttOverlayDeps = {
+type TGanttOverlayDeps = {
 	three: () => GanttThree | undefined;
 	/** The object the overlays are parented to, which shares the nodes' coordinate space. */
 	parent: () => Obj3D | undefined;

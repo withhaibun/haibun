@@ -6,7 +6,7 @@
 import type { TGraphPresenter, TPaneElement } from "../ports.js";
 
 /** Whether `value` holds a function under each of `methods`. */
-export const holdsMethods = (value: unknown, methods: readonly string[]): boolean =>
+const holdsMethods = (value: unknown, methods: readonly string[]): boolean =>
 	typeof value === "object" && value !== null && methods.every((method) => typeof Reflect.get(value, method) === "function");
 
 /** The methods a graph presenter offers its host. */

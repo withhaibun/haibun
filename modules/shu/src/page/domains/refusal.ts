@@ -6,10 +6,10 @@
 import { z } from "zod";
 import { RemedySchema, RpcRefusalSchema } from "@haibun/core/lib/rpc-wire.js";
 
-export const PageRemedySchema = z.union([RemedySchema, z.object({ do: z.literal("read-again") })]);
+const PageRemedySchema = z.union([RemedySchema, z.object({ do: z.literal("read-again") })]);
 export type TPageRemedy = z.infer<typeof PageRemedySchema>;
 
-export const PageRefusalSchema = RpcRefusalSchema.extend({ remedy: PageRemedySchema.optional() });
+const PageRefusalSchema = RpcRefusalSchema.extend({ remedy: PageRemedySchema.optional() });
 export type TPageRefusal = z.infer<typeof PageRefusalSchema>;
 
 /** The remedy of a read that didn't reach the site. */

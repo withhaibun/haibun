@@ -96,7 +96,7 @@ export const offeredLinksOf = (calls: Readonly<Record<string, TOfferedCall>>, id
 export type TReadDeclarations = { types: readonly string[]; relations: readonly string[]; idOf: (record: THeldRecord) => string; of(label: string): TReadDeclaration | undefined };
 
 /** What a store reads: whether it searches text, the types it holds and the relations it holds. */
-export type TReadReach = { search: boolean; types: readonly string[]; relations: readonly string[] };
+type TReadReach = { search: boolean; types: readonly string[]; relations: readonly string[] };
 
 /** A page of the records from an offset, or the first records of each type. */
 export type TReadPage = { limit: number; offset: number } | { perType: number };
@@ -231,7 +231,7 @@ function unsearchingRefusal(label: string | undefined, declared: TReadDeclaratio
 }
 
 /** Returns the text that refuses relations the store doesn't hold, with the relations it holds. */
-export function unheldRelationRefusal(unheld: readonly string[], held: readonly string[]): string {
+function unheldRelationRefusal(unheld: readonly string[], held: readonly string[]): string {
 	const holds = held.length > 0 ? `The relations it holds: ${[...held].sort().join(", ")}` : "It doesn't hold a relation.";
 	return `a relation named ${unheld.map((relation) => `"${relation}"`).join(", ")} doesn't reach a record in this graph. ${holds}`;
 }
@@ -293,7 +293,7 @@ export function readRefusal(query: TGraphQuery, declarations: Pick<TReadDeclarat
 
 /** Returns true where a record held at `level` is on a page read at `asked`. A read at `all`, or a read that doesn't state
  *  a level, reads every level. A read at one level refuses a record that doesn't state its level (`statedLevel`). */
-export function readsAtLevel(level: unknown, asked: TGraphQuery["accessLevel"]): boolean {
+function readsAtLevel(level: unknown, asked: TGraphQuery["accessLevel"]): boolean {
 	if (asked === undefined || asked === AccessQuery.all) return true;
 	return statedLevel(level) === asked;
 }
@@ -320,7 +320,7 @@ export function readOrder(query: Pick<TStatedQuery, "named" | "references" | "re
 }
 
 /** One edge of a held record: its relation, and the type and id of the record at its other end. */
-export type THeldEdge = { rel: string; label: string; id: string };
+type THeldEdge = { rel: string; label: string; id: string };
 
 /** A record as a store of quads holds it: its id, its type, its fields, its edges and its level. */
 export type THeldRecord = { id: string; label: string; fields: Record<string, unknown>; edges: THeldEdge[]; level: unknown };

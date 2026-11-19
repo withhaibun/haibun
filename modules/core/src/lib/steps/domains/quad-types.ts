@@ -45,7 +45,7 @@ export type TTermWords = (typeof TERM_WORDS)[keyof typeof TERM_WORDS];
 
 /** The directions of a page's sort. */
 export const SortOrderSchema = z.enum(["asc", "desc"]);
-export type TSortOrder = z.infer<typeof SortOrderSchema>;
+type TSortOrder = z.infer<typeof SortOrderSchema>;
 
 /** One record by its type and id, and the relations a reference read follows from it. A read follows every relation where
  *  `via` is absent. */
@@ -108,7 +108,7 @@ export type TRecordQuery = z.infer<typeof RecordQuerySchema>;
 
 /** Where each part of a read's expression ran: the store's index, and the reasoner, each in Manchester syntax. A part that
  *  doesn't run there isn't stated. */
-export const RanSchema = z.object({ index: z.string().optional(), reasoner: z.string().optional() }).strict();
+const RanSchema = z.object({ index: z.string().optional(), reasoner: z.string().optional() }).strict();
 export type TRan = z.infer<typeof RanSchema>;
 
 /** A type a typed read names: its label, and the schema its domain registers, whose output the read returns. */
@@ -254,7 +254,7 @@ export const RecordsPageSchema = GraphQueryResultSchema.extend({ order: z.array(
 export type TRecordsPage = z.infer<typeof RecordsPageSchema>;
 
 /** One edge of an individual: what it is, which way it points, and the record it names. */
-export const QuadEdgeSchema = z.object({ type: z.string(), direction: z.enum(["out", "in"]), target: z.record(z.string(), z.unknown()) });
+const QuadEdgeSchema = z.object({ type: z.string(), direction: z.enum(["out", "in"]), target: z.record(z.string(), z.unknown()) });
 export type TQuadEdge = z.infer<typeof QuadEdgeSchema>;
 
 /** The edges that point at one individual and how many there are. Each edge carries the record at its other end. */
@@ -324,7 +324,7 @@ export function matchesQuadPattern(q: TQuad, p: TQuadPattern): boolean {
 export type TClusteredQuadsOpts = { perTypeLimit: number; types?: string[]; accessLevel: AccessLevel; scope?: "own" | "federated" };
 
 /** A type's part of a clustered read: how many individuals it holds, which the sample includes, and how each is titled and served. */
-export const ClusterSchema = z.object({
+const ClusterSchema = z.object({
 	/** Persisted label this cluster represents. */
 	type: z.string(),
 	/** Total individuals of this type in the store. */

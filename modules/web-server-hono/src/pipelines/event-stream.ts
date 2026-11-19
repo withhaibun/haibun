@@ -42,7 +42,7 @@ const TOO_LARGE = 413;
 
 /** What an event stream reads: the server that mounts its routes, the events hub that logs it, actuality's runtime, the
  *  verifier of each request's authority, and how many writes may be in flight to one follower before it ends. */
-export type TEventStreamParts = { webserver: IWebServer; eventLogger: IEventLogger; runtime: TRuntime; verifier: TCapabilityVerifier; writesInFlight: number };
+type TEventStreamParts = { webserver: IWebServer; eventLogger: IEventLogger; runtime: TRuntime; verifier: TCapabilityVerifier; writesInFlight: number };
 
 export class SSETransport implements ITransport, IStepTransport {
 	readonly name = "SSETransport";

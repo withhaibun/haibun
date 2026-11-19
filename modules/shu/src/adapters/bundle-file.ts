@@ -29,7 +29,7 @@ export const MATH_FONT_FILE = createRequire(import.meta.url).resolve("@fontsourc
 const LABEL_FONT_RANGES_FILE = join(dirname(LABEL_FONT_FILE), "..", "unicode.json");
 
 /** The command that writes every bundle. */
-export const BUILD_COMMAND = "npm run build in modules/shu";
+const BUILD_COMMAND = "npm run build in modules/shu";
 
 /** Runs `read` on the file at `path`, or throws a refusal that names the bundle and the command that builds it. */
 function built<T>(path: string, what: string, read: (path: string) => T): T {

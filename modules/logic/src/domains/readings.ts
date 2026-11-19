@@ -49,7 +49,7 @@ export const readingDomainDefinitions: TDomainDefinition[] = [
 ];
 
 /** A quantifier's variable and the domain whose members it ranges over. */
-export type TQuantifier = { what: string; domain: string };
+type TQuantifier = { what: string; domain: string };
 
 /** Reads a quantifier's variable and domain from its arguments. */
 export const quantifierOf = (args: TStepArgs): TQuantifier => ({ what: String(args.what), domain: String(args.domain) });

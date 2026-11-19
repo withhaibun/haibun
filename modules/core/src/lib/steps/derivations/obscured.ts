@@ -10,7 +10,7 @@ export const obscuredText = (text: string, secrets: readonly string[]): string =
 	secrets.reduce((obscured, secret) => (secret === "" ? obscured : obscured.replaceAll(secret, OBSCURED_VALUE)), text);
 
 /** A value with every text it holds obscured, at any depth of its lists and objects. */
-export function obscuredValue(value: unknown, secrets: readonly string[]): unknown {
+function obscuredValue(value: unknown, secrets: readonly string[]): unknown {
 	if (typeof value === "string") return obscuredText(value, secrets);
 	if (Array.isArray(value)) return value.map((item) => obscuredValue(item, secrets));
 	if (typeof value === "object" && value !== null) return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, obscuredValue(item, secrets)]));

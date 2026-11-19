@@ -6,7 +6,7 @@ import type { findHaibunWorkspace } from "@haibun/core/lib/adapters/workspace-di
 import type { TExecuteToolParams, TWorkspaceStatus } from "./domains/lsp.js";
 
 /** A painted span as the protocol encodes it: its line, where it starts, how long it is, and its type's index in the legend. */
-export type TEncodedToken = { line: number; char: number; length: number; typeIndex: number };
+type TEncodedToken = { line: number; char: number; length: number; typeIndex: number };
 
 /** The handlers of the editor's requests. */
 export type TLspHandlers = {

@@ -15,7 +15,7 @@ export type TPageScope = Page | Locator;
 /** An action on the page. */
 export type TPageAction<TReturn> = (page: Page) => TReturn | Promise<TReturn>;
 
-export type TSessionContext = {
+type TSessionContext = {
 	world: TWorld;
 	/** The pages of a feature, made where the session opens its first page in it. */
 	openPages: () => TBrowserPages;

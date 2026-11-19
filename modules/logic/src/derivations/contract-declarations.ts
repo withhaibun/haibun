@@ -27,13 +27,13 @@ import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { declaredSteps, sentenceTerm, statementSentence, statementTerm } from "@haibun/core/lib/steps/derivations/predicate-registry.js";
 import { termText } from "./registry.js";
 
-export type TContractFinding = { method: string; finding: string };
+type TContractFinding = { method: string; finding: string };
 
 export const UNDECLARED_RELATION =
 	"states a relation that the steppers don't declare in their concerns. Declare the relation once in the concerns of the stepper whose rules state it";
 export const ARITY = "applies a relation to a number of arguments other than its arity. Give the statement one argument for each place of the relation";
 export const UNNAMED_PARAMETER = "names a parameter its pattern doesn't. Name a placeholder of the step's pattern";
-export const UNDECLARED_TYPE = "derives a record of a type that the steppers don't declare. Derive a record of a type a stepper declares in its concerns";
+const UNDECLARED_TYPE = "derives a record of a type that the steppers don't declare. Derive a record of a type a stepper declares in its concerns";
 export const UNDECLARED_FIELD = "names a field that the declared record types' schemas don't hold. Build the field with `field` from the type's declaration";
 export const UNDECLARED_RECORD_CHANGE = "lists a change of every record of a type that the steppers don't declare. List a type a stepper declares in its concerns";
 export const UNSTATED_RELATION = "lists a change of a relation that statements don't name. List a field of a type, or a relation of `statementPredicates`";

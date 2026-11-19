@@ -114,7 +114,7 @@ export async function provedList(ctx: DispatchContext, parent: TFeatureStep, sta
 }
 
 /** What a node of a proof performs in place of a step's action: the proof of its statements, which its caller resolves. */
-export type TPerform = () => Promise<TActionResult>;
+type TPerform = () => Promise<TActionResult>;
 
 /** Proves a step: a feature's line, a statement a step states, or a call a transport carries. Every surface calls it. */
 export const proveStep = (ctx: DispatchContext, featureStep: TFeatureStep): Promise<TStepResult> => proverOf(ctx.world).prove(ctx, featureStep);

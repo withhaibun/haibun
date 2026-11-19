@@ -69,7 +69,7 @@ export const RunArtifactSchema = PersistedVertexSchema.extend({
 });
 /** An artifact as a reader names and finds it: its kind, the path under which actuality serves it, and its path relative to
  *  the feature's directory, by which a saved record of actuality references it. */
-export type TArtifactLine = { kind: string; path?: string; besideFeature?: string };
+type TArtifactLine = { kind: string; path?: string; besideFeature?: string };
 
 /** The fields an artifact's record and the artifact event it copies both hold. */
 const ArtifactFieldsSchema = z.object({

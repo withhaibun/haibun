@@ -14,7 +14,7 @@ import { dlOf, functionalOf } from "./class-expression.js";
 /** A claim as its line states it: an individual's membership of a class expression, the subsumption of one class expression by
  *  another, the existence of a member of a class expression, or a statement a feature's contracts entail over a fresh individual
  *  of each declared domain. */
-export type TClaim =
+type TClaim =
 	| { individual: string; type: TClassExpression }
 	| { sub: TClassExpression; sup: TClassExpression }
 	| { some: TClassExpression }
@@ -65,7 +65,7 @@ export function entailmentOf(claim: TClaim): TEntailment {
 
 /** A claim's verdict as a reader reads it. A feature claim that holds, holds for every value of the domains it ranges over, not
  *  only in the call that checked it. */
-export const verdictText = ({ verdict, domains }: Pick<TClaimOutcome, "verdict" | "domains">): string =>
+const verdictText = ({ verdict, domains }: Pick<TClaimOutcome, "verdict" | "domains">): string =>
 	verdict === VERDICT.proved && domains !== undefined && domains.length > 0 ? `${CLAIM_VERDICT[verdict]} for every ${domains.join(" and ")}` : CLAIM_VERDICT[verdict];
 
 /** A claim's result as text: its task, its sentence where it states one, the entailment, its verdict, and its proof or why it

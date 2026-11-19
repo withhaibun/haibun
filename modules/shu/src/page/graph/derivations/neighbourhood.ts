@@ -10,7 +10,7 @@ import { isProjectionKey } from "@haibun/core/lib/quad-types.js";
 export const INCOMING_LIMIT = 100;
 
 /** What a neighbourhood brings: its quads, the subjects to pin, and the types it touched, which a view expands. */
-export type TNeighbourhood = { quads: TQuad[]; pinned: Set<string>; types: Set<string> };
+type TNeighbourhood = { quads: TQuad[]; pinned: Set<string>; types: Set<string> };
 
 /** A record's id, by the id field its type declares. */
 type TIdOf = (vertex: Record<string, unknown>) => string;

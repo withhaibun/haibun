@@ -6,7 +6,7 @@ import "./shu-spinner.js";
 import { waitingTpl } from "./empty-state.js";
 
 /** A read a refusal reads again. */
-export type TReadAgain = { run(): Promise<void> };
+type TReadAgain = { run(): Promise<void> };
 
 /** A read's refusal, with a control that reads it again. */
 export const refusalTpl = (refusal: TPageRefusal, load: TReadAgain): TemplateResult => html`<shu-refusal .refusal=${refusal} .readAgain=${() => void load.run()}></shu-refusal>`;

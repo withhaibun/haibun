@@ -34,7 +34,7 @@ import { effectiveHiddenTypes } from "../page/graph/derivations/graph-filter.js"
 type TClusters = Awaited<ReturnType<NonNullable<IQuadStore["getClusteredQuads"]>>>["clusters"];
 
 /** The graph a report carries: the quads with their schema, the clusters, each node and each typed reference. */
-export type TGraphSource = {
+type TGraphSource = {
 	quads: TQuad[];
 	clusters: TClusters;
 	nodeMap: Map<string, { graph: string; subject: string }>;
@@ -42,7 +42,7 @@ export type TGraphSource = {
 };
 
 /** The tokens a feature matches a graph's layout by: a node is `graph|subject|label`, an edge `source|predicate|target`. */
-export type TGraphLayout = { nodes: string[]; edges: string[]; clusters: { type: string; total: number; sampled: number }[] };
+type TGraphLayout = { nodes: string[]; edges: string[]; clusters: { type: string; total: number; sampled: number }[] };
 
 /** The refusal of a store that doesn't sample clusters. */
 export const NOT_CLUSTERED = "the store doesn't sample clusters (getClusteredQuads)";
@@ -93,7 +93,7 @@ export async function graphLayout(world: TWorld): Promise<TGraphLayout> {
 }
 
 /** What a page requests of the clustered sample: records per type, the types, the query level and the read's scope. */
-export type TClusteredRequest = { perTypeLimit: number; types?: string[]; accessLevel: AccessQueryLevel; scope?: "own" | "federated" };
+type TClusteredRequest = { perTypeLimit: number; types?: string[]; accessLevel: AccessQueryLevel; scope?: "own" | "federated" };
 
 /** The resource relations of a world's domains, built once for each count of them, so a domain declared at runtime builds
  *  them again. Building them walks every domain. */

@@ -2,7 +2,7 @@
 import type { TEmbedderChannel } from "../ports.js";
 
 /** The part of a frame's window that receives messages and references the embedding window (`parent`). */
-export type TFrameWindow = Pick<Window, "parent" | "addEventListener" | "removeEventListener">;
+type TFrameWindow = Pick<Window, "parent" | "addEventListener" | "removeEventListener">;
 
 /** Returns the channel of `frame` to its embedding window at `origin`. A message from another window isn't addressed to shu,
  *  and the channel passes over it. */

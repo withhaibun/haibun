@@ -24,7 +24,7 @@ export const FEATURES_READ = 500;
 /** What holding an actuality reads and writes: the graphs of every actuality the device holds, the graph of the one the
  *  site serves, whether the page reads another graph the device holds, the actuality feature the page reads, and the report of
  *  what the device couldn't hold. */
-export type THoldScope = { held: () => Promise<TCachedGraph[]>; served: () => TCachedGraph; readsHeld: () => boolean; reading: () => string | undefined; report: TDeviceReport };
+type THoldScope = { held: () => Promise<TCachedGraph[]>; served: () => TCachedGraph; readsHeld: () => boolean; reading: () => string | undefined; report: TDeviceReport };
 
 /** The actualities of every graph, newest first, each named by the features it ran. */
 export async function actualitiesHeld(graphs: TCachedGraph[]): Promise<THeldActuality[]> {

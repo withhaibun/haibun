@@ -13,7 +13,7 @@ import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { contractFindings } from "./contract-declarations.js";
 
-export type TDeclarationFinding = { method: string; finding: string };
+type TDeclarationFinding = { method: string; finding: string };
 
 export const MISSING_PATTERN = "doesn't declare a pattern, an exact line, prose or rules. Give it a pattern or an exact line.";
 export const MISSING_FUNCTOR = "doesn't declare an action or a reading. Give it an action, or a reading the engine proves.";

@@ -51,7 +51,7 @@ function lineNumberOf({ lineNumber, line, feature }: TExpandedLine): number {
 const resolvesFeatures = (stepper: AStepper): stepper is TResolvesFeatures => "startFeatureResolution" in stepper;
 const holdsBackgroundRules = (stepper: AStepper): stepper is THoldsBackgroundRules => "forgetBackgroundRules" in stepper;
 
-export type TLanguageServerContext = {
+type TLanguageServerContext = {
 	ports: TLspPorts;
 	/** The world, whose step registry completion lists. */
 	world: TWorld;

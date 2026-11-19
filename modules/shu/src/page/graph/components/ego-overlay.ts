@@ -29,7 +29,7 @@ import type { FGLink, FGNode, LabelVisual, NodeVisual, Obj3D, XYZ } from "../dom
 import { disposeGroup } from "./enclosure.js";
 import { makeTroikaChip, makeTroikaText, type ChipThree } from "./troika-label.js";
 
-export const EGO_OVERLAY_RENDER_ORDER = 800;
+const EGO_OVERLAY_RENDER_ORDER = 800;
 const CHIP_TEXT_HEIGHT = 3;
 const PREDICATE_TEXT_HEIGHT = CHIP_TEXT_HEIGHT * 0.75;
 /** The share of a chip's opacity, and of a spoke's, that the overlay draws at full fade. */
@@ -59,7 +59,7 @@ export type EgoThree = ChipThree & {
 	LineDashedMaterial: new (opts: Record<string, unknown>) => { opacity: number; dispose(): void };
 };
 
-export type TEgoOverlayDeps = {
+type TEgoOverlayDeps = {
 	three: () => EgoThree | undefined;
 	camera: () => TSceneCamera | undefined;
 	/** The world length of one client pixel at a point, null until the camera is ready. */

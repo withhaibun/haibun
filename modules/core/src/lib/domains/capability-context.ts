@@ -50,7 +50,7 @@ export type TReadScope = ({ ceiling: AccessLevel | undefined } | { refusal: TRpc
  * - `ask` is the id of the exchange that called the step, `shown` what a listing of steps shows, `step` the step in flight,
  *   and `delegatedWrites` the writes the contract of another instance's step allows for a store call that instance sends.
  */
-export const CallContextSchema = z
+const CallContextSchema = z
 	.object({
 		capabilityAction: ActionsSchema,
 		held: ActionsSchema,
@@ -104,7 +104,7 @@ function heldScope(scope: TReadScope | undefined, held: TActions): TReadScope {
 
 /** Who a boundary states a call is: the actions it holds, the actions its request presented where they are narrower, as a
  *  transport's caller states them, the principal it acts as, and the capabilities on which that principal's proof rests. */
-export type TBoundaryCaller = { held: string[]; capabilityAction?: string[]; principal: string | undefined; restsOn?: TRestsOn };
+type TBoundaryCaller = { held: string[]; capabilityAction?: string[]; principal: string | undefined; restsOn?: TRestsOn };
 
 /**
  * Returns the record of the caller a boundary states, in place of the record of the code that reached the boundary: it

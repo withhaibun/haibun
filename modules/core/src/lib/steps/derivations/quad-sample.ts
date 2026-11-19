@@ -10,7 +10,7 @@ import { GraphQuerySchema, ORDER_KEY, statedQuery, type TCluster, type TClustere
 
 /** What a sample reads of a type's declaration, where the type declares one: the property or edge that titles its records,
  *  the field that orders its records, and the relations its records point through, with the types each reaches. */
-export type TSampledDeclarationOf = (type: string) => (Pick<TReadDeclaration, "title" | "defaultSort"> & { surface?: TReadDeclaration["surface"] }) | undefined;
+type TSampledDeclarationOf = (type: string) => (Pick<TReadDeclaration, "title" | "defaultSort"> & { surface?: TReadDeclaration["surface"] }) | undefined;
 
 /** A held quad as a graph reads it: an edge where its type declares its predicate a relation to one type. A record written
  *  whole states its relations as fields, and the graph draws each as an edge to the record it names. */
@@ -52,7 +52,7 @@ function heldList<T>(map: Map<string, T[]>, key: string): T[] {
 /** The depth of a record whose containment doesn't reach a record of its type that isn't part of another: a record the
  *  store doesn't hold contains it, or its containment returns to itself. Such a record follows every record of the held
  *  hierarchy. */
-export const UNREACHED_DEPTH = Number.POSITIVE_INFINITY;
+const UNREACHED_DEPTH = Number.POSITIVE_INFINITY;
 
 /**
  * Returns the keys that order a type's sample. A record follows the record of its type it is part of: the sample orders by

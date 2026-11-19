@@ -20,7 +20,7 @@ export const factsOf = (text: string): string[] =>
 		.map((quad) => `fact(${factTermOf(quad.predicate)}, ${factTermOf(quad.subject)}, ${factTermOf(quad.object)})`);
 
 /** A check over translated clauses: the rule set, its query and the facts it reads, each as N3. Returns the triples the query selects. */
-export type TTranslatedCheck = (rules: string, query: string, facts: string) => Promise<Quad[]>;
+type TTranslatedCheck = (rules: string, query: string, facts: string) => Promise<Quad[]>;
 
 /** Returns the checks over the clauses `reasoner` translates and `engine` loads. A rule set that doesn't translate rejects each of
  *  its checks with the rules the translation refused. */

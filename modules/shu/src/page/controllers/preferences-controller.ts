@@ -9,7 +9,7 @@ import { pagePreferences } from "../root.js";
 /** What the controller reads of its element: its tag, its instance's key (null until the element states it), the fields
  *  it stores, those fields as its state holds them, and how it sets stored fields: on its first connection (`initial`),
  *  or on another instance's write. */
-export type TStoredFields = {
+type TStoredFields = {
 	tag: string;
 	key(): string | null;
 	names: readonly string[];

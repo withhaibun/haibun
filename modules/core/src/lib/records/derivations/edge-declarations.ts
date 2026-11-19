@@ -4,7 +4,7 @@ import { RESOURCE_LABEL, type TContentField, type TRecordKey } from "../../domai
 /** Whether an edge's target is a record the store holds or the unit writes, or a record the store may not hold yet. A store
  *  refuses a unit whose edge to a held target reaches a record the store doesn't hold and the unit doesn't write. */
 export const EDGE_TARGET = { held: "held", reference: "reference" } as const;
-export type TEdgeTarget = (typeof EDGE_TARGET)[keyof typeof EDGE_TARGET];
+type TEdgeTarget = (typeof EDGE_TARGET)[keyof typeof EDGE_TARGET];
 
 /** How a write states an edge it reaches through a declaration: whether its target is held or a reference, and whether the edge
  *  replaces the record's earlier edges of its relation. Every store reads it from the edge's declaration. */

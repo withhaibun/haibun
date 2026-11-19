@@ -47,10 +47,10 @@ const TestResultSchema = PersistedVertexSchema.extend({
 });
 const AssertionSchema = PersistedVertexSchema.extend({ id: z.string(), mode: z.enum(EARL_MODE), generatedAtTime: z.string() });
 
-export type TAssertor = z.infer<typeof AssertorSchema>;
-export type TTestSubject = z.infer<typeof TestSubjectSchema>;
+type TAssertor = z.infer<typeof AssertorSchema>;
+type TTestSubject = z.infer<typeof TestSubjectSchema>;
 export type TTestCase = z.infer<typeof TestCaseSchema>;
-export type TTestResult = z.infer<typeof TestResultSchema>;
+type TTestResult = z.infer<typeof TestResultSchema>;
 
 export const earlDomainDefinitions: TDomainDefinition[] = [
 	{

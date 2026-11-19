@@ -105,7 +105,7 @@ import { declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 /** The action that attaches a browser a person runs to the relay. */
 const WEB_PLAYWRIGHT_ATTACH: TAction = ActionSchema.parse(WEB_PLAYWRIGHT_ACTIONS.attach);
 
-export const WEB_PAGE = "webpage";
+const WEB_PAGE = "webpage";
 const HTTP = "HTTP";
 /** Step names linked by accessibility snapshots to interact with inspected elements. */
 const SNAPSHOT_ACTIONS = ["click", "clickBy", "setValue", "press", "selectionOption", "gotoPage", "goBack", "takeScreenshot"] as const;

@@ -113,7 +113,7 @@ export const DOMAIN_DERIVATION = "derivation";
 export const DOMAIN_LINE_TERM = "line-term";
 
 /** A line and the term it parses to, with the line the term renders as. */
-export const LineTermSchema = z.object({ line: z.string(), term: z.string(), rendered: z.string() });
+const LineTermSchema = z.object({ line: z.string(), term: z.string(), rendered: z.string() });
 
 export const logicDomainDefinitions: TDomainDefinition[] = [
 	planDomainDefinition,

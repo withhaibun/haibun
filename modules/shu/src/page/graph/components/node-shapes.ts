@@ -37,7 +37,7 @@ export type NodeShapeDeps = {
 };
 
 /** What a mark paints: its object, and the labels the scene turns to the camera each frame. */
-export type TPainted = { object: Obj3D; labels: LabelVisual[] };
+type TPainted = { object: Obj3D; labels: LabelVisual[] };
 
 /** A type-coloured 3D duration box spanning z by mark.zExtent, with a plain text label at its start face. */
 export function boxShape(mark: NodeMark, d: NodeShapeDeps): TPainted {

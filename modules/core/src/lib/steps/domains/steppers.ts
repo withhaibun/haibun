@@ -7,7 +7,5 @@ import { CountedFields } from "../../domains/hypermedia.js";
 
 /** Each stepper actuality loads, with what it does and each of its steps as its key and its pattern: what the CLI's
  *  `--show-steppers` prints. */
-export const SteppersSchema = z
-	.object({ steppers: z.array(z.object({ stepper: z.string(), description: z.string(), steps: z.array(z.string()) }).strict()), ...CountedFields })
-	.strict();
+const SteppersSchema = z.object({ steppers: z.array(z.object({ stepper: z.string(), description: z.string(), steps: z.array(z.string()) }).strict()), ...CountedFields }).strict();
 export type TSteppers = z.infer<typeof SteppersSchema>;

@@ -42,7 +42,7 @@ export interface TSavedArtifact {
 }
 
 /** What locates actuality's captures: its tag and its options. */
-export type TLocationOptions = { tag: TTag; options: TBaseOptions; moduleOptions: TModuleOptions };
+type TLocationOptions = { tag: TTag; options: TBaseOptions; moduleOptions: TModuleOptions };
 
 /** What removing the file an artifact's record names did: removed it, found it already gone, or refused it, with why. Each
  *  states the file's path. */

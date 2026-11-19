@@ -35,7 +35,7 @@ export function thumbHeightPx(fraction: number, railPx: number): number {
 
 /** Returns how far the window is through the column by row index: 0 at the first window, 1 at the last, and 0 where every
  *  row is in the window. */
-export function scrollFraction(total: number, win: TWindow): number {
+function scrollFraction(total: number, win: TWindow): number {
 	const maxFirst = Math.max(0, total - win.visible);
 	return maxFirst === 0 ? 0 : Math.min(1, Math.max(0, win.first / maxFirst));
 }
@@ -243,7 +243,7 @@ export function convergeTarget(window: TWindow, count: number): number {
 }
 
 /** A row the time cursor can mark: its index in the column and the instant it records. */
-export type TTimedRow = { index: number; timestamp: number };
+type TTimedRow = { index: number; timestamp: number };
 
 /** The rows a time cursor reads, in index order, with the earliest instant of each row and every row after it. A column
  *  places a step's row by its path, so its rows aren't always in the order of their instants; the earliest instant from a

@@ -335,7 +335,7 @@ function premisesIn(basis: TQueryBasis, terms: TRecordTerms): { axiomOf: (read: 
 
 /** What a membership of two disjoint classes states: the axioms the reasoner's proof read, and the two disjoint classes with the
  *  vocabulary that states them disjoint. */
-export type TDisjointnessMet = { axioms: string[]; disjoint: { classes: [string, string]; statedBy: string } };
+type TDisjointnessMet = { axioms: string[]; disjoint: { classes: [string, string]; statedBy: string } };
 
 /** Returns the axioms by which K entails that the record at `address` isn't a member of `text`, or undefined where it doesn't. */
 export function membershipRefuted(

@@ -179,7 +179,7 @@ export const ActionsBarSchema = z.object({ mode: z.enum(BAR_MODES), showControls
 // --- Record steps ---
 
 /** The outcome of a step run in place beside a record. */
-export const RecordStepOutcomeSchema = z.object({
+const RecordStepOutcomeSchema = z.object({
 	method: z.string().min(1),
 	summary: z.string(),
 	path: z.array(z.number()).optional(),

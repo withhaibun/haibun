@@ -65,7 +65,7 @@ export class BaseOptions implements IHasOptions {
 	};
 }
 
-export type TEnv = { [name: string]: string | undefined };
+type TEnv = { [name: string]: string | undefined };
 
 /** Returns a run's options. A base option takes its default unless the config's options state it, and the environment states it over
  *  either. A module option takes the base config's value unless an environment variable sets it. Throws where a value doesn't parse

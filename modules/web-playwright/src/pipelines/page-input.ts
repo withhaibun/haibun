@@ -8,7 +8,7 @@ import type { BrowserSession } from "./browser-session.js";
 import { attempted, locateByDomain, locateWith } from "./locate.js";
 
 /** What a dialog the page opened holds, as the step that accepts it keeps it. */
-export type TDialogSays = { defaultValue: string; message: string; type: string };
+type TDialogSays = { defaultValue: string; message: string; type: string };
 
 export const press = (session: BrowserSession, key: string): Promise<TActionResult> => attempted(`press "${key}"`, () => session.withPage((page) => page.keyboard.press(key)));
 

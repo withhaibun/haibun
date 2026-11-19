@@ -149,7 +149,7 @@ export type TRpcRefusal = z.infer<typeof RpcRefusalSchema>;
 type TRpcAnswer = { kind: "answered"; body: unknown } | ({ kind: "refused" } & TRpcRefusal);
 
 /** Formats a remedy as text for a place that can't offer it as a control, such as a log. */
-export function remedySaid(remedy: TRemedy): string {
+function remedySaid(remedy: TRemedy): string {
 	if (remedy.do === "sign-in") return `sign in at ${remedy.at}`;
 	if (remedy.do === "request") return `request ${remedy.action} from a key that delegates it`;
 	if (remedy.do === "open") return `open the ${remedy.ref.kind} ${JSON.stringify(remedy.ref.target)}`;

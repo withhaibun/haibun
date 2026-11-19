@@ -37,21 +37,21 @@ const refKind = <S extends z.ZodType<Record<string, unknown>>>(target: S, label:
 
 /** The kinds of reference a `<shu-ref>` names: a step by its path within the actuality feature the page reads, an individual
  *  (or a part of it), a type, a step by its method, and an action. */
-export const REF_KINDS = {
+const REF_KINDS = {
 	[STEP_PATH_KIND]: refKind(z.object({ seqPath: z.array(z.number()) }), ({ seqPath }) => seqPath.join(".")),
 	[REF_DENOTES.individual]: refKind(IndividualAddressSchema.extend({ selector: PartSchema.optional() }), ({ id }) => id),
 	[REF_DENOTES.type]: refKind(z.object({ domain: z.string() }), ({ domain }) => domain),
 	step: refKind(z.object({ method: StepMethodSchema }), ({ method }) => method),
 	action: refKind(z.object({ action: ActionSchema }), ({ action }) => action),
 } as const;
-export type TRefKind = keyof typeof REF_KINDS;
+type TRefKind = keyof typeof REF_KINDS;
 /** The target a reference of kind `K` names. */
 export type TRefTarget<K extends TRefKind> = z.infer<(typeof REF_KINDS)[K]["target"]>;
 /** A reference: its kind and the target that kind names. */
 export type TRef = { [K in TRefKind]: { kind: K; target: TRefTarget<K> } }[TRefKind];
 
 /** Whether `v` names a kind of reference. */
-export const isRefKind = (v: string | null | undefined): v is TRefKind => typeof v === "string" && Object.hasOwn(REF_KINDS, v);
+const isRefKind = (v: string | null | undefined): v is TRefKind => typeof v === "string" && Object.hasOwn(REF_KINDS, v);
 
 /** The reference a kind and a target that arrived as data state, or undefined where the kind isn't a reference's or the target
  *  isn't what the kind names. */
@@ -93,7 +93,7 @@ export function textOf(node: Node): string {
 }
 
 /** A reference a rendered text makes, and the words that name it. */
-export type TContentRef = { ref: TRef; text: string };
+type TContentRef = { ref: TRef; text: string };
 
 /** Returns the references a rendered text makes, once each: each `<shu-ref>` its markdown became, and each reference link an
  *  HTML text carries. A surface that shows the text without live references, the sandboxed body iframe, lists them beside it. */

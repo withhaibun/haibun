@@ -7,7 +7,7 @@ import type { TGraphAxioms, TFrame } from "@haibun/core/lib/records/domains/axio
 import { frameStating } from "@haibun/core/lib/records/derivations/axioms.js";
 
 /** An edge the scene draws: its ends and its predicate, by the scene's ids. */
-export type TDrawnEdge = { from: string; predicate: string; to: string };
+type TDrawnEdge = { from: string; predicate: string; to: string };
 
 /** What a scene draws, by its ids. */
 export type TDrawn = { nodes: readonly string[]; edges: readonly TDrawnEdge[] };

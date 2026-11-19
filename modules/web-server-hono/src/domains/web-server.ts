@@ -81,7 +81,7 @@ export function misdirected(origins: readonly string[], host: string | undefined
 
 /** The record a mounted route is persisted as, so an observed HTTP request can edge to the endpoint it reached.
  *  `endpointClass` distinguishes a page route from service plumbing (/rpc, /sse). */
-export const EndpointSchema = PersistedVertexSchema.extend({
+const EndpointSchema = PersistedVertexSchema.extend({
 	url: z.string(),
 	method: z.string(),
 	description: z.string(),
@@ -90,7 +90,7 @@ export const EndpointSchema = PersistedVertexSchema.extend({
 	reads: AccessLevelSchema.optional(),
 	generatedAtTime: z.coerce.date(),
 });
-export const DOMAIN_ENDPOINT = "haibun-endpoint";
+const DOMAIN_ENDPOINT = "haibun-endpoint";
 
 /** What holding authority over this instance's web server means: ending the process that serves it. */
 export const WEB_SERVER_CAPABILITIES = { stop: "WebServer:stop" } as const;

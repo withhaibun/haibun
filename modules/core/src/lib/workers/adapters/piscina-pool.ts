@@ -16,7 +16,7 @@ export const MAX_WORKERS = 8;
 /** The heap a worker holds at most, beside the memory a WebAssembly runtime it starts holds. */
 const MAX_WORKER_HEAP_MB = 512;
 /** How long a worker stays idle before the pool releases it. */
-export const WORKER_IDLE_MS = 30_000;
+const WORKER_IDLE_MS = 30_000;
 
 /** The Node options a worker takes from its process: warnings, source maps and experimental features. A worker refuses V8's
  *  options, such as `--expose-gc`, and options of the process, and a task's module imports each package by its build, as a
@@ -45,7 +45,7 @@ setFlagsFromString(KEEP_WASM_CODE);
  *  it ends, such as a database, refused at once with its cause and remedy, so a task past the bound doesn't wait unseen. A
  *  resident task within the bound waits only while its worker starts. */
 export const POOL_MODE = { queued: "queued", resident: "resident" } as const;
-export type TPoolMode = (typeof POOL_MODE)[keyof typeof POOL_MODE];
+type TPoolMode = (typeof POOL_MODE)[keyof typeof POOL_MODE];
 
 /** Returns a worker pool that releases a worker idle for `idleMs`, and holds a task past its bound as `mode` states. */
 export function piscinaPool(idleMs: number, mode: TPoolMode): IWorkerPool {

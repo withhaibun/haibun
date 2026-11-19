@@ -50,7 +50,7 @@ export type TBrowserPages = {
 /** A request a page made, as its observer reads it, with the frame that made it and the address of its page. */
 export type TPageRequest = { url: string; method: string; headers: Record<string, string>; postData?: string; frameUrl: string; pageUrl: string };
 /** A response a page received, with its request's method and body, and how long the exchange took. */
-export type TPageResponse = TPageRequest & { status: number; statusText: string; durationMs: number };
+type TPageResponse = TPageRequest & { status: number; statusText: string; durationMs: number };
 /** The observer of a page's traffic: each request, each response, and each navigation of its main frame. */
 export type TPageObserver = { request(request: TPageRequest): void; response(response: TPageResponse): void; navigated(url: string): void };
 
@@ -72,7 +72,7 @@ export type TBrowserRelay = {
 };
 
 /** A request made with `fetch`: its endpoint, its method, its headers and its body. */
-export type TFetchRequest = { endpoint: string; method: string; headers: Record<string, string>; postData?: string };
+type TFetchRequest = { endpoint: string; method: string; headers: Record<string, string>; postData?: string };
 /** A response received from `fetch`: the captured response, and where the body is binary, its bytes and media type. */
 export type TFetchedResponse = { captured: TCapturedResponse; bytes?: Buffer; mediaType?: string };
 /** Makes an HTTP request and returns its response. */

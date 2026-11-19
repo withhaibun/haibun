@@ -9,8 +9,7 @@ import { WRITE_VERB, type TRemoval, type TUnitRemoved, type TUnitWrite, type TUn
 type TUnitVerbs = Pick<TWritePort, "create" | "update" | "merge">;
 
 /** Writes one unit of a batch through its verb, and returns the id of its record. */
-export const writeUnitOf = (port: TUnitVerbs, unit: TUnitWrite): Promise<string> =>
-	unit.verb === WRITE_VERB.update ? port.update(unit.node, unit.version) : port[unit.verb](unit.node);
+const writeUnitOf = (port: TUnitVerbs, unit: TUnitWrite): Promise<string> => (unit.verb === WRITE_VERB.update ? port.update(unit.node, unit.version) : port[unit.verb](unit.node));
 
 /** Writes each unit in order, and returns the id of each unit's record, or why the store didn't write it. */
 export async function writeEach(port: TUnitVerbs, units: readonly TUnitWrite[]): Promise<TUnitWritten[]> {

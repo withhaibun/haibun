@@ -20,7 +20,7 @@ export type GanttScale = { min: number; span: number };
 export type GanttTarget = { y: number; z: number; zLen: number; start: number; end: number };
 
 /** A mark placed on a lane: its lane (y) and the part of the time axis (z) it spans. */
-export type TLaneSpan = { y: number; zFrom: number; zTo: number };
+type TLaneSpan = { y: number; zFrom: number; zTo: number };
 
 /** The extent a camera frames over lane-placed marks: the centre of their lanes (y, screen-vertical) and of their span in
  *  time (z, screen-horizontal), and the half of each span, padded by `pad` so the outermost mark's label stays inside the

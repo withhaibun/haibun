@@ -17,7 +17,7 @@ import type { TGroup } from "./domains/groups.js";
 import type { watchEventLoop } from "@haibun/core/lib/adapters/event-loop-watch.js";
 
 /** A group's actualities file: an actuality's place in it, the outcome it records, and the records it writes and clears. */
-export type TActualities = Pick<typeof actualities, "verificationOf" | "outcomeAgainst" | "recordActuality" | "forgetOutcome" | "forgetOutcomes">;
+type TActualities = Pick<typeof actualities, "verificationOf" | "outcomeAgainst" | "recordActuality" | "forgetOutcome" | "forgetOutcomes">;
 
 /** The processes a supervisor starts: a forked cli that ends with this process, its termination, and what holds a port. */
 export type TProcesses = {

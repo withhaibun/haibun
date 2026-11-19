@@ -62,7 +62,7 @@ export async function readActualityAt(registry: TActualityRegistry, at: number |
 }
 
 /** Report a source a view is reading by; the returned function reports it has stopped. */
-export function readingBy(registry: TActualityRegistry, source: ActualitySource): () => void {
+function readingBy(registry: TActualityRegistry, source: ActualitySource): () => void {
 	registry.reading.add(source);
 	for (const fn of registry.made) fn(source);
 	return () => registry.reading.delete(source);
@@ -75,7 +75,7 @@ export function subscribeActualitySources(registry: TActualityRegistry, fn: (sou
 }
 
 /** Report what a source has seen of actuality's extent. */
-export function noteActualitySpan(registry: TActualityRegistry, first: number | undefined, last: number | undefined): void {
+function noteActualitySpan(registry: TActualityRegistry, first: number | undefined, last: number | undefined): void {
 	const held = registry.span;
 	if (first !== undefined && (held.first === undefined || first < held.first)) held.first = first;
 	if (last !== undefined && (held.last === undefined || last > held.last)) held.last = last;
@@ -127,7 +127,7 @@ export type TActualitySourceScope = {
 
 /** The options of a reading: how many records its window holds, how long a burst of changes is collected before it reads
  *  again, whether it reads the steps run to carry other steps out, and what it does once the views let it go. */
-export type TActualitySourceOptions = { size: number; reReadAfterMs: number; substeps: boolean; release: () => void };
+type TActualitySourceOptions = { size: number; reReadAfterMs: number; substeps: boolean; release: () => void };
 
 /** Returns a reading of actuality at `level`. */
 export function makeGraphActualitySource(

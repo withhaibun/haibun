@@ -1137,7 +1137,7 @@ const namespacesOf = (prefixes: readonly (keyof typeof NAMESPACE)[]): Record<str
 const STANDARD_NAMESPACES = /* @__PURE__ */ namespacesOf(SERVED_PREFIXES);
 
 /** A JSON-LD context document: its term map, and the class and property nodes it states. */
-export type TJsonLdContextDocument = { "@context": Record<string, unknown>; "@graph": Record<string, unknown>[] };
+type TJsonLdContextDocument = { "@context": Record<string, unknown>; "@graph": Record<string, unknown>[] };
 
 /** Build JSON-LD context from domain topology. Derives URI mappings from domain property rels. A context that states records
  *  binds the records' prefix to their namespace, so a record's `@id` expands through it; haibun's own prefix keeps the

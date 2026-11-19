@@ -40,7 +40,7 @@ export const getConcernCatalog = (): TConcernCatalog => heldSteps(pageRegistry()
 export const getRels = (label: string): Record<string, string> | undefined => catalog(`the fields of ${label}`).rels[label];
 
 /** Whether records persist under `name`, which a `#Type` link names. */
-export const isKnownType = (name: string): boolean => getRels(name) !== undefined;
+const isKnownType = (name: string): boolean => getRels(name) !== undefined;
 
 /** Returns every type the catalog declares. */
 export const getTypes = (): string[] => catalog("the types").types;

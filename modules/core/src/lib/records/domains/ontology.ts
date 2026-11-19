@@ -42,7 +42,7 @@ export const ONTOLOGY_FIELD = {
 	accessLevel: "accessLevel",
 } as const;
 
-export const ClassSchema = PersistedVertexSchema.extend({
+const ClassSchema = PersistedVertexSchema.extend({
 	[ONTOLOGY_FIELD.name]: z.string(),
 	[ONTOLOGY_FIELD.classIri]: z.string().optional(),
 	[ONTOLOGY_FIELD.category]: z.string(),
@@ -55,7 +55,7 @@ export const ClassSchema = PersistedVertexSchema.extend({
 	[ONTOLOGY_FIELD.generatedAtTime]: z.string(),
 });
 
-export const PropertySchema = PersistedVertexSchema.extend({
+const PropertySchema = PersistedVertexSchema.extend({
 	[ONTOLOGY_FIELD.name]: z.string(),
 	[ONTOLOGY_FIELD.uri]: z.string().optional(),
 	[ONTOLOGY_FIELD.abstract]: z.boolean().optional(),

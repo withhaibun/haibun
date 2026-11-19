@@ -27,7 +27,7 @@ export type TCaller = { capabilityAction: string[]; held: string[]; principal: s
 export type TStepCall = { method: string; params: Record<string, unknown>; asks: "read" | "act" | undefined; under: number[] | undefined };
 
 /** The step a call runs, built at the path this host allocated, or the refusal of the call, with the step its gate refused where actuality records it. */
-export type TCalledStep = { tool: StepTool; featureStep: TFeatureStep } | { refused: TRpcRefusal; gated?: TFeatureStep };
+type TCalledStep = { tool: StepTool; featureStep: TFeatureStep } | { refused: TRpcRefusal; gated?: TFeatureStep };
 
 /**
  * The step a call runs, or its refusal: a call is refused where its step isn't registered or its caller lacks what the

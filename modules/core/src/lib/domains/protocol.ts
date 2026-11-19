@@ -121,7 +121,7 @@ export const FEATURE_START = "feature";
 export const HEADINGS: readonly string[] = [FEATURE_START, SCENARIO_START];
 
 /** The prefixes that declare a feature and a scenario in a feature's text. `declaredName` returns the name after a prefix. */
-export const DECLARES = { feature: "Feature:", scenario: "Scenario:" } as const;
+const DECLARES = { feature: "Feature:", scenario: "Scenario:" } as const;
 
 /** Returns whether a step declared a feature or a scenario. Each function checks the name of the action the step called, so
  *  a `feature` or `scenario` action of any stepper counts. */
@@ -180,7 +180,7 @@ export const STEP_DELAY = "STEP_DELAY";
 export const DEFAULT_DEST = "default";
 export const CONTINUE_AFTER_ERROR = "CONTINUE_AFTER_ERROR";
 
-export const HAIBUN = "HAIBUN";
+const HAIBUN = "HAIBUN";
 export const BASE_PREFIX = `${HAIBUN}_`;
 /** The prefix of a stepper's option in the environment and in a base's config. The stepper's name and the option's name follow it. */
 export const MODULE_OPTION_PREFIX = `${BASE_PREFIX}O_`;
@@ -403,7 +403,7 @@ export const LOGIC_STEPPER = "@haibun/logic/logic-stepper";
 type TActionResultCarries = { products?: THypermediaProducts; controlSignal?: TDebugSignal; artifact?: TArtifactEvent; verdict?: TVerdict };
 /** The checks of a step's contract a call ran, as the N3 facts each check read, which the step's record holds and from which a
  *  why view requests the check's proof. */
-export type TContractChecks = { checks: string };
+type TContractChecks = { checks: string };
 /** The statement of a step's contract that refused a call, and the checks the call ran. */
 export type TContractRefusal = TContractChecks & { statement: TStatementRefusal };
 /** A step passed or failed. A failure carries an `errorMessage` that states the reason, the remedy a caller can act on where one
@@ -608,7 +608,7 @@ export const SpeechArtifact = BaseArtifact.extend({
 	durationS: z.number().optional(),
 });
 
-export const JsonArtifact = BaseArtifact.extend({ artifactType: z.literal("json"), json: z.record(z.string(), z.unknown()), mimetype: z.string().default(MEDIA_TYPE.json) });
+const JsonArtifact = BaseArtifact.extend({ artifactType: z.literal("json"), json: z.record(z.string(), z.unknown()), mimetype: z.string().default(MEDIA_TYPE.json) });
 
 const MermaidArtifact = BaseArtifact.extend({ artifactType: z.literal("mermaid"), source: z.string(), mimetype: z.string().default(MEDIA_TYPE.mermaid) });
 

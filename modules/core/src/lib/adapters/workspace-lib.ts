@@ -98,7 +98,7 @@ function packageJsonAt(dir: string, fs: Pick<TFileSystem, "existsSync" | "readFi
 
 /** Returns the name of the nearest package at or above the directory of the file `at`, or undefined where a directory at or
  *  above it doesn't hold a package that names itself. */
-export function packageNameAt(at: string, fs: Pick<TFileSystem, "existsSync" | "readFileSync">): string | undefined {
+function packageNameAt(at: string, fs: Pick<TFileSystem, "existsSync" | "readFileSync">): string | undefined {
 	for (let dir = path.dirname(path.resolve(at)); ; dir = path.dirname(dir)) {
 		const name = packageJsonAt(dir, fs)?.name;
 		if (name !== undefined) return name;

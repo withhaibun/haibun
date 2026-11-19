@@ -38,7 +38,7 @@ type TPaneAxioms = z.output<typeof PaneAxiomsSchema>;
  *  and the fields of their own domain beside them, which the pane doesn't read. */
 const GivenAxiomsSchema = PaneAxiomsSchema.extend({ line: z.string().optional() });
 /** What the pane is given: axioms, or the id of a step's record, whose derivation the pane reads. */
-export const GraphSourcePaneSchema = z.union([GivenAxiomsSchema, z.object({ step: z.string() })]);
+const GraphSourcePaneSchema = z.union([GivenAxiomsSchema, z.object({ step: z.string() })]);
 export type TGraphSourcePane = z.input<typeof GraphSourcePaneSchema>;
 
 const GraphSourceStateSchema = z.object({ format: z.enum(SOURCE_FORMAT_IDS) });

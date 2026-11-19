@@ -168,10 +168,10 @@ export const pageViewLoader = (tag: string): (() => Promise<unknown>) | undefine
 export const pageObservers = (): TPageObservers => pagePinned(OBSERVERS_KEY, () => browserObservers(window));
 
 /** Returns the page's location. */
-export const pageLocation = (): TLocation => pagePinned(LOCATION_KEY, () => browserLocation(window));
+const pageLocation = (): TLocation => pagePinned(LOCATION_KEY, () => browserLocation(window));
 
 /** Returns what the page holds of its hash. The page stops following arrivals when it ends. */
-export const pageHashHeld = (): TPageHash =>
+const pageHashHeld = (): TPageHash =>
 	pagePinned(
 		PAGE_HASH_KEY,
 		() => ({ stored: "", subscribers: new Set(), stopArrivals: undefined }),
@@ -233,7 +233,7 @@ export const pageRegistry = (): Machine<TRegistryState, TRegistryEvent> => pageP
 
 /** Returns the reads of actuality's steps under way, across the page's bundles. The page stops following actuality's signals
  *  when it ends. */
-export const registryReads = (): TRegistryReads =>
+const registryReads = (): TRegistryReads =>
 	pagePinned(
 		REGISTRY_READS_KEY,
 		() => ({ pending: undefined, againQueued: false, unfollow: undefined }),
@@ -266,7 +266,7 @@ const streamReports = (): TStreamReports => {
 const installedStream = () => pagePinned(EVENT_STREAM_KEY, () => ({}));
 
 /** Installs the page's stream of actuality's events, read from actuality's stream at `source`. A served page installs it. */
-export function installLiveEventStream(source: () => TLiveStreamSource): TEventStream {
+function installLiveEventStream(source: () => TLiveStreamSource): TEventStream {
 	const stream = liveEventStream(source, streamReports());
 	installedStream().stream = stream;
 	return stream;

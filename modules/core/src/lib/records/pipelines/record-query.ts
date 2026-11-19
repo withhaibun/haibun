@@ -21,7 +21,7 @@ import { compiledExpression } from "../derivations/compiled-expression.js";
 import { filterableOf, readDeclarationsOf } from "../derivations/read-records.js";
 
 /** A store's read of a compiled query: its page, or why the store refuses it. */
-export type TRecordRead = (query: TGraphQuery) => Promise<TGraphQueryResult | { refused: string }>;
+type TRecordRead = (query: TGraphQuery) => Promise<TGraphQueryResult | { refused: string }>;
 
 /** Returns the parts of `expression` as the world's declarations compile them within `label`, or why it doesn't read. */
 function compiledIn(world: TWorld, expression: string, label: string | undefined): ReturnType<typeof compiledExpression> | { refused: string } {
@@ -46,7 +46,7 @@ export function compiledDensity(world: TWorld, request: TDensityRequest): TDensi
 
 /** A caller's query compiled to a store's read: the read, where each part of its expression ran, and whether the members the
  *  reasoner entails are a floor; or that the members the reasoner entails are empty; or why it doesn't compile. */
-export type TCompiledRead = { query: TGraphQuery; ran?: TRan; floor: boolean } | { none: TRan } | { refused: string };
+type TCompiledRead = { query: TGraphQuery; ran?: TRan; floor: boolean } | { none: TRan } | { refused: string };
 
 /** Returns `query` compiled to a store's read: its expression's index part as filters, and a part that needs entailment as the
  *  members the reasoner entails, which needs a type. */

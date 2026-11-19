@@ -11,7 +11,7 @@ import type { TPageRefusal } from "../domains/refusal.js";
 import type { TCallOutcome } from "../pipelines/call-step.js";
 
 /** What a view renders for each status of a read. */
-export type TLoadRenders<T, R> = { pending: () => R; running: () => R; completed: (page: T) => R; failed: (refusal: TPageRefusal) => R };
+type TLoadRenders<T, R> = { pending: () => R; running: () => R; completed: (page: T) => R; failed: (refusal: TPageRefusal) => R };
 
 export class LoadController<T> {
 	readonly #read: () => Promise<TCallOutcome<T>>;

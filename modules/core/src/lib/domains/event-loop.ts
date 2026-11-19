@@ -7,7 +7,7 @@
 export const LOOP_BLOCK_WARN_MS = 500;
 
 /** The delay since the watch began: its longest and its 99th percentile, in milliseconds, and how many stretches held the loop past the warning. */
-export type TLoopSummary = { maxMs: number; p99Ms: number; blocked: number };
+type TLoopSummary = { maxMs: number; p99Ms: number; blocked: number };
 /** A watch of the event loop: its summary so far, and its end. */
 export type TLoopWatch = { summary(): TLoopSummary; stop(): void };
 

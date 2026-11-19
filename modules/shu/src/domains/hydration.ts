@@ -28,7 +28,7 @@ const MillisecondsSchema = z.number().positive();
 
 /** What a deployment sets for the pages it serves. A reader waits out each timing, so a deployment that records fast runs
  *  sets them low, and one that follows a long-running system keeps the product's values. */
-export const DeploymentSettingsSchema = z
+const DeploymentSettingsSchema = z
 	.object({
 		/** The timeout on a request the page awaits, after which the site counts as unreachable. */
 		responseTimeoutMs: MillisecondsSchema,
@@ -52,12 +52,12 @@ export type TDeploymentSettings = z.infer<typeof DeploymentSettingsSchema>;
 
 /** What a page carries of the actuality it records: the graph actuality wrote, and the site's registry as it stood. `shape`
  *  names the rule that wrote the record. */
-export const CachePayloadSchema = z.object({ shape: z.string(), actuality: z.string(), registry: z.unknown().optional(), quads: z.array(QuadSchema) }).strict();
+const CachePayloadSchema = z.object({ shape: z.string(), actuality: z.string(), registry: z.unknown().optional(), quads: z.array(QuadSchema) }).strict();
 export type TCachePayload = z.infer<typeof CachePayloadSchema>;
 
 /** The font a page that carries a record of actuality draws its labels with, as a data URL, and the source of a pattern that
  *  matches each character the font lacks, so the page draws every label without a server or a font service. */
-export const CarriedLabelFontSchema = z.object({ font: z.string(), uncovered: z.string() }).strict();
+const CarriedLabelFontSchema = z.object({ font: z.string(), uncovered: z.string() }).strict();
 export type TCarriedLabelFont = z.infer<typeof CarriedLabelFontSchema>;
 
 /** A page's hydration. A served page states the deployment's settings; a page that carries a record of actuality states the

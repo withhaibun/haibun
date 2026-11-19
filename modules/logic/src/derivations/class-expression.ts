@@ -20,7 +20,7 @@ import {
 import { pattern, patternText, ruleText, type TN3Pattern } from "./n3.js";
 
 /** The rules that derive an expression's members, the query of its members, and the query of one individual's membership. */
-export type TExpressionRules = { rules: string; query: string; membership: (individual: NamedNode) => string };
+type TExpressionRules = { rules: string; query: string; membership: (individual: NamedNode) => string };
 /** The IRIs of an expression's names: a class's, a property's and an individual's by its address. */
 export type TExpressionIris = { classIri: (name: string) => NamedNode; propertyIri: (name: string) => NamedNode; individualIri: (address: string) => NamedNode };
 
@@ -35,7 +35,7 @@ const COMPARISON: Record<Exclude<TFacet, typeof FACET.pattern>, { math: string; 
 const NUMERIC: ReadonlySet<string> = new Set([DATATYPE.integer, DATATYPE.decimal]);
 
 /** A literal as an N3 term, with its datatype's IRI where it isn't a string. */
-export const n3Literal = ({ lexical, datatype }: TLiteral): Literal =>
+const n3Literal = ({ lexical, datatype }: TLiteral): Literal =>
 	datatype === undefined ? DataFactory.literal(lexical) : DataFactory.literal(lexical, DataFactory.namedNode(`${NAMESPACE.xsd}${datatype.slice(XSD_PREFIX.length)}`));
 
 /** The N3 condition a facet states of a value: a comparison with its literal, or a string's pattern. */

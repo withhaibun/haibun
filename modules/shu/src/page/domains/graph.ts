@@ -74,7 +74,7 @@ export type TGraphEdge = {
 	stepName?: string;
 };
 
-export type TGraphGroup = {
+type TGraphGroup = {
 	/** Displayed as the group's title. */
 	label: string;
 	/** Parent group id for nesting. Absent for top-level groups. */

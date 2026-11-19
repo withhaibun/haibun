@@ -10,7 +10,7 @@ import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 
 /** What finding the views shown reads: a type's select values by field, the views the site declares in its order, and the
  *  element that shows each. */
-export type TViewsShownScope = { selectValues: (label: string) => Promise<Record<string, string[]>>; declared: () => string[]; componentOf: (view: string) => string };
+type TViewsShownScope = { selectValues: (label: string) => Promise<Record<string, string[]>>; declared: () => string[]; componentOf: (view: string) => string };
 
 /** Returns the elements of the views an actuality has shown, in the order the site declares the views. */
 export async function viewsShown(scope: TViewsShownScope): Promise<string[]> {

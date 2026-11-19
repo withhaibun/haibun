@@ -36,7 +36,7 @@ export const ActualityMoveSchema = z.object({
 });
 export type TActualityMove = z.infer<typeof ActualityMoveSchema>;
 
-export type TScenarioState = { id: string; name?: string; status: TLevelStatus };
+type TScenarioState = { id: string; name?: string; status: TLevelStatus };
 
 /** A feature's level: its status, its scenarios, the steps that ended within it, and how many and which first failed. */
 export type TFeatureState = {

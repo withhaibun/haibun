@@ -9,7 +9,7 @@ import { buildGraphModelFromQuads } from "../../../derivations/graph-model.js";
 import { stableHash } from "./model-hash.js";
 
 /** What the visible model reads: the quads and clusters, the types and predicates hidden, the prune, and the site. */
-export type TVisibleModelInput = {
+type TVisibleModelInput = {
 	/** The time-visible slice of the snapshot: the cursor has already hidden what is not yet current. */
 	quads: readonly TQuad[];
 	clusters: readonly TCluster[];
@@ -32,7 +32,7 @@ export type TSceneData = TVisibleModelInput & {
 };
 
 /** The visible model and how many nodes prune took out of it. */
-export type TVisibleGraph = { model: GraphModel; pruned: number };
+type TVisibleGraph = { model: GraphModel; pruned: number };
 
 /**
  * The one derivation of what is shown, in the order the filters compose: hidden types out, hidden predicates out,

@@ -26,7 +26,7 @@ export type TAuthorityEvidence =
 
 /** How a deployment records a delegation: the record's type and its access level. A view opens the record only for a
  *  reader who may read that level. */
-export const DelegationRecordSchema = z.object({ persistedAs: z.string(), accessLevel: AccessLevelSchema });
+const DelegationRecordSchema = z.object({ persistedAs: z.string(), accessLevel: AccessLevelSchema });
 export type TDelegationRecord = z.infer<typeof DelegationRecordSchema>;
 
 /**

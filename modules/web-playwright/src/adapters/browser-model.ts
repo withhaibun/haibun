@@ -40,7 +40,7 @@ const TargetInfoResultSchema = z.object({ targetInfo: z.looseObject({ targetId: 
 export type CDPMessage = { id?: number; sessionId?: string; method?: string; params?: unknown; result?: unknown; error?: { code?: number; message: string } };
 
 export type SendCommand = (method: string, params: unknown) => Promise<unknown>;
-export type SendToCDPClient = (message: CDPMessage) => void;
+type SendToCDPClient = (message: CDPMessage) => void;
 type TTargetInfo = { targetId?: string } & Record<string, unknown>;
 
 type TabSession = {

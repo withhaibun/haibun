@@ -35,7 +35,7 @@ type TActionArgsResolved<S extends string> = { [I in TRequiredTexts<S> as TPlace
 
 export type TActionExecutor<S extends string> = () => { actionName: string; args: TActionArgsResolved<S>; gwta: string };
 
-export type TCurriedAction<S extends string> = (args: TActionArgsInput<S>) => TActionExecutor<S>;
+type TCurriedAction<S extends string> = (args: TActionArgsInput<S>) => TActionExecutor<S>;
 
 // Kireji step: either a string (prose/step) or an action executor function
 export type TKirejiStep = string | TActionExecutor<string>;

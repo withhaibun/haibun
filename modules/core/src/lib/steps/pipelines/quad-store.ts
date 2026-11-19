@@ -91,7 +91,7 @@ import { withProvenance, type TProvenance } from "../../records/derivations/prov
  * every store of the chain at once. A copy per store let a registration outlive its engine: a closed engine's store
  * stayed registered in an earlier copy and the next feature's reads read it.
  */
-export type TStoreChain = {
+type TStoreChain = {
 	/** Each named graph's backing store. It holds the store's writes and pattern reads. */
 	routing: Map<string, IQuadStore>;
 	/** The federated peers, which only getClusteredQuads reads: a peer serves its sample within an access level, and doesn't

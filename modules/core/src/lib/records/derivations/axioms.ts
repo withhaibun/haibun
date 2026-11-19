@@ -6,7 +6,7 @@
 import { DL_SYMBOL, FRAME_KIND, type TFrame, type TGraphAxioms } from "../domains/axioms.js";
 
 /** A frame's axioms: its Manchester syntax and its DL notation. */
-export type TAxioms = { manchester: string; dl: string };
+type TAxioms = { manchester: string; dl: string };
 /** A fact of an individual: its property, and its value as an individual or as a literal. */
 export type TIndividualFact = { property: string; value: string | number | boolean; individual: boolean };
 
