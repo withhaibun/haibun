@@ -48,8 +48,8 @@ import { HYPERMEDIA, productData } from "@haibun/core/lib/domains/protocol.js";
 import { ClockController } from "../controllers/clock-controller.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
 import { appAccessLevel } from "../controllers/view-query-controller.js";
-import { recordClaimsRead } from "../controllers/read-controller.js";
-import type { TRecordClaim } from "../domains/claims.js";
+import { recordClaimsRead, recordEvidenceRead } from "../controllers/read-controller.js";
+import type { TEvidence, TRecordClaim } from "../domains/claims.js";
 import { verdictStatusHtml } from "../derivations/verdict-status.js";
 import { esc, escAttr, utf8ToBase64, renderRef, refsInContent } from "../derivations/markdown.js";
 import { buildBodyIframeDoc } from "../derivations/body-frame.js";
@@ -277,6 +277,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	 *  where their read was refused. */
 	#claims: readonly TRecordClaim[] = [];
 	#claimsRefusal: TPageRefusal | undefined = undefined;
+	/** The passages the record cites as evidence of its values, read with its claims. */
+	#evidence: readonly TEvidence[] = [];
 	#claimsOf: string | undefined = undefined;
 
 	/** Reads the claims about the record `label` `id` once, and holds them where the column still shows that record. */
@@ -284,11 +286,13 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const curie = `${label}:${id}`;
 		if (this.#claimsOf === curie) return;
 		this.#claimsOf = curie;
-		[this.#claims, this.#claimsRefusal] = [[], undefined];
-		const read = await recordClaimsRead(label, id);
+		[this.#claims, this.#claimsRefusal, this.#evidence] = [[], undefined, []];
+		const [read, cited] = await Promise.all([recordClaimsRead(label, id), recordEvidenceRead(label, this.edges)]);
 		if (this.#claimsOf !== curie) return;
 		if (read.ok) this.#claims = read.value;
 		else this.#claimsRefusal = read.refusal;
+		if (cited.ok) this.#evidence = cited.value;
+		else this.#claimsRefusal = cited.refusal;
 		this.requestUpdate();
 	}
 
@@ -419,7 +423,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 				.map(([k, v]) => {
 					if (this.isTypeField(k)) return this.typeRow(k, v);
 					const valueHtml = Array.isArray(v) ? v.map((item) => this.formatFieldValue(item, k)).join(", ") : this.formatFieldValue(v, k);
-					return `<tr><td class="field-name">${this.predicateLink(k)}${this.vocabBadge(k)}</td><td data-testid="entity-field-${escAttr(k)}" data-copy="${escAttr(k)}">${valueHtml}${this.fieldStatus(k)}</td></tr>`;
+					return `<tr><td class="field-name">${this.predicateLink(k)}${this.vocabBadge(k)}</td><td data-testid="entity-field-${escAttr(k)}" data-copy="${escAttr(k)}">${valueHtml}${this.fieldEvidence(k, v)}${this.fieldStatus(k)}</td></tr>`;
 				})
 				.join("");
 			const detailTable = detailRows ? `<table class="detail-table fields-table" data-testid="entity-fields">${detailRows}</table>` : "";
@@ -436,7 +440,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 								if (!v || (Array.isArray(v) && v.length === 0)) return [];
 								const valueHtml = Array.isArray(v) ? v.map((item) => this.fieldValueHtml(item, k)).join(", ") : this.fieldValueHtml(v, k);
 								return [
-									`<span class="summary-field" data-testid="entity-field-${escAttr(k)}" data-copy="${escAttr(k)}">${this.predicateLink(k)}${this.vocabBadge(k)} ${valueHtml}${this.fieldStatus(k)}</span>`,
+									`<span class="summary-field" data-testid="entity-field-${escAttr(k)}" data-copy="${escAttr(k)}">${this.predicateLink(k)}${this.vocabBadge(k)} ${valueHtml}${this.fieldEvidence(k, v)}${this.fieldStatus(k)}</span>`,
 								];
 							})
 							.join(" ")}</div>`
@@ -814,6 +818,22 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	private fieldStatus(field: string): string {
 		const claim = this.#claims.find((held) => held.field === field);
 		return claim === undefined ? "" : ` ${verdictStatusHtml(`${SHU_TEST_IDS.CLAIMS.FIELD_STATUS}-${field}`, claim.test, claim.verdict)}`;
+	}
+
+	/** The link from a field to each passage that quotes its value in the record's source, which opens the source with the passage
+	 *  selected, named by where the passage is and the step that extracted it. Empty where a passage doesn't quote the value. */
+	private fieldEvidence(field: string, value: string | string[]): string {
+		const values = new Set([value].flat());
+		return this.#evidence
+			.filter(({ quote }) => values.has(quote.exact))
+			.map(({ quote, source, extractedBy }) => {
+				const href = refHref({ kind: REF_DENOTES.individual, target: { persistedAs: source.label, id: source.id, selector: quote } });
+				const named = `the ${field} as ${source.label} ${source.id} quotes it${extractedBy === undefined ? "" : `, which step ${extractedBy} extracted`}`;
+				return href === undefined
+					? ""
+					: ` ${linkHtml(href, "quote", ` data-testid="${SHU_TEST_IDS.CLAIMS.EVIDENCE}-${escAttr(field)}" aria-label="${escAttr(named)}"`, "col-link evidence")}`;
+			})
+			.join("");
 	}
 
 	/** The claims the reasoner made about the record, each with its status, its sentence and its proof: a claim of a field the record

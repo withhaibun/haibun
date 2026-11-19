@@ -9,6 +9,8 @@ import { ShuEntityColumn } from "./shu-entity-column.js";
 import { setupShuTest, makeEntityDispatch, type TShuTestHandle } from "../../test/setup.js";
 import { endPage } from "../adapters/page-held.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
+import { catalogOf } from "../../test/catalog-fixture.js";
+import { EVIDENCE_EDGE, LinkRelations, SPECIFIC_RESOURCE_LABEL } from "@haibun/core/lib/domains/resources.js";
 import type { TRecordClaim } from "../domains/claims.js";
 
 const TITLED = "the Task has its title";
@@ -21,6 +23,10 @@ const CLAIMS: readonly TRecordClaim[] = [
 	{ test: CONSISTENT, verdict: VERDICT.proved, proof: "the reasoner doesn't entail the Task a member of two disjoint classes" },
 ];
 
+/** The passage of the Body b1 that quotes the Task's title, which the step STEP extracted. */
+const QUOTE = { exact: "a task", prefix: "the title is ", suffix: " today" };
+const STEP = "1795000000000-1.0.1";
+
 describe("shu-entity-column claims", () => {
 	let handle: TShuTestHandle;
 	beforeEach(() => {
@@ -28,8 +34,24 @@ describe("shu-entity-column claims", () => {
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
 		handle = setupShuTest({
 			dispatch: makeEntityDispatch({
-				entity: () => ({ vertex: { "@id": heldRecordIri("Task", "t1"), title: "a task", status: "open" }, edges: [], incomingCount: counted(0) }),
+				entity: (params) =>
+					params.label === SPECIFIC_RESOURCE_LABEL
+						? {
+								vertex: { "@id": heldRecordIri(SPECIFIC_RESOURCE_LABEL, "sr1") },
+								edges: [
+									{ type: LinkRelations.HAS_SELECTOR.rel, direction: "out", target: QUOTE },
+									{ type: LinkRelations.HAS_SOURCE.rel, direction: "out", target: { "@id": heldRecordIri("Body", "b1"), "@type": "Body" } },
+									{ type: LinkRelations.WAS_GENERATED_BY.rel, direction: "out", target: { "@id": heldRecordIri("SeqPath", STEP) } },
+								],
+								incomingCount: counted(0),
+							}
+						: {
+								vertex: { "@id": heldRecordIri("Task", "t1"), title: "a task", status: "open" },
+								edges: [{ type: EVIDENCE_EDGE.rel, direction: "out", target: { "@id": heldRecordIri(SPECIFIC_RESOURCE_LABEL, "sr1") } }],
+								incomingCount: counted(0),
+							},
 				claims: (subject) => (subject === "Task:t1" ? CLAIMS : []),
+				concerns: catalogOf({ types: ["Task", "Body", SPECIFIC_RESOURCE_LABEL, "SeqPath"], edgeRanges: { Task: { [EVIDENCE_EDGE.rel]: [SPECIFIC_RESOURCE_LABEL] } } }),
 			}),
 		});
 	});
@@ -58,5 +80,19 @@ describe("shu-entity-column claims", () => {
 		});
 		expect(status.getAttribute("aria-description")).toBe(TITLED);
 		expect(status.closest('[data-testid="entity-field-title"]'), "beside the title's value").not.toBeNull();
+	});
+
+	it("links a field to the passage that quotes its value, named by where it is quoted and the step that extracted it", async () => {
+		const el = document.body.appendChild(new ShuEntityColumn());
+		await el.open("t1", "Task");
+		const link = await vi.waitFor(() => {
+			const found = el.shadowRoot?.querySelector<HTMLAnchorElement>(`[data-testid="${SHU_TEST_IDS.CLAIMS.EVIDENCE}-title"]`);
+			if (found === null || found === undefined) throw new Error("the title's quote isn't linked yet");
+			return found;
+		});
+		expect(link.getAttribute("aria-label")).toBe(`the title as Body b1 quotes it, which step ${STEP} extracted`);
+		expect(decodeURIComponent(decodeURIComponent(link.getAttribute("href") ?? "")), "the link opens the Body at the passage, as a text fragment states it").toContain(
+			`e:Body:b1:~:text=${QUOTE.prefix}-,${QUOTE.exact},-${QUOTE.suffix}`,
+		);
 	});
 });

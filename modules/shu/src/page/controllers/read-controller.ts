@@ -14,7 +14,11 @@ import {
 } from "@haibun/core/lib/quad-types.js";
 import { ShownApplicableStepsSchema, type TApplicableSteps } from "@haibun/core/lib/domains/goal-resolution.js";
 import { RelatedRecordsSchema } from "../domains/related-records.js";
-import type { TRecordClaim } from "../domains/claims.js";
+import type { TEvidence, TRecordClaim } from "../domains/claims.js";
+import { EVIDENCE_EDGE, LinkRelations, QuoteAnchorSchema } from "@haibun/core/lib/domains/resources.js";
+import { edgeRecordType } from "./catalog-controller.js";
+import { idOf } from "./record-controller.js";
+import { persistedTypeOf } from "../derivations/record-fields.js";
 import { EARL_ASSERTION_EDGE, EARL_LABEL, EARL_OUTCOME, TestCaseSchema, TestResultSchema, VERDICT_OF_OUTCOME } from "@haibun/core/lib/domains/earl.js";
 import { curieOf } from "@haibun/core/lib/records/domains/unit.js";
 import { MAX_PAGE_ROWS } from "@haibun/core/lib/domains/hypermedia.js";
@@ -114,6 +118,33 @@ export async function recordClaims(label: string, id: string): Promise<TRecordCl
 		}),
 	);
 }
+
+/** Returns the passages a `label` record cites as evidence of its values, from its `edges`: each passage's quote by its selector,
+ *  the record its source is, and the step that generated it. A type whose catalog entry doesn't state the evidence edge reads as citing an empty list. */
+export function recordEvidence(label: string, edges: readonly { type: string; direction?: string; target: Record<string, unknown> }[]): Promise<TEvidence[]> {
+	const passageType = edgeRecordType(label, EVIDENCE_EDGE.rel);
+	if (passageType === undefined) return Promise.resolve([]);
+	const cited = edges.filter(({ type, direction }) => type === EVIDENCE_EDGE.rel && direction !== "in").map(({ target }) => idOf(target));
+	return Promise.all(
+		cited.map(async (passage): Promise<TEvidence> => {
+			const { edges: parts } = await readIndividual(passageType, passage, appAccessLevel());
+			const reached = (edge: string) => parts.find(({ type, direction }) => type === edge && direction === "out")?.target;
+			const source = reached(LinkRelations.HAS_SOURCE.rel);
+			const label = source === undefined ? undefined : persistedTypeOf(source);
+			if (source === undefined || label === undefined) throw new Error(`the passage ${passage} doesn't name the typed record its source is`);
+			const step = reached(LinkRelations.WAS_GENERATED_BY.rel);
+			return {
+				quote: QuoteAnchorSchema.parse(reached(LinkRelations.HAS_SELECTOR.rel)),
+				source: { label, id: idOf(source) },
+				...(step === undefined ? {} : { extractedBy: idOf(step) }),
+			};
+		}),
+	);
+}
+
+/** Returns the passages a record cites as evidence of its values, or the refusal. */
+export const recordEvidenceRead = (label: string, edges: Parameters<typeof recordEvidence>[1]): Promise<CallStep.TCallOutcome<TEvidence[]>> =>
+	CallStep.outcomeOf(() => recordEvidence(label, edges));
 
 /** Returns the claims the reasoner made about the record `label` `id`, or the refusal. */
 export const recordClaimsRead = (label: string, id: string): Promise<CallStep.TCallOutcome<TRecordClaim[]>> => CallStep.outcomeOf(() => recordClaims(label, id));

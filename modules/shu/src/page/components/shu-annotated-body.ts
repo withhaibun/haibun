@@ -17,6 +17,7 @@
  * The `.annotated-content` node does NOT carry lit bindings, so lit creates it once and never re-diffs it, leaving the
  * innerHTML this component sets and the layer the annotator injects intact across re-renders (see lit render pitfalls).
  */
+import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
@@ -38,15 +39,14 @@ import type { TScrollMarker, TWindow } from "../derivations/rail.js";
 import { railMarks, railTotalAndWindow } from "./annotation-rail.js";
 import { revealInDocument } from "./reveal.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
-import { ClockController } from "../controllers/clock-controller.js";
 import { BODY_READING_STYLE } from "../derivations/markdown.js";
 import { renderContentHtml, refSanitizeOptions } from "../derivations/markdown-render.js";
 import { refContext } from "../controllers/catalog-controller.js";
 import type { TWritten } from "../pipelines/call-step.js";
 
 /** How long a quoted passage stays marked after the view reveals it, and the name of that delay. */
-const QUOTE_FLASH_MS = 1400;
-const QUOTE_FLASH = "quote-flash";
+/** The class of the passage the body shows selected. */
+const QUOTE_SELECTED = "quote-selected";
 
 /** Characters of surrounding text captured as a selection's prefix/suffix, so a short or repeated quote re-anchors to the right spot. */
 /** The ref sanitize allowlist plus inline style, which the annotation gutter's highlight spans carry. */
@@ -96,7 +96,8 @@ const ANNOTATED_BODY_STYLE = `
 	shu-annotated-body .annotation-card-body { color: var(--shu-fg); }
 	shu-annotated-body .annotation-card-author { color: var(--shu-fg-faded); margin-top: var(--shu-space-1); }
 	shu-annotated-body .annotation-card-link { display: inline-block; margin-top: var(--shu-space-1); color: var(--shu-link, #0a58ca); cursor: pointer; }
-	shu-annotated-body .annotated-content .quote-flash { background: var(--shu-warn-soft, rgba(255, 196, 0, 0.5)); transition: background 1.2s; }
+	shu-annotated-body .annotated-content .quote-selected { background: var(--shu-warn-soft, rgba(255, 196, 0, 0.5)); }
+	shu-annotated-body .annotated-content .quote-selected:focus { outline: 2px solid var(--shu-accent, currentColor); outline-offset: 2px; }
 	shu-annotated-body .annotation-glyph-rail { flex: 0 0 auto; align-self: stretch; }
 	shu-annotated-body .annotation-preparing { position: absolute; top: 0; left: 0; right: 0; padding: var(--shu-space-3); color: var(--shu-fg-muted); font-style: italic; text-align: center; z-index: 2; }
 	shu-annotated-body .annotation-add { position: absolute; margin-top: 2px; padding: 2px var(--shu-space-2); font-size: var(--shu-font-sm); border: var(--shu-border-w) solid var(--shu-accent, #0080ff); border-radius: var(--shu-radius); background: var(--shu-bg-elevated); color: var(--shu-accent, #0080ff); cursor: pointer; z-index: 3; box-shadow: 0 1px 4px rgba(0,0,0,0.2); white-space: nowrap; }
@@ -499,8 +500,21 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 		}
 	}
 
-	/** Land the reader on a quoted passage: find it in the rendered text and scroll it into view with a brief flash.
-	 *  Shared by a linking annotation's "go to" and by a Text Fragment reference into this document. */
+	/** The passage the body shows selected, which holds the keyboard's focus until another passage is revealed. */
+	#selected: HTMLElement | undefined = undefined;
+
+	/** Lets go of the passage the body shows selected, returning its text to the content. */
+	private unselect(): void {
+		const mark = this.#selected;
+		this.#selected = undefined;
+		const parent = mark?.parentNode;
+		if (mark === undefined || parent === null || parent === undefined) return;
+		while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
+		parent.removeChild(mark);
+	}
+
+	/** Selects the passage a quote names, scrolls it into view and gives it the keyboard's focus, so a reader who opened it from a
+	 *  field reads and moves from it. A passage that crosses an element's bounds isn't wrapped: the document's selection selects it. */
 	private revealQuote(link: TQuoteAnchor): void {
 		const container = this.contentEl();
 		if (!container) return;
@@ -508,24 +522,24 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 		if (!offsets) return;
 		const range = rangeForOffsets(container, offsets.start, offsets.end);
 		if (!range) return;
+		this.unselect();
 		const mark = document.createElement("span");
-		mark.className = "quote-flash";
+		mark.className = QUOTE_SELECTED;
+		mark.tabIndex = -1;
+		mark.dataset.testid = SHU_TEST_IDS.COLUMN_BROWSER.ANNOTATED_BODY_SELECTED;
 		try {
 			range.surroundContents(mark);
 		} catch {
-			return; // the range crosses element boundaries, skip the flash, still scroll below
+			const selection = document.getSelection();
+			selection?.removeAllRanges();
+			selection?.addRange(range);
+			if (range.startContainer.parentElement !== null) revealInDocument(range.startContainer.parentElement, { block: "center", inline: "nearest", behavior: "smooth" });
+			return;
 		}
+		this.#selected = mark;
 		revealInDocument(mark, { block: "center", inline: "nearest", behavior: "smooth" });
-		this.#clock.trailing(QUOTE_FLASH, QUOTE_FLASH_MS, () => {
-			const parent = mark.parentNode;
-			if (parent) {
-				while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
-				parent.removeChild(mark);
-			}
-		});
+		mark.focus({ preventScroll: true });
 	}
-
-	readonly #clock = new ClockController(this);
 
 	render(): TemplateResult {
 		const cards = this.show ? this.placedCards : [];

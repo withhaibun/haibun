@@ -263,11 +263,13 @@ export const declaringSteps =
 	};
 
 /** The two steps the entity surface calls, as the read of the step definitions returns them: the fixture every entity test installs. */
-export const ENTITY_STEP_LIST = stepsShown([
+/** The steps the entity surface reads, as the show steps step describes them. */
+const ENTITY_STEPS = [
 	{ method: "GraphStepper-getIndividualWithEdges", stepperName: "GraphStepper", stepName: "getIndividualWithEdges", pattern: "get vertex {label} {id}" },
 	{ method: "ResourcesStepper-annotations", stepperName: "ResourcesStepper", stepName: "annotations", pattern: "get annotations for {label} {id}" },
 	{ method: "GraphStepper-getIncomingEdges", stepperName: "GraphStepper", stepName: "getIncomingEdges", pattern: "get incoming edges of {label} {id}" },
-]);
+];
+export const ENTITY_STEP_LIST = stepsShown(ENTITY_STEPS);
 
 /** A windowed read of the edges that reach a record, as the page sends it: the read inside a skip inside a limit. */
 const WindowedReadSchema = z.object({ statement: z.object({ params: z.object({ statement: z.object({ params: z.record(z.string(), z.unknown()) }) }) }) });
@@ -281,10 +283,11 @@ export function makeEntityDispatch(over: {
 	entity: (params: Record<string, unknown>) => unknown;
 	annotations?: () => unknown;
 	claims?: (subject: string) => readonly TRecordClaim[];
+	concerns?: TConcernCatalog;
 }): TDispatch {
 	const claimsOf = (subject: string) => (over.claims === undefined ? [] : over.claims(subject));
 	return (method, params) => {
-		if (method === SHOW_STEP_DEFINITIONS_METHOD) return ENTITY_STEP_LIST;
+		if (method === SHOW_STEP_DEFINITIONS_METHOD) return over.concerns === undefined ? ENTITY_STEP_LIST : stepsShown(ENTITY_STEPS, {}, over.concerns);
 		// The claims about a record are the EARL assertions whose subject is the record, read as the edges that reach its test subject.
 		if (method === LIMITED_TO_METHOD) {
 			const { label, id } = z.object({ label: z.string(), id: z.string() }).parse(WindowedReadSchema.parse(params).statement.params.statement.params);

@@ -100,6 +100,8 @@ export const SHU_TEST_IDS = {
 		EDGE_TARGET_FIRST: "edge-target-first",
 		SPINNER: "spinner",
 		ANNOTATED_BODY: "annotated-body",
+		/** The passage the annotated body shows selected, which holds the keyboard's focus. */
+		ANNOTATED_BODY_SELECTED: "annotated-body-selected",
 		ANNOTATED_CONTENT: "annotated-content",
 		ANNOTATION_RAIL: "annotation-rail",
 		ANNOTATION_GLYPH_RAIL: "annotation-glyph-rail",
@@ -162,8 +164,9 @@ export const SHU_TEST_IDS = {
 	/** The list of views a deployment declares: its root, and a row named by the component it opens. */
 	VIEWS_PICKER: { ROOT: "views-picker", ROW: "views-picker-row-" },
 	REFUSAL: { ROOT: "refusal", CAUSE: "refusal-cause", STATUS: "refusal-status", REMEDY: "refusal-remedy" },
-	/** The claims the reasoner made about a record, each with its status, and the status beside each field a claim names. */
-	CLAIMS: { LIST: "entity-claims", CLAIM: "entity-claim", STATUS: "entity-claim-status", FIELD_STATUS: "entity-field-status" },
+	/** The claims the reasoner made about a record, each with its status, the status beside each field a claim names, and the link
+	 *  from a field to the passage that quotes its value. */
+	CLAIMS: { LIST: "entity-claims", CLAIM: "entity-claim", STATUS: "entity-claim-status", FIELD_STATUS: "entity-field-status", EVIDENCE: "entity-field-evidence" },
 	/** The control that opens the proof actuality recorded for a step. */
 	WHY: "why",
 	/** Whether a step's contract held, on the step's detail. */
