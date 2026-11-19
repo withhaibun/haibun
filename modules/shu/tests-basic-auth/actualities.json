@@ -36,7 +36,7 @@
 				"status": "passed",
 				"tookMs": 1800,
 				"digest": {
-					"modules/core/src": "3e2ddee980fdf47fe78e45dfaf4ef0aef8e59bfb8a1cd53f3cc4675767900e0f",
+					"modules/core/src": "cfa5411b2ce2dc5f94ff097eb366ee0acfa5ae483ae76f01ed8effd404d1a027",
 					"modules/domain-storage/src": "d21fde6c12a84c8fb246318488d49df330d1c5a5ca02818ce5bcc85d01c120ca",
 					"modules/logic/src": "d23592299c9402ac1535cdabbfa51d4fcaa19409adfdc3c286ca94e3e23ede1c",
 					"modules/shu/src": "fcf4bd81b0798aaeb44f3e389b3f6beda744e7fd486a7a1051cfcb95101c4fbf",
@@ -52,7 +52,7 @@
 				"/features/behind-basic-auth.feature.ts": {
 					"text": "A page behind basic auth",
 					"status": "passed",
-					"tookMs": 1100,
+					"tookMs": 1000,
 					"steps": 216
 				}
 			}
