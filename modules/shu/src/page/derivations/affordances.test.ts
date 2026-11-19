@@ -13,26 +13,14 @@ describe("parseAffordanceProduct", () => {
 		expect(parseAffordanceProduct({})).toEqual({ kind: "none" });
 	});
 
-	it("parses a singleton component product with `view` as the id when `id` is absent (e.g. `show graph view`)", () => {
-		const product = { [HYPERMEDIA.TYPE]: "view", [HYPERMEDIA.SUMMARY]: "Graph view", _component: "shu-polymorphic-graph-view", view: "graph" };
+	it("parses a component product, which names its pane in `_view`", () => {
+		const product = { [HYPERMEDIA.TYPE]: "view", [HYPERMEDIA.SUMMARY]: "Graph view", [HYPERMEDIA.COMPONENT]: "shu-polymorphic-graph-view", [HYPERMEDIA.VIEW]: "graph" };
 		expect(parseAffordanceProduct(product)).toEqual({ kind: "open-component", view: "graph", component: "shu-polymorphic-graph-view", label: "Graph view", products: product });
 	});
 
-	it("uses `id` when both `id` and `view` are present (per-instance components)", () => {
-		const product = {
-			[HYPERMEDIA.TYPE]: "x-clustered-viewer",
-			[HYPERMEDIA.SUMMARY]: "Clustered 3D view",
-			_component: "x-clustered-viewer",
-			id: "x-clustered-viewer:abc-123",
-			view: "x-clustered-viewer:abc-123",
-		};
-		expect(parseAffordanceProduct(product)).toEqual({
-			kind: "open-component",
-			view: "x-clustered-viewer:abc-123",
-			component: "x-clustered-viewer",
-			label: "Clustered 3D view",
-			products: product,
-		});
+	it("opens the pane `_view` names, apart from the `id` the product's own data holds", () => {
+		const product = { [HYPERMEDIA.COMPONENT]: "shu-entity-column", [HYPERMEDIA.VIEW]: "Email", id: "email-42" };
+		expect(parseAffordanceProduct(product)).toMatchObject({ kind: "open-component", view: "Email", component: "shu-entity-column" });
 	});
 
 	it("returns kind:none for a bare individual, since its type and id don't name a view to open", () => {
@@ -42,13 +30,13 @@ describe("parseAffordanceProduct", () => {
 		expect(parseAffordanceProduct(product)).toEqual({ kind: "none" });
 	});
 
-	it("rejects a component product that doesn't have `id` or `view`", () => {
-		const product = { [HYPERMEDIA.TYPE]: "view", _component: "shu-polymorphic-graph-view" };
-		expect(() => parseAffordanceProduct(product)).toThrow(/requires string id or view/);
+	it("refuses a product that states its component or its pane without the other", () => {
+		expect(() => parseAffordanceProduct({ [HYPERMEDIA.COMPONENT]: "shu-polymorphic-graph-view" })).toThrow(/states _view alone|states _component alone/);
+		expect(() => parseAffordanceProduct({ [HYPERMEDIA.VIEW]: "graph" })).toThrow(/states _view alone/);
 	});
 
 	it("unwraps a `{ products: <affordance> }` envelope", () => {
-		const inner = { [HYPERMEDIA.TYPE]: "view", [HYPERMEDIA.SUMMARY]: "Graph view", _component: "shu-polymorphic-graph-view", view: "graph" };
+		const inner = { [HYPERMEDIA.TYPE]: "view", [HYPERMEDIA.SUMMARY]: "Graph view", [HYPERMEDIA.COMPONENT]: "shu-polymorphic-graph-view", [HYPERMEDIA.VIEW]: "graph" };
 		const product = { products: inner };
 		expect(parseAffordanceProduct(product)).toEqual({ kind: "open-component", view: "graph", component: "shu-polymorphic-graph-view", label: "Graph view", products: inner });
 	});
@@ -56,8 +44,7 @@ describe("parseAffordanceProduct", () => {
 
 /**
  * Checks that the listed view-opening `show` steps of MonitorStepper and ShuStepper declare the domain of their products in their contract. A
- * per-instance product parses through the same path as a singleton product, so one parser path parses the products of
- * built-in and external views. The SPA opens a component view from a step's products only where they parse to an
+ * product of a built-in view and of an external view parse through one path. The SPA opens a component view from a step's products only where they parse to an
  * `open-component` action. A new `show` step is checked only after it is added to `cases`.
  */
 describe("show* steps declare the products domain whose ui.component names their view's component", () => {
@@ -65,7 +52,7 @@ describe("show* steps declare the products domain whose ui.component names their
 	const shu = new ShuStepper();
 
 	// The step's action returns plain `{}` products. augmentViewHypermedia adds the hypermedia markers from the domain's
-	// `ui` declaration. It adds `_component`, `id` and `view` only for a domain that declares `ui.component`. These cases
+	// `ui` declaration. It adds `_component` and `_view` only for a domain that declares `ui.component`. These cases
 	// check the products domain of each step definition's contract.
 	const cases: Array<{ name: string; domain: string; steps: Record<string, unknown> }> = [
 		{ name: "showPolymorphicGraphView", domain: "shu-polymorphic-graph-view", steps: shu.steps },
@@ -78,21 +65,4 @@ describe("show* steps declare the products domain whose ui.component names their
 			expect(contractProducts(steps[name] as TStepperStep).domain).toBe(domain);
 		});
 	}
-
-	it("a per-instance product with `id = <component>:<uuid>` parses through the same path", () => {
-		const product = {
-			[HYPERMEDIA.TYPE]: "x-clustered-viewer",
-			[HYPERMEDIA.SUMMARY]: "Clustered 3D view",
-			_component: "x-clustered-viewer",
-			id: "x-clustered-viewer:abc-123",
-			view: "x-clustered-viewer:abc-123",
-		};
-		expect(parseAffordanceProduct(product)).toEqual({
-			kind: "open-component",
-			view: "x-clustered-viewer:abc-123",
-			component: "x-clustered-viewer",
-			label: "Clustered 3D view",
-			products: product,
-		});
-	});
 });

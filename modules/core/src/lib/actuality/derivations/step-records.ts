@@ -2,7 +2,7 @@
  * A step's record: the SeqPath individual a step writes once at its start and once at its end. Its start states every
  * field a reader requires, and its end is its start with how it ended, so each is one write.
  */
-import { RECORDED_STATUS, STATUS, stepLevel, type TActualityLevel, type TRecordedStatus, type TVerdict } from "../../domains/protocol.js";
+import { HYPERMEDIA, RECORDED_STATUS, STATUS, stepLevel, type TActualityLevel, type TRecordedStatus, type TVerdict } from "../../domains/protocol.js";
 import type { TFeatureStep } from "../../steps/domains/stepper.js";
 import { LinkRelations, type AccessLevel } from "../../domains/resources.js";
 import { itemAt } from "../../domains/item-at.js";
@@ -211,9 +211,9 @@ export function levelRecord(
 }
 
 /** Returns the name of the view a step showed, where it showed one. The step's products carry the view's declared name
- *  as `view`. The view's declaration states its appearance. */
+ *  as `_view`. The view's declaration states its appearance. */
 export function viewShown(products: Record<string, unknown> | undefined): string | undefined {
-	const view = products?.view;
+	const view = products?.[HYPERMEDIA.VIEW];
 	return typeof view === "string" ? view : undefined;
 }
 

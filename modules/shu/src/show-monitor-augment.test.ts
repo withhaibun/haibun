@@ -22,8 +22,7 @@ describe("show monitor markers → parser", () => {
 			[HYPERMEDIA.TYPE]: "shu-monitor-column",
 			[HYPERMEDIA.COMPONENT]: "shu-monitor-column",
 			[HYPERMEDIA.SUMMARY]: "shu-monitor-column",
-			id: "shu-monitor-column",
-			view: "shu-monitor-column",
+			[HYPERMEDIA.VIEW]: "shu-monitor-column",
 		};
 		const action = parseAffordanceProduct(wireResponse);
 		expect(action.kind).toBe("open-component");

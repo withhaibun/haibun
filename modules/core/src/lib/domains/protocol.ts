@@ -328,6 +328,8 @@ export const HYPERMEDIA = {
 	DESCRIPTION: "_description",
 	/** Web component tag that renders this product (e.g. "shu-monitor-column") */
 	COMPONENT: "_component",
+	/** The pane that shows the product, which its component opens: the product's domain. */
+	VIEW: "_view",
 	/** HATEOAS affordances: what can be done next, keyed by rel */
 	LINKS: "_links",
 	/** For destructive operations: condition to check reversibility, apply to execute undo */
@@ -335,7 +337,7 @@ export const HYPERMEDIA = {
 } as const;
 
 /** Returns a product's own data. The result omits the `_seqPath` trace and the `_type`, `_summary`, `_description`,
- *  `_component` and `_links` markers that dispatch adds to a product of a named domain. A reader parses the result with the product's own
+ *  `_component`, `_view` and `_links` markers that dispatch adds to a product of a named domain. A reader parses the result with the product's own
  *  schema. */
 export function productData(products: Record<string, unknown>): Record<string, unknown> {
 	const {
@@ -344,6 +346,7 @@ export function productData(products: Record<string, unknown>): Record<string, u
 		[HYPERMEDIA.SUMMARY]: _summary,
 		[HYPERMEDIA.DESCRIPTION]: _description,
 		[HYPERMEDIA.COMPONENT]: _component,
+		[HYPERMEDIA.VIEW]: _view,
 		[HYPERMEDIA.LINKS]: _links,
 		...data
 	} = products;
@@ -360,6 +363,7 @@ export type THypermediaProducts = {
 	[HYPERMEDIA.SUMMARY]?: string;
 	[HYPERMEDIA.DESCRIPTION]?: string;
 	[HYPERMEDIA.COMPONENT]?: string;
+	[HYPERMEDIA.VIEW]?: string;
 	[HYPERMEDIA.LINKS]?: Record<
 		string,
 		{ method: string; params?: Record<string, unknown>; schema?: Record<string, unknown>; summary?: string; asks?: "read" | "act"; capability?: string; kaname?: true }

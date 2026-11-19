@@ -87,8 +87,7 @@ describe("dispatchAffordanceFromResponse", () => {
 			[HYPERMEDIA.TYPE]: "shu-affordances-panel",
 			[HYPERMEDIA.COMPONENT]: "shu-affordances-panel",
 			[HYPERMEDIA.SUMMARY]: "Affordances",
-			id: "affordances",
-			view: "affordances",
+			[HYPERMEDIA.VIEW]: "affordances",
 		};
 		const action = dispatchAffordanceFromResponse(response);
 		expect(action.kind).toBe("open-component");
@@ -102,8 +101,7 @@ describe("dispatchAffordanceFromResponse", () => {
 			[HYPERMEDIA.TYPE]: "shu-monitor-column",
 			[HYPERMEDIA.COMPONENT]: "shu-monitor-column",
 			[HYPERMEDIA.SUMMARY]: "Monitor",
-			id: "shu-monitor-column",
-			view: "shu-monitor-column",
+			[HYPERMEDIA.VIEW]: "shu-monitor-column",
 		};
 		const action = dispatchAffordanceFromResponse(response);
 		expect(action.kind).toBe("open-component");

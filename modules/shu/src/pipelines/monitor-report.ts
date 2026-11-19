@@ -12,6 +12,7 @@ import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { stepperContext } from "@haibun/core/lib/step-dispatch.js";
 import { callStepByName, NO_INPUT } from "@haibun/core/lib/steps/pipelines/call-step.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
+import { viewShown } from "@haibun/core/lib/actuality/derivations/step-records.js";
 import { inCall, runInCall, shownTo } from "@haibun/core/lib/domains/capability-context.js";
 import { SHU_TAG } from "../domains/elements.js";
 import type { THydration } from "../domains/hydration.js";
@@ -66,7 +67,7 @@ async function viewProductsOf(scope: TReportScope): Promise<Record<string, unkno
 	const { world } = scope;
 	const viewProducts: Record<string, unknown> = {};
 	const toggles = await Promise.all(scope.viewSteps.map(async ([name, read]) => [name, await productsIn(world, name, read)] as const));
-	for (const [name, products] of toggles) if (products?.view) viewProducts[`MonitorStepper-${name}`] = products;
+	for (const [name, products] of toggles) if (viewShown(products) !== undefined) viewProducts[`MonitorStepper-${name}`] = products;
 	// Each read is called by name, as every caller's read is, outside the step that writes the report, so actuality doesn't
 	// record it.
 	const steppers = world.runtime.steppers as AStepper[];

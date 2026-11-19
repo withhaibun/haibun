@@ -291,7 +291,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				return actionOKWithProducts({ path: written });
 			},
 		},
-		// Singleton view openers. Hypermedia markers (`_type` + `_component` + `id` + `view`
+		// Singleton view openers. Hypermedia markers (`_type` + `_component` + `_view`
 		// + `_summary`) are injected by the dispatcher from each domain's `ui.component`,
 		// so every view-opening step shares the same single mechanism.
 		showMonitor: {

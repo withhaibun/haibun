@@ -1,3 +1,4 @@
+import { HYPERMEDIA } from "@haibun/core/lib/domains/protocol.js";
 import { describe, expect, it } from "vitest";
 import { paneOpsFor } from "./affordances.js";
 import type { TEvent } from "../ports.js";
@@ -12,7 +13,7 @@ const openEvent = (id: string, component: string, over: Record<string, unknown> 
 		type: "step",
 		stage: "end",
 		status: "completed",
-		products: { products: { view: component, _component: component, description: component } },
+		products: { products: { [HYPERMEDIA.VIEW]: component, [HYPERMEDIA.COMPONENT]: component, description: component } },
 		...over,
 	}) as unknown as TEvent;
 

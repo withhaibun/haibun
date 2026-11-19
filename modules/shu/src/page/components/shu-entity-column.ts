@@ -44,6 +44,7 @@ import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { counted, statedTotal, type TCallLink, type TCounted } from "@haibun/core/lib/domains/hypermedia.js";
 import { isJsonMedia, MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
+import { HYPERMEDIA, productData } from "@haibun/core/lib/domains/protocol.js";
 import { ClockController } from "../controllers/clock-controller.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
 import { appAccessLevel } from "../controllers/view-query-controller.js";
@@ -238,15 +239,15 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	 *  the view now, so a live change to the individual last opened here must not replace them. */
 	openProducts(products: Record<string, unknown>): void {
 		this.entity.release();
-		const label = String(products._type || PRODUCTS_LABEL);
-		const { _type, _summary, _component, _links, _undo, _seqPath, ...data } = products;
+		const label = String(products[HYPERMEDIA.TYPE] || PRODUCTS_LABEL);
+		const { [HYPERMEDIA.UNDO]: _undo, ...data } = productData(products);
 		this.vertex = data;
 		this.edges = [];
 		this.#frame = undefined;
 		this.incomingCount = counted(0);
 		this.products = products;
 		this.annotationsList = [];
-		this.setState({ individualId: String(_summary || ""), persistedAs: label, loading: false, fromStore: undefined });
+		this.setState({ individualId: String(products[HYPERMEDIA.SUMMARY] || ""), persistedAs: label, loading: false, fromStore: undefined });
 		this.#statedError = this.statedError();
 	}
 

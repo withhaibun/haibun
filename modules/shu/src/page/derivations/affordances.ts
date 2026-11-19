@@ -9,28 +9,10 @@ import { z } from "zod";
 import { HYPERMEDIA, SUBSTEP_LEVEL, type THaibunEvent, type THypermediaProducts } from "@haibun/core/lib/domains/protocol.js";
 import type { TEvent } from "../ports.js";
 
-const PRODUCT_KEY = { ID: "id", VIEW: "view", COMPONENT: "_component", PRODUCTS: "products" } as const;
+/** The key of a `{ products }` envelope's products. */
+const PRODUCTS_KEY = "products";
 
-const ProductSchema = z.looseObject({
-	[PRODUCT_KEY.ID]: z.string().optional(),
-	[PRODUCT_KEY.VIEW]: z.string().optional(),
-	[PRODUCT_KEY.COMPONENT]: z.string().optional(),
-	[HYPERMEDIA.TYPE]: z.string().optional(),
-	[HYPERMEDIA.SUMMARY]: z.string().optional(),
-});
-
-const ProductWithViewSchema = ProductSchema.extend({ [PRODUCT_KEY.VIEW]: z.string() });
-
-/** Parses a `{ products }` envelope whose products contain an affordance product with a string `view`. */
-const HasProductsWithViewSchema = z.looseObject({ [PRODUCT_KEY.PRODUCTS]: z.unknown() }).transform((value, ctx) => {
-	const rec = findAffordanceRecord(value[PRODUCT_KEY.PRODUCTS], 0);
-	const parsed = ProductWithViewSchema.safeParse(rec);
-	if (!parsed.success) {
-		ctx.addIssue({ code: z.ZodIssueCode.custom, message: "products must contain an affordance product with view" });
-		return z.NEVER;
-	}
-	return { ...value, [PRODUCT_KEY.PRODUCTS]: parsed.data };
-});
+const ProductSchema = z.looseObject({ [HYPERMEDIA.COMPONENT]: z.string().optional(), [HYPERMEDIA.VIEW]: z.string().optional(), [HYPERMEDIA.SUMMARY]: z.string().optional() });
 
 type TAffordanceProductAction = { kind: "none" } | { kind: "open-component"; view: string; component: string; label: string; products: Record<string, unknown> };
 
@@ -38,18 +20,10 @@ type TAffordanceProductAction = { kind: "none" } | { kind: "open-component"; vie
 const isFields = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object";
 const asRecord = (value: unknown): Record<string, unknown> | undefined => (isFields(value) ? value : undefined);
 
-const requiredString = (value: unknown, message: string): string => {
-	if (typeof value !== "string") throw new Error(message);
-	return value;
-};
-
-/** True where a product is an instruction to open a view: it has a string `view` or `_component`. A `_type` states what a
- *  record is and isn't an instruction. Reading it as one would
- *  open a column for every step that returns a record, including each read a view makes to render itself. A reader
- *  then couldn't close a column that their own view reopens. */
-const hasAffordanceMarkers = (value: Record<string, unknown>): boolean => {
-	return typeof value[PRODUCT_KEY.VIEW] === "string" || typeof value[PRODUCT_KEY.COMPONENT] === "string";
-};
+/** True where a product is an instruction to open a view: it has a string `_component` or `_view`. A `_type` states what a
+ *  record is and isn't an instruction. Reading it as one would open a column for every step that returns a record,
+ *  including each read a view makes to render itself. A reader then couldn't close a column that their own view reopens. */
+const hasAffordanceMarkers = (value: Record<string, unknown>): boolean => typeof value[HYPERMEDIA.COMPONENT] === "string" || typeof value[HYPERMEDIA.VIEW] === "string";
 
 /** How deep in a product's nested objects the parser looks for an affordance. */
 const AFFORDANCE_DEPTH = 8;
@@ -67,26 +41,18 @@ const findAffordanceRecord = (value: unknown, depth: number): Record<string, unk
 	return undefined;
 };
 
-/** Parses a product into its affordance action: `open-component` or `none`. Throws on a malformed
- *  affordance product. */
+/** Parses a product, or a `{ products }` envelope, into its affordance action: `open-component` or `none`. Throws on a
+ *  product that names its component or its pane without the other. */
 export function parseAffordanceProduct(product: unknown): TAffordanceProductAction {
-	const envelope = HasProductsWithViewSchema.safeParse(product);
-	const candidate = (envelope.success ? envelope.data[PRODUCT_KEY.PRODUCTS] : findAffordanceRecord(product, 0)) ?? asRecord(product);
+	const enveloped = asRecord(product)?.[PRODUCTS_KEY];
+	const candidate = findAffordanceRecord(enveloped, 0) ?? findAffordanceRecord(product, 0);
 	if (!candidate) return { kind: "none" };
-	const parsed = ProductSchema.parse(candidate);
-	if (!hasAffordanceMarkers(parsed)) return { kind: "none" };
-	if (typeof parsed[PRODUCT_KEY.COMPONENT] === "string") {
-		const component = requiredString(parsed[PRODUCT_KEY.COMPONENT], "Affordance component product requires string _component");
-		// A multi-pane component's product holds a per-instance identity in `id`. A clustered viewer's `id` is
-		// `<component>:<uuid>`. A product without `id` uses `view` as the id.
-		const idOrView = parsed[PRODUCT_KEY.ID] ?? parsed[PRODUCT_KEY.VIEW];
-		const view = requiredString(idOrView, "Affordance component product requires string id or view");
-		const summary = parsed[HYPERMEDIA.SUMMARY];
-		const label = typeof summary === "string" ? summary : component;
-		return { kind: "open-component", view, component, label, products: candidate };
-	}
-	if (typeof parsed[PRODUCT_KEY.VIEW] === "string") throw new Error(`Affordance product with view ${parsed[PRODUCT_KEY.VIEW]} requires string _component`);
-	return { kind: "none" };
+	const { [HYPERMEDIA.COMPONENT]: component, [HYPERMEDIA.VIEW]: view, [HYPERMEDIA.SUMMARY]: summary } = ProductSchema.parse(candidate);
+	if (component === undefined || view === undefined)
+		throw new Error(
+			`an affordance product states both ${HYPERMEDIA.COMPONENT} and ${HYPERMEDIA.VIEW}, and this one states ${component === undefined ? HYPERMEDIA.VIEW : HYPERMEDIA.COMPONENT} alone`,
+		);
+	return { kind: "open-component", view, component, label: summary ?? component, products: candidate };
 }
 
 /** The pane operation of a step end: a component to open. */

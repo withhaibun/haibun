@@ -8,7 +8,7 @@ import { AStepper, declareSteps } from "../lib/steps/domains/stepper.js";
 import { actionOKWithProducts } from "../lib/domains/util.js";
 import { URAKATA, URAKATA_ID_DOMAIN, type IUrakataRegistry, type IUrakataTicker } from "../lib/domains/urakata.js";
 import { getFromRuntime } from "../lib/domains/util.js";
-import type { TStepResult } from "../lib/domains/protocol.js";
+import { HYPERMEDIA, type TStepResult } from "../lib/domains/protocol.js";
 import { itemAt } from "../lib/domains/item-at.js";
 import { TEST_STEP } from "../lib/test/test-step.js";
 
@@ -73,7 +73,7 @@ describe("urakata-stepper", () => {
 			{ options: { DEST: "default" }, moduleOptions: {} },
 		);
 		expect(result.ok).toBe(true);
-		const showResult = (result.world.runtime.stepResults as TStepResult[]).find((sr) => sr.products?.view === "urakata-list");
+		const showResult = (result.world.runtime.stepResults as TStepResult[]).find((sr) => sr.products?.[HYPERMEDIA.VIEW] === "urakata-list");
 		expect(showResult).toBeDefined();
 		const products = showResult?.products as Record<string, unknown> | undefined;
 		expect(products?._type).toBe("shu-result-table");

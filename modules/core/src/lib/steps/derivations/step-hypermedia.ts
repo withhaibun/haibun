@@ -40,7 +40,7 @@ export function productsRetained(world: TWorld, step: TStepperStep): TStepperSte
  * - `_summary` is `ui.summary` where it is a string, or its result where it is a function of the products. Without
  *   `ui.summary` it is the domain key.
  * - `_description` is the domain's description, where it declares one.
- * - `_component`, `id` and `view` are added only for a domain with `ui.component`. The SPA's pane opener reads them, and
+ * - `_component` and `_view` are added only for a domain with `ui.component`. The SPA's pane opener reads them, and
  *   a diagnostic or data-only domain doesn't open a pane.
  * - `_links` lists the steps that take the product's domain, where at least one does.
  *
@@ -67,8 +67,7 @@ export function augmentViewHypermedia(world: TWorld, step: TStepperStep, actionR
 	if (domain?.description) markers[HYPERMEDIA.DESCRIPTION] = domain.description;
 	if (component) {
 		markers[HYPERMEDIA.COMPONENT] = component;
-		markers.id = productDomain;
-		markers.view = productDomain;
+		markers[HYPERMEDIA.VIEW] = productDomain;
 	}
 	// Next-action affordances: every step whose parameter domains take this product's domain. A model or an agent reads `_links` to find follow-on steps without calling show steps. Each entry is a step link: the method and the record as its params, the step's description as its summary, whether it reads or acts, the action it requires, and whether it is a kaname step. Each rel is the step name without its stepper prefix, so it names the action rather than the method address.
 	const links = deriveActionLinks(productDomain, products, steppers, world);

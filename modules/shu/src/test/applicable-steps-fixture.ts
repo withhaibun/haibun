@@ -45,14 +45,13 @@ export const unknownGoal = (domain: string): TOffered["goals"][number] => ({
 });
 
 /** Returns what dispatch adds to the products of a step whose domain `domain` the component `component` shows, as
- *  `augmentViewHypermedia` adds it: the trace, the markers, and the id and view of the pane that shows them. */
+ *  `augmentViewHypermedia` adds it: the trace and the markers, which name the component and the pane that show them. */
 export const dispatchMarkers = (domain: string, component: string): Record<string, unknown> => ({
 	[TRACE_SEQ_PATH]: [0, 1],
 	[HYPERMEDIA.TYPE]: component,
 	[HYPERMEDIA.SUMMARY]: domain,
 	[HYPERMEDIA.DESCRIPTION]: domain,
 	[HYPERMEDIA.COMPONENT]: component,
+	[HYPERMEDIA.VIEW]: domain,
 	[HYPERMEDIA.LINKS]: {},
-	id: domain,
-	view: domain,
 });
