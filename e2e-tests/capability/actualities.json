@@ -59,7 +59,7 @@
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "2cf235f8aef1f1e405a81ecb956b8bd129d661f00492bb55dff85870a7851ed2",
 					"modules/utils/src": "9858723462d1d5207467f4a105b09a266cf73882b379aae28f9be457dad643e5",
-					"modules/web-accessibility-axe/src": "d2a1c92c06745468b60a6661c85fe50ce4f958a68be01f3501a5ce512d94f476",
+					"modules/web-accessibility-axe/src": "6cc4eb4cf5788ba0d5ecceb7f790a531467d98c8cc37b25dfc8eab915490107d",
 					"modules/web-playwright/src": "2c517fb477b2cbe6646e2c15a960bbefc998fe19991676af14bc2368740bfea0",
 					"modules/web-playwright/waypoints": "5d04edf9b96958109b9bd925701ffa32235aefe86bb0bdd1eeb42dad6aaefbd5",
 					"modules/web-server-hono/src": "dfa559ed0aab39db2b51340d3bf709be2294028e3e2fb788c069bede03692b56",

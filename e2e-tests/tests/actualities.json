@@ -373,7 +373,7 @@
 			"actuality": {
 				"text": "e2e-tests/tests, node_modules/@haibun/web-playwright/waypoints, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
 				"status": "passed",
-				"tookMs": 19200,
+				"tookMs": 19100,
 				"digest": {
 					"e2e-tests/src": "260a250979e4596eb9a66444ac92d5a11114308f7484cc99662f8392171c2864",
 					"e2e-tests/tests": "3db5565890f295ad4bb171d8cd3d713dcea147a54655be4e06d2e7c704c1ee49",
@@ -390,7 +390,7 @@
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "2cf235f8aef1f1e405a81ecb956b8bd129d661f00492bb55dff85870a7851ed2",
 					"modules/utils/src": "9858723462d1d5207467f4a105b09a266cf73882b379aae28f9be457dad643e5",
-					"modules/web-accessibility-axe/src": "d2a1c92c06745468b60a6661c85fe50ce4f958a68be01f3501a5ce512d94f476",
+					"modules/web-accessibility-axe/src": "6cc4eb4cf5788ba0d5ecceb7f790a531467d98c8cc37b25dfc8eab915490107d",
 					"modules/web-playwright/src": "2c517fb477b2cbe6646e2c15a960bbefc998fe19991676af14bc2368740bfea0",
 					"modules/web-playwright/waypoints": "5d04edf9b96958109b9bd925701ffa32235aefe86bb0bdd1eeb42dad6aaefbd5",
 					"modules/web-server-hono/src": "dfa559ed0aab39db2b51340d3bf709be2294028e3e2fb788c069bede03692b56",
@@ -431,7 +431,7 @@
 				"/features/auth-form.feature": {
 					"text": "/features/auth-form",
 					"status": "passed",
-					"tookMs": 900,
+					"tookMs": 800,
 					"steps": 30
 				},
 				"/features/claims.feature": {
@@ -443,13 +443,13 @@
 				"/features/counter.feature": {
 					"text": "/features/counter",
 					"status": "passed",
-					"tookMs": 1900,
+					"tookMs": 1600,
 					"steps": 24
 				},
 				"/features/counter.feature.ts": {
 					"text": "Counts feature",
 					"status": "passed",
-					"tookMs": 1900,
+					"tookMs": 2000,
 					"steps": 24
 				},
 				"/features/counts.feature.ts": {
@@ -485,7 +485,7 @@
 				"/features/not.feature": {
 					"text": "/features/not",
 					"status": "passed",
-					"tookMs": 300,
+					"tookMs": 400,
 					"steps": 14
 				},
 				"/features/once.feature.ts": {
@@ -539,7 +539,7 @@
 				"/features/visited-pages.feature": {
 					"text": "/features/visited-pages",
 					"status": "passed",
-					"tookMs": 900,
+					"tookMs": 1000,
 					"steps": 42
 				},
 				"/features/workflow.feature.ts": {

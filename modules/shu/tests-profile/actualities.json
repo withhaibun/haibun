@@ -103,7 +103,7 @@
 				"/features/a-an-actuality-to-come-back-to.feature.ts": {
 					"text": "An actuality to come back to",
 					"status": "passed",
-					"tookMs": 1400,
+					"tookMs": 1300,
 					"steps": 213
 				}
 			}
@@ -113,7 +113,7 @@
 			"actuality": {
 				"text": "modules/shu/tests-profile, node_modules/@haibun/web-playwright/waypoints, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 8800,
+				"tookMs": 8900,
 				"digest": {
 					"modules/core/src": "b4433a64326d74114fc5e7035870f2e39bb89c58393d3fd00235b4d6a8395c54",
 					"modules/domain-storage/src": "d21fde6c12a84c8fb246318488d49df330d1c5a5ca02818ce5bcc85d01c120ca",
@@ -133,19 +133,19 @@
 				"/features/b-reading-a-cached-actuality.feature.ts": {
 					"text": "Reading an actuality this device holds",
 					"status": "passed",
-					"tookMs": 1900,
+					"tookMs": 2200,
 					"steps": 223
 				},
 				"/features/c-reading-a-report.feature.ts": {
 					"text": "Reading a report of this actuality",
 					"status": "passed",
-					"tookMs": 1500,
+					"tookMs": 1400,
 					"steps": 227
 				},
 				"/features/d-two-origins.feature.ts": {
 					"text": "What a reader holds is held per address",
 					"status": "passed",
-					"tookMs": 1500,
+					"tookMs": 1400,
 					"steps": 218
 				},
 				"/features/e-deleting-an-actuality.feature.ts": {

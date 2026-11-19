@@ -224,7 +224,7 @@
 			"actuality": {
 				"text": "modules/shu/tests, node_modules/@haibun/web-playwright/waypoints, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 26200,
+				"tookMs": 26100,
 				"digest": {
 					"modules/cli/src": "257e7df11cab87dbfa47e3f2b62a731babca0ef31c02921c4fd211361cb3c976",
 					"modules/core/src": "b4433a64326d74114fc5e7035870f2e39bb89c58393d3fd00235b4d6a8395c54",
@@ -245,7 +245,7 @@
 				"/features/address.feature.ts": {
 					"text": "An address names a type",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 800,
 					"steps": 208
 				},
 				"/features/federate.feature.ts": {
@@ -264,7 +264,7 @@
 					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
 					"tookMs": 19100,
-					"steps": 773
+					"steps": 766
 				},
 				"/features/remote-store.feature.ts": {
 					"text": "A satellite instance keeps its records in the main instance's store",

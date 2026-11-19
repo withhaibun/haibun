@@ -5,7 +5,7 @@
 			"actuality": {
 				"text": "mcp-server",
 				"status": "passed",
-				"tookMs": 400,
+				"tookMs": 500,
 				"digest": {
 					"mcp-server": "665e6ad3b46769658127cf8801f90c23a5d88d0058e58be5d44a6de72cf561a5",
 					"modules/core/src": "b4433a64326d74114fc5e7035870f2e39bb89c58393d3fd00235b4d6a8395c54",

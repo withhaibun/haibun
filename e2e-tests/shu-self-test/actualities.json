@@ -63,7 +63,7 @@
 			"actuality": {
 				"text": "e2e-tests/shu-self-test, node_modules/@haibun/web-playwright/waypoints, node_modules/@haibun/shu/waypoints",
 				"status": "passed",
-				"tookMs": 38700,
+				"tookMs": 38900,
 				"digest": {
 					"e2e-tests/shu-self-test": "49035fd349df1283a4ffa164ed469884b9a3db859e5f666a854a5cee5c542312",
 					"modules/core/src": "b4433a64326d74114fc5e7035870f2e39bb89c58393d3fd00235b4d6a8395c54",
@@ -83,7 +83,7 @@
 				"/features/shu-self-test.feature.ts": {
 					"text": "Shu SPA Self-Test",
 					"status": "passed",
-					"tookMs": 37800,
+					"tookMs": 37900,
 					"steps": 701
 				},
 				"/features/z-post.feature.ts": {
