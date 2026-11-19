@@ -173,7 +173,7 @@ export const featureFilterDomainDefinition: TDomainDefinition = {
 	selectors: [RUN_DOMAIN.featureFilter],
 	schema: FeatureFilterSchema,
 	description:
-		"Comma-separated regular expressions that select the features a run executes by path. haibun-cli takes the same form. Two examples are graph and a.*b. An empty filter runs every feature",
+		"Comma-separated regular expressions that select the features a run executes by path, a feature that matches any of them. haibun-cli takes the same form. Two examples are graph and a.*b, and ^(?!.*(a|b)) leaves out each feature whose path holds a or b. An empty filter runs every feature",
 };
 export const runDomainDefinitions: TDomainDefinition[] = [
 	{ selectors: [RUN_DOMAIN.name], schema: NameSchema, description: "The name of a started run. Reading, waiting for and stopping a run take this name" },

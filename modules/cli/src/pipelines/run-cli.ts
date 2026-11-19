@@ -296,7 +296,7 @@ export async function usage(specl: TSpecl, loaded: TCliPorts["steppers"], messag
 
 	const ret = [
 		"",
-		`usage: ${process.argv[1]} [${OPTION_CONFIG} path/to/specific/config.json] [--cwd working_directory] [${OPTION_HELP}] [${OPTION_SHOW_STEPPERS}] [${OPTION_WITH_STEPPERS} stepper[,stepper]] [${OPTION_RUN_POLICY} place dir:access[,dir:access]] [${OPTION_STATEMENT} "a haibun statement" (repeatable; runs after any filtered features, or alone)] [${OPTION_DRY_RUN}] [${OPTION_ONCE} (skip a group whose last run passed against unchanged dependencies)] <project base[,project base]> <[filter,filter]>`,
+		`usage: ${process.argv[1]} [${OPTION_CONFIG} path/to/specific/config.json] [--cwd working_directory] [${OPTION_HELP}] [${OPTION_SHOW_STEPPERS}] [${OPTION_WITH_STEPPERS} stepper[,stepper]] [${OPTION_RUN_POLICY} place dir:access[,dir:access]] [${OPTION_STATEMENT} "a haibun statement" (repeatable; runs after any filtered features, or alone)] [${OPTION_DRY_RUN}] [${OPTION_ONCE} (skip a group whose last run passed against unchanged dependencies)] <project base[,project base]> <[filter,filter] (regular expressions of feature paths; ^(?!.*name) leaves out each feature whose path holds name)>`,
 		`   or: ${process.argv[1]} ${GROUP_OPTIONS.groups} [${GROUP_OPTIONS.set} set] [${GROUP_OPTIONS.environments} environment[,environment]] [${GROUP_OPTIONS.list}] [config or directory ...] (runs each group of features a config declares, with the other options)`,
 		message === undefined ? "" : message,
 		"The working directory's config.json is used when the project bases don't contain a config.json.\n",
