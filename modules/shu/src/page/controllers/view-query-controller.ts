@@ -12,6 +12,12 @@ import * as PageHash from "./hash-controller.js";
 
 const VIEW_QUERY_KEY = "__SHU_VIEW_QUERY__";
 
+declare global {
+	interface TShuPageValues {
+		[VIEW_QUERY_KEY]: TViewQueryStore;
+	}
+}
+
 /** The view query's signals: one for each query param, and the hash the page last wrote, which a hashchange listener reads to
  *  skip the echo of its own write. */
 type TViewQueryStore = {

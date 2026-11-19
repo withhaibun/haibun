@@ -8,6 +8,12 @@ import type { TDelegationSigner } from "./ports.js";
 
 const DELEGATIONS_KEY = "__SHU_DELEGATION_SIGNER__";
 
+declare global {
+	interface TShuPageValues {
+		[DELEGATIONS_KEY]: TDelegationSigner;
+	}
+}
+
 /** A signer that loads the signature suite at its first signature, and signs each delegation with it. */
 function signerLoadedOnFirstUse(): TDelegationSigner {
 	const signer = loadedOnFirstUse(() => import("./adapters/zcap-signer.js").then(({ zcapDelegationSigner }) => zcapDelegationSigner()));

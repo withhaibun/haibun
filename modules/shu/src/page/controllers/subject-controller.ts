@@ -1,13 +1,11 @@
 import type { ReactiveControllerHost } from "lit";
-import { type TSubjectEvent, type TSubjectState, INITIAL_SUBJECT, transition } from "../machines/current-subject.js";
-import { sharedMachine } from "../root.js";
+import type { TSubjectEvent, TSubjectState } from "../machines/current-subject.js";
+import { subjectMachine } from "../root.js";
 import { activeEntry, currentSubject } from "../derivations/current-subject.js";
 import type { TRecord } from "../domains/current-subject.js";
 import { SignalController } from "./signal-controller.js";
 
-/** The current-subject machine: one instance, shared across every component and bundle. A view follows its state and
- *  dispatches a reader's act on it. */
-const subjectMachine = sharedMachine<TSubjectState, TSubjectEvent>("currentSubject", INITIAL_SUBJECT, transition);
+/** The current-subject machine's state, which a view follows, and the dispatch of a reader's act on it. */
 export const currentSubjectState = subjectMachine.state;
 export const dispatchSubjectEvent = (event: TSubjectEvent): TSubjectState => subjectMachine.dispatch(event);
 

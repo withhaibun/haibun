@@ -26,7 +26,19 @@ const STORE_KEY = "__SHU_DEVICE_STORE__";
 const ACTUALITY_FEATURES_KEY = "__SHU_READING_ACTUALITY_FEATURE__";
 const ACTUALITY_REGISTRY_KEY = "__SHU_READINGS__";
 const ACTUALITY_SOURCES_KEY = "__SHU_ACTUALITY_SOURCES__";
-const GRAPH_SLOT_KEY = "__SHU_CACHED_GRAPH_STORE__";
+export const GRAPH_SLOT_KEY = "__SHU_CACHED_GRAPH_STORE__";
+
+declare global {
+	interface TShuPageValues {
+		[CONNECTIONS_KEY]: TDeviceConnections;
+		[WRITE_LISTENERS_KEY]: Set<() => void>;
+		[STORE_KEY]: { store?: TDeviceStore };
+		[ACTUALITY_FEATURES_KEY]: Machine<TActualityFeaturesState, TActualityFeaturesEvent>;
+		[ACTUALITY_REGISTRY_KEY]: TActualityRegistry;
+		[ACTUALITY_SOURCES_KEY]: Map<string, TGraphActualitySource>;
+		[GRAPH_SLOT_KEY]: TGraphSlot;
+	}
+}
 
 export const deviceReport: TDeviceReport = {
 	warn: (message) => pageLog.report("warn", DEVICE_STORE, message),
@@ -34,7 +46,7 @@ export const deviceReport: TDeviceReport = {
 };
 /** Reports a reading of actuality that failed. */
 export const actualityReport = (message: string, err: unknown): void => pageLog.failure(ACTUALITY_SOURCE, message, err);
-const connections = (): TDeviceConnections => pagePinned(CONNECTIONS_KEY, () => ({ opened: new Map<string, Promise<IDBDatabase | null>>(), report: deviceReport }));
+const connections = (): TDeviceConnections => pagePinned(CONNECTIONS_KEY, () => ({ opened: new Map(), report: deviceReport }));
 
 /** The name of the database of the actuality the page reads. */
 export const servedDatabase = (): string => databaseOf(pageHydration().actualityId());
@@ -46,7 +58,7 @@ export const heldDatabases = (): Promise<string[]> => heldDatabaseNames();
 const databaseNamed = (name: string): TDeviceDatabase => deviceDatabase(name, connections());
 
 /** The readers told of each write to the device. */
-const deviceWrites = (): Set<() => void> => pagePinned(WRITE_LISTENERS_KEY, () => new Set<() => void>());
+const deviceWrites = (): Set<() => void> => pagePinned(WRITE_LISTENERS_KEY, () => new Set());
 
 /** Adds a reader of each write to the device, and returns its removal. A write is sent without waiting on it, so a view
  *  that read the device only at its own write would report an older state than the device holds. */
@@ -60,7 +72,7 @@ const wrote = (): void => {
 };
 
 /** The device's store a report or a test installs, else the one the page makes of the actuality it reads. */
-const storeSlot = (): { store?: TDeviceStore } => pagePinned(STORE_KEY, (): { store?: TDeviceStore } => ({}));
+const storeSlot = () => pagePinned(STORE_KEY, () => ({}));
 
 /** The device's store of the actuality the page reads. */
 export function pageDeviceStore(): TDeviceStore {
@@ -86,7 +98,7 @@ export const deviceQuads = (database: string): TDeviceQuads => new IndexedDbQuad
 export type TGraphSlot = { installed?: TCachedGraph; served?: TCachedGraph; reading?: TCachedGraph };
 
 /** The graphs the page reads. */
-export const graphSlot = (): TGraphSlot => pagePinned(GRAPH_SLOT_KEY, (): TGraphSlot => ({}));
+export const graphSlot = (): TGraphSlot => pagePinned(GRAPH_SLOT_KEY, () => ({}));
 
 /** What IndexedDB holds for this origin: each database, its stores and their counts. */
 export const deviceSummary = (): Promise<TIdbDatabaseSummary[]> => indexedDbSummary();
@@ -96,14 +108,13 @@ export const pageActualityFeatures = (): Machine<TActualityFeaturesState, TActua
 	pagePinned(ACTUALITY_FEATURES_KEY, () => machine(INITIAL_ACTUALITY_FEATURES, actualityFeaturesTransition));
 
 /** The readings of actuality the views share. */
-export const actualityRegistry = (): TActualityRegistry =>
-	pagePinned(ACTUALITY_REGISTRY_KEY, (): TActualityRegistry => ({ reading: new Set(), made: new Set(), at: undefined, span: {} }));
+export const actualityRegistry = (): TActualityRegistry => pagePinned(ACTUALITY_REGISTRY_KEY, () => ({ reading: new Set(), made: new Set(), at: undefined, span: {} }));
 
 /** The readings made, by their level and whether they read substeps. Ending the page stops each. */
 export const graphActualitySources = (): Map<string, TGraphActualitySource> =>
 	pagePinned(
 		ACTUALITY_SOURCES_KEY,
-		() => new Map<string, TGraphActualitySource>(),
+		() => new Map(),
 		(held) => {
 			for (const source of held.values()) source.close();
 		},

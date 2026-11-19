@@ -5,29 +5,37 @@
  * module, so the browser extension's background, a worker that doesn't hold a document, loads it.
  */
 
-/** A value the page holds, and how the page lets it go when it ends, where the value holds something to close. */
-type TPinned = { value: unknown; release?: (value: unknown) => void };
+declare global {
+	/** The values the page holds, by key. Each module that holds a value declares its key and the value's type here, so every
+	 *  bundle reads a key's value with one type, and a key declared with two types doesn't compile. */
+	interface TShuPageValues {}
+	var __SHU_PAGE__: TPinned | undefined;
+}
+
+/** The values the page holds, and how the page lets each go when it ends, where the value holds something to close. */
+type TPinned = { values: Partial<TShuPageValues>; releases: Map<keyof TShuPageValues, () => void> };
 
 /** The key of the page's values. */
 const PAGE_KEY = "__SHU_PAGE__";
 
-declare global {
-	var __SHU_PAGE__: Map<string, TPinned> | undefined;
-}
+/** What a page holds before it holds a value. */
+const emptyPage = (): TPinned => ({ values: {}, releases: new Map() });
 
-/** Returns the map the page holds its values in, made at the first call on the page. */
-function pinned(): Map<string, TPinned> {
-	if (globalThis[PAGE_KEY] === undefined) globalThis[PAGE_KEY] = new Map();
+/** Returns what the page holds its values in, made at the first call on the page. */
+function pinned(): TPinned {
+	globalThis[PAGE_KEY] ??= emptyPage();
 	return globalThis[PAGE_KEY];
 }
 
 /** Returns the value the page holds under `key`, made by `make` where the page doesn't hold one. `release` lets the value
  *  go when the page ends. */
-export function pagePinned<T>(key: string, make: () => T, release?: (value: T) => void): T {
-	const held = pinned().get(key);
-	if (held) return held.value as T;
+export function pagePinned<K extends keyof TShuPageValues>(key: K, make: () => TShuPageValues[K], release?: (value: TShuPageValues[K]) => void): TShuPageValues[K] {
+	const { values, releases } = pinned();
+	const held = values[key];
+	if (held !== undefined) return held;
 	const value = make();
-	pinned().set(key, { value, release: release as TPinned["release"] });
+	values[key] = value;
+	if (release !== undefined) releases.set(key, () => release(value));
 	return value;
 }
 
@@ -35,9 +43,8 @@ export function pagePinned<T>(key: string, make: () => T, release?: (value: T) =
  *  its document, and a test document stands in for one page after another, and ends each here. A cell outlasts the page,
  *  since a module holds it from its load. */
 export function endPage(): void {
-	const held = pinned();
-	for (const { value, release } of held.values()) release?.(value);
-	held.clear();
+	for (const release of pinned().releases.values()) release();
+	globalThis[PAGE_KEY] = emptyPage();
 }
 
 /** Returns a load of what `load` loads, made at its first call and held for each call after it: a module a page rarely

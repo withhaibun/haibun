@@ -1,8 +1,1 @@
-{
-	"modules/shu/src/page/adapters/page-held.ts": {
-		"asserts a type with `as` where a schema parses the value": 2
-	},
-	"modules/shu/src/page/adapters/shared-cell.ts": {
-		"asserts a type with `as` where a schema parses the value": 2
-	}
-}
+{}

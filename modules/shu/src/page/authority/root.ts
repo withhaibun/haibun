@@ -15,6 +15,14 @@ const KEY_STORE_KEY = "__SHU_KEY_STORE__";
 const INVOCATIONS_KEY = "__SHU_INVOCATION_SIGNER__";
 const AUTHORITY_KEY = "__SHU_PAGE_AUTHORITY__";
 
+declare global {
+	interface TShuPageValues {
+		[KEY_STORE_KEY]: TKeyStore;
+		[INVOCATIONS_KEY]: TInvocationSigner;
+		[AUTHORITY_KEY]: TAuthorityHeld;
+	}
+}
+
 /** Returns the page's key store. Throws outside a secure context, where the browser withholds one. */
 export const pageKeyStore = (): TKeyStore => pagePinned(KEY_STORE_KEY, () => browserKeyStore());
 
@@ -32,5 +40,5 @@ const heldSigner = (): TInvocationSigner =>
 export const authorityScope = (): TAuthorityScope => ({
 	keys: pageKeyStore(),
 	invocations: { headers: (request, capability, action, key) => heldSigner().headers(request, capability, action, key) },
-	held: pagePinned(AUTHORITY_KEY, (): TAuthorityHeld => ({ key: undefined, held: undefined, opening: undefined })),
+	held: pagePinned(AUTHORITY_KEY, () => ({ key: undefined, held: undefined, opening: undefined })),
 });

@@ -368,10 +368,10 @@ export async function mountPolymorphicPage({ external = false, box = BOX }: { ex
 		},
 		click,
 		subjectState: () =>
-			page.evaluate((key) => {
-				const signals = (globalThis as unknown as Record<string, Map<string, { signal: { get(): TSubjectState } }>>)[key];
-				if (!signals) throw new Error(`the page doesn't hold shared signals at ${key}`);
-				return signals.get("currentSubject")?.signal.get() as TSubjectState;
+			page.evaluate<TSubjectState, typeof SHARED_CELLS_KEY>((key) => {
+				const subject = globalThis[key]?.currentSubject;
+				if (!subject) throw new Error(`the page doesn't hold the current subject's cell at ${key}`);
+				return subject.signal.get();
 			}, SHARED_CELLS_KEY),
 		async emptyPixel(side) {
 			const drawn = Object.values(await steady((await reading()).map((entry) => entry.id)));

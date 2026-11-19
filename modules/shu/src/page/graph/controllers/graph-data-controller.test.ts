@@ -20,7 +20,8 @@ import { serveThePage, setupShuTest, stepsShown, newPage } from "../../../test/s
 import { describe, it, expect, beforeEach } from "vitest";
 import { GraphDataController, currentSnapshot, mergeIntoSnapshots, pinSubjects, setActiveViewId, subscribeSnapshot, viewContext } from "./graph-data-controller.js";
 import { DEFAULT_PER_TYPE_LIMIT } from "../domains/snapshot.js";
-import type { SnapshotStore } from "../machines/snapshot-store.js";
+import { SNAPSHOTS_KEY } from "../root.js";
+import { GRAPH_SLOT_KEY } from "../../client-cache/root.js";
 import { cachedGraph, installGraph } from "../../client-cache/controllers/device-controller.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { Access, BODY_LABEL } from "@haibun/core/lib/domains/resources.js";
@@ -32,8 +33,6 @@ import { installCarriedEventStream } from "../../root.js";
 import { pagePinned } from "../../adapters/page-held.js";
 import { storeDeclaring } from "@haibun/core/lib/test/declared-types.js";
 import { selectValuesFor, queryGraph, readIndividual } from "../../controllers/read-controller.js";
-
-const STORE_KEY = "__SHU_GRAPH_SNAPSHOTS__";
 
 /** Stream one subject's quads as a single batch, mirroring how SSE delivers an upsert. */
 function feedSubject(type: string, subject: string, props: number): void {
@@ -50,7 +49,7 @@ describe("the page's one store of graph snapshots", () => {
 
 	it("holds the store on the page, where another bundle's copy of this module finds it", () => {
 		setActiveViewId("seed");
-		const held = pagePinned<SnapshotStore>(STORE_KEY, () => {
+		const held = pagePinned(SNAPSHOTS_KEY, () => {
 			throw new Error("the page doesn't hold the graph's snapshots");
 		});
 		expect(held.context.activeViewId).toBe("seed");
@@ -212,7 +211,7 @@ describe("the graph a page caches, without a server to query", () => {
 		const store = new QuadStore(newStoreChain());
 		installGraph(store);
 		// A second bundle has its own copy of this module's bindings and reaches the store through the page, as here.
-		expect(pagePinned<{ installed?: unknown }>("__SHU_CACHED_GRAPH_STORE__", () => ({})).installed).toBe(store);
+		expect(pagePinned(GRAPH_SLOT_KEY, () => ({})).installed).toBe(store);
 		expect(cachedGraph()).toBe(store);
 	});
 

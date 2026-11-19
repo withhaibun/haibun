@@ -8,7 +8,8 @@ import { pagePinned } from "./adapters/page-held.js";
 /** A load made at its first use: a view loads a module it rarely needs with it. */
 export { loadedOnFirstUse } from "./adapters/page-held.js";
 import { SharedCell } from "./adapters/shared-cell.js";
-import { Machine, machine, type TMove, type TTransition } from "@haibun/core/lib/machines/machine.js";
+import { Machine, machine, type TMove } from "@haibun/core/lib/machines/machine.js";
+import { INITIAL_SUBJECT, transition as subjectTransition, type TSubjectEvent, type TSubjectState } from "./machines/current-subject.js";
 import type {
 	TAuthority,
 	TBlipRing,
@@ -26,7 +27,6 @@ import type {
 	TPageObservers,
 	TEventStream,
 	TPreferences,
-	TSharedCell,
 	TStreamReports,
 	TPaneMarks,
 	TPaneStrip,
@@ -42,7 +42,7 @@ import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { HAIBUN_LOG_LEVELS, LOG_LEVEL_INFO, type THaibunLogLevel } from "@haibun/core/lib/domains/protocol.js";
 import { acts } from "./domains/links.js";
 import { CLIENT_LOG_ACTION, CLIENT_LOG_METHOD } from "./domains/page-calls.js";
-import { initialConduitHeld, LiveConduit } from "./adapters/live-conduit.js";
+import { initialConduitHeld, LiveConduit, type TConduitHeld } from "./adapters/live-conduit.js";
 import { carriedConduit } from "./adapters/carried-conduit.js";
 import { cookiePreferences } from "./adapters/prefs-cookie.js";
 import { browserClock } from "./adapters/clock.js";
@@ -94,6 +94,54 @@ const PANES_HELD_KEY = "__SHU_PANES_HELD__";
 const TAP_ACTION_KEY = "__SHU_TAP_ACTION__";
 const REMEDIES_KEY = "__SHU_REMEDIES__";
 const RECORDS_KEY = "__SHU_ENTITY_STORE__";
+const VIEW_LOADERS_KEY = "__SHU_VIEW_LOADERS__";
+
+/** The page's own views that load where a pane first shows them, each by its tag, as the page's entry installs them. */
+type TViewLoaders = Readonly<Record<string, () => Promise<unknown>>>;
+
+declare global {
+	interface TShuPageValues {
+		[PREFERENCES_KEY]: TPreferences;
+		[CLOCK_KEY]: TClock;
+		[CLIPBOARD_KEY]: TClipboard;
+		[ELEMENTS_KEY]: TElements;
+		[OBSERVERS_KEY]: TPageObservers;
+		[LOCATION_KEY]: TLocation;
+		[PAGE_HASH_KEY]: TPageHash;
+		[EMBEDDER_KEY]: TEmbedderChannel;
+		[PRESENTER_MOUNT_KEY]: TPresenterMount;
+		[BLIPS_KEY]: { ring: TBlipRing; sending: TBlipSending };
+		[EVENT_STREAM_KEY]: { stream?: TEventStream };
+		[STREAM_STATUS_KEY]: Machine<TStreamStatus, TStreamEvent>;
+		[CONDUIT_KEY]: { conduit?: TConduit };
+		[CONDUIT_HELD_KEY]: TConduitHeld;
+		[AUTHORITY_PORT_KEY]: { authority: TAuthority | undefined };
+		[HYDRATION_KEY]: { hydration: THydrationRead | undefined };
+		[REGISTRY_KEY]: Machine<TRegistryState, TRegistryEvent>;
+		[REGISTRY_READS_KEY]: TRegistryReads;
+		[PANES_KEY]: Machine<TPanesState, TPanesEvent>;
+		[PANES_HELD_KEY]: TPanesHeld;
+		[TAP_ACTION_KEY]: Machine<TTapActionState, TTapActionEvent>;
+		[REMEDIES_KEY]: TRemedies;
+		[RECORDS_KEY]: TRecordStore;
+		[VIEW_LOADERS_KEY]: TViewLoaders;
+	}
+	interface TShuPageCells {
+		currentSubject: TSubjectState;
+		"currentSubject:moves": TMove<TSubjectState, TSubjectEvent> | null;
+		timeCursor: number | null;
+		activePane: string | null;
+		pageContext: TPageContext | null;
+		dockedPane: TDockedPane | null;
+		pageTypes: TPageTypes;
+		pageTrail: string;
+		pageStatus: string;
+		selectValues: Readonly<Record<string, Record<string, string[]>>>;
+		stripPanes: ReadonlyArray<TStripPane>;
+		embeddedPageView: TEmbeddedPageView | null;
+		givenDelegation: TDelegation | null;
+	}
+}
 
 /** Returns the page's preferences, stored in the page's cookies. */
 export const pagePreferences = (): TPreferences => pagePinned(PREFERENCES_KEY, () => cookiePreferences(window));
@@ -110,15 +158,11 @@ export const pageClipboard = (): TClipboard => pagePinned(CLIPBOARD_KEY, () => b
 /** Returns the page's custom elements. */
 export const pageElements = (): TElements => pagePinned(ELEMENTS_KEY, () => browserElements(customElements));
 
-/** The page's own views that load where a pane first shows them, each by its tag, as the page's entry installs them. */
-type TViewLoaders = Readonly<Record<string, () => Promise<unknown>>>;
-const VIEW_LOADERS_KEY = "__SHU_VIEW_LOADERS__";
-
 /** Installs the loaders of the page's own views that load where a pane first shows them. */
 export const installViewLoaders = (loaders: TViewLoaders): TViewLoaders => pagePinned(VIEW_LOADERS_KEY, () => loaders);
 
 /** Returns the loader of the page's own view `tag`, where the page's entry installs one. */
-export const pageViewLoader = (tag: string): (() => Promise<unknown>) | undefined => pagePinned<TViewLoaders>(VIEW_LOADERS_KEY, () => ({}))[tag];
+export const pageViewLoader = (tag: string): (() => Promise<unknown>) | undefined => pagePinned(VIEW_LOADERS_KEY, () => ({}))[tag];
 
 /** Returns what the browser reports of the page. */
 export const pageObservers = (): TPageObservers => pagePinned(OBSERVERS_KEY, () => browserObservers(window));
@@ -130,7 +174,7 @@ export const pageLocation = (): TLocation => pagePinned(LOCATION_KEY, () => brow
 export const pageHashHeld = (): TPageHash =>
 	pagePinned(
 		PAGE_HASH_KEY,
-		(): TPageHash => ({ stored: "", subscribers: new Set(), stopArrivals: undefined }),
+		() => ({ stored: "", subscribers: new Set(), stopArrivals: undefined }),
 		(held) => held.stopArrivals?.(),
 	);
 
@@ -145,8 +189,7 @@ export const pagePanes = (): Machine<TPanesState, TPanesEvent> => pagePinned(PAN
 export const pageTapAction = (): Machine<TTapActionState, TTapActionEvent> => pagePinned(TAP_ACTION_KEY, () => machine(INITIAL_TAP_ACTION, tapActionTransition));
 
 /** Returns what the page holds of its panes beside their machine. */
-export const panesHeld = (): TPanesHeld =>
-	pagePinned(PANES_HELD_KEY, (): TPanesHeld => ({ strip: undefined, hooks: undefined, lastWritten: undefined, reconciling: false, requested: false }));
+export const panesHeld = (): TPanesHeld => pagePinned(PANES_HELD_KEY, () => ({ strip: undefined, hooks: undefined, lastWritten: undefined, reconciling: false, requested: false }));
 
 /** Returns the pane strip over `strip`, whose panes carry the names `marks` gives. */
 export const pagePaneStrip = (strip: TStripElement, marks: TPaneMarks): TPaneStrip => browserPaneStrip(document, customElements, strip, marks);
@@ -161,7 +204,7 @@ export const installRemedies = (remedies: TRemedies): TRemedies => pagePinned(RE
 export const pageRecords = (): TRecordStore =>
 	pagePinned(
 		RECORDS_KEY,
-		(): TRecordStore => ({ entries: new Map(), listeners: new Set(), unsubscribe: undefined }),
+		() => ({ entries: new Map(), listeners: new Set(), unsubscribe: undefined }),
 		(store) => store.unsubscribe?.(),
 	);
 
@@ -176,7 +219,7 @@ export const pagePresenterMount = (): TPresenterMount => pagePinned(PRESENTER_MO
 export function pageBlips(capacity: number): TBlipChannel {
 	const { ring, sending } = pagePinned(
 		BLIPS_KEY,
-		(): { ring: TBlipRing; sending: TBlipSending } => ({ ring: blipRing(capacity), sending: { cancel: undefined } }),
+		() => ({ ring: blipRing(capacity), sending: { cancel: undefined } }),
 		(held) => held.sending.cancel?.(),
 	);
 	return { ring, sending, clock: pageClock(), may: (action) => pageAuthorityPort().may(action), conduit: !pageOffline() && hasConduit() ? pageConduit() : undefined, log: pageLog };
@@ -193,7 +236,7 @@ export const pageRegistry = (): Machine<TRegistryState, TRegistryEvent> => pageP
 export const registryReads = (): TRegistryReads =>
 	pagePinned(
 		REGISTRY_READS_KEY,
-		(): TRegistryReads => ({ pending: undefined, againQueued: false, unfollow: undefined }),
+		() => ({ pending: undefined, againQueued: false, unfollow: undefined }),
 		(reads) => reads.unfollow?.(),
 	);
 
@@ -220,7 +263,7 @@ const streamReports = (): TStreamReports => {
 	};
 };
 
-const installedStream = (): { stream?: TEventStream } => pagePinned(EVENT_STREAM_KEY, () => ({}));
+const installedStream = () => pagePinned(EVENT_STREAM_KEY, () => ({}));
 
 /** Installs the page's stream of actuality's events, read from actuality's stream at `source`. A served page installs it. */
 export function installLiveEventStream(source: () => TLiveStreamSource): TEventStream {
@@ -256,7 +299,7 @@ export function pageEventStream(): TEventStream {
 	return stream;
 }
 
-const installedHydration = (): { hydration: THydrationRead | undefined } => pagePinned(HYDRATION_KEY, () => ({ hydration: undefined }));
+const installedHydration = () => pagePinned(HYDRATION_KEY, () => ({ hydration: undefined }));
 
 /** Installs `hydration` as what the page holds of its hydration. The page's start reads it before anything else. */
 export function installHydration(hydration: THydrationRead): THydrationRead {
@@ -271,7 +314,7 @@ export function pageHydration(): THydrationRead {
 	return hydration;
 }
 
-const installedAuthority = (): { authority: TAuthority | undefined } => pagePinned(AUTHORITY_PORT_KEY, () => ({ authority: undefined }));
+const installedAuthority = () => pagePinned(AUTHORITY_PORT_KEY, () => ({ authority: undefined }));
 
 /** Installs `authority` as the reader's authority on the page. The page's start, and a test's `setupShuTest`, install the
  *  authority area's (`page/authority/`). */
@@ -287,7 +330,7 @@ export function pageAuthorityPort(): TAuthority {
 	return authority;
 }
 
-const installedConduit = (): { conduit?: TConduit } => pagePinned(CONDUIT_KEY, () => ({}));
+const installedConduit = () => pagePinned(CONDUIT_KEY, () => ({}));
 
 /** Installs `conduit` as the page's conduit, in place of the conduit the page holds. A test installs its own. */
 export function installConduit(conduit: TConduit): TConduit {
@@ -345,51 +388,49 @@ const conduitHeld = () => pagePinned(CONDUIT_HELD_KEY, initialConduitHeld);
 /** Returns when the site last responded to the page, or undefined where it hasn't responded. */
 export const lastResponseAt = (): number | undefined => conduitHeld().respondedAt;
 
-/** A machine of the page: its state and its moves are cells the page holds under `key`, so every view in every bundle reads
- *  the state and follows the moves. */
-export const sharedMachine = <S, E>(key: string, initial: S, transition: TTransition<S, E>): Machine<S, E> & { readonly state: TSharedCell<S> } =>
-	new Machine(new SharedCell(key, initial), new SharedCell<TMove<S, E> | null>(`${key}:moves`, null), transition) as Machine<S, E> & { readonly state: TSharedCell<S> };
+/** The current-subject machine: one instance, whose state and moves are cells every view in every bundle reads and follows. */
+export const subjectMachine = new Machine(new SharedCell("currentSubject", INITIAL_SUBJECT), new SharedCell("currentSubject:moves", null), subjectTransition);
 
 /** The page's time cursor, in epoch milliseconds, or null where the page follows actuality as it happens. A view opened at
  *  a moment holds its own cursor. */
-export const timeCursor = new SharedCell<number | null>("timeCursor", null);
+export const timeCursor = new SharedCell("timeCursor", null);
 
 /** The column key of the pane the reader acts from, or null where the query pane is active. The pane router writes it, and
  *  the ask's context, each view's `isActiveView`, the strip and the graph view's dimming read it. */
-export const activePane = new SharedCell<string | null>("activePane", null);
+export const activePane = new SharedCell("activePane", null);
 
 /** What the view the reader acts from states it shows, or null until a view states it. The page writes it from each view's
  *  `CONTEXT_CHANGE`. */
-export const pageContext = new SharedCell<TPageContext | null>("pageContext", null);
+export const pageContext = new SharedCell("pageContext", null);
 
 /** The pane docked along the bottom of the page, or null where a pane isn't docked. The docked pane writes it, and the page
  *  strip opens and closes the pane through it. */
-export const dockedPane = new SharedCell<TDockedPane | null>("dockedPane", null);
+export const dockedPane = new SharedCell("dockedPane", null);
 
 /** The types the page searches. The actions bar's search writes it, and the page strip offers them beside what it found. */
-export const pageTypes = new SharedCell<TPageTypes>("pageTypes", { options: [], selected: "" });
+export const pageTypes = new SharedCell("pageTypes", { options: [], selected: "" });
 
 /** What the page's breadcrumb names first: the search the query surface states. The actions bar's search writes it. */
-export const pageTrail = new SharedCell<string>("pageTrail", NOTHING_SELECTED_LABEL);
+export const pageTrail = new SharedCell("pageTrail", NOTHING_SELECTED_LABEL);
 
 /** What the page reports of itself, which the page strip shows: a failure, a site that didn't respond. */
-export const pageStatus = new SharedCell<string>("pageStatus", "");
+export const pageStatus = new SharedCell("pageStatus", "");
 
 /** The dropdown values each type's fields offer, by type, as the site returned them and its live quads added to them. */
-export const selectValues = new SharedCell<Readonly<Record<string, Record<string, string[]>>>>("selectValues", {});
+export const selectValues = new SharedCell("selectValues", {});
 
 /** The panes the column strip holds, in its order. The strip writes it. */
-export const stripPanes = new SharedCell<ReadonlyArray<TStripPane>>("stripPanes", []);
+export const stripPanes = new SharedCell("stripPanes", []);
 
 /** The page the reader has open in the window that embeds shu, as the embedding page last posted it, or null where the
  *  reader doesn't have a page open. */
-export const embeddedPageView = new SharedCell<TEmbeddedPageView | null>("embeddedPageView", null);
+export const embeddedPageView = new SharedCell("embeddedPageView", null);
 
 /** The delegation the embedding page last gave shu's page key, or null where it hasn't given one. */
-export const givenDelegation = new SharedCell<TDelegation | null>("givenDelegation", null);
+export const givenDelegation = new SharedCell("givenDelegation", null);
 
 /** Returns what the page holds once under `key`, made by `make` the first time, so every importer on the page reads one instance. */
-export const pageHeld = <T>(key: string, make: () => T): T => pagePinned(key, make);
+export const pageHeld = <K extends keyof TShuPageValues>(key: K, make: () => TShuPageValues[K]): TShuPageValues[K] => pagePinned(key, make);
 
 /** Whether the page is a report that carries actuality's records, rather than a page a site serves. */
 export const pageOffline = (): boolean => pageHydration().carried() !== undefined;

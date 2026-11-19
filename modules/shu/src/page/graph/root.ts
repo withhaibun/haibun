@@ -15,7 +15,14 @@ import { pageLog } from "../root.js";
 import type { TGraphContextDocument, TGraphEngine, TGraphFrameLoop, TGraphFrameTime } from "./ports.js";
 
 const CONTEXT_DOCUMENT_KEY = "__SHU_GRAPH_CONTEXT_DOCUMENT__";
-const SNAPSHOTS_KEY = "__SHU_GRAPH_SNAPSHOTS__";
+export const SNAPSHOTS_KEY = "__SHU_GRAPH_SNAPSHOTS__";
+
+declare global {
+	interface TShuPageValues {
+		[CONTEXT_DOCUMENT_KEY]: TGraphContextDocument;
+		[SNAPSHOTS_KEY]: SnapshotStore;
+	}
+}
 
 /** The frame loop a scene draws with, built for one scene: the gate that runs the media's render loop while something
  *  moves, driven by the scene's own bound render. `afterDraw` places the frame timing's fence after each drawn frame. */
