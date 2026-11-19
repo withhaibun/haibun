@@ -14,7 +14,7 @@ import { recordTermsOf } from "../derivations/n3.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { logicEngine, reasoner } from "../root.js";
 import { contractChecks, contractProofs } from "./contract-checks.js";
-import { drawnNames, proofFrames } from "../derivations/proof-frames.js";
+import { proofFrames } from "../derivations/proof-frames.js";
 
 /** A grant as a call states it: the node of a stored grant. */
 const grant = (fields: Record<string, unknown>) => ({ [NODE_KEY.type]: GRANT.topology.persistedAs, ...fields });
@@ -55,8 +55,12 @@ describe("a call's check against its contract's statements", () => {
 			[VERDICT.refuted, `the call's facts derive ( ${iri("urn:cap:parent")} ) <urn:haibun:relation:revoked_grant> true .`],
 		]);
 		const proofs = await contractProofs([SHARES_ACTION, REVOKED_GRANT, CONTROLS_GRANT], reasoner(), checkN3(CONTRACT_CHECK.requires, checked.facts));
-		const frames = proofFrames(proofs, { persistedAs: "SeqPath", id: "the-step" }, drawnNames(recordTermsOf(world.domains, world.runtime.records)));
+		const frames = proofFrames(proofs, { persistedAs: "SeqPath", id: "the-step" }, recordTermsOf(world.domains, world.runtime.records));
 		expect(frames.assumptions.map(({ dl }) => dl).join("\n"), "the revocation the check read is an assumption").toContain("2026-11-01T00:00:00Z");
+		expect(
+			frames.assumptions.map(({ fact }) => fact),
+			"the assumption states the revocation as a fact of the grant, which a passage can quote",
+		).toContainEqual({ of: { persistedAs: GRANT.topology.persistedAs, id: "urn:cap:parent" }, value: "2026-11-01T00:00:00Z" });
 		const revoked = frames.derived.find(({ dl }) => dl === "revoked_grant(urn:cap:parent)");
 		expect(revoked?.name.split(" ")[0], "the selected triple is in the conclusion").toBe("conclusion");
 		expect(revoked?.nodes, "the conclusion names the record it states, which the graph view highlights").toEqual(["urn:cap:parent"]);

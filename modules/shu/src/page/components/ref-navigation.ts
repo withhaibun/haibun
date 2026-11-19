@@ -17,6 +17,7 @@ import { esc, escAttr, stepPathOf, type TNamedRef, type TRef, type TRefTarget } 
 import { paneOfEntry, requestPaneFrom } from "../controllers/pane-controller.js";
 import { addsToSelection, columnEntryOf, type DesiredPane } from "../derivations/pane-kinds.js";
 import { typeShownIn } from "../controllers/catalog-controller.js";
+import type { TEvidence } from "../domains/claims.js";
 import { SHU_TAG } from "../../domains/elements.js";
 
 /** The pane each kind of reference to a record opens. A part of an individual addresses a passage or a fragment of media inside
@@ -100,6 +101,14 @@ export function openRef(source: Element | Event, ref: TRef, addToSelection = fal
 
 /** The inline markup for a link to a pane, for a view that renders a string of markup: an anchor whose href is the
  *  pane's address. Without an address, the text alone. */
+/** The address of the passage `evidence` quotes: its source's pane, opened with the passage selected. */
+export const passageHref = ({ quote, source }: TEvidence): string | undefined =>
+	refHref({ kind: REF_DENOTES.individual, target: { persistedAs: source.label, id: source.id, selector: quote } });
+
+/** The name of a link to the passage that quotes `what`, by where the passage is and the step that extracted it. */
+export const passageName = (what: string, { source, extractedBy }: TEvidence): string =>
+	`${what} as ${source.label} ${source.id} quotes it${extractedBy === undefined ? "" : `, which step ${extractedBy} extracted`}`;
+
 export function linkHtml(href: string | undefined, text: string, attrs = "", linkClass = "col-link"): string {
 	return href ? `<a class="${linkClass}" href="${escAttr(href)}"${attrs}>${esc(text)}</a>` : esc(text);
 }

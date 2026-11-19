@@ -44,6 +44,9 @@ const FrameSchema = z
 		dl: z.string(),
 		statement: z.string(),
 		assertedBy: AssertedBySchema.optional(),
+		/** The fact an individual's frame states of a record, where it states a value of the record's: the record and the value, which
+		 *  a passage of the record's source can quote. */
+		fact: z.object({ of: AssertedBySchema, value: z.string() }).strict().optional(),
 		/** An individual's types the ontology entails beside the one its record asserts: its type's superclasses. */
 		entailed: z.array(z.string()).optional(),
 		nodes: z.array(z.string()),

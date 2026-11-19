@@ -276,7 +276,7 @@ export const SHU_TEST_IDS = {
 		SCENE_ERROR: "polymorphic-scene-error",
 	},
 	/** The axioms pane: its lines, a frame each. */
-	GRAPH_SOURCE: { LINES: "graph-source-lines" },
+	GRAPH_SOURCE: { LINES: "graph-source-lines", PASSAGE: "graph-source-passage" },
 	AFFORDANCES: { ROOT: "shu-affordances", GOALS_LIST: "affordances-goals", EMPTY: "affordances-empty", CHAIN: "affordances-chain" },
 	DOMAIN_CHAIN: {
 		ROOT: "shu-domain-chain",

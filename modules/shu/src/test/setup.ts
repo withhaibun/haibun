@@ -21,7 +21,7 @@ import type { TRecordClaim } from "../page/domains/claims.js";
 import { vi } from "vitest";
 import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { actualityAt } from "@haibun/core/lib/transport/adapters/rpc-call.js";
-import { HYDRATION_ID } from "../domains/elements.js";
+import { HYDRATION_ID, RPC_METHOD } from "../domains/elements.js";
 import { RESPONSE_TIMEOUT_MS, type TDeploymentSettings } from "../domains/hydration.js";
 import { installAuthority, installConduit, installHydration, installCarriedEventStream, pagePreferences } from "../page/root.js";
 import { readHydration } from "../page/pipelines/hydrate.js";
@@ -279,15 +279,22 @@ const WindowedReadSchema = z.object({ statement: z.object({ params: z.object({ s
 /** The notes anchored in a record, as the annotations step returns them. */
 export const annotationList = (annotations: TAnnotationView[]): { annotations: TAnnotationView[]; total: number } => ({ annotations, total: annotations.length });
 
+/** The step that reads the derivation actuality recorded for a step, which a site that serves a derivation holds. */
+const DERIVATION_STEP = { method: RPC_METHOD.RECORDED_DERIVATION, stepperName: "LogicStepper", stepName: "recordedDerivation", pattern: "show derivation of {step}" };
+
 export function makeEntityDispatch(over: {
 	entity: (params: Record<string, unknown>) => unknown;
 	annotations?: () => unknown;
 	claims?: (subject: string) => readonly TRecordClaim[];
+	/** The derivation recorded for the step the call names. */
+	derivation?: (params: Record<string, unknown>) => unknown;
 	concerns?: TConcernCatalog;
 }): TDispatch {
 	const claimsOf = (subject: string) => (over.claims === undefined ? [] : over.claims(subject));
+	const steps = over.derivation === undefined ? ENTITY_STEPS : [...ENTITY_STEPS, DERIVATION_STEP];
 	return (method, params) => {
-		if (method === SHOW_STEP_DEFINITIONS_METHOD) return over.concerns === undefined ? ENTITY_STEP_LIST : stepsShown(ENTITY_STEPS, {}, over.concerns);
+		if (method === SHOW_STEP_DEFINITIONS_METHOD) return over.concerns === undefined && over.derivation === undefined ? ENTITY_STEP_LIST : stepsShown(steps, {}, over.concerns);
+		if (method === RPC_METHOD.RECORDED_DERIVATION && over.derivation !== undefined) return over.derivation(params);
 		// The claims about a record are the EARL assertions whose subject is the record, read as the edges that reach its test subject.
 		if (method === LIMITED_TO_METHOD) {
 			const { label, id } = z.object({ label: z.string(), id: z.string() }).parse(WindowedReadSchema.parse(params).statement.params.statement.params);

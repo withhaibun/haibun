@@ -36,7 +36,7 @@ import {
 	firstDeclaredType,
 } from "../controllers/catalog-controller.js";
 import { propertyVocabulary } from "../../derivations/ontology-projection.js";
-import { linkHtml, paneHref, refHref } from "./ref-navigation.js";
+import { linkHtml, paneHref, passageHref, passageName, refHref } from "./ref-navigation.js";
 import { titlePane } from "../derivations/pane-kinds.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { pageAddress } from "../controllers/hash-controller.js";
@@ -831,9 +831,9 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const values = new Set([value].flat());
 		return this.#evidence
 			.filter(({ quote }) => values.has(quote.exact))
-			.map(({ quote, source, extractedBy }) => {
-				const href = refHref({ kind: REF_DENOTES.individual, target: { persistedAs: source.label, id: source.id, selector: quote } });
-				const named = `the ${field} as ${source.label} ${source.id} quotes it${extractedBy === undefined ? "" : `, which step ${extractedBy} extracted`}`;
+			.map((evidence) => {
+				const href = passageHref(evidence);
+				const named = passageName(`the ${field}`, evidence);
 				return href === undefined
 					? ""
 					: ` ${linkHtml(href, "quote", ` data-testid="${SHU_TEST_IDS.CLAIMS.EVIDENCE}-${escAttr(field)}" aria-label="${escAttr(named)}"`, "col-link evidence")}`;

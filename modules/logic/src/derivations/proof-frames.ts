@@ -3,7 +3,8 @@
  * assumptions, the statements the relations' rules derived from them follow, and the relations' triples the check selected are
  * its conclusion. A relation's triple renders as the relation's assertion over its arguments, and any other fact as a property
  * assertion of the individual it states. Each frame names the individuals it states as the graph draws them, which the graph view
- * highlights, and the step's record whose check it proves.
+ * highlights, the step's record whose check it proves, and the fact it states of a record where it states a value of the record's,
+ * so a view links an assumption to the passage that quotes the value.
  */
 import type { Quad, Term } from "@rdfjs/types";
 import { RDF } from "@haibun/core/lib/domains/vocabularies.js";
@@ -25,11 +26,14 @@ export type TProofFrames = { readonly assumptions: readonly TFrame[]; readonly d
 const LIST_PREDICATES: ReadonlySet<string> = new Set([RDF.first, RDF.rest]);
 
 /** Returns the name of a term as the graph draws it: a record by its id, and any other term by its value. */
-export type TNameOf = (term: Term) => string;
+type TNameOf = (term: Term) => string;
+
+/** The terms a proof's frames read: the record each IRI names. */
+type TFrameTerms = Pick<TRecordTerms, "recordAt">;
 
 /** Returns the names `terms` gives the graph: a record's IRI as the record's id, and any other term as its value. */
-export const drawnNames =
-	(terms: Pick<TRecordTerms, "recordAt">): TNameOf =>
+const drawnNames =
+	(terms: TFrameTerms): TNameOf =>
 	(term) => {
 		const record = terms.recordAt(term);
 		return record === undefined ? term.value : record.id;
@@ -42,7 +46,8 @@ const named = (terms: readonly Term[], nameOf: TNameOf): string[] => terms.flatM
 type TStated = { quad: Quad; args: readonly Term[]; part: TProofPart };
 
 /** Returns the frame of a statement, the `at`th of the proofs. */
-function frameOf({ quad, args, part }: TStated, at: number, step: NonNullable<TFrame["assertedBy"]>, nameOf: TNameOf): TFrame {
+function frameOf({ quad, args, part }: TStated, at: number, step: NonNullable<TFrame["assertedBy"]>, terms: TFrameTerms): TFrame {
+	const nameOf = drawnNames(terms);
 	const { subject, predicate, object } = quad;
 	const relation = predicate.value.startsWith(RELATION_NAMESPACE) ? predicate.value.slice(RELATION_NAMESPACE.length) : undefined;
 	const assertion = `${relation}(${args.map((arg) => (arg.termType === "NamedNode" ? nameOf(arg) : arg.value)).join(", ")})`;
@@ -51,12 +56,14 @@ function frameOf({ quad, args, part }: TStated, at: number, step: NonNullable<TF
 		relation === undefined
 			? individualAxioms(nameOf(subject), [], [{ property: predicate.value, value: individual ? nameOf(object) : object.value, individual }])
 			: { manchester: assertion, dl: assertion };
+	const of = relation === undefined && object.termType === "Literal" ? terms.recordAt(subject) : undefined;
 	return {
 		name: `${part} ${at}`,
 		kind: FRAME_KIND.individual,
 		...axioms,
 		statement: `${part}: ${axioms.dl}`,
 		assertedBy: step,
+		...(of === undefined ? {} : { fact: { of, value: object.value } }),
 		nodes: relation === undefined ? named([subject, object], nameOf) : named(args, nameOf),
 		edges: [],
 	};
@@ -83,9 +90,9 @@ function statedIn(proof: TProof): TStated[] {
 }
 
 /** Returns the frames of each proof of `proofs`, in their order, as the proofs of the checks of the step whose record `step` names,
- *  each term named as `nameOf` names it. */
-export function proofFrames(proofs: readonly TProof[], step: NonNullable<TFrame["assertedBy"]>, nameOf: TNameOf): TProofFrames {
+ *  each term named as the graph draws the record `terms` reads it as. */
+export function proofFrames(proofs: readonly TProof[], step: NonNullable<TFrame["assertedBy"]>, terms: TFrameTerms): TProofFrames {
 	const stated = proofs.flatMap(statedIn);
-	const framesOf = (assumed: boolean): TFrame[] => stated.flatMap((one, at) => ((one.part === PROOF_PART.assumption) === assumed ? [frameOf(one, at + 1, step, nameOf)] : []));
+	const framesOf = (assumed: boolean): TFrame[] => stated.flatMap((one, at) => ((one.part === PROOF_PART.assumption) === assumed ? [frameOf(one, at + 1, step, terms)] : []));
 	return { assumptions: framesOf(true), derived: framesOf(false) };
 }

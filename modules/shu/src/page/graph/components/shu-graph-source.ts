@@ -8,7 +8,8 @@
  * The pane shows what `show axioms of {view}` returned, which a graph view's ¶ control and an edge chosen in its DL view open it
  * with, the latter at the frame that states it. It holds the view the axioms state, so it reads that view again
  * in another format. A derivation's products open it at the frame of the first goal the proof couldn't prove, and a proof
- * doesn't state a view to read again.
+ * doesn't state a view to read again. A frame that states a value of a record links to each passage of the record's source that
+ * quotes the value, which opens the source with the passage selected.
  */
 import { css, html, nothing, type PropertyValues, type TemplateResult } from "lit";
 import { z } from "zod";
@@ -20,13 +21,15 @@ import { defineElement } from "../../controllers/element-controller.js";
 import { saveFile } from "../../controllers/file-controller.js";
 import { LoadController } from "../../controllers/load-controller.js";
 import { typeShownIn } from "../../controllers/catalog-controller.js";
-import { callStep } from "../../controllers/read-controller.js";
+import { callStep, recordEvidenceRead, recordRead } from "../../controllers/read-controller.js";
 import type { TCallOutcome } from "../../pipelines/call-step.js";
+import type { TPageRefusal } from "../../domains/refusal.js";
 import { SubjectController } from "../../controllers/subject-controller.js";
 import { ShuElement, type TLinkedData } from "../../components/shu-element.js";
 import { shuBaseStyles } from "../../components/styles.js";
 import { revealInDocument } from "../../components/reveal.js";
-import { paneHref } from "../../components/ref-navigation.js";
+import { paneHref, passageHref, passageName } from "../../components/ref-navigation.js";
+import type { TEvidence } from "../../domains/claims.js";
 import "../../components/shu-refusal.js";
 import { SOURCE_FORMATS, SOURCE_FORMAT_IDS, sourceFormat, type TSourceFormat } from "../domains/sources.js";
 import { frameOfNode, lineAfterKey, linesOf, provenanceOf, statusOf, summaryOf } from "../derivations/source-lines.js";
@@ -54,6 +57,15 @@ function termRef({ kind, assertedBy, name }: TFrame): TemplateResult | typeof no
 	return kind === FRAME_KIND.class ? html`<a href=${paneHref({ paneType: "type", persistedAs: type })} title=${`open the type ${type}`}>↗</a>` : nothing;
 }
 
+/** The record whose fact a frame states. */
+type TFactRecord = NonNullable<TFrame["fact"]>["of"];
+
+/** Returns the passages the record `of` cites as evidence of its values, or the refusal of its read. */
+async function passagesOf({ persistedAs, id }: TFactRecord): Promise<TCallOutcome<TEvidence[]>> {
+	const read = await recordRead(persistedAs, id);
+	return read.ok ? recordEvidenceRead(persistedAs, read.value.edges) : read;
+}
+
 class ShuGraphSource extends ShuElement<typeof GraphSourceStateSchema> {
 	static persistFields = ["format"] as const;
 
@@ -77,6 +89,7 @@ class ShuGraphSource extends ShuElement<typeof GraphSourceStateSchema> {
 			);
 			if (!derived.ok) return derived;
 			const proof = this.opened(derived.value);
+			void this.readPassages(proof.frames);
 			this.dispatchEvent(new CustomEvent(SHU_EVENT.PROOF_READ, { detail: proof.frames, bubbles: true, composed: true }));
 			return { ok: true, value: proof };
 		}
@@ -85,6 +98,10 @@ class ShuGraphSource extends ShuElement<typeof GraphSourceStateSchema> {
 		const format = sourceFormat(this.state.format);
 		return await callStep(format.step, { view }, `the graph as ${format.label}`, ViewAxiomsProductsSchema);
 	});
+	/** The passages that quote the value each frame states of a record, by the frame's name. */
+	#passages: ReadonlyMap<string, readonly TEvidence[]> = new Map();
+	/** The refusal of a read of the passages, where one was refused. */
+	#passagesRefusal: TPageRefusal | undefined = undefined;
 	/** The step whose derivation the pane reads, where it was given one. */
 	#step: string | undefined = undefined;
 	/** The reader's line. */
@@ -141,6 +158,35 @@ class ShuGraphSource extends ShuElement<typeof GraphSourceStateSchema> {
 		this.light(id === undefined ? [] : [id], axioms);
 	}
 
+	/** Reads the passages that quote the value each of `frames` states of a record, each record's once. */
+	private async readPassages(frames: readonly TFrame[]): Promise<void> {
+		[this.#passages, this.#passagesRefusal] = [new Map(), undefined];
+		const records = new Map(frames.flatMap(({ fact }) => (fact === undefined ? [] : [[`${fact.of.persistedAs}:${fact.of.id}`, fact.of] as const])));
+		const read = new Map(await Promise.all([...records].map(async ([curie, record]) => [curie, await passagesOf(record)] as const)));
+		const refused = [...read.values()].find((outcome) => !outcome.ok);
+		if (refused !== undefined && !refused.ok) this.#passagesRefusal = refused.refusal;
+		this.#passages = new Map(
+			frames.flatMap(({ name, fact }) => {
+				const cited = fact === undefined ? undefined : read.get(`${fact.of.persistedAs}:${fact.of.id}`);
+				return fact === undefined || cited === undefined || !cited.ok ? [] : [[name, cited.value.filter(({ quote }) => quote.exact === fact.value)] as const];
+			}),
+		);
+		this.requestUpdate();
+	}
+
+	/** The links from a frame to each passage that quotes the value it states, named by where the passage is and the step that
+	 *  extracted it. A frame whose passages the pane hasn't read links to an empty list. */
+	private passageLinks({ name }: TFrame): TemplateResult[] {
+		const quoting = this.#passages.get(name);
+		if (quoting === undefined) return [];
+		return quoting.flatMap((evidence) => {
+			const href = passageHref(evidence);
+			return href === undefined
+				? []
+				: [html` <a href=${href} data-testid=${SHU_TEST_IDS.GRAPH_SOURCE.PASSAGE} aria-label=${passageName(`the value ${name} states`, evidence)}>quote</a>`];
+		});
+	}
+
 	/** Lights the lines of `axioms` that state `nodes`. */
 	private light(nodes: string[], axioms: TPaneAxioms | undefined): void {
 		this.#lit = new Set(axioms === undefined ? [] : linesOf(axioms, nodes));
@@ -186,6 +232,7 @@ class ShuGraphSource extends ShuElement<typeof GraphSourceStateSchema> {
 				)}</span>
 				<button type="button" title=${`download the ${format.label} text as ${file}`} @click=${() => saveFile(axioms.text, file)}>⤓</button>
 			</div>
+			${this.#passagesRefusal === undefined ? nothing : html`<shu-refusal .refusal=${this.#passagesRefusal} .readAgain=${() => void this.readPassages(axioms.frames)}></shu-refusal>`}
 			<ol
 				role="listbox"
 				tabindex="0"
@@ -197,7 +244,7 @@ class ShuGraphSource extends ShuElement<typeof GraphSourceStateSchema> {
 			>
 				${axioms.frames.map(
 					(frame) =>
-						html`<li role="option" id=${lineId(frame.name)} data-name=${frame.name} aria-selected=${frame.name === line} class=${this.#lit.has(frame.name) ? "lit" : ""} title=${provenanceOf(frame)}>${frame.manchester} ${termRef(frame)}</li>`,
+						html`<li role="option" id=${lineId(frame.name)} data-name=${frame.name} aria-selected=${frame.name === line} class=${this.#lit.has(frame.name) ? "lit" : ""} title=${provenanceOf(frame)}>${frame.manchester} ${termRef(frame)}${this.passageLinks(frame)}</li>`,
 				)}
 			</ol>`;
 	}
