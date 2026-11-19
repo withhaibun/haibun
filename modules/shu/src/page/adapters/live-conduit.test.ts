@@ -11,8 +11,7 @@ import "fake-indexeddb/auto";
 import { ACTION_BEGIN, authorityRefusal, notFromActuality, REFUSED_INVOCATION } from "@haibun/core/lib/rpc-wire.js";
 import { openPageAuthority, pageMay } from "../authority/controllers/page-authority-controller.js";
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { reads, acts, type TLink, type TRepresentation } from "../domains/links.js";
-import { hasLink, getLink } from "../derivations/links.js";
+import { reads, acts, type TLink } from "../domains/links.js";
 import { conduit, serverLastRespondedAt } from "../controllers/conduit-controller.js";
 import { installConduit, installServedConduit } from "../root.js";
 import { ServerUnreachable, isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
@@ -46,52 +45,6 @@ describe("whether a link reads or acts", () => {
 		// @ts-expect-error a bare method isn't a link, because it doesn't state whether it reads or acts
 		const unstated: TLink = { method: "SomeStepper-showThings" };
 		expect(unstated.asks).toBeUndefined();
-	});
-});
-
-describe("hasLink", () => {
-	const rep: TRepresentation = {
-		_type: "Email",
-		_links: { trace: reads("TraceExplorerStepper-getTrace", { seqPath: "0.1.2.3" }), malformed: { params: { x: 1 } } as unknown as TLink },
-	};
-
-	it("is true for a well-formed rel entry", () => {
-		expect(hasLink(rep, "trace")).toBe(true);
-	});
-
-	it("is false for an unknown rel", () => {
-		expect(hasLink(rep, "nonexistent")).toBe(false);
-	});
-
-	it("is false for a malformed link entry (missing method)", () => {
-		expect(hasLink(rep, "malformed")).toBe(false);
-	});
-
-	it("is false when the Representation doesn't have _links", () => {
-		expect(hasLink({ _type: "Email" }, "trace")).toBe(false);
-	});
-});
-
-describe("getLink", () => {
-	const rep: TRepresentation = { _type: "Email", _links: { trace: reads("TraceExplorerStepper-getTrace", { seqPath: "0.1.2.3" }) } };
-
-	it("returns the link entry by rel name", () => {
-		const link = getLink(rep, "trace");
-		expect(link.method).toBe("TraceExplorerStepper-getTrace");
-		expect(link.params).toEqual({ seqPath: "0.1.2.3" });
-	});
-
-	it("throws a message that lists the rels in _links when the requested rel isn't one of them", () => {
-		expect(() => getLink(rep, "unknown-rel")).toThrow(/_links doesn't hold unknown-rel; it holds trace/);
-	});
-
-	it("throws where the representation doesn't hold _links", () => {
-		expect(() => getLink({ _type: "Email" }, "trace")).toThrow(/representation doesn't hold _links/);
-	});
-
-	it("throws on a malformed link entry (missing method), so a caller never receives a partial link", () => {
-		const bad: TRepresentation = { _links: { x: { params: {} } as unknown as TLink } };
-		expect(() => getLink(bad, "x")).toThrow(/_links doesn't hold x/);
 	});
 });
 

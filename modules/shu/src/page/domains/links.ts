@@ -19,9 +19,5 @@ export const reads = (method: string, params?: Record<string, unknown>, summary?
 /** Returns a link that acts in actuality. Actuality records what the step does. */
 export const acts = (method: string, params?: Record<string, unknown>, summary?: string): TLink => ({ method, params, summary, asks: "act" });
 
-/** A record as a call returns it: its fields and its hypermedia markers, each optional. A record without `_links` is a
- *  representation too. */
-export type TRepresentation = { _type?: string; _summary?: string; _description?: string; _links?: Record<string, TLink>; _seqPath?: number[]; [key: string]: unknown };
-
 /** One chunk of a streamed call, as core's emitter writes it. */
 export type { TStreamChunk };

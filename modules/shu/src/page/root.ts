@@ -6,7 +6,7 @@ import { z } from "zod";
 import { pagePinned } from "./adapters/page-held.js";
 
 /** A load made at its first use: a view loads a module it rarely needs with it. */
-export { loadedOnFirstUse } from "./adapters/page-held.js";
+export { loadedOnFirstUse, pagePinned } from "./adapters/page-held.js";
 import { SharedCell } from "./adapters/shared-cell.js";
 import { Machine, machine, type TMove } from "@haibun/core/lib/machines/machine.js";
 import { INITIAL_SUBJECT, transition as subjectTransition, type TSubjectEvent, type TSubjectState } from "./machines/current-subject.js";
@@ -428,9 +428,6 @@ export const embeddedPageView = new SharedCell("embeddedPageView", null);
 
 /** The delegation the embedding page last gave shu's page key, or null where it hasn't given one. */
 export const givenDelegation = new SharedCell("givenDelegation", null);
-
-/** Returns what the page holds once under `key`, made by `make` the first time, so every importer on the page reads one instance. */
-export const pageHeld = <K extends keyof TShuPageValues>(key: K, make: () => TShuPageValues[K]): TShuPageValues[K] => pagePinned(key, make);
 
 /** Whether the page is a report that carries actuality's records, rather than a page a site serves. */
 export const pageOffline = (): boolean => pageHydration().carried() !== undefined;

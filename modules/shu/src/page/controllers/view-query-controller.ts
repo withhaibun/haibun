@@ -7,7 +7,7 @@ import { ViewQuerySchema, QUERY_PARAMS, type TAccessQueryLevel, type TTypeNotHel
 import { parseViewQuery, queryParams } from "../derivations/view-query.js";
 import * as Address from "../derivations/address.js";
 import { Signal } from "@lit-labs/signals";
-import { pageHeld } from "../root.js";
+import { pagePinned } from "../root.js";
 import * as PageHash from "./hash-controller.js";
 
 const VIEW_QUERY_KEY = "__SHU_VIEW_QUERY__";
@@ -33,7 +33,7 @@ type TViewQueryStore = {
 
 /** Returns the view query's signals, which the page holds once, so every importer on the page reads one instance. */
 const store = (): TViewQueryStore =>
-	pageHeld(VIEW_QUERY_KEY, () => {
+	pagePinned(VIEW_QUERY_KEY, () => {
 		const d = ViewQuerySchema.parse({});
 		return {
 			label: new Signal.State(d.label),
