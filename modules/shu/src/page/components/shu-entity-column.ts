@@ -44,7 +44,7 @@ import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { counted, statedTotal, type TCallLink, type TCounted } from "@haibun/core/lib/domains/hypermedia.js";
 import { isJsonMedia, MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
-import { HYPERMEDIA, productData } from "@haibun/core/lib/domains/protocol.js";
+import { HYPERMEDIA, productData, STATEMENT_STATUS } from "@haibun/core/lib/domains/protocol.js";
 import { ClockController } from "../controllers/clock-controller.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
 import { appAccessLevel } from "../controllers/view-query-controller.js";
@@ -423,7 +423,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 				.map(([k, v]) => {
 					if (this.isTypeField(k)) return this.typeRow(k, v);
 					const valueHtml = Array.isArray(v) ? v.map((item) => this.formatFieldValue(item, k)).join(", ") : this.formatFieldValue(v, k);
-					return `<tr><td class="field-name">${this.predicateLink(k)}${this.vocabBadge(k)}</td><td data-testid="entity-field-${escAttr(k)}" data-copy="${escAttr(k)}">${valueHtml}${this.fieldEvidence(k, v)}${this.fieldStatus(k)}</td></tr>`;
+					return `<tr><td class="field-name">${this.predicateLink(k)}${this.vocabBadge(k)}</td><td data-testid="entity-field-${escAttr(k)}" data-copy="${escAttr(k)}">${valueHtml}${this.fieldEvidence(k, v)}${this.fieldStatus(k, v)}</td></tr>`;
 				})
 				.join("");
 			const detailTable = detailRows ? `<table class="detail-table fields-table" data-testid="entity-fields">${detailRows}</table>` : "";
@@ -440,7 +440,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 								if (!v || (Array.isArray(v) && v.length === 0)) return [];
 								const valueHtml = Array.isArray(v) ? v.map((item) => this.fieldValueHtml(item, k)).join(", ") : this.fieldValueHtml(v, k);
 								return [
-									`<span class="summary-field" data-testid="entity-field-${escAttr(k)}" data-copy="${escAttr(k)}">${this.predicateLink(k)}${this.vocabBadge(k)} ${valueHtml}${this.fieldEvidence(k, v)}${this.fieldStatus(k)}</span>`,
+									`<span class="summary-field" data-testid="entity-field-${escAttr(k)}" data-copy="${escAttr(k)}">${this.predicateLink(k)}${this.vocabBadge(k)} ${valueHtml}${this.fieldEvidence(k, v)}${this.fieldStatus(k, v)}</span>`,
 								];
 							})
 							.join(" ")}</div>`
@@ -813,11 +813,16 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		return `<sup class="vocab vocab-${v.source}" data-testid="vocab-${escAttr(propertyName)}" title="${escAttr(v.source === "haibun" ? "haibun vocabulary" : `${v.prefix} vocabulary`)}">${esc(v.prefix)}</sup>`;
 	}
 
-	/** The status of the claim the reasoner made of a field, beside the field's value, described by the claim's sentence. Empty
-	 *  where the reasoner didn't make a claim of the field. */
-	private fieldStatus(field: string): string {
+	/** The status of a field beside its value: the verdict of the claim the reasoner made of it, described by the claim's sentence,
+	 *  or assumed where a passage of outside input quotes its value and a claim hasn't determined it. Empty otherwise. */
+	private fieldStatus(field: string, value: string | string[]): string {
+		const testId = `${SHU_TEST_IDS.CLAIMS.FIELD_STATUS}-${field}`;
 		const claim = this.#claims.find((held) => held.field === field);
-		return claim === undefined ? "" : ` ${verdictStatusHtml(`${SHU_TEST_IDS.CLAIMS.FIELD_STATUS}-${field}`, claim.test, claim.verdict)}`;
+		if (claim !== undefined) return ` ${verdictStatusHtml(testId, claim.test, claim.verdict)}`;
+		const values = new Set([value].flat());
+		return this.#evidence.some(({ quote }) => values.has(quote.exact))
+			? ` ${verdictStatusHtml(testId, `the ${field} rests on the passage that quotes it`, STATEMENT_STATUS.assumed)}`
+			: "";
 	}
 
 	/** The link from a field to each passage that quotes its value in the record's source, which opens the source with the passage

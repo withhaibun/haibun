@@ -393,6 +393,12 @@ export const VERDICT = { proved: "proved", refuted: "refuted", unknown: "unknown
 export type TVerdict = (typeof VERDICT)[keyof typeof VERDICT];
 /** The mark a verdict shows beside its word, so colour isn't the only signal of a statement's status. */
 export const VERDICT_MARK = { proved: "✓", refuted: "✗", unknown: "?", contradiction: "⊥" } as const satisfies Record<TVerdict, string>;
+/** A statement's status as a view shows it: a verdict, or assumed where the statement rests on input from outside actuality and
+ *  a claim hasn't determined it. */
+export const STATEMENT_STATUS = { ...VERDICT, assumed: "assumed" } as const;
+export type TStatementStatus = (typeof STATEMENT_STATUS)[keyof typeof STATEMENT_STATUS];
+/** The mark each status shows beside its word. */
+export const STATUS_MARK = { ...VERDICT_MARK, assumed: "≈" } as const satisfies Record<TStatementStatus, string>;
 
 /** The stepper a configuration lists to supply the logic engine that proves every step. */
 export const LOGIC_STEPPER = "@haibun/logic/logic-stepper";

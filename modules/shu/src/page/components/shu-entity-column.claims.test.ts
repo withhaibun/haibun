@@ -4,7 +4,7 @@
 import { heldRecordIri } from "@haibun/core/lib/test/declared-types.js";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { counted } from "@haibun/core/lib/domains/hypermedia.js";
-import { VERDICT } from "@haibun/core/lib/domains/protocol.js";
+import { STATEMENT_STATUS, STATUS_MARK, VERDICT } from "@haibun/core/lib/domains/protocol.js";
 import { ShuEntityColumn } from "./shu-entity-column.js";
 import { setupShuTest, makeEntityDispatch, type TShuTestHandle } from "../../test/setup.js";
 import { endPage } from "../adapters/page-held.js";
@@ -27,33 +27,35 @@ const CLAIMS: readonly TRecordClaim[] = [
 const QUOTE = { exact: "a task", prefix: "the title is ", suffix: " today" };
 const STEP = "1795000000000-1.0.1";
 
+/** The site of the Task t1, whose title the Body b1 quotes, with `claims` about the Task. */
+const taskDispatch = (claims: readonly TRecordClaim[]) =>
+	makeEntityDispatch({
+		entity: (params) =>
+			params.label === SPECIFIC_RESOURCE_LABEL
+				? {
+						vertex: { "@id": heldRecordIri(SPECIFIC_RESOURCE_LABEL, "sr1") },
+						edges: [
+							{ type: LinkRelations.HAS_SELECTOR.rel, direction: "out", target: QUOTE },
+							{ type: LinkRelations.HAS_SOURCE.rel, direction: "out", target: { "@id": heldRecordIri("Body", "b1"), "@type": "Body" } },
+							{ type: LinkRelations.WAS_GENERATED_BY.rel, direction: "out", target: { "@id": heldRecordIri("SeqPath", STEP) } },
+						],
+						incomingCount: counted(0),
+					}
+				: {
+						vertex: { "@id": heldRecordIri("Task", "t1"), title: "a task", status: "open" },
+						edges: [{ type: EVIDENCE_EDGE.rel, direction: "out", target: { "@id": heldRecordIri(SPECIFIC_RESOURCE_LABEL, "sr1") } }],
+						incomingCount: counted(0),
+					},
+		claims: (subject) => (subject === "Task:t1" ? claims : []),
+		concerns: catalogOf({ types: ["Task", "Body", SPECIFIC_RESOURCE_LABEL, "SeqPath"], edgeRanges: { Task: { [EVIDENCE_EDGE.rel]: [SPECIFIC_RESOURCE_LABEL] } } }),
+	});
+
 describe("shu-entity-column claims", () => {
 	let handle: TShuTestHandle;
 	beforeEach(() => {
 		endPage();
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
-		handle = setupShuTest({
-			dispatch: makeEntityDispatch({
-				entity: (params) =>
-					params.label === SPECIFIC_RESOURCE_LABEL
-						? {
-								vertex: { "@id": heldRecordIri(SPECIFIC_RESOURCE_LABEL, "sr1") },
-								edges: [
-									{ type: LinkRelations.HAS_SELECTOR.rel, direction: "out", target: QUOTE },
-									{ type: LinkRelations.HAS_SOURCE.rel, direction: "out", target: { "@id": heldRecordIri("Body", "b1"), "@type": "Body" } },
-									{ type: LinkRelations.WAS_GENERATED_BY.rel, direction: "out", target: { "@id": heldRecordIri("SeqPath", STEP) } },
-								],
-								incomingCount: counted(0),
-							}
-						: {
-								vertex: { "@id": heldRecordIri("Task", "t1"), title: "a task", status: "open" },
-								edges: [{ type: EVIDENCE_EDGE.rel, direction: "out", target: { "@id": heldRecordIri(SPECIFIC_RESOURCE_LABEL, "sr1") } }],
-								incomingCount: counted(0),
-							},
-				claims: (subject) => (subject === "Task:t1" ? CLAIMS : []),
-				concerns: catalogOf({ types: ["Task", "Body", SPECIFIC_RESOURCE_LABEL, "SeqPath"], edgeRanges: { Task: { [EVIDENCE_EDGE.rel]: [SPECIFIC_RESOURCE_LABEL] } } }),
-			}),
-		});
+		handle = setupShuTest({ dispatch: taskDispatch(CLAIMS) });
 	});
 	afterEach(() => handle.teardown());
 
@@ -94,5 +96,27 @@ describe("shu-entity-column claims", () => {
 		expect(decodeURIComponent(decodeURIComponent(link.getAttribute("href") ?? "")), "the link opens the Body at the passage, as a text fragment states it").toContain(
 			`e:Body:b1:~:text=${QUOTE.prefix}-,${QUOTE.exact},-${QUOTE.suffix}`,
 		);
+	});
+});
+
+describe("shu-entity-column assumed field", () => {
+	let handle: TShuTestHandle;
+	beforeEach(() => {
+		endPage();
+		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
+		handle = setupShuTest({ dispatch: taskDispatch([]) });
+	});
+	afterEach(() => handle.teardown());
+
+	it("shows a field a passage of outside input quotes as assumed where a claim hasn't determined it", async () => {
+		const el = document.body.appendChild(new ShuEntityColumn());
+		await el.open("t1", "Task");
+		const status = await vi.waitFor(() => {
+			const found = el.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.CLAIMS.FIELD_STATUS}-title"]`);
+			if (found === null || found === undefined) throw new Error("the title's status isn't shown yet");
+			return found;
+		});
+		expect(status.textContent?.trim()).toBe(`${STATUS_MARK.assumed} ${STATEMENT_STATUS.assumed}`);
+		expect(status.getAttribute("aria-description")).toBe("the title rests on the passage that quotes it");
 	});
 });
