@@ -7,7 +7,7 @@
  */
 import type { AxeResults, Result } from "axe-core";
 import { isWebAddress } from "@haibun/core/lib/domains/document-content.js";
-import { EARL_MODE, EARL_OUTCOME, type TEarlAssertions } from "../domains/earl.js";
+import { EARL_MODE, EARL_OUTCOME, type TEarlAssertions } from "@haibun/core/lib/domains/earl.js";
 
 /** Each list of rules axe states that is recorded, by the EARL outcome it is, the most severe first. */
 const OUTCOME_OF = { violations: EARL_OUTCOME.failed, incomplete: EARL_OUTCOME.cantTell, passes: EARL_OUTCOME.passed } as const;

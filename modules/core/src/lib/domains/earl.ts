@@ -6,9 +6,9 @@
  * class, so a test case or a subject that several assertions name is one record they share. An assertion links to the
  * step that made it, so what a step found is read the same way as what a step produced.
  */
-import { PROV_AGENT } from "@haibun/core/lib/domains/vocabularies.js";
+import { PROV_AGENT } from "./vocabularies.js";
 import { z } from "zod";
-import { Access, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
+import { Access, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "./resources.js";
 
 /** The types the EARL classes are recorded as. */
 export const EARL_LABEL = { assertion: "Assertion", assertor: "Assertor", testSubject: "TestSubject", testCase: "TestCase", testResult: "TestResult" } as const;

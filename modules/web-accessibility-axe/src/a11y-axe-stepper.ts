@@ -2,7 +2,7 @@ import type { Page } from "playwright";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { AStepper, IHasCycles, IHasOptions, StepperKinds, TFeatureStep } from "@haibun/core/lib/astepper.js";
 import { stringOrError, findStepper, actionNotOK, actionOK, findStepperFromOptionOrKind } from "@haibun/core/lib/domains/util.js";
-import { EARL_LABEL, earlDomainDefinitions } from "./domains/earl.js";
+import { EARL_LABEL, earlDomainDefinitions } from "@haibun/core/lib/domains/earl.js";
 import { recordChange } from "@haibun/core/lib/steps/domains/contract.js";
 import { checkPage } from "./pipelines/check-page.js";
 import { axePorts } from "./root.js";

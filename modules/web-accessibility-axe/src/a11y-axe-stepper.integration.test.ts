@@ -8,7 +8,7 @@ import { getStepperOptionName } from "@haibun/core/lib/domains/util.js";
 import { BrowserFactory } from "@haibun/web-playwright/BrowserFactory.js";
 
 import StorageMem from "@haibun/storage-mem/storage-mem-stepper.js";
-import { EARL_ASSERTION_EDGE, EARL_LABEL, EARL_OUTCOME } from "./domains/earl.js";
+import { EARL_ASSERTION_EDGE, EARL_LABEL, EARL_OUTCOME } from "@haibun/core/lib/domains/earl.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import WebPlaywright from "@haibun/web-playwright";
