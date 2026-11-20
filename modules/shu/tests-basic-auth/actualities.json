@@ -91,16 +91,16 @@
 				"status": "passed",
 				"tookMs": 1800,
 				"digest": {
-					"modules/core/src": "d48ec851ba7f9b10667b6eb9faec70b0cf844907d10f255d721c776eed619254",
+					"modules/core/src": "89e6fc18057ddc147302340625e0d5fc37294dd4ca4d6d45cb640f3ab91c2603",
 					"modules/domain-storage/src": "d21fde6c12a84c8fb246318488d49df330d1c5a5ca02818ce5bcc85d01c120ca",
-					"modules/logic/src": "5f26bb4b638e19d989bc547113b52b52b6805b28ca904aeffb4de505428d9d00",
-					"modules/shu/src": "d2895a5ea40aa7410bb21b72b2f688a069788f8bfce75093c404bedae0fb78a7",
+					"modules/logic/src": "42662f31b9e2824d6173b20119f4f8c12461a87ecc6f9dc8d38b3a69e7df1a32",
+					"modules/shu/src": "5c8b57b117bb291f086a7a3c4de99f276f7c36dede05c839f9cb7bf0483a163c",
 					"modules/shu/tests-basic-auth": "a2a07c303272a1ddf576b33fe956100e685c5f754f73ca5c00be3746b1af0f55",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "2cf235f8aef1f1e405a81ecb956b8bd129d661f00492bb55dff85870a7851ed2",
-					"modules/web-playwright/src": "2c517fb477b2cbe6646e2c15a960bbefc998fe19991676af14bc2368740bfea0",
+					"modules/web-playwright/src": "1514526161eae261c57845b07f3b5af43442875ad853981ed8081ce23347a499",
 					"modules/web-playwright/waypoints": "5d04edf9b96958109b9bd925701ffa32235aefe86bb0bdd1eeb42dad6aaefbd5",
-					"modules/web-server-hono/src": "dfa559ed0aab39db2b51340d3bf709be2294028e3e2fb788c069bede03692b56"
+					"modules/web-server-hono/src": "0a2fd2c59ab901b6889ee531c66035d873336a8d03a761fbd6db76cd3d1a45e6"
 				}
 			},
 			"features": {
