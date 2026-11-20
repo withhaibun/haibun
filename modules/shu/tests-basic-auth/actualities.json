@@ -34,12 +34,12 @@
 			"actuality": {
 				"text": "modules/shu/tests-basic-auth, node_modules/@haibun/web-playwright/waypoints",
 				"status": "passed",
-				"tookMs": 1800,
+				"tookMs": 1900,
 				"digest": {
 					"modules/core/src": "4a81fb5ab9afa495b8700cbabd3ed97f5b62324bcd1cab632854c61b3bf47841",
 					"modules/domain-storage/src": "d21fde6c12a84c8fb246318488d49df330d1c5a5ca02818ce5bcc85d01c120ca",
 					"modules/logic/src": "a1f4598059efaf89d62292ad6756fb135eda75588098abaf43287480f268044a",
-					"modules/shu/src": "8e41d615f6b6a07e8fae10eef43eca27a47727a4860b73a12091457e12631f71",
+					"modules/shu/src": "fe93c6ffacb324dd3a23c1363160d62a08ae677a601a69d600f7b22e6668e1cf",
 					"modules/shu/tests-basic-auth": "a2a07c303272a1ddf576b33fe956100e685c5f754f73ca5c00be3746b1af0f55",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "2cf235f8aef1f1e405a81ecb956b8bd129d661f00492bb55dff85870a7851ed2",
@@ -52,7 +52,7 @@
 				"/features/behind-basic-auth.feature.ts": {
 					"text": "A page behind basic auth",
 					"status": "passed",
-					"tookMs": 1100,
+					"tookMs": 1200,
 					"steps": 225
 				}
 			}

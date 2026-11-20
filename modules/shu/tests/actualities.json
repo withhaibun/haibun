@@ -231,7 +231,7 @@
 					"modules/domain-storage/src": "d21fde6c12a84c8fb246318488d49df330d1c5a5ca02818ce5bcc85d01c120ca",
 					"modules/logic/src": "a1f4598059efaf89d62292ad6756fb135eda75588098abaf43287480f268044a",
 					"modules/monitor-tui/src": "0c89537d075907370635162846b32d9d3b03f1c17df2f0483ab2eaefb06d8fcb",
-					"modules/shu/src": "8e41d615f6b6a07e8fae10eef43eca27a47727a4860b73a12091457e12631f71",
+					"modules/shu/src": "fe93c6ffacb324dd3a23c1363160d62a08ae677a601a69d600f7b22e6668e1cf",
 					"modules/shu/tests": "0836c5800ed8dab3a9e7402bd0df4903f185246627000360e2ad186db7aafb1a",
 					"modules/shu/waypoints": "7dc9c4a47d546a40d28e609997d2236967c01ebb925e55511322e4abc6772a86",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
@@ -264,7 +264,7 @@
 					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
 					"tookMs": 19300,
-					"steps": 782
+					"steps": 775
 				},
 				"/features/remote-store.feature.ts": {
 					"text": "A satellite instance keeps its records in the main instance's store",
