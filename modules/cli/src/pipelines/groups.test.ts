@@ -3,7 +3,7 @@ import type { TSpecl } from "@haibun/core/lib/actuality.js";
 import type { TGroup } from "../domains/groups.js";
 import path from "node:path";
 import type { TConfigFiles, TGroups } from "../ports.js";
-import { foundGroups, groupArgs, runGroups, selectedGroups, unselectedGroups } from "./groups.js";
+import { foundGroups, groupArgs, groupsHelp, runGroups, selectedGroups, unselectedGroups } from "./groups.js";
 
 /** The configs of a repository by their paths, which a fake reads in place of the files. */
 const CONFIGS: Record<string, TSpecl> = {
@@ -101,10 +101,34 @@ describe("haibun-cli --groups", () => {
 		expect(groupArgs(["--groups", "--set", "scale", "--environments", "llm,staging", "tests/", "agent-", "--once", "--with-steppers=debugger-stepper"], exists)).toEqual({
 			selection: { set: "scale", environments: ["llm", "staging"], within: ["tests"], filter: ["agent-"] },
 			list: false,
+			help: false,
 			forwarded: ["--once", "--with-steppers=debugger-stepper"],
 		});
 		expect(groupArgs(["--groups", "--list"], exists).list).toBe(true);
-		expect(() => groupArgs(["--groups", "--set"], exists)).toThrow("--set doesn't name a value");
+		expect(groupArgs(["--groups", "--help"], exists)).toMatchObject({ help: true, forwarded: [] });
+		expect(() => groupArgs(["--groups", "--set"], exists)).toThrow("--set takes a value: --set set");
+		expect(() => groupArgs(["--environments", "--groups", "tests/"], exists), "the option that runs groups isn't an environment").toThrow(
+			"--environments takes a value: --environments name[,name]",
+		);
+	});
+
+	it("states its help once without running a group: each option, and each group with what it needs and the file of its environments' values", async () => {
+		const ran: string[] = [];
+		expect(await runGroups(["--groups", "tests/", "--help"], { fs, groups: groups(ran) })).toBe(0);
+		expect(ran).toEqual([]);
+		const help = groupsHelp(found, (at) => at === "worker/.env");
+		expect(help).toContain("usage: haibun-cli --groups [--set set] [--environments name[,name]] [--list] [--help] [config or directory] [filter] [option]");
+		expect(help).toMatch(/--environments name\[,name\] {2}names the external services/);
+		expect(help).toMatch(/ {2}scale\/config\.json +--set scale\n/);
+		expect(help).toMatch(/ {2}worker\/config\.json +--environments staging +worker\/\.env\n/);
+		expect(groupsHelp(found, () => false)).toMatch(/worker\/\.env \(isn't written yet\)/);
+	});
+
+	it("refuses an environment a config doesn't declare, and a selection whose option doesn't take what follows it, without running a group", async () => {
+		const ran: string[] = [];
+		expect(await runGroups(["--groups", "--environments", "stagign"], { fs, groups: groups(ran) })).toBe(1);
+		expect(await runGroups(["--environments", "--groups"], { fs, groups: groups(ran) })).toBe(1);
+		expect(ran).toEqual([]);
 	});
 
 	it("runs the selected groups in order with the options, and stops at the first that fails with its code", async () => {

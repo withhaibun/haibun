@@ -2,8 +2,8 @@
  * The groups of features `haibun-cli --groups` runs: what a config's `group` declares, and the selection a command line makes of them.
  */
 
-/** The option that runs groups, and the options that select them and list them. */
-export const GROUP_OPTIONS = { groups: "--groups", set: "--set", environments: "--environments", list: "--list" } as const;
+/** The option that runs groups, and the options that select them, list them and state their help. */
+export const GROUP_OPTIONS = { groups: "--groups", set: "--set", environments: "--environments", list: "--list", help: "--help" } as const;
 
 /** The file name of a config, which the groups are found among. */
 export const CONFIG_FILE = /^config[^/]*\.json$/;

@@ -31,10 +31,11 @@ import { configFileFrom, DOTENV, getConfigFromBase, readsDotenv } from "./specl.
 import { LOOP_BLOCK_WARN_MS, type TLoopWatch } from "@haibun/core/lib/domains/event-loop.js";
 import type { TCliPorts, TConfigFiles } from "../ports.js";
 import { GROUP_OPTIONS } from "../domains/groups.js";
+import { CLI, columns, terms, type THelpEntry } from "../domains/help.js";
 import { runGroups } from "./groups.js";
 
 const OPTION_CONFIG = "--config";
-const OPTION_HELP = "--help";
+const OPTION_HELP = GROUP_OPTIONS.help;
 const OPTION_SHOW_STEPPERS = "--show-steppers";
 const OPTION_WITH_STEPPERS = "--with-steppers";
 /** Gives a statement on the command line. Each statement becomes one line of a feature. The option can be repeated.
@@ -272,7 +273,8 @@ async function getSpeclOrExit(bases: TBase, ports: TCliPorts): Promise<TSpecl> {
 	try {
 		specl = getConfigFromBase(bases, ports.fs);
 	} catch (e: unknown) {
-		return await usageThenExit(getDefaultOptions(), ports.steppers, `${errorDetail(e)}; the bases are ${bases.join(", ")} in ${process.cwd()}`);
+		const refusal = bases.length < 1 ? "the command doesn't name a base" : `${errorDetail(e)}; the bases are ${bases.join(", ")} in ${process.cwd()}`;
+		return await usageThenExit(getDefaultOptions(), ports.steppers, refusal);
 	}
 	if (bases.length < 1) return await usageThenExit(specl, ports.steppers, "the command doesn't name a base");
 	return specl;
@@ -282,6 +284,28 @@ export async function usageThenExit(specl: TSpecl, steppers: TCliPorts["steppers
 	console[message ? "error" : "info"](output);
 	process.exit(message ? 1 : 0);
 }
+
+/** What each option of a run takes and does, which its help states. */
+const RUN_OPTIONS_HELP: readonly THelpEntry[] = [
+	{
+		name: `${OPTION_CONFIG} config.json`,
+		does: "the config a run reads, in place of the config.json of its first base, or of the working directory where a base doesn't hold one",
+	},
+	{ name: "--cwd directory", does: "the working directory of a run" },
+	{ name: OPTION_HELP, does: "prints this, with the variables the steppers of the config read" },
+	{ name: OPTION_SHOW_STEPPERS, does: "prints each step of the steppers the config lists" },
+	{ name: `${OPTION_WITH_STEPPERS} stepper[,stepper]`, does: "loads these steppers with those the config lists" },
+	{ name: `${OPTION_RUN_POLICY} place dir:access[,dir:access]`, does: "a run policy, which selects the features by their directories" },
+	{ name: `${OPTION_STATEMENT} "a statement"`, does: "a line that runs after the filtered features, or alone; repeatable" },
+	{ name: OPTION_DRY_RUN, does: "lists the features a run policy and a filter select, without running them" },
+	{ name: OPTION_ONCE, does: "skips a group whose last run passed against unchanged dependencies" },
+];
+
+/** What each word of a run names. */
+const RUN_WORDS_HELP: readonly THelpEntry[] = [
+	{ name: "base[,base]", does: "each a directory that holds features or backgrounds, or a package's export, such as @haibun/shu/waypoints" },
+	{ name: "[filter[,filter]]", does: "regular expressions of feature paths; ^(?!.*name) leaves out each feature whose path holds name" },
+];
 
 export async function usage(specl: TSpecl, loaded: TCliPorts["steppers"], message?: string) {
 	const steppers = createSteppers(await loaded(specl.steppers));
@@ -294,19 +318,22 @@ export async function usage(specl: TSpecl, loaded: TCliPorts["steppers"], messag
 		}
 	});
 
-	const ret = [
+	const variables = [
 		"",
-		`usage: ${process.argv[1]} [${OPTION_CONFIG} path/to/specific/config.json] [--cwd working_directory] [${OPTION_HELP}] [${OPTION_SHOW_STEPPERS}] [${OPTION_WITH_STEPPERS} stepper[,stepper]] [${OPTION_RUN_POLICY} place dir:access[,dir:access]] [${OPTION_STATEMENT} "a haibun statement" (repeatable; runs after any filtered features, or alone)] [${OPTION_DRY_RUN}] [${OPTION_ONCE} (skip a group whose last run passed against unchanged dependencies)] <project base[,project base]> <[filter,filter] (regular expressions of feature paths; ^(?!.*name) leaves out each feature whose path holds name)>`,
-		`   or: ${process.argv[1]} ${GROUP_OPTIONS.groups} [${GROUP_OPTIONS.set} set] [${GROUP_OPTIONS.environments} environment[,environment]] [${GROUP_OPTIONS.list}] [config or directory ...] (runs each group of features a config declares, with the other options)`,
-		message === undefined ? "" : message,
-		"The working directory's config.json is used when the project bases don't contain a config.json.\n",
-		"Set these environment variables to control options:\n",
-		...Object.entries(BaseOptions.options).map(([k, v]) => `${BASE_PREFIX}${String(k).padEnd(55)} ${v.desc}`),
+		"These environment variables set options:",
+		...columns(Object.entries(BaseOptions.options).map(([k, v]) => [`${BASE_PREFIX}${String(k)}`, v.desc])),
+		...(Object.keys(a).length === 0 ? [] : ["", "These variables set options of the steppers the config lists:", ...columns(Object.entries(a).map(([k, v]) => [k, v.desc]))]),
 	];
-	if (Object.keys(a).length) {
-		ret.push("\nThese variables set options of the steppers that config.json lists:\n", ...Object.entries(a).map(([k, v]) => `${k.padEnd(55)} ${v.desc}`));
-	}
-	return [...ret, ""].join("\n");
+	return [
+		"",
+		`usage: ${CLI} ${terms(RUN_OPTIONS_HELP)} ${RUN_WORDS_HELP.map(({ name }) => name).join(" ")}`,
+		`   or: ${CLI} ${GROUP_OPTIONS.groups} …, which ${CLI} ${GROUP_OPTIONS.groups} ${OPTION_HELP} states`,
+		"",
+		...columns([...RUN_OPTIONS_HELP, ...RUN_WORDS_HELP].map(({ name, does }) => [name, does])),
+		// A refused command reads its refusal last, without the variables a run that starts reads.
+		...(message === undefined ? variables : ["", message]),
+		"",
+	].join("\n");
 }
 
 /** A filter that a feature path can't contain. Collecting with it returns the base's backgrounds without its features. */

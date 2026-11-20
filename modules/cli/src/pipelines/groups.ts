@@ -7,28 +7,49 @@
  * selected configs instead of running them.
  */
 import path from "node:path";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { CONFIG_FILE, GROUP_OPTIONS, type TGroup, type TGroupSelection } from "../domains/groups.js";
+import { CLI, columns, terms, type THelpEntry } from "../domains/help.js";
 import type { TCliPorts, TConfigFiles } from "../ports.js";
-import { getConfigFromBase } from "./specl.js";
+import { DOTENV, getConfigFromBase } from "./specl.js";
+
+/** What each option and word of a command that runs groups takes and does, which its help states. */
+const GROUP_HELP: readonly THelpEntry[] = [
+	{ name: `${GROUP_OPTIONS.set} set`, does: `runs the groups whose config states this set as "group.set", in place of the groups that don't state one` },
+	{
+		name: `${GROUP_OPTIONS.environments} name[,name]`,
+		does: `names the external services this machine reaches, such as a model or a mail server. An environment is a name, which a config lists under "environments" for each service its features use. A group runs where the command names each of its environments, and reads their values from the ${DOTENV} file beside its config`,
+	},
+	{ name: GROUP_OPTIONS.list, does: "prints the selected configs in place of running them" },
+	{ name: GROUP_OPTIONS.help, does: "prints this" },
+	{
+		name: "config or directory",
+		does: "narrows the selection to that config, or to the configs under that directory. A config named itself runs whatever its set and environments",
+	},
+	{ name: "filter", does: "a word that isn't a path: the features each group runs, in place of its own filter" },
+	{ name: "option", does: "each other option reaches each group's run" },
+];
 
 /** The selection, the listing and the options a command line that runs groups gives: each argument after `--groups` that isn't a
  *  selection or the listing reaches each group's run where it is an option, narrows the selection where it is a path, and is the
  *  feature filter each group runs where it is another word. */
-export function groupArgs(args: readonly string[], exists: (at: string) => boolean): { selection: TGroupSelection; list: boolean; forwarded: string[] } {
+export function groupArgs(args: readonly string[], exists: (at: string) => boolean): { selection: TGroupSelection; list: boolean; help: boolean; forwarded: string[] } {
 	const selection: TGroupSelection = { set: undefined, environments: [], within: [], filter: [] };
 	const forwarded: string[] = [];
 	let list = false;
-	const rest = args.filter((arg) => arg !== GROUP_OPTIONS.groups);
-	for (let i = 0; i < rest.length; i++) {
-		const arg = rest[i];
+	let help = false;
+	for (let i = 0; i < args.length; i++) {
+		const arg = args[i];
 		const value = (): string => {
-			const given = rest[++i];
-			if (given === undefined || given.startsWith("-")) throw new Error(`${arg} doesn't name a value. Write ${arg} and its value, such as ${arg} scale.`);
+			const given = args[++i];
+			if (given === undefined || given.startsWith("-")) throw new Error(`${arg} takes a value: ${GROUP_HELP.find(({ name }) => name.startsWith(`${arg} `))?.name}`);
 			return given;
 		};
+		if (arg === GROUP_OPTIONS.groups) continue;
 		if (arg === GROUP_OPTIONS.set) selection.set = value();
 		else if (arg === GROUP_OPTIONS.environments) selection.environments = value().split(",");
 		else if (arg === GROUP_OPTIONS.list) list = true;
+		else if (arg === GROUP_OPTIONS.help || arg === "-h") help = true;
 		else if (arg?.startsWith("-")) forwarded.push(arg);
 		else if (arg !== undefined) {
 			const at = path.normalize(arg).replace(/\/$/, "");
@@ -36,7 +57,16 @@ export function groupArgs(args: readonly string[], exists: (at: string) => boole
 			else selection.filter.push(arg);
 		}
 	}
-	return { selection, list, forwarded };
+	return { selection, list, help, forwarded };
+}
+
+/** What a command line that runs groups gives, or why it is refused where an option doesn't take what follows it. */
+function argsOrRefusal(args: readonly string[], exists: (at: string) => boolean): ReturnType<typeof groupArgs> | string {
+	try {
+		return groupArgs(args, exists);
+	} catch (e) {
+		return errorDetail(e);
+	}
 }
 
 /** Each group among `files`, the paths of a repository's files from its root: a config that declares `group`, read with the config it
@@ -125,26 +155,68 @@ export function unselectedGroups(found: readonly TGroup[], selection: TGroupSele
 	return candidates.map((group) => `groups: ${group.config} needs ${needs(group, selection).join(" and ")}`).join("\n");
 }
 
+/** A selection that doesn't name a set or an environment, so a group needs of it all that the group states. */
+const BARE: TGroupSelection = { set: undefined, environments: [], within: [], filter: [] };
+
+/** The help of a command that runs groups: its options, and each group of `groups` with what it needs of the command and the file
+ *  that holds its environments' values, whose presence `holds` reads. */
+export function groupsHelp(groups: readonly TGroup[], holds: (at: string) => boolean): string {
+	const values = (group: TGroup): string => {
+		if (group.environments.length === 0) return "";
+		const at = path.join(path.dirname(group.config), DOTENV);
+		return holds(at) ? at : `${at} (isn't written yet)`;
+	};
+	return [
+		`usage: ${CLI} ${GROUP_OPTIONS.groups} ${terms(GROUP_HELP)}`,
+		"",
+		`Runs each selected group of features, one after another. A group is a config that declares "group".`,
+		"",
+		...columns(GROUP_HELP.map(({ name, does }) => [name, does])),
+		"",
+		`The groups of this repository, each with what it needs of the command and the ${DOTENV} file of its environments' values:`,
+		...columns(groups.map((group) => [group.config, needs(group, BARE).join(" "), values(group)])),
+		"",
+		`${CLI} directory ${GROUP_OPTIONS.help} lists the variables the steppers of that directory's config read.`,
+		"",
+	].join("\n");
+}
+
 /** Runs the groups of the working directory's repository that the command line selects, one after another, and returns the exit code
  *  of the first that fails, or 0 where each passes. */
 export async function runGroups(args: readonly string[], { fs, groups: repository }: Pick<TCliPorts, "fs" | "groups">): Promise<number> {
 	const root = process.cwd();
-	const { selection, list, forwarded } = groupArgs(args, (at) => fs.existsSync(path.join(root, at)));
+	const holds = (at: string): boolean => fs.existsSync(path.join(root, at));
+	const parsed = argsOrRefusal(args, holds);
+	if (typeof parsed === "string") {
+		console.error(`groups: ${parsed}`);
+		return 1;
+	}
+	const { selection, list, help, forwarded } = parsed;
+	if (help) {
+		console.info(groupsHelp(foundGroups(root, repository.files(), fs), holds));
+		return 0;
+	}
 	const found = foundGroups(root, namesConfigs(selection) ? withBefore(root, selection.within, fs) : repository.files(), fs);
+	const declared = [...new Set(found.flatMap(({ environments }) => environments))].sort();
+	const undeclared = selection.environments.filter((environment) => !declared.includes(environment));
+	if (undeclared.length > 0 && !namesConfigs(selection)) {
+		console.error(`groups: a config here doesn't declare the environment ${undeclared.join(", ")}. The configs declare: ${declared.join(", ")}`);
+		return 1;
+	}
 	const groups = selectedGroups(found, selection);
 	if (list) {
 		console.info(JSON.stringify(groups.map(({ config }) => config)));
 		return 0;
 	}
 	if (groups.length === 0) {
-		console.error(unselectedGroups(found, selection));
+		console.error(`${unselectedGroups(found, selection)}\ngroups: ${CLI} ${GROUP_OPTIONS.groups} ${GROUP_OPTIONS.help} states what an environment is and lists each group`);
 		return 1;
 	}
 	for (const group of groups) {
 		console.info(`\ngroups: ${group.config}`);
 		const code = await repository.run(group, forwarded);
 		if (code !== 0) {
-			console.error(`\ngroups: ${group.config} ended with ${code}. Fix it, then run: haibun-cli ${GROUP_OPTIONS.groups} ${group.config}`);
+			console.error(`\ngroups: ${group.config} ended with ${code}. Fix it, then run: ${CLI} ${GROUP_OPTIONS.groups} ${group.config}`);
 			return code;
 		}
 	}
