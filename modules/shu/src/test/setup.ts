@@ -18,6 +18,7 @@
 import { EARL_ASSERTION_EDGE, EARL_LABEL, OUTCOME_OF_VERDICT } from "@haibun/core/lib/domains/earl.js";
 import { LIMITED_TO_METHOD } from "@haibun/core/lib/step-discovery.js";
 import type { TRecordClaim } from "../page/domains/claims.js";
+import { recordIri } from "@haibun/core/lib/records/derivations/record-iri.js";
 import { vi } from "vitest";
 import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { actualityAt } from "@haibun/core/lib/transport/adapters/rpc-call.js";
@@ -121,7 +122,7 @@ import { requiredAction, type TStepReads } from "@haibun/core/lib/domains/action
 import { steppersOf } from "@haibun/core/lib/steps/pipelines/discover-steps.js";
 import { ARTIFACTS_ROUTE } from "@haibun/core/lib/domains/run-artifact.js";
 import { buildConcernCatalog, counted, type TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
-import { Access, LinkRelations, type TDomainDefinition, type TEdgeDef, type TRel, type TAnnotationView } from "@haibun/core/lib/domains/resources.js";
+import { Access, HAIBUN_RECORD_NAMESPACE, LinkRelations, type TDomainDefinition, type TEdgeDef, type TRel, type TAnnotationView } from "@haibun/core/lib/domains/resources.js";
 import { fromJsonText } from "@haibun/core/lib/domains/json-text.js";
 import { z } from "zod";
 import { STEPS_CHANGED } from "@haibun/core/lib/domains/protocol.js";
@@ -305,7 +306,7 @@ export function makeEntityDispatch(over: {
 			const [subject, at] = String(params.id).split(" ");
 			const claim = subject === undefined ? undefined : claimsOf(subject)[Number(at)];
 			if (claim === undefined) throw new Error(`the test site doesn't hold the assertion ${String(params.id)}`);
-			const { test, field, verdict, proof } = claim;
+			const { test, field, verdict, proof, madeBy } = claim;
 			return {
 				vertex: { id: params.id },
 				edges: [
@@ -315,6 +316,7 @@ export function makeEntityDispatch(over: {
 						direction: "out",
 						target: { outcome: OUTCOME_OF_VERDICT[verdict], info: proof, ...(field === undefined ? {} : { pointers: [field] }) },
 					},
+					{ type: EARL_ASSERTION_EDGE.wasGeneratedBy, direction: "out", target: { "@id": recordIri(HAIBUN_RECORD_NAMESPACE.prefix, madeBy.label, madeBy.id) } },
 				],
 				incomingCount: counted(0),
 			};

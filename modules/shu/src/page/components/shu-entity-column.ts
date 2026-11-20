@@ -841,19 +841,29 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			.join("");
 	}
 
-	/** The claims the reasoner made about the record, each with its status, its sentence and its proof: a claim of a field the record
-	 *  doesn't hold, such as an Email's missing subject, reads here as unknown, since the open world doesn't read it as false. */
+	/** The claims the reasoner made about the record, each with its status, its sentence and its proof, under a link to the step that
+	 *  made it, so the claims of each step that wrote the record read apart: a claim of a field the record doesn't hold, such as an
+	 *  Email's missing subject, reads here as unknown, since the open world doesn't read it as false. */
 	private renderClaims(): string {
 		if (this.#claimsRefusal !== undefined)
 			return `<section class="claims" data-testid="${SHU_TEST_IDS.CLAIMS.LIST}"><h3>Claims</h3><p>the claims about the record weren't read: ${esc(this.#claimsRefusal.error)}</p></section>`;
 		if (this.#claims.length === 0) return "";
-		const claims = this.#claims
-			.map(
-				({ test, verdict, proof }) =>
-					`<li data-testid="${SHU_TEST_IDS.CLAIMS.CLAIM}">${verdictStatusHtml(SHU_TEST_IDS.CLAIMS.STATUS, test, verdict)} ${esc(test)}<details><summary>proof</summary>${esc(proof)}</details></li>`,
-			)
-			.join("");
-		return `<section class="claims" data-testid="${SHU_TEST_IDS.CLAIMS.LIST}"><h3>Claims</h3><ul>${claims}</ul></section>`;
+		const claimHtml = ({ test, verdict, proof }: TRecordClaim): string =>
+			`<li data-testid="${SHU_TEST_IDS.CLAIMS.CLAIM}">${verdictStatusHtml(SHU_TEST_IDS.CLAIMS.STATUS, test, verdict)} ${esc(test)}<details><summary>proof</summary>${esc(proof)}</details></li>`;
+		const stepOf = ({ madeBy }: TRecordClaim): string => `${madeBy.label}:${madeBy.id}`;
+		const steps = new Map(this.#claims.map((claim) => [stepOf(claim), claim.madeBy]));
+		const bySteps = [...steps].map(([key, madeBy]) => {
+			const step = linkHtml(
+				refHref({ kind: REF_DENOTES.individual, target: { persistedAs: madeBy.label, id: madeBy.id } }),
+				madeBy.title,
+				` data-testid="${SHU_TEST_IDS.CLAIMS.MADE_BY}"`,
+			);
+			return `<li>by ${step}<ul>${this.#claims
+				.filter((claim) => stepOf(claim) === key)
+				.map(claimHtml)
+				.join("")}</ul></li>`;
+		});
+		return `<section class="claims" data-testid="${SHU_TEST_IDS.CLAIMS.LIST}"><h3>Claims</h3><ul>${bySteps.join("")}</ul></section>`;
 	}
 
 	/** True when the served @context aliases this field to the JSON-LD `@type` keyword, whose values are the entity's

@@ -168,7 +168,14 @@ export const SHU_TEST_IDS = {
 	REFUSAL: { ROOT: "refusal", CAUSE: "refusal-cause", STATUS: "refusal-status", REMEDY: "refusal-remedy" },
 	/** The claims the reasoner made about a record, each with its status, the status beside each field a claim names, and the link
 	 *  from a field to the passage that quotes its value. */
-	CLAIMS: { LIST: "entity-claims", CLAIM: "entity-claim", STATUS: "entity-claim-status", FIELD_STATUS: "entity-field-status", EVIDENCE: "entity-field-evidence" },
+	CLAIMS: {
+		LIST: "entity-claims",
+		CLAIM: "entity-claim",
+		STATUS: "entity-claim-status",
+		FIELD_STATUS: "entity-field-status",
+		EVIDENCE: "entity-field-evidence",
+		MADE_BY: "entity-claim-made-by",
+	},
 	/** The control that opens the proof actuality recorded for a step. */
 	WHY: "why",
 	/** Whether a step's contract held, on the step's detail. */

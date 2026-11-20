@@ -17,7 +17,7 @@ import { RelatedRecordsSchema } from "../domains/related-records.js";
 import type { TEvidence, TRecordClaim } from "../domains/claims.js";
 import { EVIDENCE_EDGE, LinkRelations, QuoteAnchorSchema } from "@haibun/core/lib/domains/resources.js";
 import { edgeRecordType } from "./catalog-controller.js";
-import { idOf } from "./record-controller.js";
+import { idOf, instanceLabel } from "./record-controller.js";
 import { persistedTypeOf } from "../derivations/record-fields.js";
 import { EARL_ASSERTION_EDGE, EARL_LABEL, EARL_OUTCOME, TestCaseSchema, TestResultSchema, VERDICT_OF_OUTCOME } from "@haibun/core/lib/domains/earl.js";
 import { curieOf } from "@haibun/core/lib/records/domains/unit.js";
@@ -101,8 +101,11 @@ const ClaimResultSchema = TestResultSchema.pick({ outcome: true, info: true, poi
 const AssertedSchema = z.looseObject({ id: z.string() });
 
 /** Returns the claims the reasoner made about the record `label` `id`: each EARL assertion whose subject is the record's typed
- *  CURIE, with the sentence of its test case, the field its result applies at, the verdict its outcome states and its proof. */
+ *  CURIE, with the sentence of its test case, the field its result applies at, the verdict its outcome states, its proof, and the
+ *  step that generated it. */
 export async function recordClaims(label: string, id: string): Promise<TRecordClaim[]> {
+	const stepType = edgeRecordType(EARL_LABEL.assertion, LinkRelations.WAS_GENERATED_BY.rel);
+	if (stepType === undefined) throw new Error(`the catalog doesn't state the type the ${EARL_LABEL.assertion} edge ${LinkRelations.WAS_GENERATED_BY.rel} reaches`);
 	const { edges } = await incomingEdges(EARL_LABEL.testSubject, curieOf({ label, id }), { offset: 0, limit: MAX_PAGE_ROWS });
 	const asserted = edges.filter(({ type, direction }) => type === EARL_ASSERTION_EDGE.subject && direction === "in").map(({ target }) => AssertedSchema.parse(target).id);
 	return Promise.all(
@@ -114,7 +117,10 @@ export async function recordClaims(label: string, id: string): Promise<TRecordCl
 			if (outcome !== EARL_OUTCOME.passed && outcome !== EARL_OUTCOME.failed && outcome !== EARL_OUTCOME.cantTell)
 				throw new Error(`the assertion ${assertion} states the outcome ${outcome}, which a claim's verdict doesn't state`);
 			if (info === undefined) throw new Error(`the assertion ${assertion} doesn't state the proof of its claim`);
-			return { test: name, ...(pointers?.[0] === undefined ? {} : { field: pointers[0] }), verdict: VERDICT_OF_OUTCOME[outcome], proof: info };
+			const step = reached(LinkRelations.WAS_GENERATED_BY.rel);
+			if (step === undefined) throw new Error(`the assertion ${assertion} doesn't name the step that made its claim`);
+			const madeBy = { label: stepType, id: idOf(step), title: instanceLabel(step) };
+			return { test: name, ...(pointers?.[0] === undefined ? {} : { field: pointers[0] }), verdict: VERDICT_OF_OUTCOME[outcome], proof: info, madeBy };
 		}),
 	);
 }

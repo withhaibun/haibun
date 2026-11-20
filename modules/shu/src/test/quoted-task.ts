@@ -5,6 +5,7 @@
 import { heldRecordIri } from "@haibun/core/lib/test/declared-types.js";
 import { counted } from "@haibun/core/lib/domains/hypermedia.js";
 import { EVIDENCE_EDGE, LinkRelations, SEQ_PATH_LABEL, SPECIFIC_RESOURCE_LABEL } from "@haibun/core/lib/domains/resources.js";
+import { EARL_ASSERTION_EDGE, EARL_LABEL } from "@haibun/core/lib/domains/earl.js";
 import type { TCatalogSpec } from "./catalog-fixture.js";
 
 /** The passage of the Body b1 that quotes the Task's title. */
@@ -30,8 +31,9 @@ export const quotedTaskEntity = (params: Record<string, unknown>) =>
 				incomingCount: counted(0),
 			};
 
-/** The catalog of the Task and its passage's types, the Task's evidence edge reaching its passages. */
+/** The catalog of the Task, its passage's types and its claims' assertions: the Task's evidence edge reaches its passages, and an
+ *  assertion's edge to the step that made it reaches the step's record. */
 export const QUOTED_TASK_SPEC: TCatalogSpec = {
-	types: ["Task", "Body", SPECIFIC_RESOURCE_LABEL, SEQ_PATH_LABEL],
-	edgeRanges: { Task: { [EVIDENCE_EDGE.rel]: [SPECIFIC_RESOURCE_LABEL] } },
+	types: ["Task", "Body", SPECIFIC_RESOURCE_LABEL, SEQ_PATH_LABEL, EARL_LABEL.assertion],
+	edgeRanges: { Task: { [EVIDENCE_EDGE.rel]: [SPECIFIC_RESOURCE_LABEL] }, [EARL_LABEL.assertion]: { [EARL_ASSERTION_EDGE.wasGeneratedBy]: [SEQ_PATH_LABEL] } },
 };
