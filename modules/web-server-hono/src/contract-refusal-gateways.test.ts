@@ -1,11 +1,15 @@
 /**
- * A call over RPC that its step's contract refuses responds with the refusal's statement: the statement in Unicode notation, its
- * verdict, and the triple that determined it, as the RPC protocol's refusal states them, so a caller reads why its call was
- * refused from the response alone.
+ * A call that its step's contract refuses responds with the refusal's statement: the statement in Unicode notation, its verdict,
+ * and the triple that determined it. A call over RPC reads it from the RPC protocol's refusal, and a model's tool call over MCP
+ * from the failed tool's structured content, so each caller reads the same record of why its call was refused.
  */
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { RPC_PROTOCOL, RpcRefusalSchema, type TRpcRefusal } from "@haibun/core/lib/rpc-wire.js";
+import { RPC_PROTOCOL, RpcRefusalSchema, StatementRefusalSchema, type TRpcRefusal, type TStatementRefusal } from "@haibun/core/lib/rpc-wire.js";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
+import McpStepper from "./mcp-stepper.js";
 import { actualityAt } from "@haibun/core/lib/transport/adapters/rpc-call.js";
 import { DEF_PROTO_OPTIONS, freePort, passWithDefaults } from "@haibun/core/lib/test/lib.js";
 import { AStepper, type IHasCycles, type IStepperCycles, declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
@@ -53,10 +57,11 @@ class Delegating extends AStepper implements IHasCycles {
 	});
 }
 
-/** Calls `delegate` over RPC from a revoked grant and holds the refusal the response states. */
+/** Calls `delegate` from a revoked grant over RPC and as a tool call over MCP, and holds the refusal each response states. */
 class Calling extends AStepper {
-	description = "Calls a step over RPC and holds the refusal its response states.";
+	description = "Calls a step over RPC and as a tool call, and holds the refusal each response states.";
 	refusal: TRpcRefusal | undefined;
+	toolRefusal: TStatementRefusal | undefined;
 	steps = declareSteps({
 		callRevoked: {
 			description: TEST_STEP,
@@ -77,22 +82,45 @@ class Calling extends AStepper {
 				return OK;
 			},
 		},
+		callRevokedTool: {
+			description: TEST_STEP,
+			gwta: `call the delegate tool from the revoked grant at {url: ${DOMAIN_LINK}}`,
+			action: async ({ url }) => {
+				const client = new Client({ name: "contract-refusal", version: "1.0" }, { capabilities: {} });
+				await client.connect(new StreamableHTTPClientTransport(new URL(String(url))));
+				try {
+					const result = CallToolResultSchema.parse(await client.callTool({ name: METHOD, arguments: { grant: GRANTS.revoked } }));
+					const parsed = StatementRefusalSchema.safeParse(result.structuredContent);
+					if (result.isError !== true || !parsed.success) return actionNotOK(`the tool ${METHOD} doesn't state a refused statement: ${JSON.stringify(result)}`);
+					this.toolRefusal = parsed.data;
+					return OK;
+				} finally {
+					await client.close();
+				}
+			},
+		},
 	});
 }
 
-describe("a call over RPC that its step's contract refuses", () => {
-	it("responds with the statement that refused it, its verdict and the triple that determined it", { timeout: 120_000 }, async () => {
+describe("a call that its step's contract refuses", () => {
+	it("responds with the statement that refused it, its verdict and the triple that determined it, the same over RPC and as a tool call", { timeout: 120_000 }, async () => {
 		const port = await freePort();
 		const options = {
 			...DEF_PROTO_OPTIONS,
 			moduleOptions: {
 				[getStepperOptionName(WebServerStepper, "PORT")]: String(port),
 				[getStepperOptionName(WebServerStepper, "RPC")]: "true",
+				[getStepperOptionName(McpStepper, "PORT")]: String(port),
 				[getStepperOptionName(WebServerStepper, "ALLOW_WITHOUT_DELEGATION")]: "Delegating:delegate",
 			},
 		};
-		const content = `webserver is listening for "rpc-contract-refusal"\ncall delegate from the revoked grant at "http://localhost:${port}/rpc/${METHOD}"`;
-		const result = await passWithDefaults([{ path: "/features/rpc-contract-refusal.feature", content }], [WebServerStepper, Delegating, Calling, LogicStepper], options);
+		const content = [
+			'serve mcp tools at "/mcp"',
+			'webserver is listening for "contract-refusal"',
+			`call delegate from the revoked grant at "http://localhost:${port}/rpc/${METHOD}"`,
+			`call the delegate tool from the revoked grant at "http://localhost:${port}/mcp"`,
+		].join("\n");
+		const result = await passWithDefaults([{ path: "/features/contract-refusal.feature", content }], [WebServerStepper, McpStepper, Delegating, Calling, LogicStepper], options);
 		expect(result.ok).toBe(true);
 		const calling = result.world.runtime.steppers?.find((stepper) => stepper instanceof Calling);
 		const refusal = (calling as Calling).refusal;
@@ -101,5 +129,6 @@ describe("a call over RPC that its step's contract refuses", () => {
 		expect(refusal?.error, "the second sentence is the remedy the verdict determines").toContain(refusal?.statement?.remedy);
 		expect(refusal?.statement?.verdict).toBe(VERDICT.refuted);
 		expect(refusal?.statement?.decidedBy).toContain("revoked_grant");
+		expect((calling as Calling).toolRefusal, "a tool call reads the same record as an RPC call").toEqual(refusal?.statement);
 	});
 });
