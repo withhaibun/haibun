@@ -1,3 +1,4 @@
+import { MEDIA_TYPE } from "../../domains/media-types.js";
 import { describe, it, expect } from "vitest";
 import { storeDeclaring } from "../../test/declared-types.js";
 import { GraphQuerySchema } from "../../steps/domains/quad-types.js";
@@ -17,7 +18,12 @@ const store = () =>
 		[SELECTOR]: {},
 		[BODY]: {},
 	});
-const NOTE_UNIT = { "@type": NOTE, id: "n-1", hasBody: { id: "n-1-body", content: "the text" }, target: { id: "r-1", hasSelector: { id: "s-1", exact: "a passage" } } };
+const NOTE_UNIT = {
+	"@type": NOTE,
+	id: "n-1",
+	hasBody: { id: "n-1-body", content: "the text", mediaType: MEDIA_TYPE.plain },
+	target: { id: "r-1", hasSelector: { id: "s-1", exact: "a passage" } },
+};
 
 describe("a read of a unit", () => {
 	it("returns the record with each record it owns embedded under its edge, transitively, in one read", async () => {

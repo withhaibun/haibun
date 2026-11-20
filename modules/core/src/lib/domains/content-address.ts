@@ -41,5 +41,8 @@ const sorted = (value: unknown): unknown =>
 					)
 				: value;
 
+/** Returns the canonical JSON (RFC 8785) of a value. */
+export const canonicalJson = (value: unknown): string => JSON.stringify(sorted(value));
+
 /** Returns the content address of a `label` record whose key's fields state `values`, in the key's order. */
-export const contentAddress = (label: string, values: readonly unknown[]): string => `${NAMED_INFORMATION_SHA256}${contentHash(JSON.stringify(sorted([label, ...values])))}`;
+export const contentAddress = (label: string, values: readonly unknown[]): string => `${NAMED_INFORMATION_SHA256}${contentHash(canonicalJson([label, ...values]))}`;

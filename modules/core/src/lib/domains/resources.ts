@@ -291,6 +291,8 @@ export const LinkRelations = {
 	HAS_BODY: { rel: "hasBody", uri: "oa:hasBody", range: "iri", presentation: "body" as TRelPresentation },
 	TARGET: { rel: "hasTarget", uri: "oa:hasTarget", range: "iri" },
 	MEDIA_TYPE: { rel: "mediaType", uri: "as:mediaType", range: "literal" },
+	/** The SHA-256 of a Body's forms, which an anchor into the Body's record states as the text it quoted. */
+	CONTENT_DIGEST: { rel: "contentDigest", uri: "schema:sha256", range: "literal" },
 	IN_REPLY_TO: { rel: "inReplyTo", uri: "as:inReplyTo", range: "iri" },
 	ATTACHMENT: { rel: "attachment", uri: "as:attachment", range: "iri" },
 	TAG: { rel: "tag", uri: "as:tag", range: "literal" },
@@ -1209,6 +1211,9 @@ export const principalsQuery = (): { label: string } => ({ label: PRINCIPAL_LABE
 export const RepresentationSchema = z.object({ mediaType: z.string(), content: z.string() });
 export type TRepresentation = z.infer<typeof RepresentationSchema>;
 
+/** The field of a Body that states the digest of its forms. */
+export const BODY_DIGEST = "digest";
+
 /**
  * A Body holds opaque content with a declared media type. Any resource links it through `hasBody`. The format is data
  * on the Body and not metadata on the parent resource's topology, so JSON-LD round-trips and graph queries read
@@ -1226,6 +1231,7 @@ export const BodySchema = PersistedVertexSchema.extend({
 	mediaType: z.string(),
 	generatedAtTime: z.string(),
 	representations: z.array(RepresentationSchema).optional(),
+	[BODY_DIGEST]: z.string().describe("The SHA-256 of the Body's forms, which the write that states them stamps."),
 });
 
 // ============================================================================

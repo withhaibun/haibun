@@ -14,6 +14,7 @@ import {
 	ANNOTATION_NOTE_DOMAIN,
 	BODY_LABEL,
 	BodySchema,
+	BODY_DIGEST,
 	ENDPOINT_LABEL,
 	FRAGMENT_SELECTOR_LABEL,
 	FragmentSelectorSchema,
@@ -82,6 +83,7 @@ export const bodyDomainDefinition: TDomainDefinition = {
 			content: LinkRelations.CONTENT.rel,
 			mediaType: LinkRelations.MEDIA_TYPE.rel,
 			representations: { rel: LinkRelations.TAG.rel, iri: "schema:encoding" },
+			[BODY_DIGEST]: LinkRelations.CONTENT_DIGEST.rel,
 		},
 		// The declared query surface for the one-path graph-store. Callers can filter or sort Body rows by mediaType,
 		// such as "all PDF bodies", or by generatedAtTime.

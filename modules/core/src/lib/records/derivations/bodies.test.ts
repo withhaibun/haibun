@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { LinkRelations } from "../../domains/resources.js";
+import { BODY_DIGEST, BODY_LABEL, LinkRelations } from "../../domains/resources.js";
+import { withBodies } from "./unit-bodies.js";
 import { MEDIA_TYPE } from "../../domains/media-types.js";
-import { bodyIdOf, bodyKindsOf, bodyOfForms, DEFAULT_BODY_KIND, formIn, preferredMediaType, preferredReading, readingKey, readingsOf } from "./bodies.js";
+import { bodyDigestOf, bodyIdOf, bodyKindsOf, bodyOfForms, DEFAULT_BODY_KIND, formIn, preferredMediaType, preferredReading, readingKey, readingsOf } from "./bodies.js";
 
 const CONTENT = LinkRelations.CONTENT.rel;
 const plain = { mediaType: MEDIA_TYPE.plain, content: "plain text" };
@@ -91,5 +92,29 @@ describe("the readings of the bodies a record links", () => {
 		expect(formIn(read, [MEDIA_TYPE.html])).toBe(html.content);
 		expect(formIn(read, [MEDIA_TYPE.json, MEDIA_TYPE.plain])).toBe(plain.content);
 		expect(formIn(read, [MEDIA_TYPE.json])).toBeUndefined();
+	});
+});
+
+describe("the digest of a Body's forms", () => {
+	const body = { ...markdown, representations: [plain, html] };
+	/** The Body `b` written as a record of its own with `fields`. */
+	const written = (fields: Record<string, unknown>) =>
+		withBodies({ verb: "create", version: undefined, record: { label: BODY_LABEL, id: "b" }, parts: [{ label: BODY_LABEL, id: "b", fields, edges: [] }] }, () => undefined).parts;
+
+	it("changes with an edit to any form, and stays as it is for another order of the forms", () => {
+		expect(bodyDigestOf({ ...markdown, representations: [html, plain] })).toBe(bodyDigestOf(body));
+		expect(bodyDigestOf({ ...markdown, content: "*md*.", representations: [plain, html] }), "an edit to the text").not.toBe(bodyDigestOf(body));
+		expect(bodyDigestOf({ ...markdown, representations: [plain, { ...html, content: "<p>html.</p>" }] }), "an edit to a representation").not.toBe(bodyDigestOf(body));
+	});
+
+	it("is stamped by the write of a Body that states its forms, and a write of its level alone leaves it to the store", () => {
+		expect(written(body)).toEqual([{ label: BODY_LABEL, id: "b", fields: { ...body, [BODY_DIGEST]: bodyDigestOf(body) }, edges: [] }]);
+		expect(written({ [LinkRelations.ACCESS_LEVEL.rel]: "private" }), "a write that doesn't state a form").toEqual([
+			{ label: BODY_LABEL, id: "b", fields: { [LinkRelations.ACCESS_LEVEL.rel]: "private" }, edges: [] },
+		]);
+	});
+
+	it("is refused for a write that states a form of the Body without its text and its media type", () => {
+		expect(() => written({ representations: [html] })).toThrow('the Body "b" is written with some of its forms and without its text and its media type');
 	});
 });

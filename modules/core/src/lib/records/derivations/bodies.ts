@@ -4,6 +4,7 @@
  * representations.
  */
 import { referencedName } from "../domains/unit.js";
+import { canonicalJson, contentHash } from "../../domains/content-address.js";
 import { z } from "zod";
 import { MEDIA_TYPE } from "../../domains/media-types.js";
 import { HAS_BODY_EDGE, contentFieldsOf, type TContentField, type TPropertyDef, type TRepresentation } from "../../domains/resources.js";
@@ -92,6 +93,11 @@ export function bodyOfForms(forms: readonly TRepresentation[], of: string): TBod
 	const representations = forms.filter((form) => form !== text);
 	return representations.length === 0 ? { mediaType, content: text.content } : { mediaType, content: text.content, representations };
 }
+
+/** Returns the digest of a Body's forms: the SHA-256 of their canonical JSON, in the order of their media types, so an edit to any
+ *  form changes it, and the order in which a write states the forms leaves it as it is. */
+export const bodyDigestOf = ({ mediaType, content, representations }: TBodyText): string =>
+	contentHash(canonicalJson([{ mediaType, content }, ...(representations === undefined ? [] : representations)].sort((a, b) => a.mediaType.localeCompare(b.mediaType))));
 
 /** Returns the forms a Body's fields hold: its text, then each representation. */
 export const formsOfBody = (fields: Readonly<Record<string, unknown>>): TRepresentation[] => {
