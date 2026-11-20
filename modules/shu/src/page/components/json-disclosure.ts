@@ -10,6 +10,8 @@
  * the browser's own, as every other disclosure here is.
  */
 import { jsonCarried } from "@haibun/core/lib/domains/json-text.js";
+import { html, nothing, type TemplateResult } from "lit";
+import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { esc, escAttr } from "../derivations/markdown.js";
 
 /** The test id of the whole record as JSON. */
@@ -57,13 +59,16 @@ export function jsonDisclosure(value: unknown, name = ""): string {
 }
 
 /** A section a view shows under its summary, open or closed, as the record's Data and a JSON body are, with `inner` as its
- *  content, which the caller escapes. */
-export const disclosure = (testId: string, summary: string, inner: string, open: boolean): string =>
-	`<details class="record-json"${open ? " open" : ""} data-testid="${testId}"><summary>${summary}</summary>${inner}</details>`;
+ *  content. */
+export const disclosure = (testId: string, summary: string, inner: TemplateResult, open: boolean): TemplateResult =>
+	html`<details class="record-json" ?open=${open} data-testid=${testId}><summary>${summary}</summary>${inner}</details>`;
+
+/** `value` as nested disclosures, for a view that renders a template. The disclosures' text is escaped as it is written. */
+export const jsonTpl = (value: unknown): TemplateResult => html`${unsafeHTML(jsonDisclosure(value))}`;
 
 /** The whole of a record as JSON, last in the view that shows it, so what the view's fields leave out reads there. It starts
  *  closed where a body follows it, so the body keeps the height in which it reads. */
-export const recordJson = (value: unknown, open: boolean): string => disclosure(RECORD_JSON, "Data", jsonDisclosure(value), open);
+export const recordJson = (value: unknown, open: boolean): TemplateResult => disclosure(RECORD_JSON, "Data", jsonTpl(value), open);
 
 /**
  * A literal that carries JSON, shown as what it is: the words before it as words, and the JSON as disclosures.
@@ -72,13 +77,11 @@ export const recordJson = (value: unknown, open: boolean): string => disclosure(
  * one string it is a line a reader scrolls past; shown this way the words stay readable and what they carry is opened.
  * A literal that doesn't carry JSON is returned as it reads.
  */
-export function literalWithJson(text: string): string {
+export function literalWithJson(text: string): TemplateResult | string {
 	const at = text.search(/[[{]/);
 	// Braces that don't open JSON are part of what was provided.
 	const carried = at >= 0 ? jsonCarried(text.slice(at)) : undefined;
-	if (carried !== undefined) {
-		const said = text.slice(0, at).trim();
-		return `${said === "" ? "" : `<div class="json-said">${esc(said)}</div>`}${jsonDisclosure(carried)}`;
-	}
-	return esc(text);
+	if (carried === undefined) return text;
+	const said = text.slice(0, at).trim();
+	return html`${said === "" ? nothing : html`<div class="json-said">${said}</div>`}${jsonTpl(carried)}`;
 }

@@ -5,7 +5,7 @@
  */
 import { html, css, nothing, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
-import { disclosure, jsonDisclosure, literalWithJson, recordJson } from "./json-disclosure.js";
+import { disclosure, jsonTpl, literalWithJson, recordJson } from "./json-disclosure.js";
 import { jsonCarried, RecordsSchema, isRecord } from "@haibun/core/lib/domains/json-text.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { SHOW_CONTROLS_FIELD, ShuElement, type TLinkedData } from "./shu-element.js";
@@ -36,7 +36,7 @@ import {
 	firstDeclaredType,
 } from "../controllers/catalog-controller.js";
 import { propertyVocabulary } from "../../derivations/ontology-projection.js";
-import { linkHtml, paneHref, passageHref, passageName, refHref } from "./ref-navigation.js";
+import { linkTpl, paneHref, passageHref, passageName, refHref } from "./ref-navigation.js";
 import { titlePane } from "../derivations/pane-kinds.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { pageAddress } from "../controllers/hash-controller.js";
@@ -50,8 +50,9 @@ import { TimelineViewController } from "../controllers/timeline-view-controller.
 import { appAccessLevel } from "../controllers/view-query-controller.js";
 import { recordClaimsRead, recordEvidenceRead } from "../controllers/read-controller.js";
 import type { TEvidence, TRecordClaim } from "../domains/claims.js";
-import { verdictStatusHtml } from "../derivations/verdict-status.js";
-import { esc, escAttr, utf8ToBase64, renderRef, refsInContent } from "../derivations/markdown.js";
+import { verdictStatusTpl } from "./verdict-status.js";
+import { utf8ToBase64, refsInContent } from "../derivations/markdown.js";
+import { refTpl } from "./shu-ref.js";
 import { buildBodyIframeDoc } from "../derivations/body-frame.js";
 import { idOf, instanceLabel, isVisibleKey, extractFieldEntries, extractBodyLiterals, governanceFields } from "../controllers/record-controller.js";
 import { isReferenceEdge } from "../derivations/record-fields.js";
@@ -74,10 +75,19 @@ type EdgeData = { type: string; target: VertexData; direction?: "out" | "in" };
  *  module, and reads it without a fetch. */
 const annotatedBody = loadedOnFirstUse(() => import("./shu-annotated-body.js").then(() => undefined));
 
-/** Returns the frame of a Class or Property record as HTML: its axioms in DL notation, one to a line, and then its Manchester
- *  syntax. A record of another type doesn't state a frame, and returns empty text. */
-const frameHtml = (frame: TRecordFrame | undefined): string =>
-	frame === undefined ? "" : `<pre data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_FRAME}">${esc([...frame.lines, "", frame.manchester].join("\n"))}</pre>`;
+/** The frame of a Class or Property record: its axioms in DL notation, one to a line, and then its Manchester syntax. A record of
+ *  another type doesn't state a frame. */
+const frameTpl = (frame: TRecordFrame | undefined): TemplateResult | typeof nothing =>
+	frame === undefined ? nothing : html`<pre data-testid=${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_FRAME}>${[...frame.lines, "", frame.manchester].join("\n")}</pre>`;
+
+/** What a view shows of a value: a template, or text. */
+type TShown = TemplateResult | string;
+
+/** What sets off each item of a list after the first. */
+const LIST_SEPARATOR = ", ";
+
+/** `items` in their order, each after the first set off by `separator`. */
+const listed = (items: readonly TShown[], separator: string): TemplateResult[] => items.map((item, at) => html`${at === 0 ? nothing : separator}${item}`);
 
 /** Returns the text a field's value copies as: a list's items joined, else the value as text. */
 /** The `data-copy` key of the record's body. A field's key is its name. */
@@ -95,10 +105,10 @@ const REASON_DETAIL = /\s\(|[.:;]\s/;
 const TARGETS_FOLD_AT = 4;
 
 /** A reference group's rendered targets: the first `TARGETS_FOLD_AT`, and the rest behind a disclosure naming how many. */
-export function foldedTargets(targets: readonly string[]): string {
-	if (targets.length <= TARGETS_FOLD_AT) return targets.join(", ");
+export function foldedTargets(targets: readonly TShown[]): TemplateResult {
+	if (targets.length <= TARGETS_FOLD_AT) return html`${listed(targets, LIST_SEPARATOR)}`;
 	const rest = targets.slice(TARGETS_FOLD_AT);
-	return `${targets.slice(0, TARGETS_FOLD_AT).join(", ")}<details class="ref-more"><summary class="ref-more-count">${rest.length} more</summary>${rest.join(", ")}</details>`;
+	return html`${listed(targets.slice(0, TARGETS_FOLD_AT), LIST_SEPARATOR)}<details class="ref-more"><summary class="ref-more-count">${rest.length} more</summary>${listed(rest, LIST_SEPARATOR)}</details>`;
 }
 
 export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
@@ -401,53 +411,52 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const fields = extractFieldEntries(this.vertex, persistedAs);
 		// Renderable body sub-resources (email/file/comment content) make this a full view, never a stub: the
 		// body is the substance even when there are few scalar fields, so it must always reach renderContentIframe.
-		const contentIframe = this.renderContentIframe(persistedAs);
+		const contentIframe = this.renderContentIframe();
 		// Literal body-presentation content (a SeqPath's stepText → content): the field table drops body-presentation
 		// fields, and the iframe path only renders linked bodies, so these inline scalars need their own block or vanish.
 		const bodyLiterals = this.renderBodyLiterals(persistedAs);
 		const governance = this.renderGovernance(persistedAs);
-		const isStub = Object.values(fields).filter((v) => (Array.isArray(v) ? v.length > 0 : v)).length <= 1 && contentIframe.length === 0 && bodyLiterals.length === 0;
+		const isStub = Object.values(fields).filter((v) => (Array.isArray(v) ? v.length > 0 : v)).length <= 1 && contentIframe === undefined && bodyLiterals.length === 0;
 		// A Class or Property record states its frame below its type.
-		const typeLine = `${this.typeLine(persistedAs)}${frameHtml(this.#frame)}`;
+		const typeLine = html`${this.typeLine(persistedAs)}${frameTpl(this.#frame)}`;
 
-		let contentHtml: string;
+		let content: TemplateResult;
 		if (isStub) {
-			const id = idOf(this.vertex);
-			contentHtml = `<div class="entity-header" data-testid="entity-stub"><span class="entity-type">${esc(persistedAs)}</span><span class="entity-id">${esc(id)}</span></div>${typeLine}${this.renderRoles()}${this.renderClaims()}${this.renderReferences()}`;
+			content = html`<div class="entity-header" data-testid="entity-stub"><span class="entity-type">${persistedAs}</span><span class="entity-id">${idOf(this.vertex)}</span></div>${typeLine}${this.renderRoles()}${this.renderClaims()}${this.renderReferences()}`;
 		} else {
 			const summaryFields = getSummaryFields(persistedAs);
 			// Every non-summary, non-edge scalar field, shown in full between the type line and the body. Object
 			// values render as formatted JSON. Body-presentation content (a SeqPath's stepText) renders below via bodyLiterals.
 			const detailEntries = Object.entries(fields).filter(([k]) => !getEdgeTargetLabels(k, persistedAs) && !summaryFields.has(k));
-			const detailRows = detailEntries
-				.map(([k, v]) => {
-					if (this.isTypeField(k)) return this.typeRow(k, v);
-					const valueHtml = Array.isArray(v) ? v.map((item) => this.formatFieldValue(item, k)).join(", ") : this.formatFieldValue(v, k);
-					return `<tr><td class="field-name">${this.predicateLink(k)}${this.vocabBadge(k)}</td><td data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_FIELD}-${escAttr(k)}" data-copy="${escAttr(k)}">${valueHtml}${this.fieldEvidence(k, v)}${this.fieldStatus(k, v)}</td></tr>`;
-				})
-				.join("");
-			const detailTable = detailRows ? `<table class="detail-table fields-table" data-testid="entity-fields">${detailRows}</table>` : "";
-			const fieldsHtml = detailTable
-				? detailEntries.length > FIELDS_FOLD_AT
-					? `<details class="fields-disclosure" data-testid="entity-fields-disclosure"><summary class="fields-summary">${detailEntries.length} fields</summary>${detailTable}</details>`
-					: detailTable
-				: "";
-			const summaryHtml =
-				summaryFields.size > 0
-					? `<div class="entity-summary" data-testid="entity-summary">${Array.from(summaryFields)
-							.flatMap((k) => {
-								const v = fields[k];
-								if (!v || (Array.isArray(v) && v.length === 0)) return [];
-								const valueHtml = Array.isArray(v) ? v.map((item) => this.fieldValueHtml(item, k)).join(", ") : this.fieldValueHtml(v, k);
-								return [
-									`<span class="summary-field" data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_FIELD}-${escAttr(k)}" data-copy="${escAttr(k)}">${this.predicateLink(k)}${this.vocabBadge(k)} ${valueHtml}${this.fieldEvidence(k, v)}${this.fieldStatus(k, v)}</span>`,
-								];
-							})
-							.join(" ")}</div>`
-					: "";
-			// The body area (iframe or inline-annotated) is rendered as a lit sub-template after this string, so annotations
-			// reach shu-annotated-body as a real property rather than an attribute, hence contentIframe is NOT embedded here.
-			contentHtml = `${typeLine}${summaryHtml}${this.renderRoles()}${fieldsHtml}${this.renderClaims()}${this.renderItemsTable()}${this.renderReferences()}${governance}${bodyLiterals}`;
+			const detailRows = detailEntries.map(([k, v]) => {
+				if (this.isTypeField(k)) return this.typeRow(k, v);
+				const value = listed(
+					[v].flat().map((item) => this.formatFieldValue(item, k)),
+					LIST_SEPARATOR,
+				);
+				return html`<tr><td class="field-name">${this.predicateLink(k)}${this.vocabBadge(k)}</td><td data-testid=${`${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_FIELD}-${k}`} data-copy=${k}>${value}${this.fieldEvidence(k, v)}${this.fieldStatus(k, v)}</td></tr>`;
+			});
+			const detailTable = html`<table class="detail-table fields-table" data-testid="entity-fields">${detailRows}</table>`;
+			const fieldsTpl =
+				detailRows.length === 0
+					? nothing
+					: detailEntries.length > FIELDS_FOLD_AT
+						? html`<details class="fields-disclosure" data-testid="entity-fields-disclosure"><summary class="fields-summary">${detailEntries.length} fields</summary>${detailTable}</details>`
+						: detailTable;
+			const summarySpans = Array.from(summaryFields).flatMap((k) => {
+				const v = fields[k];
+				if (!v || (Array.isArray(v) && v.length === 0)) return [];
+				const value = listed(
+					[v].flat().map((item) => this.fieldValueTpl(item, k)),
+					LIST_SEPARATOR,
+				);
+				return [
+					html`<span class="summary-field" data-testid=${`${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_FIELD}-${k}`} data-copy=${k}>${this.predicateLink(k)}${this.vocabBadge(k)} ${value}${this.fieldEvidence(k, v)}${this.fieldStatus(k, v)}</span>`,
+				];
+			});
+			const summaryTpl = summaryFields.size > 0 ? html`<div class="entity-summary" data-testid="entity-summary">${listed(summarySpans, " ")}</div>` : nothing;
+			// The body area (iframe or inline-annotated) renders after the record's JSON, below the fields.
+			content = html`${typeLine}${summaryTpl}${this.renderRoles()}${fieldsTpl}${this.renderClaims()}${this.renderItemsTable()}${this.renderReferences()}${governance}${bodyLiterals}`;
 		}
 
 		const recordStepsBar =
@@ -455,7 +464,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 				? html`<shu-record-steps ?active=${this.#paneActive} label=${persistedAs} record-id=${individualId} .links=${this.vertex?._links} .fragment=${this.fragment} .fileAt=${this.fileAt} @step-success=${this.#onStepSuccess}></shu-record-steps>`
 				: nothing;
 
-		return html`${unsafeHTML(this.emitHypermediaScript(this.#augmentedProducts() ?? this.products))}${this.renderColumnSettings()}<div class="entity-content ${this.#isFuture() ? TIME_SYNC_CLASS.FUTURE : ""}">${this.renderFromStore()}${recordStepsBar}${this.#statedError === undefined ? nothing : html`<shu-refusal .refusal=${this.#statedError}></shu-refusal>`}${unsafeHTML(`${contentHtml}${recordJson(this.vertex, false)}`)}${this.renderBodyArea(contentIframe)}</div>`;
+		return html`${unsafeHTML(this.emitHypermediaScript(this.#augmentedProducts() ?? this.products))}${this.renderColumnSettings()}<div class="entity-content ${this.#isFuture() ? TIME_SYNC_CLASS.FUTURE : ""}">${this.renderFromStore()}${recordStepsBar}${this.#statedError === undefined ? nothing : html`<shu-refusal .refusal=${this.#statedError}></shu-refusal>`}${content}${recordJson(this.vertex, false)}${this.renderBodyArea(contentIframe)}</div>`;
 	}
 
 	/** The part of a file of `mediaType` at which a link the record offers opens it: the part a reference named, or the page of
@@ -475,10 +484,6 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		}
 	};
 
-	protected updated(): void {
-		if (!this.state.loading && this.#refusal === undefined && this.vertex) this.bindEvents();
-	}
-
 	/** Where the view came from when it was not fetched: a copy held this session, or the browser store when offline.
 	 *  Absent for a live fetch, so its presence shows a reader why the view appeared without one. */
 	private renderFromStore(): TemplateResult {
@@ -490,48 +495,38 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 
 	/** The record's type as a link to the type's own view, which holds its description, schema and individuals: the same
 	 *  navigation a @type value and a #Type reference use. Empty for an ad-hoc result view without a registered type. */
-	private typeLine(persistedAs: string): string {
-		if (getRels(persistedAs) === undefined) return "";
-		const link = linkHtml(refHref({ kind: REF_DENOTES.type, target: { domain: persistedAs } }), persistedAs, ` data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_TYPE_LINK}"`);
-		return `<div class="entity-detail" data-testid="entity-details">${link}</div>`;
+	private typeLine(persistedAs: string): TemplateResult | typeof nothing {
+		if (getRels(persistedAs) === undefined) return nothing;
+		const link = linkTpl(refHref({ kind: REF_DENOTES.type, target: { domain: persistedAs } }), persistedAs, { testId: SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_TYPE_LINK });
+		return html`<div class="entity-detail" data-testid="entity-details">${link}</div>`;
 	}
 
 	/** Render arrays of objects as tables (e.g. a list's items). Skips `hasBody` (rendered as iframes), JSON-LD keywords, and underscore-projected keys. */
-	private renderItemsTable(): string {
-		if (!this.vertex) return "";
+	private renderItemsTable(): TemplateResult[] {
+		if (!this.vertex) return [];
 		const { persistedAs } = this.state;
-		const tables: string[] = [];
-		for (const [k, v] of Object.entries(this.vertex)) {
-			if (!isVisibleKey(k, persistedAs)) continue;
-			if (!Array.isArray(v) || v.length === 0 || typeof v[0] !== "object") continue;
+		return Object.entries(this.vertex).flatMap(([k, v]) => {
+			if (!isVisibleKey(k, persistedAs) || !Array.isArray(v) || v.length === 0 || typeof v[0] !== "object") return [];
 			const items = RecordsSchema.parse(v);
 			// Inner table: items don't have a per-row label, fall back to projection-only filter.
 			const keys = Object.keys(itemAt(items, 0)).filter((key) => isVisibleKey(key));
 			// An item that names its type and identity is a record, and its row opens it.
 			const records = items.some((item) => typeof item["@type"] === "string" && typeof item["@id"] === "string");
-			const header = `${records ? "<th>@id</th>" : ""}${keys.map((key) => `<th>${esc(key)}</th>`).join("")}`;
-			const rows = items
-				.map(
-					(item) =>
-						`<tr>${records ? `<td>${linkHtml(typeof item["@type"] === "string" ? refHref({ kind: REF_DENOTES.individual, target: { persistedAs: item["@type"], id: idOf(item) } }) : undefined, idOf(item))}</td>` : ""}${keys
-							.map((key) => {
-								const val = item[key];
-								return `<td>${esc(typeof val === "object" && val !== null ? JSON.stringify(val) : String(val ?? ""))}</td>`;
-							})
-							.join("")}</tr>`,
-				)
-				.join("");
-			tables.push(`<table class="detail-table items-table"><thead><tr>${header}</tr></thead><tbody>${rows}</tbody></table>`);
-		}
-		return tables.join("");
+			const cell = (val: unknown): string => (typeof val === "object" && val !== null ? JSON.stringify(val) : String(val ?? ""));
+			const recordCell = (item: Record<string, unknown>): TShown =>
+				linkTpl(typeof item["@type"] === "string" ? refHref({ kind: REF_DENOTES.individual, target: { persistedAs: item["@type"], id: idOf(item) } }) : undefined, idOf(item));
+			const rows = items.map((item) => html`<tr>${records ? html`<td>${recordCell(item)}</td>` : nothing}${keys.map((key) => html`<td>${cell(item[key])}</td>`)}</tr>`);
+			return [
+				html`<table class="detail-table items-table"><thead><tr>${records ? html`<th>@id</th>` : nothing}${keys.map((key) => html`<th>${key}</th>`)}</tr></thead><tbody>${rows}</tbody></table>`,
+			];
+		});
 	}
 
 	/** Render an edge target as a link to it. */
-	private renderEdgeTarget(target: VertexData, edgeType: string): string {
-		const display = instanceLabel(target);
-		const testId = this.#paneActive && this.edgeTargetCount === 0 ? ` data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.EDGE_TARGET_FIRST}"` : "";
+	private renderEdgeTarget(target: VertexData, edgeType: string): TShown {
+		const testId = this.#paneActive && this.edgeTargetCount === 0 ? SHU_TEST_IDS.COLUMN_BROWSER.EDGE_TARGET_FIRST : undefined;
 		this.edgeTargetCount++;
-		return linkHtml(this.edgeTargetHref(edgeType, target), display, testId);
+		return linkTpl(this.edgeTargetHref(edgeType, target), instanceLabel(target), { testId });
 	}
 
 	/** The address of an edge's target, typed by the edge's range where it names one type and by the target otherwise. */
@@ -554,7 +549,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	/** The node's roles in plain language, who plays what role toward it, so the roles are explained rather than left
 	 *  as raw rels. Reads the role edges (the catalog controller's roleEdgeLabelSet). A role is one fact per (rel, party), so a rel
 	 *  repeated to the same party renders once, as renderReferences dedups its targets. */
-	private renderRoles(): string {
+	private renderRoles(): TemplateResult | typeof nothing {
 		const roles = roleEdgeLabelSet();
 		const seen = new Set<string>();
 		const rows = this.edges
@@ -565,20 +560,19 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			})
 			.map(
 				(e) =>
-					`<div class="role-row"><span class="role-phrase">${esc(ShuEntityColumn.ROLE_PHRASE[e.type] ?? getDeclaredEdgeLabel(e.type) ?? e.type)}</span> ${this.renderEdgeTarget(e.target, e.type)}</div>`,
-			)
-			.join("");
-		if (!rows) return "";
-		return `<div class="roles-explanation" data-testid="entity-roles"><span class="section-label">Roles</span>${rows}</div>`;
+					html`<div class="role-row"><span class="role-phrase">${ShuEntityColumn.ROLE_PHRASE[e.type] ?? getDeclaredEdgeLabel(e.type) ?? e.type}</span> ${this.renderEdgeTarget(e.target, e.type)}</div>`,
+			);
+		if (rows.length === 0) return nothing;
+		return html`<div class="roles-explanation" data-testid="entity-roles"><span class="section-label">Roles</span>${rows}</div>`;
 	}
 
-	private renderReferences(): string {
+	private renderReferences(): TemplateResult | typeof nothing {
 		// Exclude edges already shown in the summary section
 		const summaryFields = getSummaryFields(this.state.persistedAs);
 		const roles = roleEdgeLabelSet();
 		const outgoing = this.edges.filter((e) => !summaryFields.has(e.type) && isReferenceEdge(e.type) && !roles.has(e.type));
 
-		if (outgoing.length === 0 && this.incomingCount.total === 0) return "";
+		if (outgoing.length === 0 && this.incomingCount.total === 0) return nothing;
 
 		// Deduplicate targets for display, inReplyTo takes priority over references
 		const seen = new Set<string>();
@@ -592,22 +586,20 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			group.push({ target: e.target, edgeType: e.type });
 			grouped.set(e.type, group);
 		}
-		const outHtml = Array.from(grouped.entries())
-			.map(
-				([type, items]) => `<div class="ref-group"><span class="ref-type">${esc(type)}</span>${foldedTargets(items.map((i) => this.renderEdgeTarget(i.target, i.edgeType)))}</div>`,
-			)
-			.join("");
+		const groups = Array.from(grouped.entries()).map(
+			([type, items]) => html`<div class="ref-group"><span class="ref-type">${type}</span>${foldedTargets(items.map((i) => this.renderEdgeTarget(i.target, i.edgeType)))}</div>`,
+		);
 
 		const { persistedAs, individualId: subject } = this.state;
 		const incoming = paneHref({ paneType: "filter-incoming", persistedAs, subject });
-		const inHtml =
+		const linksHere =
 			this.incomingCount.total > 0
-				? `<a class="section-label links-here-link" href="${escAttr(incoming)}">What links here <span class="ref-count">(${statedTotal(this.incomingCount)})</span></a>`
-				: "";
+				? html`<a class="section-label links-here-link" href=${incoming}>What links here <span class="ref-count">(${statedTotal(this.incomingCount)})</span></a>`
+				: nothing;
 		const hasReplies = this.edges.some((e) => isReplyEdge(e.type)) || this.incomingCount.total > 0;
-		const replyHtml = hasReplies ? `<a class="section-label thread-link" href="${escAttr(paneHref({ paneType: "thread", persistedAs, subject }))}">View replies</a>` : "";
+		const replies = hasReplies ? html`<a class="section-label thread-link" href=${paneHref({ paneType: "thread", persistedAs, subject })}>View replies</a>` : nothing;
 
-		return `<div class="references" data-testid="ref-section">${outHtml}${inHtml}${replyHtml}</div>`;
+		return html`<div class="references" data-testid="ref-section">${groups}${linksHere}${replies}</div>`;
 	}
 
 	/**
@@ -615,46 +607,45 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	 * with a switcher where there are several. Each reading renders by its media type, for a Comment's markdown, an Email's
 	 * markdown, plain text and HTML, a Proposal's rationale and a File's markdown alike.
 	 */
-	private renderContentIframe(_persistedAs: string): string {
+	private renderContentIframe(): TemplateResult | undefined {
 		const vertex = this.vertex;
-		if (!vertex) return "";
+		if (!vertex) return undefined;
 		// The record NAMES its bodies and the media type of each of their forms; their text is read on request, so the
 		// switcher is drawn from the listing and the shown reading's text appears once its body has been read.
 		const available = readingsOf(vertex);
 		const active = this.shownReading();
-		if (active === undefined) return "";
+		if (active === undefined) return undefined;
 
-		const switcherHtml =
+		const switcher =
 			available.length > 1
-				? `<div class="content-switcher">${available
-						.map(
-							(b) =>
-								`<button class="content-switch-btn" data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_READING}" aria-pressed="${b.key === active.key}" data-reading="${escAttr(b.key)}">${esc(b.media)}</button>`,
-						)
-						.join("")}</div>`
-				: "";
+				? html`<div class="content-switcher">${available.map(
+						(b) =>
+							html`<button class="content-switch-btn" data-testid=${SHU_TEST_IDS.COLUMN_BROWSER.BODY_READING} aria-pressed=${String(b.key === active.key)} data-reading=${b.key} @click=${() => this.switchBody(b.key)}>${b.media}</button>`,
+					)}</div>`
+				: nothing;
 		// Text this view was HANDED (a step's products carry their own body) doesn't need a request; otherwise it is the text
 		// read on request, and until that lands the body area shows it is reading rather than showing an empty frame.
 		const raw = active.text;
-		const reading = `<div class="body-container"><div class="content-toolbar">${switcherHtml}</div><div class="body-reading" data-testid="body-reading">Reading ${esc(active.media)}…</div></div>`;
+		const reading = html`<div class="body-container"><div class="content-toolbar">${switcher}</div><div class="body-reading" data-testid="body-reading">Reading ${active.media}…</div></div>`;
 		if (raw === undefined) return reading;
-		if (raw === "") return ""; // an empty body renders an empty string, not an empty frame
+		if (raw === "") return undefined; // an empty body leaves the body area out, rather than showing an empty frame
 		const renderer = this.#markdown.renderer;
 		if (renderer === undefined) return reading;
 		const content = renderer.renderContentHtml(raw, active.media, refContext);
 		const encoded = utf8ToBase64(buildBodyIframeDoc(content, active.media, pageAddress()));
-		const invertible = active.media !== MEDIA_TYPE.html ? " invertible" : "";
-		const iframeHtml = `<iframe class="body-iframe${invertible}" data-reading="${escAttr(active.key)}" sandbox="allow-same-origin allow-top-navigation-by-user-activation" src="data:text/html;base64,${encoded}" data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_IFRAME}"></iframe>`;
+		const iframe = html`<iframe class=${active.media === MEDIA_TYPE.html ? "body-iframe" : "body-iframe invertible"} data-reading=${active.key} sandbox="allow-same-origin allow-top-navigation-by-user-activation" src=${`data:text/html;base64,${encoded}`} data-testid=${SHU_TEST_IDS.COLUMN_BROWSER.BODY_IFRAME}></iframe>`;
 
-		const annotateBtn = this.annotatableBody() ? this.annotateButtonHtml(false) : "";
-		const toolbar = `<div class="content-toolbar">${switcherHtml}${annotateBtn}</div>`;
+		const toolbar = html`<div class="content-toolbar">${switcher}${this.annotatableBody() ? this.annotateButton(false) : nothing}</div>`;
 		// References don't work inside the sandbox, so the ones the body makes are listed beside it.
 		const refs = refsInContent(content, refContext);
-		const refsHtml = refs.length
-			? `<div class="body-refs" data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_REFS}">${refs.map(({ ref, text }) => renderRef(ref, text)).join(", ")}</div>`
-			: "";
+		const refsTpl = refs.length
+			? html`<div class="body-refs" data-testid=${SHU_TEST_IDS.COLUMN_BROWSER.BODY_REFS}>${listed(
+					refs.map(({ ref, text }) => refTpl(ref, text)),
+					LIST_SEPARATOR,
+				)}</div>`
+			: nothing;
 		this.#copiedBody = raw;
-		const body = `<div class="body-container" data-copy="${BODY_COPY_KEY}">${toolbar}${iframeHtml}${refsHtml}</div>`;
+		const body = html`<div class="body-container" data-copy=${BODY_COPY_KEY}>${toolbar}${iframe}${refsTpl}</div>`;
 		// A JSON body is a document's data, as a signed capability is, so it starts closed as the record's Data does.
 		return isJsonMedia(active.media) ? disclosure(SHU_TEST_IDS.COLUMN_BROWSER.BODY_DOCUMENT, "Document", body, false) : body;
 	}
@@ -680,10 +671,10 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	/** The annotation-gutter toggle for the body toolbar, identical markup in the iframe and inline paths so the two
 	 *  never drift. `active` is whether the gutter is currently open (drives the pane-icon aria-pressed highlight); the
 	 *  `has-annotations` class colours the pencil glyph, greyscale otherwise. */
-	private annotateButtonHtml(active: boolean): string {
+	private annotateButton(active: boolean): TemplateResult {
 		const has = this.annotationsList.length > 0;
 		const title = active ? "Hide annotations" : has ? "Show annotations" : "Add annotations";
-		return `<button class="pane-icon annotate-enter${has ? " has-annotations" : ""}" data-testid="annotate-enter" type="button" aria-pressed="${active}" title="${title}"><span class="anno-glyph">${ANNOTATION_GLYPH}</span></button>`;
+		return html`<button class=${has ? "pane-icon annotate-enter has-annotations" : "pane-icon annotate-enter"} data-testid="annotate-enter" type="button" aria-pressed=${String(active)} title=${title} @click=${() => this.toggleAnnotationGutter(!this.state.showAnnotations)}><span class="anno-glyph">${ANNOTATION_GLYPH}</span></button>`;
 	}
 
 	/** Show or hide the annotation gutter. On without annotations yet enters authoring (the inline view needs a note or
@@ -697,15 +688,13 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	 *  exist), renders inline via shu-annotated-body: the passages highlighted and the notes shown in a margin rail
 	 *  beside them, the toolbar's pencil toggling back to the plain iframe. Any other case (without annotations, gutter off, or a
 	 *  non-text body such as an original HTML email) keeps the sandboxed body iframe, whose pencil turns the gutter on. */
-	private renderBodyArea(iframeHtml: string): TemplateResult {
-		if (!iframeHtml) return html``;
+	private renderBodyArea(contentIframe: TemplateResult | undefined): TemplateResult | typeof nothing {
+		if (contentIframe === undefined) return nothing;
 		const annBody = this.annotatableBody();
 		const showInline = annBody && this.state.showAnnotations && (this.annotationsList.length > 0 || this.state.annotateMode || this.revealTarget !== null);
 		if (showInline && annBody) {
 			void annotatedBody();
-			return html`<div class="content-toolbar">
-					${unsafeHTML(this.annotateButtonHtml(true))}
-				</div>
+			return html`<div class="content-toolbar">${this.annotateButton(true)}</div>
 				<shu-annotated-body
 					data-testid=${SHU_TEST_IDS.COLUMN_BROWSER.ANNOTATED_BODY}
 					.content=${annBody.text}
@@ -718,7 +707,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 					.revealTarget=${this.revealTarget}
 				></shu-annotated-body>`;
 		}
-		return html`${unsafeHTML(iframeHtml)}`;
+		return contentIframe;
 	}
 
 	/** The column's view-settings surface, shown only under the pane's ⚙ (the pane sets `data-show-controls`), like the
@@ -742,13 +731,12 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 
 	/** The record's governance fields: who may see it, what it allows, whether it is revoked. The field table drops them
 	 *  (their rel indicates this section), so without this they don't render. */
-	private renderGovernance(persistedAs: string): string {
-		if (!this.vertex) return "";
-		const fields = governanceFields(this.vertex, persistedAs);
-		const rows = Object.entries(fields)
-			.map(([k, v]) => `<div class="field-row"><span class="field-name">${esc(k)}</span><span class="field-value">${this.fieldValueHtml(v, k)}</span></div>`)
-			.join("");
-		return rows ? `<div class="governance" data-testid="entity-governance">${rows}</div>` : "";
+	private renderGovernance(persistedAs: string): TemplateResult | typeof nothing {
+		if (!this.vertex) return nothing;
+		const rows = Object.entries(governanceFields(this.vertex, persistedAs)).map(
+			([k, v]) => html`<div class="field-row"><span class="field-name">${k}</span><span class="field-value">${this.fieldValueTpl(v, k)}</span></div>`,
+		);
+		return rows.length === 0 ? nothing : html`<div class="governance" data-testid="entity-governance">${rows}</div>`;
 	}
 
 	/**
@@ -757,30 +745,30 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	 * fields out of the field table, but renderContentIframe only handles linked `hasBody` sub-resources, so a literal
 	 * `content` value otherwise doesn't render.
 	 */
-	private renderBodyLiterals(persistedAs: string): string {
-		if (!this.vertex) return "";
-		return Object.entries(extractBodyLiterals(this.vertex, persistedAs))
-			.map(([k, v]) => `<div class="literal-body" data-testid="entity-body-${escAttr(k)}">${literalWithJson(v)}</div>`)
-			.join("");
+	private renderBodyLiterals(persistedAs: string): TemplateResult[] {
+		if (!this.vertex) return [];
+		return Object.entries(extractBodyLiterals(this.vertex, persistedAs)).map(
+			([k, v]) => html`<div class="literal-body" data-testid=${`entity-body-${k}`}>${literalWithJson(v)}</div>`,
+		);
 	}
 
 	/** A field's value formatted for the visible field table: an object or array is shown as disclosures a reader opens;
-	 *  everything else falls through to fieldValueHtml (its navigation affordance + escaping). */
-	private formatFieldValue(value: string, propertyName: string): string {
+	 *  everything else falls through to fieldValueTpl, with its link. */
+	private formatFieldValue(value: string, propertyName: string): TShown {
 		const trimmed = value.trim();
 		// A value that isn't JSON renders as an ordinary scalar.
 		const carried = (trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]")) ? jsonCarried(trimmed) : undefined;
-		if (carried !== undefined) return `<div class="field-json" data-testid="field-json-${escAttr(propertyName)}">${jsonDisclosure(carried)}</div>`;
-		return this.fieldValueHtml(value, propertyName);
+		if (carried !== undefined) return html`<div class="field-json" data-testid=${`field-json-${propertyName}`}>${jsonTpl(carried)}</div>`;
+		return this.fieldValueTpl(value, propertyName);
 	}
 
 	/** A field's value with the link it takes: the idField links to this individual (the idField is never a query
 	 *  filter), an edge-valued or queryable field links through valueLink, and anything else is text. */
-	private fieldValueHtml(value: string, propertyName: string): string {
+	private fieldValueTpl(value: string, propertyName: string): TShown {
 		const label = this.state.persistedAs;
-		if (propertyName === getIdField(label)) return linkHtml(refHref({ kind: REF_DENOTES.individual, target: { persistedAs: label, id: value } }), value);
+		if (propertyName === getIdField(label)) return linkTpl(refHref({ kind: REF_DENOTES.individual, target: { persistedAs: label, id: value } }), value);
 		if (rangeOf(label, propertyName) === "iri" || getQueryableFields(label).includes(propertyName)) return this.valueLink(value, propertyName);
-		return esc(value);
+		return value;
 	}
 
 	/** The type's scoped @context (field → {@id, @type?}) from the served hypermedia: the server resolves each field to
@@ -806,64 +794,53 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 
 	/** A provenance mark on a field name, from the served @context's genuine IRI for the field: haibun's own reads faint,
 	 *  a standard/consumer vocabulary shows its prefix (prov/schema/…). Empty when the context omits the field. */
-	private vocabBadge(propertyName: string): string {
+	private vocabBadge(propertyName: string): TemplateResult | typeof nothing {
 		const iri = this.fieldIri(propertyName);
-		if (!iri) return "";
+		if (!iri) return nothing;
 		const v = propertyVocabulary(iri);
-		return `<sup class="vocab vocab-${v.source}" data-testid="vocab-${escAttr(propertyName)}" title="${escAttr(v.source === "haibun" ? "haibun vocabulary" : `${v.prefix} vocabulary`)}">${esc(v.prefix)}</sup>`;
+		return html`<sup class="vocab vocab-${v.source}" data-testid=${`vocab-${propertyName}`} title=${v.source === "haibun" ? "haibun vocabulary" : `${v.prefix} vocabulary`}>${v.prefix}</sup>`;
 	}
 
 	/** The status of a field beside its value: the verdict of the claim the reasoner made of it, described by the claim's sentence,
 	 *  or assumed where a passage of outside input quotes its value and a claim hasn't determined it. Empty otherwise. */
-	private fieldStatus(field: string, value: string | string[]): string {
+	private fieldStatus(field: string, value: string | string[]): TemplateResult | typeof nothing {
 		const testId = `${SHU_TEST_IDS.CLAIMS.FIELD_STATUS}-${field}`;
 		const claim = this.#claims.find((held) => held.field === field);
-		if (claim !== undefined) return ` ${verdictStatusHtml(testId, claim.test, claim.verdict)}`;
+		if (claim !== undefined) return html` ${verdictStatusTpl(testId, claim.test, claim.verdict)}`;
 		const values = new Set([value].flat());
 		return this.#evidence.some(({ quote }) => values.has(quote.exact))
-			? ` ${verdictStatusHtml(testId, `the ${field} rests on the passage that quotes it`, STATEMENT_STATUS.assumed)}`
-			: "";
+			? html` ${verdictStatusTpl(testId, `the ${field} rests on the passage that quotes it`, STATEMENT_STATUS.assumed)}`
+			: nothing;
 	}
 
 	/** The link from a field to each passage that quotes its value in the record's source, which opens the source with the passage
 	 *  selected, named by where the passage is and the step that extracted it. Empty where a passage doesn't quote the value. */
-	private fieldEvidence(field: string, value: string | string[]): string {
+	private fieldEvidence(field: string, value: string | string[]): TemplateResult[] {
 		const values = new Set([value].flat());
-		return this.#evidence
-			.filter(({ quote }) => values.has(quote.exact))
-			.map((evidence) => {
-				const href = passageHref(evidence);
-				const named = passageName(`the ${field}`, evidence);
-				return href === undefined
-					? ""
-					: ` ${linkHtml(href, "quote", ` data-testid="${SHU_TEST_IDS.CLAIMS.EVIDENCE}-${escAttr(field)}" aria-label="${escAttr(named)}"`, "col-link evidence")}`;
-			})
-			.join("");
+		return this.#evidence.flatMap((evidence) => {
+			const href = passageHref(evidence);
+			if (href === undefined || !values.has(evidence.quote.exact)) return [];
+			const label = passageName(`the ${field}`, evidence);
+			return [html` ${linkTpl(href, "quote", { testId: `${SHU_TEST_IDS.CLAIMS.EVIDENCE}-${field}`, label, linkClass: "col-link evidence" })}`];
+		});
 	}
 
 	/** The claims the reasoner made about the record, each with its status, its sentence and its proof, under a link to the step that
 	 *  made it, so the claims of each step that wrote the record read apart: a claim of a field the record doesn't hold, such as an
 	 *  Email's missing subject, reads here as unknown, since the open world doesn't read it as false. */
-	private renderClaims(): string {
+	private renderClaims(): TemplateResult | typeof nothing {
 		if (this.#claimsRefusal !== undefined)
-			return `<section class="claims" data-testid="${SHU_TEST_IDS.CLAIMS.LIST}"><h3>Claims</h3><p>the claims about the record weren't read: ${esc(this.#claimsRefusal.error)}</p></section>`;
-		if (this.#claims.length === 0) return "";
-		const claimHtml = ({ test, verdict, proof }: TRecordClaim): string =>
-			`<li data-testid="${SHU_TEST_IDS.CLAIMS.CLAIM}">${verdictStatusHtml(SHU_TEST_IDS.CLAIMS.STATUS, test, verdict)} ${esc(test)}<details><summary>proof</summary>${esc(proof)}</details></li>`;
+			return html`<section class="claims" data-testid=${SHU_TEST_IDS.CLAIMS.LIST}><h3>Claims</h3><p>the claims about the record weren't read: ${this.#claimsRefusal.error}</p></section>`;
+		if (this.#claims.length === 0) return nothing;
+		const claimTpl = ({ test, verdict, proof }: TRecordClaim): TemplateResult =>
+			html`<li data-testid=${SHU_TEST_IDS.CLAIMS.CLAIM}>${verdictStatusTpl(SHU_TEST_IDS.CLAIMS.STATUS, test, verdict)} ${test}<details><summary>proof</summary>${proof}</details></li>`;
 		const stepOf = ({ madeBy }: TRecordClaim): string => `${madeBy.label}:${madeBy.id}`;
 		const steps = new Map(this.#claims.map((claim) => [stepOf(claim), claim.madeBy]));
 		const bySteps = [...steps].map(([key, madeBy]) => {
-			const step = linkHtml(
-				refHref({ kind: REF_DENOTES.individual, target: { persistedAs: madeBy.label, id: madeBy.id } }),
-				madeBy.title,
-				` data-testid="${SHU_TEST_IDS.CLAIMS.MADE_BY}"`,
-			);
-			return `<li>by ${step}<ul>${this.#claims
-				.filter((claim) => stepOf(claim) === key)
-				.map(claimHtml)
-				.join("")}</ul></li>`;
+			const step = linkTpl(refHref({ kind: REF_DENOTES.individual, target: { persistedAs: madeBy.label, id: madeBy.id } }), madeBy.title, { testId: SHU_TEST_IDS.CLAIMS.MADE_BY });
+			return html`<li>by ${step}<ul>${this.#claims.filter((claim) => stepOf(claim) === key).map(claimTpl)}</ul></li>`;
 		});
-		return `<section class="claims" data-testid="${SHU_TEST_IDS.CLAIMS.LIST}"><h3>Claims</h3><ul>${bySteps.join("")}</ul></section>`;
+		return html`<section class="claims" data-testid=${SHU_TEST_IDS.CLAIMS.LIST}><h3>Claims</h3><ul>${bySteps}</ul></section>`;
 	}
 
 	/** True when the served @context aliases this field to the JSON-LD `@type` keyword, whose values are the entity's
@@ -874,62 +851,35 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 
 	/** Render the rdf:type field the standard JSON-LD way: named `@type`, its values the entity's classes: each a link
 	 *  that opens the class's type column, so an entity carrying several classes has each one explorable. */
-	private typeRow(propertyName: string, value: string | string[]): string {
-		const classes = Array.isArray(value) ? value : [value];
-		const links = classes
+	private typeRow(propertyName: string, value: string | string[]): TemplateResult {
+		const links = [value]
+			.flat()
 			.filter((c) => c)
-			.map((c) => linkHtml(refHref({ kind: REF_DENOTES.type, target: { domain: c } }), c, ` data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.TYPE_VALUE}"`))
-			.join(", ");
-		return `<tr><td class="field-name">@type</td><td data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_FIELD}-${escAttr(propertyName)}">${links}</td></tr>`;
+			.map((c) => linkTpl(refHref({ kind: REF_DENOTES.type, target: { domain: c } }), c, { testId: SHU_TEST_IDS.COLUMN_BROWSER.TYPE_VALUE }));
+		return html`<tr><td class="field-name">@type</td><td data-testid=${`${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_FIELD}-${propertyName}`}>${listed(links, LIST_SEPARATOR)}</td></tr>`;
 	}
 
 	/** A field's value as a link: to the record an edge of that relation points at, or else to the records whose field
 	 *  holds the same value. */
-	private valueLink(value: string, propertyName: string): string {
+	private valueLink(value: string, propertyName: string): TShown {
 		const target = rangeOf(this.state.persistedAs, propertyName) === "iri" ? this.edges.find((e) => e.type === propertyName && e.direction === "out")?.target : undefined;
-		if (target) return linkHtml(this.edgeTargetHref(propertyName, target), value);
-		return linkHtml(paneHref({ paneType: "filter-eq", persistedAs: this.state.persistedAs, predicate: propertyName, value }), value);
+		if (target) return linkTpl(this.edgeTargetHref(propertyName, target), value);
+		return linkTpl(paneHref({ paneType: "filter-eq", persistedAs: this.state.persistedAs, predicate: propertyName, value }), value);
 	}
 
 	/** A field's name as a link to the records of this type, ordered by that field. */
-	private predicateLink(propertyName: string): string {
+	private predicateLink(propertyName: string): TShown {
 		const testId = this.predicateLinkCount === 0 ? SHU_TEST_IDS.COLUMN_BROWSER.PREDICATE_LINK_FIRST : SHU_TEST_IDS.COLUMN_BROWSER.PREDICATE_LINK;
 		this.predicateLinkCount++;
-		return linkHtml(paneHref({ paneType: "filter-prop", persistedAs: this.state.persistedAs, predicate: propertyName }), propertyName, ` data-testid="${testId}"`, "pred-link");
+		return linkTpl(paneHref({ paneType: "filter-prop", persistedAs: this.state.persistedAs, predicate: propertyName }), propertyName, { testId, linkClass: "pred-link" });
 	}
-
-	// One delegated click listener on the shadow root, attached once. The content is `unsafeHTML` (a raw string lit does
-	// NOT rebuild while unchanged), so a per-node addEventListener in `updated()` (which runs on every render) accumulated
-	// a fresh listener on each surviving button: one click then fired N times. Delegation binds one stable listener to
-	// the shadow root, which addEventListener dedups by identity, so re-binding every render is a no-op by spec. Links
-	// don't need one: the page follows their addresses.
-	private onShadowClick = (e: Event): void => {
-		const target = e.target as Element | null;
-		const switchBtn = target?.closest(".content-switch-btn") as HTMLElement | null;
-		if (switchBtn) this.switchBody(switchBtn);
-	};
 
 	readonly #clock = new ClockController(this);
 
 	/** Show the reading a reader switched to, and read its text where it has not been read. */
-	private switchBody(btn: HTMLElement): void {
-		const chosen = this.vertex === null ? undefined : readingsOf(this.vertex).find((reading) => reading.key === btn.dataset.reading);
-		if (chosen === undefined) return;
-		this.chosenReading = chosen.key;
+	private switchBody(key: string): void {
+		this.chosenReading = key;
 		this.requestUpdate();
-	}
-
-	private bindEvents(): void {
-		this.shadowRoot?.addEventListener("click", this.onShadowClick);
-
-		// Both toolbars render the toggle the same string way (annotateButtonHtml), so one binding covers both: a click
-		// flips the gutter from whatever it is now. The `data-bound` guard stops a second listener attaching when a
-		// re-render leaves the button node in place (unsafeHTML only recreates it when its string changes).
-		const annotateBtn = this.shadowRoot?.querySelector<HTMLElement>(".annotate-enter");
-		if (annotateBtn && !annotateBtn.dataset.bound) {
-			annotateBtn.dataset.bound = "1";
-			annotateBtn.addEventListener("click", () => this.toggleAnnotationGutter(!this.state.showAnnotations));
-		}
 	}
 }
 

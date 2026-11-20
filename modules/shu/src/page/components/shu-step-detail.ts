@@ -8,7 +8,6 @@
  * shows the refusal and its remedy.
  */
 import { PROV_ACTIVITY } from "@haibun/core/lib/domains/vocabularies.js";
-import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { recordJson } from "./json-disclosure.js";
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
@@ -187,7 +186,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 			`
 					: ""
 			}
-			${step ? unsafeHTML(recordJson(step, true)) : ""}
+			${step ? recordJson(step, true) : ""}
 		</div>`;
 	}
 }

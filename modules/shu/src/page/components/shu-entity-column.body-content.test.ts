@@ -63,9 +63,14 @@ describe("entity body content renders for every type and view that should show i
 				],
 			},
 		]);
-		const switches = [...html.matchAll(new RegExp(`data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_READING}"[^>]*>([^<]+)<`, "g"))].map(([, media]) => media);
-		expect(switches).toEqual(["text/markdown", "text/html", "text/plain"]);
-		expect(html).toContain(`aria-pressed="true" data-reading="${readingKey("b", "text/markdown")}"`);
+		const shown = document.createElement("template");
+		shown.innerHTML = html;
+		const switches = [...shown.content.querySelectorAll<HTMLButtonElement>(`button[data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_READING}"]`)];
+		expect(switches.map((button) => button.textContent)).toEqual(["text/markdown", "text/html", "text/plain"]);
+		expect(
+			switches.filter((button) => button.getAttribute("aria-pressed") === "true").map((button) => button.dataset.reading),
+			"the markdown reading is the one shown",
+		).toEqual([readingKey("b", "text/markdown")]);
 	});
 
 	it("file with a single markdown body: shows the iframe (one type doesn't need a switcher)", async () => {

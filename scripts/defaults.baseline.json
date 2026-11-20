@@ -126,7 +126,7 @@
 	},
 	"modules/shu/src/page/components/ref-navigation.ts": {
 		"fills an absent value with a constant through ??": 1,
-		"states a parameter's default value": 4
+		"states a parameter's default value": 2
 	},
 	"modules/shu/src/page/components/shu-actions-bar.ts": {
 		"fills a falsy value with a constant through ||": 1

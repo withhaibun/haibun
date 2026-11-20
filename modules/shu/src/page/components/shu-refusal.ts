@@ -4,8 +4,7 @@
  * the action to request with a control that copies it, or a link to what a reference names. The page performs a reload through
  * its remedies port.
  */
-import { unsafeHTML } from "lit/directives/unsafe-html.js";
-import { verdictStatusHtml } from "../derivations/verdict-status.js";
+import { verdictStatusTpl } from "./verdict-status.js";
 import { html, css, nothing, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { SHU_TAG } from "../../domains/elements.js";
@@ -68,7 +67,7 @@ export class ShuRefusal extends ShuElement<typeof EmptyStateSchema> {
 
 	/** The status of the statement that refused the call, as its word and its mark, described by the statement's sentence. */
 	private statusTpl({ statement, verdict }: TStatementRefusal): TemplateResult {
-		return html`${unsafeHTML(verdictStatusHtml(SHU_TEST_IDS.REFUSAL.STATUS, statement, verdict))}`;
+		return verdictStatusTpl(SHU_TEST_IDS.REFUSAL.STATUS, statement, verdict);
 	}
 
 	render(): TemplateResult {

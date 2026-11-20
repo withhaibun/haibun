@@ -15,7 +15,6 @@ import { describedWithContract } from "@haibun/core/lib/contract.js";
 import { html, css, nothing, type TemplateResult } from "lit";
 import { z } from "zod";
 import { property, state } from "lit/decorators.js";
-import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import type { TEntailment } from "@haibun/core/lib/records/domains/claim.js";
 import { JsonObjectTextSchema, RecordSchema, RecordsSchema } from "@haibun/core/lib/domains/json-text.js";
@@ -40,7 +39,7 @@ import { revealInDocument } from "./reveal.js";
 import type { TComboboxOption } from "../../domains/schemas.js";
 import type { TPageRefusal } from "../domains/refusal.js";
 import { ShuElement, EmptyStateSchema, type TLinkedData } from "./shu-element.js";
-import { jsonDisclosure } from "./json-disclosure.js";
+import { jsonTpl } from "./json-disclosure.js";
 import { shuBaseStyles } from "./styles.js";
 import "./shu-combobox.js";
 import { whyOfPathTpl } from "./why.js";
@@ -500,7 +499,7 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 	/** What the call returned, by the step's output schema, or as JSON where the step doesn't declare one. */
 	#renderOutput(desc: TStepDefinition, result: unknown): TemplateResult {
 		const steps = recordStepsOf(result);
-		const body = desc.outputSchema === undefined ? html`${unsafeHTML(jsonDisclosure(result))}` : this.#bySchema(result, desc.outputSchema);
+		const body = desc.outputSchema === undefined ? jsonTpl(result) : this.#bySchema(result, desc.outputSchema);
 		return html`${body}${steps}`;
 	}
 
@@ -521,7 +520,7 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 			return html`<ul>${data.map((v) => html`<li>${this.#cell(v)}</li>`)}</ul>`;
 		}
 		if (typeof data === "string" || typeof data === "number") return html`<span>${String(data)}</span>`;
-		return html`${unsafeHTML(jsonDisclosure(data))}`;
+		return jsonTpl(data);
 	}
 
 	/** Rows as one table, its columns every field a row has, since a field one row states another may leave out. */

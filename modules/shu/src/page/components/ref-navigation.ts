@@ -13,12 +13,16 @@ import { formatRecordName } from "@haibun/core/lib/seq-path.js";
 import { readingActualityFeature } from "../client-cache/controllers/device-controller.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
-import { esc, escAttr, stepPathOf, type TNamedRef, type TRef, type TRefTarget } from "../derivations/markdown.js";
+import { html, nothing, type TemplateResult } from "lit";
+import { stepPathOf, type TNamedRef, type TRef, type TRefTarget } from "../derivations/markdown.js";
 import { paneOfEntry, requestPaneFrom } from "../controllers/pane-controller.js";
 import { addsToSelection, columnEntryOf, type DesiredPane } from "../derivations/pane-kinds.js";
 import { typeShownIn } from "../controllers/catalog-controller.js";
 import type { TEvidence } from "../domains/claims.js";
 import { SHU_TAG } from "../../domains/elements.js";
+
+/** The class of a link that opens a pane in the column browser. */
+const COL_LINK = "col-link";
 
 /** The pane each kind of reference to a record opens. A part of an individual addresses a passage or a fragment of media inside
  *  it, so the pane stays the individual's and the part rides along. A type opens the type column, a step its declaration, and
@@ -99,8 +103,6 @@ export function openRef(source: Element | Event, ref: TRef, addToSelection = fal
 	requestPaneFrom(source, desired, addToSelection);
 }
 
-/** The inline markup for a link to a pane, for a view that renders a string of markup: an anchor whose href is the
- *  pane's address. Without an address, the text alone. */
 /** The address of the passage `evidence` quotes: its source's pane, opened with the passage selected. */
 export const passageHref = ({ quote, source }: TEvidence): string | undefined =>
 	refHref({ kind: REF_DENOTES.individual, target: { persistedAs: source.label, id: source.id, selector: quote } });
@@ -109,6 +111,13 @@ export const passageHref = ({ quote, source }: TEvidence): string | undefined =>
 export const passageName = (what: string, { source, extractedBy }: TEvidence): string =>
 	`${what} as ${source.label} ${source.id} quotes it${extractedBy === undefined ? "" : `, which step ${extractedBy} extracted`}`;
 
-export function linkHtml(href: string | undefined, text: string, attrs = "", linkClass = "col-link"): string {
-	return href ? `<a class="${linkClass}" href="${escAttr(href)}"${attrs}>${esc(text)}</a>` : esc(text);
-}
+/** What a link to a pane states beside its address: its test id, its accessible name where its text alone doesn't state where it
+ *  goes, and its class where it isn't a column link. */
+export type TLinkAttributes = { readonly testId?: string; readonly label?: string; readonly linkClass?: string };
+
+/** A link to a pane: an anchor whose href is the pane's address. Without an address, the text alone. */
+export const linkTpl = (href: string | undefined, text: string, attributes?: TLinkAttributes): TemplateResult | string => {
+	if (href === undefined) return text;
+	const linkClass = attributes?.linkClass === undefined ? COL_LINK : attributes.linkClass;
+	return html`<a class=${linkClass} href=${href} data-testid=${attributes?.testId ?? nothing} aria-label=${attributes?.label ?? nothing}>${text}</a>`;
+};

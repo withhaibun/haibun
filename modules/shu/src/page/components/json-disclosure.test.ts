@@ -1,8 +1,17 @@
+// @vitest-environment jsdom
 // A record read from the graph is JSON-LD. All of it is shown, opened: what it holds and the vocabulary it is written
 // in, which is part of what it is. The disclosures give it structure a reader can follow and collapse, and don't remove
 // a part of it.
 import { describe, it, expect } from "vitest";
+import { render } from "lit";
 import { jsonDisclosure, literalWithJson } from "./json-disclosure.js";
+
+/** The markup a literal renders as. */
+const rendered = (text: string): string => {
+	const into = document.createElement("div");
+	render(literalWithJson(text), into);
+	return into.innerHTML;
+};
 
 describe("a JSON value as disclosures", () => {
 	it("shows a scalar as it reads, without a disclosure to open", () => {
@@ -65,7 +74,7 @@ describe("a JSON value as disclosures", () => {
 
 describe("a literal that carries JSON", () => {
 	it("keeps the words as words and opens what they carry", () => {
-		const shown = literalWithJson('RPC: {"method":"action.begin","params":{"why":"blips"}}');
+		const shown = rendered('RPC: {"method":"action.begin","params":{"why":"blips"}}');
 		expect(shown).toContain("RPC:");
 		expect(shown).toContain("<details");
 		expect(shown, "the method a reader is looking for").toContain("action.begin");
@@ -76,6 +85,6 @@ describe("a literal that carries JSON", () => {
 	});
 
 	it("treats braces that are part of what was provided as what was provided", () => {
-		expect(literalWithJson("set {what} to {value}")).not.toContain("<details");
+		expect(rendered("set {what} to {value}")).not.toContain("<details");
 	});
 });

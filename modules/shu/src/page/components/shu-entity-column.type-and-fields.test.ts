@@ -2,6 +2,7 @@
 // A record's view names its type as a link to the type's own view, which holds the description, and lists the record's fields.
 import { declareCatalog } from "../../test/catalog-fixture.js";
 import { describe, it, expect, beforeEach } from "vitest";
+import { render as renderInto } from "lit";
 import { ShuEntityColumn, foldedTargets } from "./shu-entity-column.js";
 import { buildConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
@@ -93,18 +94,27 @@ describe("shu-entity-column type and fields", () => {
 			document.body.appendChild(el);
 			el.openProducts({ _type: "Widget", id: "x1", name: "Example", ...fields });
 			await el.updateComplete;
-			return el.shadowRoot?.innerHTML ?? "";
+			return el.shadowRoot?.querySelector('[data-testid="entity-fields-disclosure"]');
 		};
 		const many = await open(Object.fromEntries(Array.from({ length: 8 }, (_, at) => [`field${at}`, `value ${at}`])));
-		expect(many).toContain('data-testid="entity-fields-disclosure"');
-		expect(many, "the summary names how many fields the table holds").toMatch(/<summary class="fields-summary">9 fields<\/summary>/);
-		expect(await open({ extra: "one" }), "a small table stays open").not.toContain('data-testid="entity-fields-disclosure"');
+		expect(many?.querySelector("summary.fields-summary")?.textContent, "the summary names how many fields the table holds").toBe("9 fields");
+		expect(await open({ extra: "one" }), "a small table stays open").toBeNull();
 	});
 
 	it("shows a reference group's first targets and collapses the rest behind a disclosure naming how many", () => {
 		const targets = ["a", "b", "c", "d", "e", "f"];
-		expect(foldedTargets(targets)).toBe('a, b, c, d<details class="ref-more"><summary class="ref-more-count">2 more</summary>e, f</details>');
-		expect(foldedTargets(targets.slice(0, 4)), "a group within the threshold is listed whole").toBe("a, b, c, d");
+		const folded = (shown: readonly string[]): HTMLElement => {
+			const into = document.createElement("div");
+			renderInto(foldedTargets(shown), into);
+			return into;
+		};
+		const many = folded(targets);
+		expect(many.querySelector(".ref-more-count")?.textContent, "the summary names how many targets it holds").toBe("2 more");
+		expect(many.querySelector(".ref-more")?.textContent).toBe("2 moree, f");
+		expect(many.textContent).toBe("a, b, c, d2 moree, f");
+		const few = folded(targets.slice(0, 4));
+		expect(few.textContent, "a group within the threshold is listed whole").toBe("a, b, c, d");
+		expect(few.querySelector(".ref-more")).toBeNull();
 	});
 
 	it("marks field provenance from the served @context: the genuine vocabulary, not a rel guess", async () => {
