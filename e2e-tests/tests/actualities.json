@@ -561,20 +561,20 @@
 			"actuality": {
 				"text": "e2e-tests/tests, node_modules/@haibun/web-playwright/waypoints, node_modules/@haibun/cli/waypoints, node_modules/@haibun/web-server-hono/waypoints",
 				"status": "passed",
-				"tookMs": 20100,
+				"tookMs": 17700,
 				"digest": {
 					"e2e-tests/src": "260a250979e4596eb9a66444ac92d5a11114308f7484cc99662f8392171c2864",
 					"e2e-tests/tests": "3db5565890f295ad4bb171d8cd3d713dcea147a54655be4e06d2e7c704c1ee49",
-					"modules/cli/src": "257e7df11cab87dbfa47e3f2b62a731babca0ef31c02921c4fd211361cb3c976",
+					"modules/cli/src": "18a55663db54fea172bafefcfac37487b54c4e5b4fbd6bafceae2ea9c7c45323",
 					"modules/cli/waypoints": "144eaad009dbf8f7307fd2a044cd1cb584f19ea03fd58de5b0aed30abcf752b3",
-					"modules/core/src": "aa743e26cb49fd359e569c3ab723e8107f87d493a47f81f6aacb0522644b6306",
+					"modules/core/src": "d48ec851ba7f9b10667b6eb9faec70b0cf844907d10f255d721c776eed619254",
 					"modules/domain-storage/src": "d21fde6c12a84c8fb246318488d49df330d1c5a5ca02818ce5bcc85d01c120ca",
 					"modules/logic/src": "5f26bb4b638e19d989bc547113b52b52b6805b28ca904aeffb4de505428d9d00",
 					"modules/monitor-otel/src": "126543b2148fce1111165488855c8522d4e0875fcce2bada2f6215aa60a48d9a",
 					"modules/monitor-tui/src": "0c89537d075907370635162846b32d9d3b03f1c17df2f0483ab2eaefb06d8fcb",
 					"modules/out-junit/src": "9da006ef45f24c87e9a9be65535eb5b0d07a5b8e7bcd6fe0d00d0aea5d18efc7",
 					"modules/recorder/src": "3e8da166177b6ddfc78ca035e362db49f3ff50424de066bf22bd42f2b8717605",
-					"modules/shu/src": "01b83da140cfe61c4e4f31d8f5c7397a1f89db64061c71dc6c947164f586a7e0",
+					"modules/shu/src": "d2895a5ea40aa7410bb21b72b2f688a069788f8bfce75093c404bedae0fb78a7",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "2cf235f8aef1f1e405a81ecb956b8bd129d661f00492bb55dff85870a7851ed2",
 					"modules/utils/src": "9858723462d1d5207467f4a105b09a266cf73882b379aae28f9be457dad643e5",
@@ -595,7 +595,7 @@
 				"/features/a11y-pass.feature": {
 					"text": "/features/a11y-pass",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 600,
 					"steps": 13
 				},
 				"/features/after-every.feature": {
@@ -607,7 +607,7 @@
 				"/features/auth-basic.feature": {
 					"text": "/features/auth-basic",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 700,
 					"steps": 63
 				},
 				"/features/auth-bearer.feature": {
@@ -631,13 +631,13 @@
 				"/features/counter.feature": {
 					"text": "/features/counter",
 					"status": "passed",
-					"tookMs": 2200,
+					"tookMs": 1600,
 					"steps": 24
 				},
 				"/features/counter.feature.ts": {
 					"text": "Counts feature",
 					"status": "passed",
-					"tookMs": 2400,
+					"tookMs": 500,
 					"steps": 24
 				},
 				"/features/counts.feature.ts": {
@@ -673,7 +673,7 @@
 				"/features/not.feature": {
 					"text": "/features/not",
 					"status": "passed",
-					"tookMs": 300,
+					"tookMs": 400,
 					"steps": 14
 				},
 				"/features/once.feature.ts": {

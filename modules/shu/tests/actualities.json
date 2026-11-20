@@ -163,14 +163,14 @@
 			"actuality": {
 				"text": "modules/shu/tests, node_modules/@haibun/web-playwright/waypoints, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 26900,
+				"tookMs": 26400,
 				"digest": {
-					"modules/cli/src": "257e7df11cab87dbfa47e3f2b62a731babca0ef31c02921c4fd211361cb3c976",
-					"modules/core/src": "aa743e26cb49fd359e569c3ab723e8107f87d493a47f81f6aacb0522644b6306",
+					"modules/cli/src": "18a55663db54fea172bafefcfac37487b54c4e5b4fbd6bafceae2ea9c7c45323",
+					"modules/core/src": "d48ec851ba7f9b10667b6eb9faec70b0cf844907d10f255d721c776eed619254",
 					"modules/domain-storage/src": "d21fde6c12a84c8fb246318488d49df330d1c5a5ca02818ce5bcc85d01c120ca",
 					"modules/logic/src": "5f26bb4b638e19d989bc547113b52b52b6805b28ca904aeffb4de505428d9d00",
 					"modules/monitor-tui/src": "0c89537d075907370635162846b32d9d3b03f1c17df2f0483ab2eaefb06d8fcb",
-					"modules/shu/src": "01b83da140cfe61c4e4f31d8f5c7397a1f89db64061c71dc6c947164f586a7e0",
+					"modules/shu/src": "d2895a5ea40aa7410bb21b72b2f688a069788f8bfce75093c404bedae0fb78a7",
 					"modules/shu/tests": "0836c5800ed8dab3a9e7402bd0df4903f185246627000360e2ad186db7aafb1a",
 					"modules/shu/waypoints": "7dc9c4a47d546a40d28e609997d2236967c01ebb925e55511322e4abc6772a86",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
@@ -202,7 +202,7 @@
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
-					"tookMs": 19700,
+					"tookMs": 19300,
 					"steps": 781
 				},
 				"/features/remote-store.feature.ts": {
