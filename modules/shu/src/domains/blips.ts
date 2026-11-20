@@ -13,17 +13,20 @@ export const PAGE_LONG_FRAME_BLIP = "haibun.shu.page.long_frame";
 /** The script a frame is attributed to where a script didn't run in it: the browser's own rendering held it. */
 export const RENDERING_ONLY = "(rendering)";
 
+/** The namespace of a view's blips, which a watch names to collect each of them. */
+export const VIEW_BLIPS = "haibun.shu.view";
+
 /** A view measured its scroll geometry, and the viewport's share of the column changed. `value` is the thumb's size as a
  *  share of the rail. `rendered` states whether the change redraws the thumb, so a change the rounding absorbs is
  *  recorded too. */
-export const VIEW_THUMB_BLIP = "haibun.shu.view.thumb_resize";
+export const VIEW_THUMB_BLIP = `${VIEW_BLIPS}.thumb_resize`;
 
 /** A view's scroll position changed. `value` is the distance in pixels, signed, so a correction reads as one. */
-export const VIEW_SCROLL_BLIP = "haibun.shu.view.scroll";
+export const VIEW_SCROLL_BLIP = `${VIEW_BLIPS}.scroll`;
 
 /** The virtualizer reported which rows are visible. `value` is how many rows the window is short of the last. The
  *  attributes state the virtualizer's report and whether the view follows the last row. */
-export const VIEW_WINDOW_BLIP = "haibun.shu.view.window";
+export const VIEW_WINDOW_BLIP = `${VIEW_BLIPS}.window`;
 
 /** What moved a view: the reader (wheel, touch, a rail seek) or the page (a follow, an estimate's correction, a scroll to
  *  a row). */

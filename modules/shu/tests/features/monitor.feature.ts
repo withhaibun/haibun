@@ -13,6 +13,7 @@ import { ontology } from "@haibun/shu/waypoints/backgrounds/ontology.feature.ts"
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import LogicStepper from "@haibun/logic/logic-stepper.js";
 import { VERDICT } from "@haibun/core/lib/domains/protocol.js";
+import { VIEW_BLIPS, VIEW_THUMB_BLIP } from "@haibun/shu/domains/blips.js";
 
 const wp = new WebPlaywright();
 const { serveShuApp } = withAction(new ShuStepper());
@@ -125,7 +126,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "The custom scroll rail drives the virtualized viewport" }),
 		"Ask to be informed what the views do, before touching the rail. A view records its own scroll geometry as it changes, at whatever rate it changes, and actuality doesn't cache it: asking is what makes it readable at all.",
-		watchBlips({ names: '"haibun.shu.view"' }),
+		watchBlips({ names: `"${VIEW_BLIPS}"` }),
 
 		"Seeking the rail moves the window. Press its end and the first visible row is no longer row one; press its start and it is row one again, so a seek reaches the virtualizer.",
 		views.scrollToEnd(MONITOR),
@@ -146,7 +147,8 @@ export const features: TKirejiExport = {
 		views.showsRowContaining(MONITOR, '"scrollResumedEvent"'),
 
 		"Everything the views did through all that scrolling reached actuality as fine-grained occurrences, recorded in the browser at the rate they happened and handed over in batches, since one request each would not be sustainable. Actuality doesn't cache them; the watch caches them in order, which is what reports whether a size changed while a reader was scrolling rather than only that it changed.",
-		'some occurrence in watched blips is "variable occurrence.name is "haibun.shu.view.thumb_resize""',
+		"A page sends its occurrences in a batch after a pause, so actuality holds the resize once the batch that carries it arrives:",
+		`until some occurrence in watched blips is "variable occurrence.name is "${VIEW_THUMB_BLIP}"" within 5s`,
 
 		scenario({ scenario: "The run document reads the same run as prose" }),
 		"The document reads the same events as prose, showing what a reader can see of a long run rather than all of it, with every earlier event still reachable.",
