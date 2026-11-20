@@ -77,6 +77,8 @@ export const SHU_TEST_IDS = {
 	COLUMN_BROWSER: {
 		COLUMN: "browser-column",
 		ENTITY_DETAILS: "entity-details",
+		/** A field's value, by the field's name after it. */
+		ENTITY_FIELD: "entity-field",
 		/** The record's type, a link to the type's view. */
 		ENTITY_TYPE_LINK: "entity-type-link",
 		/** The frame that states a Class or Property record: its axioms in DL notation and in Manchester syntax. */

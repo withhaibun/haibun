@@ -56,7 +56,7 @@ describe("shu-entity-column claims", () => {
 			return found;
 		});
 		expect(status.getAttribute("aria-description")).toBe(TITLED);
-		expect(status.closest('[data-testid="entity-field-title"]'), "beside the title's value").not.toBeNull();
+		expect(status.closest(`[data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_FIELD}-title"]`), "beside the title's value").not.toBeNull();
 	});
 
 	it("links a field to the passage that quotes its value, named by where it is quoted and the step that extracted it", async () => {

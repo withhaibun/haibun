@@ -423,7 +423,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 				.map(([k, v]) => {
 					if (this.isTypeField(k)) return this.typeRow(k, v);
 					const valueHtml = Array.isArray(v) ? v.map((item) => this.formatFieldValue(item, k)).join(", ") : this.formatFieldValue(v, k);
-					return `<tr><td class="field-name">${this.predicateLink(k)}${this.vocabBadge(k)}</td><td data-testid="entity-field-${escAttr(k)}" data-copy="${escAttr(k)}">${valueHtml}${this.fieldEvidence(k, v)}${this.fieldStatus(k, v)}</td></tr>`;
+					return `<tr><td class="field-name">${this.predicateLink(k)}${this.vocabBadge(k)}</td><td data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_FIELD}-${escAttr(k)}" data-copy="${escAttr(k)}">${valueHtml}${this.fieldEvidence(k, v)}${this.fieldStatus(k, v)}</td></tr>`;
 				})
 				.join("");
 			const detailTable = detailRows ? `<table class="detail-table fields-table" data-testid="entity-fields">${detailRows}</table>` : "";
@@ -440,7 +440,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 								if (!v || (Array.isArray(v) && v.length === 0)) return [];
 								const valueHtml = Array.isArray(v) ? v.map((item) => this.fieldValueHtml(item, k)).join(", ") : this.fieldValueHtml(v, k);
 								return [
-									`<span class="summary-field" data-testid="entity-field-${escAttr(k)}" data-copy="${escAttr(k)}">${this.predicateLink(k)}${this.vocabBadge(k)} ${valueHtml}${this.fieldEvidence(k, v)}${this.fieldStatus(k, v)}</span>`,
+									`<span class="summary-field" data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_FIELD}-${escAttr(k)}" data-copy="${escAttr(k)}">${this.predicateLink(k)}${this.vocabBadge(k)} ${valueHtml}${this.fieldEvidence(k, v)}${this.fieldStatus(k, v)}</span>`,
 								];
 							})
 							.join(" ")}</div>`
@@ -870,7 +870,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			.filter((c) => c)
 			.map((c) => linkHtml(refHref({ kind: REF_DENOTES.type, target: { domain: c } }), c, ` data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.TYPE_VALUE}"`))
 			.join(", ");
-		return `<tr><td class="field-name">@type</td><td data-testid="entity-field-${escAttr(propertyName)}">${links}</td></tr>`;
+		return `<tr><td class="field-name">@type</td><td data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_FIELD}-${escAttr(propertyName)}">${links}</td></tr>`;
 	}
 
 	/** A field's value as a link: to the record an edge of that relation points at, or else to the records whose field

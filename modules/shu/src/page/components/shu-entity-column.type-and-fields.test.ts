@@ -60,7 +60,7 @@ describe("shu-entity-column type and fields", () => {
 		await el.updateComplete;
 		const refusal = el.shadowRoot?.querySelector<ShuRefusal>(SHU_TAG.REFUSAL);
 		expect(refusal?.refusal).toEqual({ error: "the nonce does not match" });
-		expect(el.shadowRoot?.querySelector('[data-testid="entity-field-error"]')?.textContent).toContain("challenge=abc");
+		expect(el.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_FIELD}-error"]`)?.textContent).toContain("challenge=abc");
 	});
 
 	it("shows non-summary fields in a visible fields section (not buried in the collapsed disclosure)", async () => {
@@ -70,7 +70,7 @@ describe("shu-entity-column type and fields", () => {
 		await el.updateComplete;
 		const html = el.shadowRoot?.innerHTML ?? "";
 		expect(html).toContain('data-testid="entity-fields"');
-		expect(html).toContain('data-testid="entity-field-note"');
+		expect(html).toContain(`data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_FIELD}-note"`);
 		expect(html).toContain("what it was invoked for");
 		// an object-valued field renders as formatted JSON
 		expect(html).toContain('data-testid="field-json-meta"');
@@ -82,7 +82,7 @@ describe("shu-entity-column type and fields", () => {
 		document.body.appendChild(el);
 		el.openProducts({ _type: "Widget", id: "x1", name: "Example", note: error });
 		await el.updateComplete;
-		expect(el.shadowRoot?.querySelector('[data-testid="entity-field-note"]')?.textContent, "the value isn't cut").toContain(error);
+		expect(el.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_FIELD}-note"]`)?.textContent, "the value isn't cut").toContain(error);
 		const record = el.shadowRoot?.querySelector(`.entity-content > [data-testid="${RECORD_JSON}"]:last-child`);
 		expect(record?.querySelector(".json-disclosure")?.textContent, "the record is last, as JSON").toContain(`"${error}"`);
 	});
@@ -150,6 +150,6 @@ describe("a field whose relation points at a record (HM17)", () => {
 		document.body.appendChild(el);
 		el.openProducts({ _type: "Widget", id: "x1", name: "Example", owner: "did:example:alice" });
 		await el.updateComplete;
-		expect(el.shadowRoot?.querySelector('[data-testid="entity-field-owner"] a')?.textContent).toBe("did:example:alice");
+		expect(el.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_FIELD}-owner"] a`)?.textContent).toBe("did:example:alice");
 	});
 });
