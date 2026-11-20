@@ -34,12 +34,12 @@
 			"actuality": {
 				"text": "modules/shu/tests-basic-auth, node_modules/@haibun/web-playwright/waypoints",
 				"status": "passed",
-				"tookMs": 1900,
+				"tookMs": 1800,
 				"digest": {
-					"modules/core/src": "25cd4e06f32ccbc158ee6c23b232d34860864602d48cdf7b2eeb0d4190bc4ba2",
+					"modules/core/src": "4a81fb5ab9afa495b8700cbabd3ed97f5b62324bcd1cab632854c61b3bf47841",
 					"modules/domain-storage/src": "d21fde6c12a84c8fb246318488d49df330d1c5a5ca02818ce5bcc85d01c120ca",
-					"modules/logic/src": "47b9d3500f039feb024a5d574bfd0d8315f5c9f3dfa03cf739ae38946b3003c6",
-					"modules/shu/src": "6edad52e9256453037a198e12cb0eed723e7af2ddb261c7d53930a4df0f33b92",
+					"modules/logic/src": "a1f4598059efaf89d62292ad6756fb135eda75588098abaf43287480f268044a",
+					"modules/shu/src": "8e41d615f6b6a07e8fae10eef43eca27a47727a4860b73a12091457e12631f71",
 					"modules/shu/tests-basic-auth": "a2a07c303272a1ddf576b33fe956100e685c5f754f73ca5c00be3746b1af0f55",
 					"modules/storage-fs/src": "7ed87200a71a3650dbd3388c5c437c82cbab5140f6d940a8222275943e00ae49",
 					"modules/storage-mem/src": "2cf235f8aef1f1e405a81ecb956b8bd129d661f00492bb55dff85870a7851ed2",
@@ -53,7 +53,7 @@
 					"text": "A page behind basic auth",
 					"status": "passed",
 					"tookMs": 1100,
-					"steps": 222
+					"steps": 225
 				}
 			}
 		},
