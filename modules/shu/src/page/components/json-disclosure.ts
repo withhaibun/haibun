@@ -11,8 +11,6 @@
  */
 import { jsonCarried } from "@haibun/core/lib/domains/json-text.js";
 import { html, nothing, type TemplateResult } from "lit";
-import { unsafeHTML } from "lit/directives/unsafe-html.js";
-import { esc, escAttr } from "../derivations/markdown.js";
 
 /** The test id of the whole record as JSON. */
 export const RECORD_JSON = "record-json";
@@ -45,26 +43,19 @@ function entries(value: object): Array<[string, unknown]> {
 }
 
 /**
- * `value` as HTML: nested disclosures for what has parts, text for what does not, every one of them open. `name` titles
- * the outermost one, and the result is escaped, so a caller embeds it directly.
+ * `value` as nested disclosures: a disclosure for a value that has parts, a line for a value that doesn't, each open apart
+ * from the `@context`. `name` titles the outermost one.
  */
-export function jsonDisclosure(value: unknown, name = ""): string {
-	const named = name === "" ? "" : `<span class="json-name">${esc(name)}</span> `;
-	if (value === null || typeof value !== "object") return `<div class="json-line" data-testid="json-line">${named}<span class="json-value">${esc(scalar(value))}</span></div>`;
-	const parts = entries(value)
-		.map(([key, held]) => jsonDisclosure(held, key))
-		.join("");
-	const open = name === WRITTEN_IN ? "" : " open";
-	return `<details class="json-disclosure"${open} data-testid="${escAttr(`json-${name || "root"}`)}"><summary>${named}<span class="json-holds">${esc(holds(value))}</span></summary>${parts}</details>`;
+export function jsonTpl(value: unknown, name = ""): TemplateResult {
+	const named = name === "" ? nothing : html`<span class="json-name">${name}</span> `;
+	if (value === null || typeof value !== "object") return html`<div class="json-line" data-testid="json-line">${named}<span class="json-value">${scalar(value)}</span></div>`;
+	return html`<details class="json-disclosure" ?open=${name !== WRITTEN_IN} data-testid=${`json-${name || "root"}`}><summary>${named}<span class="json-holds">${holds(value)}</span></summary>${entries(value).map(([key, held]) => jsonTpl(held, key))}</details>`;
 }
 
 /** A section a view shows under its summary, open or closed, as the record's Data and a JSON body are, with `inner` as its
  *  content. */
 export const disclosure = (testId: string, summary: string, inner: TemplateResult, open: boolean): TemplateResult =>
 	html`<details class="record-json" ?open=${open} data-testid=${testId}><summary>${summary}</summary>${inner}</details>`;
-
-/** `value` as nested disclosures, for a view that renders a template. The disclosures' text is escaped as it is written. */
-export const jsonTpl = (value: unknown): TemplateResult => html`${unsafeHTML(jsonDisclosure(value))}`;
 
 /** The whole of a record as JSON, last in the view that shows it, so what the view's fields leave out reads there. It starts
  *  closed where a body follows it, so the body keeps the height in which it reads. */

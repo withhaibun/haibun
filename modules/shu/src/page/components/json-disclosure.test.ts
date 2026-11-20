@@ -3,81 +3,90 @@
 // in, which is part of what it is. The disclosures give it structure a reader can follow and collapse, and don't remove
 // a part of it.
 import { describe, it, expect } from "vitest";
-import { render } from "lit";
-import { jsonDisclosure, literalWithJson } from "./json-disclosure.js";
+import { render, type TemplateResult } from "lit";
+import { jsonTpl, literalWithJson } from "./json-disclosure.js";
+import { SHU_TAG } from "../../domains/elements.js";
+import "./shu-json-tree.js";
 
-/** The markup a literal renders as. */
-const rendered = (text: string): string => {
-	const into = document.createElement("div");
-	render(literalWithJson(text), into);
-	return into.innerHTML;
+/** Renders a template into a new element, and returns the element. */
+const into = (shown: TemplateResult | string): HTMLElement => {
+	const at = document.createElement("div");
+	render(shown, at);
+	return at;
 };
+/** The disclosures of a value, as nodes. */
+const tree = (value: unknown, name?: string): HTMLElement => into(jsonTpl(value, name));
+const disclosures = (at: HTMLElement): HTMLDetailsElement[] => [...at.querySelectorAll("details")];
 
 describe("a JSON value as disclosures", () => {
 	it("shows a scalar as it reads, without a disclosure to open", () => {
-		expect(jsonDisclosure("what actuality logged", "message")).toContain("what actuality logged");
-		expect(jsonDisclosure("what actuality logged", "message")).not.toContain("<details");
+		const shown = tree("what actuality logged", "message");
+		expect(shown.textContent).toContain("what actuality logged");
+		expect(disclosures(shown)).toEqual([]);
 	});
 
 	it('writes a value so its type is visible, since a record holding "3" is not one holding 3', () => {
-		expect(jsonDisclosure("3", "count")).toContain("&quot;3&quot;");
-		expect(jsonDisclosure(3, "count")).toContain(">3<");
-		expect(jsonDisclosure(null, "count")).toContain("null");
-		expect(jsonDisclosure(false, "count")).toContain("false");
+		const value = (held: unknown): string | null | undefined => tree(held, "count").querySelector(".json-value")?.textContent;
+		expect(value("3")).toBe('"3"');
+		expect(value(3)).toBe("3");
+		expect(value(null)).toBe("null");
+		expect(value(false)).toBe("false");
 	});
 
 	it("names an item by its place and a field by its name", () => {
-		const shown = jsonDisclosure({ steps: ["first", "second"] });
-		expect(shown).toContain("[0]");
-		expect(shown).toContain("[1]");
-		expect(shown).toContain("steps");
+		const names = [...tree({ steps: ["first", "second"] }).querySelectorAll(".json-name")].map((name) => name.textContent);
+		expect(names).toEqual(["steps", "[0]", "[1]"]);
 	});
 
-	it("shows the record opened, so what it holds is read without pressing anything", () => {
-		const shown = jsonDisclosure({ message: "said", level: "debug" });
-		expect(shown).toMatch(/<details[^>]* open/);
-		expect(shown).toContain("said");
-		expect(shown).toContain("debug");
-	});
-
-	it("opens a nested value too, and states what it holds", () => {
-		const shown = jsonDisclosure({ record: { a: 1, b: 2, c: 3 } });
-		expect(shown, "what it holds, shown on the disclosure").toContain("3 fields");
-		expect(shown.match(/<details[^>]* open/g) ?? [], "every level is open: a reader collapses what they are done with").toHaveLength(2);
-		expect(shown, "and its values are there to read").toContain("3");
+	it("opens every disclosure, at any depth, and states what each holds, so it is read without pressing anything", () => {
+		const shown = tree({ record: { a: 1, b: 2, c: 3 }, held: { deeper: { deepest: 1 } } });
+		expect(disclosures(shown).every(({ open }) => open)).toBe(true);
+		expect([...shown.querySelectorAll(".json-holds")].map((holds) => holds.textContent)).toEqual(["2 fields", "3 fields", "1 field", "1 field"]);
 	});
 
 	it("counts what an array holds in items", () => {
-		expect(jsonDisclosure({ steps: [1, 2] })).toContain("2 items");
-		expect(jsonDisclosure({ steps: [1] })).toContain("1 item");
+		expect(tree({ steps: [1, 2] }).textContent).toContain("2 items");
+		expect(tree({ steps: [1] }).textContent).toContain("1 item");
 	});
 
 	it("holds the vocabulary a record is written in closed, and holds all of it", () => {
 		// A reader reads what a record holds before asking what its terms mean, so @context starts closed. What it holds
 		// is written out under it, so opening it is a press and never a request.
-		const shown = jsonDisclosure({ "@context": { as: "https://www.w3.org/ns/activitystreams#" }, message: "said" });
-		expect(shown, "the vocabulary is there in full").toContain("https://www.w3.org/ns/activitystreams#");
-		expect(shown).toContain("said");
-		expect(shown.match(/<details(?![^>]* open)/g) ?? [], "the one disclosure that starts closed").toHaveLength(1);
-		expect(shown).toMatch(/<details class="json-disclosure" data-testid="json-@context"/);
+		const shown = tree({ "@context": { as: "https://www.w3.org/ns/activitystreams#" }, message: "said" });
+		expect(shown.textContent, "the vocabulary is there in full").toContain("https://www.w3.org/ns/activitystreams#");
+		expect(
+			disclosures(shown)
+				.filter(({ open }) => !open)
+				.map(({ dataset }) => dataset.testid),
+		).toEqual(["json-@context"]);
 	});
 
-	it("doesn't close another disclosure, at any depth", () => {
-		const shown = jsonDisclosure({ record: { held: { deeper: { deepest: 1 } } } });
-		expect(shown.match(/<details(?![^>]* open)/g) ?? []).toHaveLength(0);
+	it("renders what a record holds as text, so markup it holds isn't parsed", () => {
+		const shown = tree({ message: '<script>alert("x")</script>' });
+		expect(shown.querySelector("script")).toBeNull();
+		expect(shown.textContent).toContain('<script>alert("x")</script>');
 	});
+});
 
-	it("escapes what a record holds, since a run logs whatever it logs", () => {
-		expect(jsonDisclosure({ message: '<script>alert("x")</script>' })).not.toContain("<script>");
+describe("a JSON value in markup composed as text", () => {
+	it("renders the disclosures of the value its text states, in place of the text", async () => {
+		const shown = document.createElement("div");
+		shown.innerHTML = `<${SHU_TAG.JSON_TREE}>${JSON.stringify({ steps: ["<b>first</b>"] }).replaceAll("<", "&lt;")}</${SHU_TAG.JSON_TREE}>`;
+		document.body.appendChild(shown);
+		const element = shown.querySelector(SHU_TAG.JSON_TREE) as HTMLElement & { updateComplete: Promise<boolean> };
+		await element.updateComplete;
+		expect([...element.querySelectorAll(".json-name")].map((name) => name.textContent)).toEqual(["steps", "[0]"]);
+		expect(element.querySelector("b"), "the value's text isn't parsed as markup").toBeNull();
+		shown.remove();
 	});
 });
 
 describe("a literal that carries JSON", () => {
 	it("keeps the words as words and opens what they carry", () => {
-		const shown = rendered('RPC: {"method":"action.begin","params":{"why":"blips"}}');
-		expect(shown).toContain("RPC:");
-		expect(shown).toContain("<details");
-		expect(shown, "the method a reader is looking for").toContain("action.begin");
+		const shown = into(literalWithJson('RPC: {"method":"action.begin","params":{"why":"blips"}}'));
+		expect(shown.querySelector(".json-said")?.textContent).toBe("RPC:");
+		expect(disclosures(shown).length).toBeGreaterThan(0);
+		expect(shown.textContent, "the method a reader is looking for").toContain("action.begin");
 	});
 
 	it("returns a literal that doesn't carry JSON as it reads", () => {
@@ -85,6 +94,6 @@ describe("a literal that carries JSON", () => {
 	});
 
 	it("treats braces that are part of what was provided as what was provided", () => {
-		expect(rendered("set {what} to {value}")).not.toContain("<details");
+		expect(disclosures(into(literalWithJson("set {what} to {value}")))).toEqual([]);
 	});
 });

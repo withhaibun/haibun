@@ -169,6 +169,7 @@ export const SHU_TAG = {
 	THEME_SWITCH: "shu-theme-switch",
 	ACTIVITY_HISTORY: "shu-activity-history",
 	WINDOW_SIZE: "shu-window-size",
+	JSON_TREE: "shu-json-tree",
 	SEARCH_SUMMARY: "shu-search-summary",
 	GRAPH_FILTER: "shu-graph-filter",
 	CHIP_GROUP: "shu-chip-group",

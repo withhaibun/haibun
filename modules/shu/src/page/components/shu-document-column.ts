@@ -30,7 +30,7 @@ import { splitDocumentBlocks, finalizeBlocks, blocksByEvent, blockText, isArtifa
 import { cursorMark, rowAtCursor, rowTimeClass, timedRows, type TTimedRows, type TScrollMarker } from "../derivations/rail.js";
 import { type THaibunEvent, type TArtifactEvent, type THaibunLogLevel, HAIBUN_LOG_LEVELS, RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
 import { eventMarkerStyle } from "../derivations/event-marker.js";
-import { jsonDisclosure } from "./json-disclosure.js";
+import "./shu-json-tree.js";
 import { refContext } from "../controllers/catalog-controller.js";
 import { artifactUrl } from "../controllers/artifact-controller.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
@@ -449,7 +449,8 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		}
 		if (isArtifactOf(artifact, "html"))
 			return `<shu-artifact-frame ${step}><iframe ${SHU_ATTR.DATA_ARTIFACT}="${esc(String(artifactPath))}" loading="lazy" sandbox="${ARTIFACT_SANDBOX}" style="width:100%;min-height:80vh;border:none;"></iframe></shu-artifact-frame>`;
-		if (isArtifactOf(artifact, "json")) return `<shu-artifact-frame ${step}><div class="json-block">${jsonDisclosure(artifact.json)}</div></shu-artifact-frame>`;
+		if (isArtifactOf(artifact, "json"))
+			return `<shu-artifact-frame ${step}><div class="json-block"><${SHU_TAG.JSON_TREE}>${esc(JSON.stringify(artifact.json))}</${SHU_TAG.JSON_TREE}></div></shu-artifact-frame>`;
 		if (isArtifactOf(artifact, "file"))
 			return `<shu-artifact-frame ${step} caption="${esc(String(artifact.path))}">${artifactPath ? `<a href="${esc(artifactPath)}">${esc(String(artifact.path))}</a>` : esc(String(artifact.path))}</shu-artifact-frame>`;
 		return "";

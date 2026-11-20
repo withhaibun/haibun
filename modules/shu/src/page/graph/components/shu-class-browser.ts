@@ -25,7 +25,7 @@ import { SHOW_CONTROLS_FIELD, type TLinkedData } from "../../components/shu-elem
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import { ShuClusteredGraphView, clusteredGraphInitialState, clusteredGraphStateShape } from "./shu-clustered-graph-view.js";
-import { jsonDisclosure } from "../../components/json-disclosure.js";
+import { jsonTpl } from "../../components/json-disclosure.js";
 import { scopeSchemaToType, scopeSchemaToConnected } from "../../../derivations/ontology-projection.js";
 import { contextOfType } from "../controllers/context-controller.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
@@ -35,7 +35,7 @@ import { JSON_DISCLOSURE_CSS } from "../../components/styles.js";
 import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
 import { type ShuGraphScene, type GraphSceneModel } from "./scene.js";
 import { GRAPH_SCENE_EVENT } from "../domains/graph-types.js";
-import { esc, renderRef } from "../../derivations/markdown.js";
+import { renderRef } from "../../derivations/markdown.js";
 import { idOf, instanceLabel } from "../../controllers/record-controller.js";
 import { listRecords } from "../../controllers/read-controller.js";
 import "./shu-graph-filter.js";
@@ -92,7 +92,8 @@ class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 
 	/** The focus type's JSON-LD @context, fetched from the served context document for the context view (null until loaded). */
 	/** The focus type's context as HTML: its JSON as disclosures, or why it couldn't be fetched. */
-	private contextHtml: string | null = null;
+	/** The focus type's context as it was read, or why it wasn't, until the read settles. */
+	private context: { read: true; value: unknown } | { read: false; refusal: string } | null = null;
 
 	/** The focus type's individuals for the individuals view (null until fetched), and the focus of that fetch. */
 	private individuals: VertexData[] | null = null;
@@ -158,9 +159,9 @@ class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 	/** Read the served JSON-LD context narrowed to the focus type: a self-contained @context for this one type. */
 	private async loadContext(): Promise<void> {
 		try {
-			this.contextHtml = jsonDisclosure(await contextOfType(this.focusType));
+			this.context = { read: true, value: await contextOfType(this.focusType) };
 		} catch (err) {
-			this.contextHtml = esc(`Could not fetch ${CONTEXT_DOCUMENT.namespace}: ${errorDetail(err)}`);
+			this.context = { read: false, refusal: `Could not fetch ${CONTEXT_DOCUMENT.namespace}: ${errorDetail(err)}` };
 		}
 		this.requestUpdate();
 	}
@@ -203,7 +204,7 @@ class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 			<shu-graph-filter class=${graphHidden ? "hidden" : ""} ?data-show-controls=${this.showControls} data-schema-only data-persist-scope=${FILTER_SCOPE}></shu-graph-filter>
 			<!-- The scene is mounted only on a graph tab (not CSS-hidden) so its render loop never runs on a text tab. -->
 			${!graphHidden ? html`<div class="graph-area"><shu-graph-scene></shu-graph-scene></div>` : ""}
-			${mode === "context" ? html`<div class="context-view" data-testid=${SHU_TEST_IDS.CLASS_BROWSER.CONTEXT_VIEW}>${this.contextHtml === null ? "Loading context…" : unsafeHTML(this.contextHtml)}</div>` : ""}
+			${mode === "context" ? html`<div class="context-view" data-testid=${SHU_TEST_IDS.CLASS_BROWSER.CONTEXT_VIEW}>${this.context === null ? "Loading context…" : this.context.read ? jsonTpl(this.context.value) : this.context.refusal}</div>` : ""}
 			${mode === "individuals" ? this.renderIndividuals() : ""}
 			</div>
 		`;
