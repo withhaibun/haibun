@@ -60,10 +60,17 @@ describe("ResourcesStepper comment (reply-threaded)", () => {
 describe("ResourcesStepper typed links in a feature's prose", () => {
 	const PASSAGE = "Boatbuilding, dye preparation and knot work are practiced ways of doing.";
 	/** A world whose store holds the passage as the Body `practice`, which a prose link cites. */
+	const PRACTICE = {
+		"@type": BODY_LABEL,
+		id: "practice",
+		content: PASSAGE,
+		mediaType: MEDIA_TYPE.markdown,
+		generatedAtTime: new Date(0).toISOString(),
+		accessLevel: Access.public,
+	};
 	const worldHoldingPassage = async () => {
 		const world = getTestWorldWithOptions();
-		const body = { id: "practice", content: PASSAGE, mediaType: MEDIA_TYPE.markdown, generatedAtTime: new Date(0).toISOString(), accessLevel: Access.public };
-		await world.shared.getStore().merge({ "@type": BODY_LABEL, ...body });
+		await world.shared.getStore().merge(PRACTICE);
 		return world;
 	};
 
@@ -79,14 +86,29 @@ describe("ResourcesStepper typed links in a feature's prose", () => {
 		});
 	});
 
-	it("refuses a citation whose quoted passage its source no longer states", async () => {
+	it("refuses a citation whose quoted passage its source no longer states, once the source is edited", async () => {
+		const world = await worldHoldingPassage();
+		const cited = await testWithWorld(world, "This scenario demonstrates [a passage:citesAsEvidence](#Body:practice:~:text=Boatbuilding).\ncheck citations resolve", [
+			Haibun,
+			ResourcesStepper,
+			LogicStepper,
+		]);
+		expect(cited.ok, JSON.stringify(cited.failure)).toBe(true);
+		await world.shared.getStore().merge({ ...PRACTICE, content: "Shipwrighting and dye preparation are practiced ways of doing." });
+		const stepper = new ResourcesStepper();
+		await stepper.setWorld(world, [stepper]);
+		const checked = await inTestStep("0.9", () => stepper.steps.checkCitations.action());
+		expect(checked.ok ? undefined : checked.errorMessage).toMatch(/1 of 1 citations no longer resolve:\nBody "practice" changed after the anchor quoted "Boatbuilding"/);
+	});
+
+	it("refuses a citation of a passage its source doesn't state, as the citation is read", async () => {
 		const world = await worldHoldingPassage();
 		const ran = await testWithWorld(world, "This scenario demonstrates [a passage:citesAsEvidence](#Body:practice:~:text=Shipwrighting).\ncheck citations resolve", [
 			Haibun,
 			ResourcesStepper,
 			LogicStepper,
 		]);
-		expect(ran.failure?.error.message).toMatch(/1 of 1 citations no longer resolve:\nBody "practice" no longer states/);
+		expect(ran.failure?.error.message).toMatch('the Body "practice" holds 0 Bodies the part {"exact":"Shipwrighting"} names');
 	});
 
 	it("anchors a note to a passage of a record, linking another passage, and as one value dated at its time, and reads each back", async () => {

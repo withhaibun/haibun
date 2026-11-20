@@ -40,7 +40,12 @@ const BODY_FORM_FIELDS = ["content", "mediaType", "representations"] as const;
  *  digest as the store holds it, and a write that states a form states its text and its media type, from which its digest is
  *  drawn. */
 function withDigest(part: TPart): TPart {
-	if (!BODY_FORM_FIELDS.some((field) => part.fields[field] !== undefined)) return part;
+	if (!BODY_FORM_FIELDS.some((field) => part.fields[field] !== undefined)) {
+		// The digest is drawn from the forms, so a write that doesn't state them can't state it.
+		if (part.fields[BODY_DIGEST] !== undefined)
+			throw new Error(`the Body "${part.id}" is written with a digest and without its forms. A Body's write draws its digest from its forms`);
+		return part;
+	}
 	const parsed = BodyTextSchema.safeParse(part.fields);
 	if (!parsed.success)
 		throw new Error(

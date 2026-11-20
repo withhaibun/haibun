@@ -11,6 +11,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { openRecord, refreshAnnotations, recordView, followRecords } from "./entity-controller.js";
 import { setupShuTest, makeEntityDispatch, annotationList, type TShuTestHandle } from "../../test/setup.js";
 import { BODY_LABEL, HAS_BODY_EDGE, LinkRelations, SPECIFIC_RESOURCE_LABEL } from "@haibun/core/lib/domains/resources.js";
+import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import type { TEvent } from "../ports.js";
 import { endPage } from "../adapters/page-held.js";
@@ -23,8 +24,11 @@ const entity = (subject: string) => ({ vertex: { "@id": "e1", "@type": "Email", 
 /** The id of the body a record links once its edge is written. */
 const BODY_ID = "e1-body";
 /** Returns a read of a record that links its body. */
-const withBody = (read: ReturnType<typeof entity>) => ({ ...read, vertex: { ...read.vertex, [HAS_BODY_EDGE]: [{ id: BODY_ID }] } });
-const note = (commentId: string, body: string) => ({ commentId, specificResourceId: `sr-${commentId}`, exact: "a passage", body });
+/** The body a record links once its edge is written, as a read names it. */
+const LINKED_BODY = { id: BODY_ID, mediaType: MEDIA_TYPE.plain };
+const withBody = (read: ReturnType<typeof entity>) => ({ ...read, vertex: { ...read.vertex, [HAS_BODY_EDGE]: [LINKED_BODY] } });
+/** A note on the record's body, as the annotations step returns it with the body's digest as the note quoted it. */
+const note = (commentId: string, body: string) => ({ commentId, specificResourceId: `sr-${commentId}`, exact: "a passage", body, source: BODY_ID, sourceDigest: "digest-1" });
 
 const quadEvent = (namedGraph: string, subject: string, predicate: string, object: unknown, objectType?: string): TEvent =>
 	quadObservation(`${subject}.q`, 1, [{ subject, predicate, object, namedGraph, ...(objectType ? { objectType } : {}), timestamp: 1 }]) as unknown as TEvent;
@@ -118,12 +122,12 @@ describe("the notes of an open record", () => {
 
 	it("re-resolves a held individual's annotations when a note is anchored on it from anywhere", async () => {
 		let round = 0;
-		const { dispatch } = stubDispatch({ annotations: () => annotationList(++round === 1 ? [] : [note("c1", "written elsewhere")]) });
+		const { dispatch } = stubDispatch({ entity: () => withBody(entity("Hi")), annotations: () => annotationList(++round === 1 ? [] : [note("c1", "written elsewhere")]) });
 		handle = setupShuTest({ dispatch });
 		await openRecord("Email", "e1", "private");
 		expect(recordView("Email", "e1").annotations).toEqual([]);
 
-		handle.emit(quadEvent(SPECIFIC_RESOURCE_LABEL, "sr-c1", LinkRelations.HAS_SOURCE.rel, "e1", SPECIFIC_RESOURCE_LABEL));
+		handle.emit(quadEvent(SPECIFIC_RESOURCE_LABEL, "sr-c1", LinkRelations.HAS_SOURCE.rel, BODY_ID, BODY_LABEL));
 		await flush();
 		expect(recordView("Email", "e1").annotations.map((a) => a.body)).toEqual(["written elsewhere"]);
 	});
@@ -179,7 +183,7 @@ describe("an open record kept current", () => {
 		expect(recordView("Email", "e1").entity?.vertex[HAS_BODY_EDGE], "the record is read before its body's edge is written").toBeUndefined();
 		handle.emit(quadEvent("Email", "e1", HAS_BODY_EDGE, BODY_ID, BODY_LABEL));
 		await flush();
-		expect(recordView("Email", "e1").entity?.vertex[HAS_BODY_EDGE]).toEqual([{ id: BODY_ID }]);
+		expect(recordView("Email", "e1").entity?.vertex[HAS_BODY_EDGE]).toEqual([LINKED_BODY]);
 		expect(calls.entity).toBe(2);
 	});
 
@@ -194,7 +198,7 @@ describe("an open record kept current", () => {
 		await flush();
 		first.resolve(entity("Hi"));
 		await opened;
-		expect(recordView("Email", "e1").entity?.vertex[HAS_BODY_EDGE], "the read that started after the edge was written").toEqual([{ id: BODY_ID }]);
+		expect(recordView("Email", "e1").entity?.vertex[HAS_BODY_EDGE], "the read that started after the edge was written").toEqual([LINKED_BODY]);
 	});
 
 	it("doesn't fetch an individual the store doesn't hold when a live change names it", async () => {

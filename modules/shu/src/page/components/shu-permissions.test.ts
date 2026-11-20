@@ -9,6 +9,7 @@ import "./shu-page-key.js";
 import type { TAuthority } from "../controllers/authority-controller.js";
 import { pageAuthorityFails, pageHolding } from "../controllers/authority-controller.test-fake.js";
 import { ActionSchema } from "@haibun/core/lib/domains/actions.js";
+import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 
 const PAGE = "did:key:zDnaePage";
 const held: TAuthority = {
@@ -56,6 +57,17 @@ describe("what a reader may do here", () => {
 		const el = await mounted();
 		expect(refTexts(el, "entity"), "the records don't account for what it holds").not.toContain("comment.grant");
 		expect(refTexts(el, "action"), "so it opens the steps it allows").toContain("comment.grant");
+	});
+
+	it("shows what awaits the reader's decision when the count arrives after the panel opened, with the way to read them", async () => {
+		const el = await mounted();
+		const row = () => el.shadowRoot?.querySelector<HTMLElement>(".awaiting-row");
+		expect(row()?.hidden, "the row is hidden before a count arrives").toBe(true);
+		el.awaiting = 1;
+		el.awaitingRef = { kind: REF_DENOTES.type, target: { domain: "Proposal" } };
+		await el.updateComplete;
+		expect(row()?.hidden, "the row shows as the count arrives, without another render of the panel").toBe(false);
+		expect(row()?.querySelector("[data-testid='permissions-awaiting']")?.getAttribute("text")).toBe("read them");
 	});
 
 	it("opens with the read access in force, labelled as what it is", async () => {

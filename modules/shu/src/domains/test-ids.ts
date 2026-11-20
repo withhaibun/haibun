@@ -111,6 +111,12 @@ export const SHU_TEST_IDS = {
 		ANNOTATION_CARD_LINK: "annotation-card-link",
 		ANNOTATION_TOGGLE: "annotation-toggle",
 		ANNOTATION_HIGHLIGHT: "annotation-highlight",
+		/** The notes on an earlier text of the Body the annotated body shows, which it lists without highlighting them. */
+		ANNOTATION_STALE_NOTES: "annotation-stale-notes",
+		ANNOTATION_STALE_NOTE: "annotation-stale-note",
+		/** A note card's mark that the text changed after the note quoted it, and its link to the note's anchor. */
+		ANNOTATION_CARD_MODIFIED: "annotation-card-modified",
+		ANNOTATION_CARD_DETAILS: "annotation-card-details",
 		ENTITY_CONTROLS: "entity-controls",
 		FROM_STORE: "entity-from-store",
 	},
@@ -174,6 +180,8 @@ export const SHU_TEST_IDS = {
 		STATUS: "entity-claim-status",
 		FIELD_STATUS: "entity-field-status",
 		EVIDENCE: "entity-field-evidence",
+		/** A passage of a field's evidence whose Body changed after the passage quoted it. */
+		EVIDENCE_STALE: "entity-field-evidence-stale",
 		MADE_BY: "entity-claim-made-by",
 	},
 	/** The control that opens the proof actuality recorded for a step. */
@@ -285,7 +293,7 @@ export const SHU_TEST_IDS = {
 		SCENE_ERROR: "polymorphic-scene-error",
 	},
 	/** The axioms pane: its lines, a frame each. */
-	GRAPH_SOURCE: { LINES: "graph-source-lines", PASSAGE: "graph-source-passage" },
+	GRAPH_SOURCE: { LINES: "graph-source-lines", PASSAGE: "graph-source-passage", PASSAGE_STALE: "graph-source-passage-stale" },
 	AFFORDANCES: { ROOT: "shu-affordances", GOALS_LIST: "affordances-goals", EMPTY: "affordances-empty", CHAIN: "affordances-chain" },
 	DOMAIN_CHAIN: {
 		ROOT: "shu-domain-chain",

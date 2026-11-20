@@ -25,6 +25,9 @@ export const BASE_WITHOUT_FEATURES = "doesn't hold a feature or a background";
  *  the directories a run may read; the backgrounds are read whatever the filter. */
 export type TFeatureSource = { collect: (bases: TBase, featureFilter: string[] | undefined, policyConfig: TRunPolicyConfig | undefined) => Promise<TFeaturesBackgrounds> };
 
+/** The claims about an assumed step's records, and the checks they read, each as `checkN3` states it. */
+export type TAssumedClaims = { readonly claims: readonly TAssumedClaim[]; readonly checks: readonly string[] };
+
 /** The logic engine's entry. Every surface proves a step through it: a feature's line, a statement a step states, and a call
  *  a transport carries. The prover evaluates the step's formal reading, dispatches each call the proof needs, writes the
  *  proof's records and returns the step's result with its verdict. It also proves a permission's containment in its bound, on
@@ -44,8 +47,8 @@ export type TProver = {
 	entailed: (world: TWorld, expression: string) => Promise<TEntailed>;
 	/** Returns the claims about the records `written` names, which a step whose products are assumed wrote: whether each record's
 	 *  facts contradict a disjointness the ontology states, and each record of the store the ontology entails is the same
-	 *  individual, with each proof. */
-	assumedClaims: (world: TWorld, written: readonly TRecordName[]) => Promise<TAssumedClaim[]>;
+	 *  individual, with each proof, and the checks the claims read, as `checkN3` states each, which the step's record holds. */
+	assumedClaims: (world: TWorld, written: readonly TRecordName[]) => Promise<TAssumedClaims>;
 };
 
 /** The members a class expression entails, and the types whose reads stopped at the reasoning's ceiling, whose further

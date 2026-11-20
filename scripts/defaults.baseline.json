@@ -141,7 +141,7 @@
 	},
 	"modules/shu/src/page/components/shu-annotated-body.ts": {
 		"fills a falsy value with a constant through ||": 3,
-		"fills an absent value with a constant through ??": 12
+		"fills an absent value with a constant through ??": 9
 	},
 	"modules/shu/src/page/components/shu-artifact-frame.ts": {
 		"fills an absent value with a constant through ??": 1

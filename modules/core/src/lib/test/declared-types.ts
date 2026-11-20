@@ -6,7 +6,17 @@ import type { z } from "zod";
 import { querySurface, REACHED_BY } from "../domains/hypermedia.js";
 import { QuadStore, newStoreChain } from "../steps/pipelines/quad-store.js";
 import type { TStoreLevels } from "../steps/ports.js";
-import { Access, contentFieldsOf, HAIBUN_RECORD_NAMESPACE, isPersisted, LinkRelations, type TContentField, type TDomainDefinition, type TRecordKey } from "../domains/resources.js";
+import {
+	Access,
+	contentFieldsOf,
+	HAIBUN_RECORD_NAMESPACE,
+	isPersisted,
+	LinkRelations,
+	OWNED_BODY,
+	type TContentField,
+	type TDomainDefinition,
+	type TRecordKey,
+} from "../domains/resources.js";
 import { accessBound, inCall, inStep, runInCall, writeBound, writesInFlight } from "../domains/capability-context.js";
 import { stepRecordInFlight } from "../actuality/domains/step-in-flight.js";
 import { formatRecordName } from "../actuality/domains/seq-path.js";
@@ -49,7 +59,12 @@ export function declaredTypes(types: Record<string, TDeclaredType>): TReadDeclar
 			if (!type) return undefined;
 			const properties = Object.fromEntries((type.filters ?? []).map((field) => [field, [REACHED_BY.filter]]));
 			const references = Object.fromEntries((type.relations === undefined ? [] : Object.entries(type.relations)).map(([relation, ranges]) => [relation, [...ranges]]));
-			const edges = type.edges === undefined ? edgeDeclarationsOf(Object.fromEntries(Object.entries(references).map(([relation, range]) => [relation, { range }]))) : type.edges;
+			// A type with content fields owns the Bodies a write partitions them into, as `topologyEdges` declares for a domain's type.
+			const owned: Record<string, { range: string; owns: true }> = type.contents === undefined ? {} : { [OWNED_BODY.rel]: { range: OWNED_BODY.range, owns: OWNED_BODY.owns } };
+			const edges =
+				type.edges === undefined
+					? edgeDeclarationsOf({ ...owned, ...Object.fromEntries(Object.entries(references).map(([relation, range]) => [relation, { range }])) })
+					: type.edges;
 			const declared = {
 				id: type.id === undefined ? "id" : type.id,
 				surface: { label, properties, references },

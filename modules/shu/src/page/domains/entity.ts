@@ -2,7 +2,7 @@
  * One record as the page shows it: the record with its edges, the notes anchored in it, the bodies the reader opened, and
  * how the page read it.
  */
-import type { TAnnotationView } from "@haibun/core/lib/domains/resources.js";
+import type { TAnchorSource, TAnnotationView } from "@haibun/core/lib/domains/resources.js";
 import type { TIndividualWithEdges } from "@haibun/core/lib/quad-types.js";
 import type { TPageRefusal } from "./refusal.js";
 import { LOAD_STATUS, type TLoadStatus } from "./load.js";
@@ -26,8 +26,9 @@ export type TEntityView = {
 	refusal?: TPageRefusal;
 };
 
-/** A note draft: the passage the reader selected, and the note's text. */
-export type TAnnotationDraft = { exact: string; prefix?: string; suffix?: string; text: string };
+/** A note draft: the passage the reader selected, the note's text, and the Body the reader read it in, with the Body's digest as
+ *  the page showed it, which the store compares with the Body it holds. */
+export type TAnnotationDraft = { exact: string; prefix?: string; suffix?: string; text: string; quoted: TAnchorSource };
 
 /** Returns a new view of a record the page hasn't read: pending before its read starts, or running while it reads. Each call
  *  returns a new view, so one view can't change another view's copy. */

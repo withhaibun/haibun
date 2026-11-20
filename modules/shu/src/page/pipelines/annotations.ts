@@ -35,9 +35,10 @@ export async function annotationsOnSite(scope: TAnnotationScope, label: string, 
 /** The quads of each subject of one type the page holds, by the subject. */
 type TBySubject = Map<string, TQuad[]>;
 
-/** Returns the notes anchored in the record `id` names, from the quads the page holds, with one read of each type a note
- *  holds: each SpecificResource whose source is the record, its selector, and each Comment that targets it, with its body. */
-export async function annotationsHeld(scope: TAnnotationScope, id: string): Promise<TAnnotationView[]> {
+/** Returns the notes anchored in the Bodies `sources` names, a record's, from the quads the page holds, with one read of each type a
+ *  note holds: each SpecificResource whose source is one of the Bodies, its selector, and each Comment that targets it, with its
+ *  body. */
+export async function annotationsHeld(scope: TAnnotationScope, sources: ReadonlySet<string>): Promise<TAnnotationView[]> {
 	const held = async (namedGraph: string): Promise<TBySubject> => bySubject(await scope.quads({ namedGraph }));
 	const [resources, selectors, comments, bodies] = await Promise.all([held(SPECIFIC_RESOURCE_LABEL), held(TEXT_QUOTE_SELECTOR_LABEL), held(COMMENT_LABEL), held(BODY_LABEL)]);
 	const quoteOf = (resourceId: string): TQuoteAnchor | undefined => {
@@ -51,8 +52,11 @@ export async function annotationsHeld(scope: TAnnotationScope, id: string): Prom
 	};
 	const out: TAnnotationView[] = [];
 	for (const [resourceId, quads] of resources) {
-		const quote = edgeOf(quads, LinkRelations.HAS_SOURCE.rel) === id ? quoteOf(resourceId) : undefined;
+		const source = String(edgeOf(quads, LinkRelations.HAS_SOURCE.rel));
+		const quote = sources.has(source) ? quoteOf(resourceId) : undefined;
 		if (quote === undefined) continue;
+		const sourceDigest = literalOf(quads, LinkRelations.SOURCE_DIGEST.rel);
+		if (sourceDigest === undefined) throw new Error(`the passage ${resourceId} the page holds doesn't state the digest of the Body it quotes`);
 		for (const [commentId, commentQuads] of comments) {
 			if (edgeOf(commentQuads, LinkRelations.TARGET.rel) !== resourceId) continue;
 			const links = commentQuads
@@ -64,6 +68,8 @@ export async function annotationsHeld(scope: TAnnotationScope, id: string): Prom
 			out.push({
 				commentId,
 				specificResourceId: resourceId,
+				source,
+				sourceDigest,
 				...quote,
 				...(author !== undefined ? { author } : {}),
 				...(generatedAtTime !== undefined ? { generatedAtTime } : {}),

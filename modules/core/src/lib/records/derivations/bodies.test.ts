@@ -5,6 +5,8 @@ import { MEDIA_TYPE } from "../../domains/media-types.js";
 import { bodyDigestOf, bodyIdOf, bodyKindsOf, bodyOfForms, DEFAULT_BODY_KIND, formIn, preferredMediaType, preferredReading, readingKey, readingsOf } from "./bodies.js";
 
 const CONTENT = LinkRelations.CONTENT.rel;
+/** A type whose records link their Bodies. */
+const RECORD = "Email";
 const plain = { mediaType: MEDIA_TYPE.plain, content: "plain text" };
 const markdown = { mediaType: MEDIA_TYPE.markdown, content: "*md*" };
 const html = { mediaType: MEDIA_TYPE.html, content: "<p>html</p>" };
@@ -65,17 +67,20 @@ describe("the readings of the bodies a record links", () => {
 	const listed = { id: "e", mediaType: MEDIA_TYPE.markdown, representations: [{ mediaType: MEDIA_TYPE.plain }, { mediaType: MEDIA_TYPE.html }] };
 
 	it("are each form of each body, with its text where the record carries it", () => {
-		expect(readingsOf({ hasBody: [listed, { id: "c", ...plain }] })).toEqual([
+		expect(readingsOf(RECORD, { hasBody: [listed, { id: "c", ...plain }] })).toEqual([
 			{ key: readingKey("e", MEDIA_TYPE.markdown), body: "e", media: MEDIA_TYPE.markdown },
 			{ key: readingKey("e", MEDIA_TYPE.plain), body: "e", media: MEDIA_TYPE.plain },
 			{ key: readingKey("e", MEDIA_TYPE.html), body: "e", media: MEDIA_TYPE.html },
 			{ key: readingKey("c", MEDIA_TYPE.plain), body: "c", media: MEDIA_TYPE.plain, text: plain.content },
 		]);
-		expect(readingsOf({})).toEqual([]);
+		expect(readingsOf(RECORD, {})).toEqual([]);
+		expect(readingsOf(BODY_LABEL, { id: "b", ...markdown, digest: "d" }), "a Body record reads as its own forms, as its view opens a passage of it").toEqual([
+			{ key: readingKey("b", MEDIA_TYPE.markdown), body: "b", media: MEDIA_TYPE.markdown, text: markdown.content, digest: "d" },
+		]);
 	});
 
 	it("refuse a body that doesn't state its media type", () => {
-		expect(() => readingsOf({ hasBody: [{ id: "x", content: "no media type" }] })).toThrow();
+		expect(() => readingsOf(RECORD, { hasBody: [{ id: "x", content: "no media type" }] })).toThrow();
 	});
 
 	it("prefer markdown, then plain text, then HTML, then the first reading with text, leaving out an empty reading", () => {
@@ -112,6 +117,10 @@ describe("the digest of a Body's forms", () => {
 		expect(written({ [LinkRelations.ACCESS_LEVEL.rel]: "private" }), "a write that doesn't state a form").toEqual([
 			{ label: BODY_LABEL, id: "b", fields: { [LinkRelations.ACCESS_LEVEL.rel]: "private" }, edges: [] },
 		]);
+	});
+
+	it("is refused for a write that states a digest without the forms the digest is drawn from", () => {
+		expect(() => written({ [BODY_DIGEST]: "a digest a caller chose" })).toThrow('the Body "b" is written with a digest and without its forms');
 	});
 
 	it("is refused for a write that states a form of the Body without its text and its media type", () => {

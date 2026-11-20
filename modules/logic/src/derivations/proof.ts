@@ -78,3 +78,11 @@ export function functionalAxiom({ subject, predicate, object }: Quad, nameOf: (t
 	if (predicate.value === RDF.type) return `ClassAssertion(${o} ${s})`;
 	return `${object.termType === "Literal" ? "DataPropertyAssertion" : "ObjectPropertyAssertion"}(${nameOf(predicate)} ${s} ${o})`;
 }
+
+/** Returns the triples a proof's extractions read whose subject `isRecord` names a record, once each: the facts of records the proof
+ *  rests on, apart from the axioms and the rules it read, which a check stores so a why view proves the same conclusion again. */
+export const recordPremisesOf = (proof: TProof, isRecord: (subject: Term) => boolean): Quad[] =>
+	extractedBy(proof)
+		.filter(({ subject }) => isRecord(subject))
+		// A proof states each triple in the graph of its formula, and a check states its facts in a formula of its own.
+		.map(({ subject, predicate, object }) => DataFactory.quad(subject, predicate, object));

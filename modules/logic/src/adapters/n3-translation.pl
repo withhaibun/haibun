@@ -144,12 +144,15 @@ translate(M, Program, Refusals) :-
 	append([HP, BH, RP, QP], AP), sort(AP, Predicates),
 	findall(axiom(P, S, O), axiom(t(P, S, O)), Axioms),
 	(   triple_mode
-	->  Feeds = [(M:t(S, P, O) :- (M:fact(P, S, O) ; M:axiom(P, S, O)))], ( Recursive == [] -> Tabled = [] ; Tabled = [t/3] )
-	;   findall((M:G :- (M:fact(P, S, O) ; M:axiom(P, S, O))), (member(P, Predicates), G =.. [P, S, O]), Feeds), findall(P/2, (member(P, Recursive), atom(P)), Tabled)
+	->  Feeds = [(M:t(S, P, O) :- (M:fact(P, S, O) ; M:axiom(P, S, O)))], ( Recursive == [] -> Tabled = [] ; Tabled = [t/3] ), Defined = [t/3]
+	;   findall((M:G :- (M:fact(P, S, O) ; M:axiom(P, S, O))), (member(P, Predicates), G =.. [P, S, O]), Feeds), findall(P/2, (member(P, Recursive), atom(P)), Tabled),
+		findall(P/2, member(P, Predicates), Defined)
 	),
 	findall(Rule-Reason, refusal(Rule, Reason), Refusals),
 	with_output_to(string(Program), (
 		format(":- dynamic(~q), dynamic(~q).~n", [M:fact/3, M:axiom/3]),
+		% A predicate's feed comes before the rules that derive it, and rules of other predicates stand between those rules.
+		forall(member(D, Defined), portray_clause((:- discontiguous(M:D)))),
 		forall(member(T, Tabled), portray_clause((:- table(M:T)))),
 		forall(member(A, Axioms), portray_clause(M:A)),
 		forall(member(C, Feeds), portray_clause(C)),

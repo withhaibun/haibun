@@ -14,6 +14,9 @@ import type { DispatchContext } from "@haibun/core/lib/actuality/pipelines/step-
 import { dispatchStep, nextSeqPath, proveStep } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
 import { inCall, nestedOf, runInCall, type TCallContext } from "@haibun/core/lib/domains/capability-context.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
+import { ACTUALITY_PRINCIPAL } from "@haibun/core/lib/steps/domains/contract.js";
+import { referenceTo } from "@haibun/core/lib/records/domains/unit.js";
+import { anchorCurrentCheck } from "../domains/anchor-relations.js";
 import { boundValue, type TListItem } from "@haibun/core/lib/domains/lists.js";
 import type { TProver } from "@haibun/core/lib/actuality/ports.js";
 import { findFeatureStepsFromStatement } from "@haibun/core/lib/actuality/pipelines/resolver.js";
@@ -655,11 +658,17 @@ const WitnessProductsSchema = z.object({ witness: z.union([ClaimWitnessSchema, D
 /** The prover of an engine, which proves a permission's containment through the reasoner and checks a call against its step's
  *  contract over the rules of the relations `steppers` declare and of each field their types state every member has. */
 export function proverOf(engine: TLogicEngine, reasoner: TReasoner, steppers: readonly AStepper[]): TProver {
+	const checkContract = contractChecks(checkedRelations(steppers), reasoner, engine);
 	return {
-		checkContract: contractChecks(checkedRelations(steppers), reasoner, engine),
+		checkContract,
 		exceeding: async (candidate, bound) => (await containment(reasoner, candidate, bound)).exceeds,
 		entailed: (world, expression) => entailedMembers(reasoner, world.shared.getStore(), world.domains, world.runtime.records, expression),
-		assumedClaims: (world, written) => assumedClaims({ reasoner, store: world.shared.getStore(), domains: world.domains, records: world.runtime.records }, written),
+		assumedClaims: (world, written) =>
+			assumedClaims({ reasoner, store: world.shared.getStore(), domains: world.domains, records: world.runtime.records }, written, async (record, quoting) => {
+				const call = { parameters: { record: referenceTo(record.label, record.id) }, principal: ACTUALITY_PRINCIPAL };
+				const { verdicts, facts } = await checkContract(world, anchorCurrentCheck("record", quoting), call);
+				return { ...itemAt(verdicts, 0), facts };
+			}),
 		prove: async (ctx, line) => {
 			const proof = new Proof(ctx, reasoner, line);
 			let term: string;

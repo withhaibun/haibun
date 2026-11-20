@@ -18,7 +18,7 @@ import {
 	textQuoteSelectorDomainDefinition,
 } from "./domains/resource-domains.js";
 import { createComment, readTypedLinks, readingIdFor } from "./records/pipelines/discourse-writes.js";
-import { DEFAULT_BODY_KIND } from "./records/derivations/bodies.js";
+import { bodyIdOf, DEFAULT_BODY_KIND } from "./records/derivations/bodies.js";
 import { MEDIA_TYPE } from "./domains/media-types.js";
 import { readUpTo, recordOf } from "./records/pipelines/record-reads.js";
 import { MAX_PAGE_ROWS } from "./domains/hypermedia.js";
@@ -31,6 +31,8 @@ import { referenceTo } from "./records/domains/unit.js";
 
 // A registered fixture type, as a consumer would declare one. Statements connect records of registered types only.
 const REPORT = "FieldReport";
+/** The content field that holds a report's text. */
+const REPORT_TEXT = { field: "text", mediaType: MEDIA_TYPE.markdown };
 const TYPES = new Set([REPORT, COMMENT_LABEL, BODY_LABEL, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL, READING_LABEL]);
 /** The types the derivation writes and reads, declared so the store reads their records: core's as core declares them, and the
  *  fixture type with the relations its links state. */
@@ -43,8 +45,15 @@ const DECLARED = Object.fromEntries([
 		fragmentSelectorDomainDefinition,
 		readingDomainDefinition,
 	].map(declaredTypeOf),
-	[REPORT, { relations: { [LinkRelations.CITES.rel]: [REPORT, SPECIFIC_RESOURCE_LABEL], [LinkRelations.MENTIONS.rel]: [REPORT, SPECIFIC_RESOURCE_LABEL] } }],
+	[
+		REPORT,
+		{ relations: { [LinkRelations.CITES.rel]: [REPORT, SPECIFIC_RESOURCE_LABEL], [LinkRelations.MENTIONS.rel]: [REPORT, SPECIFIC_RESOURCE_LABEL] }, contents: [REPORT_TEXT] },
+	],
 ]);
+/** The text each report holds as its Body, which the links' quotes read. */
+const REPORT_BODY = "A report shall be signed. It holds a clause, and then a later clause.";
+/** The Body that holds the text of the report `id`. */
+const reportBody = (id: string): string => bodyIdOf(id, DEFAULT_BODY_KIND, [REPORT_TEXT]);
 const vocab: TLinkVocabulary = {
 	relRange: (rel) => Object.values(LinkRelations).find((e) => e.rel === rel && !(e as { abstract?: boolean }).abstract)?.range,
 	isType: (name) => TYPES.has(name),
@@ -60,7 +69,8 @@ describe("readTypedLinks", () => {
 	beforeEach(async () => {
 		store = storeDeclaring(DECLARED, TEST_LEVELS);
 		// A statement is made about a record that exists, so every record a test's text refers to is here first.
-		for (const id of [source.id, "spec-1", "gone-1", "stays-1", "by-hand-1"]) await store.merge({ "@type": REPORT, id, generatedAtTime: "2026-07-01T00:00:00.000Z" });
+		for (const id of [source.id, "spec-1", "gone-1", "stays-1", "by-hand-1"])
+			await store.merge({ "@type": REPORT, id, generatedAtTime: "2026-07-01T00:00:00.000Z", text: REPORT_BODY });
 	});
 
 	it("states a link between two records as an edge", async () => {
@@ -77,7 +87,7 @@ describe("readTypedLinks", () => {
 		const selectorIds = await edgesOf(store, itemAt(cited, 0), LinkRelations.HAS_SELECTOR.rel);
 		const selector = await recordOf(store, TEXT_QUOTE_SELECTOR_LABEL, itemAt(selectorIds, 0));
 		expect(selector?.exact).toBe("shall be signed");
-		expect(await edgesOf(store, itemAt(cited, 0), LinkRelations.HAS_SOURCE.rel)).toEqual(["spec-1"]);
+		expect(await edgesOf(store, itemAt(cited, 0), LinkRelations.HAS_SOURCE.rel), "the anchor's source is the Body that holds the quoted text").toEqual([reportBody("spec-1")]);
 	});
 
 	it("makes a typed citation of a page an edge to the page's anchor, located by a FragmentSelector", async () => {
@@ -86,7 +96,7 @@ describe("readTypedLinks", () => {
 		const selectorId = itemAt(await edgesOf(store, cited, LinkRelations.HAS_SELECTOR.rel), 0);
 		const selector = await recordOf(store, FRAGMENT_SELECTOR_LABEL, selectorId);
 		expect(selector, "the page, as RFC 8118 writes it").toMatchObject({ conformsTo: FRAGMENT_SPEC.pdf, value: "page=12" });
-		expect(await edgesOf(store, cited, LinkRelations.HAS_SOURCE.rel)).toEqual(["spec-1"]);
+		expect(await edgesOf(store, cited, LinkRelations.HAS_SOURCE.rel)).toEqual([reportBody("spec-1")]);
 	});
 
 	it("records the reading, what it read, and the step that read it", async () => {
@@ -144,11 +154,11 @@ describe("readTypedLinks", () => {
 describe("a note's own links", () => {
 	it("states a cross-record link from the note that made it", async () => {
 		const store = storeDeclaring(DECLARED, TEST_LEVELS);
-		await store.merge({ "@type": REPORT, id: "spec-1", generatedAtTime: "2026-07-01T00:00:00.000Z" });
+		await store.merge({ "@type": REPORT, id: "spec-1", generatedAtTime: "2026-07-01T00:00:00.000Z", text: REPORT_BODY });
 		const link = "Contradicts [a later clause:linksTo](#FieldReport:spec-1:~:text=a%20later%20clause).";
 		const commentId = await createComment(store, vocab, { author: "did:example:reviewer", step: testStepRecord("0.1") }, link);
 		const anchorId = itemAt(await edgesOf(store, commentId, LinkRelations.LINKS_TO.rel), 0);
-		expect(await edgesOf(store, anchorId, LinkRelations.HAS_SOURCE.rel)).toEqual(["spec-1"]);
+		expect(await edgesOf(store, anchorId, LinkRelations.HAS_SOURCE.rel)).toEqual([reportBody("spec-1")]);
 	});
 });
 

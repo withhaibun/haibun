@@ -11,7 +11,7 @@
 import type { TProver } from "@haibun/core/lib/actuality/ports.js";
 import { VERDICT } from "@haibun/core/lib/domains/protocol.js";
 import { DataFactory } from "n3";
-import { CHECK_READ, type TRelation, type TStatement, type TStatementVerdict } from "@haibun/core/lib/steps/domains/contract.js";
+import { CHECK_READ, CLAIM_CHECK_IRIS, type TRelation, type TStatement, type TStatementVerdict } from "@haibun/core/lib/steps/domains/contract.js";
 import { statementSentence } from "@haibun/core/lib/steps/derivations/predicate-registry.js";
 import { callFacts, callTriple, fieldPredicate, referencedRecords, relationPredicate, relationReads, relationsQuery, tripleKey } from "../derivations/contract-terms.js";
 import { patternText, quadsOf, quadsText, recordTermsOf } from "../derivations/n3.js";
@@ -69,12 +69,19 @@ export function contractChecks(relations: readonly TRelation[], reasoner: TReaso
 /** Returns EYE's proof of each check whose facts `checks` states as N3, in the order it states them, over the rules of `relations`. */
 export function contractProofs(relations: readonly TRelation[], reasoner: TReasoner, checks: string): Promise<TProof[]> {
 	const rules = rulesOf(relations);
-	const quads = quadsOf(checks);
-	const read = quads.filter(({ graph, predicate }) => graph.termType === "DefaultGraph" && predicate.value === CHECK_READ);
+	// A claim proved under the ontology is proved again under its rules (`claimProofs`), so a contract's proof reads the other checks.
+	const read = checksIn(checks).filter(({ check }) => !CLAIM_CHECK_IRIS.has(check));
 	return Promise.all(
-		read.map(async ({ object }) => {
-			const facts = quadsText(quads.filter(({ graph }) => graph.equals(object)).map(({ subject, predicate, object: value }) => DataFactory.quad(subject, predicate, value)));
-			return proofOf(await derive(reasoner, `${rules}\n${facts}`, relationsQuery(relations), true, {}, "a why view reads the facts a contract's check read"));
-		}),
+		read.map(async ({ facts }) => proofOf(await derive(reasoner, `${rules}\n${facts}`, relationsQuery(relations), true, {}, "a why view reads the facts a contract's check read"))),
+	);
+}
+
+/** Returns each check `checks` states as N3, by the IRI of its check, with the facts it read as N3 of their own. */
+export function checksIn(checks: string): { check: string; facts: string }[] {
+	const quads = quadsOf(checks);
+	return quads.flatMap(({ subject, predicate, object, graph }) =>
+		graph.termType === "DefaultGraph" && predicate.value === CHECK_READ
+			? [{ check: subject.value, facts: quadsText(quads.filter((quad) => quad.graph.equals(object)).map((quad) => DataFactory.quad(quad.subject, quad.predicate, quad.object))) }]
+			: [],
 	);
 }

@@ -27,7 +27,7 @@ import type { TWorld } from "../actuality/domains/world.js";
 import type { TRecordType } from "../steps/domains/quad-types.js";
 import type { IQuadStore } from "../steps/ports.js";
 import { referenceTo, type TRecordName } from "../records/domains/unit.js";
-import { locateQuoteOffsets } from "./quote-anchor.js";
+import { quoteOccurrences, type TTextRange } from "./quote-anchor.js";
 
 // ============================================================================
 // Resource identity
@@ -293,6 +293,8 @@ export const LinkRelations = {
 	MEDIA_TYPE: { rel: "mediaType", uri: "as:mediaType", range: "literal" },
 	/** The SHA-256 of a Body's forms, which an anchor into the Body's record states as the text it quoted. */
 	CONTENT_DIGEST: { rel: "contentDigest", uri: "schema:sha256", range: "literal" },
+	/** The digest of the Bodies of an anchor's source as the anchor's writer read them, which a store compares with the Bodies it holds. */
+	SOURCE_DIGEST: { rel: "sourceDigest", uri: "hbn:sourceDigest", range: "literal" },
 	IN_REPLY_TO: { rel: "inReplyTo", uri: "as:inReplyTo", range: "iri" },
 	ATTACHMENT: { rel: "attachment", uri: "as:attachment", range: "iri" },
 	TAG: { rel: "tag", uri: "as:tag", range: "literal" },
@@ -1214,6 +1216,9 @@ export type TRepresentation = z.infer<typeof RepresentationSchema>;
 /** The field of a Body that states the digest of its forms. */
 export const BODY_DIGEST = "digest";
 
+/** The field of an anchor that states the digest of its source's Bodies, as its writer read them. */
+export const SOURCE_DIGEST = LinkRelations.SOURCE_DIGEST.rel;
+
 /**
  * A Body holds opaque content with a declared media type. Any resource links it through `hasBody`. The format is data
  * on the Body and not metadata on the parent resource's topology, so JSON-LD round-trips and graph queries read
@@ -1261,6 +1266,10 @@ const AnnotationViewSchema = z.object({
 	body: z.string().optional(),
 	...QuoteAnchorSchema.shape,
 	specificResourceId: z.string(),
+	/** The Body the note's passage quotes, and the digest of the Body as the passage quoted it, which a view compares with the Body's
+	 *  digest: a note whose Body changed after it quoted the Body is stale. */
+	source: z.string(),
+	[SOURCE_DIGEST]: z.string(),
 	links: z.array(QuoteAnchorSchema).optional(),
 });
 export type TAnnotationView = z.infer<typeof AnnotationViewSchema>;
@@ -1294,6 +1303,7 @@ export const SpecificResourceSchema = PersistedVertexSchema.extend({
 	 *  SpecificResource a title of its own. Without a label it reads as the bare text it quotes, such as a clause number or
 	 *  a fragment, which doesn't state the reason for the citation. RDFS's labelling property is the standard place for that text. */
 	label: z.string().optional(),
+	[SOURCE_DIGEST]: z.string().describe("The digest of the source's Bodies as the anchor's writer read them, which a store compares with the Bodies it holds."),
 });
 
 // ============================================================================
@@ -1338,6 +1348,12 @@ export type TDiscourseStore = Pick<IQuadStore, "create" | "merge" | "remove" | "
 /** The store a passage is anchored through, which merges its records. */
 type TAnchorStore = Pick<TDiscourseStore, "merge">;
 
+/** The Body whose text an anchor quotes, with the digest of its forms as the anchor's writer read them. */
+export type TAnchorSource = { readonly id: string; readonly digest: string };
+
+/** A Body a writer quotes, with the text of each of its forms: its text first, then each representation. */
+export type TQuotedBody = TAnchorSource & { readonly forms: readonly string[] };
+
 /** The maximum length of a Comment's display name. The name is the note text on one line, truncated, so a graph view titles the Comment by its text and not its id. */
 const COMMENT_NAME_MAX = 60;
 export function commentName(text: string): string {
@@ -1362,17 +1378,18 @@ async function digestOf(text: string): Promise<string> {
 	return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-/** Anchors a part inside `source`, the record that holds the quoted text, in one unit: a SpecificResource that names the source, and owns the selector
- *  that locates the part. The source may be a record the store doesn't hold yet, since a text can quote a document that hasn't
- *  been read. A quote's optional prefix and suffix let a short or repeated quote resolve to one occurrence. Returns the ids it
- *  wrote and the selector's type. A Comment's oa:hasTarget (anchor) or oa:hasBody linksTo (cross-reference) points at the
- *  SpecificResource. The selector id lets a caller that owns the anchor retract the pair. `label` is the name a reader gave
- *  this part where it was referenced, so it reads as more than its selector, and `generatedBy` names the record that generated
- *  the anchor, such as the reading of a text. Both ids are the digest of what the anchor states, so anchoring the same part
- *  again writes the same records and doesn't add an anchor. */
+/** Anchors a part inside `source`, the Body whose text the part quotes, in one unit: a SpecificResource that names the Body and the
+ *  digest of its forms as the writer read them, and owns the selector that locates the part. The store refuses an anchor whose
+ *  digest differs from the Body it holds. A quote's optional prefix and suffix let a short or repeated quote resolve
+ *  to one occurrence. Returns the ids it wrote and the selector's type. A Comment's oa:hasTarget (anchor) or oa:hasBody linksTo
+ *  (cross-reference) points at the SpecificResource. The selector id lets a caller that owns the anchor retract the pair. `label`
+ *  is the name a reader gave this part where it was referenced, so it reads as more than its selector, and `generatedBy` names the
+ *  record that generated the anchor, such as the reading of a text. Both ids are the digest of what the anchor states, its source's
+ *  digest among it, so anchoring the same part of the same text again writes the same records, and anchoring it after an edit of
+ *  the source writes a new anchor beside the stale one. */
 export async function anchorPart(
 	store: TAnchorStore,
-	source: TRecordName,
+	source: TAnchorSource,
 	part: TPart,
 	stated?: { label?: string; generatedBy?: TRecordName },
 ): Promise<{ specificResourceId: string; selectorId: string; selectorLabel: string }> {
@@ -1381,7 +1398,8 @@ export async function anchorPart(
 	// a second proxy, and that hop ends at the id. A node without a label reads as that string.
 	const anchor = {
 		label: stated?.label ?? selector.reads,
-		[LinkRelations.HAS_SOURCE.rel]: referenceTo(source.label, source.id),
+		[LinkRelations.HAS_SOURCE.rel]: referenceTo(BODY_LABEL, source.id),
+		[SOURCE_DIGEST]: source.digest,
 		...(stated?.generatedBy === undefined ? {} : { [LinkRelations.WAS_GENERATED_BY.rel]: referenceTo(stated.generatedBy.label, stated.generatedBy.id) }),
 	};
 	const specificResourceId = await digestOf(JSON.stringify([anchor, selector.label, selector.fields]));
@@ -1398,19 +1416,34 @@ export async function anchorPart(
 /** The edge from a record to each passage of its source that quotes one of its values. */
 export const EVIDENCE_EDGE = { rel: LinkRelations.CITES_AS_EVIDENCE.rel, range: SPECIFIC_RESOURCE_LABEL };
 
-/** Anchors each value that `text` quotes in a passage of `source`, the record that holds the text, and returns the edge from a
- *  record to those passages, which it cites as evidence. A value the text doesn't quote isn't anchored. Each anchor states what
- *  is around the passage, up to its length, so a repeated value resolves to one occurrence, and names the step in progress as
- *  what generated it, the store's own provenance stamp, so each extracted passage names the call that extracted it. */
-export async function quotedEvidence(store: TAnchorStore, source: TRecordName, text: string | undefined, values: readonly (string | undefined)[]) {
-	const passages: string[] = [];
-	for (const exact of values) {
-		if (exact === undefined || text === undefined) continue;
-		const at = locateQuoteOffsets(text, exact);
-		if (at === null) continue;
-		passages.push((await anchorPart(store, source, { exact, ...surround(text, at) })).specificResourceId);
-	}
+/** Anchors each passage of the Body `body` that quotes one of `values`, and returns the edge from a record to those passages, which
+ *  it cites as evidence. A value is located in the Body's text, or else in the first of its representations that quotes it, and
+ *  each of its occurrences there is anchored, up to `PASSAGES_OF_A_VALUE`, since a writer that quotes a value doesn't state which
+ *  occurrence it read. Each anchor
+ *  states what is around the passage, up to its length, so it resolves to its one occurrence, and names the step in progress as
+ *  what generated it, the store's own provenance stamp, so each extracted passage names the call that extracted it. A value the
+ *  Body doesn't quote isn't anchored. */
+export async function quotedEvidence(store: TAnchorStore, body: TQuotedBody, values: readonly (string | undefined)[]) {
+	const parts = values.flatMap((exact) => {
+		const form = exact === undefined || exact === "" ? undefined : body.forms.find((text) => text.includes(exact));
+		return exact === undefined || form === undefined ? [] : apart(quoteOccurrences(form, exact), PASSAGES_OF_A_VALUE).map((at) => ({ exact, ...surround(form, at) }));
+	});
+	const passages = await Promise.all(parts.map(async (part) => (await anchorPart(store, body, part)).specificResourceId));
 	return passages.length === 0 ? {} : { [EVIDENCE_EDGE.rel]: passages.map((id) => referenceTo(SPECIFIC_RESOURCE_LABEL, id)) };
+}
+
+/** The most passages a value's evidence anchors, so a short value a text repeats, which a sender or a model chose, anchors as many
+ *  passages as a reader reads rather than one for each repetition. */
+const PASSAGES_OF_A_VALUE = 8;
+
+/** Returns the first `limit` of `occurrences`, each after the one before it ends. */
+function apart(occurrences: readonly TTextRange[], limit: number): TTextRange[] {
+	const kept: TTextRange[] = [];
+	for (const at of occurrences) {
+		if (kept.length === limit) break;
+		if (kept.length === 0 || at.start >= itemAt(kept, kept.length - 1).end) kept.push(at);
+	}
+	return kept;
 }
 
 /** The text around a located passage, up to this length on each side, as the selector's prefix and suffix. */

@@ -105,6 +105,15 @@ function edgesOf<D extends TQuadEdge["direction"]>(vertices: ReadonlyArray<Recor
 	return vertices.flatMap(({ [VIA_FIELD]: via, ...target }) => ViaSchema.parse(via).map((type) => ({ type, direction, target })));
 }
 
+/** Returns the read of the records one record's edges reach, each with the relations by which it reaches them. */
+const outgoingRead = (label: string, id: string, accessLevel: AccessQueryLevel | undefined): TGraphQuery =>
+	GraphQuerySchema.parse({ referencedBy: { label, id }, limit: OUTGOING_EDGE_LIMIT, ...levelOf(accessLevel) });
+
+/** Reads the edges one record holds, each with the record it reaches, in one read. */
+export async function outgoingEdgesOf(store: TRecordReader, label: string, id: string, accessLevel?: AccessQueryLevel): Promise<Array<TQuadEdge & { direction: "out" }>> {
+	return edgesOf((await store.readRecords(outgoingRead(label, id, accessLevel))).vertices, "out");
+}
+
 /** Returns the read of one record by its type and id, with the records it owns embedded where `owned` holds. */
 const namedRead = (label: string, id: string, accessLevel: AccessQueryLevel | undefined, owned: boolean): TGraphQuery =>
 	GraphQuerySchema.parse({ label, named: [id], limit: 1, skipCount: true, ...(owned ? { owned } : {}), ...levelOf(accessLevel) });
@@ -130,7 +139,7 @@ export async function recordWithEdges(store: TRecordReader, label: string, id: s
 	const level = levelOf(accessLevel);
 	const [named, outgoing, incoming] = await Promise.all([
 		store.readRecords(namedRead(label, id, accessLevel, true)),
-		store.readRecords(GraphQuerySchema.parse({ referencedBy: { label, id }, limit: OUTGOING_EDGE_LIMIT, ...level })),
+		store.readRecords(outgoingRead(label, id, accessLevel)),
 		store.readRecords(GraphQuerySchema.parse({ references: { label, id }, limit: 1, ...level })),
 	]);
 	const [vertex] = named.vertices;

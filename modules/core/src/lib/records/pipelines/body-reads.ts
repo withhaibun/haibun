@@ -6,7 +6,7 @@ import { type IQuadStore } from "../../steps/ports.js";
 import { BODY_LABEL, LinkRelations, type AccessQueryLevel } from "../../domains/resources.js";
 import { MEDIA_TYPE } from "../../domains/media-types.js";
 import { BodyTextSchema, LinkedBodySchema, type TLinkedBody } from "../domains/body.js";
-import { formIn, linkedBodiesOf } from "../derivations/bodies.js";
+import { bodiesOfRecord, formIn } from "../derivations/bodies.js";
 import { maximalText } from "../derivations/body-text.js";
 import { readUpTo, unitOf, type TRecordReader } from "./record-reads.js";
 
@@ -15,11 +15,11 @@ import { readUpTo, unitOf, type TRecordReader } from "./record-reads.js";
 export async function unitBodiesOf(store: TRecordReader, label: string, id: string, accessLevel?: AccessQueryLevel): Promise<TLinkedBody[]> {
 	const unit = await unitOf(store, label, id, accessLevel);
 	if (unit === undefined) return [];
-	return label === BODY_LABEL ? [LinkedBodySchema.parse({ ...unit, id })] : linkedBodiesOf(unit);
+	return bodiesOfRecord(label, { ...unit, id });
 }
 
 /** Returns the first of `bodies` that holds a form in the first of `mediaTypes` any of them holds. */
-const bodyIn = (bodies: readonly TLinkedBody[], mediaTypes: readonly string[]): TLinkedBody | undefined =>
+export const bodyIn = (bodies: readonly TLinkedBody[], mediaTypes: readonly string[]): TLinkedBody | undefined =>
 	mediaTypes.map((mediaType) => bodies.find((body) => formIn(body, [mediaType]) !== undefined)).find((body) => body !== undefined);
 
 /** Reads the text of one record's first form of a body in the order of `mediaTypes`: a body's text or one of its

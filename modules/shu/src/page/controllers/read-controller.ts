@@ -15,7 +15,8 @@ import {
 import { ShownApplicableStepsSchema, type TApplicableSteps } from "@haibun/core/lib/domains/goal-resolution.js";
 import { RelatedRecordsSchema } from "../domains/related-records.js";
 import type { TEvidence, TRecordClaim } from "../domains/claims.js";
-import { EVIDENCE_EDGE, LinkRelations, QuoteAnchorSchema } from "@haibun/core/lib/domains/resources.js";
+import { BODY_DIGEST, BodySchema, EVIDENCE_EDGE, LinkRelations, QuoteAnchorSchema, SpecificResourceSchema } from "@haibun/core/lib/domains/resources.js";
+import { anchorStateOf } from "@haibun/core/lib/domains/quote-anchor.js";
 import { edgeRecordType } from "./catalog-controller.js";
 import { idOf, instanceLabel } from "./record-controller.js";
 import { persistedTypeOf } from "../derivations/record-fields.js";
@@ -125,23 +126,38 @@ export async function recordClaims(label: string, id: string): Promise<TRecordCl
 	);
 }
 
+/** What an evidence read reads of a passage and of its Body: the digest of the Body as the passage quoted it, and the Body's digest. */
+const PassageDigestSchema = SpecificResourceSchema.pick({ [LinkRelations.SOURCE_DIGEST.rel]: true });
+const BodyDigestSchema = BodySchema.pick({ [BODY_DIGEST]: true });
+
 /** Returns the passages a `label` record cites as evidence of its values, from its `edges`: each passage's quote by its selector,
- *  the record its source is, and the step that generated it. A type whose catalog entry doesn't state the evidence edge reads as citing an empty list. */
+ *  the Body its source is, whether the Body reads as the passage quoted it (`anchorStateOf`), and the step that generated it. A type whose catalog entry doesn't state the evidence edge reads as citing an empty list. */
 export function recordEvidence(label: string, edges: readonly { type: string; direction?: string; target: Record<string, unknown> }[]): Promise<TEvidence[]> {
 	const passageType = edgeRecordType(label, EVIDENCE_EDGE.rel);
 	if (passageType === undefined) return Promise.resolve([]);
 	const cited = edges.filter(({ type, direction }) => type === EVIDENCE_EDGE.rel && direction !== "in").map(({ target }) => idOf(target));
+	// A record's passages mostly quote one Body, which is read once for its digest.
+	const digests = new Map<string, Promise<string>>();
+	const heldDigest = (label: string, id: string): Promise<string> => {
+		const held = digests.get(id);
+		const reading = held === undefined ? readIndividual(label, id, appAccessLevel()).then(({ vertex }) => BodyDigestSchema.parse(vertex)[BODY_DIGEST]) : held;
+		digests.set(id, reading);
+		return reading;
+	};
 	return Promise.all(
 		cited.map(async (passage): Promise<TEvidence> => {
-			const { edges: parts } = await readIndividual(passageType, passage, appAccessLevel());
+			const { vertex, edges: parts } = await readIndividual(passageType, passage, appAccessLevel());
 			const reached = (edge: string) => parts.find(({ type, direction }) => type === edge && direction === "out")?.target;
 			const source = reached(LinkRelations.HAS_SOURCE.rel);
 			const label = source === undefined ? undefined : persistedTypeOf(source);
 			if (source === undefined || label === undefined) throw new Error(`the passage ${passage} doesn't name the typed record its source is`);
 			const step = reached(LinkRelations.WAS_GENERATED_BY.rel);
+			const { [LinkRelations.SOURCE_DIGEST.rel]: stated } = PassageDigestSchema.parse(vertex);
+			const held = await heldDigest(label, idOf(source));
 			return {
 				quote: QuoteAnchorSchema.parse(reached(LinkRelations.HAS_SELECTOR.rel)),
 				source: { label, id: idOf(source) },
+				state: anchorStateOf(stated, held),
 				...(step === undefined ? {} : { extractedBy: idOf(step) }),
 			};
 		}),

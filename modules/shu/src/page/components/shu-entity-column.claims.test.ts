@@ -10,7 +10,8 @@ import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { catalogOf } from "../../test/catalog-fixture.js";
 import type { TRecordClaim } from "../domains/claims.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
-import { EXTRACTING_STEP, QUOTE, QUOTED_TASK_SPEC, quotedTaskEntity } from "../../test/quoted-task.js";
+import { EXTRACTING_STEP, QUOTE, QUOTED_TASK_SPEC, quotedTaskEntity, quotedTaskReads } from "../../test/quoted-task.js";
+import { ANCHOR_STATE } from "@haibun/core/lib/domains/quote-anchor.js";
 
 const TITLED = "the Task has its title";
 const OWNED = "the Task has its owner";
@@ -124,5 +125,32 @@ describe("shu-entity-column assumed field", () => {
 		});
 		expect(status.textContent?.trim()).toBe(`${STATUS_MARK.assumed} ${STATEMENT_STATUS.assumed}`);
 		expect(status.getAttribute("aria-description")).toBe("the title rests on the passage that quotes it");
+	});
+});
+
+describe("shu-entity-column passage of an edited Body", () => {
+	let handle: TShuTestHandle;
+	beforeEach(() => {
+		endPage();
+		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
+		const reads = quotedTaskReads("the digest of an earlier text of b1");
+		handle = setupShuTest({ dispatch: makeEntityDispatch({ entity: reads, claims: () => [], concerns: catalogOf(QUOTED_TASK_SPEC) }) });
+	});
+	afterEach(() => handle.teardown());
+
+	it("marks the passage stale in place of its link, and doesn't show the field as resting on it", async () => {
+		const el = document.body.appendChild(new ShuEntityColumn());
+		await el.open("t1", "Task");
+		const stale = await vi.waitFor(() => {
+			const found = el.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.CLAIMS.EVIDENCE_STALE}-title"]`);
+			if (found === null || found === undefined) throw new Error("the title's passage isn't shown yet");
+			return found;
+		});
+		expect(stale.textContent).toBe(ANCHOR_STATE.stale);
+		expect(stale.getAttribute("aria-description")).toBe(
+			`the title as Body b1 quotes it, which step ${EXTRACTING_STEP} extracted, and the Body changed after the passage quoted it`,
+		);
+		expect(el.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.CLAIMS.EVIDENCE}-title"]`), "a link would select a passage of the changed text").toBeNull();
+		expect(el.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.CLAIMS.FIELD_STATUS}-title"]`)).toBeNull();
 	});
 });

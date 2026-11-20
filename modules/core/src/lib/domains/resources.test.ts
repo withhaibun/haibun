@@ -25,8 +25,16 @@ import {
 	haibunNsForHost,
 	assertCommentGrounded,
 	isPersisted,
+	anchorPart,
+	quotedEvidence,
+	EVIDENCE_EDGE,
+	BODY_DIGEST,
+	BODY_LABEL,
+	SOURCE_DIGEST,
 	type TDiscourseStore,
 } from "./resources.js";
+import { MEDIA_TYPE } from "./media-types.js";
+import type { QuadStore } from "../steps/pipelines/quad-store.js";
 import {
 	bodyDomainDefinition,
 	principalDomainDefinition,
@@ -548,7 +556,7 @@ describe("Web Annotation domain definitions", () => {
 		if (!isPersisted(t)) throw new Error("specificResourceDomainDefinition must declare a persisted topology");
 		expect(t.persistedAs).toBe(SPECIFIC_RESOURCE_LABEL);
 		expect(t.type).toBe("oa:SpecificResource");
-		expect(t.edges?.hasSource, "a source the store may not hold yet").toEqual({ rel: LinkRelations.HAS_SOURCE.rel, range: "Resource", reference: true });
+		expect(t.edges?.hasSource, "the Body the store holds, whose text the anchor quotes").toEqual({ rel: LinkRelations.HAS_SOURCE.rel, range: BODY_LABEL });
 		expect(t.edges?.hasSelector, "a passage it quotes, or a fragment of its media, which it owns").toEqual({
 			rel: LinkRelations.HAS_SELECTOR.rel,
 			range: [TEXT_QUOTE_SELECTOR_LABEL, FRAGMENT_SELECTOR_LABEL],
@@ -570,7 +578,7 @@ describe("Web Annotation domain definitions", () => {
 		const cat = buildConcernCatalog(domains as Parameters<typeof buildConcernCatalog>[0]);
 		expect(cat.persisted[SPECIFIC_RESOURCE_LABEL]).toBeDefined();
 		expect(cat.persisted[TEXT_QUOTE_SELECTOR_LABEL]).toBeDefined();
-		expect(() => SpecificResourceSchema.parse({ id: "sr1", generatedAtTime: new Date().toISOString() })).not.toThrow();
+		expect(() => SpecificResourceSchema.parse({ id: "sr1", generatedAtTime: new Date().toISOString(), [SOURCE_DIGEST]: "a digest" })).not.toThrow();
 	});
 });
 
@@ -726,22 +734,73 @@ describe("assertCommentGrounded: every comment is grounded", () => {
 describe("writeAnnotation, self-contained on a store of the discourse types", () => {
 	const discourseStore = () =>
 		storeOfDomains([commentDomainDefinition, bodyDomainDefinition, specificResourceDomainDefinition, textQuoteSelectorDomainDefinition, readingDomainDefinition], TEST_LEVELS);
-	const note = { label: "File", id: "doc-1", exact: "a passage", suffix: " of the document", text: "A note." };
-	it("writes a grounded Comment, hasTarget→ SpecificResource, hasSource→ doc and hasSelector→ TextQuoteSelector without editing the doc", async () => {
+	/** The Body the note annotates, and the store holding it. */
+	const DOC = { "@type": BODY_LABEL, id: "doc-1", content: "Here is a passage of the document.", mediaType: MEDIA_TYPE.plain, generatedAtTime: "2026-07-01T00:00:00.000Z" };
+	const holdingDoc = async () => {
 		const store = discourseStore();
-		const { commentId, specificResourceId } = await writeAnnotation(store, noLinkVocabulary, { author: "did:site:0", step: testStepRecord("0.1") }, note);
-		const edgeOf = async (label: string, subject: string, predicate: string) => (await store.query({ subject, predicate, namedGraph: label })).at(0)?.object;
-		expect(await edgeOf(COMMENT_LABEL, commentId, LinkRelations.TARGET.rel)).toBe(specificResourceId);
-		expect(await edgeOf(SPECIFIC_RESOURCE_LABEL, specificResourceId, LinkRelations.HAS_SOURCE.rel), "the SpecificResource points at the document").toBe("doc-1");
-		expect(await store.query({ subject: "doc-1" }), "the document itself doesn't get a quad").toEqual([]);
-		const selector = await recordOf(store, TEXT_QUOTE_SELECTOR_LABEL, String(await edgeOf(SPECIFIC_RESOURCE_LABEL, specificResourceId, LinkRelations.HAS_SELECTOR.rel)));
+		await store.merge(DOC);
+		return store;
+	};
+	const note = { label: BODY_LABEL, id: DOC.id, exact: "a passage", suffix: " of the document", text: "A note." };
+	const written = { author: "did:site:0", step: testStepRecord("0.1") };
+	const edgeOf = async (store: QuadStore, label: string, subject: string, predicate: string) => (await store.query({ subject, predicate, namedGraph: label })).at(0)?.object;
+
+	it("writes a grounded Comment, hasTarget→ SpecificResource, hasSource→ the Body and hasSelector→ TextQuoteSelector without editing the Body", async () => {
+		const store = await holdingDoc();
+		const before = await store.query({ subject: DOC.id, namedGraph: BODY_LABEL });
+		const { commentId, specificResourceId } = await writeAnnotation(store, noLinkVocabulary, written, note);
+		expect(await edgeOf(store, COMMENT_LABEL, commentId, LinkRelations.TARGET.rel)).toBe(specificResourceId);
+		expect(await edgeOf(store, SPECIFIC_RESOURCE_LABEL, specificResourceId, LinkRelations.HAS_SOURCE.rel), "the SpecificResource points at the Body").toBe(DOC.id);
+		expect(await recordOf(store, SPECIFIC_RESOURCE_LABEL, specificResourceId), "it states the digest of the Body it quoted").toMatchObject({
+			[SOURCE_DIGEST]: (await recordOf(store, BODY_LABEL, DOC.id))?.[BODY_DIGEST],
+		});
+		expect(await store.query({ subject: DOC.id, namedGraph: BODY_LABEL }), "the Body isn't edited").toEqual(before);
+		const selector = await recordOf(store, TEXT_QUOTE_SELECTOR_LABEL, String(await edgeOf(store, SPECIFIC_RESOURCE_LABEL, specificResourceId, LinkRelations.HAS_SELECTOR.rel)));
 		expect(selector).toMatchObject({ exact: "a passage", suffix: " of the document" });
 	});
-	it("anchors a part again as the same SpecificResource, since its id is the digest of what it states", async () => {
-		const store = discourseStore();
-		const first = await writeAnnotation(store, noLinkVocabulary, { author: "did:site:0", step: testStepRecord("0.1") }, note);
-		const again = await writeAnnotation(store, noLinkVocabulary, { author: "did:site:0", step: testStepRecord("0.2") }, note);
+
+	it("anchors a part of one text again as the same SpecificResource, and a part of an edited text as another", async () => {
+		const store = await holdingDoc();
+		const first = await writeAnnotation(store, noLinkVocabulary, written, note);
+		const again = await writeAnnotation(store, noLinkVocabulary, { ...written, step: testStepRecord("0.2") }, note);
 		expect(again.specificResourceId).toBe(first.specificResourceId);
-		expect((await store.query({ predicate: LinkRelations.HAS_SOURCE.rel, namedGraph: SPECIFIC_RESOURCE_LABEL })).length, "one anchor of the passage").toBe(1);
+		await store.merge({ ...DOC, content: "Here is a passage of the document, edited." });
+		const edited = await writeAnnotation(store, noLinkVocabulary, { ...written, step: testStepRecord("0.3") }, note);
+		expect(edited.specificResourceId, "an anchor into the edited text").not.toBe(first.specificResourceId);
+	});
+
+	it("anchors a note in the Body its writer showed, and refuses it where the Body changed after the writer showed it", async () => {
+		const store = await holdingDoc();
+		const digest = String((await recordOf(store, BODY_LABEL, DOC.id))?.[BODY_DIGEST]);
+		const { specificResourceId } = await writeAnnotation(store, noLinkVocabulary, written, { ...note, quoted: { id: DOC.id, digest } });
+		expect(await recordOf(store, SPECIFIC_RESOURCE_LABEL, specificResourceId)).toMatchObject({ [SOURCE_DIGEST]: digest });
+		await store.merge({ ...DOC, content: "Here is a passage of the document, edited." });
+		await expect(writeAnnotation(store, noLinkVocabulary, written, { ...note, quoted: { id: DOC.id, digest } })).rejects.toThrow(
+			'quotes the Body "doc-1" as it read before an edit',
+		);
+	});
+
+	it("is refused for a write of an anchor's digest without its source, so the digest it states is compared with the Body's", async () => {
+		const store = await holdingDoc();
+		const { specificResourceId } = await writeAnnotation(store, noLinkVocabulary, written, note);
+		await expect(store.merge({ "@type": SPECIFIC_RESOURCE_LABEL, "@id": specificResourceId, [SOURCE_DIGEST]: "a digest a caller chose" })).rejects.toThrow(
+			`the anchor "${specificResourceId}" is written with a digest and without its source`,
+		);
+	});
+
+	it("anchors at most eight passages of a value a text repeats, each apart from the one before", async () => {
+		const store = discourseStore();
+		const repeated = { ...DOC, id: "doc-repeated", content: "a ".repeat(20) };
+		await store.merge(repeated);
+		const digest = String((await recordOf(store, BODY_LABEL, repeated.id))?.[BODY_DIGEST]);
+		const evidence = await quotedEvidence(store, { id: repeated.id, digest, forms: [repeated.content] }, ["a"]);
+		expect(evidence[EVIDENCE_EDGE.rel], "a passage for each of the first eight occurrences").toHaveLength(8);
+	});
+
+	it("is refused for an anchor whose digest isn't the digest of the Body the store holds, or whose source the store doesn't hold", async () => {
+		const store = await holdingDoc();
+		const part = { exact: "a passage" };
+		await expect(anchorPart(store, { id: DOC.id, digest: "the digest of an earlier text" }, part)).rejects.toThrow('quotes the Body "doc-1" as it read before an edit');
+		await expect(anchorPart(store, { id: "doc-2", digest: "a digest" }, part)).rejects.toThrow('quotes the Body "doc-2", which the store doesn\'t hold');
 	});
 });

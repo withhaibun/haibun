@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import type { QuadStore } from "./quad-store.js";
 import { LinkRelations, SEQ_PATH_LABEL, SPECIFIC_RESOURCE_LABEL } from "../../domains/resources.js";
-import { readingDomainDefinition, specificResourceDomainDefinition, textQuoteSelectorDomainDefinition } from "../../domains/resource-domains.js";
+import { bodyDomainDefinition, readingDomainDefinition, specificResourceDomainDefinition, textQuoteSelectorDomainDefinition } from "../../domains/resource-domains.js";
+import { MEDIA_TYPE } from "../../domains/media-types.js";
 import { readTypedLinks } from "../../records/pipelines/discourse-writes.js";
 import { RECORDED_STATUS } from "../../domains/protocol.js";
 import { declaredTypeOf, storeDeclaring, TEST_LEVELS } from "../../test/declared-types.js";
@@ -30,8 +31,8 @@ describe("statementsWith", () => {
 	beforeEach(async () => {
 		store = storeDeclaring(
 			Object.fromEntries([
-				[REPORT, {}],
-				...[seqPathDomainDefinition, readingDomainDefinition, specificResourceDomainDefinition, textQuoteSelectorDomainDefinition].map(declaredTypeOf),
+				[REPORT, { contents: [{ field: "text", mediaType: MEDIA_TYPE.markdown }] }],
+				...[seqPathDomainDefinition, readingDomainDefinition, specificResourceDomainDefinition, textQuoteSelectorDomainDefinition, bodyDomainDefinition].map(declaredTypeOf),
 			]),
 			TEST_LEVELS,
 		);
@@ -51,7 +52,7 @@ describe("statementsWith", () => {
 			...SEQ_PATH_STATED,
 		});
 		// The cited document. The statement references a record that exists.
-		await store.merge({ "@type": REPORT, id: "spec-1", generatedAtTime: "2026-07-01T00:00:00.000Z" });
+		await store.merge({ "@type": REPORT, id: "spec-1", generatedAtTime: "2026-07-01T00:00:00.000Z", text: "Each report shall be signed." });
 		await readTypedLinks(
 			store,
 			vocab,

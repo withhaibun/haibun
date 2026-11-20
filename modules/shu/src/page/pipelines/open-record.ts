@@ -7,6 +7,7 @@
 import { z } from "zod";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
+import { bodiesOfRecord } from "@haibun/core/lib/records/derivations/bodies.js";
 import type { TIndividualWithEdges, TQuad } from "@haibun/core/lib/quad-types.js";
 import { unreadView, type TAnnotationDraft, type TEntityView } from "../domains/entity.js";
 import { LOAD_STATUS } from "../domains/load.js";
@@ -16,6 +17,10 @@ import type { TCallOutcome, TWritten } from "./call-step.js";
 /** A held record: its view, the level it was read at, the newest read of the record, and a count of the reads of its notes
  *  started. Only the newest read of each writes its result. */
 type TEntry = { label: string; id: string; accessLevel: string; view: TEntityView; reading: Promise<void>; annotationSeq: number };
+
+/** The Bodies a held record's notes are anchored in: the Bodies the record holds, or the record where it is a Body. */
+const anchorSourcesOf = ({ label, id, view }: TEntry): Set<string> =>
+	new Set(view.entity === undefined ? [id] : bodiesOfRecord(label, { ...view.entity.vertex, id }).map((body) => body.id));
 export type TRecordListener = (subject: string) => void;
 
 /** The records the page holds, the views that follow them, and the subscription to observed quads, which the first open
@@ -64,7 +69,7 @@ function notify(scope: TOpenScope, subject: string): void {
 
 /** Applies observed quads. A field quad updates the held copy in place, without a read. An edge quad of a record the page
  *  holds or reads changes what the record links, as its bodies, so the record is read again: a read that started before the
- *  edge was written doesn't hold it. An `oa:hasSource` quad whose object is a held record reads that record's notes again. */
+ *  edge was written doesn't hold it. An `oa:hasSource` quad whose object is a Body of a held record reads that record's notes again. */
 function onQuads(scope: TOpenScope, quads: TQuad[]): void {
 	const touched = new Set<string>();
 	const restructured = new Set<TEntry>();
@@ -85,7 +90,8 @@ function onQuads(scope: TOpenScope, quads: TQuad[]): void {
 	}
 	for (const subject of touched) notify(scope, subject);
 	for (const entry of restructured) void readRecordInto(scope, entry);
-	for (const entry of scope.store.entries.values()) if (reanchored.has(entry.id)) void refreshAnnotations(scope, entry.label, entry.id);
+	if (reanchored.size === 0) return;
+	for (const entry of scope.store.entries.values()) if ([...anchorSourcesOf(entry)].some((source) => reanchored.has(source))) void refreshAnnotations(scope, entry.label, entry.id);
 }
 
 /**
@@ -119,7 +125,7 @@ function followQuads(scope: TOpenScope): void {
 async function readAnnotationsInto(scope: TOpenScope, entry: TEntry): Promise<void> {
 	const seq = ++entry.annotationSeq;
 	if (entry.view.provenance === "offline") {
-		const held = await annotationsHeld(scope.annotations, entry.id);
+		const held = await annotationsHeld(scope.annotations, anchorSourcesOf(entry));
 		if (seq === entry.annotationSeq) entry.view = { ...entry.view, annotations: held };
 		return;
 	}

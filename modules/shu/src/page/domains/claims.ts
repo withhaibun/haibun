@@ -2,6 +2,7 @@
  * The claims the reasoner made about a record, as the page reads them from the EARL assertions whose subject is the record, and the
  * passages a record cites as evidence of its values.
  */
+import type { TAnchorState } from "@haibun/core/lib/domains/quote-anchor.js";
 import type { TClaimVerdict } from "@haibun/core/lib/records/domains/claim.js";
 import type { TQuoteAnchor } from "@haibun/core/lib/domains/resources.js";
 import type { TRecordName } from "@haibun/core/lib/records/domains/unit.js";
@@ -13,6 +14,6 @@ export type TClaimStep = TRecordName & { readonly title: string };
  *  and the step that made it. A record that steps wrote more than once holds the claims of each step. */
 export type TRecordClaim = { readonly test: string; readonly field?: string; readonly verdict: TClaimVerdict; readonly proof: string; readonly madeBy: TClaimStep };
 
-/** A passage a record cites as evidence of one of its values: the quote, the record whose text holds it, and the step that extracted
- *  it, where a step did. */
-export type TEvidence = { readonly quote: TQuoteAnchor; readonly source: TRecordName; readonly extractedBy?: string };
+/** A passage a record cites as evidence of one of its values: the quote, the Body whose text holds it, whether the Body reads as the
+ *  passage quoted it or changed after, and the step that extracted it, where a step did. */
+export type TEvidence = { readonly quote: TQuoteAnchor; readonly source: TRecordName; readonly state: TAnchorState; readonly extractedBy?: string };

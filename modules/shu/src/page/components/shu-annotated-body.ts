@@ -21,16 +21,20 @@ import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
-import { html, type TemplateResult, type PropertyValues } from "lit";
+import { html, nothing, type TemplateResult, type PropertyValues } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { property, state } from "lit/decorators.js";
 import DOMPurify from "dompurify";
-import { createTextAnnotator, W3CTextFormat, type TextAnnotator } from "./recogito.js";
+import { createTextAnnotator, W3CTextFormat, type TextAnnotator, type THighlightStyle } from "./recogito.js";
+import { linkTpl, refHref } from "./ref-navigation.js";
+import { staleMarkTpl } from "./passage-link.js";
+import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
+import { alignTexts, renderedQuote, storedRange, type TTextAlignment } from "../derivations/text-alignment.js";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import type { TAnnotationDraft } from "../domains/entity.js";
-import type { TAnnotationView } from "@haibun/core/lib/domains/resources.js";
-import { type TW3CTextAnnotation, toW3CAnnotations } from "../derivations/annotations.js";
-import { locateQuoteOffsets } from "@haibun/core/lib/domains/quote-anchor.js";
+import type { TAnchorSource, TAnnotationView } from "@haibun/core/lib/domains/resources.js";
+import { anchorOf, type TNotesIn, type TW3CTextAnnotation, notesIn, toW3CAnnotations } from "../derivations/annotations.js";
+import { ANCHOR_STATE, locateQuoteOffsets, type TTextRange } from "@haibun/core/lib/domains/quote-anchor.js";
 import { principalAddress, type TQuoteAnchor } from "@haibun/core/lib/domains/resources.js";
 import { recordRef } from "./shu-ref.js";
 import "./shu-scrollbar.js";
@@ -65,6 +69,12 @@ const CARD_GAP = 8;
  *  painting a "preparing" indicator first, then rendering a frame later. A smaller body mounts inline without a flash. */
 const HEAVY_CONTENT_CHARS = 20000;
 
+/** What a stale note's mark states to assistive technology. */
+const STALE_SENTENCE = "the Body changed after the note quoted it";
+
+/** How the highlight of a note on an earlier text reads: an underline in the warning colour, apart from a current note's fill. */
+const MODIFIED_HIGHLIGHT: THighlightStyle = { fill: "transparent", underlineStyle: "dashed", underlineColor: "var(--shu-warn)", underlineThickness: 2 };
+
 /** This component is light DOM (createRenderRoot → this), so lit `static styles` do not apply: all styling ships in a
  *  rendered `<style>` node, which scopes to wherever the element is mounted (including a host shadow root). The `.r6o-*`
  *  positioning rules are sourced from `@recogito/text-annotator`'s spans renderer; the rest is this view's own layout.
@@ -78,6 +88,9 @@ const HEAVY_CONTENT_CHARS = 20000;
  *  - The authoring affordance floats over the content at the selection (top/left set inline), so it appears at the selection
  *    whether or not the document has annotations. */
 const ANNOTATED_BODY_STYLE = `
+.annotations-stale { padding: var(--shu-space-2) 0; color: var(--shu-fg-muted); font-size: var(--shu-font-sm); }
+.annotations-stale .anchor-stale, shu-annotated-body .annotation-card-modified .anchor-stale { font-weight: 600; color: var(--shu-warn); }
+	shu-annotated-body .annotation-card-modified { font-size: var(--shu-font-sm); color: var(--shu-fg-muted); margin-bottom: var(--shu-space-1); }
 	.r6o-annotatable { position: relative; -webkit-tap-highlight-color: transparent; }
 	.r6o-annotatable:focus, .r6o-annotatable:focus-visible { outline: none; }
 	.r6o-span-highlight-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; mix-blend-mode: multiply; pointer-events: none; overflow: hidden; user-select: none; -webkit-user-select: none; z-index: 1; }
@@ -156,6 +169,9 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 	@property({ attribute: false }) accessor sourceId = "";
 	@property({ attribute: false }) accessor sourceLabel = "";
 	@property({ attribute: false }) accessor annotations: TAnnotationView[] = [];
+	/** The Body whose text the view shows, with its digest as the page holds it: the notes it highlights quote it as it reads, and a
+	 *  note the reader writes states it. Null until the host names it. */
+	@property({ attribute: false }) accessor quoted: TAnchorSource | null = null;
 	@property({ type: Boolean }) accessor show = true;
 	/** How this view requests that a note be written: the host owns the individual, so it owns the write and the re-resolve
 	 *  that follows. Null leaves the body read-only (the view doesn't write notes), which is what a host that does not offer
@@ -280,8 +296,13 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 
 	/** Drop `ready` before a LARGE body re-mounts, so the "preparing" indicator paints in place of a blank view while the
 	 *  deferred render runs. A small body keeps `ready` and mounts inline in `updated`, without a flash. */
-	protected override willUpdate(): void {
+	protected override willUpdate(changed: PropertyValues): void {
 		if (this.contentSignature() !== this.mountedSignature && this.content.length > HEAVY_CONTENT_CHARS) this.ready = false;
+		// The notes split by their state once for each change of them, which each highlight, card and rail mark reads.
+		if (changed.has("annotations") || changed.has("quoted")) {
+			this.#held = this.quoted === null ? { current: [], stale: [] } : notesIn(this.annotations, this.quoted);
+			this.#staleIds = new Set(this.#held.stale.map(({ commentId }) => commentId));
+		}
 	}
 
 	protected override updated(changed: PropertyValues): void {
@@ -330,7 +351,11 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 		}
 		this.teardownAnnotator();
 		container.innerHTML = this.sanitizedHtml();
-		this.annotator = createTextAnnotator<TW3CTextAnnotation>(container, { adapter: W3CTextFormat(this.sourceId, container), annotatingEnabled: false });
+		this.annotator = createTextAnnotator<TW3CTextAnnotation>(container, {
+			adapter: W3CTextFormat(this.sourceId, container),
+			annotatingEnabled: false,
+			style: ({ id }) => (this.#staleIds.has(id) ? MODIFIED_HIGHLIGHT : undefined),
+		});
 		this.annotator.on("clickAnnotation", (a: TW3CTextAnnotation) => this.selectCard(String(a.id)));
 		this.mountedSignature = signature;
 		this.resizeObserver?.observe(container);
@@ -369,9 +394,14 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 	private applyAnnotations(): void {
 		if (!this.annotator) return;
 		const container = this.contentEl();
-		const containerText = container?.textContent ?? "";
-		// Optimistic (pending) annotations are highlighted too, so an authored note appears anchored at once.
-		this.annotator.setAnnotations(toW3CAnnotations([...this.annotations, ...this.pending], this.sourceId, containerText));
+		if (!container) return;
+		const locate = this.#locator(container);
+		// Optimistic (pending) annotations are highlighted too, so an authored note appears anchored at once. A note on an earlier text
+		// is highlighted where the text reads its quote still, under its mark; one whose quote the text doesn't read is listed.
+		this.annotator.setAnnotations(toW3CAnnotations(this.#placed(), this.sourceId, locate));
+		const unplaced = this.#held.stale.filter((note) => locate(note) === null);
+		// A render follows only where the list of notes the text doesn't place changed.
+		if (unplaced.map(({ commentId }) => commentId).join() !== this.unplacedStale.map(({ commentId }) => commentId).join()) this.unplacedStale = unplaced;
 		this.annotator.setVisible(this.show);
 		this.placeCards();
 	}
@@ -386,7 +416,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 		requestAnimationFrame(() => {
 			const container = this.contentEl();
 			if (!container) return;
-			const containerText = container.textContent ?? "";
+			const locate = this.#locator(container);
 			const layoutTop = this.renderRoot.querySelector<HTMLElement>(".annotated-layout")?.getBoundingClientRect().top ?? 0;
 			const raw: PlacedCard[] = [];
 			// Rail marks are in the scroll region's pixel space (offset down its content), so a mark is placed where the reader
@@ -394,8 +424,8 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 			const located: { commentId: string; offset: number; label: string }[] = [];
 			const scrollTop = this.#scrollEl?.getBoundingClientRect().top ?? 0;
 			const scrollScroll = this.#scrollEl?.scrollTop ?? 0;
-			for (const a of [...this.annotations, ...this.pending]) {
-				const off = locateQuoteOffsets(containerText, a.exact, a.prefix, a.suffix);
+			for (const a of this.#placed()) {
+				const off = locate(a);
 				if (!off) continue; // quote absent from this rendering → the rail doesn't show a card (the note stays in the graph)
 				const range = rangeForOffsets(container, off.start, off.end);
 				if (!range) continue;
@@ -423,7 +453,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 	 *  both do. The annotator's own scroll would scroll a page that embeds shu too. */
 	private selectCard(commentId: string): void {
 		this.selectedCommentId = commentId;
-		const note = [...this.annotations, ...this.pending].find((a) => a.commentId === commentId);
+		const note = this.#placed().find((a) => a.commentId === commentId);
 		if (note === undefined) throw new Error(`<shu-annotated-body> selects the note ${commentId}, which it doesn't hold`);
 		this.revealQuote(note);
 	}
@@ -456,20 +486,24 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 			this.draft = null;
 			return;
 		}
-		const exact = sel.toString();
-		if (!exact.trim()) {
+		if (!sel.toString().trim()) {
 			this.draft = null;
 			return;
 		}
-		const text = container.textContent ?? "";
 		const start = offsetOfPoint(container, range.startContainer, range.startOffset);
 		const end = offsetOfPoint(container, range.endContainer, range.endOffset);
+		// The note quotes the stored text the selection renders, which its anchor is located in and its store compares.
+		const stored = storedRange(this.#alignment(container), { start, end });
+		if (stored === null) {
+			this.draft = null;
+			return;
+		}
 		const layout = this.renderRoot.querySelector<HTMLElement>(".annotated-layout")?.getBoundingClientRect();
 		const sr = range.getBoundingClientRect();
 		this.draft = {
-			exact,
-			prefix: text.slice(Math.max(0, start - CONTEXT_CHARS), start),
-			suffix: text.slice(end, end + CONTEXT_CHARS),
+			exact: this.content.slice(stored.start, stored.end),
+			prefix: this.content.slice(Math.max(0, stored.start - CONTEXT_CHARS), stored.start),
+			suffix: this.content.slice(stored.end, stored.end + CONTEXT_CHARS),
 			// Just below the selection's end, relative to the (position: relative) layout, so the affordance floats at it.
 			top: sr.bottom - (layout?.top ?? 0),
 			left: sr.left - (layout?.left ?? 0),
@@ -481,14 +515,15 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 	 *  optimistic card + highlight show at once; the written note arrives as a fresh `annotations` (which clears the
 	 *  placeholder), and a failed write drops it. */
 	private async createDraft(text: string): Promise<void> {
-		const draft = this.draft;
-		if (!draft || !text.trim() || !this.sourceLabel || !this.annotate) return;
+		const { draft, quoted } = this;
+		if (!draft || !text.trim() || !this.sourceLabel || !this.annotate || quoted === null) return;
 		this.drafting = false;
 		this.draft = null;
 		const placeholderId = `pending-${this.sourceId}-${draft.exact}-${text}`;
-		this.pending = [...this.pending, { commentId: placeholderId, specificResourceId: "", exact: draft.exact, prefix: draft.prefix, suffix: draft.suffix, body: text }];
+		const placeholder = { commentId: placeholderId, specificResourceId: "", exact: draft.exact, prefix: draft.prefix, suffix: draft.suffix, body: text };
+		this.pending = [...this.pending, { ...placeholder, source: quoted.id, sourceDigest: quoted.digest }];
 		this.rootSelection()?.removeAllRanges();
-		const res = await this.annotate({ exact: draft.exact, prefix: draft.prefix, suffix: draft.suffix, text });
+		const res = await this.annotate({ exact: draft.exact, prefix: draft.prefix, suffix: draft.suffix, text, quoted });
 		if (!res.ok) this.pending = this.pending.filter((p) => p.commentId !== placeholderId);
 	}
 
@@ -518,7 +553,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 	private revealQuote(link: TQuoteAnchor): void {
 		const container = this.contentEl();
 		if (!container) return;
-		const offsets = locateQuoteOffsets(container.textContent ?? "", link.exact, link.prefix, link.suffix);
+		const offsets = this.#locator(container)(link);
 		if (!offsets) return;
 		const range = rangeForOffsets(container, offsets.start, offsets.end);
 		if (!range) return;
@@ -566,6 +601,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 							@click=${() => this.selectCard(a.commentId)}
 						>
 							<div class="annotation-card-quote">“${a.exact}”</div>
+							${this.#staleIds.has(a.commentId) ? this.modifiedMark(a) : nothing}
 							${a.body ? html`<div class="annotation-card-body">${unsafeHTML(sanitizeInlineBody(renderContentHtml(a.body, MEDIA_TYPE.markdown, refContext)))}</div>` : html``}
 							${a.author ? html`<div class="annotation-card-author">${recordRef(principalAddress(a.author), a.author)}</div>` : html``}
 							${(a.links ?? []).map(
@@ -584,6 +620,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 					</div>`
 				}
 				</div></div>
+			${this.renderStale()}
 			${
 				this.show && this.#scrollEl
 					? html`<shu-scrollbar
@@ -599,11 +636,66 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 			`;
 	}
 
+	/** The notes on an earlier text of the Body whose quote the rendered text doesn't read, which the view lists beside the text. */
+	@state() private accessor unplacedStale: TAnnotationView[] = [];
+
+	/** The alignment of the rendered text with the stored text, kept while both read as they did. */
+	#aligned: TTextAlignment | undefined = undefined;
+
+	/** Returns the alignment of the text `container` renders with the stored text it renders. */
+	#alignment(container: HTMLElement): TTextAlignment {
+		const rendered = container.textContent ?? "";
+		const held = this.#aligned;
+		if (held !== undefined && held.stored === this.content && held.rendered === rendered) return held;
+		this.#aligned = alignTexts(this.content, rendered);
+		return this.#aligned;
+	}
+
+	/** Returns where the text `container` renders reads a quote: a quote of the stored text, placed on the rendered characters it
+	 *  renders, or, for a quote of another form of the Body, the rendered text's own occurrence of it. */
+	#locator(container: HTMLElement): (quote: TQuoteAnchor) => TTextRange | null {
+		const alignment = this.#alignment(container);
+		return (quote) => renderedQuote(alignment, quote) ?? locateQuoteOffsets(alignment.rendered, quote.exact, quote.prefix, quote.suffix);
+	}
+
+	/** The notes the view highlights: the current ones, the ones on an earlier text under their mark, and the ones the reader is writing. */
+	#placed(): TAnnotationView[] {
+		return [...this.#held.current, ...this.#held.stale, ...this.pending];
+	}
+
+	/** The notes of the Body the view shows, by their state, and the comments of the stale ones, as `willUpdate` splits them. */
+	#held: TNotesIn = { current: [], stale: [] };
+	#staleIds: ReadonlySet<string> = new Set();
+
+	/** A note card's mark that the text was modified after the note quoted it, with the link to the note's anchor, which states the
+	 *  digest of the text the note quoted and the Body it quoted. */
+	private modifiedMark(note: TAnnotationView): TemplateResult {
+		const anchor = refHref({ kind: REF_DENOTES.individual, target: anchorOf(note) });
+		return html`<div class="annotation-card-modified" data-testid=${SHU_TEST_IDS.COLUMN_BROWSER.ANNOTATION_CARD_MODIFIED}>
+			${staleMarkTpl("modified", STALE_SENTENCE)} The text was modified after this note quoted it.
+			${linkTpl(anchor, "Details", { testId: SHU_TEST_IDS.COLUMN_BROWSER.ANNOTATION_CARD_DETAILS })}
+		</div>`;
+	}
+
+	/** The notes that quote an earlier text of the Body whose quote the text doesn't read now, listed beside it with their mark and
+	 *  their quote. */
+	private renderStale(): TemplateResult | typeof nothing {
+		const stale = this.unplacedStale;
+		if (stale.length === 0) return nothing;
+		return html`<section class="annotations-stale" data-testid=${SHU_TEST_IDS.COLUMN_BROWSER.ANNOTATION_STALE_NOTES}>
+			<h4>Notes on an earlier text</h4>
+			<ul>${stale.map(
+				(a) =>
+					html`<li data-testid=${SHU_TEST_IDS.COLUMN_BROWSER.ANNOTATION_STALE_NOTE} data-comment-id=${a.commentId}>${staleMarkTpl(ANCHOR_STATE.stale, STALE_SENTENCE)} “${a.exact}”${a.body ? html` ${a.body}` : nothing}</li>`,
+			)}</ul>
+		</section>`;
+	}
+
 	/** The authoring affordance, floating over the content at the selection: an "Annotate" button once a selection is
 	 *  offered, then a note input. Positioned at the selection's own x/y (not in the rail), so it appears in the same place
 	 *  whether or not the document already has annotations. Present only when the body holds its individual (sourceLabel). */
 	private renderAuthoring(): TemplateResult {
-		if (!this.draft || !this.sourceLabel) return html``;
+		if (!this.draft || !this.sourceLabel || this.quoted === null) return html``;
 		const pos = `top: ${Math.round(this.draft.top)}px; left: ${Math.round(this.draft.left)}px`;
 		if (this.drafting) {
 			return html`<div class="annotation-compose" data-testid="annotation-compose" style="${pos}">

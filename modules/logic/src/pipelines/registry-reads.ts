@@ -20,6 +20,7 @@ import type { TDerivation } from "../domains/logic.js";
 import type { TIndividualAddress } from "@haibun/core/lib/domains/typed-links.js";
 import { declarationFindings } from "../derivations/declarations.js";
 import { recordsWhere } from "./reads.js";
+import { claimProofs } from "./assumed-claims.js";
 import { contractProofs } from "./contract-checks.js";
 import { checkedRelations } from "../derivations/contract-declarations.js";
 import { proofFrames } from "../derivations/proof-frames.js";
@@ -41,7 +42,8 @@ async function derivationRecorded(world: TWorld, steppers: AStepper[], reasoner:
 	const records = await recordsWhere(world.shared.getStore(), SEQ_PATH_LABEL, SEQ_PATH_FIELD.actuality, name.actuality);
 	const id = formatRecordName(name);
 	const checks = records.find((record) => record[SEQ_PATH_FIELD.id] === id)?.[SEQ_PATH_FIELD.contract];
-	const proofs = typeof checks === "string" ? await contractProofs(checkedRelations(steppers), reasoner, checks) : [];
+	const scope = { reasoner, store: world.shared.getStore(), domains: world.domains, records: world.runtime.records };
+	const proofs = typeof checks === "string" ? (await Promise.all([contractProofs(checkedRelations(steppers), reasoner, checks), claimProofs(scope, checks)])).flat() : [];
 	return derivationOf(records, id, isNodeOf(steppers), proofFrames(proofs, { persistedAs: SEQ_PATH_LABEL, id }, recordTermsOf(world.domains, world.runtime.records)));
 }
 

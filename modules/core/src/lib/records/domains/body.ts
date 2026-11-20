@@ -1,6 +1,6 @@
 /** The start of a Body's id, a Body as a record names it, and a Body with the text of each of its forms. */
 import { z } from "zod";
-import { RepresentationSchema } from "../../domains/resources.js";
+import { BODY_DIGEST, RepresentationSchema } from "../../domains/resources.js";
 
 /** The start of every Body id. */
 export const BODY_ID_PREFIX = "body-";
@@ -10,7 +10,12 @@ const LinkedFormSchema = RepresentationSchema.partial({ content: true });
 
 /** A Body as a record names it: its id, the media type of its text, and the media type of each other form, each with its
  *  text where the read carries it. */
-export const LinkedBodySchema = LinkedFormSchema.extend({ id: z.string(), representations: z.array(LinkedFormSchema).optional() }).loose();
+export const LinkedBodySchema = LinkedFormSchema.extend({
+	id: z.string(),
+	representations: z.array(LinkedFormSchema).optional(),
+	/** The digest of the Body's forms, which a stored Body states and a step's products that carry their own text don't. */
+	[BODY_DIGEST]: z.string().optional(),
+}).loose();
 export type TLinkedBody = z.infer<typeof LinkedBodySchema>;
 
 /** A Body with the text of each of its forms: its text in the form preferred, and each other form as a representation. */

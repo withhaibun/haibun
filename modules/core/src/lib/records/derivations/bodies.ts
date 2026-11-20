@@ -7,7 +7,7 @@ import { referencedName } from "../domains/unit.js";
 import { canonicalJson, contentHash } from "../../domains/content-address.js";
 import { z } from "zod";
 import { MEDIA_TYPE } from "../../domains/media-types.js";
-import { HAS_BODY_EDGE, contentFieldsOf, type TContentField, type TPropertyDef, type TRepresentation } from "../../domains/resources.js";
+import { BODY_LABEL, HAS_BODY_EDGE, contentFieldsOf, type TContentField, type TPropertyDef, type TRepresentation } from "../../domains/resources.js";
 import { unwrapToObject } from "../../domains/zod-unwrap.js";
 import { BODY_ID_PREFIX, BodyTextSchema, LinkedBodySchema, type TBodyText, type TLinkedBody } from "../domains/body.js";
 
@@ -128,9 +128,9 @@ export function formIn(body: TLinkedBody, mediaTypes: readonly string[]): string
 	return mediaTypes.map((mediaType) => forms.find((form) => form.mediaType === mediaType)?.content).find((content) => content !== undefined);
 }
 
-/** One form of one Body as a reader opens it: the key that names it, its Body's id, its media type, and its text where the
- *  record carries it. */
-export type TReading = { key: string; body: string; media: string; text?: string };
+/** One form of one Body as a reader opens it: the key that names it, its Body's id, its media type, its text where the record
+ *  carries it, and its Body's digest where the Body is stored. */
+export type TReading = { key: string; body: string; media: string; text?: string; digest?: string };
 
 /** Returns the key of the form of the Body `body` in `media`. A record holds one form of a Body in each media type. */
 export const readingKey = (body: string, media: string): string => `${body} ${media}`;
@@ -143,11 +143,20 @@ export function linkedBodiesOf(record: Record<string, unknown>): TLinkedBody[] {
 	return z.array(LinkedBodySchema).parse([linked].flat().filter((body) => referencedName(body) === undefined));
 }
 
-/** Returns each form of each body a record links, as a reader opens it. Throws for a body that doesn't state its id and
- *  media type. */
-export function readingsOf(record: Record<string, unknown>): TReading[] {
-	return linkedBodiesOf(record).flatMap((body) =>
-		formsOf(body).map(({ mediaType, content }) => ({ key: readingKey(body.id, mediaType), body: body.id, media: mediaType, ...(content === undefined ? {} : { text: content }) })),
+/** Returns the Bodies of a `label` record: each Body it links, or the record itself where it is a Body. */
+export const bodiesOfRecord = (label: string, record: Record<string, unknown>): TLinkedBody[] => (label === BODY_LABEL ? [LinkedBodySchema.parse(record)] : linkedBodiesOf(record));
+
+/** Returns each form of each body a `label` record links, as a reader opens it, or each form of a Body record itself, as a passage
+ *  of the Body opens in the Body's own view. Throws for a body that doesn't state its id and media type. */
+export function readingsOf(label: string, record: Record<string, unknown>): TReading[] {
+	return bodiesOfRecord(label, record).flatMap((body) =>
+		formsOf(body).map(({ mediaType, content }) => ({
+			key: readingKey(body.id, mediaType),
+			body: body.id,
+			media: mediaType,
+			...(content === undefined ? {} : { text: content }),
+			...(body.digest === undefined ? {} : { digest: body.digest }),
+		})),
 	);
 }
 

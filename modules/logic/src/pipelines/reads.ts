@@ -8,7 +8,7 @@ import { Access } from "@haibun/core/lib/domains/resources.js";
 import { readingAt } from "@haibun/core/lib/domains/capability-context.js";
 import { actualityFeatureOf, calledParts, compareSeqPath, factSeqPath, SEQ_PATH_FIELD, seqPathDomainDefinition } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import type { TDomainMembers } from "@haibun/core/lib/domains/resources.js";
-import { equalTo, readUpTo, recordMembers } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { equalTo, outgoingEdgesOf, readUpTo, recordMembers } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { FACT_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { FACT_FIELD } from "@haibun/core/lib/records/domains/facts.js";
 import { FACT_POSITIONS, type TFact } from "../domains/logic.js";
@@ -17,8 +17,8 @@ import { REASONING_READ_CEILING, type TTypeRead } from "../domains/reasoning.js"
 import { MAX_PAGE_ROWS, readInPages } from "@haibun/core/lib/domains/hypermedia.js";
 import { GraphQuerySchema, isProjectionKey } from "@haibun/core/lib/steps/domains/quad-types.js";
 import { recordOfIri } from "@haibun/core/lib/records/derivations/record-iri.js";
-import { curieOf, type TRecordName } from "@haibun/core/lib/records/domains/unit.js";
-import { edgeRanges, type TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
+import { curieOf, NODE_KEY, referenceTo, type TRecordName } from "@haibun/core/lib/records/domains/unit.js";
+import { topologyEdges, type TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
 import { persistedDomainOf } from "@haibun/core/lib/domains/domains.js";
 import type { TField } from "@haibun/core/lib/steps/domains/contract.js";
 
@@ -97,9 +97,27 @@ export async function writeFacts(store: IQuadStore, subject: string, namedGraph:
 /** A record a contract's check read: its name and its fields. */
 export type TNamedRecord = { readonly name: TRecordName; readonly fields: Readonly<Record<string, unknown>> };
 
+/** Returns the records the edges `keys` of the record `name` reach, as the store holds the edges: each by the edge's key, its type,
+ *  which the store states of each target, and its id, by the field the type declares its id. */
+async function edgeTargets(
+	store: IQuadStore,
+	domains: Record<string, TRegisteredDomain>,
+	name: TRecordName,
+	keys: readonly string[],
+): Promise<Array<TRecordName & { key: string }>> {
+	return (await outgoingEdgesOf(store, name.label, name.id)).flatMap(({ type, target }) => {
+		if (!keys.includes(type)) return [];
+		const label = String(target[NODE_KEY.type]);
+		const domain = persistedDomainOf(domains, label);
+		if (domain === undefined) throw new Error(`a contract follows ${name.label}.${type} to a ${label} record, and the loaded steppers don't declare ${label}`);
+		return [{ key: type, label, id: String(target[domain.topology.id]) }];
+	});
+}
+
 /** Reads the records a contract's check names: each record of `names`, and each record that an edge among the fields `follows`
- *  lists reaches from a record read, transitively. Where the store doesn't hold a named record, the read skips it. Throws where a name's type isn't declared,
- *  or a followed edge has more than one range. */
+ *  lists reaches from a record read, transitively, as the store holds each edge, with the record each edge reaches as a reference
+ *  among the fields of the record that holds it. Where the store doesn't hold a named record, the read skips it. Throws where a
+ *  name's type isn't declared, or an edge reaches a record of a type that isn't. */
 export async function namedRecords(
 	store: IQuadStore,
 	domains: Record<string, TRegisteredDomain>,
@@ -120,22 +138,20 @@ export async function namedRecords(
 				return { name, domain, record: record === undefined ? undefined : (record as Record<string, unknown>) };
 			}),
 		);
-		const reached = reads.flatMap(({ name, domain, record }) => {
-			if (record === undefined) return [];
-			read.push({ name, fields: record });
-			return follows
-				.filter(({ persistedAs }) => persistedAs === name.label)
-				.flatMap(({ key }) => {
-					const edge = domain.topology.edges?.[key];
-					if (edge === undefined) return [];
-					const ranges = edgeRanges(edge);
-					const [range] = ranges;
-					if (range === undefined || ranges.length > 1) throw new Error(`a contract follows ${name.label}.${key}, whose edge doesn't state one range`);
-					const value = record[key];
-					return (Array.isArray(value) ? value : value === undefined || value === null ? [] : [value]).map((id) => ({ label: range, id: String(id) }));
-				});
-		});
-		await visit(reached);
+		const reached = await Promise.all(
+			reads.map(async ({ name, domain, record }) => {
+				if (record === undefined) return [];
+				// A field the contract states complete is read with the record; an edge is followed to the records it reaches.
+				const edges = topologyEdges(domain.topology);
+				const followed = follows.filter(({ persistedAs, key }) => persistedAs === name.label && edges[key] !== undefined).map(({ key }) => key);
+				const targets = followed.length === 0 ? [] : await edgeTargets(store, domains, name, followed);
+				// A record's followed edges are facts of it, each a reference to the record it reaches, as the store holds the edge.
+				const reaching = Object.fromEntries(followed.map((key) => [key, targets.filter((target) => target.key === key).map(({ label, id }) => referenceTo(label, id))]));
+				read.push({ name, fields: { ...record, ...reaching } });
+				return targets.map(({ label, id }) => ({ label, id }));
+			}),
+		);
+		await visit(reached.flat());
 	};
 	await visit(names);
 	return read;

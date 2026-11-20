@@ -18,11 +18,14 @@ import {
 	type TDiscourseStore,
 	type TPart,
 	type TQuoteAnchor,
+	type TAnchorSource,
+	type TQuotedBody,
 	type TStatedRecord,
 } from "../../domains/resources.js";
 import { typedLinkFacts } from "../derivations/typed-link-facts.js";
 import type { TLinkVocabulary, TTypedLinkFact } from "../../domains/typed-links.js";
 import { recordOf, type TRecordReader } from "./record-reads.js";
+import { anchorSourceOf, quotedBodiesOf } from "./anchor-digests.js";
 import type { IQuadStore } from "../../steps/ports.js";
 import { referenceTo } from "../domains/unit.js";
 
@@ -75,8 +78,20 @@ export async function readTypedLinks(
 	const reading = { label: READING_LABEL, id: readingId };
 	/** Anchors a part inside a record and returns the SpecificResource an edge can target. The SpecificResource owns its selector,
 	 *  so the reading's removal of it removes the anchor pair. */
+	// Each record the text links into reads its Bodies once, whatever number of passages the text quotes of it.
+	const bodiesRead = new Map<string, Promise<TQuotedBody[]>>();
+	const bodiesOf = (base: { label: string; id: string }): Promise<TQuotedBody[]> => {
+		const key = `${base.label}:${base.id}`;
+		const held = bodiesRead.get(key);
+		const reading = held === undefined ? quotedBodiesOf(store, base) : held;
+		bodiesRead.set(key, reading);
+		return reading;
+	};
 	const anchored = async (base: { label: string; id: string }, part: TPart, linkText?: string): Promise<{ label: string; id: string }> => {
-		const { specificResourceId } = await anchorPart(store, base, part, { ...(linkText ? { label: linkText } : {}), generatedBy: reading });
+		const { specificResourceId } = await anchorPart(store, anchorSourceOf(base, await bodiesOf(base), part), part, {
+			...(linkText ? { label: linkText } : {}),
+			generatedBy: reading,
+		});
 		const written = { label: SPECIFIC_RESOURCE_LABEL, id: specificResourceId };
 		stated.push({ kind: "individual", ...written });
 		return written;
@@ -146,16 +161,20 @@ export async function writeAnnotation(
 	store: TReadingStore,
 	vocab: TLinkVocabulary,
 	written: { author: string; step: string },
-	a: { label: string; id: string; exact: string; prefix?: string; suffix?: string; text: string; at?: string; until?: string; links?: TQuoteAnchor[] },
+	a: { label: string; id: string; exact: string; prefix?: string; suffix?: string; text: string; at?: string; until?: string; links?: TQuoteAnchor[]; quoted?: TAnchorSource },
 ): Promise<{ commentId: string; specificResourceId: string; linkedSpecificResourceIds?: string[] }> {
 	// `at` and `until` bound the period the note describes, such as a milestone's week. They are stored as
 	// startedAtTime and endedAtTime so time-placed views such as gantt show the note over its period. `generatedAtTime`
 	// holds the time the record was written. The two are different facts.
 	// The anchored passage is titled by the note's text, by the same rule that titles a Comment. Every view then shows
 	// the anchor as the note's statement and not as the bare quote.
-	const { specificResourceId } = await anchorPart(store, a, a, { label: commentName(a.text) });
+	// A part's own fields, without the note's, are what its anchor's selector states.
+	const part = { exact: a.exact, ...(a.prefix === undefined ? {} : { prefix: a.prefix }), ...(a.suffix === undefined ? {} : { suffix: a.suffix }) };
+	const bodies = await quotedBodiesOf(store, a);
+	const { specificResourceId } = await anchorPart(store, anchorSourceOf(a, bodies, part, a.quoted), part, { label: commentName(a.text) });
 	const linkedSpecificResourceIds: string[] = [];
-	for (const link of a.links === undefined ? [] : a.links) linkedSpecificResourceIds.push((await anchorPart(store, a, link)).specificResourceId);
+	for (const link of a.links === undefined ? [] : a.links)
+		linkedSpecificResourceIds.push((await anchorPart(store, anchorSourceOf(a, bodies, link, a.quoted), link)).specificResourceId);
 	const reference = (id: string) => referenceTo(SPECIFIC_RESOURCE_LABEL, id);
 	const links = linkedSpecificResourceIds.length === 0 ? {} : { [LinkRelations.LINKS_TO.rel]: linkedSpecificResourceIds.map(reference) };
 	const edges = { [LinkRelations.TARGET.rel]: reference(specificResourceId), ...links };

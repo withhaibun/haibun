@@ -28,7 +28,8 @@ import { SubjectController } from "../../controllers/subject-controller.js";
 import { ShuElement, type TLinkedData } from "../../components/shu-element.js";
 import { shuBaseStyles } from "../../components/styles.js";
 import { revealInDocument } from "../../components/reveal.js";
-import { paneHref, passageHref, passageName } from "../../components/ref-navigation.js";
+import { paneHref } from "../../components/ref-navigation.js";
+import { passageTpl } from "../../components/passage-link.js";
 import type { TEvidence } from "../../domains/claims.js";
 import "../../components/shu-refusal.js";
 import { SOURCE_FORMATS, SOURCE_FORMAT_IDS, sourceFormat, type TSourceFormat } from "../domains/sources.js";
@@ -179,12 +180,8 @@ class ShuGraphSource extends ShuElement<typeof GraphSourceStateSchema> {
 	private passageLinks({ name }: TFrame): TemplateResult[] {
 		const quoting = this.#passages.get(name);
 		if (quoting === undefined) return [];
-		return quoting.flatMap((evidence) => {
-			const href = passageHref(evidence);
-			return href === undefined
-				? []
-				: [html` <a href=${href} data-testid=${SHU_TEST_IDS.GRAPH_SOURCE.PASSAGE} aria-label=${passageName(`the value ${name} states`, evidence)}>quote</a>`];
-		});
+		const ids = { link: SHU_TEST_IDS.GRAPH_SOURCE.PASSAGE, stale: SHU_TEST_IDS.GRAPH_SOURCE.PASSAGE_STALE };
+		return quoting.map((evidence) => html` ${passageTpl(evidence, `the value ${name} states`, ids)}`);
 	}
 
 	/** Lights the lines of `axioms` that state `nodes`. */

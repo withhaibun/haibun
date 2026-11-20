@@ -12,7 +12,7 @@ import { SHOW_CONTROLS_FIELD, ShuElement, type TLinkedData } from "./shu-element
 import { SHU_EVENT, ANNOTATION_GLYPH, PRODUCTS_LABEL, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/elements.js";
 import { defineElement, loadedOnFirstUse } from "../controllers/element-controller.js";
 import { MarkdownRendererController } from "../controllers/markdown-renderer-controller.js";
-import { LinkRelations, isReplyEdge, type TAnnotationView, type TPart, type TQuoteAnchor } from "@haibun/core/lib/domains/resources.js";
+import { LinkRelations, isReplyEdge, type TAnchorSource, type TAnnotationView, type TPart, type TQuoteAnchor } from "@haibun/core/lib/domains/resources.js";
 import { EntityColumnSchema } from "../../domains/schemas.js";
 import { anIndividual, type TContextPattern } from "@haibun/core/lib/conversation/domains/context-patterns.js";
 import { EntityController } from "../controllers/entity-controller.js";
@@ -36,7 +36,9 @@ import {
 	firstDeclaredType,
 } from "../controllers/catalog-controller.js";
 import { propertyVocabulary } from "../../derivations/ontology-projection.js";
-import { linkTpl, paneHref, passageHref, passageName, refHref } from "./ref-navigation.js";
+import { linkTpl, paneHref, refHref } from "./ref-navigation.js";
+import { passageTpl } from "./passage-link.js";
+import { ANCHOR_STATE } from "@haibun/core/lib/domains/quote-anchor.js";
 import { titlePane } from "../derivations/pane-kinds.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { pageAddress } from "../controllers/hash-controller.js";
@@ -369,8 +371,9 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		this.#refusal = undefined;
 		this.setState({ individualId: id, persistedAs: label });
 		const readLevel = appAccessLevel();
-		await this.entity.open(label, id, readLevel);
+		// The column states its subject as it opens, so a read that settles later doesn't replace a type the reader chose since.
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns: [anIndividual(label, id)], readLevel, label }, bubbles: true, composed: true }));
+		await this.entity.open(label, id, readLevel);
 	}
 
 	override paneSubject(): TContextPattern[] | null {
@@ -612,7 +615,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		if (!vertex) return undefined;
 		// The record NAMES its bodies and the media type of each of their forms; their text is read on request, so the
 		// switcher is drawn from the listing and the shown reading's text appears once its body has been read.
-		const available = readingsOf(vertex);
+		const available = readingsOf(this.state.persistedAs, vertex);
 		const active = this.shownReading();
 		if (active === undefined) return undefined;
 
@@ -653,19 +656,20 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	/** The reading the reader is shown, and the one whose body's text is to read: the one the reader switched to, where this
 	 *  record lists it, and otherwise the preferred reading. Undefined where the record doesn't link a body. */
 	private shownReading(): TReading | undefined {
-		const available = this.vertex === null ? [] : readingsOf(this.vertex);
+		const available = this.vertex === null ? [] : readingsOf(this.state.persistedAs, this.vertex);
 		const chosen = available.find((reading) => reading.key === this.chosenReading);
 		return chosen === undefined ? preferredReading(available) : chosen;
 	}
 
-	/** The reading shown, where it is text (markdown or plain), with its text once read: what an annotation's quote is
-	 *  anchored against, rendered inline so the annotator can highlight it. Null where the reading shown is not text,
-	 *  such as an original HTML email, which stays in the sandboxed iframe, or where its text has not been read. */
-	private annotatableBody(): { text: string; media: string } | null {
+	/** The reading shown, where it is text (markdown or plain), with its text once read and its stored Body with the Body's digest:
+	 *  what an annotation's quote is anchored against, rendered inline so the annotator can highlight it. Null where the reading
+	 *  shown is not text, such as an original HTML email, which stays in the sandboxed iframe, where its text has not been read,
+	 *  or where its Body isn't stored, as a step's products carry their own text. */
+	private annotatableBody(): { text: string; media: string; quoted: TAnchorSource } | null {
 		const b = this.shownReading();
 		if (b === undefined || (b.media !== MEDIA_TYPE.markdown && b.media !== MEDIA_TYPE.plain)) return null;
-		const text = b.text;
-		return text === undefined ? null : { text, media: b.media };
+		const { text, digest } = b;
+		return text === undefined || digest === undefined ? null : { text, media: b.media, quoted: { id: b.body, digest } };
 	}
 
 	/** The annotation-gutter toggle for the body toolbar, identical markup in the iframe and inline paths so the two
@@ -701,6 +705,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 					.mediaType=${annBody.media}
 					.sourceId=${this.state.individualId}
 					.sourceLabel=${this.state.persistedAs}
+					.quoted=${annBody.quoted}
 					.annotations=${this.annotationsList}
 					.annotate=${this.annotateDraft}
 					.show=${true}
@@ -808,21 +813,18 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const claim = this.#claims.find((held) => held.field === field);
 		if (claim !== undefined) return html` ${verdictStatusTpl(testId, claim.test, claim.verdict)}`;
 		const values = new Set([value].flat());
-		return this.#evidence.some(({ quote }) => values.has(quote.exact))
+		return this.#evidence.some(({ quote, state }) => values.has(quote.exact) && state === ANCHOR_STATE.current)
 			? html` ${verdictStatusTpl(testId, `the ${field} rests on the passage that quotes it`, STATEMENT_STATUS.assumed)}`
 			: nothing;
 	}
 
-	/** The link from a field to each passage that quotes its value in the record's source, which opens the source with the passage
-	 *  selected, named by where the passage is and the step that extracted it. Empty where a passage doesn't quote the value. */
+	/** The link from a field to each passage that quotes its value in the record's source Body, which opens the Body with the passage
+	 *  selected, named by where the passage is and the step that extracted it, or the passage's stale mark where the Body changed after
+	 *  the passage quoted it. Empty where a passage doesn't quote the value. */
 	private fieldEvidence(field: string, value: string | string[]): TemplateResult[] {
 		const values = new Set([value].flat());
-		return this.#evidence.flatMap((evidence) => {
-			const href = passageHref(evidence);
-			if (href === undefined || !values.has(evidence.quote.exact)) return [];
-			const label = passageName(`the ${field}`, evidence);
-			return [html` ${linkTpl(href, "quote", { testId: `${SHU_TEST_IDS.CLAIMS.EVIDENCE}-${field}`, label, linkClass: "col-link evidence" })}`];
-		});
+		const ids = { link: `${SHU_TEST_IDS.CLAIMS.EVIDENCE}-${field}`, stale: `${SHU_TEST_IDS.CLAIMS.EVIDENCE_STALE}-${field}` };
+		return this.#evidence.filter(({ quote }) => values.has(quote.exact)).map((evidence) => html` ${passageTpl(evidence, `the ${field}`, ids, "col-link evidence")}`);
 	}
 
 	/** The claims the reasoner made about the record, each with its status, its sentence and its proof, under a link to the step that

@@ -33,7 +33,12 @@ import {
 	AnnotationListSchema,
 	type TQuoteAnchor,
 	Access,
+	BODY_LABEL,
+	SOURCE_DIGEST,
+	type TQuotedBody,
 } from "../lib/domains/resources.js";
+import { ANCHOR_STATE, anchorStateOf, locateQuoteOffsets } from "../lib/domains/quote-anchor.js";
+import { quotedBodiesOf } from "../lib/records/pipelines/anchor-digests.js";
 import {
 	annotationNoteDomainDefinition,
 	bodyDomainDefinition,
@@ -46,7 +51,7 @@ import {
 } from "../lib/domains/resource-domains.js";
 import { MEDIA_TYPE } from "../lib/domains/media-types.js";
 import { readUpTo } from "../lib/records/pipelines/record-reads.js";
-import { bodiesByMediaType, markdownOf } from "../lib/records/pipelines/body-reads.js";
+import { bodiesByMediaType, unitBodiesOf } from "../lib/records/pipelines/body-reads.js";
 import { createComment, readProseLinks, writeAnnotation } from "../lib/records/pipelines/discourse-writes.js";
 import { DOMAIN_LINK_REL, DOMAIN_RECORD_ID, DOMAIN_TEXT, linkVocabularyFor } from "../lib/domains/domains.js";
 import { actualityFeatureOf, formatRecordName } from "../lib/actuality/domains/seq-path.js";
@@ -71,21 +76,6 @@ const DISCOURSE_CHANGES = [
 function describeAnchor(selector: TQuoteAnchor): string {
 	const between = [selector.prefix ? `after "${selector.prefix}"` : "", selector.suffix ? `before "${selector.suffix}"` : ""].filter(Boolean).join(" and ");
 	return between ? `"${selector.exact}" ${between}` : `"${selector.exact}"`;
-}
-
-/**
- * Returns whether an anchored passage still resolves in a text. The passage resolves where one occurrence of the quote
- * has the anchor's recorded prefix before it and its recorded suffix after it. An anchor without a prefix or a suffix
- * doesn't constrain that side. A check of the quote alone would pass a citation whose clause moved. A clause number can
- * remain in the text after the clause it opened is gone.
- */
-function anchorResolves(text: string, selector: TQuoteAnchor): boolean {
-	for (let at = text.indexOf(selector.exact); at !== -1; at = text.indexOf(selector.exact, at + 1)) {
-		const before = selector.prefix === undefined || text.slice(Math.max(0, at - selector.prefix.length), at) === selector.prefix;
-		const after = selector.suffix === undefined || text.slice(at + selector.exact.length, at + selector.exact.length + selector.suffix.length) === selector.suffix;
-		if (before && after) return true;
-	}
-	return false;
 }
 
 const ReferenceSchema = z.object({ "@id": z.string(), "@type": z.string() });
@@ -194,6 +184,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			action: async () => {
 				const store = this.getWorld().shared.getStore();
 				const unresolved: string[] = [];
+				const bodiesRead = new Map<string, Promise<TQuotedBody[]>>();
 				let checked = 0;
 				for (const anchor of await readUpTo(store, { label: SPECIFIC_RESOURCE_LABEL }, MAX_PAGE_ROWS)) {
 					const quads = await store.query({ subject: String(anchor.id) });
@@ -203,13 +194,20 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 					const selector = await store.readRecord({ label: TEXT_QUOTE_SELECTOR_LABEL, schema: TextQuoteSelectorSchema }, String(selectorId));
 					if (!selector) continue;
 					checked++;
-					const sourceLabel = (sourceQuad as { objectType?: string }).objectType;
-					if (!sourceLabel) return actionNotOK(`anchor ${String(anchor.id)}: its hasSource edge doesn't name a type for "${String(sourceQuad.object)}"`);
-					const sourceId = String(sourceQuad.object);
-					const text = await markdownOf(store, sourceLabel, sourceId);
-					const said = describeAnchor(selector);
-					if (text === undefined) unresolved.push(`${sourceLabel} "${sourceId}" doesn't hold text to anchor ${said} (anchor ${String(anchor.id)})`);
-					else if (!anchorResolves(text, selector)) unresolved.push(`${sourceLabel} "${sourceId}" no longer states ${said} (anchor ${String(anchor.id)})`);
+					const bodyId = String(sourceQuad.object);
+					const said = `${describeAnchor(selector)} (anchor ${String(anchor.id)})`;
+					// Anchors into one Body read it once.
+					const read = bodiesRead.get(bodyId);
+					const reading = read === undefined ? quotedBodiesOf(store, { label: BODY_LABEL, id: bodyId }) : read;
+					bodiesRead.set(bodyId, reading);
+					const [body] = await reading;
+					if (body === undefined) {
+						unresolved.push(`Body "${bodyId}" isn't held, so it doesn't state ${said}`);
+						continue;
+					}
+					if (anchorStateOf(String(anchor[SOURCE_DIGEST]), body.digest) === ANCHOR_STATE.stale) unresolved.push(`Body "${bodyId}" changed after the anchor quoted ${said}`);
+					else if (!body.forms.some((text) => locateQuoteOffsets(text, selector.exact, selector.prefix, selector.suffix) !== null))
+						unresolved.push(`Body "${bodyId}" doesn't state ${said}`);
 				}
 				if (unresolved.length > 0) return actionNotOK(`${unresolved.length} of ${checked} citations no longer resolve:\n${unresolved.join("\n")}`);
 				return actionOKWithProducts({ checked });
@@ -284,14 +282,24 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			description: "Returns the annotations anchored in the record, each with the comment's body, its author and times, and the passages it cross-references.",
 			recordIds: { id: "label" },
 			contract: { read: true, products: DOMAIN_ANNOTATIONS },
-			action: async ({ id }) => {
+			action: async ({ label, id }) => {
 				const store = this.getWorld().shared.getStore();
-				// Walks the W3C Web Annotation chain backward from the annotated individual, each read keyed by the record it
+				// Walks the W3C Web Annotation chain backward from the annotated individual's Bodies, each read keyed by the record it
 				// starts from, so the walk reads the records of this individual's annotations and not every record of a type.
-				// SpecificResource: hasSource → id, hasSelector → TextQuoteSelector.
+				// SpecificResource: hasSource → a Body of the individual, hasSelector → TextQuoteSelector.
 				// Comment: hasTarget → SpecificResource, and optionally linksTo → another SpecificResource.
-				const srIds = [...new Set((await store.query({ predicate: LinkRelations.HAS_SOURCE.rel, object: id, namedGraph: SPECIFIC_RESOURCE_LABEL })).map((q) => String(q.subject)))];
+				const anchoring = await Promise.all(
+					(await unitBodiesOf(store, label, id)).map(async (body) =>
+						(await store.query({ predicate: LinkRelations.HAS_SOURCE.rel, object: body.id, namedGraph: SPECIFIC_RESOURCE_LABEL })).map(
+							(q) => [String(q.subject), body.id] as const,
+						),
+					),
+				);
+				// Each anchor's Body, and the digest of the Body as the anchor quoted it, by which a view reads whether the anchor is stale.
+				const bodyOfSr = new Map(anchoring.flat());
+				const srIds = [...bodyOfSr.keys()];
 				if (srIds.length === 0) return actionOKWithProducts({ annotations: [], ...counted(0) });
+				const digestOfSr = new Map((await readUpTo(store, { label: SPECIFIC_RESOURCE_LABEL, named: srIds }, srIds.length)).map((sr) => [String(sr.id), String(sr[SOURCE_DIGEST])]));
 				const objectsOf = async (subject: string, predicate: string, namedGraph: string): Promise<string[]> =>
 					(await store.query({ subject, predicate, namedGraph })).map((q) => String(q.object));
 				const targeting = await Promise.all(
@@ -350,6 +358,8 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 							...(noteText !== undefined ? { body: noteText } : {}),
 							...quote,
 							specificResourceId,
+							source: bodyOfSr.get(specificResourceId),
+							sourceDigest: digestOfSr.get(specificResourceId),
 							...(links.length > 0 ? { links } : {}),
 						},
 					];

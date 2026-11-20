@@ -142,11 +142,13 @@ describe("the reading a record shows, chosen from a listing that doesn't carry t
 			_summary: "e1",
 			id: "e1",
 			hasBody: [
-				{ id: "b-plain", mediaType: "text/plain", content: "hiking this weekend" },
-				{ id: "b-md", mediaType: "text/markdown", content: "**hiking** this weekend" },
+				{ id: "b-plain", mediaType: "text/plain", content: "hiking this weekend", digest: "digest-plain" },
+				{ id: "b-md", mediaType: "text/markdown", content: "**hiking** this weekend", digest: "digest-md" },
 			],
 		});
-		(el as unknown as { annotationsList: unknown[] }).annotationsList = [{ commentId: "c1", exact: "hiking this weekend", body: "a note" }];
+		(el as unknown as { annotationsList: unknown[] }).annotationsList = [
+			{ commentId: "c1", exact: "hiking this weekend", body: "a note", source: "b-md", sourceDigest: "digest-md" },
+		];
 		(el as unknown as { setState(p: Record<string, unknown>): void }).setState({ showAnnotations: true });
 		await el.updateComplete;
 		const annotated = el.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.ANNOTATED_BODY}"]`) as unknown as { mediaType: string } | null;
@@ -171,7 +173,7 @@ describe("the reading a record shows, chosen from a listing that doesn't carry t
 describe("annotate toggle button", () => {
 	const openWithAnnotatableBody = async (annotations: unknown[]): Promise<ShuEntityColumn> => {
 		const el = document.body.appendChild(new ShuEntityColumn());
-		el.openProducts({ _type: "File", _summary: "notes.md", id: "f1", hasBody: [{ id: "fb", content: "# Notes\n\nbody text", mediaType: "text/markdown" }] });
+		el.openProducts({ _type: "File", _summary: "notes.md", id: "f1", hasBody: [{ id: "fb", content: "# Notes\n\nbody text", mediaType: "text/markdown", digest: "digest-fb" }] });
 		// Seed annotations directly, then force the plain-body (iframe) path so the assertion doesn't depend on the
 		// inline annotator mounting in jsdom. The button's colour reflects annotation COUNT regardless of the path.
 		(el as unknown as { annotationsList: unknown[] }).annotationsList = annotations;
@@ -191,7 +193,7 @@ describe("annotate toggle button", () => {
 	});
 
 	it("gains has-annotations (colour) when the document carries notes", async () => {
-		const btn = button(await openWithAnnotatableBody([{ commentId: "c1", exact: "body", body: "a note" }]));
+		const btn = button(await openWithAnnotatableBody([{ commentId: "c1", exact: "body", body: "a note", source: "fb", sourceDigest: "digest-fb" }]));
 		expect(btn?.classList.contains("has-annotations")).toBe(true);
 	});
 });

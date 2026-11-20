@@ -20,7 +20,9 @@ import LogicStepper from "../logic-stepper.js";
 import { storeOfDomains } from "@haibun/core/lib/test/declared-types.js";
 import { reasoner } from "../root.js";
 import { NOTE, PERSON, SHARED_MAILBOX, scopeWith } from "../test/claim-scope.js";
-import { assumedClaims } from "./assumed-claims.js";
+import { assumedClaims, claimProofs, type TAnchorCheck } from "./assumed-claims.js";
+import { proofFrames } from "../derivations/proof-frames.js";
+import { recordTermsOf } from "../derivations/n3.js";
 
 /** A type a declaration makes both a PROV activity and a PROV entity, which PROV-O states disjoint. */
 const HYBRID = "Hybrid";
@@ -31,9 +33,12 @@ const hybridType = {
 	topology: { persistedAs: HYBRID, subClassOf: ["prov:Activity", "prov:Entity"], id: "id", accessLevel: Access.private, properties: { id: LinkRelations.IDENTIFIER.rel } },
 };
 
+/** The check of a record's passages, which these records don't cite, so a claim doesn't call it. */
+const UNCALLED_CHECK: TAnchorCheck = () => Promise.reject(new Error("the record doesn't cite a passage, and its passages were checked"));
+
 describe("the claims about the records an assumed step wrote", () => {
 	it("holds that a record is consistent with the ontology where its facts don't make it a member of two disjoint classes", { timeout: 60_000 }, async () => {
-		const claims = await assumedClaims(await scopeWith(reasoner()), [{ label: NOTE, id: "n1" }]);
+		const { claims } = await assumedClaims(await scopeWith(reasoner()), [{ label: NOTE, id: "n1" }], UNCALLED_CHECK);
 		expect(claims.map(({ test, verdict }) => [test, verdict])).toEqual([[`the ${NOTE} is consistent with the ontology`, VERDICT.proved]]);
 	});
 
@@ -41,16 +46,37 @@ describe("the claims about the records an assumed step wrote", () => {
 		const store = storeOfDomains([hybridType]);
 		await store.merge({ "@type": HYBRID, id: "h1", accessLevel: Access.private });
 		const scope = { reasoner: reasoner(), store, domains: mapDefinitionsToDomains([hybridType]), records: HAIBUN_RECORD_NAMESPACE };
-		const [claim] = await assumedClaims(scope, [{ label: HYBRID, id: "h1" }]);
+		const {
+			claims: [claim],
+		} = await assumedClaims(scope, [{ label: HYBRID, id: "h1" }], UNCALLED_CHECK);
 		expect(claim?.verdict).toBe(VERDICT.refuted);
 		expect(claim?.proof).toContain("DisjointClasses(prov:Activity prov:Entity)");
 	});
 
 	it("proves a record the same individual as a record that shares its mailbox, and names the mailbox", { timeout: 60_000 }, async () => {
-		const claims = await assumedClaims(await scopeWith(reasoner()), [{ label: PERSON, id: "p1" }]);
+		const { claims } = await assumedClaims(await scopeWith(reasoner()), [{ label: PERSON, id: "p1" }], UNCALLED_CHECK);
 		const identity = claims.find(({ test }) => test === `the ${PERSON} is the ${PERSON} p2`);
 		expect(identity?.verdict).toBe(VERDICT.proved);
 		expect(identity?.proof).toContain(`DataPropertyAssertion(foaf:mbox Person:p2 "${SHARED_MAILBOX}")`);
+	});
+
+	it("holds the premises of an identity's proof as its check, which a why view proves again and frames with the mailbox as a fact of each Person", {
+		timeout: 60_000,
+	}, async () => {
+		const scope = await scopeWith(reasoner());
+		const { checks } = await assumedClaims(scope, [{ label: PERSON, id: "p1" }], UNCALLED_CHECK);
+		expect(checks.join("\n"), "the check holds the mailbox its proof read").toContain(SHARED_MAILBOX);
+		const proofs = await claimProofs(scope, checks.join("\n"));
+		const frames = proofFrames(proofs, { persistedAs: "SeqPath", id: "the-step" }, recordTermsOf(scope.domains, scope.records));
+		expect(
+			frames.assumptions.map(({ fact }) => fact),
+			"each Person's mailbox is an assumption a passage can quote",
+		).toEqual(
+			expect.arrayContaining([
+				{ of: { persistedAs: PERSON, id: "p1" }, value: SHARED_MAILBOX },
+				{ of: { persistedAs: PERSON, id: "p2" }, value: SHARED_MAILBOX },
+			]),
+		);
 	});
 });
 

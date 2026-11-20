@@ -8,6 +8,7 @@
  * Shown from the access indicator, beside the level a read is bounded by: a capability determines whether a call may
  * be made, the level determines how much of the result comes back, and a reader is looking at both in one place.
  */
+import { property } from "lit/decorators.js";
 import type { TAction } from "@haibun/core/lib/domains/actions.js";
 import { SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
@@ -36,9 +37,10 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 	/** What holds here, read when the panel connects. */
 	readonly #held = new LoadController<TAuthority>(this, () => this.#authority.readOutcome());
 	/** How many items await the reader's decision, and the reference that leads to them. Set by the host, which receives
-	 *  it from whichever extension reports it: the panel states the count in a row of its own beside the access level. */
-	awaiting = 0;
-	awaitingRef: TRef | null = null;
+	 *  it from whichever extension reports it, before or after the panel opens: the panel states the count in a row of its own beside
+	 *  the access level, and renders again as the count arrives. */
+	@property({ attribute: false }) accessor awaiting = 0;
+	@property({ attribute: false }) accessor awaitingRef: TRef | null = null;
 
 	/** The read access in force and the ones on offer, owned by the host that reads them from the view hash. */
 	declare level: string;

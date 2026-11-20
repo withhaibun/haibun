@@ -34,6 +34,7 @@ import type { IQuadStore, TFederatedGraphSource, TStoreLevels } from "../ports.j
 import { AccessLevelSchema, BODY_LABEL, HELD_BY, LinkRelations, withinAccess, type AccessLevel, type AccessQueryLevel } from "../../domains/resources.js";
 import { formsOfBody, keptBodyFields, storedFieldsOf } from "../../records/derivations/bodies.js";
 import { withBodies, withOwnerLevels } from "../../records/derivations/unit-bodies.js";
+import { anchorWrites, assertAnchorsCurrent, heldDigestIn } from "../../records/pipelines/anchor-digests.js";
 import { seenAt, writesAtEveryLevel, writtenAt } from "../../domains/actions.js";
 import {
 	distinctOf,
@@ -352,6 +353,8 @@ export class QuadStore implements IQuadStore {
 		for (const part of unit.parts) this.refuseDerived(part.label);
 		const backing = this.backingOf(unit);
 		if (backing) return await through(backing);
+		const anchors = anchorWrites(unit);
+		if (anchors.length > 0) await assertAnchorsCurrent(unit, anchors, (bodyId) => heldDigestIn(this, bodyId));
 		// A target a backing store holds is read there, so a unit whose targets this layer holds is applied without an await.
 		for (const edge of this.unheldTargets(unit)) if ((await this.storeFor(edge.label)?.versionOf(edge)) === null) unheldTarget(unit.record, edge);
 		const recordPart = unit.parts.find(({ label, id }) => label === unit.record.label && id === unit.record.id);

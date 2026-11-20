@@ -3,9 +3,11 @@
  * A note is a Comment whose `oa:hasTarget` is a SpecificResource that points back at the record (`oa:hasSource`) through a
  * TextQuoteSelector (`oa:hasSelector`).
  */
-import { locateQuoteOffsets } from "@haibun/core/lib/domains/quote-anchor.js";
+import { ANCHOR_STATE, anchorStateOf } from "@haibun/core/lib/domains/quote-anchor.js";
+import type { TTextRange } from "@haibun/core/lib/domains/quote-anchor.js";
 import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
-import type { TAnnotationView } from "@haibun/core/lib/domains/resources.js";
+import { SPECIFIC_RESOURCE_LABEL, type TAnchorSource, type TAnnotationView, type TQuoteAnchor } from "@haibun/core/lib/domains/resources.js";
+import type { TIndividualAddress } from "@haibun/core/lib/domains/typed-links.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
 /** The W3C Web Annotation the annotator library reads: a TextualBody, and a target that carries both a TextQuoteSelector
@@ -23,12 +25,24 @@ export type TW3CTextAnnotation = {
 	target: { source: string; selector: [TTextQuoteSelector, TTextPositionSelector] };
 };
 
-/** Returns the notes as the annotator library reads them, anchored in `containerText`, the rendered body text. A note whose
- *  quote the rendering doesn't hold is left out, since a highlight can't mark it; the note list still shows it. */
-export function toW3CAnnotations(annotations: TAnnotationView[], source: string, containerText: string): TW3CTextAnnotation[] {
+/** The notes of a record anchored in one of its Bodies, by their state: current where they quote the Body as it reads now, and
+ *  stale where the Body changed after they quoted it. */
+export type TNotesIn = { readonly current: TAnnotationView[]; readonly stale: TAnnotationView[] };
+
+/** Returns the notes of `annotations` anchored in the Body `quoted`, by their state. A note on another Body of the record isn't one
+ *  of them, since the view shows the text of `quoted` alone. */
+export function notesIn(annotations: readonly TAnnotationView[], quoted: TAnchorSource): TNotesIn {
+	const inBody = annotations.filter(({ source }) => source === quoted.id);
+	const stateOf = ({ sourceDigest }: TAnnotationView) => anchorStateOf(sourceDigest, quoted.digest);
+	return { current: inBody.filter((note) => stateOf(note) === ANCHOR_STATE.current), stale: inBody.filter((note) => stateOf(note) === ANCHOR_STATE.stale) };
+}
+
+/** Returns the notes as the annotator library reads them, each at the range of the rendered body text `locate` places its quote. A
+ *  note whose quote the rendering doesn't hold is left out, since a highlight can't mark it; the note list still shows it. */
+export function toW3CAnnotations(annotations: TAnnotationView[], source: string, locate: (quote: TQuoteAnchor) => TTextRange | null): TW3CTextAnnotation[] {
 	const out: TW3CTextAnnotation[] = [];
 	for (const a of annotations) {
-		const pos = locateQuoteOffsets(containerText, a.exact, a.prefix, a.suffix);
+		const pos = locate(a);
 		if (!pos) continue;
 		out.push({
 			"@context": ANNOTATION_CONTEXT,
@@ -69,3 +83,7 @@ export function literalOf(quads: TQuad[], predicate: string): string | undefined
 	const q = quads.find((x) => x.predicate === predicate && x.objectType === undefined);
 	return q ? String(q.object) : undefined;
 }
+
+/** Returns the address of a note's anchor, the record that states the passage it quotes, the Body it quotes and the digest of the
+ *  Body as it quoted it. */
+export const anchorOf = (note: TAnnotationView): TIndividualAddress => ({ persistedAs: SPECIFIC_RESOURCE_LABEL, id: note.specificResourceId });

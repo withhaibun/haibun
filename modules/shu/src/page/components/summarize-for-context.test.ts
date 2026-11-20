@@ -35,7 +35,9 @@ describe("summarizeForContext, enriched view projections", () => {
 		el.mediaType = "text/markdown";
 		el.sourceId = "file:1";
 		el.sourceLabel = "Notes";
-		el.annotations = [{ commentId: "a1", specificResourceId: "sr1", exact: "body", body: "a note", author: "vid", links: [{ exact: "elsewhere" }] }];
+		el.annotations = [
+			{ commentId: "a1", specificResourceId: "sr1", exact: "body", body: "a note", author: "vid", links: [{ exact: "elsewhere" }], source: "b1", sourceDigest: "digest-1" },
+		];
 		const s = el.summarizeForContext() as { "@id": string; "@type": string; content: string; annotations: Array<Record<string, unknown>> };
 		expect(s["@id"]).toBe("file:1");
 		expect(s["@type"]).toBe("as:Document");

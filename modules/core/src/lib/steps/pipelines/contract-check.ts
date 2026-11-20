@@ -93,7 +93,9 @@ export async function assumedChecked(world: TWorld): Promise<TAssumedChecked | u
 		if (held === undefined || held.verdict === VERDICT.contradiction) throw new Error(`the check of the ${name.label} ${name.id}'s ${key} doesn't state a claim's verdict`);
 		return { subject: name, test: `the ${name.label} has its ${key}`, field: key, verdict: held.verdict, proof: held.decidedBy };
 	});
-	return { checks: checked === undefined ? undefined : checkN3(ASSUMED_CHECK, checked.facts), claims: [...fields, ...(await prover.assumedClaims(world, [...records.values()]))] };
+	const claimed = await prover.assumedClaims(world, [...records.values()]);
+	const checks = [...(checked === undefined ? [] : [checkN3(ASSUMED_CHECK, checked.facts)]), ...claimed.checks];
+	return { checks: checks.length === 0 ? undefined : checks.join("\n"), claims: [...fields, ...claimed.claims] };
 }
 
 /** Returns the result of a call its contract's check refused, with the checks the call ran. */

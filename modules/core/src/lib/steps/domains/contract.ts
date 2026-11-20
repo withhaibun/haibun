@@ -11,7 +11,7 @@ import { DOMAIN_STATEMENT, DomainKeySchema, normalizeDomainKey } from "../../dom
 import type { TVerdict } from "../../domains/protocol.js";
 import type { TRecordName, WRITE_VERB } from "../../records/domains/unit.js";
 import { isRead } from "../../domains/actions.js";
-import { isPersisted, levelsOf, type AccessLevel, type TDomainTopology } from "../../domains/resources.js";
+import { isPersisted, levelsOf, topologyEdges, type AccessLevel, type TDomainTopology, type THypermediaTopology } from "../../domains/resources.js";
 
 /** The key of the form that names the statement parameter whose products a step returns as its own. */
 const OF = "of";
@@ -52,6 +52,14 @@ const isListedChange = (change: TChange): change is TField | TRelationChange => 
 /** Returns the field `key` of the record type that `definition` declares. */
 export function field<S extends z.ZodObject>(definition: { readonly schema: S; readonly topology: { readonly persistedAs: string } }, key: keyof z.infer<S> & string): TField {
 	return { persistedAs: definition.topology.persistedAs, key };
+}
+
+/** Returns the edge `key` of the record type `definition` declares, as a field a contract states complete, so a check reads the
+ *  records the edge reaches. Throws where the type doesn't declare the edge. */
+export function edge(definition: { readonly topology: Pick<THypermediaTopology, "persistedAs" | "properties" | "edges"> }, key: string): TField {
+	const { topology } = definition;
+	if (topologyEdges(topology)[key] === undefined) throw new Error(`${topology.persistedAs} doesn't declare the edge ${key}. Name an edge its topology declares.`);
+	return { persistedAs: topology.persistedAs, key };
 }
 
 /** A relation that statements share, declared once as a named const by the stepper whose rules state it: its name, its phrase,
@@ -262,6 +270,13 @@ export const CHECK_READ = `${CHECK_NAMESPACE}read`;
 /** The check of the records an assumed step's call wrote, against the fields each one's type states every member has. */
 export const ASSUMED_CHECK = "assumed";
 
+/** The checks of the claims an assumed step's records make under the ontology: each record's identity with a record the store holds,
+ *  and each record's consistency with the ontology. A check's facts are the premises its proof read, which a why view proves again. */
+export const CLAIM_CHECK = { identity: "identity", consistency: "consistency" } as const;
+export type TClaimCheck = (typeof CLAIM_CHECK)[keyof typeof CLAIM_CHECK];
+/** Each claim check by the IRI of its check, as `checkN3` names it. */
+export const CLAIM_CHECK_IRIS: ReadonlyMap<string, TClaimCheck> = new Map(Object.values(CLAIM_CHECK).map((check) => [`${CHECK_NAMESPACE}${check}`, check]));
+
 /** Returns the relation that a record holds a value of the field `field`, which its type states every member has (`required`),
  *  derived over `iri`, the field's IRI. */
 export const requiredRelation = ({ persistedAs, key }: TField, iri: string): TRelation => ({
@@ -271,7 +286,7 @@ export const requiredRelation = ({ persistedAs, key }: TField, iri: string): TRe
 });
 
 /** Returns a check's facts as N3: the check's IRI related by `CHECK_READ` to the formula of the facts it read. */
-export const checkN3 = (check: TContractCheck | typeof ASSUMED_CHECK, facts: string): string => `<${CHECK_NAMESPACE}${check}> <${CHECK_READ}> { ${facts} } .`;
+export const checkN3 = (check: TContractCheck | typeof ASSUMED_CHECK | TClaimCheck, facts: string): string => `<${CHECK_NAMESPACE}${check}> <${CHECK_READ}> { ${facts} } .`;
 
 /** Returns the statements of a step's contract that a check of `check` reads, empty where the contract doesn't state them, and
  *  the fields the contract states complete. */

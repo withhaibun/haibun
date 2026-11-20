@@ -15,6 +15,7 @@ import {
 	BODY_LABEL,
 	BodySchema,
 	BODY_DIGEST,
+	SOURCE_DIGEST,
 	ENDPOINT_LABEL,
 	FRAGMENT_SELECTOR_LABEL,
 	FragmentSelectorSchema,
@@ -149,9 +150,10 @@ export const specificResourceDomainDefinition: TDomainDefinition = {
 		accessLevel: Access.private,
 		type: "oa:SpecificResource",
 		id: "id",
-		properties: { id: LinkRelations.IDENTIFIER.rel, label: LinkRelations.LABEL.rel },
+		properties: { id: LinkRelations.IDENTIFIER.rel, label: LinkRelations.LABEL.rel, [SOURCE_DIGEST]: LinkRelations.SOURCE_DIGEST.rel },
 		edges: {
-			hasSource: { rel: LinkRelations.HAS_SOURCE.rel, range: RESOURCE_LABEL, reference: true },
+			// An anchor quotes the text of a Body the store holds, whose digest it states.
+			hasSource: { rel: LinkRelations.HAS_SOURCE.rel, range: BODY_LABEL },
 			hasSelector: { rel: LinkRelations.HAS_SELECTOR.rel, range: [TEXT_QUOTE_SELECTOR_LABEL, FRAGMENT_SELECTOR_LABEL], owns: true },
 			wasGeneratedBy: GENERATED_BY_READING,
 		},
@@ -220,6 +222,12 @@ const AnnotationNoteSchema = z
 			.optional()
 			.describe("The end (ISO) of the period the note describes, stored as endedAtTime. Time-placed views read a note with `at` and `until` as an interval."),
 		links: z.array(QuoteAnchorSchema).optional().describe("Further passages in the same document that this note cross-references. Each renders as a followable link."),
+		quoted: z
+			.object({ id: z.string(), digest: z.string() })
+			.optional()
+			.describe(
+				"The Body the writer showed, with its digest as it showed it, which the store compares with the Body it holds. A note written by reference reads the Body the store holds.",
+			),
 	})
 	.describe(
 		"The full shape of one W3C Web Annotation: the anchored passage, the note, its time and any cross-referenced passages. Each prose annotate form binds a part of this shape, and this composite carries all of it.",

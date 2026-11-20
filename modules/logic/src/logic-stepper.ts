@@ -1,4 +1,5 @@
 import { earlDomainDefinitions } from "@haibun/core/lib/domains/earl.js";
+import { ANCHOR_RELATIONS } from "./domains/anchor-relations.js";
 import { AStepper, READING, type IHasCycles, type IHasOptions, type IStepperCycles, declareSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 import type { TWorld } from "@haibun/core/lib/actuality/domains/world.js";
 import {
@@ -97,6 +98,9 @@ export default class LogicStepper extends AStepper implements IHasCycles, IHasOp
 				this.classExpressionDomain,
 				this.domainGoalDomain,
 			],
+			// Whether an anchor, or a record that quotes through anchors, quotes its Body as the Body reads: a contract states it over a
+			// grant, and a claim over an extracted record.
+			relations: [...ANCHOR_RELATIONS],
 		}),
 	};
 

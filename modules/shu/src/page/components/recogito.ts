@@ -18,9 +18,14 @@ export interface TextAnnotator<E> {
 	destroy(): void;
 }
 
+/** How the annotator draws one highlight, as its `HighlightStyle` states it. */
+export type THighlightStyle = { fill?: string; fillOpacity?: number; underlineStyle?: string; underlineColor?: string; underlineOffset?: number; underlineThickness?: number };
+
 interface TextAnnotatorOptions {
 	adapter?: unknown;
 	annotatingEnabled?: boolean;
+	/** The style of each highlight, by its annotation: undefined draws the annotator's own style. */
+	style?: (annotation: { id: string }) => THighlightStyle | undefined;
 }
 
 export const createTextAnnotator = _createTextAnnotator as <E>(container: HTMLElement, options?: TextAnnotatorOptions) => TextAnnotator<E>;
