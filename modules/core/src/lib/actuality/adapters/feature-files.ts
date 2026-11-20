@@ -9,6 +9,7 @@ import type { TFeature, TFeaturesBackgrounds } from "../domains/actuality.js";
 import type { TBase } from "../domains/world.js";
 import { BASE_WITHOUT_FEATURES, type TFeatureSource } from "../ports.js";
 import { withName } from "../../domains/features.js";
+import { Refused } from "../../domains/util.js";
 import type { TFileSystem } from "../../adapters/workspace-lib.js";
 import type { TActionExecutor } from "../../../kireji/derivations/withAction.js";
 import { type TRunPolicyConfig, type TDirFilter, featureMatchesFilter } from "../../../run-policy/domains/run-policy.js";
@@ -86,13 +87,13 @@ async function getFeaturesAndBackgrounds(
 			}
 		}
 		if (rawFeaturesAndBackgrounds.features.length < 1 && rawFeaturesAndBackgrounds.backgrounds.length < 1) {
-			throw Error(`"${path.resolve(abase)}" ${BASE_WITHOUT_FEATURES}${matching(featureFilter)}`);
+			throw new Refused(`"${path.resolve(abase)}" ${BASE_WITHOUT_FEATURES}${matching(featureFilter)}`);
 		}
 		ret.features = ret.features.concat(rawFeaturesAndBackgrounds.features);
 		ret.backgrounds = ret.backgrounds.concat(rawFeaturesAndBackgrounds.backgrounds);
 	}
 	if (ret.features.length < 1) {
-		throw Error(`"${bases.map((base) => path.resolve(base)).join(", ")}" doesn't hold a feature${matching(featureFilter)}`);
+		throw new Refused(`"${bases.map((base) => path.resolve(base)).join(", ")}" doesn't hold a feature${matching(featureFilter)}`);
 	}
 	return ret;
 }

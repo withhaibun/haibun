@@ -134,7 +134,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv, ports: TCli
 			if (!world || !protoOptions) {
 				console.error(`\n${CHECK_NO} ${error.message}`);
 				const failure = error.result.failure;
-				if (failure?.error.details) console.error("Additional details:", failure.error.details);
+				if (failure !== undefined && Object.keys(failure.error.details).length > 0) console.error("Additional details:", failure.error.details);
 				process.exit(1);
 			}
 			return await reportAndExit(error.result, world, protoOptions, ports, loop);
@@ -205,12 +205,14 @@ function dryRunExit(featuresBackgrounds: TFeaturesBackgrounds, policyConfig?: TR
 
 async function reportAndExit(executorResult: TExecutorResult, world: TWorld, protoOptions: TProtoOptions, ports: TCliPorts, loop: TLoopWatch | undefined): Promise<never> {
 	const showSummary = world.eventLogger.suppressConsole;
-	if (loop !== undefined) {
+	const { featureResults, failure: phaseFailure } = executorResult;
+	// A phase that failed before a feature ran doesn't have features to count or their work on the event loop to state.
+	const ranFeatures = phaseFailure === undefined || featureResults.length > 0;
+	if (loop !== undefined && ranFeatures) {
 		const { maxMs, p99Ms, blocked } = loop.summary();
 		world.eventLogger.info(`the event loop's delay: ${maxMs} ms at most, ${p99Ms} ms at the 99th percentile, and ${blocked} stretches past ${LOOP_BLOCK_WARN_MS} ms`);
 	}
 
-	const { featureResults } = executorResult;
 	const failed = featureResults.filter(({ ok }) => !ok).length;
 	const pending = featureResults.flatMap((result) => result.pending).length;
 	const counted = `${featureResults.length - failed} features passed, ${failed} failed, and ${pending} scenarios are pending.`;
@@ -219,7 +221,7 @@ async function reportAndExit(executorResult: TExecutorResult, world: TWorld, pro
 			console.info(`\n${CHECK_YES} ${pending === 0 ? `All ${featureResults.length} features passed.` : counted}`);
 		}
 	} else {
-		console.error(`\n${counted}`);
+		if (ranFeatures) console.error(`\n${counted}`);
 		const { failure } = executorResult;
 		// A failed feature states its failure in its result, so only a phase's failure is stated here.
 		if (failure !== undefined) console.error(`\n${CHECK_NO} ${failure.stage} Error: ${failure.error.message}`);

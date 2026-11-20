@@ -106,6 +106,9 @@ export function isLowerCase(str: string) {
 
 /** Returns a diagnostic string for a thrown value. The string for a ZodError lists each issue with its path. The string for an Error contains its
  *  message, its code where set and its cause chain. The string for another value is String(value). */
+/** An error that states what a command or a config got wrong, so a report states its message without the stack of where it was read. */
+export class Refused extends Error {}
+
 export function errorDetail(err: unknown): string {
 	if (err instanceof z.ZodError) return err.issues.map((issue) => (issue.path.length ? `${issue.path.join(".")}: ${issue.message}` : issue.message)).join("; ");
 	if (!(err instanceof Error)) return String(err);

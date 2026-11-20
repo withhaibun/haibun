@@ -8,6 +8,7 @@ import type { TExecutorResult } from "../../domains/protocol.js";
 import type { AStepper } from "../domains/stepper.js";
 import { INITIAL_ACTUALITY } from "../../actuality/machines/actuality.js";
 import { runAsWork } from "../../domains/event-loop.js";
+import { Refused } from "../../domains/util.js";
 
 /** The error a phase throws once it fails. It carries the executor result that reports the failure. */
 export class PhaseBailError extends Error {
@@ -43,7 +44,7 @@ export class PhaseRunner {
 			actuality: this.world === undefined ? INITIAL_ACTUALITY : this.world.runtime.actuality.state.get(),
 			shared: this.world?.shared,
 			tag: this.world?.tag,
-			failure: { stage, error: { message: PhaseRunner.formatError(error), details: { stack: error instanceof Error ? error.stack : undefined } } },
+			failure: { stage, error: { message: PhaseRunner.formatError(error), details: error instanceof Refused ? {} : { stack: error instanceof Error ? error.stack : undefined } } },
 			steppers: this.steppers,
 			featureResults: [],
 		};
