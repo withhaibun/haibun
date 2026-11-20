@@ -31,6 +31,7 @@ import { cursorMark, rowAtCursor, timedRows, type TScrollMarker, type TTimedRows
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
 import { requestPaneFrom } from "../controllers/pane-controller.js";
 import { addsToSelection, type DesiredPane } from "../derivations/pane-kinds.js";
+import { AS_ORDERED_COLLECTION } from "@haibun/core/lib/domains/vocabularies.js";
 
 /** The source the monitor reports an artifact it couldn't show under. */
 const MONITOR_SOURCE = "shu-monitor-column";
@@ -148,7 +149,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		if (this.rows.length === 0) return null;
 		return {
 			"@id": "view:monitor",
-			"@type": "as:OrderedCollection",
+			"@type": AS_ORDERED_COLLECTION,
 			name: "actuality's live log",
 			totalItems: this.rows.length,
 			items: this.rows.map((r) => ({ time: r.time, level: r.level, step: r.step, message: r.message })),

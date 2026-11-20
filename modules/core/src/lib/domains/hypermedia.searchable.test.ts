@@ -74,13 +74,13 @@ describe("the fields a text search reads", () => {
 		expect(searchableFields({ schema, topology })).toEqual(["subject"]);
 	});
 
-	it("reads the text of a record's attribution, audience and context", () => {
+	it("reads the text of a record's attribution, addressee and context", () => {
 		const schema = z.object({ messageId: z.string(), from: z.string(), to: z.array(z.string()), folder: z.string() });
 		const topology: THypermediaTopology = {
 			persistedAs: "Message",
 			accessLevel: Access.private,
 			id: "messageId",
-			properties: { messageId: LinkRelations.IDENTIFIER.rel, from: LinkRelations.ATTRIBUTED_TO.rel, to: LinkRelations.AUDIENCE.rel, folder: LinkRelations.CONTEXT.rel },
+			properties: { messageId: LinkRelations.IDENTIFIER.rel, from: LinkRelations.ATTRIBUTED_TO.rel, to: LinkRelations.ADDRESSED_TO.rel, folder: LinkRelations.CONTEXT.rel },
 		};
 		expect(searchableFields({ schema, topology }), "a list of recipients is text, since each recipient is a string").toEqual(["folder", "from", "to"]);
 	});

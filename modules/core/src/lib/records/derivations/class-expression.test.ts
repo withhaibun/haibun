@@ -5,11 +5,12 @@
  */
 import { describe, expect, it } from "vitest";
 import { dlOf, functionalOf, nameRefusal, namesOf, parseClassExpression, readingOf, resolvedExpression, type TVocabulary } from "./class-expression.js";
+import { PROV_ENTITY, XSD_DATE_TIME, XSD_STRING } from "../../domains/vocabularies.js";
 
 describe("parseClassExpression", () => {
 	it("reads a named class, a conjunction, a disjunction, an existential and a value", () => {
 		expect(parseClassExpression("Note")).toEqual({ named: "Note" });
-		expect(parseClassExpression("Note and prov:Entity")).toEqual({ and: [{ named: "Note" }, { named: "prov:Entity" }] });
+		expect(parseClassExpression("Note and prov:Entity")).toEqual({ and: [{ named: "Note" }, { named: PROV_ENTITY }] });
 		expect(parseClassExpression("Note or Step")).toEqual({ or: [{ named: "Note" }, { named: "Step" }] });
 		expect(parseClassExpression("isPartOf some (Step or Note)")).toEqual({ property: "isPartOf", inverse: false, some: { or: [{ named: "Step" }, { named: "Note" }] } });
 		expect(parseClassExpression("isPartOf value Step:s2")).toEqual({ property: "isPartOf", inverse: false, value: "Step:s2" });
@@ -21,13 +22,13 @@ describe("parseClassExpression", () => {
 		expect(parseClassExpression('dateSent value "2026-01-01T00:00:00Z"^^xsd:dateTime')).toEqual({
 			property: "dateSent",
 			inverse: false,
-			literal: { lexical: "2026-01-01T00:00:00Z", datatype: "xsd:dateTime" },
+			literal: { lexical: "2026-01-01T00:00:00Z", datatype: XSD_DATE_TIME },
 		});
 		expect(parseClassExpression('dateSent some xsd:dateTime[>= "2026-01-01", < "2026-02-01"]')).toEqual({
 			property: "dateSent",
 			inverse: false,
 			range: {
-				datatype: "xsd:dateTime",
+				datatype: XSD_DATE_TIME,
 				facets: [
 					{ facet: ">=", literal: { lexical: "2026-01-01" } },
 					{ facet: "<", literal: { lexical: "2026-02-01" } },
@@ -37,7 +38,7 @@ describe("parseClassExpression", () => {
 		expect(parseClassExpression('subject some xsd:string[pattern "invoice"]')).toEqual({
 			property: "subject",
 			inverse: false,
-			range: { datatype: "xsd:string", facets: [{ facet: "pattern", literal: { lexical: "invoice" } }] },
+			range: { datatype: XSD_STRING, facets: [{ facet: "pattern", literal: { lexical: "invoice" } }] },
 		});
 	});
 
@@ -75,14 +76,14 @@ describe("parseClassExpression", () => {
 
 describe("names", () => {
 	const vocabulary: TVocabulary = {
-		classes: ["Step", "Note", "Email", "prov:Entity"],
+		classes: ["Step", "Note", "Email", PROV_ENTITY],
 		properties: [
 			{ name: "isPartOf", domain: ["Note"], range: ["Step"] },
 			{ name: "context", domain: [], range: [] },
 			{ name: "Email.folder", domain: ["Email"], range: [], field: "folder" },
 			{ name: "Email.account", domain: ["Email"], range: [], field: "account" },
 		],
-		ancestors: (cls) => new Set([cls, ...(cls === "Note" ? ["prov:Entity"] : [])]),
+		ancestors: (cls) => new Set([cls, ...(cls === "Note" ? [PROV_ENTITY] : [])]),
 	};
 	it("holds the ontology's names in their direction", () => {
 		expect(nameRefusal(parseClassExpression("Note and isPartOf some Step"), vocabulary)).toBeUndefined();

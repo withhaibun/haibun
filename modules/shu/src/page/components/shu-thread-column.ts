@@ -31,6 +31,7 @@ import { relatedRecords } from "../controllers/read-controller.js";
 import { LoadController } from "../controllers/load-controller.js";
 import { loadRenders } from "./load-renders.js";
 import { emptyState } from "./empty-state.js";
+import { AS_ORDERED_COLLECTION } from "@haibun/core/lib/domains/vocabularies.js";
 
 /** A collection product: its records, where it holds them, and the type it names. */
 const CollectionProductsSchema = z.looseObject({ items: RecordsSchema.optional(), [HYPERMEDIA.TYPE]: z.string().optional() });
@@ -69,7 +70,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 			const fields = Object.fromEntries(Object.entries(v).filter(([k]) => !k.startsWith("_")));
 			return inReplyTo ? { ...fields, inReplyTo } : fields;
 		});
-		return { "@id": "view:thread", "@type": "as:OrderedCollection", name: `a conversation thread of ${items.length} items`, totalItems: items.length, items };
+		return { "@id": "view:thread", "@type": AS_ORDERED_COLLECTION, name: `a conversation thread of ${items.length} items`, totalItems: items.length, items };
 	}
 
 	static styles = [

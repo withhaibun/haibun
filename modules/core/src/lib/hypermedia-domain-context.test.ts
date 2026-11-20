@@ -3,6 +3,7 @@ import { hypermediaDomainFromContext, buildConcernCatalog } from "./domains/hype
 import { Access, LinkRelations, REL_CONTEXT } from "./domains/resources.js";
 import { toRegisteredDomain } from "./domains/domains.js";
 import { fromJsonText } from "./domains/json-text.js";
+import { XSD_INTEGER } from "./domains/vocabularies.js";
 
 const iri = (rel: keyof typeof REL_CONTEXT) => REL_CONTEXT[rel];
 
@@ -44,7 +45,7 @@ describe("hypermediaDomainFromContext, declare a hypermedia domain from a JSON-L
 	it("types fields via @type (xsd:integer → number/BIGINT)", () => {
 		const { topology, schema } = hypermediaDomainFromContext(
 			"Item",
-			{ "@context": { id: "@id", qty: { "@id": iri(LinkRelations.NAME.rel), "@type": "xsd:integer" } }, "@queryable": ["qty"], "@accessLevel": Access.private },
+			{ "@context": { id: "@id", qty: { "@id": iri(LinkRelations.NAME.rel), "@type": XSD_INTEGER } }, "@queryable": ["qty"], "@accessLevel": Access.private },
 			"a feature",
 		);
 		expect(schema.safeParse({ id: "a", qty: 3 }).success).toBe(true);

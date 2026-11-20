@@ -7,6 +7,7 @@ import { embedderChannel } from "../adapters/embedder-channel.js";
 import { embeddedPageView, givenDelegation, pageAuthorityPort, pageClock, pageLog } from "../root.js";
 import { pageMay } from "../authority/controllers/page-authority-controller.js";
 import { openReportingPage, reportingTo, setupShuTest, type TReportedToRun, type TShuTestHandle } from "../../test/setup.js";
+import { OA_SPECIFIC_RESOURCE, OA_TEXT_QUOTE_SELECTOR } from "@haibun/core/lib/domains/vocabularies.js";
 
 const reported: TReportedToRun[] = [];
 let t: TShuTestHandle;
@@ -22,7 +23,7 @@ const PAGE = {
 	"@id": "https://example.com/bakery",
 	"@type": EMBEDDED_PAGE_TYPE,
 	name: "The bakery",
-	selection: { "@type": "oa:SpecificResource", source: "https://example.com/bakery", selector: { "@type": "oa:TextQuoteSelector", exact: "sourdough" } },
+	selection: { "@type": OA_SPECIFIC_RESOURCE, source: "https://example.com/bakery", selector: { "@type": OA_TEXT_QUOTE_SELECTOR, exact: "sourdough" } },
 	next: { method: "WebPlaywright-readPage", params: {} },
 } as const;
 

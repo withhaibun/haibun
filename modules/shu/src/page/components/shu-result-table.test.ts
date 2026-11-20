@@ -13,6 +13,7 @@ import type { ShuResultTable } from "./shu-result-table.js";
 import { arrayWindowedSource } from "../derivations/windowed-source.js";
 import { SHU_EVENT } from "../../domains/elements.js";
 import { declareSpec } from "../../test/catalog-fixture.js";
+import { RDF_STATEMENT } from "@haibun/core/lib/domains/vocabularies.js";
 
 type Row = Record<string, unknown>;
 
@@ -191,7 +192,7 @@ describe("shu-result-table", () => {
 	it("renders a cell that names another individual as a reference to open, not as text", async () => {
 		const el = await mount();
 		el.setResults([
-			{ "@id": "rdf:Statement/1", "@type": "rdf:Statement", subject: { "@id": "tests/a.feature.ts", "@type": "Document" }, predicate: "citesAsEvidence", outcome: "passed" },
+			{ "@id": "rdf:Statement/1", "@type": RDF_STATEMENT, subject: { "@id": "tests/a.feature.ts", "@type": "Document" }, predicate: "citesAsEvidence", outcome: "passed" },
 		]);
 		await settle(el);
 		const refs = q(el, "shu-ref");

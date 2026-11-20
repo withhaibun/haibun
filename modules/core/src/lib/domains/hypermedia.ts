@@ -126,6 +126,7 @@ const SEARCHED_RELS: ReadonlySet<string> = new Set([
 	LinkRelations.NAME.rel,
 	LinkRelations.CONTENT.rel,
 	LinkRelations.ATTRIBUTED_TO.rel,
+	LinkRelations.ADDRESSED_TO.rel,
 	LinkRelations.AUDIENCE.rel,
 	LinkRelations.CONTEXT.rel,
 ]);

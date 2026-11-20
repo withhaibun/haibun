@@ -23,6 +23,7 @@ import { NOTE, PERSON, SHARED_MAILBOX, scopeWith } from "../test/claim-scope.js"
 import { assumedClaims, claimProofs, type TAnchorCheck } from "./assumed-claims.js";
 import { proofFrames } from "../derivations/proof-frames.js";
 import { recordTermsOf } from "../derivations/n3.js";
+import { PROV_ACTIVITY, PROV_ENTITY } from "@haibun/core/lib/domains/vocabularies.js";
 
 /** A type a declaration makes both a PROV activity and a PROV entity, which PROV-O states disjoint. */
 const HYBRID = "Hybrid";
@@ -30,7 +31,7 @@ const hybridType = {
 	selectors: ["hybrid"],
 	schema: z.object({ id: z.string(), generatedAtTime: GeneratedAtTimeSchema }),
 	description: HYBRID,
-	topology: { persistedAs: HYBRID, subClassOf: ["prov:Activity", "prov:Entity"], id: "id", accessLevel: Access.private, properties: { id: LinkRelations.IDENTIFIER.rel } },
+	topology: { persistedAs: HYBRID, subClassOf: [PROV_ACTIVITY, PROV_ENTITY], id: "id", accessLevel: Access.private, properties: { id: LinkRelations.IDENTIFIER.rel } },
 };
 
 /** The check of a record's passages, which these records don't cite, so a claim doesn't call it. */

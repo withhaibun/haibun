@@ -6,6 +6,7 @@ import { CLASS_LABEL, PROPERTY_LABEL } from "@haibun/core/lib/domains/resources.
 import { LinkRelations, HAIBUN_NS, type TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
 import { principalDomainDefinition } from "@haibun/core/lib/domains/resource-domains.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
+import { AS_NAME, CRED_ISSUER, PROV_ACTIVITY, PROV_AGENT, PROV_ENTITY, PROV_GENERATED_AT_TIME, SEC_PROOF } from "@haibun/core/lib/domains/vocabularies.js";
 
 const edge = (quads: ReturnType<typeof ontologyToQuads>["quads"], predicate: string, from: string, to: string): boolean =>
 	quads.some((q) => q.predicate === predicate && q.subject === from && q.object === to && q.objectType !== undefined);
@@ -35,15 +36,15 @@ describe("ontologyToQuads: the schema rendered as a graph", () => {
 		const { quads, clusters } = ontologyToQuads(domains);
 		const classes = clusters.find((c) => c.type === CLASS_LABEL);
 		expect(classes?.sampledSubjects).toContain("Principal");
-		expect(classes?.sampledSubjects).toContain("prov:Agent"); // the superclass is its own node
-		expect(edge(quads, ONTOLOGY_FIELD.subClassOf, "Principal", "prov:Agent")).toBe(true);
+		expect(classes?.sampledSubjects).toContain(PROV_AGENT); // the superclass is its own node
+		expect(edge(quads, ONTOLOGY_FIELD.subClassOf, "Principal", PROV_AGENT)).toBe(true);
 	});
 
 	it("states a declared type's Class record with its domain's description, and leaves a standard-vocabulary superclass undescribed", () => {
 		const { quads } = ontologyToQuads({ p: principalDomainDefinition as unknown as TRegisteredDomain });
 		const descriptionOf = (cls: string): unknown => quads.find((q) => q.subject === cls && q.predicate === ONTOLOGY_FIELD.description && q.namedGraph === CLASS_LABEL)?.object;
 		expect(descriptionOf("Principal")).toBe(principalDomainDefinition.description);
-		expect(descriptionOf("prov:Agent")).toBeUndefined();
+		expect(descriptionOf(PROV_AGENT)).toBeUndefined();
 	});
 
 	it("renders the property hierarchy even without domains (LinkRelations alone)", () => {
@@ -85,15 +86,15 @@ describe("ontologyToQuads: the schema rendered as a graph", () => {
 
 describe("pruneOntologyToUse: the served schema is the part the data exercises", () => {
 	const schemaTerm: TQuad = { subject: "Document", predicate: ONTOLOGY_FIELD.name, object: "Document", namedGraph: CLASS_LABEL, timestamp: 0 };
-	const superTerm: TQuad = { subject: "Document", predicate: ONTOLOGY_FIELD.subClassOf, object: "prov:Entity", namedGraph: CLASS_LABEL, objectType: CLASS_LABEL, timestamp: 0 };
-	const superName: TQuad = { subject: "prov:Entity", predicate: ONTOLOGY_FIELD.name, object: "prov:Entity", namedGraph: CLASS_LABEL, timestamp: 0 };
+	const superTerm: TQuad = { subject: "Document", predicate: ONTOLOGY_FIELD.subClassOf, object: PROV_ENTITY, namedGraph: CLASS_LABEL, objectType: CLASS_LABEL, timestamp: 0 };
+	const superName: TQuad = { subject: PROV_ENTITY, predicate: ONTOLOGY_FIELD.name, object: PROV_ENTITY, namedGraph: CLASS_LABEL, timestamp: 0 };
 	const unusedTerm: TQuad = { subject: "NeverInstantiated", predicate: ONTOLOGY_FIELD.name, object: "NeverInstantiated", namedGraph: CLASS_LABEL, timestamp: 0 };
 	const usedProp: TQuad = { subject: "issuer", predicate: ONTOLOGY_FIELD.name, object: "issuer", namedGraph: PROPERTY_LABEL, timestamp: 0 };
 	const instance: TQuad = { subject: "doc-1", predicate: "issuer", object: "did:x", namedGraph: "Document", timestamp: 0 };
 	const ontology = {
 		quads: [schemaTerm, superTerm, superName, unusedTerm, usedProp],
 		clusters: [
-			{ type: CLASS_LABEL, totalCount: 3, sampledCount: 3, omittedCount: 0, sampledSubjects: ["Document", "prov:Entity", "NeverInstantiated"], displayLabels: {} },
+			{ type: CLASS_LABEL, totalCount: 3, sampledCount: 3, omittedCount: 0, sampledSubjects: ["Document", PROV_ENTITY, "NeverInstantiated"], displayLabels: {} },
 			{ type: PROPERTY_LABEL, totalCount: 1, sampledCount: 1, omittedCount: 0, sampledSubjects: ["issuer"], displayLabels: {} },
 		],
 	};
@@ -102,7 +103,7 @@ describe("pruneOntologyToUse: the served schema is the part the data exercises",
 		const pruned = pruneOntologyToUse(ontology, [instance]);
 		const subjects = pruned.quads.map((q) => q.subject);
 		expect(subjects).toContain("Document"); // its instance exercises it
-		expect(subjects).toContain("prov:Entity"); // a used leaf pulls in its ancestors
+		expect(subjects).toContain(PROV_ENTITY); // a used leaf pulls in its ancestors
 		expect(subjects).toContain("issuer"); // the instance's predicate
 		expect(subjects).not.toContain("NeverInstantiated");
 	});
@@ -110,7 +111,7 @@ describe("pruneOntologyToUse: the served schema is the part the data exercises",
 	it("cluster counts match the pruned subjects so the chips read the exercised subset", () => {
 		const pruned = pruneOntologyToUse(ontology, [instance]);
 		const classes = pruned.clusters.find((c) => c.type === CLASS_LABEL);
-		expect(classes?.sampledSubjects.sort()).toEqual(["Document", "prov:Entity"]);
+		expect(classes?.sampledSubjects.sort()).toEqual(["Document", PROV_ENTITY]);
 		expect(classes?.totalCount).toBe(2);
 		expect(pruned.clusters.find((c) => c.type === PROPERTY_LABEL)?.totalCount).toBe(1);
 	});
@@ -154,8 +155,8 @@ describe("scopeSchemaToType: one type's own vocabulary", () => {
 	});
 	const quads: TQuad[] = [
 		q("Issuer", ONTOLOGY_FIELD.name, "Issuer", CLASS_LABEL),
-		q("Issuer", ONTOLOGY_FIELD.subClassOf, "prov:Agent", CLASS_LABEL, CLASS_LABEL),
-		q("prov:Agent", ONTOLOGY_FIELD.name, "prov:Agent", CLASS_LABEL),
+		q("Issuer", ONTOLOGY_FIELD.subClassOf, PROV_AGENT, CLASS_LABEL, CLASS_LABEL),
+		q(PROV_AGENT, ONTOLOGY_FIELD.name, PROV_AGENT, CLASS_LABEL),
 		q("did", ONTOLOGY_FIELD.domain, "Issuer", PROPERTY_LABEL, CLASS_LABEL),
 		q("did", ONTOLOGY_FIELD.name, "did", PROPERTY_LABEL),
 		q("Email", ONTOLOGY_FIELD.name, "Email", CLASS_LABEL),
@@ -166,7 +167,7 @@ describe("scopeSchemaToType: one type's own vocabulary", () => {
 	it("keeps the type, its superclass, and its properties (their domain edges point at it) with their labels", () => {
 		const scoped = scopeSchemaToType(quads, "Issuer");
 		const subjects = new Set(scoped.filter((x) => isSchemaType(x.namedGraph)).map((x) => x.subject));
-		expect([...subjects].sort()).toEqual(["Issuer", "did", "prov:Agent"]);
+		expect([...subjects].sort()).toEqual(["Issuer", "did", PROV_AGENT]);
 	});
 
 	it("drops unrelated schema terms but passes non-schema quads through untouched", () => {
@@ -183,12 +184,12 @@ describe("propertyVocabulary: a property's provenance from its IRI", () => {
 		expect(isHaibunTerm("hbn:accessLevel")).toBe(true);
 	});
 	it("classifies every other vocabulary by its own prefix, standards and consumer vocabularies alike, without a closed set", () => {
-		expect(propertyVocabulary("cred:issuer")).toEqual({ source: "standard", prefix: "cred" });
-		expect(propertyVocabulary("prov:generatedAtTime")).toEqual({ source: "standard", prefix: "prov" });
-		expect(propertyVocabulary("as:name").source).toBe("standard");
+		expect(propertyVocabulary(CRED_ISSUER)).toEqual({ source: "standard", prefix: "cred" });
+		expect(propertyVocabulary(PROV_GENERATED_AT_TIME)).toEqual({ source: "standard", prefix: "prov" });
+		expect(propertyVocabulary(AS_NAME).source).toBe("standard");
 		// a consumer's own sub-vocabulary is NOT haibun's: it is identified by its own prefix, not hardcoded anywhere.
 		expect(propertyVocabulary("ex:SomeType")).toEqual({ source: "standard", prefix: "ex" });
-		expect(isHaibunTerm("sec:proof")).toBe(false);
+		expect(isHaibunTerm(SEC_PROOF)).toBe(false);
 	});
 });
 
@@ -200,18 +201,18 @@ const catDomain = (persistedAs: string, subClassOf?: string): TRegisteredDomain 
 
 describe("category designation, read off the standard subClassOf axioms", () => {
 	it("stamps each class with its PROV/SOSA anchor category, defaulting to artifact, and the meta class carries its own", () => {
-		const { quads } = ontologyToQuads({ a: catDomain("Party", "prov:Agent"), b: catDomain("Verification", "prov:Activity"), c: catDomain("Record") });
+		const { quads } = ontologyToQuads({ a: catDomain("Party", PROV_AGENT), b: catDomain("Verification", PROV_ACTIVITY), c: catDomain("Record") });
 		const cat = (cls: string): unknown => quads.find((q) => q.subject === cls && q.predicate === ONTOLOGY_FIELD.category)?.object;
 		expect(cat("Party")).toBe("agent");
 		expect(cat("Verification")).toBe("activity");
 		expect(cat("Record")).toBe("artifact");
-		expect(cat("prov:Agent")).toBe("agent");
-		expect(cat("prov:Activity")).toBe("activity");
+		expect(cat(PROV_AGENT)).toBe("agent");
+		expect(cat(PROV_ACTIVITY)).toBe("activity");
 	});
 	it("categoryOf reaches the anchor transitively; an unanchored term is an artifact", () => {
 		const supers = new Map([
 			["Sub", ["Mid"]],
-			["Mid", ["prov:Agent"]],
+			["Mid", [PROV_AGENT]],
 		]);
 		expect(categoryOf("Sub", supers)).toBe("agent");
 		expect(categoryOf("Loose", supers)).toBe("artifact");

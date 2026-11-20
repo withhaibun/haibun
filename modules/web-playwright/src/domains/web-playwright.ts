@@ -1,5 +1,5 @@
 /** The browser's domains: the ways a step locates an element, what reading a page and a response returns, the HTTP and network records the page's observer keeps, and the options a step takes. */
-import { FOAF_DOCUMENT, NAMESPACE, PROV_ENTITY } from "@haibun/core/lib/domains/vocabularies.js";
+import { AS_APPLICATION, AS_SERVICE, FOAF_DOCUMENT, HTTP_REQUEST, NAMESPACE, PROV_ENTITY, SCHEMA_WEB_PAGE } from "@haibun/core/lib/domains/vocabularies.js";
 import { HYPERMEDIA } from "@haibun/core/lib/domains/protocol.js";
 import { RecordSchema, RecordsSchema } from "@haibun/core/lib/domains/json-text.js";
 import { listOf } from "@haibun/core/lib/domains/lists.js";
@@ -457,7 +457,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 			accessLevel: Access.private,
 			instrumentation: true,
 			observesActuality: true,
-			type: "http:Request",
+			type: HTTP_REQUEST,
 			id: "id",
 			namespaces: HTTP_NS,
 			properties: {
@@ -486,7 +486,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 			accessLevel: Access.private,
 			instrumentation: true,
 			observesActuality: true,
-			type: "as:Application",
+			type: AS_APPLICATION,
 			id: "id",
 			properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel },
 			displayLabel: "name",
@@ -501,7 +501,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 			accessLevel: Access.private,
 			instrumentation: true,
 			observesActuality: true,
-			type: "as:Service",
+			type: AS_SERVICE,
 			id: "id",
 			properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, requestCount: LinkRelations.TAG.rel },
 			displayLabel: "name",
@@ -516,7 +516,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 			accessLevel: Access.private,
 			instrumentation: true,
 			observesActuality: true,
-			type: "schema:WebPage",
+			type: SCHEMA_WEB_PAGE,
 			subClassOf: [FOAF_DOCUMENT, PROV_ENTITY],
 			id: "id",
 			keys: [{ address: ["page", "navigation", "generatedAtTime"] }],

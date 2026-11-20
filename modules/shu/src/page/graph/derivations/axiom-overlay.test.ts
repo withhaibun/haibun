@@ -7,6 +7,7 @@ import { CLASS_LABEL, PROPERTY_LABEL } from "@haibun/core/lib/domains/resources.
 import { ONTOLOGY_FIELD } from "@haibun/core/lib/records/domains/ontology.js";
 import { graphAxioms } from "../../../derivations/graph-axioms.js";
 import type { GraphModel } from "../../../domains/graph-model.js";
+import { PROV_ENTITY } from "@haibun/core/lib/domains/vocabularies.js";
 
 const DRAWN: TDrawn = { nodes: ["e1", "Email"], edges: [{ from: "e1", predicate: "type", to: "Email" }] };
 const frame = (kind: (typeof FRAME_KIND)[keyof typeof FRAME_KIND], name: string, dl: string, extra: object = {}) => ({
@@ -30,7 +31,7 @@ const AXIOMS: TGraphAxioms = {
 				{ from: "e9", label: "type", to: "Email" },
 			],
 		}),
-		frame(FRAME_KIND.individual, "Individual e1", "Email(e1)", { nodes: ["e1"], assertedBy: { persistedAs: "Email", id: "e1" }, entailed: ["prov:Entity"] }),
+		frame(FRAME_KIND.individual, "Individual e1", "Email(e1)", { nodes: ["e1"], assertedBy: { persistedAs: "Email", id: "e1" }, entailed: [PROV_ENTITY] }),
 		frame(FRAME_KIND.individual, "Individual e9", "Email(e9)", { nodes: ["e9"], assertedBy: { persistedAs: "Email", id: "e9" } }),
 	],
 };
@@ -63,7 +64,7 @@ describe("the DL view of a graph", () => {
 		edges: [{ from: "m2", to: "m1", predicate: "inReplyTo", graph: "Email" }],
 	};
 	const ONTOLOGY = [
-		{ subject: "Email", predicate: ONTOLOGY_FIELD.subClassOf, object: "prov:Entity" },
+		{ subject: "Email", predicate: ONTOLOGY_FIELD.subClassOf, object: PROV_ENTITY },
 		{ subject: "inReplyTo", predicate: ONTOLOGY_FIELD.domain, object: "Email" },
 	];
 	const drawn: TDrawn = { nodes: MODEL.nodes.map(({ id }) => id), edges: MODEL.edges };

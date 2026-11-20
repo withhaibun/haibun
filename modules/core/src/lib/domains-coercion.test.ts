@@ -8,6 +8,7 @@ import { Origin, TStepValue } from "./domains/protocol.js";
 import { FeatureVariables } from "./actuality/pipelines/feature-variables.js";
 import { fromJsonText } from "./domains/json-text.js";
 import { DOMAIN_GRAPH_QUERY, type TGraphQuery } from "./steps/domains/quad-types.js";
+import { STRING_TEST_VALUE } from "./domains/vocabularies.js";
 
 const p = (value: string, domain = DOMAIN_STRING): TStepValue => ({ term: String(value), value, domain, origin: Origin.var });
 
@@ -89,7 +90,7 @@ describe("domain coercion", () => {
 
 		it("uses resolved domain context for coercion - string domain", () => {
 			const result = domainOf(asDomainKey(mixed), testWorld).coerce(p("test-value"));
-			expect(result).toBe("string:test-value");
+			expect(result).toBe(STRING_TEST_VALUE);
 		});
 	});
 

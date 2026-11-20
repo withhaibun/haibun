@@ -12,6 +12,7 @@ import { describe, expect, it } from "vitest";
 import { expectWithinBaseline, REPOSITORY_SCAN_MS } from "./baseline.js";
 import { adapterAssertionFindings, codeKindFindings, privateImportFindings, UNPOSITIONED, type TPrivateModules } from "./code-kinds.js";
 import { composeFiles, defaultFindings } from "./default-rules.js";
+import { compactIriFindings, repeatedTermFindings } from "./literal-rules.js";
 import { brokenPaths, linksAndParentPaths, optionAssignments, trackedFiles, untrackedRecords } from "./group-rules.js";
 import { requiredAction } from "../domains/actions.js";
 import { constructorName } from "../domains/util.js";
@@ -126,6 +127,15 @@ export function describeRepositoryRules(rules: TRepositoryRules): void {
 			it("doesn't state a default value, apart from what defaults.baseline.json records (CR8)", async () => {
 				const fix = "refuse the absent value with a message that names what supplies it, or type it as optional and read its absence by name";
 				await expectWithinBaseline({ baselineFile: baseline("defaults"), found: defaultFindings(repository, sources, composeFiles(repository)), testFile, fix });
+			});
+
+			it("names each compact IRI through the constant vocabularies.ts declares for it", () => {
+				expect(described(compactIriFindings(sources)), "import the IRI's constant from vocabularies.ts, and declare it there where it isn't declared").toEqual([]);
+			});
+
+			it("names each term a file writes more than once through a constant, apart from what repeated-terms.baseline.json records", async () => {
+				const fix = "declare the term once as a constant, in the domain that holds the concept, and name it through the constant";
+				await expectWithinBaseline({ baselineFile: baseline("repeated-terms"), found: repeatedTermFindings(sources), testFile, fix });
 			});
 
 			it("reaches step dispatch and a step's action only through the logic engine's prover, apart from what one-path.baseline.json records", async () => {

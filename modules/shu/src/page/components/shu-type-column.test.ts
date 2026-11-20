@@ -4,6 +4,7 @@ import { type TCatalogSpec, declareSpec } from "../../test/catalog-fixture.js";
 import { describe, it, expect, beforeAll } from "vitest";
 import "./shu-type-column.js";
 import { getUiPresenting, isSystemSchemaType } from "../controllers/catalog-controller.js";
+import { SCHEMA_PERSON } from "@haibun/core/lib/domains/vocabularies.js";
 
 /** A two-type vocabulary: Issuer --assertionMethod--> VerificationMethod, both declaring a literal `name`. */
 const META: TCatalogSpec = {
@@ -31,7 +32,7 @@ describe("getUiPresenting, discovering the site's presenter for a capability", (
 	});
 
 	it("flags a haibun-namespace type as a system schema, a standard-vocabulary type not", () => {
-		declareSpec({ ...META, types: [...META.types, "SeqPath", "Person"], classIris: { SeqPath: "hbn:SeqPath", Person: "schema:Person" } });
+		declareSpec({ ...META, types: [...META.types, "SeqPath", "Person"], classIris: { SeqPath: "hbn:SeqPath", Person: SCHEMA_PERSON } });
 		expect(isSystemSchemaType("SeqPath")).toBe(true); // hbn: is haibun's own vocabulary
 		expect(isSystemSchemaType("Person")).toBe(false); // schema: is a standard
 		expect(isSystemSchemaType("Agent")).toBe(false); // it doesn't declare a class IRI

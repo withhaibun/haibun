@@ -41,6 +41,7 @@ import {
 import { renderedAt } from "../derivations/rendered-rows.js";
 import { ClockController } from "../../controllers/clock-controller.js";
 import { TimelineViewController } from "../../controllers/timeline-view-controller.js";
+import { AS_NOTE } from "@haibun/core/lib/domains/vocabularies.js";
 
 /** The name of the delay before the column reads the device again. */
 const DEVICE_READ = "device-read";
@@ -158,7 +159,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 	summarizeForContext(): TLinkedData | null {
 		return {
 			"@id": "view:client-cache",
-			"@type": "as:Note",
+			"@type": AS_NOTE,
 			name: "what this page caches of actuality",
 			cursor: this.#timeline.cursor,
 			registry: registryOrigin(),

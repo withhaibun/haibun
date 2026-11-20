@@ -40,6 +40,7 @@ import { ShuProductView } from "./shu-product-view.js";
 import { appAccessLevel } from "../controllers/view-query-controller.js";
 import { renderRefProse } from "../derivations/markdown-render.js";
 import "./shu-result-table.js";
+import { RDFS_CLASS } from "@haibun/core/lib/domains/vocabularies.js";
 
 const TypeColumnSchema = z.object({ persistedAs: z.string(), showControls: z.boolean() });
 
@@ -52,7 +53,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		const type = this.state.persistedAs;
 		if (!type) return null;
 		const description = getTypeDescription(type);
-		return { "@id": type, "@type": "rdfs:Class", name: type, ...(description ? { description } : {}), instanceCount: this.#instances.count(), instances: this.#read() };
+		return { "@id": type, "@type": RDFS_CLASS, name: type, ...(description ? { description } : {}), instanceCount: this.#instances.count(), instances: this.#read() };
 	}
 
 	static styles = [

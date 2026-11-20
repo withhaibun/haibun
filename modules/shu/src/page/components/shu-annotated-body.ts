@@ -47,6 +47,7 @@ import { BODY_READING_STYLE } from "../derivations/markdown.js";
 import { renderContentHtml, refSanitizeOptions } from "../derivations/markdown-render.js";
 import { refContext } from "../controllers/catalog-controller.js";
 import type { TWritten } from "../pipelines/call-step.js";
+import { AS_DOCUMENT } from "@haibun/core/lib/domains/vocabularies.js";
 
 /** How long a quoted passage stays marked after the view reveals it, and the name of that delay. */
 /** The class of the passage the body shows selected. */
@@ -151,7 +152,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 		}));
 		return {
 			"@id": this.sourceId || "view:annotated-body",
-			"@type": "as:Document",
+			"@type": AS_DOCUMENT,
 			name: this.sourceLabel || "an annotated document body",
 			mediaType: this.mediaType,
 			content: this.content,

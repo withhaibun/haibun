@@ -11,7 +11,7 @@ import { ontologyToQuads } from "./ontology.js";
 import { ontologyOwl } from "./owl.js";
 import { DataFactory, Parser, Store } from "n3";
 import type { NamedNode, Quad_Object, Term } from "@rdfjs/types";
-import { OWL, RDF, RDFS } from "../../domains/vocabularies.js";
+import { CRED_THING, OWL, PROV_AGENT, PROV_ENTITY, RDF, RDFS } from "../../domains/vocabularies.js";
 
 const { namedNode, quad, literal } = DataFactory;
 
@@ -21,18 +21,18 @@ const typeOf = (persistedAs: string, extra: { subClassOf?: string }) => ({
 	description: persistedAs,
 	topology: {
 		persistedAs,
-		type: "prov:Entity",
+		type: PROV_ENTITY,
 		id: "id",
 		accessLevel: Access.private,
 		properties: { id: LinkRelations.IDENTIFIER.rel, content: LinkRelations.CONTENT.rel },
 		...extra,
 	},
 });
-const domains = mapDefinitionsToDomains([typeOf("Note", {}), typeOf("Memo", { subClassOf: "prov:Agent" })]);
+const domains = mapDefinitionsToDomains([typeOf("Note", {}), typeOf("Memo", { subClassOf: PROV_AGENT })]);
 const context = getJsonLdContext(domains)["@context"];
 const owl = new Store(new Parser().parse(ontologyOwl(ontologyToQuads(domains), context)));
 const ref = (term: string) => namedNode(iriIn(context, term));
-const [note, memo, entity, agent, content] = [ref("Note"), ref("Memo"), ref("prov:Entity"), ref("prov:Agent"), ref(LinkRelations.CONTENT.uri)];
+const [note, memo, entity, agent, content] = [ref("Note"), ref("Memo"), ref(PROV_ENTITY), ref(PROV_AGENT), ref(LinkRelations.CONTENT.uri)];
 const holds = (subject: Term, predicate: string, object: Term): boolean => owl.has(quad(subject as NamedNode, namedNode(predicate), object as Quad_Object));
 
 describe("ontologyOwl", () => {
@@ -72,7 +72,7 @@ describe("ontologyOwl", () => {
 	});
 
 	it("refuses a CURIE whose prefix the context doesn't bind", () => {
-		expect(() => iriIn(context, "cred:Thing")).toThrow(/the prefix cred of cred:Thing isn't bound/);
+		expect(() => iriIn(context, CRED_THING)).toThrow(/the prefix cred of cred:Thing isn't bound/);
 	});
 
 	it("writes a class the ontology record states a description for as its rdfs:comment, and leaves an undescribed class uncommented", () => {

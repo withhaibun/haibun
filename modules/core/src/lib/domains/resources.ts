@@ -18,7 +18,88 @@
  */
 import { itemAt } from "./item-at.js";
 import { stripTrailingSlash } from "./local-origin.js";
-import { PROV_ENTITY } from "./vocabularies.js";
+import {
+	AS_ATTACHMENT,
+	AS_ATTRIBUTED_TO,
+	AS_AUDIENCE,
+	AS_CONTENT,
+	AS_CONTEXT,
+	AS_IN_REPLY_TO,
+	AS_MEDIA_TYPE,
+	AS_NAME,
+	AS_OBJECT,
+	AS_PUBLISHED,
+	AS_TAG,
+	AS_TARGET,
+	AS_TO,
+	AS_UPDATED,
+	AS_URL,
+	CITO_CITES,
+	CITO_CITES_AS_EVIDENCE,
+	DCTERMS_CONFORMS_TO,
+	DCTERMS_IDENTIFIER,
+	DCTERMS_REPLACES,
+	DCTERMS_REQUIRES,
+	EARL_OUTCOME_PROPERTY,
+	OA_ANNOTATION,
+	OA_EXACT,
+	OA_HAS_BODY,
+	OA_HAS_SELECTOR,
+	OA_HAS_SOURCE,
+	OA_HAS_TARGET,
+	OA_PREFIX,
+	OA_SUFFIX,
+	OWL_DISJOINT_WITH,
+	PROV_ENDED_AT_TIME,
+	PROV_ENTITY,
+	PROV_GENERATED_AT_TIME,
+	PROV_INVALIDATED,
+	PROV_STARTED_AT_TIME,
+	PROV_USED,
+	PROV_WAS_ASSOCIATED_WITH,
+	PROV_WAS_ATTRIBUTED_TO,
+	PROV_WAS_DERIVED_FROM,
+	PROV_WAS_ENDED_BY,
+	PROV_WAS_GENERATED_BY,
+	PROV_WAS_INFORMED_BY,
+	PROV_WAS_STARTED_BY,
+	RDFS_COMMENT,
+	RDFS_IS_DEFINED_BY,
+	RDFS_LABEL,
+	RDFS_SUB_CLASS_OF,
+	RDFS_SUB_PROPERTY_OF,
+	RDF_VALUE,
+	SCHEMA_ACTION_STATUS,
+	SCHEMA_AUTHOR,
+	SCHEMA_DOMAIN_INCLUDES,
+	SCHEMA_DURATION,
+	SCHEMA_ERROR,
+	SCHEMA_IS_PART_OF,
+	SCHEMA_IS_RELATED_TO,
+	SCHEMA_MENTIONS,
+	SCHEMA_OBJECT,
+	SCHEMA_RANGE_INCLUDES,
+	SCHEMA_REPLACEE,
+	SCHEMA_REPLACEMENT,
+	SCHEMA_RESULT,
+	SCHEMA_SAME_AS,
+	SCHEMA_SHA256,
+	SCHEMA_STEP,
+	SEC_ALLOWED_ACTION,
+	SEC_CAPABILITY_ACTION,
+	SEC_CAPABILITY_PROPERTY,
+	SEC_CONTROLLER_PROPERTY,
+	SEC_EXPIRATION,
+	SEC_PROOF,
+	SEC_PUBLIC_KEY_MULTIBASE,
+	SEC_REVOKED,
+	SOSA_HAS_RESULT,
+	SOSA_MADE_BY_SENSOR,
+	SOSA_OBSERVED_PROPERTY,
+	SOSA_PHENOMENON_TIME,
+	SOSA_RESULT_TIME,
+	DID_SERVICE,
+} from "./vocabularies.js";
 import { z } from "zod";
 import { MEDIA_TYPE } from "./media-types.js";
 import { FragmentSchema, isFragment } from "./media-fragments.js";
@@ -277,94 +358,97 @@ type TRelPresentation = "summary" | "body" | "governance";
  */
 
 export const LinkRelations = {
-	NAME: { rel: "name", uri: "as:name", range: "literal", presentation: "summary" as TRelPresentation },
+	NAME: { rel: "name", uri: AS_NAME, range: "literal", presentation: "summary" as TRelPresentation },
 	// schema.org: the ordered steps of a HowTo. A saved waypoint's activity holds the lines it runs in this rel.
-	STEP: { rel: "step", uri: "schema:step", range: "container" },
-	PUBLISHED: { rel: "published", uri: "as:published", range: "literal", subPropertyOf: "ganttStart" },
-	ATTRIBUTED_TO: { rel: "attributedTo", uri: "as:attributedTo", range: "iri", subPropertyOf: "fromActor", rolePriority: 10 },
+	STEP: { rel: "step", uri: SCHEMA_STEP, range: "container" },
+	PUBLISHED: { rel: "published", uri: AS_PUBLISHED, range: "literal", subPropertyOf: "ganttStart" },
+	ATTRIBUTED_TO: { rel: "attributedTo", uri: AS_ATTRIBUTED_TO, range: "iri", subPropertyOf: "fromActor", rolePriority: 10 },
 	// The addressee of an act: a message's recipients, a question's addressee, or the requester to whom a decision responds.
-	// It is a toActor member, so an addressed act reads as a message from its attributed agent to its audience.
-	AUDIENCE: { rel: "audience", uri: "as:to", range: "iri", subPropertyOf: "toActor", rolePriority: 45 },
-	CONTEXT: { rel: "groupedAs", uri: "as:context", range: "container" },
-	UPDATED: { rel: "updated", uri: "as:updated", range: "literal" },
-	CONTENT: { rel: "content", uri: "as:content", range: "literal", presentation: "body" as TRelPresentation },
-	HAS_BODY: { rel: "hasBody", uri: "oa:hasBody", range: "iri", presentation: "body" as TRelPresentation },
-	TARGET: { rel: "hasTarget", uri: "oa:hasTarget", range: "iri" },
-	MEDIA_TYPE: { rel: "mediaType", uri: "as:mediaType", range: "literal" },
+	// It is a toActor member, so an addressed act reads as a message from its attributed agent to its addressee.
+	ADDRESSED_TO: { rel: "addressedTo", uri: AS_TO, range: "iri", subPropertyOf: "toActor", rolePriority: 45 },
+	// The actors to which an object is relevant, which ActivityStreams states as `audience` apart from the addressee: the group in
+	// which a message is posted, or the verifier for which a presentation is made. It is a toActor member, after the addressee.
+	AUDIENCE: { rel: "audience", uri: AS_AUDIENCE, range: "iri", subPropertyOf: "toActor", rolePriority: 46 },
+	CONTEXT: { rel: "groupedAs", uri: AS_CONTEXT, range: "container" },
+	UPDATED: { rel: "updated", uri: AS_UPDATED, range: "literal" },
+	CONTENT: { rel: "content", uri: AS_CONTENT, range: "literal", presentation: "body" as TRelPresentation },
+	HAS_BODY: { rel: "hasBody", uri: OA_HAS_BODY, range: "iri", presentation: "body" as TRelPresentation },
+	TARGET: { rel: "hasTarget", uri: OA_HAS_TARGET, range: "iri" },
+	MEDIA_TYPE: { rel: "mediaType", uri: AS_MEDIA_TYPE, range: "literal" },
 	/** The SHA-256 of a Body's forms, which an anchor into the Body's record states as the text it quoted. */
-	CONTENT_DIGEST: { rel: "contentDigest", uri: "schema:sha256", range: "literal" },
+	CONTENT_DIGEST: { rel: "contentDigest", uri: SCHEMA_SHA256, range: "literal" },
 	/** The digest of the Bodies of an anchor's source as the anchor's writer read them, which a store compares with the Bodies it holds. */
 	SOURCE_DIGEST: { rel: "sourceDigest", uri: "hbn:sourceDigest", range: "literal" },
-	IN_REPLY_TO: { rel: "inReplyTo", uri: "as:inReplyTo", range: "iri" },
-	ATTACHMENT: { rel: "attachment", uri: "as:attachment", range: "iri" },
-	TAG: { rel: "tag", uri: "as:tag", range: "literal" },
-	IDENTIFIER: { rel: "identifier", uri: "dcterms:identifier", range: "iri" },
-	URL: { rel: "url", uri: "as:url", range: "literal" },
+	IN_REPLY_TO: { rel: "inReplyTo", uri: AS_IN_REPLY_TO, range: "iri" },
+	ATTACHMENT: { rel: "attachment", uri: AS_ATTACHMENT, range: "iri" },
+	TAG: { rel: "tag", uri: AS_TAG, range: "literal" },
+	IDENTIFIER: { rel: "identifier", uri: DCTERMS_IDENTIFIER, range: "iri" },
+	URL: { rel: "url", uri: AS_URL, range: "literal" },
 	// schema.org: a work references an entity it names but doesn't describe (schema:mentions). A body-bearing individual,
 	// such as an email or a document, has this edge to each person, place, organization or other entity extracted from it.
 	// An untyped link also states this rel. A link whose text doesn't name a property type still indicates that the text refers to its target.
-	MENTIONS: { rel: "mentions", uri: "schema:mentions", range: "iri" },
+	MENTIONS: { rel: "mentions", uri: SCHEMA_MENTIONS, range: "iri" },
 	// CiTO (Citation Typing Ontology): one work cites another. The refinement states that the citing work offers the cited
 	// passage as evidence for its statements. A feature that cites the requirement it exercises states the refinement, so
 	// "which requirements are evidenced" is a query over stored facts and not a naming convention.
-	CITES: { rel: "cites", uri: "cito:cites", range: "iri" },
-	CITES_AS_EVIDENCE: { rel: "citesAsEvidence", uri: "cito:citesAsEvidence", range: "iri", subPropertyOf: "cites" },
+	CITES: { rel: "cites", uri: CITO_CITES, range: "iri" },
+	CITES_AS_EVIDENCE: { rel: "citesAsEvidence", uri: CITO_CITES_AS_EVIDENCE, range: "iri", subPropertyOf: "cites" },
 	// W3C Web Annotation (oa:) anchors an annotation inside its source. An annotating Comment's hasTarget points at an
 	// oa:SpecificResource. The SpecificResource names the whole document (hasSource) and the anchored segment
 	// (hasSelector). The segment is a TextQuoteSelector whose exact, prefix and suffix quote the text, so the anchor
 	// remains valid after re-import and re-rendering.
-	HAS_SOURCE: { rel: "hasSource", uri: "oa:hasSource", range: "iri" },
-	HAS_SELECTOR: { rel: "hasSelector", uri: "oa:hasSelector", range: "iri" },
-	EXACT: { rel: "exact", uri: "oa:exact", range: "literal", presentation: "summary" as TRelPresentation },
-	PREFIX: { rel: "prefix", uri: "oa:prefix", range: "literal" },
-	SUFFIX: { rel: "suffix", uri: "oa:suffix", range: "literal" },
+	HAS_SOURCE: { rel: "hasSource", uri: OA_HAS_SOURCE, range: "iri" },
+	HAS_SELECTOR: { rel: "hasSelector", uri: OA_HAS_SELECTOR, range: "iri" },
+	EXACT: { rel: "exact", uri: OA_EXACT, range: "literal", presentation: "summary" as TRelPresentation },
+	PREFIX: { rel: "prefix", uri: OA_PREFIX, range: "literal" },
+	SUFFIX: { rel: "suffix", uri: OA_SUFFIX, range: "literal" },
 	// A FragmentSelector locates a part of a document or media by a fragment of its address (rdf:value), in the form the
 	// specification it names (dcterms:conformsTo) defines: a PDF's page, a span of audio or video, a region of an image.
-	VALUE: { rel: "value", uri: "rdf:value", range: "literal", presentation: "summary" as TRelPresentation },
-	CONFORMS_TO: { rel: "conformsTo", uri: "dcterms:conformsTo", range: "iri" },
+	VALUE: { rel: "value", uri: RDF_VALUE, range: "literal", presentation: "summary" as TRelPresentation },
+	CONFORMS_TO: { rel: "conformsTo", uri: DCTERMS_CONFORMS_TO, range: "iri" },
 	// A linking annotation (oa:motivation oa:linking) is a cross-reference. The note anchored at one passage points at
 	// another passage in the same source. It is an edge from the annotating Comment to the linked SpecificResource, so a
 	// reader who follows the note reaches the section it references.
-	LINKS_TO: { rel: "linksTo", uri: "oa:hasBody", range: "iri" },
+	LINKS_TO: { rel: "linksTo", uri: OA_HAS_BODY, range: "iri" },
 	// PROV-O: provenance and lineage
 	// Entity → the responsible Agent: the party a node is attributed to, or the instance that produced it. It is the
 	// provenance attribution edge. It is a role attribution through fromActor, and fromActor is a sub-property of the
 	// broad role super-property inRoleOf below. The polymorphic view's HypermediaRole grouping axis therefore derives it
 	// (see roleRels).
-	WAS_ATTRIBUTED_TO: { rel: "wasAttributedTo", uri: "prov:wasAttributedTo", range: "iri", subPropertyOf: "fromActor", rolePriority: 20 },
-	WAS_GENERATED_BY: { rel: "wasGeneratedBy", uri: "prov:wasGeneratedBy", range: "iri" },
+	WAS_ATTRIBUTED_TO: { rel: "wasAttributedTo", uri: PROV_WAS_ATTRIBUTED_TO, range: "iri", subPropertyOf: "fromActor", rolePriority: 20 },
+	WAS_GENERATED_BY: { rel: "wasGeneratedBy", uri: PROV_WAS_GENERATED_BY, range: "iri" },
 	// The record from whose content a record was derived: the document or the message that names a person.
-	WAS_DERIVED_FROM: { rel: "wasDerivedFrom", uri: "prov:wasDerivedFrom", range: "iri" },
+	WAS_DERIVED_FROM: { rel: "wasDerivedFrom", uri: PROV_WAS_DERIVED_FROM, range: "iri" },
 	// What an activity read to do its work. A Reading names the text whose links it turned into statements.
-	USED: { rel: "used", uri: "prov:used", range: "iri" },
+	USED: { rel: "used", uri: PROV_USED, range: "iri" },
 	// The statements a reading asserted. A later reading of the same source retracts these statements.
 	STATED: { rel: "stated", uri: "hbn:stated", range: "container" },
-	WAS_INFORMED_BY: { rel: "wasInformedBy", uri: "prov:wasInformedBy", range: "iri", subPropertyOf: "inReplyTo" },
-	INVALIDATED: { rel: "invalidated", uri: "prov:invalidated", range: "iri", subPropertyOf: "inReplyTo" },
-	WAS_STARTED_BY: { rel: "wasStartedBy", uri: "prov:wasStartedBy", range: "iri", subPropertyOf: "inReplyTo" },
+	WAS_INFORMED_BY: { rel: "wasInformedBy", uri: PROV_WAS_INFORMED_BY, range: "iri", subPropertyOf: "inReplyTo" },
+	INVALIDATED: { rel: "invalidated", uri: PROV_INVALIDATED, range: "iri", subPropertyOf: "inReplyTo" },
+	WAS_STARTED_BY: { rel: "wasStartedBy", uri: PROV_WAS_STARTED_BY, range: "iri", subPropertyOf: "inReplyTo" },
 	// The activity that ended another: the step of a start-up that ended a record an interrupted actuality left without an end.
-	WAS_ENDED_BY: { rel: "wasEndedBy", uri: "prov:wasEndedBy", range: "iri", subPropertyOf: "inReplyTo" },
-	STARTED_AT_TIME: { rel: "startedAtTime", uri: "prov:startedAtTime", range: "literal", subPropertyOf: "ganttStart" },
-	ENDED_AT_TIME: { rel: "endedAtTime", uri: "prov:endedAtTime", range: "literal", subPropertyOf: "ganttEnd" },
+	WAS_ENDED_BY: { rel: "wasEndedBy", uri: PROV_WAS_ENDED_BY, range: "iri", subPropertyOf: "inReplyTo" },
+	STARTED_AT_TIME: { rel: "startedAtTime", uri: PROV_STARTED_AT_TIME, range: "literal", subPropertyOf: "ganttStart" },
+	ENDED_AT_TIME: { rel: "endedAtTime", uri: PROV_ENDED_AT_TIME, range: "literal", subPropertyOf: "ganttEnd" },
 	// The time the system generated this entity's representation. Every persisted object requires it. as:published holds the content's own time.
-	GENERATED_AT_TIME: { rel: "generatedAtTime", uri: "prov:generatedAtTime", range: "literal" },
+	GENERATED_AT_TIME: { rel: "generatedAtTime", uri: PROV_GENERATED_AT_TIME, range: "literal" },
 	/** The time a record was written, or last rewritten. A reader following actuality orders its records by this time. */
 	RECORDED_AT_TIME: { rel: "recordedAtTime", uri: "hbn:recordedAtTime", range: "literal" },
 	// SOSA / W3C SSN, observation and sensing
-	PHENOMENON_TIME: { rel: "phenomenonTime", uri: "sosa:phenomenonTime", range: "literal" },
-	RESULT_TIME: { rel: "resultTime", uri: "sosa:resultTime", range: "literal" },
-	HAS_RESULT: { rel: "hasResult", uri: "sosa:hasResult", range: "container" },
-	MADE_BY_SENSOR: { rel: "madeBySensor", uri: "sosa:madeBySensor", range: "iri", subPropertyOf: "inReplyTo" },
-	OBSERVED_PROPERTY: { rel: "observedProperty", uri: "sosa:observedProperty", range: "literal" },
+	PHENOMENON_TIME: { rel: "phenomenonTime", uri: SOSA_PHENOMENON_TIME, range: "literal" },
+	RESULT_TIME: { rel: "resultTime", uri: SOSA_RESULT_TIME, range: "literal" },
+	HAS_RESULT: { rel: "hasResult", uri: SOSA_HAS_RESULT, range: "container" },
+	MADE_BY_SENSOR: { rel: "madeBySensor", uri: SOSA_MADE_BY_SENSOR, range: "iri", subPropertyOf: "inReplyTo" },
+	OBSERVED_PROPERTY: { rel: "observedProperty", uri: SOSA_OBSERVED_PROPERTY, range: "literal" },
 	// schema.org: action outcomes
-	SCHEMA_OBJECT: { rel: "schemaObject", uri: "schema:object", range: "literal" },
-	SCHEMA_RESULT: { rel: "schemaResult", uri: "schema:result", range: "literal" },
+	SCHEMA_OBJECT: { rel: "schemaObject", uri: SCHEMA_OBJECT, range: "literal" },
+	SCHEMA_RESULT: { rel: "schemaResult", uri: SCHEMA_RESULT, range: "literal" },
 	// schema.org: the reason an action failed, stated on that action.
-	ERROR: { rel: "error", uri: "schema:error", range: "literal" },
-	REPLACEE: { rel: "replacee", uri: "schema:replacee", range: "literal" },
-	REPLACEMENT: { rel: "replacement", uri: "schema:replacement", range: "literal" },
-	ACTION_STATUS: { rel: "actionStatus", uri: "schema:actionStatus", range: "literal" },
-	PART_OF: { rel: "isPartOf", uri: "schema:isPartOf", range: "iri" },
+	ERROR: { rel: "error", uri: SCHEMA_ERROR, range: "literal" },
+	REPLACEE: { rel: "replacee", uri: SCHEMA_REPLACEE, range: "literal" },
+	REPLACEMENT: { rel: "replacement", uri: SCHEMA_REPLACEMENT, range: "literal" },
+	ACTION_STATUS: { rel: "actionStatus", uri: SCHEMA_ACTION_STATUS, range: "literal" },
+	PART_OF: { rel: "isPartOf", uri: SCHEMA_IS_PART_OF, range: "iri" },
 	PRECEDED_BY: { rel: "precededBy", uri: "hbn:precededBy", range: "iri" },
 	// Scheduling and Gantt rels for task timing, effort and dependencies. Concrete rels declare a gantt-* upper concept as
 	// their parent, so a paint recognises schedulable data through isSubPropertyOf. The concrete vocabulary (PROV, schema,
@@ -374,7 +458,7 @@ export const LinkRelations = {
 	GANTT_DURATION: { rel: "ganttDuration", uri: "hbn:ganttDuration", range: "literal" },
 	GANTT_EFFORT: { rel: "ganttEffort", uri: "hbn:ganttEffort", range: "literal" },
 	GANTT_DEPENDS: { rel: "ganttDepends", uri: "hbn:ganttDependsOn", range: "iri" },
-	DURATION: { rel: "duration", uri: "schema:duration", range: "literal", subPropertyOf: "ganttDuration" },
+	DURATION: { rel: "duration", uri: SCHEMA_DURATION, range: "literal", subPropertyOf: "ganttDuration" },
 	EFFORT: { rel: "effort", uri: "hbn:effort", range: "literal", subPropertyOf: "ganttEffort" },
 	DEPENDS_ON: { rel: "dependsOn", uri: "hbn:dependsOn", range: "iri", subPropertyOf: "ganttDepends" },
 	// haibun-native discourse speech acts. Each is a sub-property of inReplyTo.
@@ -407,35 +491,35 @@ export const LinkRelations = {
 	TEXT_DIGEST: { rel: "textDigest", uri: "hbn:textDigest", range: "literal" },
 	OUTCOME_REASON: { rel: "outcomeReason", uri: "hbn:outcomeReason", range: "literal" },
 	// EARL: how a test or a goal ended. A record states its goal's verdict in this rel.
-	OUTCOME: { rel: "outcome", uri: "earl:outcome", range: "literal" },
+	OUTCOME: { rel: "outcome", uri: EARL_OUTCOME_PROPERTY, range: "literal" },
 	// RDFS terms. Property nodes describe rels with them.
-	SUB_PROPERTY_OF: { rel: "subPropertyOf", uri: "rdfs:subPropertyOf", range: "iri" },
-	SUB_CLASS_OF: { rel: "subClassOf", uri: "rdfs:subClassOf", range: "iri" },
+	SUB_PROPERTY_OF: { rel: "subPropertyOf", uri: RDFS_SUB_PROPERTY_OF, range: "iri" },
+	SUB_CLASS_OF: { rel: "subClassOf", uri: RDFS_SUB_CLASS_OF, range: "iri" },
 	// OWL and RDFS terms a standard vocabulary states of its classes: two classes without a common member, and the vocabulary
 	// that defines a class.
-	DISJOINT_WITH: { rel: "disjointWith", uri: "owl:disjointWith", range: "iri" },
-	IS_DEFINED_BY: { rel: "isDefinedBy", uri: "rdfs:isDefinedBy", range: "iri" },
-	LABEL: { rel: "label", uri: "rdfs:label", range: "literal" },
-	DESCRIPTION: { rel: "description", uri: "rdfs:comment", range: "literal" },
+	DISJOINT_WITH: { rel: "disjointWith", uri: OWL_DISJOINT_WITH, range: "iri" },
+	IS_DEFINED_BY: { rel: "isDefinedBy", uri: RDFS_IS_DEFINED_BY, range: "iri" },
+	LABEL: { rel: "label", uri: RDFS_LABEL, range: "literal" },
+	DESCRIPTION: { rel: "description", uri: RDFS_COMMENT, range: "literal" },
 	// schema.org's domainIncludes and rangeIncludes list the classes a property connects as a union. Several rdfs:domain
 	// statements would state their intersection.
-	DOMAIN: { rel: "domain", uri: "schema:domainIncludes", range: "iri" },
-	RANGE: { rel: "range", uri: "schema:rangeIncludes", range: "iri" },
+	DOMAIN: { rel: "domain", uri: SCHEMA_DOMAIN_INCLUDES, range: "iri" },
+	RANGE: { rel: "range", uri: SCHEMA_RANGE_INCLUDES, range: "iri" },
 	ICON: { rel: "icon", uri: "hbn:icon", range: "literal" },
 	PRESENTATION: { rel: "presentation", uri: "hbn:presentation", range: "literal" },
 	// W3C Security (sec:): controllers, delegation, key material and proofs (DID and zcap-LD vocabulary)
-	CONTROLLER: { rel: "controller", uri: "sec:controller", range: "iri" },
+	CONTROLLER: { rel: "controller", uri: SEC_CONTROLLER_PROPERTY, range: "iri" },
 	/** An endpoint a principal publishes. A reader reaches the deployment through it. DID Core states a controller's
 	 *  services this way. */
-	SERVICE: { rel: "service", uri: "did:service", range: "iri" },
-	ALLOWED_ACTION: { rel: "allowedAction", uri: "sec:allowedAction", range: "literal", presentation: "governance" as TRelPresentation },
-	CAPABILITY_ACTION: { rel: "capabilityAction", uri: "sec:capabilityAction", range: "literal", presentation: "governance" as TRelPresentation },
+	SERVICE: { rel: "service", uri: DID_SERVICE, range: "iri" },
+	ALLOWED_ACTION: { rel: "allowedAction", uri: SEC_ALLOWED_ACTION, range: "literal", presentation: "governance" as TRelPresentation },
+	CAPABILITY_ACTION: { rel: "capabilityAction", uri: SEC_CAPABILITY_ACTION, range: "literal", presentation: "governance" as TRelPresentation },
 	/** The capability an act was performed under, as ZCAP-LD's invocation names it. */
-	CAPABILITY: { rel: "capability", uri: "sec:capability", range: "iri", presentation: "governance" as TRelPresentation },
-	PUBLIC_KEY: { rel: "publicKey", uri: "sec:publicKeyMultibase", range: "literal" },
-	EXPIRES: { rel: "expires", uri: "sec:expiration", range: "literal" },
-	REVOKED: { rel: "revoked", uri: "sec:revoked", range: "literal", presentation: "governance" as TRelPresentation },
-	PROOF: { rel: "proof", uri: "sec:proof", range: "iri" },
+	CAPABILITY: { rel: "capability", uri: SEC_CAPABILITY_PROPERTY, range: "iri", presentation: "governance" as TRelPresentation },
+	PUBLIC_KEY: { rel: "publicKey", uri: SEC_PUBLIC_KEY_MULTIBASE, range: "literal" },
+	EXPIRES: { rel: "expires", uri: SEC_EXPIRATION, range: "literal" },
+	REVOKED: { rel: "revoked", uri: SEC_REVOKED, range: "literal", presentation: "governance" as TRelPresentation },
+	PROOF: { rel: "proof", uri: SEC_PROOF, range: "iri" },
 	// A record's validity window in general haibun-native terms. Any record can carry one, such as a permit, an offer or a
 	// certificate. A consumer whose standard names its own validity terms keeps these rels for behaviour and overrides
 	// the served IRI per field (TTermPropertyDef).
@@ -450,7 +534,7 @@ export const LinkRelations = {
 	IN_ROLE_OF: { rel: "inRoleOf", uri: "hbn:inRoleOf", range: "iri", abstract: true },
 	// Directional actor super-properties under inRoleOf. A sequence needs the direction, and the grouping axis doesn't.
 	// fromActor is the source actor of an entity: its creator, sender or responsible agent. toActor is the destination
-	// actor: its subject, recipient, audience or registry. Both are sub-properties of inRoleOf, so every concrete actor rel
+	// actor: its subject, recipient, addressee, audience or registry. Both are sub-properties of inRoleOf, so every concrete actor rel
 	// declared under one is also a role rel, because roleRels derives transitively. The split adds direction and doesn't
 	// remove a role rel. An Actor is a prov:Agent ≡ as:Actor ≡ foaf:Agent. Across vocabularies, a sequence reads any entity
 	// that carries a fromActor and a toActor as a message from source to target, without per-type rules.
@@ -464,19 +548,19 @@ export const LinkRelations = {
 	// toActor for the destination) and its rolePriority. The highest-priority role edge names a node's container or lane
 	// when the node carries several. Consumer-declared edges share this view ordering and carry their own rolePriority
 	// in their domain declarations.
-	PERFORMED_BY: { rel: "performedBy", uri: "prov:wasAssociatedWith", range: "iri", subPropertyOf: "fromActor", rolePriority: 40 },
-	AUTHOR: { rel: "author", uri: "schema:author", range: "iri", subPropertyOf: "fromActor", rolePriority: 30 },
+	PERFORMED_BY: { rel: "performedBy", uri: PROV_WAS_ASSOCIATED_WITH, range: "iri", subPropertyOf: "fromActor", rolePriority: 40 },
+	AUTHOR: { rel: "author", uri: SCHEMA_AUTHOR, range: "iri", subPropertyOf: "fromActor", rolePriority: 30 },
 	// The general destination actor: the party or point that receives an activity, such as the endpoint a request calls.
 	// Consumers declare their own `toActor` rels (recipient, …). A sequence reads it as the lifeline that
 	// receives a message.
-	AS_TARGET: { rel: "target", uri: "as:target", range: "iri", subPropertyOf: "toActor", rolePriority: 40 },
-	// The direct object of an act, such as an edit's file. audience holds the act's addressee and target holds its
+	AS_TARGET: { rel: "target", uri: AS_TARGET, range: "iri", subPropertyOf: "toActor", rolePriority: 40 },
+	// The direct object of an act, such as an edit's file. addressedTo holds the act's addressee and target holds its
 	// destination.
-	AS_OBJECT: { rel: "object", uri: "as:object", range: "iri", subPropertyOf: "toActor", rolePriority: 50 },
-	SAME_AS: { rel: "sameAs", uri: "schema:sameAs", range: "iri" },
-	REQUIRES: { rel: "requires", uri: "dcterms:requires", range: "iri", subPropertyOf: "ganttDepends" },
-	REPLACES: { rel: "replaces", uri: "dcterms:replaces", range: "iri" },
-	IS_RELATED_TO: { rel: "isRelatedTo", uri: "schema:isRelatedTo", range: "iri" },
+	AS_OBJECT: { rel: "object", uri: AS_OBJECT, range: "iri", subPropertyOf: "toActor", rolePriority: 50 },
+	SAME_AS: { rel: "sameAs", uri: SCHEMA_SAME_AS, range: "iri" },
+	REQUIRES: { rel: "requires", uri: DCTERMS_REQUIRES, range: "iri", subPropertyOf: "ganttDepends" },
+	REPLACES: { rel: "replaces", uri: DCTERMS_REPLACES, range: "iri" },
+	IS_RELATED_TO: { rel: "isRelatedTo", uri: SCHEMA_IS_RELATED_TO, range: "iri" },
 } as const;
 
 /** Every declared relation, keyed by its rel. It is built once because every projected property of every record looks
@@ -505,8 +589,8 @@ export const REL_CONTEXT: Record<TRel, string> = Object.fromEntries(Object.value
  */
 export const EdgePredicates = {
 	from: { rel: LinkRelations.ATTRIBUTED_TO.rel },
-	to: { rel: LinkRelations.AUDIENCE.rel },
-	cc: { rel: LinkRelations.AUDIENCE.rel },
+	to: { rel: LinkRelations.ADDRESSED_TO.rel },
+	cc: { rel: LinkRelations.ADDRESSED_TO.rel },
 	author: { rel: LinkRelations.ATTRIBUTED_TO.rel },
 	attachment: { rel: LinkRelations.ATTACHMENT.rel },
 	hasTarget: { rel: LinkRelations.TARGET.rel },
@@ -1106,7 +1190,7 @@ export const COMMENT_TOPOLOGY: THypermediaTopology = {
 	// A Comment carries oa:hasBody and oa:hasTarget in the W3C Web Annotation shape. The class relationship is an
 	// RDFS axiom and doesn't make @type multi-valued. A comment is a PROV entity, so PROV-O's disjointness of entities and
 	// activities applies to it.
-	subClassOf: ["oa:Annotation", PROV_ENTITY],
+	subClassOf: [OA_ANNOTATION, PROV_ENTITY],
 	id: "id",
 	// A comment that carries a record, as a measure carries its observation, is the one comment that carries it. Another comment is
 	// the one its author wrote with its text in the step that wrote it.
@@ -1138,7 +1222,7 @@ export const COMMENT_TOPOLOGY: THypermediaTopology = {
 		// edge and attributedTo let a view read a discourse as messages between agents. oa:hasTarget holds the
 		// comment's subject.
 		// The store may not hold the addressee's record, as an external principal's isn't written.
-		[LinkRelations.AUDIENCE.rel]: { rel: LinkRelations.AUDIENCE.rel, range: RESOURCE_LABEL, reference: true },
+		[LinkRelations.ADDRESSED_TO.rel]: { rel: LinkRelations.ADDRESSED_TO.rel, range: RESOURCE_LABEL, reference: true },
 		// The record the comment carries: a change request carries the proposal it requests, and a measure carries its
 		// observation. The edge is declared so a view can follow it to the carried record. It is a reference, since a key reads
 		// it, and an import writes a comment with its key before the record it carries.

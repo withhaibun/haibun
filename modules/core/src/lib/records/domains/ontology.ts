@@ -3,14 +3,14 @@
  * Property record describes a link relation, or a term that a type's standard context declares. Core derives
  * both from the declarations, so each type states `heldBy: declarations`.
  */
-import { RDFS_CLASS, RDF_PROPERTY } from "../../domains/vocabularies.js";
+import { RDFS_CLASS, RDF_PROPERTY, SKOS_EXACT_MATCH } from "../../domains/vocabularies.js";
 import { z } from "zod";
 import { Access, CLASS_LABEL, DOMAIN_PERSISTED_TYPE, HELD_BY, LinkRelations, PROPERTY_LABEL, PersistedVertexSchema, type TDomainDefinition } from "../../domains/resources.js";
 
 const CLASS_DOMAIN = "ontology-class";
 const PROPERTY_DOMAIN = "ontology-property";
 /** The term that relates a Class or a Property record to the IRI of the term it describes. */
-const EXACT_MATCH = "skos:exactMatch";
+const EXACT_MATCH = SKOS_EXACT_MATCH;
 
 /** The fields and relations of the ontology's records. The projection that writes them and every view that reads them use these names. */
 export const ONTOLOGY_FIELD = {

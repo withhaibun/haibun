@@ -7,6 +7,22 @@ import { SEQ_PATH_LABEL } from "../../domains/resources.js";
 import { itemAt } from "../../domains/item-at.js";
 import { readUpTo, recordOf } from "./record-reads.js";
 import { declaredTypeOf, storeDeclaring, TEST_LEVELS } from "../../test/declared-types.js";
+import {
+	EARL_ASSERTED_BY,
+	EARL_ASSERTION,
+	EARL_ASSERTOR,
+	EARL_INFO,
+	EARL_OUTCOME_PROPERTY,
+	EARL_POINTER,
+	EARL_RESULT,
+	EARL_SUBJECT,
+	EARL_TEST,
+	EARL_TEST_CASE,
+	EARL_TEST_RESULT,
+	EARL_TEST_SUBJECT,
+	PROV_WAS_GENERATED_BY,
+	RDFS_SUB_CLASS_OF,
+} from "../../domains/vocabularies.js";
 
 /** The EARL types, declared so the store reads their records. */
 const EARL_TYPES = Object.fromEntries(earlDomainDefinitions.map(declaredTypeOf));
@@ -43,27 +59,27 @@ describe("EARL types", () => {
 	it("serve each class as a subclass of its EARL class, and each property as its EARL term", () => {
 		const served = getJsonLdContext(registered);
 		const context = served["@context"] as Record<string, { "@id": string; "@context": Record<string, { "@id": string }> }>;
-		const superclassOf = (label: string): unknown => served["@graph"].find((node) => node["@id"] === context[label]?.["@id"])?.["rdfs:subClassOf"];
+		const superclassOf = (label: string): unknown => served["@graph"].find((node) => node["@id"] === context[label]?.["@id"])?.[RDFS_SUB_CLASS_OF];
 		const assertion = context[EARL_LABEL.assertion];
-		expect(superclassOf(EARL_LABEL.assertion)).toContainEqual({ "@id": "earl:Assertion" });
+		expect(superclassOf(EARL_LABEL.assertion)).toContainEqual({ "@id": EARL_ASSERTION });
 		expect(Object.fromEntries(Object.values(EARL_ASSERTION_EDGE).map((edge) => [edge, assertion?.["@context"][edge]?.["@id"]]))).toEqual({
-			assertedBy: "earl:assertedBy",
-			subject: "earl:subject",
-			test: "earl:test",
-			result: "earl:result",
-			wasGeneratedBy: "prov:wasGeneratedBy",
+			assertedBy: EARL_ASSERTED_BY,
+			subject: EARL_SUBJECT,
+			test: EARL_TEST,
+			result: EARL_RESULT,
+			wasGeneratedBy: PROV_WAS_GENERATED_BY,
 		});
 		const result = context[EARL_LABEL.testResult];
-		expect(superclassOf(EARL_LABEL.testResult)).toContainEqual({ "@id": "earl:TestResult" });
+		expect(superclassOf(EARL_LABEL.testResult)).toContainEqual({ "@id": EARL_TEST_RESULT });
 		expect([result?.["@context"].outcome?.["@id"], result?.["@context"].pointers?.["@id"], result?.["@context"].info?.["@id"]]).toEqual([
-			"earl:outcome",
-			"earl:pointer",
-			"earl:info",
+			EARL_OUTCOME_PROPERTY,
+			EARL_POINTER,
+			EARL_INFO,
 		]);
 		for (const [label, earl] of [
-			[EARL_LABEL.assertor, "earl:Assertor"],
-			[EARL_LABEL.testSubject, "earl:TestSubject"],
-			[EARL_LABEL.testCase, "earl:TestCase"],
+			[EARL_LABEL.assertor, EARL_ASSERTOR],
+			[EARL_LABEL.testSubject, EARL_TEST_SUBJECT],
+			[EARL_LABEL.testCase, EARL_TEST_CASE],
 		] as const)
 			expect(superclassOf(label)).toContainEqual({ "@id": earl });
 	});

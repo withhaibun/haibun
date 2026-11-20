@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import { Access, GeneratedAtTimeSchema, HAIBUN_RECORD_NAMESPACE, LinkRelations } from "@haibun/core/lib/domains/resources.js";
-import { FOAF_MBOX } from "@haibun/core/lib/domains/vocabularies.js";
+import { FOAF_MBOX, PROV_ACTIVITY, PROV_AGENT, PROV_ENTITY } from "@haibun/core/lib/domains/vocabularies.js";
 import { storeOfDomains } from "@haibun/core/lib/test/declared-types.js";
 import { referenceTo } from "@haibun/core/lib/records/domains/unit.js";
 import { declareVocabularies } from "../root.js";
@@ -26,7 +26,7 @@ const typeOf = (persistedAs: string, subClassOf: string, edges: Record<string, {
 		edges,
 	},
 });
-const definitions = [typeOf(STEP, "prov:Activity"), typeOf(NOTE, "prov:Entity", { [LinkRelations.WAS_GENERATED_BY.rel]: { range: STEP } }), typeOf(PERSON, "prov:Agent")];
+const definitions = [typeOf(STEP, PROV_ACTIVITY), typeOf(NOTE, PROV_ENTITY, { [LinkRelations.WAS_GENERATED_BY.rel]: { range: STEP } }), typeOf(PERSON, PROV_AGENT)];
 const domains = mapDefinitionsToDomains(definitions);
 
 /** The mailbox two Persons recorded under different ids share. */

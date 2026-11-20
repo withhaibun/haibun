@@ -24,6 +24,7 @@ import type { TCallOutcome } from "../pipelines/call-step.js";
 import { actionRef, domainRef, originLink } from "./shu-ref.js";
 import { loadRenders } from "./load-renders.js";
 import { holderTpl } from "./shu-action-column.js";
+import { PROV_PLAN } from "@haibun/core/lib/domains/vocabularies.js";
 
 const StateSchema = z.object({ method: StepMethodSchema.or(z.literal("")) });
 
@@ -41,7 +42,7 @@ export class ShuStepDefinition extends ShuElement<typeof StateSchema> {
 		const { step } = shown;
 		return {
 			"@id": `step:${step.method}`,
-			"@type": "prov:Plan",
+			"@type": PROV_PLAN,
 			name: step.pattern,
 			...(step.description ? { description: step.description } : {}),
 			paramDomains: step.paramDomains,

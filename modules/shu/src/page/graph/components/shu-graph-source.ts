@@ -34,6 +34,7 @@ import type { TEvidence } from "../../domains/claims.js";
 import "../../components/shu-refusal.js";
 import { SOURCE_FORMATS, SOURCE_FORMAT_IDS, sourceFormat, type TSourceFormat } from "../domains/sources.js";
 import { frameOfNode, lineAfterKey, linesOf, provenanceOf, statusOf, summaryOf } from "../derivations/source-lines.js";
+import { AS_DOCUMENT } from "@haibun/core/lib/domains/vocabularies.js";
 
 /** The axioms the pane shows, and the view they state where they state one. */
 const PaneAxiomsSchema = z.object({ ...GraphAxiomsSchema.shape, graphView: GraphViewSchema.optional() });
@@ -75,7 +76,7 @@ class ShuGraphSource extends ShuElement<typeof GraphSourceStateSchema> {
 		const axioms = this.#axioms.page;
 		return axioms === undefined
 			? null
-			: { "@id": "view:graph-axioms", "@type": "as:Document", name: "the axioms of what a graph view shows, in Manchester syntax", content: axioms.text };
+			: { "@id": "view:graph-axioms", "@type": AS_DOCUMENT, name: "the axioms of what a graph view shows, in Manchester syntax", content: axioms.text };
 	}
 
 	/** The axioms shown: those the pane was given, the derivation of the step it was given, or those it read again in another format. */

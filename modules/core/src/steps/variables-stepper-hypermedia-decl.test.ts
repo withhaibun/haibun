@@ -5,6 +5,7 @@ import VariablesStepper from "./variables-stepper.js";
 import { Access } from "../lib/domains/resources.js";
 import { z } from "zod";
 import { DOMAIN_LABEL, DomainRecordSchema } from "../lib/records/domains/domain-record.js";
+import { AS_NAME, SCHEMA_IS_PART_OF } from "../lib/domains/vocabularies.js";
 
 /** The topology of the domain `key`, as its Domain record states it. */
 const TopologySchema = z.object({
@@ -35,7 +36,7 @@ set of Ingredient by id, with name, used in Recipe, stored at private`,
 
 	it("JSON-LD form registers the same topology", async () => {
 		const jsonld = JSON.stringify({
-			"@context": { id: "@id", name: "as:name", usedIn: { "@id": "schema:isPartOf", range: "Recipe" } },
+			"@context": { id: "@id", name: AS_NAME, usedIn: { "@id": SCHEMA_IS_PART_OF, range: "Recipe" } },
 			"@queryable": ["name"],
 			"@accessLevel": Access.private,
 		});
@@ -52,7 +53,7 @@ set of Ingredient by ${jsonld}`,
 		const prose = await passWithDefaults("set of Recipe by id, with name", [VariablesStepper, LogicStepper]);
 		expect(prose.ok).toBe(false);
 		expect(JSON.stringify(prose.failure)).toContain(`the declaration doesn't state the storage level of its records. Add the clause \\"stored at <level>\\"`);
-		const jsonld = await passWithDefaults(`set of Recipe by ${JSON.stringify({ "@context": { id: "@id", name: "as:name" } })}`, [VariablesStepper, LogicStepper]);
+		const jsonld = await passWithDefaults(`set of Recipe by ${JSON.stringify({ "@context": { id: "@id", name: AS_NAME } })}`, [VariablesStepper, LogicStepper]);
 		expect(jsonld.ok).toBe(false);
 		expect(JSON.stringify(jsonld.failure)).toContain("@accessLevel");
 	});

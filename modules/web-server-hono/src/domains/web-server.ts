@@ -22,6 +22,7 @@ import { MODULE_OPTION_PREFIX } from "@haibun/core/lib/domains/protocol.js";
 import { SIGNATURE_HEADER } from "@haibun/core/lib/domains/signature-header.js";
 import { isDev, PRODUCTION } from "@haibun/core/lib/domains/dev-mode.js";
 import { namedOrigin } from "@haibun/core/lib/request-context.js";
+import { AS_SERVICE } from "@haibun/core/lib/domains/vocabularies.js";
 
 /** The port the web server listens on where its PORT option isn't set. */
 export const DEFAULT_PORT = 8123;
@@ -143,7 +144,7 @@ export const endpointDomainDefinition: TDomainDefinition = {
 	topology: {
 		persistedAs: ENDPOINT_LABEL,
 		accessLevel: Access.private,
-		type: "as:Service",
+		type: AS_SERVICE,
 		instrumentation: true,
 		// Serving and observing requests register routes while any step is in progress, so an endpoint's fields aren't
 		// changes a step's contract lists.

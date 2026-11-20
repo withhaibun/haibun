@@ -6,6 +6,7 @@ import type { TDomainDefinition, THypermediaTopology } from "./resources.js";
 import { mapDefinitionsToDomains } from "./domains.js";
 import { Access, isPersisted, LinkRelations, commentDomainDefinition } from "./resources.js";
 import { specificResourceDomainDefinition, textQuoteSelectorDomainDefinition, principalDomainDefinition } from "./resource-domains.js";
+import { CRED_THING, OA_SPECIFIC_RESOURCE, PROV_AGENT } from "./vocabularies.js";
 
 const props = (o: Record<string, unknown>) => (f: string) => o[f];
 
@@ -218,12 +219,12 @@ describe("buildConcernCatalog vocabulary binding", () => {
 	});
 
 	it("accepts an undeclared prefix that core binds for every domain", () => {
-		expect(() => buildConcernCatalog(domain({ type: "oa:SpecificResource" }))).not.toThrow();
-		expect(() => buildConcernCatalog(domain({ subClassOf: "prov:Agent" }))).not.toThrow();
+		expect(() => buildConcernCatalog(domain({ type: OA_SPECIFIC_RESOURCE }))).not.toThrow();
+		expect(() => buildConcernCatalog(domain({ subClassOf: PROV_AGENT }))).not.toThrow();
 	});
 
 	it("applies the same rule to a superclass, a property's iri and an edge's iri", () => {
-		expect(() => buildConcernCatalog(domain({ subClassOf: "cred:Thing" }))).toThrow(/"cred:" vocabulary is not bound/);
+		expect(() => buildConcernCatalog(domain({ subClassOf: CRED_THING }))).toThrow(/"cred:" vocabulary is not bound/);
 		expect(() =>
 			buildConcernCatalog(
 				domain({ properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel, x: { rel: LinkRelations.TAG.rel, iri: "vcstatus:x" } } }),

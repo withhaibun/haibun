@@ -6,6 +6,7 @@
 import { z } from "zod";
 import { ACCESS_BROADEST_FIRST, LinkRelations, PersistedVertexSchema, type TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import { recordChange } from "@haibun/core/lib/steps/domains/contract.js";
+import { PROV_PLAN } from "@haibun/core/lib/domains/vocabularies.js";
 
 /** The type a plan is persisted as. */
 export const PLAN_LABEL = "Plan";
@@ -29,7 +30,7 @@ export const planDomainDefinition: TDomainDefinition = {
 	description: "A plan toward a goal: the goal, the principal that began it, and the facts its calls asserted",
 	topology: {
 		persistedAs: PLAN_LABEL,
-		type: "prov:Plan",
+		type: PROV_PLAN,
 		id: PLAN_FIELD.id,
 		// A plan is written at the read ceiling of the caller that begins or advances it, which can be any level.
 		accessLevel: ACCESS_BROADEST_FIRST,

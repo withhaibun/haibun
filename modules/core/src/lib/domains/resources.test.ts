@@ -47,6 +47,27 @@ import { recordOf } from "../records/pipelines/record-reads.js";
 import { RelSchema, getJsonLdContext, buildConcernCatalog } from "./hypermedia.js";
 import { mapDefinitionsToDomains } from "./domains.js";
 import { writeAnnotation } from "../records/pipelines/discourse-writes.js";
+import {
+	AS_AUDIENCE,
+	AS_TO,
+	OA_ANNOTATION,
+	OA_EXACT,
+	OA_HAS_SELECTOR,
+	OA_HAS_SOURCE,
+	OA_PREFIX,
+	OA_SPECIFIC_RESOURCE,
+	OA_SUFFIX,
+	OA_TEXT_QUOTE_SELECTOR,
+	PROV_AGENT,
+	PROV_ENTITY,
+	RDFS_CLASS,
+	RDFS_SUB_CLASS_OF,
+	RDFS_SUB_PROPERTY_OF,
+	RDF_PROPERTY,
+	SCHEMA_AUTHOR,
+	SCHEMA_NAME,
+	SEC_CONTROLLER,
+} from "./vocabularies.js";
 
 describe("LinkRelations extensions", () => {
 	// These tests don't restate the vocabulary. A copy would make every addition a two-file edit and would assert only
@@ -262,9 +283,9 @@ describe("getJsonLdContext top-level term fallback", () => {
 	});
 
 	it("emits a top-level term when every domain maps it to the same @id", () => {
-		const name = { rel: LinkRelations.NAME.rel, iri: "schema:name" };
+		const name = { rel: LinkRelations.NAME.rel, iri: SCHEMA_NAME };
 		const domains = { a: persistedDomain("A", "ex:A", { name }), b: persistedDomain("B", "ex:B", { name }) } as unknown as Parameters<typeof getJsonLdContext>[0];
-		expect(getJsonLdContext(domains)["@context"].name).toMatchObject({ "@id": "schema:name" });
+		expect(getJsonLdContext(domains)["@context"].name).toMatchObject({ "@id": SCHEMA_NAME });
 	});
 
 	it("gives each type's field its own term, a subproperty of its rel, so two fields that share a rel stay apart", () => {
@@ -274,7 +295,7 @@ describe("getJsonLdContext top-level term fallback", () => {
 		const out = getJsonLdContext(domains) as { "@context": Record<string, { "@context"?: Record<string, Record<string, unknown>> }>; "@graph": Array<Record<string, unknown>> };
 		expect(out["@context"].Email?.["@context"]?.folder).toEqual({ "@id": "hbn:Email.folder" });
 		expect(out["@context"].Email?.["@context"]?.account).toEqual({ "@id": "hbn:Email.account" });
-		expect(out["@graph"].find((n) => n["@id"] === "hbn:Email.folder")?.["rdfs:subPropertyOf"]).toEqual({ "@id": REL_CONTEXT[LinkRelations.CONTEXT.rel] });
+		expect(out["@graph"].find((n) => n["@id"] === "hbn:Email.folder")?.[RDFS_SUB_PROPERTY_OF]).toEqual({ "@id": REL_CONTEXT[LinkRelations.CONTEXT.rel] });
 	});
 
 	it("names an application type's own field in the vocabulary the type defines its terms in, and refuses one its namespaces don't bind", () => {
@@ -294,7 +315,7 @@ describe("getJsonLdContext top-level term fallback", () => {
 		const ctx = (getJsonLdContext(domains) as { "@context": Record<string, unknown> })["@context"];
 		expect(ctx.author).toBeUndefined();
 		// each type's scoped @context still resolves it
-		expect(ctx.Article).toMatchObject({ "@context": { author: { "@id": "schema:author" } } });
+		expect(ctx.Article).toMatchObject({ "@context": { author: { "@id": SCHEMA_AUTHOR } } });
 		expect(ctx.TrustedList).toMatchObject({ "@context": { author: { "@id": "hbn:TrustedList.author" } } });
 	});
 });
@@ -307,30 +328,30 @@ describe("getJsonLdContext ontology @graph: each type's own class, with its decl
 	type TOut = { "@context": Record<string, Record<string, unknown>>; "@graph": Array<Record<string, unknown>> };
 
 	it("maps the type's term to its class, and states the declared IRI and each superclass on the class node", () => {
-		const out = getJsonLdContext(domainsOf({ persistedAs: "P", type: "sec:Controller", subClassOf: "prov:Agent" })) as TOut;
+		const out = getJsonLdContext(domainsOf({ persistedAs: "P", type: SEC_CONTROLLER, subClassOf: PROV_AGENT })) as TOut;
 		expect(out["@context"].P?.["@id"]).toBe("hbn:P");
-		expect(out["@context"].P).not.toHaveProperty("rdfs:subClassOf"); // an ontology keyword would make the term definition invalid
+		expect(out["@context"].P).not.toHaveProperty(RDFS_SUB_CLASS_OF); // an ontology keyword would make the term definition invalid
 		const classNode = out["@graph"].find((n) => n["@id"] === "hbn:P");
-		expect(classNode?.["@type"]).toBe("rdfs:Class");
-		expect(classNode?.["rdfs:subClassOf"]).toEqual([{ "@id": "sec:Controller" }, { "@id": "prov:Agent" }]);
+		expect(classNode?.["@type"]).toBe(RDFS_CLASS);
+		expect(classNode?.[RDFS_SUB_CLASS_OF]).toEqual([{ "@id": SEC_CONTROLLER }, { "@id": PROV_AGENT }]);
 	});
 
 	it("keeps the axioms of two types that declare one IRI on their own class nodes", () => {
-		const out = getJsonLdContext(domainsOf({ persistedAs: "A", type: "prov:Entity", subClassOf: "oa:Annotation" }, { persistedAs: "B", type: "prov:Entity" })) as TOut;
-		expect(out["@graph"].find((n) => n["@id"] === "hbn:A")?.["rdfs:subClassOf"]).toEqual([{ "@id": "prov:Entity" }, { "@id": "oa:Annotation" }]);
-		expect(out["@graph"].find((n) => n["@id"] === "hbn:B")?.["rdfs:subClassOf"]).toEqual([{ "@id": "prov:Entity" }]);
-		expect(out["@graph"].find((n) => n["@id"] === "prov:Entity")).toBeUndefined();
+		const out = getJsonLdContext(domainsOf({ persistedAs: "A", type: PROV_ENTITY, subClassOf: OA_ANNOTATION }, { persistedAs: "B", type: PROV_ENTITY })) as TOut;
+		expect(out["@graph"].find((n) => n["@id"] === "hbn:A")?.[RDFS_SUB_CLASS_OF]).toEqual([{ "@id": PROV_ENTITY }, { "@id": OA_ANNOTATION }]);
+		expect(out["@graph"].find((n) => n["@id"] === "hbn:B")?.[RDFS_SUB_CLASS_OF]).toEqual([{ "@id": PROV_ENTITY }]);
+		expect(out["@graph"].find((n) => n["@id"] === PROV_ENTITY)).toBeUndefined();
 	});
 
 	it("omits rdfs:subClassOf from the class node when a type doesn't declare a type or a superclass", () => {
 		const out = getJsonLdContext(domainsOf({ persistedAs: "A" })) as TOut;
-		expect(out["@graph"].find((n) => n["@id"] === "hbn:A")).not.toHaveProperty("rdfs:subClassOf");
+		expect(out["@graph"].find((n) => n["@id"] === "hbn:A")).not.toHaveProperty(RDFS_SUB_CLASS_OF);
 	});
 
 	it("declares the Principal's class a sec:Controller and a prov:Agent, so the wasAttributedTo target is well-formed", () => {
 		const out = getJsonLdContext(mapDefinitionsToDomains([principalDomainDefinition])) as TOut;
 		expect(out["@context"][PRINCIPAL_LABEL]?.["@id"]).toBe(`hbn:${PRINCIPAL_LABEL}`);
-		expect(out["@graph"].find((n) => n["@id"] === `hbn:${PRINCIPAL_LABEL}`)?.["rdfs:subClassOf"]).toEqual([{ "@id": "sec:Controller" }, { "@id": "prov:Agent" }]);
+		expect(out["@graph"].find((n) => n["@id"] === `hbn:${PRINCIPAL_LABEL}`)?.[RDFS_SUB_CLASS_OF]).toEqual([{ "@id": SEC_CONTROLLER }, { "@id": PROV_AGENT }]);
 	});
 });
 
@@ -399,11 +420,11 @@ describe("getJsonLdContext ontology @graph: rdfs:subPropertyOf as an RDF stateme
 			},
 		} as unknown as Parameters<typeof getJsonLdContext>[0];
 		const out = getJsonLdContext(domains) as { "@context": Record<string, { "@context"?: Record<string, Record<string, unknown>> }>; "@graph": Array<Record<string, unknown>> };
-		expect(out["@context"].C?.["@context"]?.performedBy).not.toHaveProperty("rdfs:subPropertyOf"); // an ontology keyword would make the term definition invalid
+		expect(out["@context"].C?.["@context"]?.performedBy).not.toHaveProperty(RDFS_SUB_PROPERTY_OF); // an ontology keyword would make the term definition invalid
 		// performedBy declares fromActor as its parent on its property node. fromActor is a sub-property of inRoleOf.
 		const performedByNode = out["@graph"].find((n) => n["@id"] === REL_CONTEXT[LinkRelations.PERFORMED_BY.rel]);
-		expect(performedByNode?.["@type"]).toBe("rdf:Property");
-		expect(performedByNode?.["rdfs:subPropertyOf"]).toEqual({ "@id": REL_CONTEXT[LinkRelations.FROM_ACTOR.rel] });
+		expect(performedByNode?.["@type"]).toBe(RDF_PROPERTY);
+		expect(performedByNode?.[RDFS_SUB_PROPERTY_OF]).toEqual({ "@id": REL_CONTEXT[LinkRelations.FROM_ACTOR.rel] });
 	});
 
 	it("a consumer edge declared with an upper-ontology rel + its own iri serves the consumer term and classifies under the pointer", () => {
@@ -430,7 +451,7 @@ describe("getJsonLdContext ontology @graph: rdfs:subPropertyOf as an RDF stateme
 			a: { topology: { persistedAs: "A", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel } }, schema: { parse: (v: unknown) => v } },
 		} as unknown as Parameters<typeof getJsonLdContext>[0];
 		const out = getJsonLdContext(domains) as { "@graph": Array<Record<string, unknown>> };
-		expect(out["@graph"].find((n) => n["@id"] === REL_CONTEXT[LinkRelations.NAME.rel])).not.toHaveProperty("rdfs:subPropertyOf");
+		expect(out["@graph"].find((n) => n["@id"] === REL_CONTEXT[LinkRelations.NAME.rel])).not.toHaveProperty(RDFS_SUB_PROPERTY_OF);
 	});
 });
 
@@ -509,18 +530,18 @@ describe("commentDomainDefinition", () => {
 	it("declares Comment a subclass of oa:Annotation: it carries oa:hasBody and oa:hasTarget", () => {
 		const domains = mapDefinitionsToDomains([commentDomainDefinition]);
 		const out = getJsonLdContext(domains) as { "@graph": Array<Record<string, unknown>> };
-		const classNode = out["@graph"].find((n) => n["rdfs:subClassOf"] !== undefined && JSON.stringify(n).includes("oa:Annotation"));
-		expect(classNode?.["rdfs:subClassOf"]).toContainEqual({ "@id": "oa:Annotation" });
+		const classNode = out["@graph"].find((n) => n[RDFS_SUB_CLASS_OF] !== undefined && JSON.stringify(n).includes(OA_ANNOTATION));
+		expect(classNode?.[RDFS_SUB_CLASS_OF]).toContainEqual({ "@id": OA_ANNOTATION });
 	});
 });
 
 describe("Web Annotation rels (oa:)", () => {
 	it("declares the target-anchoring rels with oa IRIs", () => {
-		expect(LinkRelations.HAS_SOURCE.uri).toBe("oa:hasSource");
-		expect(LinkRelations.HAS_SELECTOR.uri).toBe("oa:hasSelector");
-		expect(LinkRelations.EXACT.uri).toBe("oa:exact");
-		expect(LinkRelations.PREFIX.uri).toBe("oa:prefix");
-		expect(LinkRelations.SUFFIX.uri).toBe("oa:suffix");
+		expect(LinkRelations.HAS_SOURCE.uri).toBe(OA_HAS_SOURCE);
+		expect(LinkRelations.HAS_SELECTOR.uri).toBe(OA_HAS_SELECTOR);
+		expect(LinkRelations.EXACT.uri).toBe(OA_EXACT);
+		expect(LinkRelations.PREFIX.uri).toBe(OA_PREFIX);
+		expect(LinkRelations.SUFFIX.uri).toBe(OA_SUFFIX);
 	});
 
 	it("hasSource and hasSelector are navigable links; the quote fields are literals", () => {
@@ -555,7 +576,7 @@ describe("Web Annotation domain definitions", () => {
 		const t = specificResourceDomainDefinition.topology;
 		if (!isPersisted(t)) throw new Error("specificResourceDomainDefinition must declare a persisted topology");
 		expect(t.persistedAs).toBe(SPECIFIC_RESOURCE_LABEL);
-		expect(t.type).toBe("oa:SpecificResource");
+		expect(t.type).toBe(OA_SPECIFIC_RESOURCE);
 		expect(t.edges?.hasSource, "the Body the store holds, whose text the anchor quotes").toEqual({ rel: LinkRelations.HAS_SOURCE.rel, range: BODY_LABEL });
 		expect(t.edges?.hasSelector, "a passage it quotes, or a fragment of its media, which it owns").toEqual({
 			rel: LinkRelations.HAS_SELECTOR.rel,
@@ -568,7 +589,7 @@ describe("Web Annotation domain definitions", () => {
 		const t = textQuoteSelectorDomainDefinition.topology;
 		if (!isPersisted(t)) throw new Error("textQuoteSelectorDomainDefinition must declare a persisted topology");
 		expect(t.persistedAs).toBe(TEXT_QUOTE_SELECTOR_LABEL);
-		expect(t.type).toBe("oa:TextQuoteSelector");
+		expect(t.type).toBe(OA_TEXT_QUOTE_SELECTOR);
 		expect(t.properties.exact).toBe(LinkRelations.EXACT.rel);
 		expect((specificResourceDomainDefinition.topology as { properties: Record<string, unknown> }).properties.exact).toBeUndefined();
 	});
@@ -687,9 +708,11 @@ describe("getPropertyDefinitions", () => {
 		expect(tag?.icon).toBeUndefined();
 	});
 
-	it("declares the addressee a toActor member, so an addressed act reads as a message to its audience", () => {
-		const audience = getPropertyDefinitions().find((r) => r.id === LinkRelations.AUDIENCE.rel);
-		expect(audience?.subPropertyOf).toBe("toActor");
+	it("declares the addressee and the audience toActor members under their ActivityStreams IRIs, so an addressed act reads as a message to its addressee", () => {
+		const declared = (rel: string) => getPropertyDefinitions().find((r) => r.id === rel);
+		expect(declared(LinkRelations.ADDRESSED_TO.rel)?.subPropertyOf).toBe("toActor");
+		expect(declared(LinkRelations.AUDIENCE.rel)?.subPropertyOf).toBe("toActor");
+		expect([LinkRelations.ADDRESSED_TO.uri, LinkRelations.AUDIENCE.uri]).toEqual([AS_TO, AS_AUDIENCE]);
 	});
 
 	it("includes the RDFS rels themselves (subPropertyOf, label, range, icon, presentation)", () => {

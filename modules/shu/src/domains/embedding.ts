@@ -5,14 +5,15 @@
 import { z } from "zod";
 import { QuoteAnchorSchema } from "@haibun/core/lib/domains/resources.js";
 import { CallLinkSchema, PAGE_TERMS } from "@haibun/core/lib/domains/hypermedia.js";
+import { AS_PAGE, OA_SPECIFIC_RESOURCE, OA_TEXT_QUOTE_SELECTOR } from "@haibun/core/lib/domains/vocabularies.js";
 
 /** The ActivityStreams type of the page the reader has open. */
-export const EMBEDDED_PAGE_TYPE = "as:Page";
+export const EMBEDDED_PAGE_TYPE = AS_PAGE;
 
 /** A passage the reader selected on the page. The schema holds the passage as a Web Annotation SpecificResource. The
  *  resource's TextQuoteSelector quotes the passage's exact text with an optional prefix and suffix. */
 const SelectionSchema = z
-	.object({ "@type": z.literal("oa:SpecificResource"), source: z.url(), selector: QuoteAnchorSchema.extend({ "@type": z.literal("oa:TextQuoteSelector") }).strict() })
+	.object({ "@type": z.literal(OA_SPECIFIC_RESOURCE), source: z.url(), selector: QuoteAnchorSchema.extend({ "@type": z.literal(OA_TEXT_QUOTE_SELECTOR) }).strict() })
 	.strict();
 
 /** The page the reader has open, as the embedding page posts it. It holds the page's address, its title and any passage

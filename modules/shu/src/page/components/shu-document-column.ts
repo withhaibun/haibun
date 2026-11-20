@@ -39,6 +39,7 @@ import { esc } from "../derivations/markdown.js";
 import { renderRefBody } from "../derivations/markdown-render.js";
 import { unavailableState } from "./empty-state.js";
 import { actualityUnavailable } from "./actuality-states.js";
+import { AS_DOCUMENT } from "@haibun/core/lib/domains/vocabularies.js";
 
 const DocumentColumnSchema = z.object({ level: z.enum(HAIBUN_LOG_LEVELS), showControls: z.boolean() });
 
@@ -173,7 +174,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		const events = this.#windowRows.map((r) => r.event) as unknown as THaibunEvent[];
 		if (events.length === 0) return null;
 		const { md } = generateDocumentMarkdown(events, this.state.level as THaibunLogLevel, this.#first);
-		return { "@id": "view:document-log", "@type": "as:Document", name: "actuality document shown in this column, as markdown", content: md };
+		return { "@id": "view:document-log", "@type": AS_DOCUMENT, name: "actuality document shown in this column, as markdown", content: md };
 	}
 
 	protected override onConnected(): void {

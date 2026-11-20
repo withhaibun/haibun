@@ -15,6 +15,7 @@ import { SHU_TAG } from "../../../domains/elements.js";
 import type { ShuElement } from "../../components/shu-element.js";
 import { appAccessLevel } from "../../controllers/view-query-controller.js";
 import { callStep, listRecords } from "../../controllers/read-controller.js";
+import { PROV_WAS_ASSOCIATED_WITH } from "@haibun/core/lib/domains/vocabularies.js";
 
 /** Read the durable options of the given views, keyed by tag: what a scene saves. */
 export function captureScene(views: Array<ShuElement<never> | (Element & { captureSceneState(): Record<string, unknown> })>): TSceneState {
@@ -57,7 +58,7 @@ export const NETWORK_SCENE = "network";
 /** The vocabulary that marks a type as part of an exchange: who acted, and what they were allowed. `sec:` is the
  *  capability and key vocabulary; `prov:wasAssociatedWith` is the actor of an activity, which is what a request and a
  *  step each name. A type is in by what it declares, so one added later for this purpose is in without an edit here. */
-const EXCHANGE_IRIS = (iri: string): boolean => iri.startsWith("sec:") || iri === "prov:wasAssociatedWith";
+const EXCHANGE_IRIS = (iri: string): boolean => iri.startsWith("sec:") || iri === PROV_WAS_ASSOCIATED_WITH;
 
 /**
  * The types the network scene shows, derived from the site's own declarations.

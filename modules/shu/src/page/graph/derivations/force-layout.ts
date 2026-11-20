@@ -35,7 +35,7 @@ export function configureForces(graph: ForceConfigurable, ctx: ForceContext): vo
 	// matches: full-strength charge inflates the discs ~3× and the enclosure boxes overlap.
 	if (charge && typeof charge === "object" && "strength" in charge) (charge as { strength: (fn: () => number) => unknown }).strength(() => (grouped ? GROUPED_CHARGE : CHARGE));
 	graph.d3Force("collide", collideForce());
-	// Grouping wins over the wiring: cross-group links (hundreds of seqPath/audience edges) would otherwise drag whole
+	// Grouping wins over the wiring: cross-group links (hundreds of seqPath/addressedTo edges) would otherwise drag whole
 	// groups through each other, so while grouped the link force is nearly off and cohesion owns the layout. A lane view
 	// likewise lets the lane discipline (not the springs) own positions, so its link force is nearly off too.
 	type LinkStrengthFn = (l: unknown, i: number, all: unknown[]) => number;

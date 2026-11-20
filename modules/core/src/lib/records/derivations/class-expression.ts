@@ -27,6 +27,7 @@ import {
 	type TLiteral,
 	type TRestricted,
 } from "../domains/class-expression.js";
+import { XSD_MAX_EXCLUSIVE, XSD_MAX_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_MIN_INCLUSIVE, XSD_PATTERN } from "../../domains/vocabularies.js";
 
 /** A property of the vocabulary: a relation, or a type's field, named by its type and its field, with the field it names. */
 type TVocabularyProperty = { name: string; domain: readonly string[]; range: readonly string[]; field?: string };
@@ -280,7 +281,7 @@ const FACET_DL: Record<TFacet, string> = { ">=": "≥", ">": ">", "<=": "≤", "
 const FACET_READING: Record<TFacet, string> = { ">=": "at least", ">": "above", "<=": "at most", "<": "below", pattern: "matching" };
 
 /** The facets of OWL 2 functional syntax, each an XML Schema facet. */
-const FACET_FUNCTIONAL: Record<TFacet, string> = { ">=": "xsd:minInclusive", ">": "xsd:minExclusive", "<=": "xsd:maxInclusive", "<": "xsd:maxExclusive", pattern: "xsd:pattern" };
+const FACET_FUNCTIONAL: Record<TFacet, string> = { ">=": XSD_MIN_INCLUSIVE, ">": XSD_MIN_EXCLUSIVE, "<=": XSD_MAX_INCLUSIVE, "<": XSD_MAX_EXCLUSIVE, pattern: XSD_PATTERN };
 
 /** Returns an expression in OWL 2 functional syntax (W3C OWL 2 Structural Specification and Functional-Style Syntax). A facet's
  *  literal that doesn't state its datatype is of the restriction's datatype, and a pattern's is a string. */

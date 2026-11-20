@@ -18,7 +18,7 @@ declareSpec({
 			messageId: "identifier",
 			subject: "name",
 			from: "attributedTo",
-			to: "audience",
+			to: "addressedTo",
 			folder: "groupedAs",
 			account: "groupedAs",
 			body: "content",

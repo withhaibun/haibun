@@ -1,7 +1,7 @@
 /** The saved waypoint type: the head of a waypoint and the lines of its activity, which ActivitiesStepper states again after a
  *  restart. */
 import { z } from "zod";
-import { PROV_PLAN } from "./vocabularies.js";
+import { PROV_PLAN, SCHEMA_HOW_TO } from "./vocabularies.js";
 import { Access, LinkRelations, PersistedVertexSchema, type TDomainDefinition } from "./resources.js";
 
 export const SAVED_WAYPOINT_LABEL = "SavedWaypoint";
@@ -24,7 +24,7 @@ export const savedWaypointDomainDefinition: TDomainDefinition = {
 	topology: {
 		persistedAs: SAVED_WAYPOINT_LABEL,
 		accessLevel: Access.private,
-		type: "schema:HowTo",
+		type: SCHEMA_HOW_TO,
 		// A waypoint's lines are the steps its activity takes: a PROV plan.
 		subClassOf: PROV_PLAN,
 		id: "id",

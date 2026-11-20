@@ -16,6 +16,7 @@ import { ClaimWitnessSchema, DisjointnessWitnessSchema } from "@haibun/core/lib/
 import { reasoner } from "../root.js";
 import { instanceChecked, subsumptionChecked } from "./claims.js";
 import { NOTE, PERSON, SHARED_MAILBOX, STEP, scopeWith } from "../test/claim-scope.js";
+import { PROV_ACTIVITY, PROV_ENTITY } from "@haibun/core/lib/domains/vocabularies.js";
 
 const outcomeOf = (result: TActionResult) => ClaimProductsSchema.parse(result.products).claim;
 
@@ -87,7 +88,7 @@ describe("claims K contradicts", () => {
 		expect(result.ok ? "" : result.errorMessage).toContain(`instance check · K ⊨ ClassAssertion(Step Note:n1) · refuted · ${proof}`);
 		expect(DisjointnessWitnessSchema.parse(z.object({ witness: z.unknown() }).parse(result.products).witness), "the clash the DL view lights").toEqual({
 			individual: { persistedAs: NOTE, id: "n1" },
-			disjoint: ["prov:Activity", "prov:Entity"],
+			disjoint: [PROV_ACTIVITY, PROV_ENTITY],
 			statedBy: "PROV-O W3C Recommendation 2013-04-30",
 		});
 	});

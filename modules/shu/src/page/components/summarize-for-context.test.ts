@@ -9,6 +9,7 @@ import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { ShuThreadColumn } from "./shu-thread-column.js";
 import { ShuAnnotatedBody } from "./shu-annotated-body.js";
 import { ShuProductView } from "./shu-product-view.js";
+import { AS_COLLECTION, AS_DOCUMENT, AS_ORDERED_COLLECTION } from "@haibun/core/lib/domains/vocabularies.js";
 
 describe("summarizeForContext, enriched view projections", () => {
 	it("thread-column: an ordered collection of items with internal keys stripped and the reply surfaced", () => {
@@ -22,7 +23,7 @@ describe("summarizeForContext, enriched view projections", () => {
 			"Comment",
 		);
 		const s = el.summarizeForContext() as { "@type": string; totalItems: number; items: Array<Record<string, unknown>> };
-		expect(s["@type"]).toBe("as:OrderedCollection");
+		expect(s["@type"]).toBe(AS_ORDERED_COLLECTION);
 		expect(s.totalItems).toBe(2);
 		expect(s.items[1]).toMatchObject({ "@id": "c2", body: "reply", inReplyTo: "c1" });
 		expect("_edges" in itemAt(s.items, 1)).toBe(false);
@@ -40,7 +41,7 @@ describe("summarizeForContext, enriched view projections", () => {
 		];
 		const s = el.summarizeForContext() as { "@id": string; "@type": string; content: string; annotations: Array<Record<string, unknown>> };
 		expect(s["@id"]).toBe("file:1");
-		expect(s["@type"]).toBe("as:Document");
+		expect(s["@type"]).toBe(AS_DOCUMENT);
 		expect(s.content).toBe("the body text");
 		expect(s.annotations[0]).toEqual({ exact: "body", note: "a note", author: "vid", linksTo: ["elsewhere"] });
 	});
@@ -49,8 +50,8 @@ describe("summarizeForContext, enriched view projections", () => {
 		const el = new ShuProductView();
 		expect(el.summarizeForContext()).toBeNull(); // a child isn't mounted
 		const child = document.createElement("div") as HTMLElement & { summarizeForContext?: () => unknown };
-		child.summarizeForContext = () => ({ "@id": "view:result-table", "@type": "as:Collection" });
+		child.summarizeForContext = () => ({ "@id": "view:result-table", "@type": AS_COLLECTION });
 		el.appendChild(child);
-		expect(el.summarizeForContext()).toEqual({ "@id": "view:result-table", "@type": "as:Collection" });
+		expect(el.summarizeForContext()).toEqual({ "@id": "view:result-table", "@type": AS_COLLECTION });
 	});
 });

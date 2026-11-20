@@ -6,7 +6,7 @@
  * module of their own that page bundles don't include.
  */
 import { z } from "zod";
-import { PROV_ACTIVITY, PROV_AGENT } from "./vocabularies.js";
+import { OA_FRAGMENT_SELECTOR, OA_SPECIFIC_RESOURCE, OA_TEXT_QUOTE_SELECTOR, PROV_ACTIVITY, PROV_AGENT, SCHEMA_ENCODING, SEC_CONTROLLER } from "./vocabularies.js";
 import { fromJsonText } from "./json-text.js";
 import {
 	Access,
@@ -56,7 +56,7 @@ export const principalDomainDefinition: TDomainDefinition = {
 		"A person or service that acts in this system: the author of records, comments and decisions. Each is identified by a DID. A DID is a decentralized identifier: a stable web address of its own (written did:…) that anyone can look up to find the keys with which it signs. A central directory doesn't assign these identities. A published identity is public, and a key that only a private record names is private.",
 	topology: {
 		persistedAs: PRINCIPAL_LABEL,
-		type: "sec:Controller",
+		type: SEC_CONTROLLER,
 		// A Principal is the responsible agent every persisted node is attributed to (prov:wasAttributedTo, range
 		// prov:Agent). Declaring sec:Controller a kind of prov:Agent makes that attribution well-formed against the rel's range.
 		subClassOf: PROV_AGENT,
@@ -83,7 +83,7 @@ export const bodyDomainDefinition: TDomainDefinition = {
 			id: LinkRelations.IDENTIFIER.rel,
 			content: LinkRelations.CONTENT.rel,
 			mediaType: LinkRelations.MEDIA_TYPE.rel,
-			representations: { rel: LinkRelations.TAG.rel, iri: "schema:encoding" },
+			representations: { rel: LinkRelations.TAG.rel, iri: SCHEMA_ENCODING },
 			[BODY_DIGEST]: LinkRelations.CONTENT_DIGEST.rel,
 		},
 		// The declared query surface for the one-path graph-store. Callers can filter or sort Body rows by mediaType,
@@ -109,7 +109,7 @@ export const textQuoteSelectorDomainDefinition: TDomainDefinition = {
 	topology: {
 		persistedAs: TEXT_QUOTE_SELECTOR_LABEL,
 		accessLevel: Access.private,
-		type: "oa:TextQuoteSelector",
+		type: OA_TEXT_QUOTE_SELECTOR,
 		id: "id",
 		properties: { id: LinkRelations.IDENTIFIER.rel, exact: LinkRelations.EXACT.rel, prefix: LinkRelations.PREFIX.rel, suffix: LinkRelations.SUFFIX.rel },
 		// The reading that wrote the selector, which a later reading of the same text retracts.
@@ -130,7 +130,7 @@ export const fragmentSelectorDomainDefinition: TDomainDefinition = {
 	topology: {
 		persistedAs: FRAGMENT_SELECTOR_LABEL,
 		accessLevel: Access.private,
-		type: "oa:FragmentSelector",
+		type: OA_FRAGMENT_SELECTOR,
 		id: "id",
 		properties: { id: LinkRelations.IDENTIFIER.rel, value: LinkRelations.VALUE.rel, conformsTo: LinkRelations.CONFORMS_TO.rel },
 		edges: { wasGeneratedBy: GENERATED_BY_READING },
@@ -148,7 +148,7 @@ export const specificResourceDomainDefinition: TDomainDefinition = {
 	topology: {
 		persistedAs: SPECIFIC_RESOURCE_LABEL,
 		accessLevel: Access.private,
-		type: "oa:SpecificResource",
+		type: OA_SPECIFIC_RESOURCE,
 		id: "id",
 		properties: { id: LinkRelations.IDENTIFIER.rel, label: LinkRelations.LABEL.rel, [SOURCE_DIGEST]: LinkRelations.SOURCE_DIGEST.rel },
 		edges: {

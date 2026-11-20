@@ -1,0 +1,644 @@
+{
+	"modules/cli/src/instance-stepper.ts": {
+		"writes a term more than once in place of a constant": 6
+	},
+	"modules/cli/src/pipelines/specl.ts": {
+		"writes a term more than once in place of a constant": 3
+	},
+	"modules/cli/src/test-runner-stepper.ts": {
+		"writes a term more than once in place of a constant": 3
+	},
+	"modules/core/src/lib/actuality/adapters/feature-files.ts": {
+		"writes a term more than once in place of a constant": 5
+	},
+	"modules/core/src/lib/actuality/derivations/lifecycle-events.ts": {
+		"writes a term more than once in place of a constant": 6
+	},
+	"modules/core/src/lib/actuality/derivations/step-records.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/core/src/lib/actuality/domains/seq-path.ts": {
+		"writes a term more than once in place of a constant": 3
+	},
+	"modules/core/src/lib/actuality/machines/actuality.ts": {
+		"writes a term more than once in place of a constant": 4
+	},
+	"modules/core/src/lib/actuality/pipelines/executor.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/core/src/lib/actuality/pipelines/feature-variables.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/core/src/lib/actuality/pipelines/resolver.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/core/src/lib/adapters/dependency-state.ts": {
+		"writes a term more than once in place of a constant": 3
+	},
+	"modules/core/src/lib/adapters/module-loader.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/core/src/lib/adapters/owned-children.ts": {
+		"writes a term more than once in place of a constant": 4
+	},
+	"modules/core/src/lib/adapters/workspace-discovery.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/core/src/lib/adapters/workspace-lib.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/core/src/lib/conversation/domains/conversation-domains.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/core/src/lib/domains/actions.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/core/src/lib/domains/blips.ts": {
+		"writes a term more than once in place of a constant": 3
+	},
+	"modules/core/src/lib/domains/capability-context.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/core/src/lib/domains/document-content.ts": {
+		"writes a term more than once in place of a constant": 15
+	},
+	"modules/core/src/lib/domains/earl.ts": {
+		"writes a term more than once in place of a constant": 3
+	},
+	"modules/core/src/lib/domains/features.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/core/src/lib/domains/goal-resolution.ts": {
+		"writes a term more than once in place of a constant": 5
+	},
+	"modules/core/src/lib/domains/host-id.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/core/src/lib/domains/hypermedia.ts": {
+		"writes a term more than once in place of a constant": 11
+	},
+	"modules/core/src/lib/domains/lists.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/core/src/lib/domains/protocol.ts": {
+		"writes a term more than once in place of a constant": 27
+	},
+	"modules/core/src/lib/domains/resource-domains.ts": {
+		"writes a term more than once in place of a constant": 7
+	},
+	"modules/core/src/lib/domains/resources.ts": {
+		"writes a term more than once in place of a constant": 170
+	},
+	"modules/core/src/lib/domains/run-artifact.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/core/src/lib/domains/util.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/core/src/lib/domains/value-schemas.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/core/src/lib/domains/vocabularies.ts": {
+		"writes a term more than once in place of a constant": 7
+	},
+	"modules/core/src/lib/pipelines/core-domains.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/core/src/lib/pipelines/http-observations.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/core/src/lib/pipelines/record-blip.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/core/src/lib/pipelines/urakata.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/core/src/lib/records/derivations/class-expression.ts": {
+		"writes a term more than once in place of a constant": 25
+	},
+	"modules/core/src/lib/records/derivations/compiled-expression.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/core/src/lib/records/derivations/ontology.ts": {
+		"writes a term more than once in place of a constant": 5
+	},
+	"modules/core/src/lib/records/derivations/read-records.ts": {
+		"writes a term more than once in place of a constant": 4
+	},
+	"modules/core/src/lib/records/domains/class-expression.ts": {
+		"writes a term more than once in place of a constant": 3
+	},
+	"modules/core/src/lib/records/pipelines/discourse-writes.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/core/src/lib/records/pipelines/record-query.ts": {
+		"writes a term more than once in place of a constant": 3
+	},
+	"modules/core/src/lib/records/pipelines/record-reads.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/core/src/lib/steps/domains/contract.ts": {
+		"writes a term more than once in place of a constant": 7
+	},
+	"modules/core/src/lib/steps/domains/quad-types.ts": {
+		"writes a term more than once in place of a constant": 6
+	},
+	"modules/core/src/lib/steps/domains/step-discovery.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/core/src/lib/steps/pipelines/discover-steps.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/core/src/lib/steps/pipelines/event-logger.ts": {
+		"writes a term more than once in place of a constant": 4
+	},
+	"modules/core/src/lib/steps/pipelines/populate-action-args.ts": {
+		"writes a term more than once in place of a constant": 4
+	},
+	"modules/core/src/lib/steps/pipelines/step-registry.ts": {
+		"writes a term more than once in place of a constant": 3
+	},
+	"modules/core/src/lib/transport/adapters/rpc-call.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/core/src/lib/transport/adapters/rpc-client.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/core/src/lib/transport/adapters/sse-subscriber.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/core/src/lib/transport/domains/rpc-wire.ts": {
+		"writes a term more than once in place of a constant": 14
+	},
+	"modules/core/src/lib/workers/adapters/run-task.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/core/src/run-policy/pipelines/policy-file.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/core/src/steps/adapters/speech.ts": {
+		"writes a term more than once in place of a constant": 5
+	},
+	"modules/core/src/steps/authority-stepper.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/core/src/steps/blips-stepper.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/core/src/steps/console-monitor-stepper.ts": {
+		"writes a term more than once in place of a constant": 6
+	},
+	"modules/core/src/steps/debugger-stepper.ts": {
+		"writes a term more than once in place of a constant": 10
+	},
+	"modules/core/src/steps/haibun-stepper.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/core/src/steps/narrator-stepper.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/core/src/steps/resources-stepper.ts": {
+		"writes a term more than once in place of a constant": 5
+	},
+	"modules/core/src/steps/urakata-stepper.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/core/src/steps/variables-stepper.ts": {
+		"writes a term more than once in place of a constant": 5
+	},
+	"modules/domain-storage/src/domains/storage.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/domain-storage/src/pipelines/image-artifact.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/logic/src/adapters/eye-task.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/logic/src/adapters/eye.ts": {
+		"writes a term more than once in place of a constant": 3
+	},
+	"modules/logic/src/adapters/swipl.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/logic/src/adapters/vocabulary-library.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/logic/src/derivations/class-expression.ts": {
+		"writes a term more than once in place of a constant": 5
+	},
+	"modules/logic/src/derivations/contract-terms.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/logic/src/derivations/goal-rules.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/logic/src/derivations/goals.ts": {
+		"writes a term more than once in place of a constant": 15
+	},
+	"modules/logic/src/derivations/lint-rules.ts": {
+		"writes a term more than once in place of a constant": 4
+	},
+	"modules/logic/src/derivations/proof-frames.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/logic/src/domains/anchor-relations.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/logic/src/logic-stepper.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/logic/src/pipelines/prove.ts": {
+		"writes a term more than once in place of a constant": 10
+	},
+	"modules/logic/src/pipelines/waypoints.ts": {
+		"writes a term more than once in place of a constant": 3
+	},
+	"modules/lsp/src/derivations/semantic-tokens.ts": {
+		"writes a term more than once in place of a constant": 4
+	},
+	"modules/monitor-otel/src/monitor-otel-stepper.ts": {
+		"writes a term more than once in place of a constant": 15
+	},
+	"modules/monitor-tui/src/monitor-tui-stepper.tsx": {
+		"writes a term more than once in place of a constant": 3
+	},
+	"modules/recorder/src/adapters/feature-file.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/recorder/src/derivations/interaction-step.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/shu/scripts/bundles.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/derivations/content-security-policy.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/derivations/label-font-fallback.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/derivations/ontology-projection.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/shu/src/domains/blips.ts": {
+		"writes a term more than once in place of a constant": 4
+	},
+	"modules/shu/src/domains/elements.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/domains/graph-blips.ts": {
+		"writes a term more than once in place of a constant": 3
+	},
+	"modules/shu/src/graph-source-stepper.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/monitor-stepper.ts": {
+		"writes a term more than once in place of a constant": 3
+	},
+	"modules/shu/src/page/adapters/embedder-channel.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/adapters/live-conduit.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/adapters/location-hash.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/adapters/page-observers.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/adapters/pane-strip.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/shu/src/page/ask/components/shu-ask.ts": {
+		"writes a term more than once in place of a constant": 8
+	},
+	"modules/shu/src/page/ask/components/shu-chat-message.ts": {
+		"writes a term more than once in place of a constant": 3
+	},
+	"modules/shu/src/page/ask/machines/conversation.ts": {
+		"writes a term more than once in place of a constant": 8
+	},
+	"modules/shu/src/page/ask/pipelines/sessions.ts": {
+		"writes a term more than once in place of a constant": 10
+	},
+	"modules/shu/src/page/ask/root.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/authority/adapters/key-store.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/client-cache/adapters/device-store.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/shu/src/page/client-cache/adapters/quad-store.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/shu/src/page/client-cache/components/shu-client-cache-column.ts": {
+		"writes a term more than once in place of a constant": 3
+	},
+	"modules/shu/src/page/client-cache/derivations/actuality-rows.ts": {
+		"writes a term more than once in place of a constant": 3
+	},
+	"modules/shu/src/page/client-cache/derivations/rendered-rows.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/shu/src/page/client-cache/pipelines/actuality-window.ts": {
+		"writes a term more than once in place of a constant": 9
+	},
+	"modules/shu/src/page/components/page-strip-corners.ts": {
+		"writes a term more than once in place of a constant": 21
+	},
+	"modules/shu/src/page/components/pane-dock.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/components/ref-navigation.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/components/shu-action-column.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/components/shu-actions-bar.ts": {
+		"writes a term more than once in place of a constant": 14
+	},
+	"modules/shu/src/page/components/shu-activity-history.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/shu/src/page/components/shu-affordances-panel.ts": {
+		"writes a term more than once in place of a constant": 11
+	},
+	"modules/shu/src/page/components/shu-annotated-body.ts": {
+		"writes a term more than once in place of a constant": 6
+	},
+	"modules/shu/src/page/components/shu-artifact-frame.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/shu/src/page/components/shu-column-pane.ts": {
+		"writes a term more than once in place of a constant": 7
+	},
+	"modules/shu/src/page/components/shu-column-strip.ts": {
+		"writes a term more than once in place of a constant": 5
+	},
+	"modules/shu/src/page/components/shu-combobox.ts": {
+		"writes a term more than once in place of a constant": 6
+	},
+	"modules/shu/src/page/components/shu-document-column.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/shu/src/page/components/shu-domain-chain-view.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/components/shu-element.ts": {
+		"writes a term more than once in place of a constant": 6
+	},
+	"modules/shu/src/page/components/shu-entity-column.ts": {
+		"writes a term more than once in place of a constant": 4
+	},
+	"modules/shu/src/page/components/shu-field.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/components/shu-graph-query.ts": {
+		"writes a term more than once in place of a constant": 4
+	},
+	"modules/shu/src/page/components/shu-monitor-column.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/components/shu-page-strip.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/components/shu-page.ts": {
+		"writes a term more than once in place of a constant": 5
+	},
+	"modules/shu/src/page/components/shu-record-steps.ts": {
+		"writes a term more than once in place of a constant": 6
+	},
+	"modules/shu/src/page/components/shu-result-table.ts": {
+		"writes a term more than once in place of a constant": 4
+	},
+	"modules/shu/src/page/components/shu-scrollbar.ts": {
+		"writes a term more than once in place of a constant": 4
+	},
+	"modules/shu/src/page/components/shu-spinner.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/components/shu-step-caller.ts": {
+		"writes a term more than once in place of a constant": 12
+	},
+	"modules/shu/src/page/components/shu-theme-switch.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/components/shu-thread-column.ts": {
+		"writes a term more than once in place of a constant": 7
+	},
+	"modules/shu/src/page/components/shu-virtual-column.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/shu/src/page/components/slot-extensions.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/shu/src/page/controllers/read-controller.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/controllers/registry-controller.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/derivations/affordances.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/derivations/document-blocks.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/shu/src/page/derivations/event-marker.ts": {
+		"writes a term more than once in place of a constant": 8
+	},
+	"modules/shu/src/page/derivations/markdown-render.ts": {
+		"writes a term more than once in place of a constant": 3
+	},
+	"modules/shu/src/page/derivations/pane-kinds.ts": {
+		"writes a term more than once in place of a constant": 16
+	},
+	"modules/shu/src/page/derivations/project-goal-paths.ts": {
+		"writes a term more than once in place of a constant": 4
+	},
+	"modules/shu/src/page/derivations/record-fields.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/shu/src/page/derivations/record-steps.ts": {
+		"writes a term more than once in place of a constant": 6
+	},
+	"modules/shu/src/page/derivations/step-input.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/derivations/time-format.ts": {
+		"writes a term more than once in place of a constant": 7
+	},
+	"modules/shu/src/page/derivations/view-query.ts": {
+		"writes a term more than once in place of a constant": 5
+	},
+	"modules/shu/src/page/domains/graph.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/domains/page-calls.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/domains/refusal.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/domains/settings.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/graph/adapters/engine.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/shu/src/page/graph/components/a11y-renderer.ts": {
+		"writes a term more than once in place of a constant": 10
+	},
+	"modules/shu/src/page/graph/components/ego-overlay.ts": {
+		"writes a term more than once in place of a constant": 4
+	},
+	"modules/shu/src/page/graph/components/node-shapes.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/shu/src/page/graph/components/scene.ts": {
+		"writes a term more than once in place of a constant": 20
+	},
+	"modules/shu/src/page/graph/components/shu-class-browser.ts": {
+		"writes a term more than once in place of a constant": 14
+	},
+	"modules/shu/src/page/graph/components/shu-clustered-graph-view.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/graph/components/shu-graph-filter.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/graph/components/shu-graph-source.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/graph/components/shu-polymorphic-graph-view.ts": {
+		"writes a term more than once in place of a constant": 9
+	},
+	"modules/shu/src/page/graph/components/shu-polymorphic-settings.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/graph/controllers/camera-controller.ts": {
+		"writes a term more than once in place of a constant": 3
+	},
+	"modules/shu/src/page/graph/controllers/pick-controller.ts": {
+		"writes a term more than once in place of a constant": 3
+	},
+	"modules/shu/src/page/graph/derivations/ego-corridor.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/graph/derivations/ego-layout.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/graph/derivations/focus-policy.ts": {
+		"writes a term more than once in place of a constant": 3
+	},
+	"modules/shu/src/page/graph/derivations/force-layout.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/graph/derivations/grouping.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/shu/src/page/graph/derivations/node-presenters.ts": {
+		"writes a term more than once in place of a constant": 3
+	},
+	"modules/shu/src/page/graph/derivations/polymorphic-layout.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/graph/derivations/regulation.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/graph/domains/graph-scene.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/shu/src/page/graph/domains/views.ts": {
+		"writes a term more than once in place of a constant": 4
+	},
+	"modules/shu/src/page/machines/current-subject.ts": {
+		"writes a term more than once in place of a constant": 5
+	},
+	"modules/shu/src/page/machines/registry.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/machines/tap-action.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/pipelines/declared-component.ts": {
+		"writes a term more than once in place of a constant": 4
+	},
+	"modules/shu/src/page/pipelines/embedding.ts": {
+		"writes a term more than once in place of a constant": 3
+	},
+	"modules/shu/src/page/pipelines/open-record.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/page/pipelines/panes.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/shu/src/page/root.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/shu/src/shu-stepper.ts": {
+		"writes a term more than once in place of a constant": 10
+	},
+	"modules/shu/waypoints/backgrounds/views.feature.ts": {
+		"writes a term more than once in place of a constant": 9
+	},
+	"modules/tooling/src/adapters/bundles.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/tooling/src/root.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/utils/src/scaffold/adapters/scaffold.ts": {
+		"writes a term more than once in place of a constant": 5
+	},
+	"modules/utils/src/vcapture/adapters/vcapture.ts": {
+		"writes a term more than once in place of a constant": 3
+	},
+	"modules/web-playwright/src/adapters/browser-model.ts": {
+		"writes a term more than once in place of a constant": 4
+	},
+	"modules/web-playwright/src/adapters/page-events.ts": {
+		"writes a term more than once in place of a constant": 3
+	},
+	"modules/web-playwright/src/domains/web-playwright.ts": {
+		"writes a term more than once in place of a constant": 14
+	},
+	"modules/web-playwright/src/machines/browser-holding.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/web-playwright/src/pipelines/navigation.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/web-playwright/src/pipelines/rest.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/web-playwright/src/relay-client/adapters/relay-connection.ts": {
+		"writes a term more than once in place of a constant": 12
+	},
+	"modules/web-playwright/src/relay-client/machines/relay-connection.ts": {
+		"writes a term more than once in place of a constant": 2
+	},
+	"modules/web-playwright/src/web-playwright-stepper.ts": {
+		"writes a term more than once in place of a constant": 4
+	},
+	"modules/web-server-hono/src/adapters/server-hono.ts": {
+		"writes a term more than once in place of a constant": 3
+	},
+	"modules/web-server-hono/src/domains/web-server.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/web-server-hono/src/pipelines/capability-verifier.ts": {
+		"writes a term more than once in place of a constant": 1
+	},
+	"modules/web-server-hono/src/pipelines/event-stream.ts": {
+		"writes a term more than once in place of a constant": 4
+	},
+	"modules/web-server-hono/src/pipelines/mcp.ts": {
+		"writes a term more than once in place of a constant": 5
+	}
+}

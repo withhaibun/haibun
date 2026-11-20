@@ -13,6 +13,7 @@ import { countedMembers, entailedMembers, expressionCompletions, subsumes, trunc
 import { REASONING_READ_CEILING } from "../domains/reasoning.js";
 import type { TWorld } from "@haibun/core/lib/actuality/domains/world.js";
 import { readRecordQuery } from "@haibun/core/lib/records/pipelines/record-query.js";
+import { PROV_ACTIVITY, PROV_ENTITY } from "@haibun/core/lib/domains/vocabularies.js";
 
 const [STEP, NOTE] = ["Step", "Note"];
 const typeOf = (persistedAs: string, type: string) => ({
@@ -28,7 +29,7 @@ const typeOf = (persistedAs: string, type: string) => ({
 		edges: { about: { rel: LinkRelations.PART_OF.rel, range: STEP } },
 	},
 });
-const definitions = [typeOf(STEP, "prov:Activity"), typeOf(NOTE, "prov:Entity")];
+const definitions = [typeOf(STEP, PROV_ACTIVITY), typeOf(NOTE, PROV_ENTITY)];
 const domains = mapDefinitionsToDomains(definitions);
 /** Two steps, and a note about the second. */
 const FACTS: [string, string, string, string][] = [
@@ -69,7 +70,7 @@ describe("entailedMembers", () => {
 	});
 
 	it("returns the records of each type a named class subsumes, through the IRI the type declares", { timeout: 30_000 }, async () => {
-		expect(sorted(await members("prov:Activity"))).toEqual(["Step:s1", "Step:s2"]);
+		expect(sorted(await members(PROV_ACTIVITY))).toEqual(["Step:s1", "Step:s2"]);
 		expect(sorted(await members("Note or Step"))).toEqual(["Note:n1", "Step:s1", "Step:s2"]);
 	});
 
@@ -87,12 +88,12 @@ describe("entailedMembers", () => {
 describe("subsumes", () => {
 	const subsumed = async (sub: string, sup: string) => subsumes(reasoner(), await storeWith(), domains, HAIBUN_RECORD_NAMESPACE, sub, sup);
 	it("holds where a member that stands for any member of the first is a member of the second", { timeout: 30_000 }, async () => {
-		expect(await subsumed("Step", "prov:Activity")).toBe(true);
-		expect(await subsumed(`Note and ${LinkRelations.PART_OF.rel} some Step`, "prov:Entity")).toBe(true);
+		expect(await subsumed("Step", PROV_ACTIVITY)).toBe(true);
+		expect(await subsumed(`Note and ${LinkRelations.PART_OF.rel} some Step`, PROV_ENTITY)).toBe(true);
 		expect(await subsumed("Note or Step", "Note or Step")).toBe(true);
 	});
 	it("doesn't hold where the ontology doesn't entail it", { timeout: 30_000 }, async () => {
-		expect(await subsumed("Note", "prov:Activity")).toBe(false);
+		expect(await subsumed("Note", PROV_ACTIVITY)).toBe(false);
 		expect(await subsumed("Note or Step", "Note")).toBe(false);
 	});
 });

@@ -7,7 +7,23 @@
  * step that made it, so what a step found is read the same way as what a step produced. Each type records a check actuality made,
  * so actuality writes an assertion while any step is in progress, and a step's contract doesn't list it.
  */
-import { PROV_AGENT } from "./vocabularies.js";
+import {
+	DCTERMS_DESCRIPTION,
+	EARL_ASSERTED_BY,
+	EARL_ASSERTION,
+	EARL_ASSERTOR,
+	EARL_INFO,
+	EARL_MODE_PROPERTY,
+	EARL_OUTCOME_PROPERTY,
+	EARL_POINTER,
+	EARL_RESULT,
+	EARL_SUBJECT,
+	EARL_TEST,
+	EARL_TEST_CASE,
+	EARL_TEST_RESULT,
+	EARL_TEST_SUBJECT,
+	PROV_AGENT,
+} from "./vocabularies.js";
 import { VERDICT } from "./protocol.js";
 import { z } from "zod";
 import { Access, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "./resources.js";
@@ -66,7 +82,7 @@ export const earlDomainDefinitions: TDomainDefinition[] = [
 		topology: {
 			persistedAs: EARL_LABEL.assertor,
 			observesActuality: true,
-			type: "earl:Assertor",
+			type: EARL_ASSERTOR,
 			subClassOf: PROV_AGENT,
 			id: "id",
 			accessLevel: Access.public,
@@ -82,7 +98,7 @@ export const earlDomainDefinitions: TDomainDefinition[] = [
 			persistedAs: EARL_LABEL.testSubject,
 			observesActuality: true,
 			accessLevel: Access.private,
-			type: "earl:TestSubject",
+			type: EARL_TEST_SUBJECT,
 			id: "id",
 			properties: { id: LinkRelations.IDENTIFIER.rel, url: LinkRelations.URL.rel },
 			displayLabel: "id",
@@ -95,13 +111,13 @@ export const earlDomainDefinitions: TDomainDefinition[] = [
 		topology: {
 			persistedAs: EARL_LABEL.testCase,
 			observesActuality: true,
-			type: "earl:TestCase",
+			type: EARL_TEST_CASE,
 			id: "id",
 			accessLevel: Access.public,
 			properties: {
 				id: LinkRelations.IDENTIFIER.rel,
 				name: LinkRelations.NAME.rel,
-				description: { rel: LinkRelations.CONTENT.rel, iri: "dcterms:description" },
+				description: { rel: LinkRelations.CONTENT.rel, iri: DCTERMS_DESCRIPTION },
 				url: LinkRelations.URL.rel,
 				tags: LinkRelations.TAG.rel,
 			},
@@ -116,14 +132,14 @@ export const earlDomainDefinitions: TDomainDefinition[] = [
 			persistedAs: EARL_LABEL.testResult,
 			observesActuality: true,
 			accessLevel: Access.private,
-			type: "earl:TestResult",
+			type: EARL_TEST_RESULT,
 			id: "id",
 			properties: {
 				id: LinkRelations.IDENTIFIER.rel,
 				// Grouped-as, so "the failed results" and "the serious results" are filters the type offers.
-				outcome: { rel: LinkRelations.CONTEXT.rel, iri: "earl:outcome" },
-				info: { rel: LinkRelations.CONTENT.rel, iri: "earl:info" },
-				pointers: { rel: LinkRelations.TAG.rel, iri: "earl:pointer" },
+				outcome: { rel: LinkRelations.CONTEXT.rel, iri: EARL_OUTCOME_PROPERTY },
+				info: { rel: LinkRelations.CONTENT.rel, iri: EARL_INFO },
+				pointers: { rel: LinkRelations.TAG.rel, iri: EARL_POINTER },
 				impact: LinkRelations.CONTEXT.rel,
 			},
 			displayLabel: "outcome",
@@ -138,14 +154,14 @@ export const earlDomainDefinitions: TDomainDefinition[] = [
 			persistedAs: EARL_LABEL.assertion,
 			observesActuality: true,
 			accessLevel: Access.private,
-			type: "earl:Assertion",
+			type: EARL_ASSERTION,
 			id: "id",
-			properties: { id: LinkRelations.IDENTIFIER.rel, mode: { rel: LinkRelations.CONTEXT.rel, iri: "earl:mode" } },
+			properties: { id: LinkRelations.IDENTIFIER.rel, mode: { rel: LinkRelations.CONTEXT.rel, iri: EARL_MODE_PROPERTY } },
 			edges: {
-				[EARL_ASSERTION_EDGE.assertedBy]: { rel: LinkRelations.ATTRIBUTED_TO.rel, iri: "earl:assertedBy", range: EARL_LABEL.assertor, roleNoun: "Assertor" },
-				[EARL_ASSERTION_EDGE.subject]: { rel: LinkRelations.TARGET.rel, iri: "earl:subject", range: EARL_LABEL.testSubject },
-				[EARL_ASSERTION_EDGE.test]: { rel: LinkRelations.CONTEXT.rel, iri: "earl:test", range: EARL_LABEL.testCase },
-				[EARL_ASSERTION_EDGE.result]: { rel: LinkRelations.CONTEXT.rel, iri: "earl:result", range: EARL_LABEL.testResult, owns: true },
+				[EARL_ASSERTION_EDGE.assertedBy]: { rel: LinkRelations.ATTRIBUTED_TO.rel, iri: EARL_ASSERTED_BY, range: EARL_LABEL.assertor, roleNoun: "Assertor" },
+				[EARL_ASSERTION_EDGE.subject]: { rel: LinkRelations.TARGET.rel, iri: EARL_SUBJECT, range: EARL_LABEL.testSubject },
+				[EARL_ASSERTION_EDGE.test]: { rel: LinkRelations.CONTEXT.rel, iri: EARL_TEST, range: EARL_LABEL.testCase },
+				[EARL_ASSERTION_EDGE.result]: { rel: LinkRelations.CONTEXT.rel, iri: EARL_RESULT, range: EARL_LABEL.testResult, owns: true },
 				[EARL_ASSERTION_EDGE.wasGeneratedBy]: { rel: LinkRelations.WAS_GENERATED_BY.rel, range: SEQ_PATH_LABEL, reference: true },
 			},
 			// Titled by the test case whose result it states.
