@@ -82,6 +82,14 @@ function withBefore(root: string, configs: readonly string[], fs: TConfigFiles):
 /** Whether a path is a config or a directory that holds it. */
 const within = (config: string, at: string): boolean => config === at || at === "." || config.startsWith(`${at}/`);
 
+/** What a group needs of a command that `selection` doesn't give, as the command line states each: the group's set, and its
+ *  environments where the selection doesn't name each of them. A selection selects a group where this list is empty. */
+export function needs(group: TGroup, selection: TGroupSelection): string[] {
+	const set = group.set === selection.set ? [] : [group.set === undefined ? `a command without ${GROUP_OPTIONS.set}` : `${GROUP_OPTIONS.set} ${group.set}`];
+	const named = group.environments.every((environment) => selection.environments.includes(environment));
+	return [...set, ...(named ? [] : [`${GROUP_OPTIONS.environments} ${group.environments.join(",")}`])];
+}
+
 /** The groups a selection runs, in the order they run: each config a path it gives names, whatever its set and environments, and each
  *  group of the set it names whose environments it names, narrowed to the paths it gives, with each group these name in `after`, each after the groups it names and otherwise by its config's path, and each with
  *  the selection's feature filter where it gives one. Throws where a
@@ -94,9 +102,7 @@ export function selectedGroups(groups: readonly TGroup[], selection: TGroupSelec
 	const chosen = groups.filter(
 		(group) =>
 			selection.within.includes(group.config) ||
-			(group.set === selection.set &&
-				group.environments.every((environment) => selection.environments.includes(environment)) &&
-				(selection.within.length === 0 || selection.within.some((at) => within(group.config, at)))),
+			(needs(group, selection).length === 0 && (selection.within.length === 0 || selection.within.some((at) => within(group.config, at)))),
 	);
 	const ordered: TGroup[] = [];
 	const visit = (group: TGroup, through: readonly string[]): void => {
@@ -112,20 +118,26 @@ export function selectedGroups(groups: readonly TGroup[], selection: TGroupSelec
 	return selection.filter.length === 0 ? ordered : ordered.map((group) => ({ ...group, filter: selection.filter }));
 }
 
+/** Why `selection` doesn't select a group of `found`: each group within its paths with what it needs of the command, as `needs` states. */
+export function unselectedGroups(found: readonly TGroup[], selection: TGroupSelection): string {
+	const candidates = found.filter(({ config }) => selection.within.length === 0 || selection.within.some((at) => within(config, at)));
+	if (candidates.length === 0) return `groups: ${selection.within.length === 0 ? "the repository" : selection.within.join(", ")} doesn't hold a group`;
+	return candidates.map((group) => `groups: ${group.config} needs ${needs(group, selection).join(" and ")}`).join("\n");
+}
+
 /** Runs the groups of the working directory's repository that the command line selects, one after another, and returns the exit code
  *  of the first that fails, or 0 where each passes. */
 export async function runGroups(args: readonly string[], { fs, groups: repository }: Pick<TCliPorts, "fs" | "groups">): Promise<number> {
 	const root = process.cwd();
 	const { selection, list, forwarded } = groupArgs(args, (at) => fs.existsSync(path.join(root, at)));
-	const groups = selectedGroups(foundGroups(root, namesConfigs(selection) ? withBefore(root, selection.within, fs) : repository.files(), fs), selection);
+	const found = foundGroups(root, namesConfigs(selection) ? withBefore(root, selection.within, fs) : repository.files(), fs);
+	const groups = selectedGroups(found, selection);
 	if (list) {
 		console.info(JSON.stringify(groups.map(({ config }) => config)));
 		return 0;
 	}
 	if (groups.length === 0) {
-		const set = selection.set === undefined ? `that runs without ${GROUP_OPTIONS.set}` : selection.set;
-		const environments = selection.environments.length === 0 ? "none" : selection.environments.join(", ");
-		console.error(`groups: the set ${set} doesn't hold a group with the environments ${environments}. Name a set or the environments of a group.`);
+		console.error(unselectedGroups(found, selection));
 		return 1;
 	}
 	for (const group of groups) {

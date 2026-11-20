@@ -86,16 +86,25 @@ async function getFeaturesAndBackgrounds(
 			}
 		}
 		if (rawFeaturesAndBackgrounds.features.length < 1 && rawFeaturesAndBackgrounds.backgrounds.length < 1) {
-			throw Error(`"${abase}" ${BASE_WITHOUT_FEATURES}`);
+			throw Error(`"${path.resolve(abase)}" ${BASE_WITHOUT_FEATURES}${matching(featureFilter)}`);
 		}
 		ret.features = ret.features.concat(rawFeaturesAndBackgrounds.features);
 		ret.backgrounds = ret.backgrounds.concat(rawFeaturesAndBackgrounds.backgrounds);
 	}
 	if (ret.features.length < 1) {
-		throw Error(`"${bases.join(", ")}" doesn't hold a feature`);
+		throw Error(`"${bases.map((base) => path.resolve(base)).join(", ")}" doesn't hold a feature${matching(featureFilter)}`);
 	}
 	return ret;
 }
+
+/** The filters of a run where they narrow its features, and empty where a run states only empty filters or states them as undefined, since an empty filter takes every feature. */
+const activeFilters = (featureFilter: string[] | undefined): string[] => (featureFilter === undefined || featureFilter.every((f) => f === "") ? [] : featureFilter);
+
+/** Where a filter narrows a run's features, the clause that names it, so a base whose features it doesn't match doesn't read as empty. */
+const matching = (featureFilter: string[] | undefined): string => {
+	const filters = activeFilters(featureFilter);
+	return filters.length === 0 ? "" : ` that matches ${filters.map((f) => `"${f}"`).join(" or ")}`;
+};
 
 async function recurse(
 	base: string,
@@ -160,10 +169,8 @@ export function shouldProcess(file: string, type: undefined | string, featureFil
 	// For .feature files, check if type matches or is undefined
 	// Note: both 'feature' and 'background' types use .feature extension
 	const isType = iskireji || !type || file.endsWith(`.${type}`) || (type === "background" && file.endsWith(".feature"));
-	const matchesFilter =
-		featureFilter === undefined || featureFilter.every((f) => f === "") || featureFilter.length < 1
-			? true
-			: !!featureFilter.find((f) => file.replace(/\/.*?\/([^.*?/])/, "$1").match(f));
+	const filters = activeFilters(featureFilter);
+	const matchesFilter = filters.length === 0 || filters.some((f) => file.replace(/\/.*?\/([^.*?/])/, "$1").match(f));
 
 	if (!isType || !matchesFilter) return false;
 

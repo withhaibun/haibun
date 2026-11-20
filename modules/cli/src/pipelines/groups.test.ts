@@ -3,7 +3,7 @@ import type { TSpecl } from "@haibun/core/lib/actuality.js";
 import type { TGroup } from "../domains/groups.js";
 import path from "node:path";
 import type { TConfigFiles, TGroups } from "../ports.js";
-import { foundGroups, groupArgs, runGroups, selectedGroups } from "./groups.js";
+import { foundGroups, groupArgs, runGroups, selectedGroups, unselectedGroups } from "./groups.js";
 
 /** The configs of a repository by their paths, which a fake reads in place of the files. */
 const CONFIGS: Record<string, TSpecl> = {
@@ -41,6 +41,17 @@ const NONE = { set: undefined, environments: [], within: [], filter: [] };
 const exists = (at: string) => fs.existsSync(at);
 
 describe("haibun-cli --groups", () => {
+	it("states what each group within a selection's paths needs of the command, where the selection doesn't select one", () => {
+		expect(selectedGroups(found, { ...NONE, within: ["worker"] })).toEqual([]);
+		expect(unselectedGroups(found, { ...NONE, within: ["worker"] })).toBe("groups: worker/config.json needs --environments staging");
+		expect(unselectedGroups(found, { ...NONE, within: ["scale", "worker"] }).split("\n")).toEqual([
+			"groups: scale/config.json needs --set scale",
+			"groups: worker/config.json needs --environments staging",
+		]);
+		expect(unselectedGroups(found, { ...NONE, set: "scale", within: ["worker"] })).toBe("groups: worker/config.json needs a command without --set and --environments staging");
+		expect(unselectedGroups(found, { ...NONE, within: ["tests/instance"] })).toBe("groups: tests/instance doesn't hold a group");
+	});
+
 	it("finds each config that declares a group, with what it declares and its environments", () => {
 		expect(configs(found)).toEqual(["profile/config-reopened.json", "profile/config.json", "scale/config.json", "tests/config.json", "worker/config.json"]);
 		expect(found.find(({ config }) => config === "tests/config.json")).toMatchObject({ bases: [".", "@haibun/shu/waypoints"], filter: [], environments: [] });

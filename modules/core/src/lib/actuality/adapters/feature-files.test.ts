@@ -84,6 +84,11 @@ describe("the feature files of a file system", () => {
 			"doesn't hold a feature",
 		);
 	});
+
+	it("names the filter where it doesn't match a feature a base holds, so the base doesn't read as empty", async () => {
+		const collecting = featureFiles(nfs({ "/b/features": { "graph.feature": "#" } })).collect(["/b"], ["ask-vc"], undefined);
+		await expect(collecting).rejects.toThrow('"/b" doesn\'t hold a feature or a background that matches "ask-vc"');
+	});
 });
 
 describe("shouldProcess", () => {
